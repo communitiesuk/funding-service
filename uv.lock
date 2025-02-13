@@ -112,6 +112,18 @@ async = [
 ]
 
 [[package]]
+name = "flask-debugtoolbar"
+version = "0.16.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flask" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/18/0b/19a29b9354b3c00102a475791093358a30afba43e8b676294e7d01964592/flask_debugtoolbar-0.16.0.tar.gz", hash = "sha256:3b925d4dcc09205471e5021019dfeb0eb6dabd6c184de16a3496dfb1f342afe1", size = 335258 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a2/17/f2a647152315561787d2dfc7dcaf452ec83930a31de9d083a7094da404de/flask_debugtoolbar-0.16.0-py3-none-any.whl", hash = "sha256:2857a58ef20b88cf022a88bb7f0c6f6be1fb91a2e8b2d9fcc9079357a692083e", size = 413047 },
+]
+
+[[package]]
 name = "flask-migrate"
 version = "4.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -164,6 +176,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "flask-debugtoolbar" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -182,6 +195,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "flask-debugtoolbar", specifier = ">=0.16.0" },
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "pre-commit", specifier = ">=4.1.0" },
     { name = "pytest", specifier = ">=8.3.4" },

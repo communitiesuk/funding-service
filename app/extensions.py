@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from flask_debugtoolbar import DebugToolbarExtension
 from flask_migrate import Migrate
 from flask_sqlalchemy_lite import SQLAlchemy
 from sqlalchemy import MetaData, func
@@ -26,3 +27,4 @@ class BaseModel(DeclarativeBase):
 
 db = SQLAlchemy()
 migrate = Migrate(metadatas=BaseModel.metadata)
+toolbar = DebugToolbarExtension()
