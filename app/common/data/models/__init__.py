@@ -1,18 +1,9 @@
-import uuid
-from datetime import datetime
+from sqlalchemy.orm import Mapped
 
-from sqlalchemy import func
-from sqlalchemy.orm import mapped_column, Mapped
+from app.extensions import BaseModel
 
 
-class Grant:
-    id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        default=func.now,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        default=func.now,
-    )
+class Grant(BaseModel):
+    __tablename__ = 'grant'
+
     name: Mapped[str]
