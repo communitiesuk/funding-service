@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "flask-sqlalchemy-lite>=0.1.0",
     "flask>=3.1.0",
+    "sqlalchemy>=2.0.38",
 ]
 
 [dependency-groups]
