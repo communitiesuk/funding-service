@@ -1,5 +1,6 @@
 from flask import Flask
 
+from app.common import logging
 from app.common.sentry import init_sentry
 from app.extensions import db, migrate, toolbar
 
@@ -10,6 +11,7 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object("app.config.Config")
 
+    logging.init_app(app)
     db.init_app(app)
     migrate.init_app(
         app,
