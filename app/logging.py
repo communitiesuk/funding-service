@@ -46,6 +46,9 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
             "request_extra_context": {
                 "()": "app.logging.RequestExtraContextFilter",
             },
+            "reject_mutable_data_structures": {
+                "()": "app.logging.RejectMutableDataStructuresFilter",
+            },
         },
         "formatters": {
             "plaintext": {
@@ -62,7 +65,7 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
                 "class": "logging.NullHandler",
             },
             "default": {
-                "filters": ["request_extra_context"],
+                "filters": ["request_extra_context", "reject_mutable_data_structures"],
                 "formatter": formatter,
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stdout",
@@ -142,6 +145,28 @@ class RequestExtraContextFilter(logging.Filter):
                 for key, value in get_extra_log_context().items():
                     setattr(record, key, value)
 
+        return record
+
+
+class RejectMutableDataStructuresFilter(logging.Filter):
+    def filter(self, record: LogRecord) -> LogRecord:
+        logging_msg_args: dict[str, Any] | None
+        if isinstance(record.args, tuple):
+            logging_msg_args = record.args[0] if len(record.args) > 0 else None  # type: ignore[assignment]
+        else:
+            logging_msg_args = record.args  # type: ignore[assignment]
+
+        if not logging_msg_args:
+            return record
+
+        for k, v in logging_msg_args.items():
+            if not isinstance(v, str | int | float | bool):
+                # We want to only allow basic data types to be logged. There is a security/data protection risk that
+                # comes with logging more complex types like lists and dicts; it is easier to accidentally include
+                # PII, or to make a change in the future that adds it without realising we'll end up logging it out.
+                raise ValueError(
+                    f"Attempt to log data type `{type(v)}` rejected by security policy."
+                )
         return record
 
 
