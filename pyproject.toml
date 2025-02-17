@@ -9,6 +9,7 @@ dependencies = [
     "flask>=3.1.0",
     "sqlalchemy>=2.0.38",
     "flask-migrate>=4.1.0",
+    "psycopg2>=2.9.10",
 ]
 
 [dependency-groups]
@@ -21,6 +22,7 @@ dev = [
     "ruff>=0.9.6",
     "flask-debugtoolbar>=0.16.0",
     "debugpy>=1.8.12",
+    "testcontainers>=4.9.1",
 ]
 
 [tool.mypy]
