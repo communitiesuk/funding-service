@@ -1,13 +1,12 @@
 import logging
 from logging.config import fileConfig
-from typing import cast, Iterable
+from typing import Iterable, cast
 
+from alembic import context
 from alembic.operations import MigrationScript
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from flask import current_app
-
-from alembic import context
 from sqlalchemy import Engine
 
 # this is the Alembic Config object, which provides
@@ -118,9 +117,7 @@ def run_migrations_online() -> None:
     connectable = get_engine()
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata, **conf_args
-        )
+        context.configure(connection=connection, target_metadata=target_metadata, **conf_args)
 
         with context.begin_transaction():
             context.run_migrations()

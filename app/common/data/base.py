@@ -22,9 +22,5 @@ class BaseModel(DeclarativeBase):
     type_annotation_map = {json_scalars: postgresql.JSONB}
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, sort_order=-100)
-    created_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), sort_order=-99
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), server_onupdate=func.now(), sort_order=-98
-    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), sort_order=-99)
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), server_onupdate=func.now(), sort_order=-98)
