@@ -44,7 +44,7 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
         "disable_existing_loggers": False,
         "filters": {
             "request_extra_context": {
-                "()": "app.common.logging.RequestExtraContextFilter",
+                "()": "app.logging.RequestExtraContextFilter",
             },
         },
         "formatters": {
@@ -53,7 +53,7 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
                 "fmt": "%(asctime)s %(levelname)s - %(message)s - from %(funcName)s() in %(filename)s:%(lineno)d",
             },
             "json": {
-                "()": "app.common.logging.JSONFormatter",
+                "()": "app.logging.JSONFormatter",
                 "fmt": "%(name)s %(levelname)s - %(message)s - from %(funcName)s in %(pathname)s:%(lineno)d",
             },
         },
