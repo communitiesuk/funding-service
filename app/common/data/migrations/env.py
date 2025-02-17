@@ -1,11 +1,13 @@
 import logging
 from logging.config import fileConfig
+from pathlib import Path
 from typing import Iterable, cast
 
 from alembic import context
 from alembic.operations import MigrationScript
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from alembic.script.base import _slug_re
 from flask import current_app
 from sqlalchemy import Engine
 
@@ -36,6 +38,7 @@ def get_engine_url() -> str:
 
 
 from app.common.data.base import BaseModel  # noqa
+import app.common.data.models  # noqa  # loads the actual models for alembic/flask-migrate to parse
 
 target_metadata = BaseModel.metadata
 
@@ -108,7 +111,10 @@ def run_migrations_online() -> None:
                 new_rev_id = last_rev_id + 1
 
             # fill zeros up to 3 digits: 1 -> 001
-            migration_script.rev_id = f"{new_rev_id:03}"
+            slug = "_".join(_slug_re.findall(migration_script.message or "")).lower()
+            truncated_slug = slug[: script_directory.truncate_slug_length]
+            migration_script.rev_id = f"{new_rev_id:03}_{truncated_slug}"
+            migration_script.message = None
 
     conf_args = current_app.extensions["migrate"].configure_args
     if conf_args.get("process_revision_directives") is None:
@@ -121,6 +127,15 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
+    try:
+        with open(Path(__file__).parent / ".current-alembic-head", "w") as f:
+            # write the current head to `.current-alembic-head`. This will prevent conflicting migrations
+            # being merged at the same time and breaking the build.
+            head = cast(str, context.get_head_revision()) or ""
+            f.write(head + "\n")
+    except OSError:
+        pass
 
 
 if context.is_offline_mode():
