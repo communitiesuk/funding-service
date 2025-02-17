@@ -28,4 +28,9 @@ packages = ["app"]
 
 
 [tool.pytest.ini_options]
-addopts = "-n3"
+addopts = "-n4"
+
+filterwarnings = [
+    "error",
+    "ignore:Could not insert debug toolbar:UserWarning"
+]
