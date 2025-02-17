@@ -1,8 +1,8 @@
 from flask import Flask
 
 from app import logging
-from app.sentry import init_sentry
 from app.extensions import db, migrate, toolbar
+from app.sentry import init_sentry
 
 init_sentry()
 

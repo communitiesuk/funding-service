@@ -5,6 +5,7 @@ from typing import Literal
 
 class Config:
     # Flask app
+    FLASK_ENV = os.environ.get("FLASK_ENV", "production")
     SERVER_NAME = "funding.communities.gov.localhost:8080"
     SECRET_KEY = "unsafe"  # pragma: allowlist secret
 

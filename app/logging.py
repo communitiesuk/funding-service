@@ -9,11 +9,10 @@ from os import getpid
 from threading import get_ident as get_thread_ident
 from typing import Any
 
-from flask import Flask, current_app, request, Response
+from flask import Flask, Response, current_app, request
 from flask.ctx import has_request_context
-
-from pythonjsonlogger.json import JsonFormatter as BaseJSONFormatter
 from pythonjsonlogger.core import LogRecord as JSON_LogRecord
+from pythonjsonlogger.json import JsonFormatter as BaseJSONFormatter
 
 
 def _common_request_extra_log_context() -> dict[str, Any]:
@@ -125,9 +124,7 @@ def attach_request_loggers(app: Flask) -> None:
                 ),
                 **_common_request_extra_log_context(),
             }
-            current_app.logger.log(
-                logging.INFO, "%(method)s %(url)s %(status)s", log_data, extra=log_data
-            )
+            current_app.logger.log(logging.INFO, "%(method)s %(url)s %(status)s", log_data, extra=log_data)
         return response
 
 
@@ -159,14 +156,12 @@ class RejectMutableDataStructuresFilter(logging.Filter):
         if not logging_msg_args:
             return record
 
-        for k, v in logging_msg_args.items():
+        for _k, v in logging_msg_args.items():
             if not isinstance(v, str | int | float | bool):
                 # We want to only allow basic data types to be logged. There is a security/data protection risk that
                 # comes with logging more complex types like lists and dicts; it is easier to accidentally include
                 # PII, or to make a change in the future that adds it without realising we'll end up logging it out.
-                raise ValueError(
-                    f"Attempt to log data type `{type(v)}` rejected by security policy."
-                )
+                raise ValueError(f"Attempt to log data type `{type(v)}` rejected by security policy.")
         return record
 
 
