@@ -2,8 +2,10 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import MetaData, func
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from app.common.data.types import json_scalars
 
 convention = {
   "ix": "ix_%(column_0_label)s",
@@ -17,7 +19,9 @@ convention = {
 class BaseModel(DeclarativeBase):
     __abstract__ = True
     metadata = MetaData(naming_convention=convention)
-    type_annotation_map = {}
+    type_annotation_map = {
+        json_scalars: postgresql.JSONB
+    }
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, sort_order=-100)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), sort_order=-99)
