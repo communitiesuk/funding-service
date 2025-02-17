@@ -13,5 +13,3 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8080
-
-CMD ["flask", "run", "--host=0.0.0.0", "--port=8080", "--reload"]
