@@ -1,6 +1,9 @@
 from flask import Flask
 
+from app.common.sentry import init_sentry
 from app.extensions import db, migrate, toolbar
+
+init_sentry()
 
 
 def create_app() -> Flask:
