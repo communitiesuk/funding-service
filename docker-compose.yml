@@ -23,7 +23,7 @@ services:
     tty: true
     command: >
       bash -c "
-      python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080
+      python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload
       "
     environment:
       FLASK_ENV: development
