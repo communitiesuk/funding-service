@@ -1,7 +1,13 @@
 # TODO: all of this
+import os
+
+
 class Config:
     SQLALCHEMY_ENGINES = {
-        "default": "sqlite:///default.sqlite"
+        "default": os.environ.get(
+            "DATABASE_URL",
+            "postgresql+psycopg://postgres:postgres@localhost:5432/postgres",
+        )
     }
-    SECRET_KEY = 'unsafe'
+    SECRET_KEY = "unsafe"
     DEBUG_TB_ENABLED = True

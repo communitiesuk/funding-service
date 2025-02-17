@@ -28,7 +28,7 @@ services:
     environment:
       FLASK_ENV: development
       FLASK_PORT: 8080
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/postgres"
+      DATABASE_URL: "postgresql+psycopg://postgres:postgres@db:5432/postgres"
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       AWS_DEFAULT_REGION: eu-west-2
