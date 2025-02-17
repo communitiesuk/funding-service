@@ -1,6 +1,6 @@
 """initial grant table
 
-Revision ID: 001
+Revision ID: 001_initial_grant_table
 Revises:
 Create Date: 2025-02-13 16:41:43.267212
 
@@ -9,7 +9,7 @@ Create Date: 2025-02-13 16:41:43.267212
 import sqlalchemy as sa
 from alembic import op
 
-revision = "001"
+revision = "001_initial_grant_table"
 down_revision = None
 branch_labels = None
 depends_on = None
