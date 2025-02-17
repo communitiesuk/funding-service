@@ -20,6 +20,7 @@ dev = [
     "pytest-xdist>=3.6.1",
     "ruff>=0.9.6",
     "flask-debugtoolbar>=0.16.0",
+    "debugpy>=1.8.12",
 ]
 
 [tool.mypy]
