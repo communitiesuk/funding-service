@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  funding-service:
+    build: .
+    volumes:
+      - .:/app
+      - '/app/.venv' # Don't overwrite this directory with local .venv because uv links won't translate in the container
+    ports:
+      - "8080:8080"
+    environment:
+      FLASK_ENV: development
+      FLASK_PORT: 8080
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/postgres"
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: eu-west-2
+      AWS_ENDPOINT_URL: http://localstack:4566
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  localstack_data:
