@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Mapped
 
-from app.extensions import BaseModel
+from app.common.data.base import BaseModel
 
 
 class Grant(BaseModel):

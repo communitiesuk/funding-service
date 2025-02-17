@@ -34,7 +34,8 @@ def get_engine_url():
         return str(get_engine().url).replace('%', '%%')
 
 
-from app.common.data.models import BaseModel
+from app.common.data.base import BaseModel
+
 target_metadata = BaseModel.metadata
 
 config.set_main_option('sqlalchemy.url', get_engine_url())
