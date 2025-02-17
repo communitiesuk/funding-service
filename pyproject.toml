@@ -11,6 +11,7 @@ dependencies = [
     "flask-migrate>=4.1.0",
     "psycopg>=3.2.4",
     "sentry-sdk>=2.22.0",
+    "python-json-logger>=3.2.1",
 ]
 
 [dependency-groups]
@@ -24,6 +25,7 @@ dev = [
     "flask-debugtoolbar>=0.16.0",
     "debugpy>=1.8.12",
     "testcontainers>=4.9.1",
+    "types-flask-migrate>=4.1.0.20250112",
 ]
 
 [tool.mypy]
