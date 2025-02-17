@@ -27,6 +27,7 @@ dev = [
     "testcontainers>=4.9.1",
     "types-flask-migrate>=4.1.0.20250112",
     "pytest-env>=1.1.5",
+    "pytest-fail-slow>=0.6.0",
 ]
 
 [tool.ruff]
