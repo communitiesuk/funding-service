@@ -1,0 +1,64 @@
+name: Build & unit test
+run-name: Build & unit test
+
+on:
+  workflow_call:
+
+jobs:
+  check_db_migrations:
+    name: Check DB migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.2@sha256:4aea012537edfad80f98d870a36e6b90b4c09b27be7f4b4759d72db863baeebb
+        env:
+          POSTGRES_PASSWORD: password  # pragma: allowlist secret
+          POSTGRES_DB: postgres
+        options: --health-cmd pg_isready --health-interval 1s --health-timeout 1s --health-retries 10
+        ports:
+          - 5432:5432
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+    - name: Install the latest version of uv
+      uses: astral-sh/setup-uv@4db96194c378173c656ce18a155ffc14a9fc4355 # v5
+      with:
+        enable-cache: true
+    - name: Check DB is up to date
+      env:
+        FLASK_ENV: unit_test
+        DATABASE_URL: postgresql+psycopg://postgres:password@localhost:5432/postgres  # pragma: allowlist secret
+      run: uv run --frozen flask db upgrade && uv run --frozen flask db check
+    - name: Check that .current-alembic-head is pinned
+      env:
+        FLASK_ENV: unit_test
+        DATABASE_URL: postgresql+psycopg://postgres:password@localhost:5432/postgres  # pragma: allowlist secret
+      run: |
+        uv run --frozen flask db current | grep "$(cat ./app/common/data/migrations/.current-alembic-head) (head)"
+
+  unit_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@4db96194c378173c656ce18a155ffc14a9fc4355 # v5
+        with:
+          enable-cache: true
+      - name: install dependencies
+        run: uv sync --frozen
+      - name: run unit tests
+        run: uv run pytest -nauto .
+
+  type_checking:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@4db96194c378173c656ce18a155ffc14a9fc4355 # v5
+        with:
+          enable-cache: true
+      - name: install dependencies
+        run: uv sync
+      - name: run type checking
+        run: uv run mypy
