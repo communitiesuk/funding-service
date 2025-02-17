@@ -23,7 +23,9 @@ services:
     tty: true
     command: >
       bash -c "
-      python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload
+      cp /app/certs/rootCA.pem /usr/local/share/ca-certificates/rootCA.crt && \
+      update-ca-certificates && \
+      python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
     environment:
       FLASK_ENV: development

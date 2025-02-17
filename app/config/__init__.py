@@ -9,5 +9,6 @@ class Config:
             "postgresql+psycopg://postgres:postgres@localhost:5432/postgres",
         )
     }
+    SERVER_NAME = "funding.communities.gov.localhost:8080"
     SECRET_KEY = "unsafe"
     DEBUG_TB_ENABLED = True

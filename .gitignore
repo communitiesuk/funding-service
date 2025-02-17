@@ -244,3 +244,6 @@ sqlite.db
 axe_reports/
 html/
 /static
+
+# Local mkcert certs for HTTPS during dev
+certs
