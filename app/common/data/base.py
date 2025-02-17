@@ -14,10 +14,10 @@ convention = {
 }
 
 
-
 class BaseModel(DeclarativeBase):
     __abstract__ = True
     metadata = MetaData(naming_convention=convention)
+    type_annotation_map = {}
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, sort_order=-100)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), sort_order=-99)
