@@ -10,5 +10,5 @@ class Config:
         )
     }
     SERVER_NAME = "funding.communities.gov.localhost:8080"
-    SECRET_KEY = "unsafe"
+    SECRET_KEY = "unsafe"  # pragma: allowlist secret
     DEBUG_TB_ENABLED = True
