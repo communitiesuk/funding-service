@@ -10,6 +10,7 @@ dependencies = [
     "sqlalchemy>=2.0.38",
     "flask-migrate>=4.1.0",
     "psycopg>=3.2.4",
+    "sentry-sdk>=2.22.0",
 ]
 
 [dependency-groups]
