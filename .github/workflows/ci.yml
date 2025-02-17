@@ -1,0 +1,13 @@
+name: CI tests
+run-name: CI tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+jobs:
+  build_and_test:
+    name: Build and test
+    uses: ./.github/workflows/build_and_test.yml
