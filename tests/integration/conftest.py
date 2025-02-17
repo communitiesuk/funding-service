@@ -28,3 +28,14 @@ def app(setup_db_container):
 @pytest.fixture()
 def client(app):
     return app.test_client()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _integration_test_timeout(request):
+    """Fail tests under `tests/integration` if they take more than 10ms, to encourage us to maintain tests that are
+    reasonably fast here.
+
+    These tests may talk over the network (eg to the DB), so we need to make some allowance for that, but they should
+    still be able to be fairly fast.
+    """
+    request.node.add_marker(pytest.mark.fail_slow("10ms"))
