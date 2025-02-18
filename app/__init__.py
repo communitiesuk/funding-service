@@ -23,6 +23,7 @@ def create_app() -> Flask:
         directory="app/common/data/migrations",
         compare_type=True,
         render_as_batch=True,
+        metadatas=BaseModel.metadata,
     )
     toolbar.init_app(app)
     vite.init_app(app)
