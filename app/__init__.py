@@ -8,6 +8,8 @@ init_sentry()
 
 
 def create_app() -> Flask:
+    from app.common.data.base import BaseModel
+
     app = Flask(__name__)
     app.config.from_object("app.config.Config")
 
@@ -19,6 +21,7 @@ def create_app() -> Flask:
         directory="app/common/data/migrations",
         compare_type=True,
         render_as_batch=True,
+        metadatas=BaseModel.metadata,
     )
     toolbar.init_app(app)
     vite.init_app(app)
