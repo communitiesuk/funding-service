@@ -222,6 +222,18 @@ wheels = [
 ]
 
 [[package]]
+name = "flask-vite"
+version = "0.5.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flask" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7a/82/1af9d3d5b9ad78fc2ebd2b9928371837c0da6cabab0acad117b351a3b220/flask_vite-0.5.2.tar.gz", hash = "sha256:b26f0641e8c29f14d275327c0669ca454fcc02d94b600735da69b609d51d0b91", size = 30901 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/12/e9/d607927a848095bc1af71bc39c4886b3bfd081f3849fecb1a5d0bf97c6e6/flask_vite-0.5.2-py3-none-any.whl", hash = "sha256:f07876a752a5ea578abbd4023e6a0d49a29e6d85c513f80f780abb45a8f45f83", size = 30185 },
+]
+
+[[package]]
 name = "funding-service"
 version = "0.1.0"
 source = { virtual = "." }
@@ -229,6 +241,7 @@ dependencies = [
     { name = "flask" },
     { name = "flask-migrate" },
     { name = "flask-sqlalchemy-lite" },
+    { name = "flask-vite" },
     { name = "psycopg" },
     { name = "python-json-logger" },
     { name = "sentry-sdk" },
@@ -256,6 +269,7 @@ requires-dist = [
     { name = "flask", specifier = ">=3.1.0" },
     { name = "flask-migrate", specifier = ">=4.1.0" },
     { name = "flask-sqlalchemy-lite", specifier = ">=0.1.0" },
+    { name = "flask-vite", specifier = ">=0.5.2" },
     { name = "psycopg", specifier = ">=3.2.4" },
     { name = "python-json-logger", specifier = ">=3.2.1" },
     { name = "sentry-sdk", specifier = ">=2.22.0" },

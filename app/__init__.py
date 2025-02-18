@@ -1,7 +1,7 @@
 from flask import Flask
 
 from app import logging
-from app.extensions import db, migrate, toolbar
+from app.extensions import db, migrate, toolbar, vite
 from app.sentry import init_sentry
 
 init_sentry()
@@ -21,6 +21,7 @@ def create_app() -> Flask:
         render_as_batch=True,
     )
     toolbar.init_app(app)
+    vite.init_app(app)
 
     from app.healthcheck import healthcheck_blueprint
 
