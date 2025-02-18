@@ -17,7 +17,7 @@ def create_app() -> Flask:
     db.init_app(app)
     migrate.init_app(
         app,
-        db,  # type: ignore[arg-type]  # https://github.com/miguelgrinberg/Flask-Migrate/issues/557
+        db,  # type: ignore[arg-type]
         directory="app/common/data/migrations",
         compare_type=True,
         render_as_batch=True,
