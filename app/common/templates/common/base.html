@@ -1,0 +1,35 @@
+{% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
+{% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
+{% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
+
+{% set assetPath = url_for('static', filename='').rstrip('/') %}
+{% extends "govuk_frontend_jinja/template.html" %}
+
+{% block head %}
+  {{ vite_tags() | safe }}
+{% endblock head %}
+
+{% block header %}
+{{ mhclgHeader({
+    "productName": "MHCLG Funding Service",
+    "homepageUrl": "#",
+    "classes": "govuk-header--full-width-border app-!-no-wrap",
+    "navigation": [{ "text": ("Sign in"), "href": "#" }],
+    "navigationClasses": "govuk-header__navigation--end"
+}) }}
+{% endblock header %}
+
+{% block bodyEnd %}
+{% endblock %}
+
+{% block footer %}
+{{ govukFooter({
+    "meta": {
+        "items": [
+            { "href": "#", "text": ("Cookies") },
+            { "href": "#", "text": ("Accessibility statement") }
+        ]
+    }
+}) }}
+{% endblock footer %}

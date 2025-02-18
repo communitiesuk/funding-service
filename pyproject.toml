@@ -12,6 +12,8 @@ dependencies = [
     "psycopg>=3.2.4",
     "sentry-sdk>=2.22.0",
     "python-json-logger>=3.2.1",
+    "flask-vite>=0.5.2",
+    "govuk-frontend-jinja>=3.4.1",
 ]
 
 [dependency-groups]
@@ -55,6 +57,13 @@ mccabe.max-complexity = 12
 [tool.mypy]
 strict = true
 packages = ["app"]
+
+[[tool.mypy.overrides]]
+module = [
+  "flask_vite",
+]
+ignore_missing_imports = true
+
 
 
 [tool.pytest.ini_options]

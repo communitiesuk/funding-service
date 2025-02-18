@@ -1,16 +1,20 @@
 from flask import Flask
+from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
 from app import logging
-from app.extensions import db, migrate, toolbar
+from app.extensions import db, migrate, toolbar, vite
 from app.sentry import init_sentry
 
 init_sentry()
 
 
 def create_app() -> Flask:
-    app = Flask(__name__)
+    from app.common.data.base import BaseModel
+
+    app = Flask(__name__, static_folder="vite/dist/assets/static", static_url_path="/static")
     app.config.from_object("app.config.Config")
 
+    # Initialise extensions
     logging.init_app(app)
     db.init_app(app)
     migrate.init_app(
@@ -21,7 +25,17 @@ def create_app() -> Flask:
         render_as_batch=True,
     )
     toolbar.init_app(app)
+    vite.init_app(app)
 
+    # Configure templates
+    app.jinja_loader = ChoiceLoader(
+        [
+            PackageLoader("app.common"),
+            PrefixLoader({"govuk_frontend_jinja": PackageLoader("govuk_frontend_jinja")}),
+        ]
+    )
+
+    # Attach routes
     from app.healthcheck import healthcheck_blueprint
 
     app.register_blueprint(healthcheck_blueprint)

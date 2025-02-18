@@ -157,7 +157,7 @@ class RejectMutableDataStructuresFilter(logging.Filter):
             return record
 
         for _k, v in logging_msg_args.items():
-            if not isinstance(v, str | int | float | bool):
+            if not isinstance(v, str | int | float | bool | None):
                 # We want to only allow basic data types to be logged. There is a security/data protection risk that
                 # comes with logging more complex types like lists and dicts; it is easier to accidentally include
                 # PII, or to make a change in the future that adds it without realising we'll end up logging it out.
