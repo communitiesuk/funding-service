@@ -14,7 +14,11 @@ class Config:
 
     # Logging
     LOG_LEVEL = "INFO"
-    LOG_FORMATTER: Literal["plaintext", "json"] = "json"
+    LOG_FORMATTER: Literal["plaintext", "json"] = "plaintext"
 
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED = True
+
+    # Flask-Vite
+    VITE_AUTO_INSERT = False
+    VITE_FOLDER_PATH = "app/vite"

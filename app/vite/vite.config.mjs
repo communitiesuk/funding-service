@@ -9,7 +9,8 @@ export default {
   },
 
   build: {
-    manifest: true
+    manifest: true,
+    quietDeps: true
   },
 
   resolve: {

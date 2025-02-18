@@ -13,6 +13,7 @@ dependencies = [
     "sentry-sdk>=2.22.0",
     "python-json-logger>=3.2.1",
     "flask-vite>=0.5.2",
+    "govuk-frontend-jinja>=3.4.1",
 ]
 
 [dependency-groups]
