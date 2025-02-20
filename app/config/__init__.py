@@ -13,6 +13,7 @@ class Config:
     SQLALCHEMY_ENGINES = {
         "default": os.environ.get("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/postgres")
     }
+    SQLALCHEMY_RECORD_QUERIES = True  # TODO: only suitable for debugging/development
 
     # Logging
     LOG_LEVEL = "INFO"
