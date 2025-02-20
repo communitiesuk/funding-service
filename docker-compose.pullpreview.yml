@@ -10,7 +10,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - .github/Caddyfile:/etc/caddy/Caddyfile
+      - .pullpreview/Caddyfile:/etc/caddy/Caddyfile
       - "/data"
     networks:
       - ofs
