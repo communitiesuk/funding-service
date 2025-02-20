@@ -37,13 +37,7 @@ services:
       - "8080"
     stdin_open: true
     tty: true
-    command: >
-      bash -c "
-      nvm use && \
-      uv run flask vite install && \
-      uv run flask vite build && \
-      flask run --host 0.0.0.0 --port 8080
-      "
+    command: flask run --host 0.0.0.0 --port 8080
     environment:
       FLASK_ENV: development
       FLASK_PORT: 8080

@@ -36,3 +36,4 @@ jobs:
           compose_files: docker-compose.pullpreview.yml
           instance_type: micro
           ttl: 1h
+          pre_script: .github/setup-pullpreview.sh
