@@ -9,8 +9,9 @@
 
 ### Quickstart
 
-1. `make bootstrap`
-2. `make up`
+1. `nvm use`
+2. `make bootstrap`
+3. `make up`
 
 ### Instructions
 

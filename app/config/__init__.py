@@ -10,7 +10,9 @@ class Config:
     SECRET_KEY = "unsafe"  # pragma: allowlist secret
 
     # Databases
-    SQLALCHEMY_ENGINES = {"default": os.environ["DATABASE_URL"]}
+    SQLALCHEMY_ENGINES = {
+        "default": os.environ.get("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/postgres")
+    }
 
     # Logging
     LOG_LEVEL = "INFO"
