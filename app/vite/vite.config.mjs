@@ -23,15 +23,19 @@ export default {
     viteStaticCopy({
       targets: [
         {
-          src: 'node_modules/govuk-frontend/dist/govuk/assets/fonts',
-          dest: 'assets/static'
-        },
-        {
           src: 'node_modules/govuk-frontend/dist/govuk/assets/images',
           dest: 'assets/static'
         },
         {
+          src: 'node_modules/govuk-frontend/dist/govuk/assets/fonts',
+          dest: 'assets/static'
+        },
+        {
           src: 'node_modules/govuk-frontend/dist/govuk/assets/manifest.json',
+          dest: 'assets/static'
+        },
+        {
+          src: 'src/assets/images',
           dest: 'assets/static'
         }
       ]
