@@ -1,4 +1,19 @@
 services:
+  # use Caddy for SSL termination
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    command: "caddy reverse-proxy --from '${PULLPREVIEW_PUBLIC_DNS}' --to funding-service:8080"
+    depends_on:
+      - funding-service
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/data"
+    networks:
+      - ofs
+
   db:
     image: postgres:16
     restart: always
@@ -19,18 +34,15 @@ services:
       - .:/app
       - '/app/.venv' # Don't overwrite this directory with local .venv because uv links won't translate in the container
     ports:
-      - "3000:3000" # vite server
-      - "8080:8080" # application
-      - "8081:8081" # debugpy
+      - "8080"
     stdin_open: true
     tty: true
     command: >
       bash -c "
-      cp /app/certs/rootCA.pem /usr/local/share/ca-certificates/rootCA.crt && \
-      update-ca-certificates && \
+      nvm use && \
       uv run flask vite install && \
-      (cd app/vite && npm run dev) &
-      python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
+      uv run flask vite build && \
+      flask run --host 0.0.0.0 --port 8080
       "
     environment:
       FLASK_ENV: development
@@ -43,7 +55,6 @@ services:
 
 volumes:
   postgres_data:
-  localstack_data:
 
 networks:
   ofs:
