@@ -11,10 +11,7 @@ class Config:
 
     # Databases
     SQLALCHEMY_ENGINES = {
-        "default": os.environ.get(
-            "DATABASE_URL",
-            "postgresql+psycopg://postgres:postgres@localhost:5432/postgres",
-        )
+        "default": os.environ.get("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/postgres")
     }
 
     # Logging
