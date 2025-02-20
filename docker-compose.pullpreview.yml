@@ -3,13 +3,14 @@ services:
   proxy:
     image: caddy:2
     restart: unless-stopped
-    command: "caddy reverse-proxy --from '${PULLPREVIEW_PUBLIC_DNS}' --to funding-service:8080"
+    command: "caddy run --config /etc/caddy/Caddyfile"
     depends_on:
-      - funding-service
+      - web
     ports:
       - "80:80"
       - "443:443"
     volumes:
+      - .github/Caddyfile:/etc/caddy/Caddyfile
       - "/data"
     networks:
       - ofs
@@ -28,7 +29,7 @@ services:
     networks:
       - ofs
 
-  funding-service:
+  web:
     build: .
     volumes:
       - .:/app
