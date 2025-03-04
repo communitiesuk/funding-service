@@ -28,9 +28,6 @@ def create_app() -> Flask:
     toolbar.init_app(app)
     vite.init_app(app)
 
-    # FIXME: raise this bug on flask-vite and get it fixed
-    app.route("/_vite/<path:filename>", endpoint="app/vite.static", host=vite.vite_routes_host)(vite.vite_static)
-
     # Configure templates
     app.jinja_loader = ChoiceLoader(
         [
