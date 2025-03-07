@@ -23,7 +23,7 @@ If you see permission errors around certs (eg. `ERROR: failed to read the CA key
 7. Continue with step 3. above
 
 * If you hit the error `SecTrustSettingsSetTrustSettings: The authorization was denied since no user interaction was possible.` when doing the above `su -` steps, then you may need to actually logout and login as your admin user instead of using `su`
-* If you subsequently hit git errors that mention `dubious ownership in repository` this is to do with changing the directoery permissions above. A terminal restart should fix this.
+* If you subsequently hit git errors that mention `dubious ownership in repository` this is to do with changing the directory permissions above. A terminal restart should fix this.
 
 ### Instructions
 
