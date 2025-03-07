@@ -13,6 +13,18 @@
 2. `make bootstrap`
 3. `make up`
 
+If you see permission errors around certs (eg. `ERROR: failed to read the CA key: open certs/rootCA-key.pem: permission denied`) follow these instructions instead of step 2. above:
+1. `su <ADMIN_USER>`
+2. `sudo make certs`  Read the output - should be no apparent errors.
+3. `chown -R <STANDARD_USER>:staff certs`
+4. `exit` to return to your standard user shell.
+5. `make vite`
+6. `make clean-build`
+7. Continue with step 3. above
+
+* If you hit the error `SecTrustSettingsSetTrustSettings: The authorization was denied since no user interaction was possible.` when doing the above `su -` steps, then you may need to actually logout and login as your admin user instead of using `su`
+* If you subsequently hit git errors that mention `dubious ownership in repository` this is to do with changing the directoery permissions above. A terminal restart should fix this.
+
 ### Instructions
 
 We use [uv](https://github.com/astral-sh/uv) for managing the local Python environment. Install this tool globally and then run `uv sync` in this repository to install the correct python version and python dependencies.
