@@ -27,7 +27,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/GithubCopilotDeploy
-          role-session-name: "${{ inputs.app_name }}_${{ inputs.environemnt }}_copilot_${{ steps.currentdatetime.outputs.datetime }}"
+          role-session-name: "${{ inputs.app_name }}_${{ inputs.environment }}_copilot_${{ steps.currentdatetime.outputs.datetime }}"
           aws-region: eu-west-2
       - uses: pullpreview/action@v5
         with:
