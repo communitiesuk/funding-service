@@ -247,3 +247,8 @@ html/
 
 # Local mkcert certs for HTTPS during dev
 certs
+
+# Terraform
+.terraform/
+.terraform*
+terraform.tfstate
