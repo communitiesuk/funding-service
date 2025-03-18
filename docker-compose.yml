@@ -33,9 +33,9 @@ services:
       python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
     environment:
-      FLASK_ENV: development
+      FLASK_ENV: local
       FLASK_PORT: 8080
-      DATABASE_URL: "postgresql+psycopg://postgres:postgres@db:5432/postgres"  # pragma: allowlist secret
+      DATABASE_URI: "postgresql+psycopg://postgres:postgres@db:5432/postgres"  # pragma: allowlist secret
     depends_on:
       - db
     networks:

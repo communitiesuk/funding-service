@@ -1,8 +1,8 @@
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 from testcontainers.postgres import PostgresContainer
 
 from app import create_app
-from app.config import Config
 
 
 @pytest.fixture(scope="session")
@@ -13,9 +13,11 @@ def setup_db_container():
     # testcontainers returns a psycopg2 URI by default, but we want to use psycopg3.
     postgres_uri = test_postgres.get_connection_url().replace("+psycopg2", "+psycopg")
 
-    # FIXME: don't mutate global config; we need isolation here somehow.
-    Config.SQLALCHEMY_ENGINES["default"] = postgres_uri
-    yield
+    monkeypatch = MonkeyPatch()
+    with monkeypatch.context():
+        monkeypatch.setenv("DATABASE_URI", postgres_uri)
+        yield
+
     test_postgres.stop()
 
 
