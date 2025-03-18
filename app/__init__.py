@@ -2,6 +2,7 @@ from flask import Flask
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
 from app import logging
+from app.config import get_settings
 from app.extensions import db, migrate, toolbar, vite
 from app.sentry import init_sentry
 
@@ -12,7 +13,7 @@ def create_app() -> Flask:
     from app.common.data.base import BaseModel
 
     app = Flask(__name__, static_folder="vite/dist/assets/static", static_url_path="/static")
-    app.config.from_object("app.config.Config")
+    app.config.from_object(get_settings())
 
     # Initialise extensions
     logging.init_app(app)
