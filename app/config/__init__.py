@@ -115,19 +115,16 @@ class ProdConfig(_SharedConfig):
     FLASK_ENV: Environment = Environment.PROD
 
 
-# Factory to get the appropriate config
-def get_config_class(env: str) -> type[_SharedConfig]:
-    """Return the appropriate configuration class based on environment."""
-    env_configs = {
-        Environment.LOCAL.value: LocalConfig,
-        Environment.DEV.value: DevConfig,
-        Environment.UAT.value: UatConfig,
-        Environment.PROD.value: ProdConfig,
-    }
-    return env_configs[env]
-
-
 def get_settings() -> _SharedConfig:
-    env = os.getenv("FLASK_ENV", Environment.PROD.value)
-    config_class = get_config_class(env)
-    return config_class()  # type: ignore[call-arg]
+    environment = os.getenv("FLASK_ENV", Environment.PROD.value)
+    match Environment(environment):
+        case Environment.LOCAL:
+            return LocalConfig()  # type: ignore[call-arg]
+        case Environment.DEV:
+            return DevConfig()  # type: ignore[call-arg]
+        case Environment.UAT:
+            return UatConfig()  # type: ignore[call-arg]
+        case Environment.PROD:
+            return ProdConfig()  # type: ignore[call-arg]
+
+    raise ValueError(f"Unknown environment: {environment}")
