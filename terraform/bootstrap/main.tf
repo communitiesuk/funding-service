@@ -10,7 +10,7 @@ variable fs_tags {
 data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "fs_terraform_state_bucket" {
-  bucket = "mhclg-fs-terraform-state"
+  bucket = "mhclg-fs-terraform-state-${terraform.workspace}"
 
   lifecycle {
     prevent_destroy = true
