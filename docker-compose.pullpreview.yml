@@ -45,6 +45,7 @@ services:
       DATABASE_URI: "postgresql+psycopg://postgres:postgres@db:5432/postgres"  # pragma: allowlist secret
       SERVER_NAME: web:8080
       SECRET_KEY: unsafe  # pragma: allowlist secret
+      DEBUG_TB_ENABLED: true
     depends_on:
       - db
     networks:

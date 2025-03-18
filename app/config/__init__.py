@@ -97,6 +97,7 @@ class DevConfig(_SharedConfig):
     """
 
     FLASK_ENV: Environment = Environment.DEV
+    DEBUG_TB_ENABLED: bool = False
 
 
 class UatConfig(_SharedConfig):
