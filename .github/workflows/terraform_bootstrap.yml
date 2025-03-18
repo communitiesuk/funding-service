@@ -1,0 +1,72 @@
+name: Terraform Bootstrap
+run-name: ${{inputs.env}}-bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        type: choice
+        options:
+          - dev
+        required: true
+        description: Which AWS environment to run this against
+      tf_log_level:
+        type: choice
+        options:
+          - TRACE
+          - DEBUG
+          - INFO
+          - WARN
+          - ERROR
+        default: ERROR
+        description: Logging level to pass to all terraform commands
+
+permissions:
+  contents: read  # This is required for actions/checkout
+  id-token: write  # This is required for authenticating with aws
+
+jobs:
+  bootstrap:
+    name: Bootstrap
+    environment: ${{inputs.env}}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./terraform/bootstrap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Get current date
+        shell: bash
+        id: currentdatetime
+        run: echo "datetime=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4.1.0
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/terraform-developer
+          role-session-name: "fs-terraform-bootstrap_${{ inputs.environemnt }}_${{ steps.currentdatetime.outputs.datetime }}"
+          aws-region: eu-west-2
+
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+
+      - name: TF Init
+        env:
+          TF_LOG: ${{inputs.tf_log_level}}
+          TF_WORKSPACE: ${{inputs.env}}
+        run: terraform init -input=false -no-color
+
+      - name: TF Validate
+        env:
+          TF_LOG: ${{inputs.tf_log_level}}
+          TF_WORKSPACE: ${{inputs.env}}
+        run: terraform validate -no-color
+
+      - name: TF Apply
+        env:
+          TF_LOG: ${{inputs.tf_log_level}}
+          TF_WORKSPACE: ${{inputs.env}}
+        run: terraform apply -input=false -no-color -auto-approve
