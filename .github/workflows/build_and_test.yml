@@ -54,6 +54,11 @@ jobs:
         run: uv sync --frozen
       - name: run unit tests
         run: uv run pytest -nauto .
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_NAME: postgres
+          DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
 
   type_checking:
     runs-on: ubuntu-latest
