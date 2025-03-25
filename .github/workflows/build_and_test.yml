@@ -26,12 +26,18 @@ jobs:
     - name: Check DB is up to date
       env:
         FLASK_ENV: local
-        DATABASE_URI: postgresql+psycopg://postgres:password@localhost:5432/postgres  # pragma: allowlist secret
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DATABASE_NAME: postgres
+        DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
       run: uv run --frozen flask db upgrade && uv run --frozen flask db check
     - name: Check that .current-alembic-head is pinned
       env:
         FLASK_ENV: local
-        DATABASE_URI: postgresql+psycopg://postgres:password@localhost:5432/postgres  # pragma: allowlist secret
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DATABASE_NAME: postgres
+        DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
       run: |
         uv run --frozen flask db current | grep "$(cat ./app/common/data/migrations/.current-alembic-head) (head)"
 

@@ -45,21 +45,13 @@ class _SharedConfig(_BaseConfig):
     that does not meet point 1, but does meet point 2, should be set on the appropriate derived class.
     """
 
-    @staticmethod
-    def get_database_url() -> PostgresDsn:
-        secrets_json = os.environ.get("DATABASE_SECRET", None)
-
-        if secrets_json:
-            secrets_dict = json.loads(secrets_json)
-            db_host = os.environ.get("DATABASE_HOST", None)
-            db_port = os.environ.get("DATABASE_PORT", None)
-            db_name = os.environ.get("DATABASE_NAME", None)
-            if all([db_host, db_port, db_name, secrets_dict, "username" in secrets_dict, "password" in secrets_dict]):
-                return PostgresDsn(
-                    url=f"postgresql+psycopg://{secrets_dict['username']}:{secrets_dict['password']}@{db_host}:{db_port}/{db_name}"
-                )
-
-        raise ValueError("Database connection string could not be built, values not present in environment")
+    def build_database_uri(self) -> PostgresDsn:
+        secrets_dict = json.loads(self.DATABASE_SECRET)
+        if "username" in secrets_dict and "password" in secrets_dict:
+            return PostgresDsn(
+                url=f"postgresql+psycopg://{secrets_dict['username']}:{secrets_dict['password']}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+            )
+        raise ValueError("Username and password are required in DATABASE_SECRET")
 
     # Flask app
     FLASK_ENV: Environment
@@ -67,12 +59,15 @@ class _SharedConfig(_BaseConfig):
     SECRET_KEY: str
 
     # Databases
-    DATABASE_URI: PostgresDsn
+    DATABASE_HOST: str
+    DATABASE_PORT: int
+    DATABASE_NAME: str
+    DATABASE_SECRET: str  # TODO can we get it to treat a string from the env as a map?
 
     @property
     def SQLALCHEMY_ENGINES(self) -> dict[str, str]:
         return {
-            "default": str(self.DATABASE_URI),
+            "default": str(self.build_database_uri()),
         }
 
     SQLALCHEMY_RECORD_QUERIES: bool = False
@@ -139,10 +134,10 @@ def get_settings() -> _SharedConfig:
         case Environment.LOCAL:
             return LocalConfig()  # type: ignore[call-arg]
         case Environment.DEV:
-            return DevConfig(DATABASE_URI=_SharedConfig.get_database_url())  # type: ignore[call-arg]
+            return DevConfig()  # type: ignore[call-arg]
         case Environment.UAT:
-            return UatConfig(DATABASE_URI=_SharedConfig.get_database_url())  # type: ignore[call-arg]
+            return UatConfig()  # type: ignore[call-arg]
         case Environment.PROD:
-            return ProdConfig(DATABASE_URI=_SharedConfig.get_database_url())  # type: ignore[call-arg]
+            return ProdConfig()  # type: ignore[call-arg]
 
     raise ValueError(f"Unknown environment: {environment}")
