@@ -7,7 +7,10 @@ permissions:
   id-token: write  # This is required for authenticating with aws
 
 on:
+  workflow_dispatch:
   push:
+    branches:
+      - main
 
 jobs:
   paketo_build:
