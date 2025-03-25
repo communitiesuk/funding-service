@@ -1,3 +1,4 @@
+import json
 import os
 from enum import Enum
 from typing import Tuple, Type
@@ -43,6 +44,22 @@ class _SharedConfig(_BaseConfig):
     Anything that does not meet both conditions should not be set as a default value on this base class. Anything
     that does not meet point 1, but does meet point 2, should be set on the appropriate derived class.
     """
+
+    @staticmethod
+    def get_database_url() -> PostgresDsn:
+        secrets_json = os.environ.get("DATABASE_SECRET", None)
+
+        if secrets_json:
+            secrets_dict = json.loads(secrets_json)
+            db_host = os.environ.get("DATABASE_HOST", None)
+            db_port = os.environ.get("DATABASE_PORT", None)
+            db_name = os.environ.get("DATABASE_NAME", None)
+            if all([db_host, db_port, db_name, secrets_dict, "username" in secrets_dict, "password" in secrets_dict]):
+                return PostgresDsn(
+                    url=f"postgresql+psycopg://{secrets_dict['username']}:{secrets_dict['password']}@{db_host}:{db_port}/{db_name}"
+                )
+
+        raise ValueError("Database connection string could not be built, values not present in environment")
 
     # Flask app
     FLASK_ENV: Environment
@@ -122,10 +139,10 @@ def get_settings() -> _SharedConfig:
         case Environment.LOCAL:
             return LocalConfig()  # type: ignore[call-arg]
         case Environment.DEV:
-            return DevConfig()  # type: ignore[call-arg]
+            return DevConfig(DATABASE_URI=_SharedConfig.get_database_url())  # type: ignore[call-arg]
         case Environment.UAT:
-            return UatConfig()  # type: ignore[call-arg]
+            return UatConfig(DATABASE_URI=_SharedConfig.get_database_url())  # type: ignore[call-arg]
         case Environment.PROD:
-            return ProdConfig()  # type: ignore[call-arg]
+            return ProdConfig(DATABASE_URI=_SharedConfig.get_database_url())  # type: ignore[call-arg]
 
     raise ValueError(f"Unknown environment: {environment}")
