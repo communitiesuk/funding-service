@@ -1,9 +1,8 @@
-import json
 import os
 from enum import Enum
 from typing import Tuple, Type
 
-from pydantic import PostgresDsn
+from pydantic import BaseModel, PostgresDsn
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 from app.types import LogFormats, LogLevels
@@ -14,6 +13,11 @@ class Environment(str, Enum):
     DEV = "dev"
     UAT = "uat"
     PROD = "prod"
+
+
+class DatabaseSecret(BaseModel):
+    username: str
+    password: str
 
 
 class _BaseConfig(BaseSettings):
@@ -46,12 +50,9 @@ class _SharedConfig(_BaseConfig):
     """
 
     def build_database_uri(self) -> PostgresDsn:
-        secrets_dict = json.loads(self.DATABASE_SECRET)
-        if "username" in secrets_dict and "password" in secrets_dict:
-            return PostgresDsn(
-                url=f"postgresql+psycopg://{secrets_dict['username']}:{secrets_dict['password']}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
-            )
-        raise ValueError("Username and password are required in DATABASE_SECRET")
+        return PostgresDsn(
+            url=f"postgresql+psycopg://{self.DATABASE_SECRET.username}:{self.DATABASE_SECRET.password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        )
 
     # Flask app
     FLASK_ENV: Environment
@@ -62,7 +63,7 @@ class _SharedConfig(_BaseConfig):
     DATABASE_HOST: str
     DATABASE_PORT: int
     DATABASE_NAME: str
-    DATABASE_SECRET: str  # TODO can we get it to treat a string from the env as a map?
+    DATABASE_SECRET: DatabaseSecret
 
     @property
     def SQLALCHEMY_ENGINES(self) -> dict[str, str]:
