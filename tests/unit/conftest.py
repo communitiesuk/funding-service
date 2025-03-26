@@ -1,8 +1,9 @@
 import pytest
+from _pytest.fixtures import FixtureRequest
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _unit_test_timeout(request):
+def _unit_test_timeout(request: FixtureRequest) -> None:
     """Fail tests under `tests/unit` if they take more than 1ms, to encourage us to maintain tests that are
     very fast here.
 

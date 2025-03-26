@@ -117,6 +117,15 @@ wheels = [
 ]
 
 [[package]]
+name = "deepmerge"
+version = "2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/3a/b0ba594708f1ad0bc735884b3ad854d3ca3bdc1d741e56e40bbda6263499/deepmerge-2.0.tar.gz", hash = "sha256:5c3d86081fbebd04dd5de03626a0607b809a98fb6ccba5770b62466fe940ff20", size = 19890 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2d/82/e5d2c1c67d19841e9edc74954c827444ae826978499bde3dfc1d007c8c11/deepmerge-2.0-py3-none-any.whl", hash = "sha256:6de9ce507115cff0bed95ff0ce9ecc31088ef50cbdf09bc90a09349a318b3d00", size = 13475 },
+]
+
+[[package]]
 name = "distlib"
 version = "0.3.9"
 source = { registry = "https://pypi.org/simple" }
@@ -146,6 +155,30 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bb/ff/b4c0dc78fbe20c3e59c0c7334de0c27eb4001a2b2017999af398bf730817/execnet-2.1.1.tar.gz", hash = "sha256:5189b52c6121c24feae288166ab41b32549c7e2348652736540b9e6e7d4e72e3", size = 166524 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/43/09/2aea36ff60d16dd8879bdb2f5b3ee0ba8d08cbbdcdfe870e695ce3784385/execnet-2.1.1-py3-none-any.whl", hash = "sha256:26dee51f1b80cebd6d0ca8e74dd8745419761d3bef34163928cbebbdc4749fdc", size = 40612 },
+]
+
+[[package]]
+name = "factory-boy"
+version = "3.3.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "faker" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ba/98/75cacae9945f67cfe323829fc2ac451f64517a8a330b572a06a323997065/factory_boy-3.3.3.tar.gz", hash = "sha256:866862d226128dfac7f2b4160287e899daf54f2612778327dd03d0e2cb1e3d03", size = 164146 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/27/8d/2bc5f5546ff2ccb3f7de06742853483ab75bf74f36a92254702f8baecc79/factory_boy-3.3.3-py2.py3-none-any.whl", hash = "sha256:1c39e3289f7e667c4285433f305f8d506efc2fe9c73aaea4151ebd5cdea394fc", size = 37036 },
+]
+
+[[package]]
+name = "faker"
+version = "37.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ba/a6/b77f42021308ec8b134502343da882c0905d725a4d661c7adeaf7acaf515/faker-37.1.0.tar.gz", hash = "sha256:ad9dc66a3b84888b837ca729e85299a96b58fdaef0323ed0baace93c9614af06", size = 1875707 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/a1/8936bc8e79af80ca38288dd93ed44ed1f9d63beb25447a4c59e746e01f8d/faker-37.1.0-py3-none-any.whl", hash = "sha256:dc2f730be71cb770e9c715b13374d80dbcee879675121ab51f9683d262ae9a1c", size = 1918783 },
 ]
 
 [[package]]
@@ -243,6 +276,20 @@ wheels = [
 ]
 
 [[package]]
+name = "flask-wtf"
+version = "1.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flask" },
+    { name = "itsdangerous" },
+    { name = "wtforms" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/80/9b/f1cd6e41bbf874f3436368f2c7ee3216c1e82d666ff90d1d800e20eb1317/flask_wtf-1.2.2.tar.gz", hash = "sha256:79d2ee1e436cf570bccb7d916533fa18757a2f18c290accffab1b9a0b684666b", size = 42641 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/19/354449145fbebb65e7c621235b6ad69bebcfaec2142481f044d0ddc5b5c5/flask_wtf-1.2.2-py3-none-any.whl", hash = "sha256:e93160c5c5b6b571cf99300b6e01b72f9a101027cab1579901f8b10c5daf0b70", size = 12779 },
+]
+
+[[package]]
 name = "funding-service"
 version = "0.1.0"
 source = { virtual = "." }
@@ -251,18 +298,22 @@ dependencies = [
     { name = "flask-migrate" },
     { name = "flask-sqlalchemy-lite" },
     { name = "flask-vite" },
+    { name = "flask-wtf" },
     { name = "govuk-frontend-jinja" },
+    { name = "govuk-frontend-wtf" },
     { name = "psycopg" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-json-logger" },
     { name = "sentry-sdk" },
     { name = "sqlalchemy" },
+    { name = "wtforms" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "debugpy" },
+    { name = "factory-boy" },
     { name = "flask-debugtoolbar" },
     { name = "mypy" },
     { name = "pre-commit" },
@@ -274,6 +325,7 @@ dev = [
     { name = "ruff" },
     { name = "testcontainers" },
     { name = "types-flask-migrate" },
+    { name = "types-wtforms" },
 ]
 
 [package.metadata]
@@ -282,18 +334,22 @@ requires-dist = [
     { name = "flask-migrate", specifier = ">=4.1.0" },
     { name = "flask-sqlalchemy-lite", specifier = ">=0.1.0" },
     { name = "flask-vite", specifier = ">=0.5.2" },
+    { name = "flask-wtf", specifier = ">=1.2.2" },
     { name = "govuk-frontend-jinja", specifier = ">=3.4.1" },
+    { name = "govuk-frontend-wtf", specifier = ">=3.2.0" },
     { name = "psycopg", specifier = ">=3.2.4" },
     { name = "pydantic", specifier = ">=2.10.6" },
     { name = "pydantic-settings", specifier = ">=2.8.1" },
     { name = "python-json-logger", specifier = ">=3.2.1" },
     { name = "sentry-sdk", specifier = ">=2.22.0" },
     { name = "sqlalchemy", specifier = ">=2.0.38" },
+    { name = "wtforms", specifier = ">=3.2.1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "debugpy", specifier = ">=1.8.12" },
+    { name = "factory-boy", specifier = ">=3.3.3" },
     { name = "flask-debugtoolbar", specifier = ">=0.16.0" },
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "pre-commit", specifier = ">=4.1.0" },
@@ -305,6 +361,7 @@ dev = [
     { name = "ruff", specifier = ">=0.9.6" },
     { name = "testcontainers", specifier = ">=4.9.1" },
     { name = "types-flask-migrate", specifier = ">=4.1.0.20250112" },
+    { name = "types-wtforms", specifier = ">=3.2.1.20250304" },
 ]
 
 [[package]]
@@ -317,6 +374,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b5/c5/0a80aca5b0ab9e8c6388d8bbc19cbbc0e2ff12f604ad54193ffd4420d660/govuk_frontend_jinja-3.4.1.tar.gz", hash = "sha256:5fd961320f14b63742c81b1e363ecb910d1a8846fa6bc5ac51f787a9e9e7020c", size = 33495 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/db/39/4fcee42e1f5936c80ed59a6324ff2fc427e4910aab8c74ff8fd7120fced6/govuk_frontend_jinja-3.4.1-py3-none-any.whl", hash = "sha256:66a3bfe07799fe07d7f5d0ece1f4d5ceab806016eb6c4f48097c7d3ff7c3992d", size = 46379 },
+]
+
+[[package]]
+name = "govuk-frontend-wtf"
+version = "3.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "deepmerge" },
+    { name = "flask" },
+    { name = "flask-wtf" },
+    { name = "govuk-frontend-jinja" },
+    { name = "jinja2" },
+    { name = "wtforms" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a8/1e/c843510033dd35cdf7df2904de22c081e9ad59326b34356b2d1b1a14b519/govuk_frontend_wtf-3.2.0.tar.gz", hash = "sha256:a5b22d7c4a61a8466ac5590581f86837cd24d98c663c7380f333cd5879efa461", size = 15262 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/97/0f0c2e6c22dad5f9aec3c47a4863b614d3c7dc620e6cc2ae88688e042bc2/govuk_frontend_wtf-3.2.0-py3-none-any.whl", hash = "sha256:1f8fcb8a63e485b5e85474f43b9339347b42234068c1c204d912f5dd45b51779", size = 14055 },
 ]
 
 [[package]]
@@ -796,6 +870,18 @@ wheels = [
 ]
 
 [[package]]
+name = "types-wtforms"
+version = "3.2.1.20250304"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "markupsafe" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d5/61/4ed8ca8e2b43b56f0d3078f12dce2f90a4b882e0b4253d90e45fc6a48aaf/types_wtforms-3.2.1.20250304.tar.gz", hash = "sha256:4844534fc16e59571e337fb681329a14b161adeecb50b281124079070b80a59c", size = 17041 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b9/2c/c72727a03ede1f602af9f05935ee24cf65fb999ae567c878d3db8c3238dc/types_wtforms-3.2.1.20250304-py3-none-any.whl", hash = "sha256:f517d28a5b278b3c9e068b7beff25934c6ca069fd1e2244e85c0959c3d35f88f", size = 24305 },
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 source = { registry = "https://pypi.org/simple" }
@@ -877,4 +963,16 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/6a/e1/0122853035b40b3f333bbb25f1939fc1045e21dd518f7f0922b60c156f7c/wrapt-1.17.2-cp313-cp313t-win32.whl", hash = "sha256:13e6afb7fe71fe7485a4550a8844cc9ffbe263c0f1a1eea569bc7091d4898555", size = 37986 },
     { url = "https://files.pythonhosted.org/packages/09/5e/1655cf481e079c1f22d0cabdd4e51733679932718dc23bf2db175f329b76/wrapt-1.17.2-cp313-cp313t-win_amd64.whl", hash = "sha256:eaf675418ed6b3b31c7a989fd007fa7c3be66ce14e5c3b27336383604c9da85c", size = 40750 },
     { url = "https://files.pythonhosted.org/packages/2d/82/f56956041adef78f849db6b289b282e72b55ab8045a75abad81898c28d19/wrapt-1.17.2-py3-none-any.whl", hash = "sha256:b18f2d1533a71f069c7f82d524a52599053d4c7166e9dd374ae2136b7f40f7c8", size = 23594 },
+]
+
+[[package]]
+name = "wtforms"
+version = "3.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "markupsafe" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/01/e4/633d080897e769ed5712dcfad626e55dbd6cf45db0ff4d9884315c6a82da/wtforms-3.2.1.tar.gz", hash = "sha256:df3e6b70f3192e92623128123ec8dca3067df9cfadd43d59681e210cfb8d4682", size = 137801 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/08/c9/2088fb5645cd289c99ebe0d4cdcc723922a1d8e1beaefb0f6f76dff9b21c/wtforms-3.2.1-py3-none-any.whl", hash = "sha256:583bad77ba1dd7286463f21e11aa3043ca4869d03575921d1a1698d0715e0fd4", size = 152454 },
 ]

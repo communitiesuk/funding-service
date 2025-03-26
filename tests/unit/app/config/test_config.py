@@ -3,7 +3,7 @@ from typing import get_type_hints
 from app.config import DevConfig, LocalConfig, ProdConfig, UatConfig, _SharedConfig
 
 
-def test_config_subclasses_do_not_have_conflicting_types():
+def test_config_subclasses_do_not_have_conflicting_types() -> None:
     parent_class_types = get_type_hints(_SharedConfig)
 
     for subclass in [LocalConfig, DevConfig, UatConfig, ProdConfig]:
@@ -16,7 +16,7 @@ def test_config_subclasses_do_not_have_conflicting_types():
             )
 
 
-def test_config_subclasses_do_not_define_new_variables():
+def test_config_subclasses_do_not_define_new_variables() -> None:
     parent_class_types = get_type_hints(_SharedConfig)
 
     for subclass in [LocalConfig, DevConfig, UatConfig, ProdConfig]:
