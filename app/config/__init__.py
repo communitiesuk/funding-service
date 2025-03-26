@@ -2,7 +2,7 @@ import os
 from enum import Enum
 from typing import Tuple, Type
 
-from pydantic import PostgresDsn
+from pydantic import BaseModel, PostgresDsn
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 from app.types import LogFormats, LogLevels
@@ -13,6 +13,11 @@ class Environment(str, Enum):
     DEV = "dev"
     UAT = "uat"
     PROD = "prod"
+
+
+class DatabaseSecret(BaseModel):
+    username: str
+    password: str
 
 
 class _BaseConfig(BaseSettings):
@@ -44,18 +49,26 @@ class _SharedConfig(_BaseConfig):
     that does not meet point 1, but does meet point 2, should be set on the appropriate derived class.
     """
 
+    def build_database_uri(self) -> PostgresDsn:
+        return PostgresDsn(
+            url=f"postgresql+psycopg://{self.DATABASE_SECRET.username}:{self.DATABASE_SECRET.password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        )
+
     # Flask app
     FLASK_ENV: Environment
     SERVER_NAME: str
     SECRET_KEY: str
 
     # Databases
-    DATABASE_URI: PostgresDsn
+    DATABASE_HOST: str
+    DATABASE_PORT: int
+    DATABASE_NAME: str
+    DATABASE_SECRET: DatabaseSecret
 
     @property
     def SQLALCHEMY_ENGINES(self) -> dict[str, str]:
         return {
-            "default": str(self.DATABASE_URI),
+            "default": str(self.build_database_uri()),
         }
 
     SQLALCHEMY_RECORD_QUERIES: bool = False

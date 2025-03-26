@@ -1,0 +1,76 @@
+name: Paketo build
+run-name: Paketo build ${{github.ref_name}}
+
+permissions:
+  packages: write
+  contents: read  # This is required for actions/checkout
+  id-token: write  # This is required for authenticating with aws
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  paketo_build:
+    environment: dev
+    runs-on: ubuntu-latest
+    name: Paketo
+    outputs:
+      image_location: ${{ steps.build_and_publish.outputs.image_location }}
+
+    steps:
+      - uses: buildpacks/github-actions/setup-pack@29954e5d009d40d4d043993f6f39b8ce3e8d9fa3 # v5.8.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: 3.13.x
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@4db96194c378173c656ce18a155ffc14a9fc4355 # v5
+        with:
+          enable-cache: true
+
+      - name: install dependencies
+        run: uv sync
+
+      - name: vite
+        env:
+          FLASK_ENV: local
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_NAME: postgres
+          DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
+        run: |
+          uv run flask vite install
+          uv run flask vite build
+
+      - name: Get current date
+        shell: bash
+        id: currentdatetime
+        run: echo "datetime=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/GithubCopilotDeploy
+          role-session-name: "funding-service_build_${{ steps.currentdatetime.outputs.datetime }}"
+          aws-region: eu-west-2
+
+      - name: Build and publish app image
+        id: build_and_publish
+        run: |
+          IMAGE_ID=${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/dev-funding-service
+
+          VERSION=${{ github.ref_name }}
+
+          uv export --format requirements-txt --no-hashes > requirements.txt
+
+          IMAGE_LOCATION="$IMAGE_ID:$VERSION"
+
+          aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com
+
+          pack build $IMAGE_LOCATION --tag $IMAGE_ID:${{github.sha}} --tag $IMAGE_ID:latest --builder paketobuildpacks/builder-jammy-full --publish
