@@ -1,4 +1,5 @@
 from flask import Flask
+from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
 from app import logging
@@ -34,12 +35,16 @@ def create_app() -> Flask:
         [
             PackageLoader("app.common"),
             PrefixLoader({"govuk_frontend_jinja": PackageLoader("govuk_frontend_jinja")}),
+            PrefixLoader({"govuk_frontend_wtf": PackageLoader("govuk_frontend_wtf")}),
         ]
     )
+    WTFormsHelpers(app)
 
     # Attach routes
     from app.healthcheck import healthcheck_blueprint
+    from app.platform import platform_blueprint
 
     app.register_blueprint(healthcheck_blueprint)
+    app.register_blueprint(platform_blueprint)
 
     return app

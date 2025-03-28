@@ -1,0 +1,20 @@
+{% extends "common/base.html" %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+{% block pageTitle %}
+Set up a new grant - MHCLG Funding Service
+{% endblock pageTitle %}
+{% block content %}
+    <div class="govuk-grid-row">
+         <div class="govuk-grid-column-two-thirds">
+            <h1 class="govuk-heading-l">Set up a new grant</h1>
+            {% if form.errors %}
+                {{ govukErrorSummary(wtforms_errors(form)) }}
+            {% endif %}
+            <form method="post" novalidate>
+              {{ form.csrf_token }}
+              {{ form.name }}
+              {{ form.submit }}
+            </form>
+         </div>
+    </div>
+{% endblock content %}
