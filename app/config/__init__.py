@@ -79,6 +79,7 @@ class _SharedConfig(_BaseConfig):
 
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = False
+    DEBUG_TB_INTERCEPT_REDIRECTS: bool = False
 
     # Flask-Vite
     VITE_AUTO_INSERT: bool = False

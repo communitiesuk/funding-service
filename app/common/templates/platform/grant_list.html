@@ -1,0 +1,28 @@
+{% extends "common/base.html" %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+
+
+{% block pageTitle %}
+All grants - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_item_identifier = "grants" %}
+
+{% block content %}
+    <div class="govuk-grid-row">
+         <div class="govuk-grid-column-two-thirds">
+            <h1 class="govuk-heading-l">All grants</h1>
+            <p class="govuk-body">You have access to {{ grant_list | length }} {{ "grant" if grant_list | length == 1 else "grants" }}.</p>
+
+            {{ govukButton({
+                "text": "Set up a new grant",
+                "classes": "govuk-button--secondary",
+                "href": url_for("platform.create_grant")
+              }) }}
+
+            {% for grant in grant_list %}
+                <h3 class="govuk-heading-s">{{ grant.name }}</h3>
+            {% endfor %}
+         </div>
+    </div>
+{% endblock content %}

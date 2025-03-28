@@ -85,7 +85,7 @@ def grant_factory(db_session: Session) -> Generator[Type[factory.alchemy.SQLAlch
             model = Grant
             sqlalchemy_session = db_session  # the SQLAlchemy session object
 
-        id = uuid4()
+        id = factory.LazyAttribute(lambda n: uuid4())  # type:ignore
         name = factory.Sequence(lambda n: "Grant %d" % n)  # type:ignore
 
     yield GrantFactory

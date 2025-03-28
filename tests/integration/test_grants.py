@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.common.data.interfaces.grants import add_grant, get_grant
+from app.common.data.interfaces.grants import add_grant, get_all_grants, get_grant
 from app.common.data.models import Grant
 
 
@@ -9,6 +9,12 @@ def test_get_grant(grant_factory):
     g = grant_factory.create()
     result = get_grant(g.id)
     assert result is not None
+
+
+def test_get_all_grants(grant_factory):
+    grant_factory.create_batch(5)
+    result = get_all_grants()
+    assert len(result) == 5
 
 
 def test_create_grant(db, grant_factory) -> None:

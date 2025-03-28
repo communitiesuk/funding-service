@@ -1,7 +1,6 @@
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
 {% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
-{% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
 
 {% set assetPath = url_for('static', filename='').rstrip('/') %}
 {% extends "govuk_frontend_jinja/template.html" %}
@@ -18,6 +17,7 @@
     "navigation": [{ "text": ("Sign in"), "href": "#" }],
     "navigationClasses": "govuk-header__navigation--end"
 }) }}
+{% include "common/partials/navigation.html" %}
 {% endblock header %}
 
 {% block bodyEnd %}
