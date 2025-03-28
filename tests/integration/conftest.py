@@ -39,16 +39,9 @@ def setup_db_container() -> Generator[None, None, None]:
 @pytest.fixture(scope="session")
 def db(setup_db_container: Generator[None], app: Flask) -> Generator[SQLAlchemy, None, None]:
     with app.app_context():
-        # TODO the below is the approach used in old pre-award - do we need it here?
-        # Run alembic migrations. We do this is a separate python process because it loads and executes a bunch
-        # of code from db/migrations/env.py. This does things like set up loggers, which interferes with the
-        # `caplog` fixture, and possibly has some other unexpected side effects.
-        # migrate = app.extensions["migrate"]
-        # migrate.upgrade()
-        # proc = Process(target=upgrade)
-        # proc.start()
-        # proc.join()
+        # Something in the alembic log config disables logging and breaks logcap. So re-enable logging after upgrade()
         upgrade()
+        app.logger.disabled = False
 
         yield app.extensions["sqlalchemy"]
 
