@@ -1,7 +1,8 @@
 from functools import wraps
+from typing import Any, Callable, cast
 
 import sqlalchemy.orm as orm
-from flask import g
+from flask import Response, g
 from flask.sansio.app import App
 from flask_sqlalchemy_lite import SQLAlchemy
 
@@ -19,16 +20,17 @@ class DBRequestSession:
     def request_session(self) -> orm.Session:
         return g.get("_fs_db_request_session", None) or self._db.session
 
-    def db_request_auto_commit(self, func):  # type: ignore[no-untyped-def]
+    # see https://mypy.readthedocs.io/en/stable/generics.html#declaring-decorators
+    def db_request_auto_commit[F: Callable[..., Any]](self, func: F) -> F:
         @wraps(func)
-        def decorator(*args, **kwargs):  # type: ignore[no-untyped-def]
+        def wrapper(*args, **kwargs):  # type: ignore[no-untyped-def]
             g._fs_db_request_session = self._db.sessionmaker(autoflush=True)
             return func(*args, **kwargs)
 
-        return decorator
+        return cast(F, wrapper)
 
 
-def _commit_session(response) -> None:  # type: ignore[no-untyped-def]
+def _commit_session(response: Response) -> Response:
     session: orm.Session | None = g.get("_fs_db_request_session", None)
     if session:
         session.commit()

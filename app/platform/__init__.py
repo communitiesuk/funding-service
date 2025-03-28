@@ -10,7 +10,7 @@ from app.common.data.interfaces.grants import (
     get_grant,
     update_grant,
 )
-from app.extensions import db
+from app.extensions import db, db_request_session
 from app.platform.forms import GrantForm
 
 # TODO do we call this platform
@@ -19,6 +19,7 @@ platform_blueprint = Blueprint(name="platform", import_name=__name__)
 
 # TODO think about a naming convention for route handlers
 @platform_blueprint.route("/grants/add", methods=["GET", "POST"])
+@db_request_session.db_request_auto_commit
 def add_grant() -> str | Response:
     form = GrantForm()
     if form.validate_on_submit():
