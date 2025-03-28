@@ -3,13 +3,17 @@ SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 .PHONY: bootstrap
-bootstrap: certs vite clean-build
+bootstrap: certs pre-commit vite clean-build
 
 .PHONY: certs
 certs:
 	mkdir -p certs
 	CAROOT=certs mkcert -install
 	CAROOT=certs mkcert -cert-file certs/cert.pem -key-file certs/key.pem "funding.communities.gov.localhost"
+
+.PHONY: pre-commit
+pre-commit:
+	uv run pre-commit install
 
 .PHONY: vite
 vite:
