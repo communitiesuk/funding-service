@@ -5,6 +5,7 @@ import sqlalchemy.orm as orm
 from flask import Response, g
 from flask.sansio.app import App
 from flask_sqlalchemy_lite import SQLAlchemy
+from sqlalchemy.exc import PendingRollbackError
 
 
 class DBRequestSession:
@@ -33,7 +34,15 @@ class DBRequestSession:
 def _commit_session(response: Response) -> Response:
     session: orm.Session | None = g.get("_fs_db_request_session", None)
     if session:
-        session.commit()
+        # we should only commit if the session hasn't previously been rolled back
+        # it looks the session is autorolledback after a integrity check (i.e a flush)
+        # in which case we shouldn't commit here
+        try:
+            session.commit()
+        # want to sense check if we can check for this up front but have seen
+        # this done in a few places
+        except PendingRollbackError:
+            session.rollback()
     return response
 
 
