@@ -1,19 +1,17 @@
 import pytest
-from factory.alchemy import SQLAlchemyModelFactory
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.grants import add_grant, get_grant
 from app.common.data.models import Grant
 
 
-def test_get_grant(grant_factory: SQLAlchemyModelFactory):
+def test_get_grant(grant_factory):
     g = grant_factory.create()
     result = get_grant(g.id)
     assert result is not None
 
 
-def test_create_grant(db: SQLAlchemy, grant_factory: SQLAlchemyModelFactory) -> None:
+def test_create_grant(db, grant_factory) -> None:
     result = add_grant(name="test_grant")
     assert result is not None
     assert result.id is not None
@@ -22,7 +20,7 @@ def test_create_grant(db: SQLAlchemy, grant_factory: SQLAlchemyModelFactory) -> 
     assert from_db is not None
 
 
-def test_create_duplicate_grant(grant_factory: SQLAlchemyModelFactory) -> None:
+def test_create_duplicate_grant(grant_factory) -> None:
     grant_factory.create(name="duplicate_grant")
     with pytest.raises(IntegrityError) as e:
         add_grant(name="duplicate_grant")
