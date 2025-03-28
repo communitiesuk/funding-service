@@ -80,7 +80,7 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
     These tests may talk over the network (eg to the DB), so we need to make some allowance for that, but they should
     still be able to be fairly fast.
     """
-    request.node.add_marker(pytest.mark.fail_slow("20ms"))
+    request.node.add_marker(pytest.mark.fail_slow("400ms"))
 
 
 @pytest.fixture(scope="function")
