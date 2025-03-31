@@ -1,4 +1,5 @@
 import json
+import multiprocessing
 from typing import Generator, Type
 from uuid import uuid4
 
@@ -11,6 +12,7 @@ from flask.testing import FlaskClient
 from flask_migrate import upgrade
 from flask_sqlalchemy import SQLAlchemy
 from flask_sqlalchemy.session import Session
+from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
 
 from app import create_app
@@ -39,9 +41,18 @@ def setup_db_container() -> Generator[None, None, None]:
 @pytest.fixture(scope="session")
 def db(setup_db_container: Generator[None], app: Flask) -> Generator[SQLAlchemy, None, None]:
     with app.app_context():
-        # Something in the alembic log config disables logging and breaks logcap. So re-enable logging after upgrade()
-        upgrade()
-        app.logger.disabled = False
+        no_db = not database_exists(app.config["SQLALCHEMY_ENGINES"]["default"])
+
+        if no_db:
+            create_database(app.config["SQLALCHEMY_ENGINES"]["default"])
+
+        # Run alembic migrations. We do this is a separate python process because it loads and executes a bunch
+        # of code from app/common/data/migrations/env.py. This does things like set up loggers, which interferes with
+        # the `caplog` fixture, and possibly has some other unexpected side effects.
+        ctx = multiprocessing.get_context("fork")  # spawn subprocess via fork, so it retains configuration/etc.
+        proc = ctx.Process(target=upgrade)
+        proc.start()
+        proc.join()
 
         yield app.extensions["sqlalchemy"]
 
@@ -59,7 +70,7 @@ def client(app: Flask) -> FlaskClient:
 
 @pytest.fixture(scope="session", autouse=True)
 def _integration_test_timeout(request: FixtureRequest) -> None:
-    """Fail tests under `tests/integration` if they take more than 10ms, to encourage us to maintain tests that are
+    """Fail tests under `tests/integration` if they take 'too long', to encourage us to maintain tests that are
     reasonably fast here.
 
     These tests may talk over the network (eg to the DB), so we need to make some allowance for that, but they should
