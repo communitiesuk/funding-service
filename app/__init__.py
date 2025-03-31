@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
@@ -39,6 +40,9 @@ def create_app() -> Flask:
         ]
     )
     WTFormsHelpers(app)
+
+    Babel(app)
+    app.jinja_env.add_extension("jinja2.ext.i18n")
 
     # Attach routes
     from app.healthcheck import healthcheck_blueprint
