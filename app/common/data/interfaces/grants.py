@@ -1,4 +1,7 @@
+from typing import Sequence
+
 from pydantic.v1 import UUID4
+from sqlalchemy import select
 
 from app.common.data.models import Grant
 from app.extensions import db
@@ -6,6 +9,11 @@ from app.extensions import db
 
 def get_grant(grant_id: UUID4) -> Grant | None:
     return db.get_session().get(Grant, grant_id)
+
+
+def get_all_grants() -> Sequence[Grant]:
+    statement = select(Grant).order_by(Grant.name)
+    return db.get_session().scalars(statement).all()
 
 
 def add_grant(name: str) -> Grant:

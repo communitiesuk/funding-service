@@ -8,8 +8,13 @@ from alembic.operations import MigrationScript
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from alembic.script.base import _slug_re
+from alembic_utils.pg_extension import PGExtension
+from alembic_utils.replaceable_entity import register_entities
 from flask import current_app
 from sqlalchemy import Engine
+
+citext_extension = PGExtension(schema="public", signature="citext")
+register_entities([citext_extension])
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
