@@ -59,7 +59,7 @@ def client(app: Flask) -> FlaskClient:
 
 @pytest.fixture(scope="session", autouse=True)
 def _integration_test_timeout(request: FixtureRequest) -> None:
-    """Fail tests under `tests/integration` if they take more than 10ms, to encourage us to maintain tests that are
+    """Fail tests under `tests/integration` if they take 'too long', to encourage us to maintain tests that are
     reasonably fast here.
 
     These tests may talk over the network (eg to the DB), so we need to make some allowance for that, but they should
