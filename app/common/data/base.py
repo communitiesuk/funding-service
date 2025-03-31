@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import MetaData, func
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.common.data.types import json_scalars
@@ -15,11 +16,13 @@ convention = {
     "pk": "pk_%(table_name)s",
 }
 
+type CIStr = str
+
 
 class BaseModel(DeclarativeBase):
     __abstract__ = True
     metadata = MetaData(naming_convention=convention)
-    type_annotation_map = {json_scalars: postgresql.JSONB}
+    type_annotation_map = {json_scalars: postgresql.JSONB, CIStr: CITEXT}
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, sort_order=-100, default=uuid.uuid4)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), sort_order=-99)

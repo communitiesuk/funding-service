@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "alembic-utils==0.8.6",
     "babel==2.17.0",
     "flask>=3.1.0",
     "flask-babel==4.0.0",
@@ -78,6 +79,10 @@ module = [
   "flask_vite","flask_wtf", "govuk_frontend_wtf.*", "testcontainers.*", "flask_babel"
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["app.common.data.migrations.versions.*"]
+ignore_errors = true
 
 
 

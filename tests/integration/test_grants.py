@@ -29,5 +29,5 @@ def test_create_grant(db, grant_factory) -> None:
 def test_create_duplicate_grant(grant_factory) -> None:
     grant_factory.create(name="duplicate_grant")
     with pytest.raises(IntegrityError) as e:
-        add_grant(name="duplicate_grant")
+        add_grant(name="Duplicate_Grant")
     assert 'duplicate key value violates unique constraint "uq_grant_name"' in str(e.value)
