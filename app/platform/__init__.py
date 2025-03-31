@@ -27,5 +27,5 @@ def create_grant() -> str | Response:
 
 @platform_blueprint.route("/grant_list", methods=["GET"])
 def grant_list() -> str:
-    grant_list = get_all_grants()
-    return render_template("platform/grant_list.html", grant_list=grant_list)
+    all_grants = get_all_grants()
+    return render_template("platform/grant_list.html", all_grants=all_grants)
