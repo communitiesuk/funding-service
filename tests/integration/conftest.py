@@ -54,7 +54,11 @@ def db(setup_db_container: Generator[None], app: Flask) -> Generator[SQLAlchemy,
         proc.start()
         proc.join()
 
-        yield app.extensions["sqlalchemy"]
+    yield app.extensions["sqlalchemy"]
+
+    with app.app_context():
+        for engine in app.extensions["sqlalchemy"].engines.values():
+            engine.dispose()
 
 
 @pytest.fixture(scope="session")
