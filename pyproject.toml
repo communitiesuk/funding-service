@@ -37,6 +37,7 @@ dev = [
     "pytest-flask>=1.3.0",
     "pytest-xdist>=3.6.1",
     "ruff>=0.9.6",
+    "sqlalchemy-utils>=0.41.2",
     "testcontainers>=4.9.1",
     "types-flask-migrate>=4.1.0.20250112",
     "types-wtforms>=3.2.1.20250304",
@@ -76,7 +77,7 @@ exclude = ['.*test_.*']
 
 [[tool.mypy.overrides]]
 module = [
-  "flask_vite","flask_wtf", "govuk_frontend_wtf.*", "testcontainers.*", "flask_babel"
+  "flask_vite", "flask_wtf", "govuk_frontend_wtf.*", "testcontainers.*", "flask_babel", "sqlalchemy_utils"
 ]
 ignore_missing_imports = true
 
