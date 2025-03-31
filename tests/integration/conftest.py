@@ -10,8 +10,8 @@ from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask
 from flask.testing import FlaskClient
 from flask_migrate import upgrade
-from flask_sqlalchemy import SQLAlchemy
-from flask_sqlalchemy.session import Session
+from flask_sqlalchemy_lite import SQLAlchemy
+from sqlalchemy.orm import Session
 from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
 
@@ -84,11 +84,28 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
 
 
 @pytest.fixture(scope="function")
-def db_session(db: SQLAlchemy) -> Generator[Session, None, None]:
-    session = db.get_session()
-    yield session
-    session.rollback()
-    session.close()
+def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
+    # Set up a DB session that is fully isolated for each specific test run. We override Flask-SQLAlchemy-Lite's (FSL)
+    # sessionmaker configuration to use a connection with a transaction started, and configure FSL to use savepoints
+    # for any flushes/commits that happen within the test. When the test finishes, this fixture will do a full rollback,
+    # preventing any data leaking beyond the scope of the test.
+
+    with app.app_context():
+        connection = db.engine.connect()
+        transaction = connection.begin()
+
+        original_configuration = db.sessionmaker.kw.copy()
+        db.sessionmaker.configure(bind=connection, join_transaction_mode="create_savepoint")
+        try:
+            yield db.session
+
+        finally:
+            # Restore the original sessionmaker configuration.
+            db.sessionmaker.configure(**original_configuration)
+
+            db.session.close()
+            transaction.rollback()
+            connection.close()
 
 
 @pytest.fixture(scope="function")
