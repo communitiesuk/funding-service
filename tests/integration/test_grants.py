@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.common.data.interfaces.grants import add_grant, get_all_grants, get_grant
+from app.common.data.interfaces.grants import create_grant, get_all_grants, get_grant
 from app.common.data.models import Grant
 
 
@@ -17,8 +17,8 @@ def test_get_all_grants(factories):
     assert len(result) == 5
 
 
-def test_create_grant(db) -> None:
-    result = add_grant(name="test_grant")
+def test_create_grant(db, grant_factory) -> None:
+    result = create_grant(name="test_grant")
     assert result is not None
     assert result.id is not None
 
@@ -29,5 +29,5 @@ def test_create_grant(db) -> None:
 def test_create_duplicate_grant(factories) -> None:
     factories.grant.create(name="duplicate_grant")
     with pytest.raises(IntegrityError) as e:
-        add_grant(name="Duplicate_Grant")
+        create_grant(name="Duplicate_Grant")
     assert 'duplicate key value violates unique constraint "uq_grant_name"' in str(e.value)

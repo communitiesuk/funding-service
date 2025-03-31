@@ -13,7 +13,7 @@ All grants - MHCLG Funding Service
          <div class="govuk-grid-column-two-thirds">
             <h1 class="govuk-heading-l">All grants</h1>
             <p class="govuk-body">
-            {% trans count=all_grants | length %}
+            {% trans count=grant_list | length %}
                 There is 1 grant.
             {% pluralize %}
                 There are {{ count }} grants.
@@ -23,11 +23,11 @@ All grants - MHCLG Funding Service
             {{ govukButton({
                 "text": "Set up a new grant",
                 "classes": "govuk-button--secondary",
-                "href": url_for("platform.create_grant")
+                "href": url_for("platform.add_grant")
               }) }}
 
-            {% for grant in all_grants %}
-                <h3 class="govuk-heading-s">{{ grant.name }}</h3>
+            {% for grant in grant_list %}
+                <h3 class="govuk-heading-s"><a href="{{ url_for('platform.view_grant', grant_id=grant.id) }}" class="govuk-link govuk-link--no-visited-state">{{ grant.name }}</a></h3>
             {% endfor %}
          </div>
     </div>

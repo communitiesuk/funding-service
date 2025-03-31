@@ -1,0 +1,13 @@
+{% extends "common/base.html" %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+{% block pageTitle %}
+{{ grant.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+{% set active_item_identifier = "grants" %}
+{% block content %}
+    <div class="govuk-grid-row">
+         <div class="govuk-grid-column-two-thirds">
+            <h1 class="govuk-heading-l">{{ grant.name }}</h1>
+         </div>
+    </div>
+{% endblock content %}

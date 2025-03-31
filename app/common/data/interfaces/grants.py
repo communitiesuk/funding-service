@@ -16,7 +16,7 @@ def get_all_grants() -> Sequence[Grant]:
     return db.get_session().scalars(statement).all()
 
 
-def add_grant(name: str) -> Grant:
+def create_grant(name: str) -> Grant:
     # TODO update to use new request scoped session stuff once merged
     session = db.get_session()
     grant: Grant = Grant(name=name)
