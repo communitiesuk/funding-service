@@ -5,7 +5,7 @@ from app.common.data.models import Grant
 
 
 # this will likely be split out into different blueprints/ endpoints
-def test_create_grant_handler(client, db):
+def test_create_grant_handler(client, db, db_session):
     client.get("/grant")
     response = client.post(
         "/grant",
@@ -13,5 +13,5 @@ def test_create_grant_handler(client, db):
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     # assert the grant is in the database and has been committed to the dataabse
-    db.session.scalars(select(Grant).where(Grant.name == "My test grant")).one()
-    assert response.status_code == 200
+    db_session.scalars(select(Grant).where(Grant.name == "My test grant")).one()
+    assert response.status_code == 302

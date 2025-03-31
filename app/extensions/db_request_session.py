@@ -34,15 +34,15 @@ class DBRequestSession:
 def _commit_session(response: Response) -> Response:
     session: orm.Session | None = g.get("_fs_db_request_session", None)
     if session:
-        # we should only commit if the session hasn't previously been rolled back
-        # it looks the session is autorolledback after a integrity check (i.e a flush)
-        # in which case we shouldn't commit here
         try:
             session.commit()
-        # want to sense check if we can check for this up front but have seen
-        # this done in a few places
         except PendingRollbackError:
+            # an integrity error or similar has already been caught by the session (through a `flush`)
+            # this may have been handled by the http handler already, make sure we clean up the session
+            # but then continue
+            # any other failures here should be raised and handled by the flask exception handler stack
             session.rollback()
+
     return response
 
 
