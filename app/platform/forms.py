@@ -5,5 +5,5 @@ from wtforms.validators import DataRequired
 
 
 class GrantForm(FlaskForm):
-    name = StringField("Grant Name", validators=[DataRequired()], widget=GovTextInput())
+    name = StringField("Grant name", validators=[DataRequired()], widget=GovTextInput())
     submit = SubmitField("Submit", widget=GovSubmitInput())
