@@ -17,7 +17,7 @@ def test_get_all_grants(grant_factory):
     assert len(result) == 5
 
 
-def test_create_grant(db, grant_factory) -> None:
+def test_create_grant(db) -> None:
     result = add_grant(name="test_grant")
     assert result is not None
     assert result.id is not None

@@ -85,7 +85,9 @@ ignore_missing_imports = true
 module = ["app.common.data.migrations.versions.*"]
 ignore_errors = true
 
-
+[[tool.mypy.overrides]]
+module = ['factory']
+implicit_reexport = true
 
 [tool.pytest.ini_options]
 env = [
