@@ -5,7 +5,7 @@ from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
 from app import logging
 from app.config import get_settings
-from app.extensions import db, db_request_session, migrate, toolbar, vite
+from app.extensions import auto_commit_after_request, db, migrate, toolbar, vite
 from app.sentry import init_sentry
 
 init_sentry()
@@ -20,7 +20,7 @@ def create_app() -> Flask:
     # Initialise extensions
     logging.init_app(app)
     db.init_app(app)
-    db_request_session.init_app(app)
+    auto_commit_after_request.init_app(app)
     migrate.init_app(
         app,
         db,  # type: ignore[arg-type]  # not natively compatible with Flask-SQLAlchemy-Lite; but is fine for us.

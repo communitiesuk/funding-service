@@ -3,10 +3,10 @@ from flask_migrate import Migrate
 from flask_sqlalchemy_lite import SQLAlchemy
 from flask_vite import Vite
 
-from app.extensions.db_request_session import DBRequestSession
+from app.extensions.db_request_session import AutoCommitAfterRequestExtension
 
 db = SQLAlchemy()
-db_request_session = DBRequestSession(db=db)
+auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
 migrate = Migrate()
 toolbar = DebugToolbarExtension()
 vite = Vite()

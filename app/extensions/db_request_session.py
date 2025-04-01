@@ -1,54 +1,54 @@
 from functools import wraps
-from typing import Any, Callable, cast
+from typing import Callable
 
-import sqlalchemy.orm as orm
 from flask import Response, g
 from flask.sansio.app import App
 from flask_sqlalchemy_lite import SQLAlchemy
 from sqlalchemy.exc import PendingRollbackError
 
 
-class DBRequestSession:
+class AutoCommitAfterRequestExtension:
+    """
+    Provides a callable method to call `commit` on the Flask SQLAlchemy session
+    at the end of a request lifecyle.
+
+    Use an instance of this as a decorator on Flask HTTP handlers.
+
+    ```
+    auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
+
+    @app.get("/")
+    @auto_commit_after_request
+    def handler():
+        pass
+    ```
+    """
+
     def __init__(self, db: SQLAlchemy):
         self._db = db
 
     def init_app(self, app: App) -> None:
-        app.extensions["fs_db_request_session"] = self
-        app.after_request(_commit_session)  # commits can still fail, this happens before error handlers
-        app.teardown_appcontext(_close_session)
-
-    @property
-    def request_session(self) -> orm.Session:
-        return g.get("_fs_db_request_session", None) or self._db.session
+        app.extensions["fs_auto_commit_after_request"] = self
+        app.after_request(self._commit_session)
 
     # see https://mypy.readthedocs.io/en/stable/generics.html#declaring-decorators
-    def db_request_auto_commit[F: Callable[..., Any]](self, func: F) -> F:
+    def __call__[**P, T](self, func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):  # type: ignore[no-untyped-def]
-            g._fs_db_request_session = self._db.sessionmaker(autoflush=True)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            g._fs_should_auto_commit = True
             return func(*args, **kwargs)
 
-        return cast(F, wrapper)
+        return wrapper
 
+    def _commit_session(self, response: Response) -> Response:
+        if g.get("_fs_should_auto_commit", False):
+            try:
+                self._db.session.commit()
+            except PendingRollbackError:
+                # an integrity error or similar has already been caught by the session (through a `flush`)
+                # this may have been handled by the http handler already, make sure we clean up the session
+                # but then continue
+                # any other failures here should be raised and handled by the flask exception handler stack
+                self._db.session.rollback()
 
-def _commit_session(response: Response) -> Response:
-    session: orm.Session | None = g.get("_fs_db_request_session", None)
-    if session:
-        try:
-            session.commit()
-        except PendingRollbackError:
-            # an integrity error or similar has already been caught by the session (through a `flush`)
-            # this may have been handled by the http handler already, make sure we clean up the session
-            # but then continue
-            # any other failures here should be raised and handled by the flask exception handler stack
-            session.rollback()
-
-    return response
-
-
-def _close_session(e: BaseException | None) -> None:
-    session: orm.Session | None = g.get("_fs_db_request_session", None)
-    if session is None:
-        return
-    else:
-        session.close()
+        return response
