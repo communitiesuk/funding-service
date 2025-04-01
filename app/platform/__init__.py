@@ -17,7 +17,7 @@ def create_grant() -> str | Response:
     if form.validate_on_submit():
         with db.get_session() as session, session.begin():
             try:
-                add_grant(name=form.name.data)  # type: ignore
+                add_grant(name=form.name.data)  # type: ignore[arg-type]
                 return redirect(url_for("platform.grant_list"))
             except IntegrityError:
                 # Typing error on next line is because errors is defined as a tuple but at runtime is a list
@@ -27,5 +27,5 @@ def create_grant() -> str | Response:
 
 @platform_blueprint.route("/grant_list", methods=["GET"])
 def grant_list() -> str:
-    grant_list = get_all_grants()
-    return render_template("platform/grant_list.html", grant_list=grant_list)
+    all_grants = get_all_grants()
+    return render_template("platform/grant_list.html", all_grants=all_grants)
