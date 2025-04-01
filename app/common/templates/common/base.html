@@ -3,10 +3,11 @@
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 
 {% set assetPath = url_for('static', filename='').rstrip('/') %}
+
 {% extends "govuk_frontend_jinja/template.html" %}
 
 {% block head %}
-  {{ vite_tags() | safe }}
+    {{ vite_tags() | safe }}
 {% endblock head %}
 
 {% block header %}

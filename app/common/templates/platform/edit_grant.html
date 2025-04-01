@@ -1,10 +1,13 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+
 {% extends "platform/manage_grant_base.html" %}
+
 {% block pageTitle %}
     Edit Grant - MHCLG Funding Service
 {% endblock pageTitle %}
+
 {% set active_sub_navigation_tab = "grant_settings" %}
+
 {% block right_side_content %}
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-two-thirds">
@@ -12,9 +15,6 @@
                 <span class="govuk-caption-l">{{ grant.name }}</span>
                 Edit Grant Details
             </h1>
-            {% if form.errors %}
-                {{ govukErrorSummary(wtforms_errors(form)) }}
-            {% endif %}
             <form method="post" novalidate>
               {{ form.csrf_token }}
               {{ form.name }}
