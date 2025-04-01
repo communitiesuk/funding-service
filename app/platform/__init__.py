@@ -36,3 +36,9 @@ def view_all_grants() -> str:
 def view_grant(grant_id: UUID4) -> str:
     grant = get_grant(grant_id)
     return render_template("platform/grant_details.html", grant=grant)
+
+
+@platform_blueprint.route("/grants/<grant_id>/settings", methods=["GET"])
+def grant_settings(grant_id: UUID4) -> str:
+    grant = get_grant(grant_id)
+    return render_template("platform/grant_settings.html", grant=grant)

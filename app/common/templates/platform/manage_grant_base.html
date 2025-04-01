@@ -4,8 +4,8 @@
     <div class="fs-container">
         <nav class="fs-left govuk-body">
             <ul>
-                <li class="fs-nav-item"><a class="{{'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('selected' if active_sub_navigation_tab == 'grant_details' else '')}}" href="{{ url_for('platform.view_grant', grant_id=grant.id)}}">Dashboard</a></li>
-                <li class="fs-nav-item"><a class="{{'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('selected' if active_sub_navigation_tab == 'grant_settings' else '')}}" href="#">Settings</a></li>
+                <li class="fs-nav-item"><a href="{{ url_for('platform.view_grant', grant_id=grant.id)}}" class="{{'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('selected' if active_sub_navigation_tab == 'grant_details' else '')}}" >Dashboard</a></li>
+                <li class="fs-nav-item"><a href="{{ url_for('platform.grant_settings', grant_id=grant.id) }}" class="{{'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('selected' if active_sub_navigation_tab == 'grant_settings' else '')}}" >Settings</a></li>
             </ul>
         </nav>
         <nav class="fs-right">
