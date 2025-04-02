@@ -3,8 +3,8 @@ from pydantic import UUID4
 from werkzeug import Response
 from wtforms.fields.core import Field
 
+from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import (
-    DuplicateValueError,
     create_grant,
     get_all_grants,
     get_grant,
