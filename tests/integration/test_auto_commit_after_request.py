@@ -72,7 +72,7 @@ def db(app):
 def test_db_session_is_committed(app, db, db_session):
     response = app.test_client().post("/a-value")
 
-    # set up a separate transaction iwth the database to ensure it was actually commited following
+    # set up a separate transaction with the database to ensure it was actually commited following
     entity = db.sessionmaker().get(TableUnderTest, 1)
     assert response.status_code == 200
     assert entity is not None

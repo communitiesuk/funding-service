@@ -13,5 +13,5 @@ def test_create_grant_handler(client, db, db_session):
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     # assert the grant is in the database and has been committed to the dataabse
-    db_session.scalars(select(Grant).where(Grant.name == "My test grant")).one()
+    db.sessionmaker().scalars(select(Grant).where(Grant.name == "My test grant")).one()
     assert response.status_code == 302
