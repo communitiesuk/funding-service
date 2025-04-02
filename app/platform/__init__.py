@@ -40,7 +40,7 @@ def view_all_grants() -> str:
     return render_template("platform/grant_list.html", grant_list=grant_list)
 
 
-@platform_blueprint.route("/grants/<grant_id>", methods=["GET"])
+@platform_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
 def view_grant(grant_id: UUID4) -> str:
     grant = get_grant(grant_id)
     return render_template("platform/grant_details.html", grant=grant)
