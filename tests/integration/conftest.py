@@ -1,9 +1,8 @@
 import json
 import multiprocessing
-from typing import Generator, Type
-from uuid import uuid4
+from collections import namedtuple
+from typing import Generator
 
-import factory
 import pytest
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
@@ -16,7 +15,8 @@ from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
 
 from app import create_app
-from app.common.data.models import Grant
+from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
+from tests.integration.models import _GrantFactory
 
 
 @pytest.fixture(scope="session")
@@ -108,16 +108,17 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
             connection.close()
 
 
+_Factories = namedtuple("_Factories", ["grant"])
+
+
 @pytest.fixture(scope="function")
-def grant_factory(db_session: Session) -> Generator[Type[factory.alchemy.SQLAlchemyModelFactory], None, None]:
-    # TODO is this the right place to define this class?
-    # Explore more when looking at factory boy usage in spike
-    class GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
-        class Meta:
-            model = Grant
-            sqlalchemy_session = db_session  # the SQLAlchemy session object
+def factories(db_session: Session) -> _Factories:
+    return _Factories(grant=_GrantFactory)
 
-        id = factory.LazyAttribute(lambda n: uuid4())  # type:ignore
-        name = factory.Sequence(lambda n: "Grant %d" % n)  # type:ignore
 
-    yield GrantFactory
+_ExampleFactories = namedtuple("_ExampleFactories", ["person", "account"])
+
+
+@pytest.fixture(scope="function")
+def example_factories() -> _ExampleFactories:
+    return _ExampleFactories(person=ExamplePersonFactory, account=ExampleAccountFactory)
