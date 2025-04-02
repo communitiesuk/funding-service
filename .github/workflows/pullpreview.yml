@@ -31,7 +31,7 @@ jobs:
           aws-region: eu-west-2
       - uses: pullpreview/action@v5
         with:
-          admins: 'samuelhwilliams'
+          admins: 'samuelhwilliams,srh-sloan,sfount,gidsg,marcusher,nuwan-samarasinghe'
           always_on: 'main'
           compose_files: docker-compose.pullpreview.yml
           instance_type: micro
