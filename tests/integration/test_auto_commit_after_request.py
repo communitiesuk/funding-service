@@ -41,7 +41,7 @@ def app(setup_db_container):
 
     @app.post("/handles/<value>")
     @auto_commit_after_request_extension
-    def hanlder_integrity_handler_not_rolled_back(value):
+    def handler_integrity_handler_not_rolled_back(value):
         try:
             db.session.add(TableUnderTest(value=value))
             db.session.flush()
@@ -51,6 +51,14 @@ def app(setup_db_container):
         return Response(status=200)
 
     return app
+
+
+@pytest.fixture(scope="function")
+def db_session(app, db):
+    # note that intentionally don't use the `db_session` test isolation in these extension
+    # tests to have full confidence that anything that has been mutated by the app is appropriately
+    # committed to the database by the extension
+    pass
 
 
 @pytest.fixture(scope="session")
@@ -70,7 +78,7 @@ def db(app):
 
 
 def test_db_session_is_committed(app, db, db_session):
-    response = app.test_client().post("/a-value")
+    response = app.test_client().post("/first-scenario-value")
 
     # set up a separate transaction with the database to ensure it was actually commited following
     entity = db.sessionmaker().get(TableUnderTest, 1)
@@ -79,21 +87,25 @@ def test_db_session_is_committed(app, db, db_session):
 
 
 def test_db_session_is_rolled_back_and_doesnt_error_when_handled(app, db, db_session):
-    first_response = app.test_client().post("/a-value")
-    duplicate_response = app.test_client().post("/handles/a-value")
+    first_response = app.test_client().post("/second-scenario-value")
+    duplicate_response = app.test_client().post("/handles/second-scenario-value")
 
     assert first_response.status_code == 200
     assert duplicate_response.status_code == 200
 
-    all_entities = db.sessionmaker().scalars(select(TableUnderTest)).all()
+    all_entities = (
+        db.sessionmaker().scalars(select(TableUnderTest).filter(TableUnderTest.value == "second-scenario-value")).all()
+    )
     assert len(all_entities) == 1
 
 
 def test_db_session_throws_appropriately_on_commit_if_not_handled(app, db, db_session):
-    app.test_client().post("/a-value")
+    app.test_client().post("/third-scenario-value")
 
     with pytest.raises(IntegrityError):
-        app.test_client().post("/a-value")
+        app.test_client().post("/third-scenario-value")
 
-    all_entities = db.sessionmaker().scalars(select(TableUnderTest)).all()
+    all_entities = (
+        db.sessionmaker().scalars(select(TableUnderTest).filter(TableUnderTest.value == "third-scenario-value")).all()
+    )
     assert len(all_entities) == 1

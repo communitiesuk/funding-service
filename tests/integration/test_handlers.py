@@ -6,9 +6,9 @@ from app.common.data.models import Grant
 
 # this will likely be split out into different blueprints/ endpoints
 def test_create_grant_handler(client, db, db_session):
-    client.get("/grant")
+    client.get("/grants/add")
     response = client.post(
-        "/grant",
+        "/grants/add",
         data={"name": "My test grant", "csrf_token": g.csrf_token},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
