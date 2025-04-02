@@ -7,25 +7,25 @@
 {% block main %}
     <div class="govuk-width-container {%- if containerClasses %} {{ containerClasses }}{% endif %}">
         <div class="govuk-main-wrapper {%- if mainClasses %} {{ mainClasses }}{% endif %}">
-            <div class="fs-container">
-                <nav class="fs-left govuk-body">
-                    <ul>
-                        <li class="fs-nav-item"><a href="{{ url_for('platform.view_grant', grant_id=grant.id)}}" class="{{'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('selected' if active_sub_navigation_tab == 'grant_details' else '')}}" >Dashboard</a></li>
-                        <li class="fs-nav-item"><a href="{{ url_for('platform.grant_settings', grant_id=grant.id) }}" class="{{'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('selected' if active_sub_navigation_tab == 'grant_settings' else '')}}" >Settings</a></li>
+            <div class="govuk-grid-row">
+                <div class="govuk-grid-column-one-quarter">
+                    <ul class="govuk-list">
+                        <li><a href="{{ url_for('platform.view_grant', grant_id=grant.id) }}"
+                               class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == 'grant_details' else '') }}">Dashboard</a>
+                        </li>
+                        <li><a href="{{ url_for('platform.grant_settings', grant_id=grant.id) }}"
+                               class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == 'grant_settings' else '') }}">Settings</a>
+                        </li>
                     </ul>
-                </nav>
-                <div class="fs-right">
+                </div>
+                <div class="govuk-grid-column-three-quarters">
                     {% block right_side_wrapper %}
                         {% block beforeContent %}{% endblock %}
                         <main id="main-content" {%- if mainLang %} lang="{{ mainLang }}"{% endif %}>
                             {% block right_side_error %}
-                                <div class="govuk-grid-row">
-                                    <div class="govuk-grid-column-two-thirds">
-                                        {% if form is defined and form.errors %}
-                                            {{ govukErrorSummary(wtforms_errors(form)) }}
-                                        {% endif %}
-                                    </div>
-                                </div>
+                                {% if form is defined and form.errors %}
+                                    {{ govukErrorSummary(wtforms_errors(form)) }}
+                                {% endif %}
                             {% endblock %}
                             {% block content %}
                             {% endblock %}
@@ -34,5 +34,6 @@
                 </div>
             </div>
         </div>
+    </div>
     </div>
 {% endblock %}

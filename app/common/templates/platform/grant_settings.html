@@ -9,13 +9,11 @@
 {% set active_sub_navigation_tab = "grant_settings" %}
 
 {% block content %}
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
-            <h1 class="govuk-heading-l">
-                <span class="govuk-caption-l">{{ grant.name }}</span>
-                Settings
-            </h1>
-            {{ govukSummaryList({
+    <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Settings
+    </h1>
+    {{ govukSummaryList({
                   "rows": [{
                       "key": {"text": "Grant name"},
                       "value": {"text": grant.name},
@@ -30,6 +28,4 @@
                       }
                   }]
             }) }}
-        </div>
-    </div>
 {% endblock content %}
