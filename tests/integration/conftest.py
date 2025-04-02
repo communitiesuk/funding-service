@@ -1,6 +1,7 @@
 import json
 import multiprocessing
-from typing import Generator, Type
+from collections import namedtuple
+from typing import Generator
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -14,7 +15,8 @@ from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
 
 from app import create_app
-from tests.integration.models import GrantFactory
+from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
+from tests.integration.models import _GrantFactory
 
 
 @pytest.fixture(scope="session")
@@ -106,6 +108,17 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
             connection.close()
 
 
+_Factories = namedtuple("_Factories", ["grant"])
+
+
 @pytest.fixture(scope="function")
-def grant_factory(db_session: Session) -> Type[GrantFactory]:
-    return GrantFactory
+def factories(db_session: Session) -> _Factories:
+    return _Factories(grant=_GrantFactory)
+
+
+_ExampleFactories = namedtuple("_ExampleFactories", ["person", "account"])
+
+
+@pytest.fixture(scope="function")
+def example_factories() -> _ExampleFactories:
+    return _ExampleFactories(person=ExamplePersonFactory, account=ExampleAccountFactory)

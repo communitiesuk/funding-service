@@ -15,7 +15,7 @@ from app.common.data.models import Grant
 from app.extensions import db
 
 
-class GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Grant
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
