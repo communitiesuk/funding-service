@@ -33,7 +33,7 @@ def setup_db_container() -> Generator[None, None, None]:
             "DATABASE_SECRET", json.dumps({"username": test_postgres.username, "password": test_postgres.password})
         )
 
-        yield
+        yield test_postgres.get_connection_url()
 
     test_postgres.stop()
 
