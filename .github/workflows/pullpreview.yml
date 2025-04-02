@@ -18,9 +18,9 @@ jobs:
     permissions:
       id-token: write # This is required for requesting the JWT
       contents: read  # This is required for actions/checkout
-      statuses: write
-      pull-requests: read
-      deployments: write
+      statuses: write  # Allows setting a status on a PR
+      pull-requests: write  # Allows removing labels from PRs
+      deployments: write  # Allows creating an environment/deployment
     steps:
       - uses: actions/checkout@v4
       - name: configure aws credentials
