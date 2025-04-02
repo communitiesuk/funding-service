@@ -22,7 +22,6 @@ platform_blueprint = Blueprint(name="platform", import_name=__name__)
 def add_grant() -> str | Response:
     form = GrantForm()
     if form.validate_on_submit():
-        # with db.get_session() as session, session.begin():
         try:
             create_grant(name=form.name.data)  # type: ignore
             db.session.commit()
