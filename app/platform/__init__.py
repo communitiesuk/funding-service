@@ -54,7 +54,6 @@ def grant_settings(grant_id: UUID4) -> str:
 
 @platform_blueprint.route("/grants/<uuid:grant_id>/edit", methods=["GET", "POST"])
 def edit_grant(grant_id: UUID4) -> str | Response:
-    # with db.get_session() as session, session.begin():
     grant = get_grant(grant_id)
     form = GrantForm(obj=grant)
     if form.validate_on_submit():
