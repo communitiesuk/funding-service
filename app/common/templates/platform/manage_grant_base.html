@@ -19,18 +19,18 @@
                     </ul>
                 </div>
                 <div class="govuk-grid-column-three-quarters">
-                    {% block right_side_wrapper %}
-                        {% block beforeContent %}{% endblock %}
+                    {% block mainWrapper %}
+                        {% block beforeContent %}{% endblock beforeContent%}
                         <main id="main-content" {%- if mainLang %} lang="{{ mainLang }}"{% endif %}>
-                            {% block right_side_error %}
+                            {% block errorSummary %}
                                 {% if form is defined and form.errors %}
                                     {{ govukErrorSummary(wtforms_errors(form)) }}
                                 {% endif %}
-                            {% endblock %}
+                            {% endblock errorSummary%}
                             {% block content %}
-                            {% endblock %}
+                            {% endblock content%}
                         </main>
-                    {% endblock %}
+                    {% endblock mainWrapper%}
                 </div>
             </div>
         </div>
