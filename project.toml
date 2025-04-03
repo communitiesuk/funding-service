@@ -13,5 +13,6 @@ exclude = [
 ]
 
 [[io.buildpacks.build.env]]
+# If updating the version here, also update in pyproject.toml, .python-version, Dockerfile
 name = "BP_CPYTHON_VERSION"
 value = "3.13.*"
