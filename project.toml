@@ -1,0 +1,18 @@
+[_]
+schema-version = "0.2"
+
+[io.buildpacks]
+exclude = [
+    ".flaskenv",
+    ".git",
+    ".github",
+    ".vscode",
+    ".pullpreview",
+    ".pre-commit-config.yaml",
+    "tests"
+]
+
+[[io.buildpacks.build.env]]
+# If updating the version here, also update in pyproject.toml, .python-version, Dockerfile
+name = "BP_CPYTHON_VERSION"
+value = "3.13.*"
