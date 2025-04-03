@@ -112,9 +112,9 @@ class UnitTestConfig(LocalConfig):
     Overrides / default configuration for running unit tests.
     """
 
-    WTF_CSRF_ENABLED: bool = False
-
+    # Flask app
     FLASK_ENV: Environment = Environment.UNIT_TEST
+    WTF_CSRF_ENABLED: bool = False
 
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = False
