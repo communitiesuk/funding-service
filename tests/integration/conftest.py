@@ -22,6 +22,12 @@ from tests.integration.models import _GrantFactory
 
 @pytest.fixture(scope="session")
 def setup_db_container() -> Generator[None, None, None]:
+    from testcontainers.core.config import testcontainers_config
+
+    # Reduce sleep/wait time from 1 second to 0.1 seconds. We could drop this if it ever causes any problems, but shaves
+    # off a little bit of time - why not.
+    testcontainers_config.sleep_time = 0.1
+
     test_postgres = PostgresContainer("postgres:16")
     test_postgres.start()
 
