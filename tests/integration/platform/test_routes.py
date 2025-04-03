@@ -61,8 +61,7 @@ def test_edit_grant_post(client, factories, templates_rendered, db, db_session):
 def test_edit_grant_post_with_errors(client, factories, templates_rendered, db):
     grants = factories.grant.create_batch(2)
     # Test error handling on an update
-    form = GrantForm()
-    form.name.data = grants[1].name
+    form = GrantForm(data={"name": grants[1].name})
     result = client.post(url_for("platform.edit_grant", grant_id=grants[0].id), data=form.data, follow_redirects=False)
     assert result.status_code == 200
 
