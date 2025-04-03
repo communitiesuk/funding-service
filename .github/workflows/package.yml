@@ -74,3 +74,18 @@ jobs:
           aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com
 
           pack build $IMAGE_LOCATION --tag $IMAGE_ID:${{github.sha}} --tag $IMAGE_ID:latest --builder paketobuildpacks/builder-jammy-full --publish
+
+  notify_slack:
+    needs:
+      - paketo_build
+    if: ${{ always() && needs.paketo_build.result == 'failure' && github.ref_name == 'main'}}
+    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
+    with:
+      app_name: FS Paketo
+      env_name: 'build'
+      github_username: ${{ github.actor }}
+      workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
