@@ -11,7 +11,7 @@
                 <div class="govuk-grid-column-one-quarter">
                     <ul class="govuk-list">
                         <li class="fs-nav-item"><a href="{{ url_for('platform.view_grant', grant_id=grant.id) }}"
-                               class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == 'grant_details' else '') }}">Dashboard</a>
+                               class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == 'grant_dashboard' else '') }}">Dashboard</a>
                         </li>
                         <li class="fs-nav-item"><a href="{{ url_for('platform.grant_settings', grant_id=grant.id) }}"
                                class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == 'grant_settings' else '') }}">Settings</a>

@@ -1,7 +1,8 @@
-from flask import Flask
+from flask import Flask, redirect, url_for
 from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
+from werkzeug import Response
 
 from app import logging
 from app.config import get_settings
@@ -52,5 +53,9 @@ def create_app() -> Flask:
 
     app.register_blueprint(healthcheck_blueprint)
     app.register_blueprint(platform_blueprint)
+
+    @app.route("/", methods=["GET"])
+    def index() -> Response:
+        return redirect(url_for("platform.list_grants"))
 
     return app
