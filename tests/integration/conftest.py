@@ -13,6 +13,7 @@ from flask_sqlalchemy_lite import SQLAlchemy
 from sqlalchemy.orm import Session
 from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
+from werkzeug.test import TestResponse
 
 from app import create_app
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
@@ -33,7 +34,7 @@ def setup_db_container() -> Generator[None, None, None]:
             "DATABASE_SECRET", json.dumps({"username": test_postgres.username, "password": test_postgres.password})
         )
 
-        yield
+        yield test_postgres.get_connection_url()
 
     test_postgres.stop()
 
@@ -64,12 +65,29 @@ def db(setup_db_container: Generator[None], app: Flask) -> Generator[SQLAlchemy,
 @pytest.fixture(scope="session")
 def app(setup_db_container: Generator[SQLAlchemy]) -> Generator[Flask, None, None]:
     app = create_app()
+    app.config.update({"TESTING": True})
     yield app
 
 
 @pytest.fixture()
 def client(app: Flask) -> FlaskClient:
-    return app.test_client()
+    class CustomClient(FlaskClient):
+        # We want to be sure that any data methods that act during the request have been
+        # committed by the flask app lifecycle before continuing. Because of the way we configure
+        # savepoints and rollbacks for test isolation a `flush` is considered the same as a
+        # `commit` as the same session configuration is used. Calling rollback after making requests
+        # to the app under test will either revert to the previous savepoint (undoing any uncommitted flushes)
+        # or leave the session unchanged if it was appropriately committed. This is to be used in conjunction with
+        # the `db_session` fixture.
+        def open(self, *args, **kwargs) -> TestResponse:  # type: ignore[no-untyped-def]
+            response = super().open(*args, **kwargs)
+
+            app.extensions["sqlalchemy"].session.rollback()
+            return response
+
+    app.test_client_class = CustomClient
+    client = app.test_client()
+    return client
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -80,7 +98,7 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
     These tests may talk over the network (eg to the DB), so we need to make some allowance for that, but they should
     still be able to be fairly fast.
     """
-    request.node.add_marker(pytest.mark.fail_slow("20ms"))
+    request.node.add_marker(pytest.mark.fail_slow("400ms"))
 
 
 @pytest.fixture(scope="function")

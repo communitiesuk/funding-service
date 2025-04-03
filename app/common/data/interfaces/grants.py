@@ -10,33 +10,31 @@ from app.extensions import db
 
 
 def get_grant(grant_id: UUID4) -> Grant | None:
-    return db.get_session().get(Grant, grant_id)
+    return db.session.get(Grant, grant_id)
 
 
 def get_all_grants() -> Sequence[Grant]:
     statement = select(Grant).order_by(Grant.name)
-    return db.get_session().scalars(statement).all()
+    return db.session.scalars(statement).all()
 
 
 def create_grant(name: str) -> Grant:
-    # TODO update to use new request scoped session stuff once merged
-    session = db.get_session()
     grant: Grant = Grant(name=name)
+    db.session.add(grant)
+    
     try:
-        session.add(grant)
-        session.flush()
+        db.session.flush()
     except IntegrityError as e:
-        session.rollback()
+        db.session.rollback()
         raise DuplicateValueError(e) from e
     return grant
 
 
 def update_grant(grant: Grant, name: str) -> Grant:
-    session = db.get_session()
     grant.name = name
     try:
-        session.flush()
+        db.session.flush()
     except IntegrityError as e:
-        session.rollback()
+        db.session.rollback()
         raise DuplicateValueError(e) from e
     return grant
