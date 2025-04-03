@@ -65,6 +65,7 @@ jobs:
       - name: run unit tests
         run: uv run pytest -nauto .
         env:
+          FLASK_ENV: unit_test
           DATABASE_HOST: localhost
           DATABASE_PORT: 5432
           DATABASE_NAME: postgres

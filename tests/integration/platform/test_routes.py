@@ -8,7 +8,7 @@ from app.platform import GrantForm
 
 def test_view_all_grants(client, factories, templates_rendered):
     factories.grant.create_batch(5)
-    result = client.get(url_for("platform.view_all_grants"))
+    result = client.get("/grants")
     assert result.status_code == 200
     assert len(templates_rendered[0][1]["grant_list"]) == 5
     soup = BeautifulSoup(result.data, "html.parser")

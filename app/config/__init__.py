@@ -88,26 +88,6 @@ class _SharedConfig(_BaseConfig):
     VITE_FOLDER_PATH: str = "app/vite"
 
 
-class UnitTestConfig(_SharedConfig):
-    """
-    Overrides / default configuration for running unit tests.
-    """
-
-    FLASK_ENV: Environment = Environment.UNIT_TEST
-    SERVER_NAME: str = "funding.communities.gov.localhost:8080"
-    SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
-    WTF_CSRF_ENABLED: bool = False
-
-    # Databases
-    SQLALCHEMY_RECORD_QUERIES: bool = True
-
-    # Flask-DebugToolbar
-    DEBUG_TB_ENABLED: bool = True
-
-    # Logging
-    LOG_FORMATTER: LogFormats = "plaintext"
-
-
 class LocalConfig(_SharedConfig):
     """
     Overrides / default configuration for local developer environments.
@@ -125,6 +105,19 @@ class LocalConfig(_SharedConfig):
 
     # Logging
     LOG_FORMATTER: LogFormats = "plaintext"
+
+
+class UnitTestConfig(LocalConfig):
+    """
+    Overrides / default configuration for running unit tests.
+    """
+
+    WTF_CSRF_ENABLED: bool = False
+
+    FLASK_ENV: Environment = Environment.UNIT_TEST
+
+    # Flask-DebugToolbar
+    DEBUG_TB_ENABLED: bool = False
 
 
 class DevConfig(_SharedConfig):
@@ -156,7 +149,7 @@ def get_settings() -> _SharedConfig:
     environment = os.getenv("FLASK_ENV", Environment.PROD.value)
     match Environment(environment):
         case Environment.UNIT_TEST:
-            return UnitTestConfig()
+            return UnitTestConfig()  # type: ignore[call-arg]
         case Environment.LOCAL:
             return LocalConfig()  # type: ignore[call-arg]
         case Environment.DEV:
