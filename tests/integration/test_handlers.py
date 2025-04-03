@@ -1,4 +1,4 @@
-from flask import g
+from flask import g, url_for
 from sqlalchemy import select
 
 from app.common.data.models import Grant
@@ -6,9 +6,10 @@ from app.common.data.models import Grant
 
 # this will likely be split out into different blueprints/ endpoints
 def test_create_grant_handler(client, db, db_session):
-    client.get("/grants/add")
+    url = url_for("platform.add_grant")
+    client.get(url)
     response = client.post(
-        "/grants/add",
+        url,
         data={"name": "My test grant", "csrf_token": g.csrf_token},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )

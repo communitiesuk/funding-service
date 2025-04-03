@@ -3,7 +3,7 @@ from flask import Flask, Response
 from flask_sqlalchemy_lite import SQLAlchemy
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy_utils import create_database, database_exists
 
 from app.extensions.auto_commit_after_request import AutoCommitAfterRequestExtension
@@ -77,35 +77,45 @@ def db(app):
             engine.dispose()
 
 
-def test_db_session_is_committed(app, db, db_session):
+@pytest.fixture(scope="function")
+def session_outside_connection(db):
+    # set up a separate connection to the database to make sure we don't get a re-used session
+    # and are only checking committed values
+    connection = db.engine.connect()
+    session = sessionmaker(bind=connection)()
+    yield session
+    session.close()
+    connection.close()
+
+
+def test_db_session_is_committed(app, db, db_session, session_outside_connection):
     response = app.test_client().post("/first-scenario-value")
 
-    # set up a separate transaction with the database to ensure it was actually commited following
-    entity = db.sessionmaker().get(TableUnderTest, 1)
+    entity = session_outside_connection.get(TableUnderTest, 1)
     assert response.status_code == 200
     assert entity is not None
 
 
-def test_db_session_is_rolled_back_and_doesnt_error_when_handled(app, db, db_session):
+def test_db_session_is_rolled_back_and_doesnt_error_when_handled(app, db, db_session, session_outside_connection):
     first_response = app.test_client().post("/second-scenario-value")
     duplicate_response = app.test_client().post("/handles/second-scenario-value")
 
     assert first_response.status_code == 200
     assert duplicate_response.status_code == 200
 
-    all_entities = (
-        db.sessionmaker().scalars(select(TableUnderTest).filter(TableUnderTest.value == "second-scenario-value")).all()
-    )
+    all_entities = session_outside_connection.scalars(
+        select(TableUnderTest).filter(TableUnderTest.value == "second-scenario-value")
+    ).all()
     assert len(all_entities) == 1
 
 
-def test_db_session_throws_appropriately_on_commit_if_not_handled(app, db, db_session):
+def test_db_session_throws_appropriately_on_commit_if_not_handled(app, db, db_session, session_outside_connection):
     app.test_client().post("/third-scenario-value")
 
     with pytest.raises(IntegrityError):
         app.test_client().post("/third-scenario-value")
 
-    all_entities = (
-        db.sessionmaker().scalars(select(TableUnderTest).filter(TableUnderTest.value == "third-scenario-value")).all()
-    )
+    all_entities = session_outside_connection.scalars(
+        select(TableUnderTest).filter(TableUnderTest.value == "third-scenario-value")
+    ).all()
     assert len(all_entities) == 1

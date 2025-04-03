@@ -80,7 +80,7 @@ def client(app: Flask) -> FlaskClient:
         # or leave the session unchanged if it was appropriately committed. This is to be used in conjunction with
         # the `db_session` fixture.
         def open(self, *args, **kwargs) -> TestResponse:  # type: ignore[no-untyped-def]
-            response = super(CustomClient, self).open(*args, **kwargs)
+            response = super().open(*args, **kwargs)
 
             app.extensions["sqlalchemy"].session.rollback()
             return response
