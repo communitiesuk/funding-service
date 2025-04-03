@@ -27,6 +27,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "beautifulsoup4>=4.13.3",
     "debugpy>=1.8.12",
     "factory-boy>=3.3.3",
     "flask-debugtoolbar>=0.16.0",
@@ -92,7 +93,7 @@ implicit_reexport = true
 
 [tool.pytest.ini_options]
 env = [
-    "FLASK_ENV=local",
+    "FLASK_ENV=unit_test",
     "DATABASE_URL=postgresql+psycopg://overridden-by-fixture"
 ]
 

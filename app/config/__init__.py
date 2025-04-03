@@ -9,6 +9,7 @@ from app.types import LogFormats, LogLevels
 
 
 class Environment(str, Enum):
+    UNIT_TEST = "unit_test"
     LOCAL = "local"
     DEV = "dev"
     UAT = "uat"
@@ -58,6 +59,7 @@ class _SharedConfig(_BaseConfig):
     FLASK_ENV: Environment
     SERVER_NAME: str
     SECRET_KEY: str
+    WTF_CSRF_ENABLED: bool = True
 
     # Databases
     DATABASE_HOST: str
@@ -84,6 +86,26 @@ class _SharedConfig(_BaseConfig):
     # Flask-Vite
     VITE_AUTO_INSERT: bool = False
     VITE_FOLDER_PATH: str = "app/vite"
+
+
+class UnitTestConfig(_SharedConfig):
+    """
+    Overrides / default configuration for running unit tests.
+    """
+
+    FLASK_ENV: Environment = Environment.UNIT_TEST
+    SERVER_NAME: str = "funding.communities.gov.localhost:8080"
+    SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
+    WTF_CSRF_ENABLED: bool = False
+
+    # Databases
+    SQLALCHEMY_RECORD_QUERIES: bool = True
+
+    # Flask-DebugToolbar
+    DEBUG_TB_ENABLED: bool = True
+
+    # Logging
+    LOG_FORMATTER: LogFormats = "plaintext"
 
 
 class LocalConfig(_SharedConfig):
@@ -133,6 +155,8 @@ class ProdConfig(_SharedConfig):
 def get_settings() -> _SharedConfig:
     environment = os.getenv("FLASK_ENV", Environment.PROD.value)
     match Environment(environment):
+        case Environment.UNIT_TEST:
+            return UnitTestConfig()
         case Environment.LOCAL:
             return LocalConfig()  # type: ignore[call-arg]
         case Environment.DEV:
