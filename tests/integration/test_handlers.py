@@ -6,7 +6,7 @@ from app.common.data.models import Grant
 
 # this will likely be split out into different blueprints/ endpoints
 def test_create_grant_handler(client, db, db_session):
-    url = url_for("platform.add_grant")
+    url = url_for("platform.create_grant")
     client.get(url)
     response = client.post(
         url,

@@ -18,10 +18,10 @@ def get_all_grants() -> Sequence[Grant]:
     return db.session.scalars(statement).all()
 
 
-def create_grant(name: str) -> Grant:
+def add_grant(name: str) -> Grant:
     grant: Grant = Grant(name=name)
     db.session.add(grant)
-    
+
     try:
         db.session.flush()
     except IntegrityError as e:

@@ -5,5 +5,12 @@ from wtforms.validators import DataRequired
 
 
 class GrantForm(FlaskForm):
-    name = StringField("Grant name", validators=[DataRequired()], widget=GovTextInput())
+    # TODO: we'll probably want this `strip` behaviour in a BaseForm which extends FlaskForm so that its consistent
+    # we can use `bind_field` to apply that consistently
+    name = StringField(
+        "Grant name",
+        validators=[DataRequired("Enter a grant name")],
+        filters=[lambda x: x.strip() if x else x],
+        widget=GovTextInput(),
+    )
     submit = SubmitField("Submit", widget=GovSubmitInput())
