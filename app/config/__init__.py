@@ -112,6 +112,7 @@ class LocalConfig(_SharedConfig):
     LOG_FORMATTER: LogFormats = "plaintext"
 
     # GOV.UK Notify
+    GOVUK_NOTIFY_DISABLE: bool = True  # By default; update in .env when you have a key.
     GOVUK_NOTIFY_API_KEY: str = "invalid-00000000-0000-0000-0000-000000000000-00000000-0000-0000-0000-000000000000"
 
 
@@ -126,6 +127,9 @@ class UnitTestConfig(LocalConfig):
 
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = False
+
+    # GOV.UK Notify
+    GOVUK_NOTIFY_DISABLE: bool = False  # We want to test the real code paths
 
 
 class DevConfig(_SharedConfig):
