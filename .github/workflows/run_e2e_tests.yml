@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - fspt-278-e2e-bootstrap
 
 jobs:
   e2e_tests:
@@ -30,3 +29,18 @@ jobs:
 
       - name: run e2e tests
         run: uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium
+
+  notify_slack:
+    needs:
+      - e2e_tests
+    if: ${{ always() && needs.e2e_tests.result == 'failure' && github.ref_name == 'main'}}
+    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
+    with:
+      app_name: FS E2E Tests
+      env_name: 'dev'
+      github_username: ${{ github.actor }}
+      workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}

@@ -10,7 +10,7 @@ from app.common.data.interfaces.grants import (
     get_grant,
     update_grant,
 )
-from app.extensions import auto_commit_after_request, db
+from app.extensions import auto_commit_after_request
 from app.platform.forms import GrantForm
 
 # TODO do we call this platform

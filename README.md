@@ -40,3 +40,13 @@ Developers are expected to run the app locally using [docker-compose](https://do
 * `make down` / `docker compose down` will stop the Funding Service.
 * `make build` / `docker compose build` will rebuild the Funding Service image.
 * `make clean-build` / `docker compose build --no-cache` will rebuild the Funding Service image, bypassing caching. This should rarely be needed.
+
+# Tests
+## E2E Tests
+All E2E (browser) tests should live inside [/tests/e2e](./tests/e2e).
+
+To run any E2E tests include the `e2e` option in the pytest command:
+```shell
+uv run pytest --e2e
+```
+[This function](./tests/conftest.py#L15) skips e2e or non-e2e tests depending on the presence of the `--e2e` option.
