@@ -12,3 +12,5 @@ migrate = Migrate()
 toolbar = DebugToolbarExtension()
 vite = Vite()
 notification_service = NotificationService()
+
+__all__ = ["db", "auto_commit_after_request", "migrate", "toolbar", "vite", "notification_service"]

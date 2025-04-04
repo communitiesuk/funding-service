@@ -4,7 +4,8 @@ import uuid
 import responses
 from responses import matchers
 
-from app.services.notify import Notification, get_notification_service
+from app import notification_service
+from app.services.notify import Notification
 
 
 class TestNotificationService:
@@ -35,7 +36,7 @@ class TestNotificationService:
             json={"id": "00000000-0000-0000-0000-000000000000"},  # partial GOV.UK Notify response
         )
 
-        resp = get_notification_service().send_magic_link(
+        resp = notification_service.send_magic_link(
             "test@test.com",
             "https://magic-link",
             # Timestamp is in UTC; `send_magic_link` will convert to Europe/London local time

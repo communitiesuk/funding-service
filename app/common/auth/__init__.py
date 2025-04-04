@@ -5,7 +5,7 @@ from flask import Blueprint, redirect, render_template, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.forms import SignInForm
-from app.services.notify import get_notification_service
+from app.extensions import notification_service
 
 auth_blueprint = Blueprint(
     "auth",
@@ -23,7 +23,7 @@ def sign_in() -> ResponseReturnValue:
         # TODO: all session stuff will be revisited as part of FSPT-334
         session["email_address"] = email
 
-        get_notification_service().send_magic_link(
+        notification_service.send_magic_link(
             email,  # type: ignore[arg-type]
             "https://magic-link-tbd",
             datetime.datetime.now(ZoneInfo("UTC")) + datetime.timedelta(minutes=15),
