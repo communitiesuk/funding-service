@@ -33,6 +33,7 @@ dev = [
     "flask-debugtoolbar>=0.16.0",
     "mypy>=1.15.0",
     "pre-commit>=4.1.0",
+    "pytest-playwright>=0.7.0",
     "pytest>=8.3.4",
     "pytest-env>=1.1.5",
     "pytest-fail-slow>=0.6.0",
@@ -95,6 +96,9 @@ implicit_reexport = true
 env = [
     "FLASK_ENV=unit_test",
     "DATABASE_URL=postgresql+psycopg://overridden-by-fixture"
+]
+markers = [
+    "e2e: Run E2E (browser) tests using playwright"
 ]
 
 filterwarnings = [
