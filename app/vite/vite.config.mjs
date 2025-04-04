@@ -1,16 +1,22 @@
 /* jshint esversion: 6 */
-
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default {
   server: {
     port: 3000,
     strictPort: true,
+    warmup:{
+      clientFiles: ['*']
+    },
   },
+
+  clearScreen: false,
+  appType: 'custom',
 
   build: {
     manifest: true,
-    quietDeps: true
+    quietDeps: true,
+    cssCodeSplit: false
   },
 
   resolve: {
