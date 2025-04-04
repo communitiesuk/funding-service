@@ -122,7 +122,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -342,18 +342,6 @@ wheels = [
 ]
 
 [[package]]
-name = "flask-vite"
-version = "0.5.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "flask" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/2a/31/e3cb40d2c2b3dd0b2f8b5e6c0dcb2739f25ff1a773a9d9fa75f82676a5bb/flask_vite-0.5.3.tar.gz", hash = "sha256:7f5f739533425d521b3f311eb020f2376108cd2e401457eca31ba9c42b8092d4", size = 30243 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/5e/3b5b1187793a78467f64c1e9fc1244d6af1d95dcc271554178c651dd8723/flask_vite-0.5.3-py3-none-any.whl", hash = "sha256:2015c690c0b7aeffe1e132ee8b7396bac370bee1e5c23873a1a2055c41381939", size = 30200 },
-]
-
-[[package]]
 name = "flask-wtf"
 version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -387,7 +375,6 @@ dependencies = [
     { name = "flask-babel" },
     { name = "flask-migrate" },
     { name = "flask-sqlalchemy-lite" },
-    { name = "flask-vite" },
     { name = "flask-wtf" },
     { name = "govuk-frontend-jinja" },
     { name = "govuk-frontend-wtf" },
@@ -434,7 +421,6 @@ requires-dist = [
     { name = "flask-babel", specifier = "==4.0.0" },
     { name = "flask-migrate", specifier = ">=4.1.0" },
     { name = "flask-sqlalchemy-lite", specifier = ">=0.1.0" },
-    { name = "flask-vite", specifier = ">=0.5.2" },
     { name = "flask-wtf", specifier = ">=1.2.2" },
     { name = "govuk-frontend-jinja", specifier = ">=3.4.1" },
     { name = "govuk-frontend-wtf", specifier = ">=3.2.0" },

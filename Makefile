@@ -17,8 +17,8 @@ pre-commit:
 
 .PHONY: vite
 vite:
-	uv run flask vite install
-	uv run flask vite build
+	# uv run flask vite install
+	# uv run flask vite build
 
 .PHONY: build
 build:
