@@ -87,6 +87,10 @@ class _SharedConfig(_BaseConfig):
     VITE_AUTO_INSERT: bool = False
     VITE_FOLDER_PATH: str = "app/vite"
 
+    # GOV.UK Notify
+    DISABLE_NOTIFICATION_SERVICE: bool = False
+    GOV_NOTIFY_API_KEY: str
+
 
 class LocalConfig(_SharedConfig):
     """
@@ -105,6 +109,9 @@ class LocalConfig(_SharedConfig):
 
     # Logging
     LOG_FORMATTER: LogFormats = "plaintext"
+
+    # GOV.UK Notify
+    GOV_NOTIFY_API_KEY: str = "invalid-00000000-0000-0000-0000-000000000000-00000000-0000-0000-0000-000000000000"
 
 
 class UnitTestConfig(LocalConfig):
@@ -125,6 +132,7 @@ class DevConfig(_SharedConfig):
     Overrides / default configuration for our deployed 'dev' environment
     """
 
+    # Flask app
     FLASK_ENV: Environment = Environment.DEV
     DEBUG_TB_ENABLED: bool = False
 
@@ -134,6 +142,7 @@ class UatConfig(_SharedConfig):
     Overrides / default configuration for our deployed 'uat' environment
     """
 
+    # Flask app
     FLASK_ENV: Environment = Environment.UAT
 
 
@@ -142,6 +151,7 @@ class ProdConfig(_SharedConfig):
     Overrides / default configuration for our deployed 'prod' environment
     """
 
+    # Flask app
     FLASK_ENV: Environment = Environment.PROD
 
 
