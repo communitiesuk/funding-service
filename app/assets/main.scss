@@ -1,0 +1,18 @@
+// ideally we wouldn't use a relative import here
+// didn't want to fight the config at the time
+/* $govuk-suppressed-warnings: "legacy-organisation-colours"; */
+// $govuk-brand-colour: blue;
+$govuk-new-organisation-colours: true;
+
+// $govuk-brand-colour: red;
+@import "../../node_modules/govuk-frontend/dist/govuk";
+
+.app-\!-no-wrap {
+    white-space: nowrap;
+}
+
+.fs-nav-item>a {
+    display: block;
+    padding: 7px 0;
+    width: 100%;
+}
