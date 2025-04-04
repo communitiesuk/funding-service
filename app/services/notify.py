@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
 import uuid
-from typing import Any, cast
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from flask import Flask, current_app
@@ -85,7 +85,3 @@ class NotificationService:
             },
             govuk_notify_reference=govuk_notify_reference,
         )
-
-
-def get_notification_service() -> NotificationService:
-    return cast(NotificationService, current_app.extensions["notification_service"])
