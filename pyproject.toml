@@ -22,7 +22,7 @@ dependencies = [
     "python-json-logger>=3.2.1",
     "sqlalchemy>=2.0.38",
     "sentry-sdk>=2.22.0",
-    "wtforms>=3.2.1",
+    "wtforms[email]>=3.2.1",
 ]
 
 [dependency-groups]

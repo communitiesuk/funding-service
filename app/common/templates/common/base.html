@@ -15,7 +15,7 @@
     "productName": "MHCLG Funding Service",
     "homepageUrl": "#",
     "classes": "govuk-header--full-width-border app-!-no-wrap",
-    "navigation": [{ "text": ("Sign in"), "href": "#" }],
+    "navigation": [{ "text": ("Sign in"), "href": url_for('auth.sign_in') }],
     "navigationClasses": "govuk-header__navigation--end"
 }) }}
 {% include "common/partials/navigation.html" %}
@@ -28,9 +28,13 @@
     {% block mainWrapper %}
       <main id="main-content" {%- if mainLang %} lang="{{ mainLang }}"{% endif %}>
       {% block errorSummary %}
-        {% if form is defined and form.errors %}
-          {{ govukErrorSummary(wtforms_errors(form)) }}
-        {% endif %}
+        <div class="govuk-grid-row">
+          <div class="govuk-grid-column-two-thirds">
+          {% if form is defined and form.errors %}
+            {{ govukErrorSummary(wtforms_errors(form)) }}
+          {% endif %}
+          </div>
+        </div>
       {% endblock errorSummary%}
 
       {% block content %}

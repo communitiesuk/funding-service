@@ -47,10 +47,12 @@ def create_app() -> Flask:
     app.jinja_env.add_extension("jinja2.ext.i18n")
 
     # Attach routes
+    from app.common.auth import auth_blueprint
     from app.healthcheck import healthcheck_blueprint
     from app.platform import platform_blueprint
 
     app.register_blueprint(healthcheck_blueprint)
     app.register_blueprint(platform_blueprint)
+    app.register_blueprint(auth_blueprint)
 
     return app
