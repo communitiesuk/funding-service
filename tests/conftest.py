@@ -16,6 +16,7 @@ html5parser = html5lib.HTMLParser(strict=False)
 
 def pytest_addoption(parser: Parser) -> None:
     parser.addoption("--e2e", action="store_true", default=False, help="run e2e (browser) tests")
+    parser.addoption("--e2e-env", default="local", choices=["local"], action="store", help="run e2e (browser) tests")
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
