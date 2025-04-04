@@ -40,7 +40,7 @@ services:
       DATABASE_PORT: 5432
       DATABASE_NAME: "postgres"
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
-      DISABLE_NOTIFICATION_SERVICE: true
+      GOVUK_NOTIFY__DISABLE: true
     depends_on:
       - db
     networks:
