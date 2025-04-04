@@ -101,6 +101,7 @@ markers = [
     "e2e: Run E2E (browser) tests using playwright"
 ]
 
+
 filterwarnings = [
     "error",
     "ignore:Could not insert debug toolbar:UserWarning"
