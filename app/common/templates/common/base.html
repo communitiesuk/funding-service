@@ -21,6 +21,26 @@
 {% include "common/partials/navigation.html" %}
 {% endblock header %}
 
+{% block main %}
+<div class="govuk-width-container {%- if containerClasses %} {{ containerClasses }}{% endif %}">
+  {% block beforeContent %}{% endblock %}
+  <main class="govuk-main-wrapper {%- if mainClasses %} {{ mainClasses }}{% endif %}" id="main-content" {%- if mainLang %} lang="{{ mainLang }}"{% endif %}>
+    {% block mainWrapper %}
+      <main id="main-content" {%- if mainLang %} lang="{{ mainLang }}"{% endif %}>
+      {% block errorSummary %}
+        {% if form is defined and form.errors %}
+          {{ govukErrorSummary(wtforms_errors(form)) }}
+        {% endif %}
+      {% endblock errorSummary%}
+
+      {% block content %}
+      {% endblock content%}
+      </main>
+    {% endblock mainWrapper%}
+  </main>
+</div>
+{% endblock %}
+
 {% block bodyEnd %}
 {% endblock %}
 
