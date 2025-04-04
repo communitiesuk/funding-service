@@ -25,7 +25,7 @@ def test_sign_in_page_post_non_communities_email(client):
     assert page_has_error(soup, "Email address must end with @communities.gov.uk")
 
 
-def test_sign_in_page_post_valid_email(client):
+def test_sign_in_page_post_valid_email(client, mock_notification_service_calls):
     response = client.post(
         url_for("auth.sign_in"),
         data={"email_address": "test@communities.gov.uk"},
@@ -34,6 +34,7 @@ def test_sign_in_page_post_valid_email(client):
     assert response.status_code == 200
     assert b"Check your email" in response.data
     assert b"test@communities.gov.uk" in response.data
+    assert len(mock_notification_service_calls) == 1
     with client.session_transaction() as sess:
         assert sess["email_address"] == "test@communities.gov.uk"
 
