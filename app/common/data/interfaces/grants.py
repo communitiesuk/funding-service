@@ -21,7 +21,7 @@ def get_all_grants() -> Sequence[Grant]:
 def create_grant(name: str) -> Grant:
     grant: Grant = Grant(name=name)
     db.session.add(grant)
-    
+
     try:
         db.session.flush()
     except IntegrityError as e:
