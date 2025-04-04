@@ -6,7 +6,7 @@ export default {
     port: 3000,
     strictPort: true,
     warmup:{
-      clientFiles: ['*']
+      clientFiles: ['./src/main.js']
     },
   },
 
