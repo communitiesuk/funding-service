@@ -5,7 +5,7 @@ from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
 from app import logging
 from app.config import get_settings
-from app.extensions import auto_commit_after_request, db, migrate, toolbar, vite
+from app.extensions import auto_commit_after_request, db, migrate, notification_service, toolbar, vite
 from app.sentry import init_sentry
 
 init_sentry()
@@ -31,6 +31,7 @@ def create_app() -> Flask:
     )
     toolbar.init_app(app)
     vite.init_app(app)
+    notification_service.init_app(app)
 
     # Configure templates
     app.jinja_loader = ChoiceLoader(
