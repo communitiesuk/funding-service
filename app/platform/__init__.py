@@ -10,7 +10,7 @@ from app.common.data.interfaces.grants import (
     get_grant,
     update_grant,
 )
-from app.extensions import db, auto_commit_after_request
+from app.extensions import auto_commit_after_request, db
 from app.platform.forms import GrantForm
 
 # TODO do we call this platform
@@ -25,7 +25,6 @@ def add_grant() -> str | Response:
     if form.validate_on_submit():
         try:
             create_grant(name=form.name.data)  # type: ignore
-            db.session.commit()
             return redirect(url_for("platform.view_all_grants"))
         except DuplicateValueError as e:
             # Typing error on next line is because errors is defined as a tuple but at runtime is a list

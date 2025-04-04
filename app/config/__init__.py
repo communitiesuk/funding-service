@@ -9,6 +9,7 @@ from app.types import LogFormats, LogLevels
 
 
 class Environment(str, Enum):
+    UNIT_TEST = "unit_test"
     LOCAL = "local"
     DEV = "dev"
     UAT = "uat"
@@ -58,6 +59,7 @@ class _SharedConfig(_BaseConfig):
     FLASK_ENV: Environment
     SERVER_NAME: str
     SECRET_KEY: str
+    WTF_CSRF_ENABLED: bool = True
 
     # Databases
     DATABASE_HOST: str
@@ -105,6 +107,19 @@ class LocalConfig(_SharedConfig):
     LOG_FORMATTER: LogFormats = "plaintext"
 
 
+class UnitTestConfig(LocalConfig):
+    """
+    Overrides / default configuration for running unit tests.
+    """
+
+    # Flask app
+    FLASK_ENV: Environment = Environment.UNIT_TEST
+    WTF_CSRF_ENABLED: bool = False
+
+    # Flask-DebugToolbar
+    DEBUG_TB_ENABLED: bool = False
+
+
 class DevConfig(_SharedConfig):
     """
     Overrides / default configuration for our deployed 'dev' environment
@@ -133,6 +148,8 @@ class ProdConfig(_SharedConfig):
 def get_settings() -> _SharedConfig:
     environment = os.getenv("FLASK_ENV", Environment.PROD.value)
     match Environment(environment):
+        case Environment.UNIT_TEST:
+            return UnitTestConfig()  # type: ignore[call-arg]
         case Environment.LOCAL:
             return LocalConfig()  # type: ignore[call-arg]
         case Environment.DEV:

@@ -1,15 +1,16 @@
 import json
 import multiprocessing
 from collections import namedtuple
-from typing import Generator
+from typing import Any, Generator
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
-from flask import Flask
+from flask import Flask, template_rendered
 from flask.testing import FlaskClient
 from flask_migrate import upgrade
 from flask_sqlalchemy_lite import SQLAlchemy
+from jinja2 import Template
 from sqlalchemy.orm import Session
 from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
@@ -157,3 +158,17 @@ _ExampleFactories = namedtuple("_ExampleFactories", ["person", "account"])
 @pytest.fixture(scope="function")
 def example_factories() -> _ExampleFactories:
     return _ExampleFactories(person=ExamplePersonFactory, account=ExampleAccountFactory)
+
+
+@pytest.fixture(scope="function")
+def templates_rendered(app: Flask) -> Generator[list[tuple[Template, dict[str, Any]]]]:
+    recorded = []
+
+    def record(sender: Flask, template: Template, context: dict[str, Any], **extra: dict[str, Any]) -> None:
+        recorded.append((template, context))
+
+    template_rendered.connect(record, app)
+    try:
+        yield recorded
+    finally:
+        template_rendered.disconnect(record, app)
