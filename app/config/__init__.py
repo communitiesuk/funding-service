@@ -88,8 +88,9 @@ class _SharedConfig(_BaseConfig):
     VITE_FOLDER_PATH: str = "app/vite"
 
     # GOV.UK Notify
-    DISABLE_NOTIFICATION_SERVICE: bool = False
-    GOV_NOTIFY_API_KEY: str
+    GOVUK_NOTIFY_DISABLE: bool = False
+    GOVUK_NOTIFY_API_KEY: str
+    GOVUK_NOTIFY_MAGIC_LINK_TEMPLATE_ID: str = "c19811c2-dc4a-4504-99b5-7bcbae8d9659"
 
 
 class LocalConfig(_SharedConfig):
@@ -111,7 +112,7 @@ class LocalConfig(_SharedConfig):
     LOG_FORMATTER: LogFormats = "plaintext"
 
     # GOV.UK Notify
-    GOV_NOTIFY_API_KEY: str = "invalid-00000000-0000-0000-0000-000000000000-00000000-0000-0000-0000-000000000000"
+    GOVUK_NOTIFY_API_KEY: str = "invalid-00000000-0000-0000-0000-000000000000-00000000-0000-0000-0000-000000000000"
 
 
 class UnitTestConfig(LocalConfig):

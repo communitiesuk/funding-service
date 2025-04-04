@@ -1,6 +1,6 @@
+import datetime
 import uuid
 
-import pytest
 import responses
 from responses import matchers
 
@@ -13,7 +13,6 @@ class TestNotificationService:
     HTTP API calls.
     """
 
-    @pytest.mark.skip(reason="reference implement - to be adjusted")
     @responses.activate
     def test_send_magic_link(self, app):
         request_matcher = responses.post(
@@ -23,12 +22,11 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": "test@test.com",
-                        "template_id": "02a6d48a-f227-4b9a-9dd7-9e0cf203c8a2",
+                        "template_id": "c19811c2-dc4a-4504-99b5-7bcbae8d9659",
                         "personalisation": {
-                            "name of fund": "test fund",
-                            "link to application": "https://magic-link",
-                            "contact details": "contact@test.com",
-                            "request new link url": "https://new-magic-link",
+                            "magic_link": "https://magic-link",
+                            "magic_link_expires_at": "1:00pm on 4 April 2025",
+                            "request_new_magic_link": "https://new-magic-link",
                         },
                         "reference": "abc123",
                     }
@@ -40,8 +38,8 @@ class TestNotificationService:
         resp = get_notification_service().send_magic_link(
             "test@test.com",
             "https://magic-link",
-            "test fund",
-            "contact@test.com",
+            # Timestamp is in UTC; `send_magic_link` will convert to Europe/London local time
+            datetime.datetime.fromisoformat("2025-04-04T12:00:00+00:00"),
             "https://new-magic-link",
             "abc123",
         )
