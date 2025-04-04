@@ -82,6 +82,21 @@ class _SharedConfig(_BaseConfig):
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = False
     DEBUG_TB_INTERCEPT_REDIRECTS: bool = False
+    # We list these explicitly here so that we can disable ConfigVarsDebugPanel in pullpreview environments, where I
+    # want another layer of safety against us showing sensitive configuration publicly.
+    DEBUG_TB_PANELS: list[str] = [
+        "flask_debugtoolbar.panels.versions.VersionDebugPanel",
+        "flask_debugtoolbar.panels.timer.TimerDebugPanel",
+        "flask_debugtoolbar.panels.headers.HeaderDebugPanel",
+        "flask_debugtoolbar.panels.request_vars.RequestVarsDebugPanel",
+        "flask_debugtoolbar.panels.config_vars.ConfigVarsDebugPanel",
+        "flask_debugtoolbar.panels.template.TemplateDebugPanel",
+        "flask_debugtoolbar.panels.sqlalchemy.SQLAlchemyDebugPanel",
+        "flask_debugtoolbar.panels.logger.LoggingPanel",
+        "flask_debugtoolbar.panels.route_list.RouteListDebugPanel",
+        "flask_debugtoolbar.panels.profiler.ProfilerDebugPanel",
+        "flask_debugtoolbar.panels.g.GDebugPanel",
+    ]
 
     # Flask-Vite
     VITE_AUTO_INSERT: bool = False
