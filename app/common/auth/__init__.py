@@ -1,7 +1,11 @@
+import datetime
+from zoneinfo import ZoneInfo
+
 from flask import Blueprint, redirect, render_template, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.forms import SignInForm
+from app.services.notify import get_notification_service
 
 auth_blueprint = Blueprint(
     "auth",
@@ -18,6 +22,13 @@ def sign_in() -> ResponseReturnValue:
 
         # TODO: all session stuff will be revisited as part of FSPT-334
         session["email_address"] = email
+
+        get_notification_service().send_magic_link(
+            email,  # type: ignore[arg-type]
+            "https://magic-link-tbd",
+            datetime.datetime.now(ZoneInfo("UTC")) + datetime.timedelta(minutes=15),
+            "https://new-magic-link-tbd",
+        )
 
         return redirect(url_for("auth.check_email"))
 
