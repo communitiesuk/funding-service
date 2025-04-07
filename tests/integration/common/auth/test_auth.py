@@ -7,8 +7,7 @@ from tests.utils import page_has_error
 def test_sign_in_page_get(client):
     response = client.get(url_for("auth.sign_in"))
     assert response.status_code == 200
-    assert b"Sign in" in response.data
-    assert b"Email address" in response.data
+    assert b"Request a link to sign in" in response.data
 
 
 def test_sign_in_page_post_invalid_email(client):
@@ -52,5 +51,5 @@ def test_check_email_page_with_session(client):
 def test_check_email_page_without_session(client):
     response = client.get("/check-your-email", follow_redirects=True)
     assert response.status_code == 200
-    assert b"Sign in" in response.data
+    assert b"Request a link to sign in" in response.data
     assert url_for("auth.sign_in") in response.request.path

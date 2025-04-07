@@ -1,20 +1,23 @@
 {% extends "common/base.html" %}
 
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+{% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 
 {% block pageTitle %}
-    Sign in - MHCLG Funding Service
+    Request a link to sign in - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% block content %}
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-two-thirds">
-            <h1 class="govuk-heading-l">Sign in</h1>
-            <p class="govuk-body">We'll email you a link that you can use to sign in.</p>
-            <p class="govuk-body">The link will stop working after 15 minutes.</p>
+            {% set hintText %}
+            <p class="govuk-body">Enter your email address and we’ll send you a link to sign in.</p>
+            <p class="govuk-body">You’ll need to use your ‘@communities.gov.uk’ email address.</p>
+            {{ govukInsetText(params={"text": "The link will work once and stop working after 15 minutes."}) }}
+            {% endset %}
             <form method="post" novalidate>
                 {{ form.csrf_token }}
-                {{ form.email_address(params={"type": "email", "autocomplete": "email", "spellcheck": false}) }}
+                {{ form.email_address(params={"label": {"isPageHeading": true, "classes": "govuk-label--l", "text": form.email_address.label.text}, "type": "email", "autocomplete": "email", "spellcheck": false, "hint": {"html": hintText} }) }}
                 {{ form.submit }}
             </form>
         </div>
