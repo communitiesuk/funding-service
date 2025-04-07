@@ -1,7 +1,9 @@
 import json
 import multiprocessing
+import uuid
 from collections import namedtuple
 from typing import Any, Generator
+from unittest.mock import _Call
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -11,12 +13,14 @@ from flask.testing import FlaskClient
 from flask_migrate import upgrade
 from flask_sqlalchemy_lite import SQLAlchemy
 from jinja2 import Template
+from pytest_mock import MockerFixture
 from sqlalchemy.orm import Session
 from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
 from werkzeug.test import TestResponse
 
 from app import create_app
+from app.services.notify import Notification
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
 from tests.integration.models import _GrantFactory
 
@@ -172,3 +176,19 @@ def templates_rendered(app: Flask) -> Generator[list[tuple[Template, dict[str, A
         yield recorded
     finally:
         template_rendered.disconnect(record, app)
+
+
+@pytest.fixture(scope="function")
+def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Call], None, None]:
+    calls = []
+
+    def _track_notification(*args, **kwargs):  # type: ignore
+        calls.append(mocker.call(*args, **kwargs))
+        return Notification(id=uuid.uuid4())
+
+    mocker.patch(
+        "app.services.notify.NotificationService._send_email",
+        side_effect=_track_notification,
+    )
+
+    yield calls

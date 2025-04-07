@@ -82,10 +82,30 @@ class _SharedConfig(_BaseConfig):
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = False
     DEBUG_TB_INTERCEPT_REDIRECTS: bool = False
+    # We list these explicitly here so that we can disable ConfigVarsDebugPanel in pullpreview environments, where I
+    # want another layer of safety against us showing sensitive configuration publicly.
+    DEBUG_TB_PANELS: list[str] = [
+        "flask_debugtoolbar.panels.versions.VersionDebugPanel",
+        "flask_debugtoolbar.panels.timer.TimerDebugPanel",
+        "flask_debugtoolbar.panels.headers.HeaderDebugPanel",
+        "flask_debugtoolbar.panels.request_vars.RequestVarsDebugPanel",
+        "flask_debugtoolbar.panels.config_vars.ConfigVarsDebugPanel",
+        "flask_debugtoolbar.panels.template.TemplateDebugPanel",
+        "flask_debugtoolbar.panels.sqlalchemy.SQLAlchemyDebugPanel",
+        "flask_debugtoolbar.panels.logger.LoggingPanel",
+        "flask_debugtoolbar.panels.route_list.RouteListDebugPanel",
+        "flask_debugtoolbar.panels.profiler.ProfilerDebugPanel",
+        "flask_debugtoolbar.panels.g.GDebugPanel",
+    ]
 
     # Flask-Vite
     VITE_AUTO_INSERT: bool = False
     VITE_FOLDER_PATH: str = "app/vite"
+
+    # GOV.UK Notify
+    GOVUK_NOTIFY_DISABLE: bool = False
+    GOVUK_NOTIFY_API_KEY: str
+    GOVUK_NOTIFY_MAGIC_LINK_TEMPLATE_ID: str = "c19811c2-dc4a-4504-99b5-7bcbae8d9659"
 
 
 class LocalConfig(_SharedConfig):
@@ -106,6 +126,10 @@ class LocalConfig(_SharedConfig):
     # Logging
     LOG_FORMATTER: LogFormats = "plaintext"
 
+    # GOV.UK Notify
+    GOVUK_NOTIFY_DISABLE: bool = True  # By default; update in .env when you have a key.
+    GOVUK_NOTIFY_API_KEY: str = "invalid-00000000-0000-0000-0000-000000000000-00000000-0000-0000-0000-000000000000"
+
 
 class UnitTestConfig(LocalConfig):
     """
@@ -119,12 +143,16 @@ class UnitTestConfig(LocalConfig):
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = False
 
+    # GOV.UK Notify
+    GOVUK_NOTIFY_DISABLE: bool = False  # We want to test the real code paths
+
 
 class DevConfig(_SharedConfig):
     """
     Overrides / default configuration for our deployed 'dev' environment
     """
 
+    # Flask app
     FLASK_ENV: Environment = Environment.DEV
     DEBUG_TB_ENABLED: bool = False
 
@@ -134,6 +162,7 @@ class UatConfig(_SharedConfig):
     Overrides / default configuration for our deployed 'uat' environment
     """
 
+    # Flask app
     FLASK_ENV: Environment = Environment.UAT
 
 
@@ -142,6 +171,7 @@ class ProdConfig(_SharedConfig):
     Overrides / default configuration for our deployed 'prod' environment
     """
 
+    # Flask app
     FLASK_ENV: Environment = Environment.PROD
 
 

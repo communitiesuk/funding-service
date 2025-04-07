@@ -33,6 +33,7 @@ services:
       (uv run flask vite install && uv run flask vite start) &
       python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
+    env_file: .env
     environment:
       FLASK_ENV: local
       FLASK_PORT: 8080
