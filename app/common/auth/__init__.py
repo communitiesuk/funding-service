@@ -25,9 +25,9 @@ def sign_in() -> ResponseReturnValue:
 
         notification_service.send_magic_link(
             email,  # type: ignore[arg-type]
-            "https://magic-link-tbd",
-            datetime.datetime.now(ZoneInfo("UTC")) + datetime.timedelta(minutes=15),
-            "https://new-magic-link-tbd",
+            magic_link_url="https://magic-link-tbd",
+            magic_link_expires_at_utc=datetime.datetime.now(ZoneInfo("UTC")) + datetime.timedelta(minutes=15),
+            request_new_magic_link_url="https://new-magic-link-tbd",
         )
 
         return redirect(url_for("auth.check_email"))

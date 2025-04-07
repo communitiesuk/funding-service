@@ -70,6 +70,7 @@ class NotificationService:
     def send_magic_link(
         self,
         email_address: str,
+        *,
         magic_link_url: str,
         magic_link_expires_at_utc: datetime.datetime,
         request_new_magic_link_url: str,

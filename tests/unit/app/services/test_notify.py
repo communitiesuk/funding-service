@@ -38,11 +38,11 @@ class TestNotificationService:
 
         resp = notification_service.send_magic_link(
             "test@test.com",
-            "https://magic-link",
+            magic_link_url="https://magic-link",
             # Timestamp is in UTC; `send_magic_link` will convert to Europe/London local time
-            datetime.datetime.fromisoformat("2025-04-04T12:00:00+00:00"),
-            "https://new-magic-link",
-            "abc123",
+            magic_link_expires_at_utc=datetime.datetime.fromisoformat("2025-04-04T12:00:00+00:00"),
+            request_new_magic_link_url="https://new-magic-link",
+            govuk_notify_reference="abc123",
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
