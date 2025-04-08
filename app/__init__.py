@@ -87,25 +87,21 @@ def create_app() -> Flask:
             to enable hot module replacement and automatic udpates to both SCSS
             and JavaScript.
             """
+
+            if app.config["FLASK_ENV"] == Environment.LOCAL and app.debug:
+                return f"{app.config['ASSETS_VITE_BASE_URL']}/static/{relative_file_path}"
+
             try:
                 with open("app/assets/dist/manifest.json", "r") as f:
                     data = json.load(f)
                     manifest = Manifest(**data)
-            except FileNotFoundError:
+                    known_asset = manifest[relative_file_path]
+                    if known_asset:
+                        return url_for("static", filename=known_asset.file)
+            except (FileNotFoundError, KeyError):
                 pass
 
-            if app.config["FLASK_ENV"] == Environment.LOCAL and app.debug:
-                return f"{app.config['ASSETS_VITE_BASE_URL']}/static/{relative_file_path}"
-            else:
-                if manifest:
-                    try:
-                        known_asset = manifest[relative_file_path]
-                        if known_asset:
-                            return url_for("static", filename=known_asset.file)
-                    except KeyError:
-                        pass
-
-                return url_for("static", filename=relative_file_path)
+            return url_for("static", filename=relative_file_path)
 
         return dict(vite_asset=vite_asset)
 
