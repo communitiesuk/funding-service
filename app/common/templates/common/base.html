@@ -21,7 +21,9 @@
   {# <link rel="preload" as="style" href="http://localhost:5173/app/assets/main.scss" type="text/css" /> #}
 
   {# <script type="module" src="http://localhost:5173/@vite/client"></script> #}
-  <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
+  {% if config["FLASK_ENV"] == "local" and config["DEBUG"] %}
+    <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
+  {% endif %}
   <link rel="stylesheet" href="{{ vite_asset('app/assets/main.scss') }}" type="text/css" />
 {% endblock head %}
 

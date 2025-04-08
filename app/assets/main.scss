@@ -3,6 +3,7 @@
 /* $govuk-suppressed-warnings: "legacy-organisation-colours"; */
 // $govuk-brand-colour: blue;
 $govuk-new-organisation-colours: true;
+$govuk-assets-path: "/static/assets/";
 
 // $govuk-brand-colour: red;
 @import "../../node_modules/govuk-frontend/dist/govuk";

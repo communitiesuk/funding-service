@@ -9,7 +9,7 @@ from pydantic import BaseModel as PydnaticBaseModel
 from pydantic import RootModel
 
 from app import logging
-from app.config import get_settings
+from app.config import Environment, get_settings
 from app.extensions import auto_commit_after_request, db, migrate, notification_service, toolbar
 from app.sentry import init_sentry
 
@@ -86,15 +86,20 @@ def create_app() -> Flask:
     # Manifest = RootModel(Optional[Dict[str, Asset]])
     # Manifest = RootModel(root=Asset)
 
-    class Manifest(RootModel):
+    class Manifest(RootModel[Optional[Dict[str, Asset]]]):
         root: Optional[Dict[str, Asset]]
 
-        def __getitem__(self, item):
-            return self.root[item]
+        def __getitem__(self, item: str) -> Asset | None:
+            # None is probably not what I want to return here but working through
+            # types and making it all line up
+            # the type signature makes it _seem_ like it will safely handle a key error
+            # but it won't
+            return self.root[item] if self.root else None
 
+    # this will move out to a tiny extension that will configure the app to do this
     @app.context_processor
-    def assets_processor():
-        def vite_asset(relative_file_path: str):
+    def assets_processor():  # type: ignore[no-untyped-def]
+        def vite_asset(relative_file_path: str) -> str:
             """
             Point assets at a vite development server while running locally
             to enable hot module replacement and automatic udpates to both SCSS
@@ -104,28 +109,28 @@ def create_app() -> Flask:
                 with open("app/assets/dist/manifest.json", "r") as f:
                     data = json.load(f)
                     manifest = Manifest(**data)
-            except:
+            except FileNotFoundError:
                 pass
 
             # I need to lookup the manifest from here - that's where moving
             # this out to an extension will feel much cleaner I think
 
-            # if app.config["FLASK_ENV"] == Environment.LOCAL and app.debug:
-            # return f"{app.config['ASSETS_VITE_BASE_URL']}{relative_file_path}"
-            # else:
+            if app.config["FLASK_ENV"] == Environment.LOCAL and app.debug:
+                return f"{app.config['ASSETS_VITE_BASE_URL']}/static/{relative_file_path}"
+            else:
+                # note: this doesn't actually work if theres no manifest
+                # we'll look it up first in the manieft map - otherwise just point at it
+                if manifest:
+                    try:
+                        # this will be a key error if this doesn't exist - there's probably a nicer way
+                        known_asset = manifest[relative_file_path]
+                        if known_asset:
+                            return url_for("static", filename=known_asset.file)
+                    except KeyError:
+                        pass
 
-            # note: this doesn't actually work if theres no manifest
-            # we'll look it up first in the manieft map - otherwise just point at it
-            if manifest:
-                try:
-                    # this will be a key error if this doesn't exist - there's probably a nicer way
-                    known_asset = manifest[relative_file_path]
-                    return url_for("static", filename=known_asset.file)
-                except:
-                    pass
-
-            # return f"/{relative_file_path}"
-            return url_for("static", filename=relative_file_path)
+                # return f"/{relative_file_path}"
+                return url_for("static", filename=relative_file_path)
 
         return dict(vite_asset=vite_asset)
 
