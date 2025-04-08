@@ -25,7 +25,7 @@ jobs:
         enable-cache: true
     - name: Check DB is up to date
       env:
-        FLASK_ENV: local
+        FLASK_ENV: unit_test
         DATABASE_HOST: localhost
         DATABASE_PORT: 5432
         DATABASE_NAME: postgres
@@ -33,7 +33,7 @@ jobs:
       run: uv run --frozen flask db upgrade && uv run --frozen flask db check
     - name: Check that .current-alembic-head is pinned
       env:
-        FLASK_ENV: local
+        FLASK_ENV: unit_test
         DATABASE_HOST: localhost
         DATABASE_PORT: 5432
         DATABASE_NAME: postgres
@@ -53,13 +53,9 @@ jobs:
       - name: install dependencies
         run: uv sync --frozen
       - name: run unit tests
-        run: uv run pytest -nauto .
         env:
           FLASK_ENV: unit_test
-          DATABASE_HOST: localhost
-          DATABASE_PORT: 5432
-          DATABASE_NAME: postgres
-          DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
+        run: uv run pytest -nauto .
 
   type_checking:
     runs-on: ubuntu-latest
