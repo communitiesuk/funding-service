@@ -12,13 +12,13 @@ def validate_communities_gov_uk_email(form: FlaskForm, field: StringField) -> No
 
 class SignInForm(FlaskForm):
     email_address = StringField(
-        "Email address",
+        "Request a link to sign in",
         validators=[
-            DataRequired(message="Enter your email address"),
+            DataRequired(message="Request a link to sign in"),
             Email(message="Enter an email address in the correct format, like name@example.com"),
             validate_communities_gov_uk_email,
         ],
         filters=[lambda x: x.strip() if x else x],
         widget=GovTextInput(),
     )
-    submit = SubmitField("Continue", widget=GovSubmitInput())
+    submit = SubmitField("Request a link", widget=GovSubmitInput())
