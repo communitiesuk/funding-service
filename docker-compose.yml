@@ -17,6 +17,7 @@ services:
     build: .
     volumes:
       - .:/app
+      - /app/node_modules
       - '/app/.venv' # Don't overwrite this directory with local .venv because uv links won't translate in the container
     ports:
       - "5173:5173" # vite server
