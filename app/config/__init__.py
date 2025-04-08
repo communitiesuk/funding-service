@@ -1,6 +1,6 @@
 import os
 from enum import Enum
-from typing import Tuple, Type
+from typing import Any, Tuple, Type
 
 from pydantic import BaseModel, PostgresDsn
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
@@ -9,6 +9,7 @@ from app.types import LogFormats, LogLevels
 
 
 class Environment(str, Enum):
+    SCRIPTS = "scripts"
     UNIT_TEST = "unit_test"
     LOCAL = "local"
     DEV = "dev"
@@ -175,9 +176,33 @@ class ProdConfig(_SharedConfig):
     FLASK_ENV: Environment = Environment.PROD
 
 
+class ScriptsConfig(_SharedConfig):
+    def __init__(self, **values: Any):
+        super().__init__(**values)
+        print("###############################################################################")
+        print("\tUsing NO_DB environment - use for scripts only, not at runtime")
+        print("###############################################################################")
+
+    FLASK_ENV: Environment = Environment.SCRIPTS
+    # Logging
+    LOG_LEVEL: LogLevels = "INFO"
+    LOG_FORMATTER: LogFormats = "json"
+
+    @property
+    def SQLALCHEMY_ENGINES(self) -> dict[str, str]:
+        return {
+            "default": "postgresql+psycopg://user:pass@no_host:1234/no_db",  # pragma: allowlist secret
+        }
+
+    SERVER_NAME: str = ""
+    SECRET_KEY: str = "unsafe"
+
+
 def get_settings() -> _SharedConfig:
     environment = os.getenv("FLASK_ENV", Environment.PROD.value)
     match Environment(environment):
+        case Environment.SCRIPTS:
+            return ScriptsConfig()
         case Environment.UNIT_TEST:
             return UnitTestConfig()  # type: ignore[call-arg]
         case Environment.LOCAL:
