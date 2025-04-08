@@ -99,7 +99,6 @@ implicit_reexport = true
 [tool.pytest.ini_options]
 env = [
     "FLASK_ENV=unit_test",
-    "DATABASE_URL=postgresql+psycopg://overridden-by-fixture"
 ]
 markers = [
     "e2e: Run E2E (browser) tests using playwright"
