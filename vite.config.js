@@ -42,5 +42,7 @@ export default defineConfig({
         }
       ],
     }),
-  ]
+  ],
+  clearScreen: false,
+  appType: "custom"
 })

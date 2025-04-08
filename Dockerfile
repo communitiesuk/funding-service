@@ -1,5 +1,5 @@
 FROM python:3.13@sha256:08471c63c5fdf2644adc142a7fa8d0290eb405cda14c473fbe5b4cd0933af601
-ARG NODE_VERSION=22  # If you update this, also update app/vite/.nvmrc
+ARG NODE_VERSION=22  # If you update this, also update .nvmrc
 
 WORKDIR /app
 
@@ -23,6 +23,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project
+
+RUN --mount=type=bind,source=package.json,target=package.json \
+    --mount=type=bind,source=package-lock.json,target=package-lock.json \
+    npm ci
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"

@@ -19,7 +19,7 @@ services:
       - .:/app
       - '/app/.venv' # Don't overwrite this directory with local .venv because uv links won't translate in the container
     ports:
-      # - "3000:3000" # vite server
+      - "5173:5173" # vite server
       - "8080:8080" # application
       - "8081:8081" # debugpy
     stdin_open: true
@@ -28,7 +28,8 @@ services:
       bash -c "
       cp /app/certs/rootCA.pem /usr/local/share/ca-certificates/rootCA.crt && \
       update-ca-certificates && \
-      uv run flask db upgrade
+      npm run dev -- --host & \
+      uv run flask db upgrade & \
       python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
     env_file: .env
