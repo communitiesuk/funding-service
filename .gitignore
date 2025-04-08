@@ -251,3 +251,4 @@ certs
 
 node_modules
 app/assets/dist
+.vite

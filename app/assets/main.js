@@ -1,1 +1,2 @@
-console.log('ran')
+import { initAll } from 'govuk-frontend'
+initAll()

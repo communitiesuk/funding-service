@@ -105,6 +105,7 @@ class _SharedConfig(_BaseConfig):
     
     ASSETS_VITE_BASE_URL: str = "http://localhost:5173"
 
+
 class LocalConfig(_SharedConfig):
     """
     Overrides / default configuration for local developer environments.
