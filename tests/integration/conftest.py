@@ -23,7 +23,7 @@ from app import create_app
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
-from tests.integration.models import _GrantFactory
+from tests.integration.models import _GrantFactory, _MagicLinkFactory, _UserFactory
 
 
 @pytest.fixture(scope="session")
@@ -149,12 +149,12 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
             connection.close()
 
 
-_Factories = namedtuple("_Factories", ["grant"])
+_Factories = namedtuple("_Factories", ["grant", "user", "magic_link"])
 
 
 @pytest.fixture(scope="function")
 def factories(db_session: Session) -> _Factories:
-    return _Factories(grant=_GrantFactory)
+    return _Factories(grant=_GrantFactory, user=_UserFactory, magic_link=_MagicLinkFactory)
 
 
 _ExampleFactories = namedtuple("_ExampleFactories", ["person", "account"])
