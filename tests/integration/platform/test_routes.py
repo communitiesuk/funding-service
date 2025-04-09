@@ -10,9 +10,9 @@ def test_list_grants(client, factories, templates_rendered):
     factories.grant.create_batch(5)
     result = client.get("/grants")
     assert result.status_code == 200
-    assert len(templates_rendered[0][1]["grant_list"]) == 5
+    assert len(templates_rendered[0][1]["grants"]) == 5
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text == "All grants"
+    assert soup.h1.text == "My grants"
 
 
 def test_view_grant_dashboard(client, factories, templates_rendered):
@@ -43,8 +43,7 @@ def test_grant_change_name_get(client, factories, templates_rendered):
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert grant.name in soup.h1.text.strip()
-    assert "Edit grant details" in soup.h1.text.strip()
+    assert "Change grant name" in soup.h1.text.strip()
 
 
 def test_grant_change_name_post(client, factories, templates_rendered, db_session):
