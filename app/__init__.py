@@ -5,11 +5,11 @@ from flask import Flask, url_for
 from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
-from pydantic import BaseModel as PydnaticBaseModel
+from pydantic import BaseModel as PydanticBaseModel
 from pydantic import RootModel
 
 from app import logging
-from app.config import Environment, get_settings
+from app.config import get_settings
 from app.extensions import auto_commit_after_request, db, migrate, notification_service, toolbar
 from app.sentry import init_sentry
 
@@ -65,7 +65,7 @@ def create_app() -> Flask:
     # should make an intentional decision for when to be setting this
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
 
-    class Asset(PydnaticBaseModel):
+    class Asset(PydanticBaseModel):
         file: str
         name: Optional[str] = None
         src: str
@@ -88,7 +88,7 @@ def create_app() -> Flask:
             and JavaScript.
             """
 
-            if app.config["FLASK_ENV"] == Environment.LOCAL and app.debug:
+            if app.config["ASSETS_VITE_LIVE_ENABLED"]:
                 return f"{app.config['ASSETS_VITE_BASE_URL']}/static/{relative_file_path}"
 
             try:

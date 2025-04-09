@@ -7,7 +7,7 @@
 {% extends "govuk_frontend_jinja/template.html" %}
 
 {% block head %}
-  {% if config["FLASK_ENV"] == "local" and config["DEBUG"] %}
+  {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
     <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
   {% endif %}
   <link rel="stylesheet" href="{{ vite_asset('app/assets/main.scss') }}" type="text/css" />

@@ -102,8 +102,9 @@ class _SharedConfig(_BaseConfig):
     GOVUK_NOTIFY_DISABLE: bool = False
     GOVUK_NOTIFY_API_KEY: str
     GOVUK_NOTIFY_MAGIC_LINK_TEMPLATE_ID: str = "9773e73c-85a1-4c3f-a808-02b9623616a3"
-    
+
     ASSETS_VITE_BASE_URL: str = "http://localhost:5173"
+    ASSETS_VITE_LIVE_ENABLED: bool = False
 
 
 class LocalConfig(_SharedConfig):

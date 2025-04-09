@@ -45,7 +45,7 @@ jobs:
           DATABASE_NAME: postgres
           DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
         run: |
-          npm ci
+          npm i
           npm run build
 
       - name: Get current date
