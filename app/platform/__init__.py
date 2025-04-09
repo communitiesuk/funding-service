@@ -34,8 +34,8 @@ def create_grant() -> ResponseReturnValue:
 
 @platform_blueprint.route("/grants", methods=["GET"])
 def list_grants() -> str:
-    grant_list = get_all_grants()
-    return render_template("platform/grant_list.html", grant_list=grant_list)
+    grants = get_all_grants()
+    return render_template("platform/grant_list.html", grants=grants)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])

@@ -13,7 +13,7 @@
          <div class="govuk-grid-column-two-thirds">
              <h1 class="govuk-heading-l">All grants</h1>
              <p class="govuk-body">
-                 {% trans count=grant_list | length %}
+                 {% trans count=grants | length %}
                      There is 1 grant.
                  {% pluralize %}
                      There are {{ count }} grants.
@@ -26,7 +26,7 @@
                 "href": url_for("platform.create_grant")
              }) }}
 
-             {% for grant in grant_list %}
+             {% for grant in grants %}
                 <h2 class="govuk-heading-s"><a href="{{ url_for('platform.view_grant', grant_id=grant.id) }}" class="govuk-link govuk-link--no-visited-state">{{ grant.name }}</a></h2>
              {% endfor %}
          </div>
