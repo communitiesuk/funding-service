@@ -248,3 +248,7 @@ html/
 
 # Local mkcert certs for HTTPS during dev
 certs
+
+node_modules
+app/assets/dist
+package-lock.json

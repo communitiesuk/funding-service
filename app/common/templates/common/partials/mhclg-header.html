@@ -4,7 +4,7 @@
 {%- set menuButtonText = params.menuButtonText if params.menuButtonText else 'Menu' -%}
 
 {%- set _hmgInsignia %}
-  <img src="{{ url_for('static', filename='images/mhclg-crest.png') }}" alt="MHCLG Crest" width="32" height="32" style="color: white; filter: brightness(0) invert(1);"/>
+  <img src="{{ params.assetPath }}/images/mhclg-crest.png" alt="MHCLG Crest" width="32" height="32" style="color: white; filter: brightness(0) invert(1);"/>
 {% endset -%}
 
 <header class="govuk-header {%- if params.classes %} {{ params.classes }}{% endif %}" data-module="govuk-header"

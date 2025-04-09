@@ -2,12 +2,15 @@
 {% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 
-{% set assetPath = url_for('static', filename='').rstrip('/') %}
+{% set assetPath = vite_asset('assets') %}
 
 {% extends "govuk_frontend_jinja/template.html" %}
 
 {% block head %}
-    {{ vite_tags() | safe }}
+  {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
+    <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
+  {% endif %}
+  <link rel="stylesheet" href="{{ vite_asset('app/assets/main.scss') }}" type="text/css" />
 {% endblock head %}
 
 {% block header %}
@@ -16,7 +19,8 @@
     "homepageUrl": "#",
     "classes": "govuk-header--full-width-border app-!-no-wrap",
     "navigation": [{ "text": ("Sign in"), "href": url_for('auth.sign_in') }],
-    "navigationClasses": "govuk-header__navigation--end"
+    "navigationClasses": "govuk-header__navigation--end",
+    "assetPath": assetPath
 }) }}
 {% include "common/partials/navigation.html" %}
 {% endblock header %}
@@ -46,6 +50,7 @@
 {% endblock %}
 
 {% block bodyEnd %}
+  <script type="module" src="{{ vite_asset('app/assets/main.js') }}"></script>
 {% endblock %}
 
 {% block footer %}

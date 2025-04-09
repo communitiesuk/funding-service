@@ -52,16 +52,6 @@ jobs:
           enable-cache: true
       - name: install dependencies
         run: uv sync --frozen
-      - name: vite # this doesn't feel like something that should be needed explicitly, test vs. local config?
-        env:
-          FLASK_ENV: local
-          DATABASE_HOST: localhost
-          DATABASE_PORT: 5432
-          DATABASE_NAME: postgres
-          DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
-        run: |
-          uv run flask vite install
-          uv run flask vite build
       - name: run unit tests
         run: uv run pytest -nauto .
         env:
