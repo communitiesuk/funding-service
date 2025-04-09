@@ -11,4 +11,4 @@ class GrantForm(FlaskForm):
         filters=[lambda x: x.strip() if x else x],
         widget=GovTextInput(),
     )
-    submit = SubmitField("Submit", widget=GovSubmitInput())
+    submit = SubmitField(widget=GovSubmitInput())

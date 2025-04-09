@@ -1,6 +1,6 @@
 import pytest
 
-from app.common.data.interfaces.grants import DuplicateValueError, add_grant, get_all_grants, get_grant, update_grant
+from app.common.data.interfaces.grants import DuplicateValueError, create_grant, get_all_grants, get_grant, update_grant
 from app.common.data.models import Grant
 
 
@@ -17,7 +17,7 @@ def test_get_all_grants(factories):
 
 
 def test_create_grant(db_session) -> None:
-    result = add_grant(name="test_grant")
+    result = create_grant(name="test_grant")
     assert result is not None
     assert result.id is not None
 
@@ -28,7 +28,7 @@ def test_create_grant(db_session) -> None:
 def test_create_duplicate_grant(factories) -> None:
     factories.grant.create(name="duplicate_grant")
     with pytest.raises(DuplicateValueError) as e:
-        add_grant(name="Duplicate_Grant")
+        create_grant(name="Duplicate_Grant")
     assert e.value.model_name == "grant"
     assert e.value.field_name == "name"
 

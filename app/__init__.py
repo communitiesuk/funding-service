@@ -2,12 +2,12 @@ import json
 from typing import Dict, Optional
 
 from flask import Flask, redirect, url_for
+from flask.typing import ResponseReturnValue
 from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import RootModel
-from werkzeug import Response
 
 from app import logging
 from app.config import get_settings
@@ -62,7 +62,7 @@ def create_app() -> Flask:
     app.register_blueprint(auth_blueprint)
 
     @app.route("/", methods=["GET"])
-    def index() -> Response:
+    def index() -> ResponseReturnValue:
         return redirect(url_for("platform.list_grants"))
 
     # when developing we want the toolbar assets to not cause the page to flicker

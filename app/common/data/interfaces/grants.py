@@ -18,7 +18,7 @@ def get_all_grants() -> Sequence[Grant]:
     return db.session.scalars(statement).all()
 
 
-def add_grant(name: str) -> Grant:
+def create_grant(name: str) -> Grant:
     grant: Grant = Grant(name=name)
     db.session.add(grant)
 
