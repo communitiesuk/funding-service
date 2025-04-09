@@ -85,7 +85,7 @@ def _precompile_templates(app: Flask) -> None:
 
 
 @pytest.fixture(scope="session")
-def app(setup_db_container: Generator[SQLAlchemy]) -> Generator[Flask, None, None]:
+def app(db: Generator[SQLAlchemy]) -> Generator[Flask, None, None]:
     app = create_app()
     app.config.update({"TESTING": True})
     _precompile_templates(app)
@@ -124,7 +124,7 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
     request.node.add_marker(pytest.mark.fail_slow("250ms"))
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function", autouse=True)
 def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
     # Set up a DB session that is fully isolated for each specific test run. We override Flask-SQLAlchemy-Lite's (FSL)
     # sessionmaker configuration to use a connection with a transaction started, and configure FSL to use savepoints

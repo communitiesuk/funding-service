@@ -16,12 +16,12 @@ def test_get_all_grants(factories):
     assert len(result) == 5
 
 
-def test_create_grant(db) -> None:
+def test_create_grant(db_session) -> None:
     result = create_grant(name="test_grant")
     assert result is not None
     assert result.id is not None
 
-    from_db = db.get_session().get(Grant, result.id)
+    from_db = db_session.get(Grant, result.id)
     assert from_db is not None
 
 
