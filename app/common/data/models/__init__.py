@@ -2,6 +2,7 @@ import datetime
 import secrets
 import uuid
 
+from pytz import utc
 from sqlalchemy import ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,3 +35,7 @@ class MagicLink(BaseModel):
     user: Mapped[User] = relationship("User", back_populates="magic_links")
 
     __table_args__ = (Index(None, code, unique=True, postgresql_where="claimed_at_utc IS NOT NULL"),)
+
+    @property
+    def usable(self) -> bool:
+        return self.claimed_at_utc is None and self.expires_at_utc > datetime.datetime.now(utc).replace(tzinfo=None)
