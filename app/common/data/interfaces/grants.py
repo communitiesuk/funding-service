@@ -9,8 +9,8 @@ from app.common.data.models import Grant
 from app.extensions import db
 
 
-def get_grant(grant_id: UUID4) -> Grant | None:
-    return db.session.get(Grant, grant_id)
+def get_grant(grant_id: UUID4) -> Grant:
+    return db.session.get_one(Grant, grant_id)
 
 
 def get_all_grants() -> Sequence[Grant]:

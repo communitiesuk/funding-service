@@ -3,7 +3,7 @@
 {% extends "platform/manage_grant_base.html" %}
 
 {% block pageTitle %}
-    {{ grant.name }} - MHCLG Funding Service
+    Settings - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_settings" %}
@@ -15,12 +15,12 @@
     </h1>
     {{ govukSummaryList({
                   "rows": [{
-                      "key": {"text": "Grant name"},
+                      "key": {"text": "Name"},
                       "value": {"text": grant.name},
                       "actions": {
                           "items": [
                               {
-                                "href": url_for("platform.edit_grant", grant_id=grant.id),
+                                "href": url_for("platform.grant_change_name", grant_id=grant.id),
                                 "text": "Change",
                                 "visuallyHiddenText": "name"
                               }

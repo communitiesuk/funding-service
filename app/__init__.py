@@ -1,7 +1,8 @@
 import json
 from typing import Dict, Optional
 
-from flask import Flask, url_for
+from flask import Flask, redirect, url_for
+from flask.typing import ResponseReturnValue
 from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
@@ -59,6 +60,10 @@ def create_app() -> Flask:
     app.register_blueprint(healthcheck_blueprint)
     app.register_blueprint(platform_blueprint)
     app.register_blueprint(auth_blueprint)
+
+    @app.route("/", methods=["GET"])
+    def index() -> ResponseReturnValue:
+        return redirect(url_for("platform.list_grants"))
 
     # when developing we want the toolbar assets to not cause the page to flicker
     # otherwise we don't want the server to continually 304 on assets the browser has
