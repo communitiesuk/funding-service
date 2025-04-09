@@ -24,7 +24,7 @@
 {% block main %}
 <div class="govuk-width-container {%- if containerClasses %} {{ containerClasses }}{% endif %}">
   {% block beforeContent %}{% endblock %}
-  <main class="govuk-main-wrapper {%- if mainClasses %} {{ mainClasses }}{% endif %}" id="main-content" {%- if mainLang %} lang="{{ mainLang }}"{% endif %}>
+  <div class="govuk-main-wrapper {%- if mainClasses %} {{ mainClasses }}{% endif %}">
     {% block mainWrapper %}
       <main id="main-content" {%- if mainLang %} lang="{{ mainLang }}"{% endif %}>
       {% block errorSummary %}
@@ -41,7 +41,7 @@
       {% endblock content%}
       </main>
     {% endblock mainWrapper%}
-  </main>
+  </div>
 </div>
 {% endblock %}
 

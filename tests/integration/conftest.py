@@ -21,6 +21,7 @@ from werkzeug.test import TestResponse
 
 from app import create_app
 from app.services.notify import Notification
+from tests.conftest import FundingServiceTestClient
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
 from tests.integration.models import _GrantFactory
 
@@ -93,7 +94,7 @@ def app(setup_db_container: Generator[SQLAlchemy]) -> Generator[Flask, None, Non
 
 @pytest.fixture()
 def client(app: Flask) -> FlaskClient:
-    class CustomClient(FlaskClient):
+    class CustomClient(FundingServiceTestClient):
         # We want to be sure that any data methods that act during the request have been
         # committed by the flask app lifecycle before continuing. Because of the way we configure
         # savepoints and rollbacks for test isolation a `flush` is considered the same as a
