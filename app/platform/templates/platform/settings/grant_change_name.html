@@ -4,7 +4,7 @@
 {% extends "platform/manage_grant_base.html" %}
 
 {% block pageTitle %}
-    Edit grant - MHCLG Funding Service
+    Change grant name - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_settings" %}
@@ -20,11 +20,13 @@
 {% block content %}
     <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
-        Edit grant details
+        Change grant name
     </h1>
     <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.name }}
-        {{ form.submit }}
+        {{ form.submit(params={
+            "text": "Change grant name"
+        }) }}
     </form>
 {% endblock %}

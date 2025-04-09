@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
 {% block pageTitle %}
-    All grants - MHCLG Funding Service
+    My grants - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grants" %}
@@ -11,12 +11,12 @@
 {% block content %}
     <div class="govuk-grid-row">
          <div class="govuk-grid-column-two-thirds">
-             <h1 class="govuk-heading-l">All grants</h1>
+             <h1 class="govuk-heading-l">My grants</h1>
              <p class="govuk-body">
                  {% trans count=grants | length %}
-                     There is 1 grant.
+                     You have access to 1 grant.
                  {% pluralize %}
-                     There are {{ count }} grants.
+                     You have access to {{ count }} grants.
                  {% endtrans %}
              </p>
 
