@@ -105,7 +105,7 @@ class _SharedConfig(_BaseConfig):
     # GOV.UK Notify
     GOVUK_NOTIFY_DISABLE: bool = False
     GOVUK_NOTIFY_API_KEY: str
-    GOVUK_NOTIFY_MAGIC_LINK_TEMPLATE_ID: str = "c19811c2-dc4a-4504-99b5-7bcbae8d9659"
+    GOVUK_NOTIFY_MAGIC_LINK_TEMPLATE_ID: str = "9773e73c-85a1-4c3f-a808-02b9623616a3"
 
 
 class LocalConfig(_SharedConfig):

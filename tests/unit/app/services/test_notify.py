@@ -23,7 +23,7 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": "test@test.com",
-                        "template_id": "c19811c2-dc4a-4504-99b5-7bcbae8d9659",
+                        "template_id": "9773e73c-85a1-4c3f-a808-02b9623616a3",
                         "personalisation": {
                             "magic_link": "https://magic-link",
                             "magic_link_expires_at": "1:00pm on 4 April 2025",
