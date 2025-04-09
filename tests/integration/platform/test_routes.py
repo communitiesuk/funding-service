@@ -34,7 +34,7 @@ def test_view_grant_settings(client, factories, templates_rendered):
     assert "Settings" in soup.h1.text.strip()
 
 
-def test_edit_grant_get(client, factories, templates_rendered, db):
+def test_edit_grant_get(client, factories, templates_rendered):
     grant = factories.grant.create()
     result = client.get(url_for("platform.edit_grant", grant_id=grant.id))
     assert result.status_code == 200
@@ -45,7 +45,7 @@ def test_edit_grant_get(client, factories, templates_rendered, db):
     assert "Edit grant details" in soup.h1.text.strip()
 
 
-def test_edit_grant_post(client, factories, templates_rendered, db, db_session):
+def test_edit_grant_post(client, factories, templates_rendered, db_session):
     grant = factories.grant.create()
     # Update the name
     form = GrantForm()
@@ -58,7 +58,7 @@ def test_edit_grant_post(client, factories, templates_rendered, db, db_session):
     assert grant_from_db.name == "New name"
 
 
-def test_edit_grant_post_with_errors(client, factories, templates_rendered, db):
+def test_edit_grant_post_with_errors(client, factories, templates_rendered):
     grants = factories.grant.create_batch(2)
     # Test error handling on an update
     form = GrantForm(data={"name": grants[1].name})
@@ -71,7 +71,7 @@ def test_edit_grant_post_with_errors(client, factories, templates_rendered, db):
     assert soup.find_all("a", href="#name")[0].text.strip() == "Grant name already in use"
 
 
-def test_create_grant(client, db, db_session):
+def test_create_grant(client, db_session):
     url = url_for("platform.add_grant")
     client.get(url)
     response = client.post(
