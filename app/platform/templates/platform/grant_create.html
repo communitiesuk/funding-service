@@ -1,0 +1,22 @@
+{% extends "common/base.html" %}
+
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+
+{% block pageTitle %}
+    Set up a new grant - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_item_identifier = "grants" %}
+
+{% block content %}
+    <div class="govuk-grid-row">
+         <div class="govuk-grid-column-two-thirds">
+             <h1 class="govuk-heading-l">Set up a new grant</h1>
+             <form method="post" novalidate>
+                 {{ form.csrf_token }}
+                 {{ form.name }}
+                 {{ form.submit }}
+             </form>
+         </div>
+    </div>
+{% endblock content %}

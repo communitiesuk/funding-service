@@ -6,7 +6,7 @@ from app.common.data.models import Grant
 from app.platform import GrantForm
 
 
-def test_view_all_grants(client, factories, templates_rendered):
+def test_list_grants(client, factories, templates_rendered):
     factories.grant.create_batch(5)
     result = client.get("/grants")
     assert result.status_code == 200
@@ -34,23 +34,27 @@ def test_view_grant_settings(client, factories, templates_rendered):
     assert "Settings" in soup.h1.text.strip()
 
 
-def test_edit_grant_get(client, factories, templates_rendered):
+def test_grant_change_name_get(client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = client.get(url_for("platform.edit_grant", grant_id=grant.id))
+    result = client.get(url_for("platform.grant_change_name", grant_id=grant.id))
     assert result.status_code == 200
-    template = next(template for template in templates_rendered if template[0].name == "platform/edit_grant.html")
+    template = next(
+        template for template in templates_rendered if template[0].name == "platform/settings/grant_change_name.html"
+    )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert grant.name in soup.h1.text.strip()
     assert "Edit grant details" in soup.h1.text.strip()
 
 
-def test_edit_grant_post(client, factories, templates_rendered, db_session):
+def test_grant_change_name_post(client, factories, templates_rendered, db_session):
     grant = factories.grant.create()
     # Update the name
     form = GrantForm()
     form.name.data = "New name"
-    result = client.post(url_for("platform.edit_grant", grant_id=grant.id), data=form.data, follow_redirects=False)
+    result = client.post(
+        url_for("platform.grant_change_name", grant_id=grant.id), data=form.data, follow_redirects=False
+    )
     assert result.status_code == 302
 
     # Check the update is in the database
@@ -58,11 +62,13 @@ def test_edit_grant_post(client, factories, templates_rendered, db_session):
     assert grant_from_db.name == "New name"
 
 
-def test_edit_grant_post_with_errors(client, factories, templates_rendered):
+def test_grant_change_name_post_with_errors(client, factories, templates_rendered):
     grants = factories.grant.create_batch(2)
     # Test error handling on an update
     form = GrantForm(data={"name": grants[1].name})
-    result = client.post(url_for("platform.edit_grant", grant_id=grants[0].id), data=form.data, follow_redirects=False)
+    result = client.post(
+        url_for("platform.grant_change_name", grant_id=grants[0].id), data=form.data, follow_redirects=False
+    )
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
@@ -72,7 +78,7 @@ def test_edit_grant_post_with_errors(client, factories, templates_rendered):
 
 
 def test_create_grant(client, db_session):
-    url = url_for("platform.add_grant")
+    url = url_for("platform.create_grant")
     client.get(url)
     response = client.post(
         url,
