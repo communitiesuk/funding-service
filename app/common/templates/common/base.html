@@ -3,6 +3,7 @@
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 
 {% set assetPath = vite_asset('assets') %}
+{% set cspNonce = csp_nonce() %}
 
 {% extends "govuk_frontend_jinja/template.html" %}
 

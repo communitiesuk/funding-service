@@ -1,3 +1,4 @@
+import copy
 import os
 from enum import Enum
 from typing import Any, Tuple, Type
@@ -21,6 +22,49 @@ class Environment(str, Enum):
 class DatabaseSecret(BaseModel):
     username: str
     password: str
+
+
+FS_CONTENT_SECURITY_POLICY = {
+    "default-src": ["'self'"],
+    "script-src": ["'self'"],
+    "img-src": ["'self'"],
+    "style-src": ["'self'"],
+}
+
+
+def make_development_csp() -> dict[str, list[str]]:
+    csp = copy.deepcopy(FS_CONTENT_SECURITY_POLICY)
+    csp["default-src"].extend(
+        [
+            "http://localhost:5173",  # Vite assets
+            "ws://localhost:5173",  # Vite assets
+        ]
+    )
+    csp["script-src"].extend(
+        [
+            "http://localhost:5173",  # Vite assets
+            "ws://localhost:5173",  # Vite assets
+            "'sha256-zWl5GfUhAzM8qz2mveQVnvu/VPnCS6QL7Niu6uLmoWU='",  # Flask-DebugToolbar
+        ]
+    )
+    csp["img-src"].extend(
+        [
+            "http://localhost:5173",  # Vite assets
+            "ws://localhost:5173",  # Vite assets
+        ]
+    )
+    csp["style-src"].extend(
+        [
+            "http://localhost:5173",  # Vite assets
+            "ws://localhost:5173",  # Vite assets
+            "'unsafe-hashes'",  # Flask-DebugToolbar
+            "'sha256-9/aFFbAwf+Mwl6MrBQzrJ/7ZK5vo7HdOUR7iKlBk78U='",  # MHCLG Crest
+            "'sha256-biLFinpqYMtWHmXfkA1BPeCY0/fNt46SAZ+BBk5YUog='",  # Flask-DebugToolbar
+            "'sha256-0EZqoz+oBhx7gF4nvY2bSqoGyy4zLjNF+SDQXGp/ZrY='",  # Flask-DebugToolbar
+            "'sha256-1NkfmhNaD94k7thbpTCKG0dKnMcxprj9kdSKzKR6K/k='",  # Flask-DebugToolbar
+        ]
+    )
+    return csp
 
 
 class _BaseConfig(BaseSettings):
@@ -78,10 +122,10 @@ class _SharedConfig(_BaseConfig):
     TALISMAN_STRICT_TRANSPORT_SECURITY_PRELOAD: bool = True
     TALISMAN_STRICT_TRANSPORT_SECURITY_MAX_AGE: int = ONE_YEAR_IN_SECS
     TALISMAN_STRICT_TRANSPORT_SECURITY_INCLUDE_SUBDOMAINS: bool = True
-    TALISMAN_CONTENT_SECURITY_POLICY: dict[str, str | list[str]] = {"default-src": ["'self'"]}
+    TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = copy.deepcopy(FS_CONTENT_SECURITY_POLICY)
     TALISMAN_CONTENT_SECURITY_POLICY_REPORT_URI: str | None = None
     TALISMAN_CONTENT_SECURITY_POLICY_REPORT_ONLY: bool = False
-    TALISMAN_CONTENT_SECURITY_POLICY_NONCE_IN: list[str] = []
+    TALISMAN_CONTENT_SECURITY_POLICY_NONCE_IN: list[str] = ["img-src", "script-src", "style-src"]
     TALISMAN_REFERRER_POLICY: str = "strict-origin-when-cross-origin"
     TALISMAN_SESSION_COOKIE_SECURE: bool = True
     TALISMAN_SESSION_COOKIE_HTTP_ONLY: bool = True
@@ -167,9 +211,13 @@ class LocalConfig(_SharedConfig):
     Overrides / default configuration for local developer environments.
     """
 
+    # Flask app
     FLASK_ENV: Environment = Environment.LOCAL
     SERVER_NAME: str = "funding.communities.gov.localhost:8080"
     SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
+
+    # Talisman security settings
+    TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
 
     # Databases
     SQLALCHEMY_RECORD_QUERIES: bool = True
@@ -227,6 +275,9 @@ class PullPreviewConfig(_SharedConfig):
     DEBUG_TB_ENABLED: bool = False
     PROXY_FIX_PROTO: int = 1
     PROXY_FIX_HOST: int = 1
+
+    # Talisman security settings
+    TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
 
 
 class UatConfig(_SharedConfig):

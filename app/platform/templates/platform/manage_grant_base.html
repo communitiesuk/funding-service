@@ -3,6 +3,7 @@
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 
 {% set active_item_identifier = "grants" %}
+{% set cspNonce = csp_nonce() %}
 
 {% block main %}
     <div class="govuk-width-container {%- if containerClasses %} {{ containerClasses }}{% endif %}">
