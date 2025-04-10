@@ -1,7 +1,9 @@
+import copy
 import os
 from enum import Enum
-from typing import Tuple, Type
+from typing import Any, Tuple, Type
 
+from flask_talisman.talisman import ONE_YEAR_IN_SECS
 from pydantic import BaseModel, PostgresDsn
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
@@ -20,6 +22,49 @@ class Environment(str, Enum):
 class DatabaseSecret(BaseModel):
     username: str
     password: str
+
+
+FS_CONTENT_SECURITY_POLICY = {
+    "default-src": ["'self'"],
+    "script-src": ["'self'"],
+    "img-src": ["'self'"],
+    "style-src": ["'self'"],
+}
+
+
+def make_development_csp() -> dict[str, list[str]]:
+    csp = copy.deepcopy(FS_CONTENT_SECURITY_POLICY)
+    csp["default-src"].extend(
+        [
+            "http://localhost:5173",  # Vite assets
+            "ws://localhost:5173",  # Vite assets
+        ]
+    )
+    csp["script-src"].extend(
+        [
+            "http://localhost:5173",  # Vite assets
+            "ws://localhost:5173",  # Vite assets
+            "'sha256-zWl5GfUhAzM8qz2mveQVnvu/VPnCS6QL7Niu6uLmoWU='",  # Flask-DebugToolbar
+        ]
+    )
+    csp["img-src"].extend(
+        [
+            "http://localhost:5173",  # Vite assets
+            "ws://localhost:5173",  # Vite assets
+        ]
+    )
+    csp["style-src"].extend(
+        [
+            "http://localhost:5173",  # Vite assets
+            "ws://localhost:5173",  # Vite assets
+            "'unsafe-hashes'",  # Flask-DebugToolbar
+            "'sha256-9/aFFbAwf+Mwl6MrBQzrJ/7ZK5vo7HdOUR7iKlBk78U='",  # MHCLG Crest
+            "'sha256-biLFinpqYMtWHmXfkA1BPeCY0/fNt46SAZ+BBk5YUog='",  # Flask-DebugToolbar
+            "'sha256-0EZqoz+oBhx7gF4nvY2bSqoGyy4zLjNF+SDQXGp/ZrY='",  # Flask-DebugToolbar
+            "'sha256-1NkfmhNaD94k7thbpTCKG0dKnMcxprj9kdSKzKR6K/k='",  # Flask-DebugToolbar
+        ]
+    )
+    return csp
 
 
 class _BaseConfig(BaseSettings):
@@ -63,6 +108,57 @@ class _SharedConfig(_BaseConfig):
     WTF_CSRF_ENABLED: bool = True
     PROXY_FIX_PROTO: int = 0
     PROXY_FIX_HOST: int = 0
+
+    # Talisman security settings
+    TALISMAN_FEATURE_POLICY: dict[str, str] = {}
+    TALISMAN_PERMISSIONS_POLICY: dict[str, str] = {}
+    TALISMAN_DOCUMENT_POLICY: dict[str, str] = {}
+    TALISMAN_FORCE_HTTPS: bool = True
+    TALISMAN_FORCE_HTTPS_PERMANENT: bool = True
+    TALISMAN_FORCE_FILE_SAVE: bool = False
+    TALISMAN_FRAME_OPTIONS: str = "DENY"
+    TALISMAN_FRAME_OPTIONS_ALLOW_FROM: str | None = None
+    TALISMAN_STRICT_TRANSPORT_SECURITY: bool = True
+    TALISMAN_STRICT_TRANSPORT_SECURITY_PRELOAD: bool = True
+    TALISMAN_STRICT_TRANSPORT_SECURITY_MAX_AGE: int = ONE_YEAR_IN_SECS
+    TALISMAN_STRICT_TRANSPORT_SECURITY_INCLUDE_SUBDOMAINS: bool = True
+    TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = copy.deepcopy(FS_CONTENT_SECURITY_POLICY)
+    TALISMAN_CONTENT_SECURITY_POLICY_REPORT_URI: str | None = None
+    TALISMAN_CONTENT_SECURITY_POLICY_REPORT_ONLY: bool = False
+    TALISMAN_CONTENT_SECURITY_POLICY_NONCE_IN: list[str] = ["img-src", "script-src", "style-src"]
+    TALISMAN_REFERRER_POLICY: str = "strict-origin-when-cross-origin"
+    TALISMAN_SESSION_COOKIE_SECURE: bool = True
+    TALISMAN_SESSION_COOKIE_HTTP_ONLY: bool = True
+    TALISMAN_SESSION_COOKIE_SAMESITE: str = "Strict"
+    TALISMAN_X_CONTENT_TYPE_OPTIONS: bool = True
+    TALISMAN_X_XSS_PROTECTION: bool = True
+
+    @property
+    def TALISMAN_SETTINGS(self) -> dict[str, Any]:
+        return {
+            "feature_policy": self.TALISMAN_FEATURE_POLICY,
+            "permissions_policy": self.TALISMAN_PERMISSIONS_POLICY,
+            "document_policy": self.TALISMAN_DOCUMENT_POLICY,
+            "force_https": self.TALISMAN_FORCE_HTTPS,
+            "force_https_permanent": self.TALISMAN_FORCE_HTTPS_PERMANENT,
+            "force_file_save": self.TALISMAN_FORCE_FILE_SAVE,
+            "frame_options": self.TALISMAN_FRAME_OPTIONS,
+            "frame_options_allow_from": self.TALISMAN_FRAME_OPTIONS_ALLOW_FROM,
+            "strict_transport_security": self.TALISMAN_STRICT_TRANSPORT_SECURITY,
+            "strict_transport_security_preload": self.TALISMAN_STRICT_TRANSPORT_SECURITY_PRELOAD,
+            "strict_transport_security_max_age": self.TALISMAN_STRICT_TRANSPORT_SECURITY_MAX_AGE,
+            "strict_transport_security_include_subdomains": self.TALISMAN_STRICT_TRANSPORT_SECURITY_INCLUDE_SUBDOMAINS,
+            "content_security_policy": self.TALISMAN_CONTENT_SECURITY_POLICY,
+            "content_security_policy_report_uri": self.TALISMAN_CONTENT_SECURITY_POLICY_REPORT_URI,
+            "content_security_policy_report_only": self.TALISMAN_CONTENT_SECURITY_POLICY_REPORT_ONLY,
+            "content_security_policy_nonce_in": self.TALISMAN_CONTENT_SECURITY_POLICY_NONCE_IN,
+            "referrer_policy": self.TALISMAN_REFERRER_POLICY,
+            "session_cookie_secure": self.TALISMAN_SESSION_COOKIE_SECURE,
+            "session_cookie_http_only": self.TALISMAN_SESSION_COOKIE_HTTP_ONLY,
+            "session_cookie_samesite": self.TALISMAN_SESSION_COOKIE_SAMESITE,
+            "x_content_type_options": self.TALISMAN_X_CONTENT_TYPE_OPTIONS,
+            "x_xss_protection": self.TALISMAN_X_XSS_PROTECTION,
+        }
 
     # Databases
     DATABASE_HOST: str
@@ -115,9 +211,13 @@ class LocalConfig(_SharedConfig):
     Overrides / default configuration for local developer environments.
     """
 
+    # Flask app
     FLASK_ENV: Environment = Environment.LOCAL
     SERVER_NAME: str = "funding.communities.gov.localhost:8080"
     SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
+
+    # Talisman security settings
+    TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
 
     # Databases
     SQLALCHEMY_RECORD_QUERIES: bool = True
@@ -143,6 +243,10 @@ class UnitTestConfig(LocalConfig):
     # Flask app
     FLASK_ENV: Environment = Environment.UNIT_TEST
     WTF_CSRF_ENABLED: bool = False
+
+    # Talisman security settings
+    TALISMAN_FORCE_HTTPS: bool = False
+    TALISMAN_FORCE_HTTPS_PERMANENT: bool = False
 
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = False
@@ -171,6 +275,9 @@ class PullPreviewConfig(_SharedConfig):
     DEBUG_TB_ENABLED: bool = False
     PROXY_FIX_PROTO: int = 1
     PROXY_FIX_HOST: int = 1
+
+    # Talisman security settings
+    TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
 
 
 class UatConfig(_SharedConfig):
