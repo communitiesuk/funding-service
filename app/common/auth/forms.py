@@ -22,3 +22,7 @@ class SignInForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField("Request a link", widget=GovSubmitInput())
+
+
+class ClaimMagicLinkForm(FlaskForm):
+    submit = SubmitField("Sign in", widget=GovSubmitInput())

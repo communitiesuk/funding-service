@@ -11,6 +11,7 @@ from app.types import LogFormats, LogLevels
 class Environment(str, Enum):
     UNIT_TEST = "unit_test"
     LOCAL = "local"
+    PULLPREVIEW = "pullpreview"
     DEV = "dev"
     UAT = "uat"
     PROD = "prod"
@@ -60,6 +61,8 @@ class _SharedConfig(_BaseConfig):
     SERVER_NAME: str
     SECRET_KEY: str
     WTF_CSRF_ENABLED: bool = True
+    PROXY_FIX_PROTO: int = 0
+    PROXY_FIX_HOST: int = 0
 
     # Databases
     DATABASE_HOST: str
@@ -158,6 +161,18 @@ class DevConfig(_SharedConfig):
     DEBUG_TB_ENABLED: bool = False
 
 
+class PullPreviewConfig(_SharedConfig):
+    """
+    Overrides / default configuration for our PR PullPreview environments
+    """
+
+    # Flask app
+    FLASK_ENV: Environment = Environment.DEV
+    DEBUG_TB_ENABLED: bool = False
+    PROXY_FIX_PROTO: int = 1
+    PROXY_FIX_HOST: int = 1
+
+
 class UatConfig(_SharedConfig):
     """
     Overrides / default configuration for our deployed 'uat' environment
@@ -185,6 +200,8 @@ def get_settings() -> _SharedConfig:
             return LocalConfig()  # type: ignore[call-arg]
         case Environment.DEV:
             return DevConfig()  # type: ignore[call-arg]
+        case Environment.PULLPREVIEW:
+            return PullPreviewConfig()  # type: ignore[call-arg]
         case Environment.UAT:
             return UatConfig()  # type: ignore[call-arg]
         case Environment.PROD:

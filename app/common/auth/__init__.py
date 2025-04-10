@@ -1,11 +1,13 @@
-import datetime
-from zoneinfo import ZoneInfo
+import uuid
+from typing import cast
 
-from flask import Blueprint, redirect, render_template, session, url_for
+from flask import Blueprint, abort, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 
-from app.common.auth.forms import SignInForm
-from app.extensions import notification_service
+from app.common.auth.forms import ClaimMagicLinkForm, SignInForm
+from app.common.data import interfaces
+from app.common.data.interfaces.user import get_or_create_user
+from app.extensions import auto_commit_after_request, notification_service
 
 auth_blueprint = Blueprint(
     "auth",
@@ -14,31 +16,52 @@ auth_blueprint = Blueprint(
 )
 
 
-@auth_blueprint.route("/sign-in", methods=["GET", "POST"])
-def sign_in() -> ResponseReturnValue:
+@auth_blueprint.route("/request-a-link-to-sign-in", methods=["GET", "POST"])
+@auto_commit_after_request
+def request_a_link_to_sign_in() -> ResponseReturnValue:
     form = SignInForm()
     if form.validate_on_submit():
-        email = form.email_address.data
+        email = cast(str, form.email_address.data)
 
-        # TODO: all session stuff will be revisited as part of FSPT-334
-        session["email_address"] = email
+        user = get_or_create_user(email_address=email)
 
-        notification_service.send_magic_link(
-            email,  # type: ignore[arg-type]
-            magic_link_url="https://magic-link-tbd",
-            magic_link_expires_at_utc=datetime.datetime.now(ZoneInfo("UTC")) + datetime.timedelta(minutes=15),
-            request_new_magic_link_url="https://new-magic-link-tbd",
+        # TODO: read+validate redirect from query params
+        magic_link = interfaces.magic_link.create_magic_link(
+            user=user, redirect_to_path=url_for("platform.list_grants")
         )
 
-        return redirect(url_for("auth.check_email"))
+        notification_service.send_magic_link(
+            email,
+            magic_link_url=url_for("auth.claim_magic_link", magic_link_code=magic_link.code, _external=True),
+            magic_link_expires_at_utc=magic_link.expires_at_utc,
+            request_new_magic_link_url=url_for("auth.request_a_link_to_sign_in", _external=True),
+        )
+
+        return redirect(url_for("auth.check_email", magic_link_id=magic_link.id))
 
     return render_template("common/auth/sign_in.html", form=form)
 
 
-@auth_blueprint.get("/check-your-email")
-def check_email() -> ResponseReturnValue:
-    if "email_address" not in session:
-        return redirect(url_for("auth.sign_in"))
+@auth_blueprint.get("/check-your-email/<uuid:magic_link_id>")
+def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
+    magic_link = interfaces.magic_link.get_magic_link(id_=magic_link_id)
+    if not magic_link or not magic_link.usable:
+        abort(404)
 
-    email_address = session.get("email_address")
-    return render_template("common/auth/check_email.html", email_address=email_address)
+    return render_template("common/auth/check_email.html", user=magic_link.user)
+
+
+@auth_blueprint.route("/sign-in/<magic_link_code>", methods=["GET", "POST"])
+@auto_commit_after_request
+def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
+    magic_link = interfaces.magic_link.get_magic_link(code=magic_link_code)
+    if not magic_link or not magic_link.usable:
+        return redirect(url_for("auth.request_a_link_to_sign_in"))
+
+    form = ClaimMagicLinkForm()
+    if form.validate_on_submit():
+        interfaces.magic_link.claim_magic_link(magic_link=magic_link)
+        # TODO: actually create auth'd session
+        return redirect(magic_link.redirect_to_path)
+
+    return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
