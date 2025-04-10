@@ -16,3 +16,7 @@
         </div>
     </div>
 {% endblock content %}
+
+{% block bodyEnd %}
+  <script nonce="{{ csp_nonce() }}">document.getElementById('submit').click();</script>
+{% endblock bodyEnd %}
