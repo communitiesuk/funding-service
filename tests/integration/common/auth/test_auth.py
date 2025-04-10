@@ -6,51 +6,50 @@ from flask import url_for
 from tests.utils import AnyStringMatching, page_has_error
 
 
-def test_sign_in_page_get(client):
-    response = client.get(url_for("auth.sign_in"))
-    assert response.status_code == 200
-    assert b"Request a link to sign in" in response.data
+class TestSignInView:
+    def test_get(self, client):
+        response = client.get(url_for("auth.sign_in"))
+        assert response.status_code == 200
+        assert b"Request a link to sign in" in response.data
+
+    def test_post_invalid_email(self, client):
+        response = client.post(url_for("auth.sign_in"), data={"email_address": "invalid-email"})
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Enter an email address in the correct format")
+
+    def get_test_post_non_communities_email(self, client):
+        response = client.post(url_for("auth.sign_in"), data={"email_address": "test@example.com"})
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Email address must end with @communities.gov.uk")
+
+    def test_post_valid_email(self, client, mock_notification_service_calls):
+        response = client.post(
+            url_for("auth.sign_in"),
+            data={"email_address": "test@communities.gov.uk"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert b"Check your email" in response.data
+        assert b"test@communities.gov.uk" in response.data
+        assert len(mock_notification_service_calls) == 1
+        assert mock_notification_service_calls[0].kwargs["personalisation"]["magic_link"] == AnyStringMatching(
+            r"http://funding.communities.gov.localhost:8080/sign-in/.*"
+        )
+        assert (
+            mock_notification_service_calls[0].kwargs["personalisation"]["request_new_magic_link"]
+            == "http://funding.communities.gov.localhost:8080/sign-in"
+        )
 
 
-def test_sign_in_page_post_invalid_email(client):
-    response = client.post(url_for("auth.sign_in"), data={"email_address": "invalid-email"})
-    assert response.status_code == 200
-    soup = BeautifulSoup(response.data, "html.parser")
-    assert page_has_error(soup, "Enter an email address in the correct format")
-
-
-def test_sign_in_page_post_non_communities_email(client):
-    response = client.post(url_for("auth.sign_in"), data={"email_address": "test@example.com"})
-    assert response.status_code == 200
-    soup = BeautifulSoup(response.data, "html.parser")
-    assert page_has_error(soup, "Email address must end with @communities.gov.uk")
-
-
-def test_sign_in_page_post_valid_email(client, mock_notification_service_calls):
-    response = client.post(
-        url_for("auth.sign_in"),
-        data={"email_address": "test@communities.gov.uk"},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert b"Check your email" in response.data
-    assert b"test@communities.gov.uk" in response.data
-    assert len(mock_notification_service_calls) == 1
-    assert mock_notification_service_calls[0].kwargs["personalisation"]["magic_link"] == AnyStringMatching(
-        r"http://funding.communities.gov.localhost:8080/sign-in/.*"
-    )
-    assert (
-        mock_notification_service_calls[0].kwargs["personalisation"]["request_new_magic_link"]
-        == "http://funding.communities.gov.localhost:8080/sign-in"
-    )
-
-
-def test_check_email_page(client, factories):
-    magic_link = factories.magic_link.create(user__email="test@communities.gov.uk")
-    response = client.get(url_for("auth.check_email", magic_link_id=magic_link.id))
-    assert response.status_code == 200
-    assert b"Check your email" in response.data
-    assert b"test@communities.gov.uk" in response.data
+class TestCheckEmailPage:
+    def test_get(self, client, factories):
+        magic_link = factories.magic_link.create(user__email="test@communities.gov.uk")
+        response = client.get(url_for("auth.check_email", magic_link_id=magic_link.id))
+        assert response.status_code == 200
+        assert b"Check your email" in response.data
+        assert b"test@communities.gov.uk" in response.data
 
 
 class TestClaimMagicLinkView:
