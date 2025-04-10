@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Optional
 
-from flask import Flask, redirect, url_for
+from flask import Flask, current_app, redirect, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
@@ -47,6 +47,13 @@ def create_app() -> Flask:
     from werkzeug.middleware.proxy_fix import ProxyFix
 
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=app.config["PROXY_FIX_PROTO"], x_host=app.config["PROXY_FIX_HOST"])
+
+    @app.before_request
+    def log_x_forwarded_headers():
+        current_app.logger.info("X-Forwarded Headers %(url)s:", dict(url=request.url))
+        for header_name, header_value in request.headers.items():
+            if header_name.lower().startswith("x-forwarded"):
+                current_app.logger.info("  %(header)s: %(value)s", dict(header=header_name, value=header_value))
 
     # Configure templates
     app.jinja_loader = ChoiceLoader(
