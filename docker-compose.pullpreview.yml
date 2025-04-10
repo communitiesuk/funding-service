@@ -45,13 +45,13 @@ services:
       "
     env_file: .env
     environment:
-      FLASK_ENV: dev
+      FLASK_ENV: pullpreview
       FLASK_PORT: 8080
       DATABASE_HOST: "db"
       DATABASE_PORT: 5432
       DATABASE_NAME: "postgres"
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
-      SERVER_NAME: web:8080
+      SERVER_NAME: ${PULLPREVIEW_PUBLIC_DNS}
       SECRET_KEY: unsafe  # pragma: allowlist secret
       DEBUG_TB_ENABLED: true
       # Removes the ConfigPanel, which could show sensitive configuration.
