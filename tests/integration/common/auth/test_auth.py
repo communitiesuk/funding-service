@@ -8,25 +8,25 @@ from tests.utils import AnyStringMatching, page_has_error
 
 class TestSignInView:
     def test_get(self, client):
-        response = client.get(url_for("auth.sign_in"))
+        response = client.get(url_for("auth.request_a_link_to_sign_in"))
         assert response.status_code == 200
         assert b"Request a link to sign in" in response.data
 
     def test_post_invalid_email(self, client):
-        response = client.post(url_for("auth.sign_in"), data={"email_address": "invalid-email"})
+        response = client.post(url_for("auth.request_a_link_to_sign_in"), data={"email_address": "invalid-email"})
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Enter an email address in the correct format")
 
     def get_test_post_non_communities_email(self, client):
-        response = client.post(url_for("auth.sign_in"), data={"email_address": "test@example.com"})
+        response = client.post(url_for("auth.request_a_link_to_sign_in"), data={"email_address": "test@example.com"})
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Email address must end with @communities.gov.uk")
 
     def test_post_valid_email(self, client, mock_notification_service_calls):
         response = client.post(
-            url_for("auth.sign_in"),
+            url_for("auth.request_a_link_to_sign_in"),
             data={"email_address": "test@communities.gov.uk"},
             follow_redirects=True,
         )
@@ -39,7 +39,7 @@ class TestSignInView:
         )
         assert (
             mock_notification_service_calls[0].kwargs["personalisation"]["request_new_magic_link"]
-            == "http://funding.communities.gov.localhost:8080/sign-in"
+            == "http://funding.communities.gov.localhost:8080/request-a-link-to-sign-in"
         )
 
 
@@ -63,7 +63,7 @@ class TestClaimMagicLinkView:
     def test_redirect_on_unknown_magic_link(self, client):
         response = client.get(url_for("auth.claim_magic_link", magic_link_code="unknown-code"))
         assert response.status_code == 302
-        assert response.location == url_for("auth.sign_in")
+        assert response.location == url_for("auth.request_a_link_to_sign_in")
 
     def test_redirect_on_used_magic_link(self, client, factories):
         magic_link = factories.magic_link.create(
@@ -74,7 +74,7 @@ class TestClaimMagicLinkView:
 
         response = client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
         assert response.status_code == 302
-        assert response.location == url_for("auth.sign_in")
+        assert response.location == url_for("auth.request_a_link_to_sign_in")
 
     def test_redirect_on_expired_magic_link(self, client, factories):
         magic_link = factories.magic_link.create(
@@ -85,7 +85,7 @@ class TestClaimMagicLinkView:
 
         response = client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
         assert response.status_code == 302
-        assert response.location == url_for("auth.sign_in")
+        assert response.location == url_for("auth.request_a_link_to_sign_in")
 
     def test_post_claims_link_and_redirects(self, client, factories):
         magic_link = factories.magic_link.create(
