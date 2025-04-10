@@ -11,7 +11,7 @@ from pydantic import RootModel
 
 from app import logging
 from app.config import get_settings
-from app.extensions import auto_commit_after_request, db, migrate, notification_service, toolbar
+from app.extensions import auto_commit_after_request, db, migrate, notification_service, talisman, toolbar
 from app.sentry import init_sentry
 
 init_sentry()
@@ -37,6 +37,7 @@ def create_app() -> Flask:
     )
     toolbar.init_app(app)
     notification_service.init_app(app)
+    talisman.init_app(app, **app.config["TALISMAN_SETTINGS"])
 
     # This section is needed for url_for("foo", _external=True) to
     # automatically generate http scheme when this sample is
