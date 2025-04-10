@@ -45,7 +45,7 @@ services:
       "
     env_file: .env
     environment:
-      FLASK_ENV: dev
+      FLASK_ENV: pullpreview
       FLASK_PORT: 8080
       DATABASE_HOST: "db"
       DATABASE_PORT: 5432
