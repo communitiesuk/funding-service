@@ -45,8 +45,12 @@ Developers are expected to run the app locally using [docker-compose](https://do
 ## E2E Tests
 All E2E (browser) tests should live inside [/tests/e2e](./tests/e2e).
 
+As a one-off setup step, run `uv run playwright install` to download and configure the browsers needed for these tests.
+
 To run any E2E tests include the `e2e` option in the pytest command:
 ```shell
 uv run pytest --e2e
 ```
-[This function](./tests/conftest.py#L15) skips e2e or non-e2e tests depending on the presence of the `--e2e` option.
+This will, by default, run the browser tests headless - i.e. you won't see a browser appear. To display the browser so you can visually inspect the test journey, use `pytest --e2e --headed --slowmo 1000`. `--headed` displays the browser, and `--slowmo 1000` makes Playwright insert 1 second pauses between various steps so that you can follow what the test is doing more easily.
+
+[This function](./tests/conftest.py#L22) skips e2e or non-e2e tests depending on if they are in the `e2e` module under `tests`, so no individual tests need to be marked with the `e2e` marker.
