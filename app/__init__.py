@@ -51,6 +51,7 @@ def create_app() -> Flask:
     @app.before_request
     def log_x_forwarded_headers():
         current_app.logger.info("X-Forwarded Headers %(url)s:", dict(url=request.url))
+        current_app.logger.info("%(environ)s", dict(environ=str(request.environ)))
         for header_name, header_value in request.headers.items():
             if header_name.lower().startswith("x-forwarded"):
                 current_app.logger.info("  %(header)s: %(value)s", dict(header=header_name, value=header_value))
