@@ -54,3 +54,9 @@ uv run pytest --e2e
 This will, by default, run the browser tests headless - i.e. you won't see a browser appear. To display the browser so you can visually inspect the test journey, use `pytest --e2e --headed --slowmo 1000`. `--headed` displays the browser, and `--slowmo 1000` makes Playwright insert 1 second pauses between various steps so that you can follow what the test is doing more easily.
 
 [This function](./tests/conftest.py#L22) skips e2e or non-e2e tests depending on if they are in the `e2e` module under `tests`, so no individual tests need to be marked with the `e2e` marker.
+
+### Run E2E tests against deployed dev environment
+
+An additional flag must be passed to the `pytest` command:
+
+* `--e2e-env dev`
