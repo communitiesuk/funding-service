@@ -22,6 +22,23 @@ class User(BaseModel):
 
     magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
 
+    # Required by Flask-Login; should be provided by UserMixin, except that breaks our type hinting
+    # when using this class in SQLAlchemy queries. So we've just lifted the key attributes here directly.
+    @property
+    def is_active(self) -> bool:
+        return True
+
+    @property
+    def is_authenticated(self) -> bool:
+        return self.is_active
+
+    @property
+    def is_anonymous(self) -> bool:
+        return False
+
+    def get_id(self) -> str:
+        return str(self.id)
+
 
 class MagicLink(BaseModel):
     __tablename__ = "magic_link"

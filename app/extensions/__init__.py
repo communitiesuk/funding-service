@@ -1,4 +1,5 @@
 from flask_debugtoolbar import DebugToolbarExtension
+from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy_lite import SQLAlchemy
 from flask_talisman import Talisman
@@ -14,6 +15,7 @@ toolbar = DebugToolbarExtension()
 notification_service = NotificationService()
 talisman = Talisman()
 flask_assets_vite = FlaskAssetsViteExtension()
+login_manager = LoginManager()
 
 __all__ = [
     "db",
@@ -23,4 +25,5 @@ __all__ = [
     "notification_service",
     "talisman",
     "flask_assets_vite",
+    "login_manager",
 ]

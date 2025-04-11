@@ -5,11 +5,14 @@ from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
 from app import logging
+from app.common.data import interfaces
+from app.common.data.models import User
 from app.config import get_settings
 from app.extensions import (
     auto_commit_after_request,
     db,
     flask_assets_vite,
+    login_manager,
     migrate,
     notification_service,
     talisman,
@@ -42,6 +45,11 @@ def create_app() -> Flask:
     toolbar.init_app(app)
     notification_service.init_app(app)
     talisman.init_app(app, **app.config["TALISMAN_SETTINGS"])
+    login_manager.init_app(app)
+
+    @login_manager.user_loader  # type: ignore[misc]
+    def load_user(user_id: str) -> User | None:
+        return interfaces.user.get_user(user_id)
 
     # This section is needed for url_for("foo", _external=True) to
     # automatically generate http scheme when this sample is
