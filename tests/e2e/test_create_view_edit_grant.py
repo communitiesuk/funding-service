@@ -2,12 +2,11 @@ import uuid
 
 from playwright.sync_api import Page
 
-from tests.e2e.conftest import FundingServiceDomains
 from tests.e2e.pages import AllGrantsPage
 
 
-def test_create_view_edit_grant_success(page: Page, domains: FundingServiceDomains):
-    all_grants_page = AllGrantsPage(page, domains.landing_url)
+def test_create_view_edit_grant_success(page: Page, domain: str):
+    all_grants_page = AllGrantsPage(page, domain)
     all_grants_page.navigate()
 
     # Set up new grant
