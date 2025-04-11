@@ -251,4 +251,3 @@ certs
 
 node_modules
 app/assets/dist
-package-lock.json

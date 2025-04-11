@@ -25,7 +25,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project
 
 RUN --mount=type=bind,source=package.json,target=package.json \
-    npm i
+    --mount=type=bind,source=package-lock.json,target=package-lock.json \
+    npm ci
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
