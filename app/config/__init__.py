@@ -129,7 +129,7 @@ class _SharedConfig(_BaseConfig):
     TALISMAN_REFERRER_POLICY: str = "strict-origin-when-cross-origin"
     TALISMAN_SESSION_COOKIE_SECURE: bool = True
     TALISMAN_SESSION_COOKIE_HTTP_ONLY: bool = True
-    TALISMAN_SESSION_COOKIE_SAMESITE: str = "Strict"
+    TALISMAN_SESSION_COOKIE_SAMESITE: str = "Lax"
     TALISMAN_X_CONTENT_TYPE_OPTIONS: bool = True
     TALISMAN_X_XSS_PROTECTION: bool = True
 
