@@ -7,9 +7,7 @@
 {% block content %}
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-two-thirds">
-            {# TODO: Add JS to auto submit this form #}
-
-            <form method="post" novalidate>
+            <form class="app-js-hidden" method="post" novalidate>
               {{ form.csrf_token }}
               {{ form.submit }}
             </form>

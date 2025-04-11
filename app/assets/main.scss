@@ -9,6 +9,12 @@ $govuk-assets-path: "/static/assets/";
     white-space: nowrap;
 }
 
+// this class will only be applied if GOV.UK Frontend Jinja has set the `.js-enabled` class meaning
+// it could execute JavaScript
+.js-enabled .app-js-hidden {
+    display: none;
+}
+
 .fs-nav-item>a {
     display: block;
     padding: 7px 0;
