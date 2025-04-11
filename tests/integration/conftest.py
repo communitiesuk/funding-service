@@ -34,7 +34,7 @@ def setup_db_container() -> Generator[None, None, None]:
     # off a little bit of time - why not.
     testcontainers_config.sleep_time = 0.1
 
-    test_postgres = PostgresContainer("postgres:16")
+    test_postgres = PostgresContainer("postgres:16.6")
     test_postgres.start()
 
     monkeypatch = MonkeyPatch()
