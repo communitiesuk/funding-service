@@ -2,6 +2,7 @@ import datetime
 
 from bs4 import BeautifulSoup
 from flask import url_for
+from flask_login import current_user
 
 from tests.utils import AnyStringMatching, page_has_error
 
@@ -92,6 +93,8 @@ class TestClaimMagicLinkView:
             user__email="test@communities.gov.uk", redirect_to_path="/my-redirect", claimed_at_utc=None
         )
 
+        assert current_user.is_authenticated is False
+
         response = client.post(
             url_for("auth.claim_magic_link", magic_link_code=magic_link.code),
             json={"submit": "yes"},
@@ -101,3 +104,24 @@ class TestClaimMagicLinkView:
         assert response.status_code == 302
         assert response.location == "/my-redirect"
         assert magic_link.claimed_at_utc is not None
+        assert current_user.is_authenticated is True
+        assert magic_link.user.id == current_user.id
+
+
+class TestSignOutView:
+    def test_get(self, client, factories):
+        magic_link = factories.magic_link.create(
+            user__email="test@communities.gov.uk", redirect_to_path="/my-redirect", claimed_at_utc=None
+        )
+
+        # A bit unencapsulated for testing the sign out view, but don't otherwise have an easy+reliable way to get
+        # the user in the session
+        client.post(url_for("auth.claim_magic_link", magic_link_code=magic_link.code), json={"submit": "yes"})
+        with client.session_transaction() as session:
+            assert "_user_id" in session
+
+        response = client.get(url_for("auth.sign_out"), follow_redirects=True)
+        assert response.status_code == 200
+
+        with client.session_transaction() as session:
+            assert "_user_id" not in session

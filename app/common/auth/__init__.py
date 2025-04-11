@@ -3,7 +3,7 @@ from typing import cast
 
 from flask import Blueprint, abort, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
-from flask_login import login_user
+from flask_login import login_user, logout_user
 
 from app.common.auth.forms import ClaimMagicLinkForm, SignInForm
 from app.common.data import interfaces
@@ -68,3 +68,10 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
         return redirect(magic_link.redirect_to_path)
 
     return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
+
+
+@auth_blueprint.get("/sign-out")
+def sign_out() -> ResponseReturnValue:
+    logout_user()
+
+    return redirect(url_for("index"))
