@@ -1,0 +1,41 @@
+name: Deployment pipeline
+run-name: Build, deploy and e2e test ${{github.ref_name}}
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  paketo_build:
+    name: Paketo build & publish
+    uses: ./.github/workflows/package.yml
+    permissions:
+      packages: write
+      contents: read  # This is required for actions/checkout
+      id-token: write  # This is required for authenticating with aws
+    concurrency:
+      group: fs-paketo-dev
+      cancel-in-progress: false
+
+  # Commenting out these steps until we have a nice way of checking the AppRunner deployment has completed
+  # before running e2e tests, otherwise this behaviour will be odd
+
+  # wait_for_deploy:
+  #   # TODO: Replace this with a nice way of checking the AppRunner deployment has completed
+  #   name: Wait for AppRunner deploy
+  #   needs:
+  #     - paketo_build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Wait for 4 minutes
+  #       shell: bash
+  #       run: sleep 240s
+
+  # e2e_tests:
+  #   name: Python E2E tests
+  #   needs:
+  #     - paketo_build
+  #     - wait_for_deploy
+  #   uses: ./.github/workflows/run_e2e_tests.yml

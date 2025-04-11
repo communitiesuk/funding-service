@@ -1,10 +1,8 @@
 name: Run e2e tests
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   e2e_tests:
@@ -28,20 +26,26 @@ jobs:
         run: uv run --frozen playwright install --with-deps chromium
 
       - name: run e2e tests
-        run: uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium
+        run: uv run --frozen pytest --e2e --e2e-env dev --tracing=retain-on-failure --browser chromium
 
-# TODO add this when we are running against real environments
-#  notify_slack:
-#    needs:
-#      - e2e_tests
-#    if: ${{ always() && needs.e2e_tests.result == 'failure' && github.ref_name == 'main'}}
-#    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
-#    with:
-#      app_name: FS E2E Tests
-#      env_name: 'dev'
-#      github_username: ${{ github.actor }}
-#      workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-#      compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
-#    secrets:
-#      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-#      SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+      - name: Save test failure tracing
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
+        if: ${{ failure() }}
+        with:
+          name: playwright-traces
+          path: test-results/*
+
+  notify_slack:
+    needs:
+      - e2e_tests
+    if: ${{ always() && needs.e2e_tests.result == 'failure' && github.ref_name == 'main'}}
+    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
+    with:
+      app_name: FS E2E Tests
+      env_name: 'dev'
+      github_username: ${{ github.actor }}
+      workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
