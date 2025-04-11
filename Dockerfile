@@ -1,5 +1,4 @@
 FROM python:3.13@sha256:9819e5616923079cc16af4a93d4be92c0c487c6e02fd9027220381f3e125d64a
-ARG NODE_VERSION=22  # If you update this, also update .nvmrc
 
 WORKDIR /app
 
@@ -13,7 +12,7 @@ RUN echo '. "${BASH_ENV}"' >> ~/.bashrc
 
 # Download and install nvm
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | PROFILE="${BASH_ENV}" bash
-RUN echo ${NODE_VERSION} > .nvmrc
+COPY .nvmrc .nvmrc
 RUN nvm install
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
