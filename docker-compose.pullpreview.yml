@@ -1,7 +1,7 @@
 services:
   # use Caddy for SSL termination
   proxy:
-    image: caddy:2
+    image: caddy:2@sha256:1972548f05660a069cfdf052aa2b923ce691627cbad1b7b97fb0a18533a766f2
     restart: unless-stopped
     command: "caddy run --config /etc/caddy/Caddyfile"
     depends_on:
@@ -16,7 +16,7 @@ services:
       - ofs
 
   db:
-    image: postgres:16
+    image: postgres:16@sha256:cef2d22004db69e3d601442ca4cac142adda0987ad7ca4f28c4e998bef690951
     restart: always
     environment:
       POSTGRES_USER: postgres
