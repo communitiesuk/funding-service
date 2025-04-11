@@ -2,5 +2,19 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "github>communitiesuk/renovate-config"
+  ],
+  "packageRules": [
+    {
+      "groupName": "Frontend asset dependencies",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true
+    },
+    {
+      "groupName": "GOV.UK Frontend",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["govuk-frontend"],
+      "automerge": false
+    }
   ]
 }
