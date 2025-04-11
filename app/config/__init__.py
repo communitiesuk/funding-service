@@ -131,7 +131,8 @@ class _SharedConfig(_BaseConfig):
     TALISMAN_SESSION_COOKIE_HTTP_ONLY: bool = True
     TALISMAN_SESSION_COOKIE_SAMESITE: str = "Strict"
     TALISMAN_X_CONTENT_TYPE_OPTIONS: bool = True
-    TALISMAN_X_XSS_PROTECTION: bool = True
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-XSS-Protection - use CSP instead
+    TALISMAN_X_XSS_PROTECTION: bool = False
 
     @property
     def TALISMAN_SETTINGS(self) -> dict[str, Any]:
