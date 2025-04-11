@@ -1,4 +1,4 @@
-FROM python:3.13@sha256:08471c63c5fdf2644adc142a7fa8d0290eb405cda14c473fbe5b4cd0933af601
+FROM python:3.13@sha256:9819e5616923079cc16af4a93d4be92c0c487c6e02fd9027220381f3e125d64a
 ARG NODE_VERSION=22  # If you update this, also update .nvmrc
 
 WORKDIR /app
