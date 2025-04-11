@@ -1,12 +1,17 @@
 import copy
 import os
+from datetime import timedelta
 from enum import Enum
 from typing import Any, Tuple, Type
 
+from flask_sqlalchemy_lite import SQLAlchemy
 from flask_talisman.talisman import ONE_YEAR_IN_SECS
 from pydantic import BaseModel, PostgresDsn
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
+from sqlalchemy.orm import DeclarativeBase
 
+from app.common.data.base import BaseModel as DBBaseModel
+from app.extensions import db
 from app.types import LogFormats, LogLevels
 
 
@@ -108,6 +113,15 @@ class _SharedConfig(_BaseConfig):
     WTF_CSRF_ENABLED: bool = True
     PROXY_FIX_PROTO: int = 0
     PROXY_FIX_HOST: int = 0
+
+    # Flask-Session
+    SESSION_TYPE: str = "sqlalchemy"
+    SESSION_SQLALCHEMY: SQLAlchemy = db
+    SESSION_SQLALCHEMY_TABLE: str = "sessions"
+    SESSION_PERMANENT: bool = True
+    PERMANENT_SESSION_LIFETIME: timedelta = timedelta(days=6)
+    SESSION_USE_SIGNER: bool = True
+    SESSION_SQLALCHEMY_BASE_MODEL: Type[DeclarativeBase] = DBBaseModel
 
     # Talisman security settings
     TALISMAN_FEATURE_POLICY: dict[str, str] = {}
