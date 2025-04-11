@@ -479,7 +479,7 @@ dev = [
     { name = "pytest-playwright", specifier = "==0.7.0" },
     { name = "pytest-xdist", specifier = "==3.6.1" },
     { name = "responses", specifier = "==0.25.7" },
-    { name = "ruff", specifier = ">=0.9.6" },
+    { name = "ruff", specifier = "==0.9.9" },
     { name = "sqlalchemy-utils", specifier = "==0.41.2" },
     { name = "testcontainers", specifier = "==4.10.0" },
     { name = "types-flask-migrate", specifier = "==4.1.0.20250112" },
