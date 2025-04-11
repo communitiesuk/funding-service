@@ -2,12 +2,11 @@ import uuid
 
 from playwright.sync_api import Page, expect
 
-from tests.e2e.conftest import FundingServiceDomains
 from tests.e2e.pages import AllGrantsPage, GrantDashboardPage
 
 
-def test_create_view_edit_grant_success(page: Page, domains: FundingServiceDomains):
-    all_grants_page = AllGrantsPage(page, domains.landing_url)
+def test_create_view_edit_grant_success(page: Page, domain: str):
+    all_grants_page = AllGrantsPage(page, domain)
     all_grants_page.navigate()
     expect(all_grants_page.title).to_be_visible()
 
@@ -39,7 +38,7 @@ def test_create_view_edit_grant_success(page: Page, domains: FundingServiceDomai
     # Grant Dashboard
     new_grant_page.backlink.click()
     page.get_by_role("link", name=new_grant_name).click()
-    grant_dashboard_page = GrantDashboardPage(page, domains.landing_url)
+    grant_dashboard_page = GrantDashboardPage(page, domain)
     expect(page.get_by_role("heading", name=new_grant_name)).to_be_visible()
 
     # Grant Settings

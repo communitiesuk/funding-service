@@ -1,14 +1,8 @@
-from dataclasses import dataclass
 from typing import Generator
 
 import pytest
 from playwright.sync_api import Page
 from pytest import FixtureRequest
-
-
-@dataclass
-class FundingServiceDomains:
-    landing_url: str
 
 
 @pytest.fixture(autouse=True)
@@ -31,12 +25,10 @@ def get_e2e_params(request: pytest.FixtureRequest) -> Generator[dict[str, str], 
 
 
 @pytest.fixture()
-def domains(request: pytest.FixtureRequest, get_e2e_params: dict[str, str]) -> FundingServiceDomains:
+def domain(request: pytest.FixtureRequest, get_e2e_params: dict[str, str]) -> str:
     e2e_env = get_e2e_params["e2e_env"]
 
     if e2e_env == "local":
-        return FundingServiceDomains(
-            landing_url="https://funding.communities.gov.localhost:8080",
-        )
+        return "https://funding.communities.gov.localhost:8080"
     else:
         raise ValueError(f"not configured for {e2e_env}")
