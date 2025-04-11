@@ -24,6 +24,7 @@ dependencies = [
     "wtforms[email]>=3.2.1",
     "notifications-python-client>=10.0.1",
     "flask-talisman>=1.1.0",
+    "flask-login>=0.6.3",
 ]
 
 [dependency-groups]
@@ -86,7 +87,7 @@ exclude = ['.*test_.*']
 
 [[tool.mypy.overrides]]
 module = [
-  "flask_wtf", "govuk_frontend_wtf.*", "testcontainers.*", "flask_babel", "sqlalchemy_utils", "flask_talisman.*"
+  "flask_wtf", "govuk_frontend_wtf.*", "testcontainers.*", "flask_babel", "sqlalchemy_utils", "flask_talisman.*", "flask_login"
 ]
 ignore_missing_imports = true
 
