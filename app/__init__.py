@@ -5,6 +5,7 @@ from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
 from app import logging
+from app.common.data import interfaces
 from app.common.data.models import User
 from app.config import get_settings
 from app.extensions import (
@@ -48,7 +49,7 @@ def create_app() -> Flask:
 
     @login_manager.user_loader  # type: ignore[misc]
     def load_user(user_id: str) -> User | None:
-        return db.session.get(User, user_id)
+        return interfaces.user.get_user(user_id)
 
     # This section is needed for url_for("foo", _external=True) to
     # automatically generate http scheme when this sample is

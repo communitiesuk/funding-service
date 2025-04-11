@@ -1,7 +1,13 @@
+import uuid
+
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 
 from app.common.data.models import User
 from app.extensions import db
+
+
+def get_user(id_: str | uuid.UUID) -> User | None:
+    return db.session.get(User, id_)
 
 
 def get_or_create_user(email_address: str) -> User:
