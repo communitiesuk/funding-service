@@ -21,7 +21,7 @@ jobs:
       image_location: ${{ steps.build_and_publish.outputs.image_location }}
 
     steps:
-      - uses: buildpacks/github-actions/setup-pack@29954e5d009d40d4d043993f6f39b8ce3e8d9fa3 # v5.8.7
+      - uses: buildpacks/github-actions/setup-pack@d82294e03fd6b8e8484cde2ee166788876e366e3 # v5.8.10
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Set up Python
