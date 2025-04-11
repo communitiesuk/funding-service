@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Type, TypeVar
 
 from playwright.sync_api import Locator, Page
 
@@ -55,15 +54,13 @@ class NewGrantPage(FormErrorsMixin, BasePage):
         self.backlink = self.page.get_by_role("link", name="Back")
         self.title = self.page.get_by_role("heading", name="Set up a new grant")
 
-    T = TypeVar("T", bound=BasePage)
-
     def complete_grant_name(self, name: str) -> None:
         self.page.get_by_role("textbox", name="name").fill(name)
 
-    def submit_new_grant_form(self, expected_response_type: Type[T]) -> T:
+    def submit_new_grant_form(self) -> AllGrantsPage:
         self.page.get_by_role("button", name="Set up grant").click()
 
-        return expected_response_type(self.page, self.domain)
+        return AllGrantsPage(self.page, self.domain)
 
 
 class GrantDashboardBasePage(BasePage):
@@ -109,12 +106,10 @@ class ChangeGrantNamePage(GrantDashboardBasePage):
         self.backlink = self.page.get_by_role("link", name="Back")
         self.title = self.page.get_by_role("heading", name="Grant name")
 
-    T = TypeVar("T", bound=BasePage)
-
     def complete_grant_name(self, name: str) -> None:
         self.page.get_by_role("textbox", name="Grant name").fill(name)
 
-    def submit_change_grant_name_form(self, expected_response_type: Type[T]) -> T:
+    def submit_change_grant_name_form(self) -> GrantSettingsPage:
         self.page.get_by_role("button", name="Change grant name").click()
 
-        return expected_response_type(self.page, self.domain)
+        return GrantSettingsPage(self.page, self.domain)
