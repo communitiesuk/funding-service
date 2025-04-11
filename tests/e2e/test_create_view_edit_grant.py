@@ -7,10 +7,6 @@ from tests.e2e.pages import AllGrantsPage, ChangeGrantNamePage, GrantDashboardPa
 
 
 def test_create_view_edit_grant_success(page: Page, domains: FundingServiceDomains):
-    # Set a larger than default viewport size to run locally as otherwise Flask Debug Toolbar
-    # interferes with some elements
-    page.set_viewport_size({"width": 1600, "height": 1200})
-
     all_grants_page = AllGrantsPage(page, domains.landing_url)
     all_grants_page.navigate()
     expect(all_grants_page.title).to_be_visible()

@@ -2,11 +2,19 @@ from dataclasses import dataclass
 from typing import Generator
 
 import pytest
+from playwright.sync_api import Page
+from pytest import FixtureRequest
 
 
 @dataclass
 class FundingServiceDomains:
     landing_url: str
+
+
+@pytest.fixture(autouse=True)
+def _viewport(request: FixtureRequest, page: Page) -> None:
+    width, height = request.config.getoption("viewport").split("x")
+    page.set_viewport_size({"width": int(width), "height": int(height)})
 
 
 @pytest.fixture
