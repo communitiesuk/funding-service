@@ -4,7 +4,7 @@
 
 ### Pre-requisites
 
-- Node (version defined in  `./app/vite/.nvmrc`). We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage node versions.
+- Node (version defined in  `.vmrc`). We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage node versions.
 - [uv](https://github.com/astral-sh/uv) installed globally
 - Copy .env.example to fresh .env file and leave values as is, or use [direnv](https://direnv.net/)/.envrc for these variables.
 

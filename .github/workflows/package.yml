@@ -38,12 +38,6 @@ jobs:
         run: uv sync
 
       - name: vite
-        env:
-          FLASK_ENV: local
-          DATABASE_HOST: localhost
-          DATABASE_PORT: 5432
-          DATABASE_NAME: postgres
-          DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
         run: |
           npm ci
           npm run build
