@@ -84,7 +84,7 @@ def app(db: Generator[SQLAlchemy]) -> Generator[Flask, None, None]:
 
 
 @pytest.fixture()
-def client(app: Flask) -> FlaskClient:
+def anonymous_client(app: Flask) -> FlaskClient:
     class CustomClient(FundingServiceTestClient):
         # We want to be sure that any data methods that act during the request have been
         # committed by the flask app lifecycle before continuing. Because of the way we configure
@@ -188,7 +188,7 @@ def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Ca
 
 @pytest.fixture()
 def authenticated_client(
-    client: FlaskClient, factories: _Factories, request: FixtureRequest
+    anonymous_client: FlaskClient, factories: _Factories, request: FixtureRequest
 ) -> Generator[FlaskClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
@@ -197,4 +197,4 @@ def authenticated_client(
 
     login_user(user)
 
-    yield client
+    yield anonymous_client
