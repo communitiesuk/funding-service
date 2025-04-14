@@ -71,3 +71,13 @@ def app() -> Generator[Flask, None, None]:
     app.config.update({"TESTING": True})
 
     yield app
+
+
+def _precompile_templates(app: Flask) -> None:
+    # Precompile all of our Jinja2 templates so that this doesn't happen within individual tests. It can lead to the
+    # first test that hits templates taking significantly longer than its baseline, which makes it harder for us
+    # to add time limits on tests that we run (see `_integration_test_timeout` below).
+    # This doesn't *completely* warm up the flask app - still seeing that some first runs are a bit slower, but this
+    # takes away a significant amount of the difference between the first and second pass.
+    for template_name in app.jinja_env.list_templates():
+        app.jinja_env.get_template(template_name)
