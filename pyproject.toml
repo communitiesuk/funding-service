@@ -105,7 +105,8 @@ env = [
     "DATABASE_URL=postgresql+psycopg://overridden-by-fixture"
 ]
 markers = [
-    "e2e: Run E2E (browser) tests using playwright"
+    "e2e: Run E2E (browser) tests using playwright",
+    "authenticate_as: Email address to use for `authenticated_client` fixture; default `test@communities.gov.uk`"
 ]
 
 

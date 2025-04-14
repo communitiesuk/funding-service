@@ -4,6 +4,7 @@ from pydantic import UUID4
 from werkzeug import Response
 from wtforms.fields.core import Field
 
+from app.common.auth.decorators import mhclg_login_required
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.extensions import auto_commit_after_request
@@ -13,6 +14,7 @@ platform_blueprint = Blueprint(name="platform", import_name=__name__)
 
 
 @platform_blueprint.route("/grants/set-up", methods=["GET", "POST"])
+@mhclg_login_required
 @auto_commit_after_request
 def create_grant() -> ResponseReturnValue:
     form = GrantForm()
@@ -28,24 +30,28 @@ def create_grant() -> ResponseReturnValue:
 
 
 @platform_blueprint.route("/grants", methods=["GET"])
+@mhclg_login_required
 def list_grants() -> str:
     grants = interfaces.grants.get_all_grants()
     return render_template("platform/grant_list.html", grants=grants)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
+@mhclg_login_required
 def view_grant(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("platform/grant_view.html", grant=grant)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>/settings", methods=["GET"])
+@mhclg_login_required
 def grant_settings(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("platform/grant_settings.html", grant=grant)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>/change-name", methods=["GET", "POST"])
+@mhclg_login_required
 @auto_commit_after_request
 def grant_change_name(grant_id: UUID4) -> str | Response:
     grant = interfaces.grants.get_grant(grant_id)

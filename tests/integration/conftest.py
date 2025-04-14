@@ -10,6 +10,7 @@ from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask, template_rendered
 from flask.testing import FlaskClient
+from flask_login import login_user
 from flask_migrate import upgrade
 from flask_sqlalchemy_lite import SQLAlchemy
 from jinja2 import Template
@@ -183,3 +184,17 @@ def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Ca
     )
 
     yield calls
+
+
+@pytest.fixture()
+def authenticated_client(
+    client: FlaskClient, factories: _Factories, request: FixtureRequest
+) -> Generator[FlaskClient, None, None]:
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+
+    login_user(user)
+
+    yield client
