@@ -1,7 +1,7 @@
 import uuid
 from typing import cast
 
-from flask import Blueprint, abort, redirect, render_template, url_for
+from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
@@ -20,15 +20,13 @@ auth_blueprint = Blueprint(
 @auth_blueprint.route("/request-a-link-to-sign-in", methods=["GET", "POST"])
 @auto_commit_after_request
 def request_a_link_to_sign_in() -> ResponseReturnValue:
-    form = SignInForm()
+    form = SignInForm(data={"redirect_to": request.args.get("next", url_for("index"))})
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
 
         user = get_or_create_user(email_address=email)
-
-        # TODO: read+validate redirect from query params
         magic_link = interfaces.magic_link.create_magic_link(
-            user=user, redirect_to_path=url_for("platform.list_grants")
+            user=user, redirect_to_path=cast(str, form.redirect_to.data)
         )
 
         notification_service.send_magic_link(
