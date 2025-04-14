@@ -15,6 +15,13 @@
       "matchManagers": ["npm"],
       "matchPackageNames": ["govuk-frontend"],
       "automerge": false
+    },
+    {
+      "groupName": "Postgres in line with deployed environments",
+      "matchPackageNames": ["postgres"],
+      "matchManagers": ["docker-compose", "github-actions"],
+      "allowedVersions": "<17",
+      "description": "If updating to a new major version, update testcontainers in tests/integration/conftest"
     }
   ]
 }
