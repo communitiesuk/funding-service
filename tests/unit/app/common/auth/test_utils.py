@@ -1,11 +1,11 @@
 import pytest
 
-from app.common.auth import SignInForm
+from app.common.security.utils import sanitise_redirect_url
 
 
-class TestSignInForm:
+class TestSanitiseRedirectURL:
     @pytest.mark.parametrize(
-        "redirect_to, expected_clean_redirect_to",
+        "url, expected_url",
         (
             ("/", "/"),
             ("/blah/blah", "/blah/blah"),
@@ -17,8 +17,5 @@ class TestSignInForm:
             ("/blah?query=param", "/blah?query=param"),
         ),
     )
-    def test_redirect_sanitisation(self, client, redirect_to, expected_clean_redirect_to):
-        form = SignInForm()
-        form.process(data={"email_address": "test@communities.gov.uk", "redirect_to": redirect_to})
-        assert not form.errors
-        assert form.redirect_to.data == expected_clean_redirect_to
+    def test_redirect_sanitisation(self, app, url, expected_url):
+        assert sanitise_redirect_url(url) == expected_url

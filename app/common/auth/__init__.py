@@ -1,13 +1,14 @@
 import uuid
 from typing import cast
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, redirect, render_template, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
 from app.common.auth.forms import ClaimMagicLinkForm, SignInForm
 from app.common.data import interfaces
 from app.common.data.interfaces.user import get_or_create_user
+from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
 
 auth_blueprint = Blueprint(
@@ -20,13 +21,14 @@ auth_blueprint = Blueprint(
 @auth_blueprint.route("/request-a-link-to-sign-in", methods=["GET", "POST"])
 @auto_commit_after_request
 def request_a_link_to_sign_in() -> ResponseReturnValue:
-    form = SignInForm(data={"redirect_to": request.args.get("next", url_for("index"))})
+    form = SignInForm()
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
 
         user = get_or_create_user(email_address=email)
         magic_link = interfaces.magic_link.create_magic_link(
-            user=user, redirect_to_path=cast(str, form.redirect_to.data)
+            user=user,
+            redirect_to_path=sanitise_redirect_url(session.get("next", url_for("index"))),
         )
 
         notification_service.send_magic_link(
@@ -63,7 +65,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
         if not login_user(magic_link.user):
             abort(400)
 
-        return redirect(magic_link.redirect_to_path)
+        return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
 
     return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
 
