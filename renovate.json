@@ -19,9 +19,9 @@
     {
       "groupName": "Postgres in line with deployed environments",
       "matchPackageNames": ["postgres"],
-      "matchDepTypes": ["docker-compose", "github-actions"],
-      "allowedVersions": "16.6",
-      "description": "If updating to a new minor version, update testcontainers in tests/integration/conftest"
+      "matchManagers": ["docker-compose", "github-actions"],
+      "allowedVersions": "<17",
+      "description": "If updating to a new major version, update testcontainers in tests/integration/conftest"
     }
   ]
 }
