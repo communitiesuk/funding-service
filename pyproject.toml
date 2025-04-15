@@ -6,7 +6,7 @@ readme = "README.md"
 # If updating the version here, also update in project.toml, .python-version, Dockerfile
 requires-python = ">=3.13"
 dependencies = [
-    "alembic-utils==0.8.6",
+    "alembic-utils==0.8.8",
     "babel==2.17.0",
     "flask==3.1.0",
     "flask-babel==4.0.0",
