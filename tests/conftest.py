@@ -25,6 +25,12 @@ def pytest_addoption(parser: Parser) -> None:
     )
 
     parser.addoption(
+        "--e2e-aws-vault-profile",
+        action="store",
+        help="the aws-vault profile matching the env set in --e2e-env (for `dev` or `test` only)",
+    )
+
+    parser.addoption(
         "--viewport",
         default="1920x1080",
         type=str,

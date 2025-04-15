@@ -2,10 +2,14 @@ import uuid
 
 from playwright.sync_api import Page
 
+from tests.e2e.config import EndToEndTestSecrets
+from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.pages import AllGrantsPage
 
 
-def test_create_view_edit_grant_success(page: Page, domain: str):
+def test_create_view_edit_grant_success(
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, user_auth: E2ETestUser
+):
     all_grants_page = AllGrantsPage(page, domain)
     all_grants_page.navigate()
 

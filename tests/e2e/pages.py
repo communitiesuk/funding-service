@@ -29,6 +29,24 @@ class LandingPage(TopNavMixin, BasePage):
         self.page.goto(self.domain)
 
 
+class RequestALinkToSignInPage(BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Request a link to sign in")
+        self.email_address = self.page.get_by_role("textbox", name="Email address")
+        self.request_a_link = self.page.get_by_role("button", name="Request a link")
+
+    def navigate(self) -> None:
+        self.page.goto(f"{self.domain}/request-a-link-to-sign-in")
+        expect(self.title).to_be_visible()
+
+    def fill_email_address(self, email_address: str) -> None:
+        self.email_address.fill(email_address)
+
+    def click_request_a_link(self) -> None:
+        self.request_a_link.click()
+
+
 class AllGrantsPage(TopNavMixin, BasePage):
     title: Locator
 

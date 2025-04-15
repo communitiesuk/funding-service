@@ -51,6 +51,8 @@ dev = [
     "html5lib==1.1",
     "types-html5lib==1.1.11.20241018",
     "types-pytz==2025.2.0.20250326",
+    "boto3>=1.37.34",
+    "types-boto3>=1.37.34",
 ]
 
 [tool.ruff]
@@ -106,6 +108,8 @@ env = [
 ]
 markers = [
     "e2e: Run E2E (browser) tests using playwright",
+    "user_domain: For e2e tests, the domain to use when generating emails for the `user_auth` fixture.",
+
     "authenticate_as: Email address to use for `authenticated_client` fixture; default `test@communities.gov.uk`"
 ]
 
