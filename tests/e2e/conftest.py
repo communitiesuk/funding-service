@@ -1,6 +1,8 @@
+import json
 from typing import Generator, cast
 
 import pytest
+from filelock import FileLock
 from playwright.sync_api import BrowserContext, Page
 from pytest import FixtureRequest
 from pytest_playwright import CreateContextCallback
@@ -71,7 +73,29 @@ def email(request: FixtureRequest) -> str:
 
 
 @pytest.fixture()
-def authenticated_browser(domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str) -> E2ETestUser:
+def authenticated_browser(
+    domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str, tmp_path_factory: pytest.TempPathFactory
+) -> E2ETestUser:
+    tmp_dir = tmp_path_factory.getbasetemp().parent
+
+    # namespace the session file to the email address so tests can use different users and auth once per user
+    fn = tmp_dir / f"{email}-session.json"
+    with FileLock(str(fn) + ".lock"):
+        if fn.is_file():
+            data = json.loads(fn.read_text())
+            page.context.add_cookies([data["session"]])
+            return E2ETestUser(email_address=data["email_address"])
+        else:
+            user = authenticate_with_magic_links(domain, e2e_test_secrets, page, email)
+            with open(str(fn), "w") as f:
+                session_cookie = next((cookie for cookie in page.context.cookies() if cookie["name"] == "session"))
+                f.write(json.dumps({"session": session_cookie, "email_address": user.email_address}))
+            return user
+
+
+def authenticate_with_magic_links(
+    domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str
+) -> E2ETestUser:
     request_a_link_page = RequestALinkToSignInPage(page, domain)
     request_a_link_page.navigate()
 
