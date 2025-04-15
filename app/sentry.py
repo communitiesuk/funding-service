@@ -34,7 +34,7 @@ def init_sentry() -> None:
         env = Environment(os.getenv("FLASK_ENV", Environment.PROD.value))
 
         sentry_sdk.init(
-            environment=env,
+            environment=env.value,
             send_default_pii=env is not Environment.PROD,
             error_sampler=errors_sampler,
             traces_sampler=traces_sampler,
