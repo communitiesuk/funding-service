@@ -1,12 +1,12 @@
 from typing import get_type_hints
 
-from app.config import DevConfig, LocalConfig, ProdConfig, UatConfig, _SharedConfig
+from app.config import DevConfig, LocalConfig, ProdConfig, TestConfig, _SharedConfig
 
 
 def test_config_subclasses_do_not_have_conflicting_types() -> None:
     parent_class_types = get_type_hints(_SharedConfig)
 
-    for subclass in [LocalConfig, DevConfig, UatConfig, ProdConfig]:
+    for subclass in [LocalConfig, DevConfig, TestConfig, ProdConfig]:
         subclass_types = get_type_hints(subclass)
 
         for attr_name, attr_type in parent_class_types.items():
@@ -19,7 +19,7 @@ def test_config_subclasses_do_not_have_conflicting_types() -> None:
 def test_config_subclasses_do_not_define_new_variables() -> None:
     parent_class_types = get_type_hints(_SharedConfig)
 
-    for subclass in [LocalConfig, DevConfig, UatConfig, ProdConfig]:
+    for subclass in [LocalConfig, DevConfig, TestConfig, ProdConfig]:
         subclass_types = get_type_hints(subclass)
 
         for attr_name in subclass_types.keys():
