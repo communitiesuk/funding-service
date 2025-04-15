@@ -15,6 +15,7 @@ services:
 
   funding-service:
     build: .
+    init: true
     volumes:
       - .:/app
       - /app/node_modules
