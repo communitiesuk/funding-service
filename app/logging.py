@@ -75,7 +75,7 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
                 "handlers": ["null"],
             },
             "werkzeug": {
-                "disabled": False,
+                "disabled": True,
             },
             app.name: {
                 "handlers": ["default"],
@@ -100,12 +100,12 @@ def attach_request_loggers(app: Flask) -> None:
         request.before_request_real_time = time.perf_counter()  # type: ignore[attr-defined]
         request.before_request_process_time = time.process_time()  # type: ignore[attr-defined]
 
-        current_app.logger.log(
-            logging.DEBUG,
-            "Received request %(method)s %(url)s",
-            _common_request_extra_log_context(),
-            extra=_common_request_extra_log_context(),
-        )
+        if request.path != "/healthcheck":
+            current_app.logger.info(
+                "Received request %(method)s %(url)s",
+                _common_request_extra_log_context(),
+                extra=_common_request_extra_log_context(),
+            )
 
     @app.after_request
     def after_request(response: Response) -> Response:
@@ -124,7 +124,11 @@ def attach_request_loggers(app: Flask) -> None:
                 ),
                 **_common_request_extra_log_context(),
             }
-            current_app.logger.log(logging.INFO, "%(method)s %(url)s %(status)s", log_data, extra=log_data)
+            current_app.logger.info(
+                "%(status)s %(method)s %(url)s took real=%(duration_real).2fs, process=%(duration_process).2fs",
+                log_data,
+                extra=log_data,
+            )
         return response
 
 
