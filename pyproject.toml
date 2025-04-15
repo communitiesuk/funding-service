@@ -111,5 +111,6 @@ markers = [
 
 filterwarnings = [
     "error",
-    "ignore:Could not insert debug toolbar:UserWarning"
+    "ignore:Could not insert debug toolbar:UserWarning",
+    "ignore:cannot collect test class 'TestConfig' because it has a __init__ constructor:pytest.PytestCollectionWarning"
 ]

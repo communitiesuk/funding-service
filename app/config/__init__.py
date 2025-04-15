@@ -15,7 +15,7 @@ class Environment(str, Enum):
     LOCAL = "local"
     PULLPREVIEW = "pullpreview"
     DEV = "dev"
-    UAT = "uat"
+    TEST = "test"
     PROD = "prod"
 
 
@@ -282,13 +282,13 @@ class PullPreviewConfig(_SharedConfig):
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
 
 
-class UatConfig(_SharedConfig):
+class TestConfig(_SharedConfig):
     """
-    Overrides / default configuration for our deployed 'uat' environment
+    Overrides / default configuration for our deployed 'test' environment
     """
 
     # Flask app
-    FLASK_ENV: Environment = Environment.UAT
+    FLASK_ENV: Environment = Environment.TEST
 
 
 class ProdConfig(_SharedConfig):
@@ -311,8 +311,8 @@ def get_settings() -> _SharedConfig:
             return DevConfig()  # type: ignore[call-arg]
         case Environment.PULLPREVIEW:
             return PullPreviewConfig()  # type: ignore[call-arg]
-        case Environment.UAT:
-            return UatConfig()  # type: ignore[call-arg]
+        case Environment.TEST:
+            return TestConfig()  # type: ignore[call-arg]
         case Environment.PROD:
             return ProdConfig()  # type: ignore[call-arg]
 
