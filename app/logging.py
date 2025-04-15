@@ -89,7 +89,6 @@ def init_app(app: Flask, log_config: dict[str, Any] | None = None) -> None:
     log_config = log_config or get_default_logging_config(app)
     dictConfig(log_config)
     attach_request_loggers(app)
-    app.logger.info("Logging configured")
 
 
 def attach_request_loggers(app: Flask) -> None:
