@@ -18,7 +18,7 @@ wheels = [
 
 [[package]]
 name = "alembic-utils"
-version = "0.8.6"
+version = "0.8.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alembic" },
@@ -27,7 +27,10 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/25/6b/e9cd5a576fdc7cbf6580f011a6025de4dae84020a17440be06efb984b649/alembic_utils-0.8.6.tar.gz", hash = "sha256:c6991c364c0a9fad13712124f07440a9cc719037b171d5190cf4beaed2ac026c", size = 22034 }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/7a/eae622a97ba1721fd7e420c60060a74852b800ac1fecbaa2e67a35941d6d/alembic_utils-0.8.8.tar.gz", hash = "sha256:99de5d13194f26536bc0322f0c1660020a305015700d8447ccfc20e7d1494e5b", size = 21638 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/01/d55bd80997df2ec1ff2fd40cd3eeadec93c4b3c5492df3c6852b29f9e393/alembic_utils-0.8.8-py3-none-any.whl", hash = "sha256:2c2545dc545833c5deb63bce2c3cde01c1807bf99da5efab2497bc8d817cb86e", size = 31044 },
+]
 
 [[package]]
 name = "annotated-types"
@@ -483,7 +486,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic-utils", specifier = "==0.8.6" },
+    { name = "alembic-utils", specifier = "==0.8.8" },
     { name = "babel", specifier = "==2.17.0" },
     { name = "flask", specifier = "==3.1.0" },
     { name = "flask-babel", specifier = "==4.0.0" },
