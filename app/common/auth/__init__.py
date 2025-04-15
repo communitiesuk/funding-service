@@ -28,7 +28,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
         user = get_or_create_user(email_address=email)
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
-            redirect_to_path=sanitise_redirect_url(session.get("next", url_for("index"))),
+            redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
         )
 
         notification_service.send_magic_link(
