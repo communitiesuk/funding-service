@@ -1,3 +1,4 @@
+import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
 from sqlalchemy import select
@@ -6,27 +7,33 @@ from app.common.data.models import Grant
 from app.platform import GrantForm
 
 
-def test_list_grants(client, factories, templates_rendered):
+def test_list_grants(authenticated_client, factories, templates_rendered):
     factories.grant.create_batch(5)
-    result = client.get("/grants")
+    result = authenticated_client.get("/grants")
     assert result.status_code == 200
     assert len(templates_rendered[0][1]["grants"]) == 5
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h1.text == "My grants"
 
 
-def test_view_grant_dashboard(client, factories, templates_rendered):
+@pytest.mark.authenticate_as("test@google.com")
+def test_list_grant_requires_mhclg_user(authenticated_client, factories, templates_rendered):
+    response = authenticated_client.get("/grants")
+    assert response.status_code == 403
+
+
+def test_view_grant_dashboard(authenticated_client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = client.get(url_for("platform.view_grant", grant_id=grant.id))
+    result = authenticated_client.get(url_for("platform.view_grant", grant_id=grant.id))
     assert result.status_code == 200
     assert templates_rendered[0][1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h1.text == grant.name
 
 
-def test_view_grant_settings(client, factories, templates_rendered):
+def test_view_grant_settings(authenticated_client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = client.get(url_for("platform.grant_settings", grant_id=grant.id))
+    result = authenticated_client.get(url_for("platform.grant_settings", grant_id=grant.id))
     assert result.status_code == 200
     assert templates_rendered[0][1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
@@ -34,9 +41,9 @@ def test_view_grant_settings(client, factories, templates_rendered):
     assert "Settings" in soup.h1.text.strip()
 
 
-def test_grant_change_name_get(client, factories, templates_rendered):
+def test_grant_change_name_get(authenticated_client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = client.get(url_for("platform.grant_change_name", grant_id=grant.id))
+    result = authenticated_client.get(url_for("platform.grant_change_name", grant_id=grant.id))
     assert result.status_code == 200
     template = next(
         template for template in templates_rendered if template[0].name == "platform/settings/grant_change_name.html"
@@ -46,12 +53,12 @@ def test_grant_change_name_get(client, factories, templates_rendered):
     assert "Change grant name" in soup.h1.text.strip()
 
 
-def test_grant_change_name_post(client, factories, templates_rendered, db_session):
+def test_grant_change_name_post(authenticated_client, factories, templates_rendered, db_session):
     grant = factories.grant.create()
     # Update the name
     form = GrantForm()
     form.name.data = "New name"
-    result = client.post(
+    result = authenticated_client.post(
         url_for("platform.grant_change_name", grant_id=grant.id), data=form.data, follow_redirects=False
     )
     assert result.status_code == 302
@@ -61,11 +68,11 @@ def test_grant_change_name_post(client, factories, templates_rendered, db_sessio
     assert grant_from_db.name == "New name"
 
 
-def test_grant_change_name_post_with_errors(client, factories, templates_rendered):
+def test_grant_change_name_post_with_errors(authenticated_client, factories, templates_rendered):
     grants = factories.grant.create_batch(2)
     # Test error handling on an update
     form = GrantForm(data={"name": grants[1].name})
-    result = client.post(
+    result = authenticated_client.post(
         url_for("platform.grant_change_name", grant_id=grants[0].id), data=form.data, follow_redirects=False
     )
     assert result.status_code == 200
@@ -76,10 +83,10 @@ def test_grant_change_name_post_with_errors(client, factories, templates_rendere
     assert soup.find_all("a", href="#name")[0].text.strip() == "Grant name already in use"
 
 
-def test_create_grant(client, db_session):
+def test_create_grant(authenticated_client, db_session):
     url = url_for("platform.create_grant")
-    client.get(url)
-    response = client.post(
+    authenticated_client.get(url)
+    response = authenticated_client.post(
         url,
         data={"name": "My test grant"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
