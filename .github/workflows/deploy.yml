@@ -1,0 +1,95 @@
+name: Deploy
+run-name: Deploy ${{ github.ref_name }} to ${{ github.event.inputs.environment }}
+
+permissions:
+  contents: read  # This is required for actions/checkout
+  id-token: write  # This is required for authenticating with aws
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "AWS environment to deploy to."
+        type: string
+        required: true
+        default: dev
+      image_location:
+        description: "Location of the image to deploy."
+        type: string
+        required: false
+      run_e2e_tests:
+          description: "Run end-to-end tests?"
+          type: boolean
+          default: true
+          required: true
+    secrets:
+      AWS_ACCOUNT:
+        required: true
+      SLACK_BOT_TOKEN:
+        required: true
+      TEMP_SLACK_CHANNEL_ID:
+        required: true
+
+jobs:
+  deploy:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    name: Paketo
+
+    steps:
+      - name: Get current date
+        shell: bash
+        id: currentdatetime
+        run: echo "datetime=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/GithubCopilotDeploy
+          role-session-name: "funding-service_deploy_${{ inputs.environment }}_${{ steps.currentdatetime.outputs.datetime }}"
+          aws-region: eu-west-2
+
+      - name: Login to ECR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com
+
+      - name: Deploy image to AppRunner
+        id: deploy
+        uses: awslabs/amazon-app-runner-deploy@main
+        with:
+          service: ${{ inputs.environment }}-funding-service
+          image: ${{ inputs.image_location }}
+          access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
+          region: eu-west-2
+          port: 5000
+          cpu : 1
+          memory : 2
+          wait-for-service-stability-seconds: 360
+
+  e2e_tests:
+    name: Python E2E tests
+    if: ${{ inputs.run_e2e_tests == true }}
+    needs:
+      - deploy
+    uses: ./.github/workflows/run_e2e_tests.yml
+    with:
+      environment: ${{ inputs.environment }}
+    secrets:
+      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+
+  notify_slack:
+    needs:
+      - deploy
+      - e2e_tests
+    if: ${{ always() && (needs.deploy.result == 'failure' || needs.e2e_tests.result == 'failure') && github.ref_name == 'main'}}
+    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
+    with:
+      app_name: FS Deploy & Build
+      env_name: ${{ inputs.environment }}
+      github_username: ${{ github.actor }}
+      workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
