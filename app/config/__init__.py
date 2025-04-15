@@ -113,8 +113,11 @@ class _SharedConfig(_BaseConfig):
     TALISMAN_FEATURE_POLICY: dict[str, str] = {}
     TALISMAN_PERMISSIONS_POLICY: dict[str, str] = {}
     TALISMAN_DOCUMENT_POLICY: dict[str, str] = {}
-    TALISMAN_FORCE_HTTPS: bool = True
-    TALISMAN_FORCE_HTTPS_PERMANENT: bool = True
+
+    # We can't use this as our deployed healthchecks are over HTTP; we will enforce HTTPS in other ways.
+    TALISMAN_FORCE_HTTPS: bool = False
+    TALISMAN_FORCE_HTTPS_PERMANENT: bool = False
+
     TALISMAN_FORCE_FILE_SAVE: bool = False
     TALISMAN_FRAME_OPTIONS: str = "DENY"
     TALISMAN_FRAME_OPTIONS_ALLOW_FROM: str | None = None
@@ -244,10 +247,6 @@ class UnitTestConfig(LocalConfig):
     # Flask app
     FLASK_ENV: Environment = Environment.UNIT_TEST
     WTF_CSRF_ENABLED: bool = False
-
-    # Talisman security settings
-    TALISMAN_FORCE_HTTPS: bool = False
-    TALISMAN_FORCE_HTTPS_PERMANENT: bool = False
 
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = False
