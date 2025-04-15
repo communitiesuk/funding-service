@@ -28,7 +28,11 @@ FS_CONTENT_SECURITY_POLICY = {
     "default-src": ["'self'"],
     "script-src": ["'self'"],
     "img-src": ["'self'"],
-    "style-src": ["'self'"],
+    "style-src": [
+        "'self'",
+        "'unsafe-hashes'",
+        "'sha256-9/aFFbAwf+Mwl6MrBQzrJ/7ZK5vo7HdOUR7iKlBk78U='",  # MHCLG Crest
+    ],
 }
 
 
@@ -57,8 +61,6 @@ def make_development_csp() -> dict[str, list[str]]:
         [
             "http://localhost:5173",  # Vite assets
             "ws://localhost:5173",  # Vite assets
-            "'unsafe-hashes'",  # Flask-DebugToolbar
-            "'sha256-9/aFFbAwf+Mwl6MrBQzrJ/7ZK5vo7HdOUR7iKlBk78U='",  # MHCLG Crest
             "'sha256-biLFinpqYMtWHmXfkA1BPeCY0/fNt46SAZ+BBk5YUog='",  # Flask-DebugToolbar
             "'sha256-0EZqoz+oBhx7gF4nvY2bSqoGyy4zLjNF+SDQXGp/ZrY='",  # Flask-DebugToolbar
             "'sha256-1NkfmhNaD94k7thbpTCKG0dKnMcxprj9kdSKzKR6K/k='",  # Flask-DebugToolbar
