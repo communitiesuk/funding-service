@@ -1,6 +1,8 @@
+import logging
 import os
 
 import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.types import Event, Hint
 
 from app.config import Environment
@@ -38,4 +40,10 @@ def init_sentry() -> None:
             traces_sampler=traces_sampler,
             profiles_sampler=profiles_sampler,
             release=os.getenv("GITHUB_SHA"),
+            _experiments={
+                "enable_logs": True,
+            },
+            integrations=[
+                LoggingIntegration(sentry_logs_level=logging.INFO),
+            ],
         )
