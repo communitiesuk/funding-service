@@ -13,8 +13,8 @@ on:
       - main
 
 jobs:
-  paketo_build:
-    name: Paketo build & publish
+  build_and_deploy:
+    name: Build, publish & deploy
     uses: ./.github/workflows/package.yml
     concurrency:
       group: fs-paketo-dev

@@ -1,5 +1,5 @@
-name: Paketo build
-run-name: Paketo build ${{github.ref_name}}
+name: Build and Deploy
+run-name: Build and Deploy ${{github.ref_name}}
 
 permissions:
   packages: write
@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  paketo_build:
+  build_deploy:
     environment: dev
     runs-on: ubuntu-latest
     name: Paketo
@@ -77,10 +77,25 @@ jobs:
 
           pack build $IMAGE_LOCATION --tag $IMAGE_ID:${{github.sha}} --tag $IMAGE_ID:latest --builder paketobuildpacks/builder-jammy-full --publish
 
+          echo "image_location=$IMAGE_LOCATION" >> $GITHUB_OUTPUT
+
+      - name: Deploy image to AppRunner
+        id: deploy
+        uses: awslabs/amazon-app-runner-deploy@main
+        with:
+          service: dev-funding-service
+          image: ${{ steps.build_and_publish.outputs.IMAGE_LOCATION }}
+          access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/dev-funding-service-app-runner-build-role
+          region: eu-west-2
+          port: 5000
+          cpu : 1
+          memory : 2
+          wait-for-service-stability-seconds: 240
+
   notify_slack:
     needs:
-      - paketo_build
-    if: ${{ always() && needs.paketo_build.result == 'failure' && github.ref_name == 'main'}}
+      - build_deploy
+    if: ${{ always() && needs.build_deploy.result == 'failure' && github.ref_name == 'main'}}
     uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
     with:
       app_name: FS Paketo
