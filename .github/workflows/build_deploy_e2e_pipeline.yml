@@ -1,6 +1,11 @@
 name: Deployment pipeline
 run-name: Build, deploy and e2e test ${{github.ref_name}}
 
+permissions:
+  packages: write
+  contents: read  # This is required for actions/checkout
+  id-token: write  # This is required for authenticating with aws
+
 on:
   workflow_dispatch:
   push:
@@ -11,13 +16,13 @@ jobs:
   paketo_build:
     name: Paketo build & publish
     uses: ./.github/workflows/package.yml
-    permissions:
-      packages: write
-      contents: read  # This is required for actions/checkout
-      id-token: write  # This is required for authenticating with aws
     concurrency:
       group: fs-paketo-dev
       cancel-in-progress: false
+    secrets:
+      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
 
   # Commenting out these steps until we have a nice way of checking the AppRunner deployment has completed
   # before running e2e tests, otherwise this behaviour will be odd

@@ -8,6 +8,13 @@ permissions:
 
 on:
   workflow_call:
+    secrets:
+      AWS_ACCOUNT:
+        required: true
+      SLACK_BOT_TOKEN:
+        required: true
+      TEMP_SLACK_CHANNEL_ID:
+        required: true
   workflow_dispatch:
 
 jobs:
