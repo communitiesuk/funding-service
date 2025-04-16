@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import boto3
 import time
 import argparse
@@ -30,7 +31,7 @@ response = ecs_client.run_task(
             'securityGroups': security_groups,
             'assignPublicIp': 'DISABLED'
         }
-    }
+    },
     overrides={
         "containerOverrides":[{
             "command":["flask", "db", "current"],
