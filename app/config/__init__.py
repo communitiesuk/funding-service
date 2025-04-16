@@ -105,7 +105,6 @@ class _SharedConfig(_BaseConfig):
 
     # Flask app
     FLASK_ENV: Environment
-    SERVER_NAME: str
     SECRET_KEY: str
     WTF_CSRF_ENABLED: bool = True
     PROXY_FIX_PROTO: int = 0
@@ -219,7 +218,6 @@ class LocalConfig(_SharedConfig):
 
     # Flask app
     FLASK_ENV: Environment = Environment.LOCAL
-    SERVER_NAME: str = "funding.communities.gov.localhost:8080"
     SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
 
     # Talisman security settings

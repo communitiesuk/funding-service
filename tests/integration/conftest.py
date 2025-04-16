@@ -1,7 +1,9 @@
 import json
 import multiprocessing
+import typing as t
 import uuid
 from collections import namedtuple
+from contextlib import contextmanager
 from typing import Any, Generator
 from unittest.mock import _Call
 
@@ -9,6 +11,7 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask, template_rendered
+from flask.sessions import SessionMixin
 from flask.testing import FlaskClient
 from flask_login import login_user
 from flask_migrate import upgrade
@@ -94,10 +97,21 @@ def anonymous_client(app: Flask) -> FlaskClient:
         # or leave the session unchanged if it was appropriately committed. This is to be used in conjunction with
         # the `db_session` fixture.
         def open(self, *args, **kwargs) -> TestResponse:  # type: ignore[no-untyped-def]
+            kwargs.setdefault("headers", {})
+            kwargs["headers"].setdefault("Host", "funding.communities.gov.localhost:8080")
+
             response = super().open(*args, **kwargs)
 
             app.extensions["sqlalchemy"].session.rollback()
             return response
+
+        @contextmanager
+        def session_transaction(self, *args: t.Any, **kwargs: t.Any) -> t.Iterator[SessionMixin]:
+            kwargs.setdefault("headers", {})
+            kwargs["headers"].setdefault("Host", "funding.communities.gov.localhost:8080")
+
+            with super().session_transaction(*args, **kwargs) as sess:
+                yield sess
 
     app.test_client_class = CustomClient
     client = app.test_client()
