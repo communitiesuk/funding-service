@@ -110,8 +110,8 @@ class _SharedConfig(_BaseConfig):
     FLASK_ENV: Environment
     SECRET_KEY: str
     WTF_CSRF_ENABLED: bool = True
-    PROXY_FIX_PROTO: int = 0
-    PROXY_FIX_HOST: int = 0
+    PROXY_FIX_PROTO: int = 1  # AWS CloudFront
+    PROXY_FIX_HOST: int = 1  # AWS CloudFront
 
     # Talisman security settings
     TALISMAN_FEATURE_POLICY: dict[str, str] = {}
@@ -222,6 +222,8 @@ class LocalConfig(_SharedConfig):
     # Flask app
     FLASK_ENV: Environment = Environment.LOCAL
     SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
+    PROXY_FIX_PROTO: int = 0
+    PROXY_FIX_HOST: int = 0
 
     # Talisman security settings
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
@@ -276,8 +278,8 @@ class PullPreviewConfig(_SharedConfig):
     # Flask app
     FLASK_ENV: Environment = Environment.DEV
     DEBUG_TB_ENABLED: bool = False
-    PROXY_FIX_PROTO: int = 1
-    PROXY_FIX_HOST: int = 1
+    PROXY_FIX_PROTO: int = 1  # Caddy server
+    PROXY_FIX_HOST: int = 1  # Caddy server
 
     # Talisman security settings
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
