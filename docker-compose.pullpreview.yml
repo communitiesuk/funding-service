@@ -51,7 +51,6 @@ services:
       DATABASE_PORT: 5432
       DATABASE_NAME: "postgres"
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
-      SERVER_NAME: ${PULLPREVIEW_PUBLIC_DNS}
       SECRET_KEY: unsafe  # pragma: allowlist secret
       DEBUG_TB_ENABLED: true
       # Removes the ConfigPanel, which could show sensitive configuration.

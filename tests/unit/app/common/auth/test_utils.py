@@ -18,4 +18,5 @@ class TestSanitiseRedirectURL:
         ),
     )
     def test_redirect_sanitisation(self, app, url, expected_url):
-        assert sanitise_redirect_url(url) == expected_url
+        with app.test_request_context("/", headers={"Host": "funding.communities.gov.localhost:8080"}):
+            assert sanitise_redirect_url(url) == expected_url
