@@ -2,7 +2,7 @@ import logging
 import os
 
 import sentry_sdk
-from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
 from sentry_sdk.types import Event, Hint
 
 from app.config import Environment
@@ -47,3 +47,8 @@ def init_sentry() -> None:
                 LoggingIntegration(sentry_logs_level=logging.INFO),
             ],
         )
+
+        # We disable the werkzeug logger in app/logging.py because we inject our own request+response log lines. This
+        # should stay in sync with the logging config we use for the app. This may need to change when we add a proper
+        # WSGI server (eg gunicorn) in front of Flask.
+        ignore_logger("werkzeug")

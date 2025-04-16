@@ -102,7 +102,7 @@ def attach_request_loggers(app: Flask) -> None:
 
         if request.path != "/healthcheck":
             current_app.logger.info(
-                "Received request %(method)s %(url)s",
+                "--- %(method)s %(url)s",
                 _common_request_extra_log_context(),
                 extra=_common_request_extra_log_context(),
             )
@@ -125,7 +125,7 @@ def attach_request_loggers(app: Flask) -> None:
                 **_common_request_extra_log_context(),
             }
             current_app.logger.info(
-                "%(status)s %(method)s %(url)s took real=%(duration_real).2fs, process=%(duration_process).2fs",
+                "%(status)s %(method)s %(url)s - [real:%(duration_real).2fs] [process:%(duration_process).2fs]",
                 log_data,
                 extra=log_data,
             )
