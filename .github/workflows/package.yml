@@ -59,6 +59,11 @@ jobs:
           role-session-name: "funding-service_build_${{ steps.currentdatetime.outputs.datetime }}"
           aws-region: eu-west-2
 
+      - name: Login to ECR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com
+
       - name: Build and publish app image
         id: build_and_publish
         run: |
@@ -69,8 +74,6 @@ jobs:
           uv export --format requirements-txt --no-hashes > requirements.txt
 
           IMAGE_LOCATION="$IMAGE_ID:$VERSION"
-
-          aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com
 
           pack build $IMAGE_LOCATION --tag $IMAGE_ID:${{github.sha}} --tag $IMAGE_ID:latest --builder paketobuildpacks/builder-jammy-full --publish
 
