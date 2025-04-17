@@ -30,8 +30,9 @@
                     <a
                         href="{{ url_for('platform.view_grant', grant_id=grant.id) }}"
                         class="govuk-link govuk-link--no-visited-state"
-                        >{{ grant.name }}</a
                     >
+                        {{ grant.name }}
+                    </a>
                 </h2>
             {% endfor %}
         </div>
