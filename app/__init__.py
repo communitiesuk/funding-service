@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for
+from flask import Flask, current_app, redirect, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
@@ -85,6 +85,11 @@ def create_app() -> Flask:
     app.register_blueprint(healthcheck_blueprint)
     app.register_blueprint(platform_blueprint)
     app.register_blueprint(auth_blueprint)
+
+    @app.before_request
+    def log_request_headers() -> None:
+        current_app.logger.info(str(request))
+        current_app.logger.info(str(request.headers))
 
     @app.route("/", methods=["GET"])
     def index() -> ResponseReturnValue:
