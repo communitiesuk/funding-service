@@ -60,7 +60,7 @@ jobs:
           aws-region: eu-west-2
 
       - name: Login to ECR
-        uses: docker/login-action@v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com
 
