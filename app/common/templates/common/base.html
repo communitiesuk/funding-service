@@ -6,74 +6,74 @@
 {% extends "govuk_frontend_jinja/template.html" %}
 
 {% block head %}
-    {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
-        <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
-    {% endif %}
-    <link
-        rel="stylesheet"
-        href="{{ vite_asset('app/assets/main.scss') }}"
-        type="text/css"
-    />
+  {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
+    <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
+  {% endif %}
+  <link
+    rel="stylesheet"
+    href="{{ vite_asset('app/assets/main.scss') }}"
+    type="text/css"
+  />
 {% endblock head %}
 
 {% block header %}
-    {{
-        mhclgHeader({
-            "productName": "MHCLG Funding Service",
-            "homepageUrl": "#",
-            "classes": "govuk-header--full-width-border app-!-no-wrap",
-            "navigation": [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if current_user.is_authenticated else [],
-            "navigationClasses": "govuk-header__navigation--end",
-            "assetPath": assetPath
-        })
-    }}
-    {% include "common/partials/navigation.html" %}
+  {{
+    mhclgHeader({
+        "productName": "MHCLG Funding Service",
+        "homepageUrl": "#",
+        "classes": "govuk-header--full-width-border app-!-no-wrap",
+        "navigation": [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if current_user.is_authenticated else [],
+        "navigationClasses": "govuk-header__navigation--end",
+        "assetPath": assetPath
+    })
+  }}
+  {% include "common/partials/navigation.html" %}
 {% endblock header %}
 
 {% block main %}
+  <div
+    class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}"
+  >
+    {% block beforeContent %}{% endblock %}
     <div
-        class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}"
+      class="govuk-main-wrapper {%- if mainClasses %}{{ mainClasses }}{% endif %}"
     >
-        {% block beforeContent %}{% endblock %}
-        <div
-            class="govuk-main-wrapper {%- if mainClasses %}{{ mainClasses }}{% endif %}"
+      {% block mainWrapper %}
+        <main
+          id="main-content"
+          {%- if mainLang %}lang="{{ mainLang }}"{% endif %}
         >
-            {% block mainWrapper %}
-                <main
-                    id="main-content"
-                    {%- if mainLang %}lang="{{ mainLang }}"{% endif %}
-                >
-                    {% block errorSummary %}
-                        <div class="govuk-grid-row">
-                            <div class="govuk-grid-column-two-thirds">
-                                {% if form is defined and form.errors %}
-                                    {{ govukErrorSummary(wtforms_errors(form)) }}
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% endblock errorSummary %}
+          {% block errorSummary %}
+            <div class="govuk-grid-row">
+              <div class="govuk-grid-column-two-thirds">
+                {% if form is defined and form.errors %}
+                  {{ govukErrorSummary(wtforms_errors(form)) }}
+                {% endif %}
+              </div>
+            </div>
+          {% endblock errorSummary %}
 
-                    {% block content %}
-                    {% endblock content %}
-                </main>
-            {% endblock mainWrapper %}
-        </div>
+          {% block content %}
+          {% endblock content %}
+        </main>
+      {% endblock mainWrapper %}
     </div>
+  </div>
 {% endblock %}
 
 {% block bodyEnd %}
-    <script type="module" src="{{ vite_asset('app/assets/main.js') }}"></script>
+  <script type="module" src="{{ vite_asset('app/assets/main.js') }}"></script>
 {% endblock %}
 
 {% block footer %}
-    {{
-        govukFooter({
-            "meta": {
-                "items": [
-                    { "href": "#", "text": ("Cookies") },
-                    { "href": "#", "text": ("Accessibility statement") }
-                ]
-            }
-        })
-    }}
+  {{
+    govukFooter({
+        "meta": {
+            "items": [
+                { "href": "#", "text": ("Cookies") },
+                { "href": "#", "text": ("Accessibility statement") }
+            ]
+        }
+    })
+  }}
 {% endblock footer %}
