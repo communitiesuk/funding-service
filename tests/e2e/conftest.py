@@ -1,6 +1,8 @@
+import json
 from typing import Generator
 
 import pytest
+from filelock import FileLock
 from playwright.sync_api import Page
 from pytest import FixtureRequest
 
@@ -50,12 +52,8 @@ def e2e_test_secrets(request: FixtureRequest) -> EndToEndTestSecrets:
     raise ValueError(f"Unknown e2e_env: {e2e_env}.")
 
 
-@pytest.fixture()
-def user_auth(
-    request: FixtureRequest,
-    domain: str,
-    e2e_test_secrets: EndToEndTestSecrets,
-    page: Page,
+def auth_with_magic_links(
+    request: FixtureRequest, domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page
 ) -> E2ETestUser:
     email_domain_marker = request.node.get_closest_marker("user_domain")
     email_domain = email_domain_marker.args[0] if email_domain_marker else "communities.gov.uk"
@@ -73,3 +71,33 @@ def user_auth(
     page.goto(magic_link_url)
 
     return E2ETestUser(email_address=email_address)
+
+
+# ideally this would be session-scoped, but the page fixture it manipulates is function-scoped
+@pytest.fixture
+def user_auth(
+    request: FixtureRequest,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    page: Page,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> E2ETestUser:
+    # if we were scoping this fixture to session we could check here if we're not running in multiple worker mode as we
+    # wouldn't need to check the file lock (the fixture would already be shared)
+    # as we're scoped to function we're always using the file lock which doesn't feel great but it works
+    # if worker_id == "master":
+    # return auth_with_magic_links(request, domain, e2e_test_secrets, page)
+
+    tmp_dir = tmp_path_factory.getbasetemp().parent
+    fn = tmp_dir / "session.json"
+    with FileLock(str(fn) + ".lock"):
+        if fn.is_file():
+            data = json.loads(fn.read_text())
+            page.context.add_cookies([data["session"]])
+            return E2ETestUser(email_address=data["email_address"])
+        else:
+            user = auth_with_magic_links(request, domain, e2e_test_secrets, page)
+            with open(str(fn), "w") as f:
+                session_cookie = next((cookie for cookie in page.context.cookies() if cookie["name"] == "session"))
+                f.write(json.dumps({"session": session_cookie, "email_address": user.email_address}))
+            return user

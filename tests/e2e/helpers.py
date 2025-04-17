@@ -1,5 +1,6 @@
 import re
 import secrets
+import time
 from typing import cast
 
 from notifications_python_client import NotificationsAPIClient  # type: ignore[attr-defined]
@@ -28,10 +29,13 @@ def extract_email_link(email: dict[str, str]) -> str:
 def retrieve_magic_link(email_address: str, e2e_test_secrets: EndToEndTestSecrets) -> str:
     client = NotificationsAPIClient(e2e_test_secrets.GOVUK_NOTIFY_API_KEY)  # type: ignore[no-untyped-call]
 
-    emails = client.get_all_notifications(template_type="email", status="delivered")["notifications"]  # type: ignore[no-untyped-call]
-    for email in emails:
-        if email["email_address"] == email_address:
-            print(email)
-            return extract_email_link(email)
+    # it looks like Notify is eventually consistent and this can fail when I'm running it locally
+    for _ in range(3):
+        emails = client.get_all_notifications(template_type="email", status="delivered")["notifications"]  # type: ignore[no-untyped-call]
+        for email in emails:
+            if email["email_address"] == email_address:
+                print(email)
+                return extract_email_link(email)
+        time.sleep(0.2)
 
     raise LookupError("Could not find a corresponding find magic link in GOV.UK Notify")
