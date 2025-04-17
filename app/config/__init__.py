@@ -1,5 +1,6 @@
 import copy
 import os
+import urllib.parse
 from enum import Enum
 from typing import Any, Tuple, Type
 
@@ -99,8 +100,10 @@ class _SharedConfig(_BaseConfig):
     """
 
     def build_database_uri(self) -> PostgresDsn:
+        urlsafe_username = urllib.parse.quote(self.DATABASE_SECRET.username)
+        urlsafe_password = urllib.parse.quote(self.DATABASE_SECRET.password)
         return PostgresDsn(
-            url=f"postgresql+psycopg://{self.DATABASE_SECRET.username}:{self.DATABASE_SECRET.password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+            f"postgresql+psycopg://{urlsafe_username}:{urlsafe_password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
         )
 
     # Flask app
