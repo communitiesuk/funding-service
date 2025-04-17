@@ -9,6 +9,10 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 from app.types import LogFormats, LogLevels
 
+for k, v in os.environ.items():
+    if k.startswith("DATABASE_"):
+        print(f"{k}={v}")
+
 
 class Environment(str, Enum):
     UNIT_TEST = "unit_test"
