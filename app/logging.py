@@ -63,6 +63,21 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
             "null": {
                 "class": "logging.NullHandler",
             },
+            "sentry": {
+                "class": "sentry_sdk.integrations.logging.SentryLogsHandler",
+                # These filters do not actually affect what ends up in Sentry - request_extra_context is not actually
+                # used in this codebase as of 22/04/25, and even if it _was_ used, the SentryLogsHandler would not
+                # include that extra info in the log shipped to sentry. We'd need to inject a `before_send_logs`
+                # handler in sentry directly (this is currently experimental). Leaving for the future, if we need it.
+                # "filters": ["request_extra_context", "reject_mutable_data_structures"],
+                #
+                # ---
+                #
+                # Likewise, the formatter doesn't affect what gets sent to Sentry as of 22/04/25 - it reads the message
+                # template directly rather than the interpolated string. So passing this through a JSON formatter
+                # does not actually mean we send JSON logs to Sentry.
+                # "formatter": formatter,
+            },
             "default": {
                 "filters": ["request_extra_context", "reject_mutable_data_structures"],
                 "formatter": formatter,
@@ -78,7 +93,7 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
                 "disabled": True,
             },
             app.name: {
-                "handlers": ["default"],
+                "handlers": ["default", "sentry"],
                 "level": log_level,
             },
         },
