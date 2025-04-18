@@ -51,8 +51,8 @@ dev = [
     "html5lib==1.1",
     "types-html5lib==1.1.11.20241018",
     "types-pytz==2025.2.0.20250326",
-    "boto3==1.37.35",
-    "types-boto3==1.37.35",
+    "boto3==1.37.36",
+    "types-boto3==1.37.36",
 ]
 
 [tool.ruff]
