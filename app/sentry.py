@@ -1,4 +1,3 @@
-import logging
 import os
 
 import sentry_sdk
@@ -44,7 +43,7 @@ def init_sentry() -> None:
                 "enable_logs": True,
             },
             integrations=[
-                LoggingIntegration(sentry_logs_level=logging.INFO),
+                LoggingIntegration(sentry_logs_level=None),
             ],
         )
 

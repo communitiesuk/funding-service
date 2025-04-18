@@ -63,6 +63,11 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
             "null": {
                 "class": "logging.NullHandler",
             },
+            "sentry": {
+                "class": "sentry_sdk.integrations.logging.SentryLogsHandler",
+                "filters": ["request_extra_context", "reject_mutable_data_structures"],
+                "formatter": formatter,
+            },
             "default": {
                 "filters": ["request_extra_context", "reject_mutable_data_structures"],
                 "formatter": formatter,
@@ -78,7 +83,7 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
                 "disabled": True,
             },
             app.name: {
-                "handlers": ["default"],
+                "handlers": ["default", "sentry"],
                 "level": log_level,
             },
         },
