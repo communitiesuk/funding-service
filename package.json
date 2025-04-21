@@ -12,7 +12,7 @@
   },
   "devDependencies": {
     "sass": "1.86.3",
-    "vite": "6.3.1",
+    "vite": "6.3.2",
     "vite-plugin-static-copy": "2.3.1"
   }
 }
