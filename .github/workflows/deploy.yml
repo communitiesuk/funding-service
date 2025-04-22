@@ -70,10 +70,14 @@ jobs:
       - name: Push image to ECR
         id: push_image
         run: |
-          ECR_IMAGE_LOCATION=${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/${{ inputs.environment }}-funding-service:${{ github.sha }}
+          ECR_REPO=${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/${{ inputs.environment }}-funding-service
 
-          docker image tag ${{ inputs.ghcr_image_location }} $ECR_IMAGE_LOCATION
-          docker push $ECR_IMAGE_LOCATION
+          docker image tag ${{ inputs.ghcr_image_location }} $ECR_REPO:${{ github.sha }}
+          docker image tag ${{ inputs.ghcr_image_location }} $ECR_REPO:latest
+          docker push $ECR_REPO:${{ github.sha }}
+          docker push $ECR_REPO:latest
+
+          ECR_IMAGE_LOCATION=$ECR_REPO:${{ github.sha }}
 
           echo "ecr_image_location=$ECR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
 
