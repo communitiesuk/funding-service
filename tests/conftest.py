@@ -19,7 +19,7 @@ def pytest_addoption(parser: Parser) -> None:
     parser.addoption(
         "--e2e-env",
         default="local",
-        choices=["local", "dev"],
+        choices=["local", "dev", "test"],
         action="store",
         help="choose the environment that e2e tests will target",
     )

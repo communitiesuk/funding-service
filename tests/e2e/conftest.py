@@ -31,7 +31,9 @@ def domain(request: pytest.FixtureRequest, get_e2e_params: dict[str, str]) -> st
     if e2e_env == "local":
         return "https://funding.communities.gov.localhost:8080"
     if e2e_env == "dev":
-        return "https://vniusepvmn.eu-west-2.awsapprunner.com"
+        return "https://mjq6qj6jmg.eu-west-2.awsapprunner.com"
+    if e2e_env == "test":
+        return "https://9zmqrmjg7a.eu-west-2.awsapprunner.com"
     else:
         raise ValueError(f"not configured for {e2e_env}")
 
