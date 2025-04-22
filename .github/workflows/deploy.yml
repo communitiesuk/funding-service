@@ -3,6 +3,7 @@ run-name: Deploy ${{ github.ref_name }} to ${{ github.event.inputs.environment }
 
 permissions:
   contents: read  # This is required for actions/checkout
+  packages: read # This is required for pulling from GHCR
   id-token: write  # This is required for authenticating with aws
 
 on:
@@ -13,7 +14,7 @@ on:
         type: string
         required: true
         default: dev
-      image_location:
+      ghcr_image_location:
         description: "Location of the image to deploy."
         type: string
         required: false
@@ -34,9 +35,21 @@ jobs:
   deploy:
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
-    name: Paketo
+    name: Deploy
 
     steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image from GHCR
+        id: pull_image
+        run: |
+          docker pull ${{ inputs.ghcr_image_location }}
+
       - name: Get current date
         shell: bash
         id: currentdatetime
@@ -54,12 +67,22 @@ jobs:
         with:
           registry: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com
 
+      - name: Push image to ECR
+        id: push_image
+        run: |
+          ECR_IMAGE_LOCATION=${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/${{ inputs.environment }}-funding-service:${{ github.sha }}
+
+          docker image tag ${{ inputs.ghcr_image_location }} $ECR_IMAGE_LOCATION
+          docker push $ECR_IMAGE_LOCATION
+
+          echo "ecr_image_location=$ECR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
+
       - name: Deploy image to AppRunner
         id: deploy
         uses: awslabs/amazon-app-runner-deploy@main
         with:
           service: ${{ inputs.environment }}-funding-service
-          image: ${{ inputs.image_location }}
+          image: ${{ steps.push_image.outputs.ecr_image_location }}
           access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
           region: eu-west-2
           port: 5000

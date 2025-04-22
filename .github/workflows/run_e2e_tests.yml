@@ -23,6 +23,7 @@ on:
         required: true
         options:
         - dev
+        - test
 
 jobs:
   e2e_tests:

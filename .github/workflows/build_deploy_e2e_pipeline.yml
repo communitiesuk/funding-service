@@ -7,7 +7,6 @@ permissions:
   id-token: write  # This is required for authenticating with aws
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -22,7 +21,7 @@ jobs:
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
 
   deploy_dev:
-    name: Dev deploy and test
+    name: Deploy to dev
     needs:
       - paketo_build
     uses: ./.github/workflows/deploy.yml
@@ -31,7 +30,25 @@ jobs:
       cancel-in-progress: false
     with:
       environment: dev
-      image_location: ${{ needs.paketo_build.outputs.image_location }}
+      ghcr_image_location: ${{ needs.paketo_build.outputs.ghcr_image_location }}
+      run_e2e_tests: true
+    secrets:
+      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+
+  deploy_test:
+    name: Deploy to test
+    needs:
+      - paketo_build
+      - deploy_dev
+    uses: ./.github/workflows/deploy.yml
+    concurrency:
+      group: fs-deploy-test
+      cancel-in-progress: false
+    with:
+      environment: test
+      ghcr_image_location: ${{ needs.paketo_build.outputs.ghcr_image_location }}
       run_e2e_tests: true
     secrets:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
