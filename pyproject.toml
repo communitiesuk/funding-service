@@ -108,9 +108,7 @@ env = [
 ]
 markers = [
     "e2e: Run E2E (browser) tests using playwright",
-    "user_domain: For e2e tests, the domain to use when generating emails for the `user_auth` fixture.",
-
-    "authenticate_as: Email address to use for `authenticated_client` fixture; default `test@communities.gov.uk`"
+    "authenticate_as: Email address to use for `authenticated_client` (integration) and `authenticated_browser` (e2e)"
 ]
 
 filterwarnings = [

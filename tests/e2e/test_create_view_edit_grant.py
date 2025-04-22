@@ -8,7 +8,7 @@ from tests.e2e.pages import AllGrantsPage
 
 
 def test_create_view_edit_grant_success(
-    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, user_auth: E2ETestUser
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser: E2ETestUser
 ):
     all_grants_page = AllGrantsPage(page, domain)
     all_grants_page.navigate()
