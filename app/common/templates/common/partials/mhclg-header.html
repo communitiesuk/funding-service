@@ -3,29 +3,13 @@
   {%- set menuButtonText = params.menuButtonText if params.menuButtonText else 'Menu' -%}
 
   {%- set _hmgInsignia %}
-    <img
-      src="{{ params.assetPath }}/images/mhclg-crest.png"
-      alt="MHCLG Crest"
-      width="32"
-      height="32"
-      style="color: white; filter: brightness(0) invert(1);"
-      nonce="{{ csp_nonce() }}"
-    />
+    <img src="{{ params.assetPath }}/images/mhclg-crest.png" alt="MHCLG Crest" width="32" height="32" style="color: white; filter: brightness(0) invert(1);" nonce="{{ csp_nonce() }}" />
   {% endset -%}
 
-  <header
-    class="govuk-header {%- if params.classes %}{{ params.classes }}{% endif %}"
-    data-module="govuk-header"
-    {{- govukAttributes(params.attributes) }}
-  >
-    <div
-      class="govuk-header__container {{ params.containerClasses | default('govuk-width-container', true) }}"
-    >
+  <header class="govuk-header {%- if params.classes %}{{ params.classes }}{% endif %}" data-module="govuk-header" {{- govukAttributes(params.attributes) }}>
+    <div class="govuk-header__container {{ params.containerClasses | default('govuk-width-container', true) }}">
       <div class="govuk-header__logo govuk-!-margin-bottom-1">
-        <a
-          href="{{ params.homepageUrl | default('/', true) }}"
-          class="govuk-header__link govuk-header__link--homepage"
-        >
+        <a href="{{ params.homepageUrl | default('/', true) }}" class="govuk-header__link govuk-header__link--homepage">
           {#- The SVG needs `focusable="false"` so that Internet Explorer does
         not treat it as an interactive element - without this it will be
         'focusable' when using the keyboard to navigate.
@@ -34,9 +18,7 @@
         shifting different elements unevenly relative to one another. #}
           {{ _hmgInsignia | safe | trim | indent(8) }}
           {% if (params.productName) %}
-            <span class="govuk-header__product-name">
-              {{ params.productName }}
-            </span>
+            <span class="govuk-header__product-name">{{ params.productName }}</span>
           {% endif %}
         </a>
       </div>
@@ -44,23 +26,13 @@
         <div class="govuk-header__content">
           {% if params.serviceName %}
             {% if params.serviceUrl %}
-              <a
-                href="{{ params.serviceUrl }}"
-                class="govuk-header__link govuk-header__service-name"
-              >
-                {{ params.serviceName }}
-              </a>
+              <a href="{{ params.serviceUrl }}" class="govuk-header__link govuk-header__service-name">{{ params.serviceName }}</a>
             {% else %}
-              <span class="govuk-header__service-name">
-                {{ params.serviceName }}
-              </span>
+              <span class="govuk-header__service-name">{{ params.serviceName }}</span>
             {% endif %}
           {% endif %}
           {% if params.navigation | length %}
-            <nav
-              aria-label="{{ params.navigationLabel | default(menuButtonText, true) }}"
-              class="govuk-header__navigation {%- if params.navigationClasses %}{{ params.navigationClasses }}{% endif %}"
-            >
+            <nav aria-label="{{ params.navigationLabel | default(menuButtonText, true) }}" class="govuk-header__navigation {%- if params.navigationClasses %}{{ params.navigationClasses }}{% endif %}">
               {# <button type="button" class="govuk-header__menu-button govuk-js-header-toggle" aria-controls="navigation" {%- if params.menuButtonLabel and params.menuButtonLabel != menuButtonText %} aria-label="{{ params.menuButtonLabel }}"{% endif %} hidden>
           {{ menuButtonText }}
         </button> #}
@@ -68,17 +40,9 @@
               <ul class="govuk-header__navigation-list">
                 {% for item in params.navigation %}
                   {% if item.text or item.html %}
-                    <li
-                      class="govuk-header__navigation-item {%- if item.active %}govuk-header__navigation-item--active{% endif %}"
-                    >
+                    <li class="govuk-header__navigation-item {%- if item.active %}govuk-header__navigation-item--active{% endif %}">
                       {% if item.href %}
-                        <a
-                          class="govuk-header__link"
-                          href="{{ item.href }}"
-                          {{- govukAttributes(item.attributes) -}}
-                        >
-                          {{ item.text }}
-                        </a>
+                        <a class="govuk-header__link" href="{{ item.href }}" {{- govukAttributes(item.attributes) -}}>{{ item.text }}</a>
                       {% else %}
                         {{ item.html | safe | trim | indent(14) if item.html else item.text }}
                       {% endif %}
