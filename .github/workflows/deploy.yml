@@ -8,6 +8,13 @@ permissions:
 
 on:
   workflow_call:
+    secrets:
+      AWS_ACCOUNT:
+        required: true
+      SLACK_BOT_TOKEN:
+        required: true
+      TEMP_SLACK_CHANNEL_ID:
+        required: true
     inputs:
       environment:
         description: "AWS environment to deploy to."
@@ -23,13 +30,22 @@ on:
           type: boolean
           default: true
           required: true
-    secrets:
-      AWS_ACCOUNT:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "AWS environment to deploy to."
+        type: string
         required: true
-      SLACK_BOT_TOKEN:
+        default: dev
+      ghcr_image_location:
+        description: "Location of the image to deploy."
+        type: string
         required: true
-      TEMP_SLACK_CHANNEL_ID:
-        required: true
+      run_e2e_tests:
+          description: "Run end-to-end tests?"
+          type: boolean
+          default: true
+          required: true
 
 jobs:
   deploy:
