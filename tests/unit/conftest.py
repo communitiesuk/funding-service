@@ -1,9 +1,10 @@
 import json
+import os
 from typing import Generator
+from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask
 
 from app import create_app
@@ -23,13 +24,16 @@ def _unit_test_timeout(request: FixtureRequest) -> None:
 
 @pytest.fixture(scope="session")
 def noop_db() -> Generator[None, None, None]:
-    monkeypatch = MonkeyPatch()
-    with monkeypatch.context():
-        monkeypatch.setenv("DATABASE_HOST", "localhost")
-        monkeypatch.setenv("DATABASE_PORT", "5432")
-        monkeypatch.setenv("DATABASE_NAME", "db-access-not-available-for-unit-tests")
-        # pragma: allowlist nextline secret
-        monkeypatch.setenv("DATABASE_SECRET", json.dumps({"username": "invalid", "password": "invalid"}))
+    with patch.dict(
+        os.environ,
+        {
+            "DATABASE_HOST": "localhost",
+            "DATABASE_PORT": "5432",
+            "DATABASE_NAME": "db-access-not-available-for-unit-tests",
+            # pragma: allowlist nextline secret
+            "DATABASE_SECRET": json.dumps({"username": "invalid", "password": "invalid"}),
+        },
+    ):
         yield
 
 

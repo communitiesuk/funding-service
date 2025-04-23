@@ -1,15 +1,15 @@
 import json
 import multiprocessing
+import os
 import typing as t
 import uuid
 from collections import namedtuple
 from contextlib import contextmanager
 from typing import Any, Generator
-from unittest.mock import _Call
+from unittest.mock import _Call, patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask, template_rendered
 from flask.sessions import SessionMixin
 from flask.testing import FlaskClient
@@ -41,15 +41,15 @@ def setup_db_container() -> Generator[None, None, None]:
     test_postgres = PostgresContainer("postgres:16")
     test_postgres.start()
 
-    monkeypatch = MonkeyPatch()
-    with monkeypatch.context():
-        monkeypatch.setenv("DATABASE_HOST", test_postgres.get_container_host_ip())
-        monkeypatch.setenv("DATABASE_PORT", test_postgres.get_exposed_port(5432))
-        monkeypatch.setenv("DATABASE_NAME", test_postgres.dbname)
-        monkeypatch.setenv(
-            "DATABASE_SECRET", json.dumps({"username": test_postgres.username, "password": test_postgres.password})
-        )
-
+    with patch.dict(
+        os.environ,
+        {
+            "DATABASE_HOST": test_postgres.get_container_host_ip(),
+            "DATABASE_PORT": test_postgres.get_exposed_port(5432),
+            "DATABASE_NAME": test_postgres.dbname,
+            "DATABASE_SECRET": json.dumps({"username": test_postgres.username, "password": test_postgres.password}),
+        },
+    ):
         yield test_postgres.get_connection_url()
 
     test_postgres.stop()
