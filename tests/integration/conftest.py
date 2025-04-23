@@ -79,7 +79,7 @@ def db(setup_db_container: Generator[None], app: Flask) -> Generator[SQLAlchemy,
 
 
 @pytest.fixture(scope="session")
-def app(db: Generator[SQLAlchemy]) -> Generator[Flask, None, None]:
+def app(setup_db_container: Generator[None]) -> Generator[Flask, None, None]:
     app = create_app()
     app.config.update({"TESTING": True})
     _precompile_templates(app)
