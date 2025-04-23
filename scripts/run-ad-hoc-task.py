@@ -67,16 +67,11 @@ while True:
 exit_code = task["containers"][0]["exitCode"]
 print(f"Exit code: {exit_code}")
 
-# Fetch logs
 log_stream_name = f"{log_stream_prefix}/{task_arn.split('/')[-1]}"
+print(f"""Check Cloudwatch for Logs:
+Log Group: {log_group_name}
+Log Stream: {log_stream_name}""")
 
-log_events_response = logs_client.get_log_events(
-    logGroupName=log_group_name, logStreamName=log_stream_name, startFromHead=True
-)
-
-print("Logs:")
-for event in log_events_response["events"]:
-    print(event["message"])
 
 # Reflect the exit code
 exit(exit_code)
