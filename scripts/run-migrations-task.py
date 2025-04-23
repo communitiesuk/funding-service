@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
+import argparse
 import time
 
 import boto3
 
-command = ["flask", "db", "upgrade"]
+parser = argparse.ArgumentParser(description="Run ECS task with optional command.")
+parser.add_argument(
+    "--command",
+    type=str,
+    default="flask db upgrade",
+    help="Command to run in the ECS task (default: 'flask db upgrade').",
+)
+args = parser.parse_args()
+print(f"Starting script to run command: {args.command}")
+
+command = args.command.split()
 
 cluster = "task-runner-cluster"
 task_definition = "ad-hoc-ecs-task"
@@ -27,7 +38,7 @@ security_group_response = ec2_client.describe_security_groups(
 )
 security_groups = [sg["GroupId"] for sg in security_group_response["SecurityGroups"]]
 if not security_groups:
-    raise ValueError("No subnets found with the specified tag.")
+    raise ValueError("No security groups found with the specified tag.")
 
 
 # Run the ECS task
