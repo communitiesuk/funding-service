@@ -88,6 +88,9 @@ def create_app() -> Flask:
 
             unauth_response = Response(status=401, headers={"WWW-Authenticate": "Basic"})
 
+            if request.endpoint == "healthcheck.healthcheck":
+                return None
+
             auth = request.authorization
             if not auth:
                 return unauth_response
