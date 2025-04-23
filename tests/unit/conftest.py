@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Generator
 from unittest.mock import patch
@@ -9,6 +8,7 @@ from flask import Flask
 
 from app import create_app
 from tests.conftest import _precompile_templates
+from tests.utils import build_db_config
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -23,23 +23,10 @@ def _unit_test_timeout(request: FixtureRequest) -> None:
 
 
 @pytest.fixture(scope="session")
-def noop_db() -> Generator[None, None, None]:
-    with patch.dict(
-        os.environ,
-        {
-            "DATABASE_HOST": "localhost",
-            "DATABASE_PORT": "5432",
-            "DATABASE_NAME": "db-access-not-available-for-unit-tests",
-            # pragma: allowlist nextline secret
-            "DATABASE_SECRET": json.dumps({"username": "invalid", "password": "invalid"}),
-        },
-    ):
-        yield
+def app() -> Generator[Flask, None, None]:
+    with patch.dict(os.environ, build_db_config(None)):
+        app = create_app()
 
-
-@pytest.fixture(scope="session")
-def app(noop_db: Generator[None]) -> Generator[Flask, None, None]:
-    app = create_app()
     app.config.update({"TESTING": True})
     _precompile_templates(app)
     yield app

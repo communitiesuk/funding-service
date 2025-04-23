@@ -1,10 +1,12 @@
+import json
 import re
 from functools import lru_cache
 from re import Pattern
 from types import MappingProxyType
-from typing import Any, Callable, Mapping, cast
+from typing import Any, Callable, Dict, Mapping, cast
 
 from bs4 import BeautifulSoup, Tag
+from testcontainers.postgres import PostgresContainer
 
 
 def page_has_error(soup: BeautifulSoup, message: str) -> bool:
@@ -86,3 +88,22 @@ class AnyStringMatching(RestrictedAny):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._regex})"
+
+
+def build_db_config(setup_db_container: PostgresContainer | None) -> Dict[str, Any]:
+    if setup_db_container is None:
+        return {
+            "DATABASE_HOST": "localhost",
+            "DATABASE_PORT": "5432",
+            "DATABASE_NAME": "db-access-not-available-for-unit-tests",
+            # pragma: allowlist nextline secret
+            "DATABASE_SECRET": json.dumps({"username": "invalid", "password": "invalid"}),
+        }
+    return {
+        "DATABASE_HOST": setup_db_container.get_container_host_ip(),
+        "DATABASE_PORT": setup_db_container.get_exposed_port(5432),
+        "DATABASE_NAME": setup_db_container.dbname,
+        "DATABASE_SECRET": json.dumps(
+            {"username": setup_db_container.username, "password": setup_db_container.password}
+        ),
+    }

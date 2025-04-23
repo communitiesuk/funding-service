@@ -5,16 +5,23 @@ from unittest.mock import patch
 import pytest
 from flask import Flask
 from flask_sqlalchemy_lite import SQLAlchemy
+from testcontainers.postgres import PostgresContainer
 
 from app import create_app
+from tests.utils import build_db_config
 
 
 @pytest.fixture(scope="session")
-def app_with_basic_auth(db: Generator[SQLAlchemy]) -> Generator[Flask, None, None]:
+def app_with_basic_auth(setup_db_container: PostgresContainer, db: SQLAlchemy) -> Generator[Flask, None, None]:
     with patch.dict(
         os.environ,
-        # pragma: allowlist nextline secret
-        {"BASIC_AUTH_ENABLED": "true", "BASIC_AUTH_USERNAME": "test", "BASIC_AUTH_PASSWORD": "password"},
+        {
+            "BASIC_AUTH_ENABLED": "true",
+            "BASIC_AUTH_USERNAME": "test",
+            # pragma: allowlist nextline secret
+            "BASIC_AUTH_PASSWORD": "password",
+            **build_db_config(setup_db_container),
+        },
     ):
         app = create_app()
 
@@ -29,8 +36,14 @@ class TestBasicAuth:
             assert response.status_code == 302
             assert "WWW-Authenticate" not in response.headers
 
-    def test_basic_auth_enabled_requires_username_and_password(self, db):
-        with patch.dict(os.environ, {"BASIC_AUTH_ENABLED": "true"}):
+    def test_basic_auth_enabled_requires_username_and_password(self, db, setup_db_container):
+        with patch.dict(
+            os.environ,
+            {
+                "BASIC_AUTH_ENABLED": "true",
+                **build_db_config(setup_db_container),
+            },
+        ):
             with pytest.raises(ValueError) as e:
                 create_app()
 

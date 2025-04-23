@@ -25,7 +25,7 @@ def app(setup_db_container):
 
     app.testing = True
 
-    postgres_uri = setup_db_container.replace("+psycopg2", "+psycopg")
+    postgres_uri = setup_db_container.get_connection_url().replace("+psycopg2", "+psycopg")
     app.config["SQLALCHEMY_ENGINES"] = {"default": postgres_uri + "_test_extensions"}
 
     db = SQLAlchemy(app)

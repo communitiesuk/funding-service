@@ -1,4 +1,3 @@
-import json
 import multiprocessing
 import os
 import typing as t
@@ -28,10 +27,11 @@ from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _precompile_templates
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
 from tests.integration.models import _GrantFactory, _MagicLinkFactory, _UserFactory
+from tests.utils import build_db_config
 
 
 @pytest.fixture(scope="session")
-def setup_db_container() -> Generator[str, None, None]:
+def setup_db_container() -> Generator[PostgresContainer, None, None]:
     from testcontainers.core.config import testcontainers_config
 
     # Reduce sleep/wait time from 1 second to 0.1 seconds. We could drop this if it ever causes any problems, but shaves
@@ -41,22 +41,13 @@ def setup_db_container() -> Generator[str, None, None]:
     test_postgres = PostgresContainer("postgres:16")
     test_postgres.start()
 
-    with patch.dict(
-        os.environ,
-        {
-            "DATABASE_HOST": test_postgres.get_container_host_ip(),
-            "DATABASE_PORT": test_postgres.get_exposed_port(5432),
-            "DATABASE_NAME": test_postgres.dbname,
-            "DATABASE_SECRET": json.dumps({"username": test_postgres.username, "password": test_postgres.password}),
-        },
-    ):
-        yield test_postgres.get_connection_url()
+    yield test_postgres
 
     test_postgres.stop()
 
 
 @pytest.fixture(scope="session")
-def db(setup_db_container: Generator[None], app: Flask) -> Generator[SQLAlchemy, None, None]:
+def db(setup_db_container: PostgresContainer, app: Flask) -> Generator[SQLAlchemy, None, None]:
     with app.app_context():
         no_db = not database_exists(app.config["SQLALCHEMY_ENGINES"]["default"])
 
@@ -79,8 +70,13 @@ def db(setup_db_container: Generator[None], app: Flask) -> Generator[SQLAlchemy,
 
 
 @pytest.fixture(scope="session")
-def app(setup_db_container: Generator[None]) -> Generator[Flask, None, None]:
-    app = create_app()
+def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
+    with patch.dict(
+        os.environ,
+        build_db_config(setup_db_container),
+    ):
+        app = create_app()
+
     app.config.update({"TESTING": True})
     _precompile_templates(app)
     yield app
