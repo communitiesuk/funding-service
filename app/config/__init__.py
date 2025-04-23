@@ -2,10 +2,10 @@ import copy
 import os
 import urllib.parse
 from enum import Enum
-from typing import Any, Tuple, Type
+from typing import Any, Self, Tuple, Type
 
 from flask_talisman.talisman import ONE_YEAR_IN_SECS
-from pydantic import BaseModel, PostgresDsn
+from pydantic import BaseModel, PostgresDsn, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 from app.types import LogFormats, LogLevels
@@ -112,6 +112,21 @@ class _SharedConfig(_BaseConfig):
     WTF_CSRF_ENABLED: bool = True
     PROXY_FIX_PROTO: int = 0
     PROXY_FIX_HOST: int = 0
+
+    # Basic auth
+    BASIC_AUTH_ENABLED: bool = False
+    BASIC_AUTH_USERNAME: str = ""
+    BASIC_AUTH_PASSWORD: str = ""
+
+    @model_validator(mode="after")
+    def validate_basic_auth_settings(self) -> Self:
+        if self.BASIC_AUTH_ENABLED:
+            if not self.BASIC_AUTH_USERNAME or not self.BASIC_AUTH_PASSWORD:
+                raise ValueError(
+                    "BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD must be set if BASIC_AUTH_ENABLED is true."
+                )
+
+        return self
 
     # Talisman security settings
     TALISMAN_FEATURE_POLICY: dict[str, str] = {}
