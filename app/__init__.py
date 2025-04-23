@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for
+from flask import Flask, Response, redirect, url_for
 from flask.typing import ResponseReturnValue
 from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
@@ -76,6 +76,30 @@ def create_app() -> Flask:
 
     Babel(app)
     app.jinja_env.add_extension("jinja2.ext.i18n")
+
+    # TODO: Remove our basic auth application code when the app is deployed behind CloudFront and the app is not
+    #       otherwise publicly accessible; we can then do basic auth through something like a cloudfront edge function
+    #       rather than application code.
+    if app.config["BASIC_AUTH_ENABLED"]:
+
+        @app.before_request
+        def basic_auth() -> ResponseReturnValue | None:
+            from flask import request
+
+            unauth_response = Response(status=401, headers={"WWW-Authenticate": "Basic"})
+
+            auth = request.authorization
+            if not auth:
+                return unauth_response
+
+            if auth.type != "basic":
+                return unauth_response
+
+            username, password = auth.parameters["username"], auth.parameters["password"]
+            if username != app.config["BASIC_AUTH_USERNAME"] or password != app.config["BASIC_AUTH_PASSWORD"]:
+                return unauth_response
+
+            return None
 
     # Attach routes
     from app.common.auth import auth_blueprint
