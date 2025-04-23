@@ -11,6 +11,12 @@ parser.add_argument(
     default="flask db upgrade",
     help="Command to run in the ECS task (default: 'flask db upgrade').",
 )
+parser.add_argument(
+    "--print-logs",
+    action="store_true",
+    default=False,
+    help="Print logs from CloudWatch (default: False).",
+)
 args = parser.parse_args()
 print(f"Starting script to run command: {args.command}")
 
@@ -68,9 +74,17 @@ exit_code = task["containers"][0]["exitCode"]
 print(f"Exit code: {exit_code}")
 
 log_stream_name = f"{log_stream_prefix}/{task_arn.split('/')[-1]}"
-print(f"""Check Cloudwatch for Logs:
-Log Group: {log_group_name}
-Log Stream: {log_stream_name}""")
+if args.print_logs:
+    log_events_response = logs_client.get_log_events(
+        logGroupName=log_group_name, logStreamName=log_stream_name, startFromHead=True
+    )
+    print("Logs:")
+    for event in log_events_response["events"]:
+        print(event["message"])
+else:
+    print(f"""Check Cloudwatch for Logs:
+    Log Group: {log_group_name}
+    Log Stream: {log_stream_name}""")
 
 
 # Reflect the exit code
