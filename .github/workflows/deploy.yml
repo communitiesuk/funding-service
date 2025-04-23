@@ -17,7 +17,7 @@ on:
       ghcr_image_location:
         description: "Location of the image to deploy."
         type: string
-        required: false
+        required: true
       run_e2e_tests:
           description: "Run end-to-end tests?"
           type: boolean
@@ -81,6 +81,11 @@ jobs:
 
           echo "ecr_image_location=$ECR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
 
+      - name: checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Run Database Migrations
+        run: |
+          ./scripts/run-migrations-task.py
       - name: Deploy image to AppRunner
         id: deploy
         uses: awslabs/amazon-app-runner-deploy@main
