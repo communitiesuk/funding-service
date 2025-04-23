@@ -83,9 +83,23 @@ jobs:
 
       - name: checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Python
+        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
+        with:
+          python-version: 3.13.3
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          enable-cache: true
+
+      - name: install dependencies
+        run: uv sync
       - name: Run Database Migrations
         run: |
-          ./scripts/run-migrations-task.py
+          uv run scripts/run-migrations-task.py
+
       - name: Deploy image to AppRunner
         id: deploy
         uses: awslabs/amazon-app-runner-deploy@main
