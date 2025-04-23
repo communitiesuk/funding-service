@@ -3,7 +3,7 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
-from flask import Flask
+from flask import Flask, url_for
 from flask_sqlalchemy_lite import SQLAlchemy
 from testcontainers.postgres import PostgresContainer
 
@@ -56,3 +56,8 @@ class TestBasicAuth:
             response = client.get("/", follow_redirects=False)
             assert response.status_code == 401
             assert response.headers["WWW-Authenticate"] == "Basic"
+
+    def test_basic_auth_enabled_allows_healthcheck(self, app_with_basic_auth):
+        with app_with_basic_auth.test_client() as client:
+            response = client.get(url_for("healthcheck.healthcheck"), follow_redirects=False)
+            assert response.status_code == 200
