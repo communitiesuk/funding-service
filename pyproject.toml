@@ -113,9 +113,9 @@ markers = [
     "authenticate_as: Email address to use for `authenticated_client` fixture; default `test@communities.gov.uk`"
 ]
 
-
 filterwarnings = [
     "error",
     "ignore:Could not insert debug toolbar:UserWarning",
-    "ignore:cannot collect test class 'TestConfig' because it has a __init__ constructor:pytest.PytestCollectionWarning"
+    "ignore:cannot collect test class 'TestConfig' because it has a __init__ constructor:pytest.PytestCollectionWarning",
+    "ignore:datetime\\.datetime\\.utcnow\\(\\) is deprecated and scheduled for removal in a future version*:DeprecationWarning"
 ]

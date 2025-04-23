@@ -1,5 +1,5 @@
 name: Paketo build
-run-name: Paketo build ${{github.ref_name}}
+run-name: Build ${{github.ref_name}}
 
 permissions:
   packages: write
@@ -15,15 +15,17 @@ on:
         required: true
       TEMP_SLACK_CHANNEL_ID:
         required: true
-  workflow_dispatch:
+    outputs:
+      ghcr_image_location:
+        description: "A URI pointing to the paketo-built image"
+        value: ${{ jobs.paketo_build.outputs.ghcr_image_location }}
 
 jobs:
   paketo_build:
-    environment: dev
     runs-on: ubuntu-latest
     name: Paketo
     outputs:
-      image_location: ${{ steps.build_and_publish.outputs.image_location }}
+      ghcr_image_location: ${{ steps.build_and_publish.outputs.ghcr_image_location }}
 
     steps:
       - uses: buildpacks/github-actions/setup-pack@d82294e03fd6b8e8484cde2ee166788876e366e3 # v5.8.10
@@ -47,35 +49,31 @@ jobs:
           npm ci
           npm run build
 
-      - name: Get current date
-        shell: bash
-        id: currentdatetime
-        run: echo "datetime=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
-
-      - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/GithubCopilotDeploy
-          role-session-name: "funding-service_build_${{ steps.currentdatetime.outputs.datetime }}"
-          aws-region: eu-west-2
-
-      - name: Login to ECR
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
-        with:
-          registry: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and publish app image
         id: build_and_publish
         run: |
-          IMAGE_ID=${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/dev-funding-service
-
-          VERSION=${{ github.ref_name }}
+          IMAGE_ID=ghcr.io/${{ github.repository }}
+          VERSION=${{ github.sha }}
+          GHCR_IMAGE_LOCATION="$IMAGE_ID:$VERSION"
+          LATEST_TAG=""
+          if [ ${{ github.ref_name }} == "main" ]; then
+            LATEST_TAG="--tag $IMAGE_ID:latest"
+          fi
 
           uv export --format requirements-txt --no-hashes > requirements.txt
 
-          IMAGE_LOCATION="$IMAGE_ID:$VERSION"
+          pack build $GHCR_IMAGE_LOCATION $LATEST_TAG \
+            --builder paketobuildpacks/builder-jammy-full \
+            --publish
 
-          pack build $IMAGE_LOCATION --tag $IMAGE_ID:${{github.sha}} --tag $IMAGE_ID:latest --builder paketobuildpacks/builder-jammy-full --publish
+          echo "ghcr_image_location=$GHCR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
 
   notify_slack:
     needs:
