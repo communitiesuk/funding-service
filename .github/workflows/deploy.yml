@@ -82,7 +82,7 @@ jobs:
           echo "ecr_image_location=$ECR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
 
       - name: checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2
 
       - name: Set up Python
         uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
