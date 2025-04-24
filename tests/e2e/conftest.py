@@ -1,8 +1,9 @@
 from typing import Generator
 
 import pytest
-from playwright.sync_api import Page
+from playwright.sync_api import BrowserContext, Page
 from pytest import FixtureRequest
+from pytest_playwright import CreateContextCallback
 
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
 from tests.e2e.dataclasses import E2ETestUser
@@ -50,6 +51,18 @@ def e2e_test_secrets(request: FixtureRequest) -> EndToEndTestSecrets:
         return AWSEndToEndSecrets(e2e_env=e2e_env, e2e_aws_vault_profile=e2e_aws_vault_profile)
 
     raise ValueError(f"Unknown e2e_env: {e2e_env}.")
+
+
+@pytest.fixture(autouse=True)
+def context(
+    new_context: CreateContextCallback,
+    request: pytest.FixtureRequest,
+    e2e_test_secrets: EndToEndTestSecrets,
+    get_e2e_params: dict[str, str],
+) -> BrowserContext:
+    e2e_env = get_e2e_params["e2e_env"]
+    http_credentials = e2e_test_secrets.HTTP_BASIC_AUTH if e2e_env in {"dev", "test"} else None
+    return new_context(http_credentials=http_credentials)
 
 
 @pytest.fixture()
