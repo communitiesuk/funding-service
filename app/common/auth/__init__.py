@@ -31,12 +31,13 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
             redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
         )
 
-        notification_service.send_magic_link(
+        notification = notification_service.send_magic_link(
             email,
             magic_link_url=url_for("auth.claim_magic_link", magic_link_code=magic_link.code, _external=True),
             magic_link_expires_at_utc=magic_link.expires_at_utc,
             request_new_magic_link_url=url_for("auth.request_a_link_to_sign_in", _external=True),
         )
+        session["magic_link_email_notification_id"] = notification.id
 
         return redirect(url_for("auth.check_email", magic_link_id=magic_link.id))
 
@@ -49,7 +50,8 @@ def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
     if not magic_link or not magic_link.usable:
         abort(404)
 
-    return render_template("common/auth/check_email.html", user=magic_link.user)
+    notification_id = session.pop("magic_link_email_notification_id", None)
+    return render_template("common/auth/check_email.html", user=magic_link.user, notification_id=notification_id)
 
 
 @auth_blueprint.route("/sign-in/<magic_link_code>", methods=["GET", "POST"])

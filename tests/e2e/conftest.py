@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Generator, cast
 
 import pytest
 from playwright.sync_api import BrowserContext, Page
@@ -7,7 +7,7 @@ from pytest_playwright import CreateContextCallback
 
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
 from tests.e2e.dataclasses import E2ETestUser
-from tests.e2e.helpers import generate_email_address, retrieve_magic_link
+from tests.e2e.helpers import retrieve_magic_link
 from tests.e2e.pages import RequestALinkToSignInPage
 
 
@@ -66,25 +66,22 @@ def context(
 
 
 @pytest.fixture()
-def user_auth(
-    request: FixtureRequest,
-    domain: str,
-    e2e_test_secrets: EndToEndTestSecrets,
-    page: Page,
-) -> E2ETestUser:
-    email_domain_marker = request.node.get_closest_marker("user_domain")
-    email_domain = email_domain_marker.args[0] if email_domain_marker else "communities.gov.uk"
-    email_address = generate_email_address(test_name=request.node.originalname, email_domain=email_domain)
+def email(request: FixtureRequest) -> str:
+    return cast(str, request.node.get_closest_marker("authenticate_as", "funding-service-notify@communities.gov.uk"))
 
-    # Duplicative of `test_magic_link_auth.py`, but intentionally to hopefully keep things readable/debuggable.
-    email = generate_email_address(request.node.originalname)
+
+@pytest.fixture()
+def authenticated_browser(domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str) -> E2ETestUser:
     request_a_link_page = RequestALinkToSignInPage(page, domain)
     request_a_link_page.navigate()
 
     request_a_link_page.fill_email_address(email)
     request_a_link_page.click_request_a_link()
 
-    magic_link_url = retrieve_magic_link(email, e2e_test_secrets)
+    notification_id = page.locator("[data-notification-id]").get_attribute("data-notification-id")
+    assert notification_id
+
+    magic_link_url = retrieve_magic_link(notification_id, e2e_test_secrets)
     page.goto(magic_link_url)
 
-    return E2ETestUser(email_address=email_address)
+    return E2ETestUser(email_address=email)

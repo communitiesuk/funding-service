@@ -228,6 +228,10 @@ class _SharedConfig(_BaseConfig):
     ASSETS_VITE_BASE_URL: str = "http://localhost:5173"
     ASSETS_VITE_LIVE_ENABLED: bool = False
 
+    @property
+    def IS_PRODUCTION(self) -> bool:
+        return self.FLASK_ENV == Environment.PROD
+
 
 class LocalConfig(_SharedConfig):
     """
