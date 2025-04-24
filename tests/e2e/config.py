@@ -4,14 +4,22 @@ import subprocess
 from typing import Literal, Protocol, cast
 
 import boto3
+from playwright.sync_api import HttpCredentials
 
 
 class EndToEndTestSecrets(Protocol):
+    @property
+    def HTTP_BASIC_AUTH(self) -> HttpCredentials | None: ...
+
     @property
     def GOVUK_NOTIFY_API_KEY(self) -> str: ...
 
 
 class LocalEndToEndSecrets:
+    @property
+    def HTTP_BASIC_AUTH(self) -> None:
+        return None
+
     @property
     def GOVUK_NOTIFY_API_KEY(self) -> str:
         with open(".env") as env_file:
@@ -59,6 +67,13 @@ class AWSEndToEndSecrets:
             value = ssm_client.get_parameter(Name=parameter, WithDecryption=True)["Parameter"]["Value"]
 
         return cast(str, value)
+
+    @property
+    def HTTP_BASIC_AUTH(self) -> HttpCredentials:
+        return {
+            "username": self._read_aws_parameter_store_value("/apprunner/funding-service/BASIC_AUTH_USERNAME"),
+            "password": self._read_aws_parameter_store_value("/apprunner/funding-service/BASIC_AUTH_PASSWORD"),
+        }
 
     @property
     def GOVUK_NOTIFY_API_KEY(self) -> str:
