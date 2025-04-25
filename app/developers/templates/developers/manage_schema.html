@@ -35,9 +35,10 @@
   {% endset %}
   {% set collections_text %}
     {% trans count=schema.collections | length %}
-      {{ count }} preview collection
-      {% pluralize %}
-      {{ count }} preview collections
+      {{ count }}
+      preview collection {% pluralize %}
+      {{ count }}
+      preview collections
     {% endtrans %}
   {% endset %}
   <div class="govuk-grid-row">

@@ -20,58 +20,58 @@
 {% endblock beforeContent %}
 
 {% block content %}
-<div class="govuk-grid-row">
-  <div class="govuk-grid-column-two-thirds">
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ collection_helper.name }}</span>
+        Collection
+      </h1>
 
-    <h1 class="govuk-heading-l">
-      <span class="govuk-caption-l">{{ collection_helper.name }}</span>
-      Collection
-    </h1>
+      {# NOTE: Should we have this as a custom component or macro-ize it? #}
+      <dl class="app-metadata govuk-!-margin-bottom-7">
+        <dt class="app-metadata__key">Status:</dt>
+        <dd class="app-metadata__value">{{ status(collection_helper.status, statuses) }}</dd>
+      </dl>
 
-    {# NOTE: Should we have this as a custom component or macro-ize it? #}
-    <dl class="app-metadata govuk-!-margin-bottom-7">
-      <dt class="app-metadata__key">Status:</dt>
-      <dd class="app-metadata__value">{{ status(collection_helper.status, statuses) }}</dd>
-    </dl>
+      {% for section in collection_helper.get_ordered_visible_sections() %}
+        <h2 class="govuk-heading-m">{{ section.title }}</h2>
 
-    {% for section in collection_helper.get_ordered_visible_sections() %}
-      <h2 class="govuk-heading-m">{{ section.title }}</h2>
-
-      {% set forms = collection_helper.get_ordered_visible_forms_for_section(section) %}
-      {% if not forms %}
-        <p class="govuk-body">This section has no forms.</p>
-      {% else %}
-        {% set rows=[] %}
-        {% for form in forms %}
-          {% set linkHref = (
-              url_for("developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=collection_helper.get_first_question_for_form(form).id)
-              if collection_helper.get_status_for_form(form) == statuses.NOT_STARTED else
-              url_for("developers.check_your_answers", collection_id=collection_helper.collection.id, form_id=form.id, source=back_link_source_enum.TASKLIST.value)
-            )
-          %}
-          {%
-            do rows.append({
-                  "title": {
-                    "text": form.title,
+        {% set forms = collection_helper.get_ordered_visible_forms_for_section(section) %}
+        {% if not forms %}
+          <p class="govuk-body">This section has no forms.</p>
+        {% else %}
+          {% set rows=[] %}
+          {% for form in forms %}
+            {%
+              set linkHref = (
+                url_for("developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=collection_helper.get_first_question_for_form(form).id)
+                if collection_helper.get_status_for_form(form) == statuses.NOT_STARTED else
+                url_for("developers.check_your_answers", collection_id=collection_helper.collection.id, form_id=form.id, source=back_link_source_enum.TASKLIST.value)
+              )
+            %}
+            {%
+              do rows.append({
+                    "title": {
+                      "text": form.title,
+                    },
+                  "status": {
+                    "html": status(collection_helper.get_status_for_form(form), statuses)
                   },
-                "status": {
-                  "html": status(collection_helper.get_status_for_form(form), statuses)
-                },
-              "href": linkHref,
-            })
-          %}
-        {% endfor %}
+                "href": linkHref,
+              })
+            %}
+          {% endfor %}
 
-        {{
-          govukTaskList({
-            "idPrefix": section.slug,
-            "items": rows
-          })
-        }}
-      {% endif %}
-    {% else %}
-      <p class="govuk-body">This collection has no sections.</p>
-    {% endfor %}
+          {{
+            govukTaskList({
+              "idPrefix": section.slug,
+              "items": rows
+            })
+          }}
+        {% endif %}
+      {% else %}
+        <p class="govuk-body">This collection has no sections.</p>
+      {% endfor %}
+    </div>
   </div>
-</div>
 {% endblock content %}
