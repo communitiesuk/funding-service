@@ -1,14 +1,14 @@
 import json
+from http.cookiejar import Cookie
 from typing import Generator, cast
 
 import pytest
 from filelock import FileLock
-from playwright.sync_api import BrowserContext, Page
+from playwright.sync_api import Browser, BrowserContext, Page
 from pytest import FixtureRequest
 from pytest_playwright import CreateContextCallback
 
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
-from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.helpers import retrieve_magic_link
 from tests.e2e.pages import RequestALinkToSignInPage
 
@@ -19,7 +19,7 @@ def _viewport(request: FixtureRequest, page: Page) -> None:
     page.set_viewport_size({"width": int(width), "height": int(height)})
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def get_e2e_params(request: pytest.FixtureRequest) -> Generator[dict[str, str], None, None]:
     e2e_env = request.config.getoption("e2e_env", "local")
     yield {
@@ -27,7 +27,7 @@ def get_e2e_params(request: pytest.FixtureRequest) -> Generator[dict[str, str], 
     }
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def domain(request: pytest.FixtureRequest, get_e2e_params: dict[str, str]) -> str:
     e2e_env = get_e2e_params["e2e_env"]
 
@@ -41,7 +41,7 @@ def domain(request: pytest.FixtureRequest, get_e2e_params: dict[str, str]) -> st
         raise ValueError(f"not configured for {e2e_env}")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def e2e_test_secrets(request: FixtureRequest) -> EndToEndTestSecrets:
     e2e_env = request.config.getoption("e2e_env")
     e2e_aws_vault_profile = request.config.getoption("e2e_aws_vault_profile")
@@ -67,35 +67,57 @@ def context(
     return new_context(http_credentials=http_credentials)
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def email(request: FixtureRequest) -> str:
     return cast(str, request.node.get_closest_marker("authenticate_as", "funding-service-notify@communities.gov.uk"))
 
 
-@pytest.fixture()
-def authenticated_browser(
-    domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str, tmp_path_factory: pytest.TempPathFactory
-) -> E2ETestUser:
+@pytest.fixture(scope="function")
+def authenticated_browser(authenticated_browser_session: Cookie, page: Page) -> Page:
+    # a cleaner way to do this is new_context - see context override above but not spending time on it
+    page.context.add_cookies([authenticated_browser_session])  # type: ignore
+    return page
+
+
+# This is just a proof of concept, the methodology would actually be to have all
+# the users you want to be able to use listed as an enum. Those users would all be
+# initialised by the session fixture once at the start and then the function scope fixture would just return
+# the session for a given email in a dict lookup
+@pytest.fixture(scope="session")
+def authenticated_browser_session(
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    browser: Browser,
+    email: str,
+    tmp_path_factory: pytest.TempPathFactory,
+    get_e2e_params: dict[str, str],
+    worker_id: str,
+) -> Cookie:
+    if worker_id == "master":
+        session_cookie = authenticate_with_magic_links(domain, e2e_test_secrets, browser, email, get_e2e_params)
+        return session_cookie
+
     tmp_dir = tmp_path_factory.getbasetemp().parent
 
-    # namespace the session file to the email address so tests can use different users and auth once per user
     fn = tmp_dir / f"{email}-session.json"
     with FileLock(str(fn) + ".lock"):
         if fn.is_file():
             data = json.loads(fn.read_text())
-            page.context.add_cookies([data["session"]])
-            return E2ETestUser(email_address=data["email_address"])
+            return cast(Cookie, data["session"])
         else:
-            user = authenticate_with_magic_links(domain, e2e_test_secrets, page, email)
+            session_cookie = authenticate_with_magic_links(domain, e2e_test_secrets, browser, email, get_e2e_params)
             with open(str(fn), "w") as f:
-                session_cookie = next((cookie for cookie in page.context.cookies() if cookie["name"] == "session"))
-                f.write(json.dumps({"session": session_cookie, "email_address": user.email_address}))
-            return user
+                f.write(json.dumps({"session": session_cookie, "email_address": email}))
+            return session_cookie
 
 
 def authenticate_with_magic_links(
-    domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str
-) -> E2ETestUser:
+    domain: str, e2e_test_secrets: EndToEndTestSecrets, browser: Browser, email: str, get_e2e_params: dict[str, str]
+) -> Cookie:
+    e2e_env = get_e2e_params["e2e_env"]
+    http_credentials = e2e_test_secrets.HTTP_BASIC_AUTH if e2e_env in {"dev", "test"} else None
+    page = browser.new_page(http_credentials=http_credentials)
+
     request_a_link_page = RequestALinkToSignInPage(page, domain)
     request_a_link_page.navigate()
 
@@ -108,4 +130,6 @@ def authenticate_with_magic_links(
     magic_link_url = retrieve_magic_link(notification_id, e2e_test_secrets)
     page.goto(magic_link_url)
 
-    return E2ETestUser(email_address=email)
+    session_cookie = next((cookie for cookie in page.context.cookies() if cookie["name"] == "session"))
+    page.close()
+    return cast(Cookie, session_cookie)
