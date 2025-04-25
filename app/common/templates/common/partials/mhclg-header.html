@@ -52,10 +52,10 @@
             {% if item.href %}
             <a class="govuk-header__link" href="{{ item.href }}"
               {{- govukAttributes(item.attributes) -}}>
-            {% endif %}
-              {{ item.html | safe | trim | indent(14) if item.html else item.text }}
-            {% if item.href %}
+              {{ item.text }}
             </a>
+            {% else %}
+              {{ item.html | safe | trim | indent(14) if item.html else item.text }}
             {% endif %}
           </li>
           {% endif %}
