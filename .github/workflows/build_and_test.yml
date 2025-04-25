@@ -75,6 +75,23 @@ jobs:
       - name: run type checking
         run: uv run mypy
 
+  lint_html_formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Read .nvmrc
+        id: nvmrc
+        run: echo "nodeVersion=$(cat .nvmrc)" >> "$GITHUB_OUTPUT"
+      - name: Setup node ${{ steps.nvmrc.outputs.nodeVersion }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ steps.nvmrc.outputs.nodeVersion }}
+      - name: install dependencies
+        run: npm ci
+      - name: check HTML formatting
+        run: make check-html
+
 
   lint_imports:
     runs-on: ubuntu-latest
