@@ -26,6 +26,4 @@ class BaseModel(DeclarativeBase):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, sort_order=-100, default=uuid.uuid4)
     created_at_utc: Mapped[datetime] = mapped_column(server_default=func.now(), sort_order=-99)
-    updated_at_utc: Mapped[datetime] = mapped_column(
-        server_default=func.now(), server_onupdate=func.now(), sort_order=-98
-    )
+    updated_at_utc: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now(), sort_order=-98)
