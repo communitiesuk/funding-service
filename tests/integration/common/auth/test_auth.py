@@ -67,7 +67,9 @@ class TestSignInView:
             follow_redirects=True,
         )
         assert response.status_code == 200
-        assert db_session.scalar(select(MagicLink).order_by(MagicLink.created_at.desc())).redirect_to_path == safe_next
+        assert (
+            db_session.scalar(select(MagicLink).order_by(MagicLink.created_at_utc.desc())).redirect_to_path == safe_next
+        )
 
         with anonymous_client.session_transaction() as session:
             assert "next" not in session
