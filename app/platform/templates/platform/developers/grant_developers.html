@@ -1,0 +1,17 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+
+{% extends "platform/manage_grant_base.html" %}
+
+{% block pageTitle %}
+    Developers - {{ grant.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+
+{% block content %}
+    <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Developers
+    </h1>
+    <p class="govuk-body">You can try out tech and designs that are work in progress.</p>
+{% endblock content %}

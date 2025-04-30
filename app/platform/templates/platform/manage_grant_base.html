@@ -5,18 +5,39 @@
 {% set active_item_identifier = "grants" %}
 {% set cspNonce = csp_nonce() %}
 
+{% set settingsNav = [
+    {
+        "text": "Dashboard",
+        "key": "grant_dashboard",
+        "url_for": "platform.view_grant"
+    },
+    {
+        "text": "Settings",
+        "key": "grant_settings",
+        "url_for": "platform.grant_settings"
+    },
+    {
+        "text": "Developers",
+        "key": "grant_developers",
+        "url_for": "platform.grant_developers"
+    }
+] %}
+
 {% block main %}
     <div class="govuk-width-container {%- if containerClasses %} {{ containerClasses }}{% endif %}">
         <div class="govuk-main-wrapper {%- if mainClasses %} {{ mainClasses }}{% endif %}">
             <div class="govuk-grid-row">
                 <div class="govuk-grid-column-one-quarter">
                     <ul class="govuk-list">
-                        <li class="fs-nav-item"><a href="{{ url_for('platform.view_grant', grant_id=grant.id) }}"
-                               class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == 'grant_dashboard' else '') }}">Dashboard</a>
-                        </li>
-                        <li class="fs-nav-item"><a href="{{ url_for('platform.grant_settings', grant_id=grant.id) }}"
-                               class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == 'grant_settings' else '') }}">Settings</a>
-                        </li>
+                        {% for item in settingsNav %}
+                            <li class="fs-nav-item">
+                                <a
+                                    href="{{ url_for(item.url_for, grant_id=grant.id) }}"
+                                    class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == item.key else '') }}">
+                                    {{ item.text }}
+                                </a>
+                            </li>
+                        {% endfor %}
                     </ul>
                 </div>
                 <div class="govuk-grid-column-three-quarters">

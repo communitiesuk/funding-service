@@ -65,3 +65,10 @@ def grant_change_name(grant_id: UUID4) -> str | Response:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
     return render_template("platform/settings/grant_change_name.html", form=form, grant=grant)
+
+
+@platform_blueprint.route("/grants/<uuid:grant_id>/developers", methods=["GET"])
+@mhclg_login_required
+def grant_developers(grant_id: UUID4) -> str:
+    grant = interfaces.grants.get_grant(grant_id)
+    return render_template("platform/developers/grant_developers.html", grant=grant)
