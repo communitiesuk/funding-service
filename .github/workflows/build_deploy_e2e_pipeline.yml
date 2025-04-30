@@ -7,6 +7,7 @@ permissions:
   id-token: write  # This is required for authenticating with aws
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -39,6 +40,9 @@ jobs:
 
   deploy_test:
     name: Deploy to test
+    # TODO: Strip this condition when we have dev/test/prod envs; for now, if we trigger the pipeline manually then
+    #       it should only deploy to the dev env. Test env will only be deployed to on a merge (push) to main.
+    if: github.event_name == 'push'
     needs:
       - paketo_build
       - deploy_dev
