@@ -112,6 +112,7 @@ class _SharedConfig(_BaseConfig):
     WTF_CSRF_ENABLED: bool = True
     PROXY_FIX_PROTO: int = 0
     PROXY_FIX_HOST: int = 0
+    SERVER_NAME: str
 
     # Basic auth
     BASIC_AUTH_ENABLED: bool = False
@@ -241,6 +242,7 @@ class LocalConfig(_SharedConfig):
     # Flask app
     FLASK_ENV: Environment = Environment.LOCAL
     SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
+    SERVER_NAME: str = "funding.communities.gov.localhost:8080"
 
     # Talisman security settings
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
