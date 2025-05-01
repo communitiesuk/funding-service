@@ -41,6 +41,11 @@ Developers are expected to run the app locally using [docker-compose](https://do
 * `make build` / `docker compose build` will rebuild the Funding Service image.
 * `make clean-build` / `docker compose build --no-cache` will rebuild the Funding Service image, bypassing caching. This should rarely be needed.
 
+### SSO
+By default, local development and locally-run end to end tests use a [stub server](./stubs/sso/) to implement the same  interface as Microsoft SSO flow. This is so we can reliably run e2e tests locally without hitting the real SSO endpoints, and so devs don't need test Azure AD credentials to be able to use the app, making initial setup easier.
+
+If you need to allow real SSO login locally, update the environment variables for `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET` and `AZURE_AD_TENANT_ID` to those used by the test Azure AD and add an environment variable of `AZURE_AD_BASE_URL=https://login.microsoftonline.com/` in your .env file, or comment out the LocalConfig version of this variable in the config so it falls back to the BaseConfig default. Be aware that the SSO e2e test will fail while this is enabled - don't forget to switch back to check this passes.
+
 # Tests
 ## E2E Tests
 All E2E (browser) tests should live inside [/tests/e2e](./tests/e2e).
