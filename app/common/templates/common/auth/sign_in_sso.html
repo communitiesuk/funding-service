@@ -1,0 +1,30 @@
+{% extends "common/base.html" %}
+
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+{% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+
+{% block pageTitle %}
+    Deliver grant funding - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% block content %}
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-two-thirds">
+            <h1 class="govuk-heading-l">Deliver grant funding</h1>
+            <p class="govuk-body">Connected and consistent set of funding services including FAB, pre-award and post-award
+                tools into a single platform enabling funding as a service.</p>
+            <p class="govuk-body">To include:</p>
+            <ul class="govuk-list govuk-list--bullet">
+                <li>grant set-up and management</li>
+                <li>pre-engagement, business case, grant and funding design</li>
+                <li>monitoring and reporting</li>
+              </ul>
+              {{ govukButton({
+                "text": "Sign in",
+                "href": "#",
+                "isStartButton": true
+              }) }}
+        </div>
+    </div>
+{% endblock content %}

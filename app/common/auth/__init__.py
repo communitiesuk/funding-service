@@ -41,7 +41,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 
         return redirect(url_for("auth.check_email", magic_link_id=magic_link.id))
 
-    return render_template("common/auth/sign_in.html", form=form)
+    return render_template("common/auth/sign_in_magic_link.html", form=form)
 
 
 @auth_blueprint.get("/check-your-email/<uuid:magic_link_id>")
@@ -70,6 +70,11 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
         return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
 
     return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
+
+
+@auth_blueprint.route("/sign-in", methods=["GET"])
+def sign_in() -> str:
+    return render_template("common/auth/sign_in_sso.html")
 
 
 @auth_blueprint.get("/sign-out")
