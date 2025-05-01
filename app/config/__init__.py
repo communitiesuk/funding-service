@@ -113,6 +113,7 @@ class _SharedConfig(_BaseConfig):
     PROXY_FIX_PROTO: int = 0
     PROXY_FIX_HOST: int = 0
     SERVER_NAME: str
+    PREFERRED_URL_SCHEME: str = "https"
 
     # Basic auth
     BASIC_AUTH_ENABLED: bool = False
@@ -272,6 +273,7 @@ class UnitTestConfig(LocalConfig):
     FLASK_ENV: Environment = Environment.UNIT_TEST
     WTF_CSRF_ENABLED: bool = False
     SERVER_NAME: str = "funding.communities.gov.localhost:8080"
+    PREFERRED_URL_SCHEME: str = "http"
 
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = False
