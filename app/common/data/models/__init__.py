@@ -14,6 +14,8 @@ class Grant(BaseModel):
 
     name: Mapped[CIStr] = mapped_column(unique=True)
 
+    schemas: Mapped[list["Schema"]] = relationship("Schema", lazy=True)
+
 
 class User(BaseModel):
     __tablename__ = "user"
@@ -67,7 +69,7 @@ class Schema(BaseModel):
     version: Mapped[int] = mapped_column(default=1)
 
     grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
-    grant: Mapped[Grant] = relationship("Grant")
+    grant: Mapped[Grant] = relationship("Grant", back_populates="schemas")
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
