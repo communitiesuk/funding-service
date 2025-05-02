@@ -1,12 +1,12 @@
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import Grant, Schema, User
+from app.common.data.models import CollectionSchema, Grant, User
 from app.extensions import db
 
 
-def create_collection(name: str, user: User, grant: Grant) -> Schema:
-    schema = Schema(name=name, created_by=user, grant=grant)
+def create_collection_schema(name: str, user: User, grant: Grant) -> CollectionSchema:
+    schema = CollectionSchema(name=name, created_by=user, grant=grant)
     db.session.add(schema)
 
     try:

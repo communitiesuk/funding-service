@@ -1,14 +1,19 @@
+from typing import cast
+
 from flask import Blueprint, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
+from flask_login import current_user
 from pydantic import UUID4
 from werkzeug import Response
 from wtforms.fields.core import Field
 
 from app.common.auth.decorators import mhclg_login_required
 from app.common.data import interfaces
+from app.common.data.interfaces.collections import create_collection_schema
 from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.models import User
 from app.extensions import auto_commit_after_request
-from app.platform.forms import GrantForm
+from app.platform.forms import CollectionForm, GrantForm
 
 platform_blueprint = Blueprint(name="platform", import_name=__name__)
 
@@ -72,3 +77,27 @@ def grant_change_name(grant_id: UUID4) -> str | Response:
 def grant_developers(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("platform/developers/grant_developers.html", grant=grant)
+
+
+@platform_blueprint.route("/grants/<uuid:grant_id>/developers/collections", methods=["GET"])
+@mhclg_login_required
+def grant_developers_collections(grant_id: UUID4) -> str:
+    grant = interfaces.grants.get_grant(grant_id)
+    return render_template("platform/developers/collections_list.html", grant=grant)
+
+
+@platform_blueprint.route("/grants/<uuid:grant_id>/developers/collections/set-up", methods=["GET", "POST"])
+@mhclg_login_required
+@auto_commit_after_request
+def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
+    grant = interfaces.grants.get_grant(grant_id)
+    form = CollectionForm(grant_id=grant.id)
+    if form.validate_on_submit():
+        try:
+            assert form.name.data is not None
+            create_collection_schema(name=form.name.data, user=cast(User, current_user), grant=grant)
+            return redirect(url_for("platform.grant_developers_collections", grant_id=grant_id))
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+    return render_template("platform/developers/create_collection.html", grant=grant, form=form)

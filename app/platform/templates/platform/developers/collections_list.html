@@ -1,0 +1,47 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+
+{% extends "platform/manage_grant_base.html" %}
+
+{% block pageTitle %}
+    Collections - {{ grant.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+
+{% block content %}
+    {{ govukPhaseBanner({
+      "tag": {
+        "text": "In development",
+        "classes": "govuk-tag--purple"
+      },
+      "html": 'These pages are not finalised - use for trying out work in progress.'
+    }) }}
+    <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Collections
+    </h1>
+    {{ govukButton({
+        "text": "Set up a new collection",
+        "classes": "govuk-button--secondary",
+        "href": url_for("platform.setup_collection", grant_id = grant.id)
+     }) }}
+    {% set rows=[] %}
+    {% for collection in grant.collection_schemas %}
+        {% do rows.append({
+                  "key": {"text": collection.name},
+                  "value":"",
+                  "actions": {
+                      "items": [
+                          {
+                            "href": '#',
+                            "text": "Manage"
+                          }
+                      ]
+                  }
+              }) %}
+    {% endfor %}
+    {{ govukSummaryList({
+                  "rows": rows
+            }) }}
+{% endblock content %}

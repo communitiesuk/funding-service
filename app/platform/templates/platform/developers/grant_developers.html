@@ -1,4 +1,5 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
 
 {% extends "platform/manage_grant_base.html" %}
 
@@ -9,6 +10,13 @@
 {% set active_sub_navigation_tab = "grant_developers" %}
 
 {% block content %}
+    {{ govukPhaseBanner({
+      "tag": {
+        "text": "In development",
+        "classes": "govuk-tag--purple"
+      },
+      "html": 'These pages are not finalised - use for trying out work in progress.'
+    }) }}
     <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Developers
@@ -26,9 +34,9 @@
                 "text": "Collections",
                 "classes": "govuk-!-padding-top-4 govuk-!-padding-bottom-4"
             },
-            "value": { "text": ( grant.collections | length | string ) + " preview collections" },
+            "value": { "text": ( grant.collection_schemas | length | string ) + " preview collections" },
             "actions": {
-                "items": [{ "text": "Manage", "href": "", "classes": "govuk-link--no-visited-state" }]
+                "items": [{ "text": "Manage", "href": url_for('platform.grant_developers_collections', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
             },
         }]
     }) }}

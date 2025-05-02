@@ -14,7 +14,7 @@ class Grant(BaseModel):
 
     name: Mapped[CIStr] = mapped_column(unique=True)
 
-    schemas: Mapped[list["Schema"]] = relationship("Schema", lazy=True)
+    collection_schemas: Mapped[list["CollectionSchema"]] = relationship("CollectionSchema", lazy=True)
 
 
 class User(BaseModel):
@@ -60,16 +60,16 @@ class MagicLink(BaseModel):
         return self.claimed_at_utc is None and self.expires_at_utc > datetime.datetime.now(utc).replace(tzinfo=None)
 
 
-class Schema(BaseModel):
-    __tablename__ = "schema"
+class CollectionSchema(BaseModel):
+    __tablename__ = "collection_schema"
 
     # Name will be superseded by domain specific application contexts but allows us to
     # try out different schemas and scenarios
-    name: Mapped[str]
+    name: Mapped[str] = mapped_column(unique=True)
     version: Mapped[int] = mapped_column(default=1)
 
     grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
-    grant: Mapped[Grant] = relationship("Grant", back_populates="schemas")
+    grant: Mapped[Grant] = relationship("Grant", back_populates="collection_schemas")
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")

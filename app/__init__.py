@@ -76,6 +76,7 @@ def create_app() -> Flask:
 
     Babel(app)
     app.jinja_env.add_extension("jinja2.ext.i18n")
+    app.jinja_env.add_extension("jinja2.ext.do")
 
     # TODO: Remove our basic auth application code when the app is deployed behind CloudFront and the app is not
     #       otherwise publicly accessible; we can then do basic auth through something like a cloudfront edge function
