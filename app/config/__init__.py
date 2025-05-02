@@ -110,8 +110,9 @@ class _SharedConfig(_BaseConfig):
     FLASK_ENV: Environment
     SECRET_KEY: str
     WTF_CSRF_ENABLED: bool = True
-    PROXY_FIX_PROTO: int = 0
-    PROXY_FIX_HOST: int = 0
+    PROXY_FIX_PROTO: int = 1  # CloudFront for AWS environments; Caddy for PullPreview
+    PROXY_FIX_HOST: int = 0  # CloudFront doesn't set X-Forwarded-For
+    SERVER_NAME: str
 
     # Basic auth
     BASIC_AUTH_ENABLED: bool = False
@@ -241,6 +242,9 @@ class LocalConfig(_SharedConfig):
     # Flask app
     FLASK_ENV: Environment = Environment.LOCAL
     SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
+    PROXY_FIX_PROTO: int = 0
+    PROXY_FIX_HOST: int = 0
+    SERVER_NAME: str = "funding.communities.gov.localhost:8080"
 
     # Talisman security settings
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
