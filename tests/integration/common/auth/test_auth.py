@@ -85,6 +85,7 @@ class TestCheckEmailPage:
 
 
 class TestClaimMagicLinkView:
+    @pytest.mark.freeze_time("2024-02-21")
     def test_get(self, anonymous_client, factories):
         magic_link = factories.magic_link.create()
 

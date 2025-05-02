@@ -15,8 +15,10 @@ from flask.testing import FlaskClient
 from flask_login import login_user
 from flask_migrate import upgrade
 from flask_sqlalchemy_lite import SQLAlchemy
+from freezegun import freeze_time
 from jinja2 import Template
 from pytest_mock import MockerFixture
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
@@ -126,18 +128,34 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
+def db_session(app: Flask, db: SQLAlchemy, request: FixtureRequest) -> Generator[Session, None, None]:
     # Set up a DB session that is fully isolated for each specific test run. We override Flask-SQLAlchemy-Lite's (FSL)
     # sessionmaker configuration to use a connection with a transaction started, and configure FSL to use savepoints
     # for any flushes/commits that happen within the test. When the test finishes, this fixture will do a full rollback,
     # preventing any data leaking beyond the scope of the test.
 
+    marker = request.node.get_closest_marker("freeze_time")
+
     with app.app_context():
         connection = db.engine.connect()
         transaction = connection.begin()
-
         original_configuration = db.sessionmaker.kw.copy()
         db.sessionmaker.configure(bind=connection, join_transaction_mode="create_savepoint")
+        if marker:
+            # Override now() function in the database to freeze time
+            fake_time = marker.args[0]
+            select_existing_now_function_sql = "select prosrc from pg_proc where proname='now'"
+            override_now_function_sql = (
+                ""
+                + "create or replace function pg_catalog.now() "
+                + "RETURNS TIMESTAMP WITH TIME ZONE AS "
+                + f"$$SELECT '{fake_time}'::timestamp$$ LANGUAGE sql;"
+            )
+            existing_now_function_source = connection.execute(text(select_existing_now_function_sql)).scalar()
+            connection.execute(text(override_now_function_sql))
+            # Use freezegun to override calls to now() in code (not db)
+            freezer = freeze_time(fake_time)
+            freezer.start()
         try:
             yield db.session
 
@@ -147,6 +165,18 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
 
             db.session.close()
             transaction.rollback()
+            if marker:
+                # Remove our overridden date/time
+                freezer.stop()
+                transaction = connection.begin()
+                restore_now_function_sql = (
+                    ""
+                    + "create or replace function pg_catalog.now() "
+                    + "RETURNS TIMESTAMP WITH TIME ZONE AS "
+                    + f"$${existing_now_function_source}$$ LANGUAGE internal;"
+                )
+                connection.execute(text(restore_now_function_sql))
+                transaction.commit()
             connection.close()
 
 
