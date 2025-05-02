@@ -1,0 +1,23 @@
+name: 'Run Database Migrations'
+description: 'Composite Action to run Database Migration script'
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.13.3
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync
+
+    - name: Run Database Migrations
+      shell: bash
+      run: |
+        uv run scripts/run-ad-hoc-task.py --command "flask db upgrade"
