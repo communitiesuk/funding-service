@@ -148,6 +148,7 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
     with app.app_context():
         connection = db.engine.connect()
         transaction = connection.begin()
+
         original_configuration = db.sessionmaker.kw.copy()
         db.sessionmaker.configure(bind=connection, join_transaction_mode="create_savepoint")
         try:
