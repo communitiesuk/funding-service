@@ -3,7 +3,7 @@ import secrets
 import uuid
 
 from pytz import utc
-from sqlalchemy import ForeignKey, Index
+from sqlalchemy import ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
@@ -73,3 +73,5 @@ class Schema(BaseModel):
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
+
+    __table_args__ = (UniqueConstraint("name", "grant_id", name="uq_schema_name_grant_id"),)

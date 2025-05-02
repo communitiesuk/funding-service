@@ -1,9 +1,17 @@
-from app.common.data.models import Schema, User
+from sqlalchemy.exc import IntegrityError
+
+from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.models import Grant, Schema, User
 from app.extensions import db
 
 
-def create_schema(name: str, user: User) -> Schema:
-    schema = Schema(name=name, user=user)
+def create_collection(name: str, user: User, grant: Grant) -> Schema:
+    schema = Schema(name=name, created_by=user, grant=grant)
     db.session.add(schema)
-    db.session.flush()
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
     return schema
