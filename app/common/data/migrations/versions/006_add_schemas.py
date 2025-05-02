@@ -1,15 +1,15 @@
 """empty message
 
-Revision ID: 006_add_collection_schema
+Revision ID: 006_add_schemas
 Revises: 005_add_utc_suffix
-Create Date: 2025-05-01 14:09:37.627826
+Create Date: 2025-05-02 11:31:57.773231
 
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "005_add_collection_schema"
+revision = "006_add_schemas"
 down_revision = "005_add_utc_suffix"
 branch_labels = None
 depends_on = None
@@ -20,8 +20,8 @@ def upgrade() -> None:
     op.create_table(
         "schema",
         sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column("created_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("grant_id", sa.Uuid(), nullable=False),
@@ -29,6 +29,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["created_by_id"], ["user.id"], name=op.f("fk_schema_created_by_id_user")),
         sa.ForeignKeyConstraint(["grant_id"], ["grant.id"], name=op.f("fk_schema_grant_id_grant")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_schema")),
+        sa.UniqueConstraint("name", "grant_id", name="uq_schema_name_grant_id"),
     )
     # ### end Alembic commands ###
 
