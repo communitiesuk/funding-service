@@ -9,9 +9,6 @@ class DuplicateValueError(Exception):
     field_name: str
     new_value: str
 
-    # I think this should probably just wrap the IntegrityError and rely on its message for diagnosing
-    # presumably most things calling this will know what the integrity failure is and if they don't they could
-    # inspect the constraint name themselves (in the rare instance there might be multiple)
     constraint_name_map: dict[str, str] = {"uq_grant_name": "name", "uq_schema_name_version_grant_id": "name"}
 
     def __init__(self, integrity_error: IntegrityError) -> None:
