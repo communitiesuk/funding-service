@@ -1,3 +1,4 @@
+from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
@@ -15,3 +16,17 @@ def create_collection_schema(name: str, user: User, grant: Grant) -> CollectionS
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return schema
+
+
+def get_collection_schema(collection_id: UUID4) -> CollectionSchema:
+    return db.session.get_one(CollectionSchema, collection_id)
+
+
+def update_collection_schema(name: str, collection: CollectionSchema) -> CollectionSchema:
+    collection.name = name
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return collection

@@ -9,7 +9,11 @@ from wtforms.fields.core import Field
 
 from app.common.auth.decorators import mhclg_login_required
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import create_collection_schema
+from app.common.data.interfaces.collections import (
+    create_collection_schema,
+    get_collection_schema,
+    update_collection_schema,
+)
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import User
 from app.extensions import auto_commit_after_request
@@ -101,3 +105,35 @@ def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
     return render_template("platform/developers/create_collection.html", grant=grant, form=form)
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>", methods=["GET", "POST"]
+)
+@mhclg_login_required
+@auto_commit_after_request
+def manage_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
+    collection = get_collection_schema(collection_id)
+    return render_template("platform/developers/collection_details.html", grant=collection.grant, collection=collection)
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/edit", methods=["GET", "POST"]
+)
+@mhclg_login_required
+@auto_commit_after_request
+def edit_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
+    collection = get_collection_schema(collection_id)
+    form = CollectionForm(obj=collection)
+    if form.validate_on_submit():
+        try:
+            assert form.name.data is not None
+            update_collection_schema(name=form.name.data, collection=collection)
+            return redirect(url_for("platform.manage_collection", grant_id=grant_id, collection_id=collection_id))
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "platform/developers/edit_collection.html", grant=collection.grant, collection=collection, form=form
+    )
