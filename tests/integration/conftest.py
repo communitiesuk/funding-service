@@ -127,15 +127,15 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def time_freezer(db_session: Session, request: FixtureRequest) -> Generator[TimeFreezer, None, None]:
+def time_freezer(db_session: Session, request: FixtureRequest) -> Generator[TimeFreezer | None, None, None]:
     marker = request.node.get_closest_marker("freeze_time")
-    if marker is None:
-        raise ValueError("No frozen time specified. Use pytest.marker.freeze_time to supply time")
-
-    fake_time = marker.args[0]
-    time_freezer = TimeFreezer(fake_time, db_session)
-    yield time_freezer
-    time_freezer.restore_actual_time()
+    if marker:
+        fake_time = marker.args[0]
+        time_freezer = TimeFreezer(fake_time, db_session)
+        yield time_freezer
+        time_freezer.restore_actual_time()
+    else:
+        yield None
 
 
 @pytest.fixture(scope="function", autouse=True)
