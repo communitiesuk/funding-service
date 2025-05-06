@@ -27,6 +27,7 @@ from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _precompile_templates
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
 from tests.integration.models import _GrantFactory, _MagicLinkFactory, _UserFactory
+from tests.integration.utils import TimeFreezer
 from tests.utils import build_db_config
 
 
@@ -123,6 +124,18 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
     still be able to be fairly fast.
     """
     request.node.add_marker(pytest.mark.fail_slow("250ms"))
+
+
+@pytest.fixture(scope="function", autouse=True)
+def time_freezer(db_session: Session, request: FixtureRequest) -> Generator[TimeFreezer | None, None, None]:
+    marker = request.node.get_closest_marker("freeze_time")
+    if marker:
+        fake_time = marker.args[0]
+        time_freezer = TimeFreezer(fake_time, db_session)
+        yield time_freezer
+        time_freezer.restore_actual_time()
+    else:
+        yield None
 
 
 @pytest.fixture(scope="function", autouse=True)

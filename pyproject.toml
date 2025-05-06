@@ -53,6 +53,7 @@ dev = [
     "types-pytz==2025.2.0.20250326",
     "boto3==1.38.0",
     "types-boto3==1.38.0",
+    "freezegun>=1.5.1",
 ]
 
 [tool.ruff]
@@ -108,7 +109,8 @@ env = [
 ]
 markers = [
     "e2e: Run E2E (browser) tests using playwright",
-    "authenticate_as: Email address to use for `authenticated_client` (integration) and `authenticated_browser` (e2e)"
+    "authenticate_as: Email address to use for `authenticated_client` (integration) and `authenticated_browser` (e2e)",
+    "freeze_time: Mock all calls to now() in code or database to return the specified date/time"
 ]
 
 filterwarnings = [
