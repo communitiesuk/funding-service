@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import func, text
+from sqlalchemy import text
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -48,7 +48,7 @@ def test_update_frozen_time_no_tick(db_session):
     assert rows[0].updated_at_utc == datetime(2025, 2, 1, 13, 30, 0)
 
     # Try update using python time
-    db_session.execute(text(f"UPDATE test_fixtures SET updated_at_utc = {func.now()} WHERE id='{row_id}'"))
+    db_session.execute(text(f"UPDATE test_fixtures SET updated_at_utc = '{datetime.now()}' WHERE id='{row_id}'"))
     db_session.flush()
     rows = db_session.execute(
         text(f"SELECT created_at_utc, updated_at_utc FROM test_fixtures WHERE id='{row_id}'")
@@ -79,7 +79,7 @@ def test_update_frozen_time_with_tick(db_session, time_freezer):
     time_freezer.update_frozen_time(timedelta(hours=1))
 
     # Try update using python time
-    db_session.execute(text(f"UPDATE test_fixtures SET updated_at_utc = {func.now()} WHERE id='{row_id}'"))
+    db_session.execute(text(f"UPDATE test_fixtures SET updated_at_utc = '{datetime.now()}' WHERE id='{row_id}'"))
     db_session.flush()
     rows = db_session.execute(
         text(f"SELECT created_at_utc, updated_at_utc FROM test_fixtures WHERE id='{row_id}'")
