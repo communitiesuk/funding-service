@@ -17,15 +17,7 @@
 {% endblock beforeContent %}
 
 {% block content %}
-    {{ govukPhaseBanner({
-      "tag": {
-        "text": "In development",
-        "classes": "govuk-tag--purple"
-      },
-      "html": 'These pages are not finalised - use for trying out work in progress.'
-    }) }}
     <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ grant.name }}</span>
         {{ collection.name }}
     </h1>
     {{ govukSummaryList({

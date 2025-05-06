@@ -29,7 +29,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["created_by_id"], ["user.id"], name=op.f("fk_schema_created_by_id_user")),
         sa.ForeignKeyConstraint(["grant_id"], ["grant.id"], name=op.f("fk_schema_grant_id_grant")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_schema")),
-        sa.UniqueConstraint("name", "grant_id", name="uq_schema_name_grant_id"),
+        sa.UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),
     )
     # ### end Alembic commands ###
 

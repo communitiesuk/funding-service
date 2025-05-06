@@ -1,5 +1,6 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 
 {% extends "platform/manage_grant_base.html" %}
 
@@ -10,38 +11,39 @@
 {% set active_sub_navigation_tab = "grant_developers" %}
 
 {% block content %}
-    {{ govukPhaseBanner({
-      "tag": {
-        "text": "In development",
-        "classes": "govuk-tag--purple"
-      },
-      "html": 'These pages are not finalised - use for trying out work in progress.'
-    }) }}
     <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Collections
     </h1>
-    {{ govukButton({
-        "text": "Set up a new collection",
-        "classes": "govuk-button--secondary",
-        "href": url_for("platform.setup_collection", grant_id = grant.id)
-     }) }}
+    <p class="govuk-body">Use preview collections to try out the tools to set up, collect and review information from
+        users.</p>
+
+
     {% set rows=[] %}
     {% for collection in grant.collection_schemas %}
-        {% do rows.append({
-                  "key": {"text": collection.name},
-                  "value":"",
-                  "actions": {
-                      "items": [
-                          {
-                            "href": url_for("platform.manage_collection", grant_id = grant.id, collection_id = collection.id),
-                            "text": "Manage"
-                          }
-                      ]
-                  }
-              }) %}
+        {% do rows.append([{
+        "html": "<a class='govuk-link--no-visited-state' href='" + url_for("platform.manage_collection", grant_id = grant.id, collection_id = collection.id) + "'>" + collection.name + "</a>",
+        }, {"text": collection.created_by.email}, {"text": collection.created_at_utc | format_date}]) %}
     {% endfor %}
-    {{ govukSummaryList({
-                  "rows": rows
+    {{ govukTable({
+  "caption": "Collections",
+  "captionClasses": "govuk-table__caption--m",
+  "head": [
+    {
+      "text": "Description"
+    },
+    {
+      "text": "Added by"
+    },
+    {
+      "text": "Added on"
+    }
+  ],
+        "rows": rows
+        }) }}
+    {{ govukButton({
+            "text": "Add collection",
+            "classes": "govuk-button--secondary",
+            "href": url_for("platform.setup_collection", grant_id = grant.id)
             }) }}
 {% endblock content %}

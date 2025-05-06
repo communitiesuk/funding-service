@@ -74,4 +74,4 @@ class CollectionSchema(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
-    __table_args__ = (UniqueConstraint("name", "grant_id", name="uq_schema_name_grant_id"),)
+    __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
