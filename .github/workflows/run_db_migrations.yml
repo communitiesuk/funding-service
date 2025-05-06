@@ -9,9 +9,13 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "AWS environment to run migrations in."
-        type: string
+        description:  Which AWS Account to use
+        type: choice
         required: true
+        options:
+        - dev
+        - test
+        - prod
 
 jobs:
   run_migrations:
