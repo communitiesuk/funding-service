@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 
 import pytest
-from sqlalchemy import select
 
 from app.common.data.models import MagicLink
 
@@ -9,37 +8,37 @@ from app.common.data.models import MagicLink
 @pytest.mark.freeze_time("2025-01-01 13:30:00")
 def test_create_magic_link_frozen_time(db_session, factories, time_freezer):
     factory_ml = factories.magic_link.create()
-    magic_link = db_session.scalar(select(MagicLink).where(MagicLink.id == factory_ml.id))
-    assert magic_link.created_at_utc == datetime.strptime("2025-01-01 13:30:00", "%Y-%m-%d %H:%M:%S")
+    magic_link = magic_link = db_session.get(MagicLink, factory_ml.id)
+    assert magic_link.created_at_utc == datetime(2025, 1, 1, 13, 30, 0)
 
 
 @pytest.mark.freeze_time("2025-01-01 13:30:00")
 def test_update_magic_link_frozen_time_no_tick(db_session, factories, time_freezer):
     factory_ml = factories.magic_link.create()
-    magic_link = db_session.scalar(select(MagicLink).where(MagicLink.id == factory_ml.id))
-    assert magic_link.created_at_utc == datetime.strptime("2025-01-01 13:30:00", "%Y-%m-%d %H:%M:%S")
-    assert magic_link.updated_at_utc == datetime.strptime("2025-01-01 13:30:00", "%Y-%m-%d %H:%M:%S")
+    magic_link = db_session.get(MagicLink, factory_ml.id)
+    assert magic_link.created_at_utc == datetime(2025, 1, 1, 13, 30, 0)
+    assert magic_link.updated_at_utc == datetime(2025, 1, 1, 13, 30, 0)
     magic_link.claimed_at = datetime.now()
     db_session.add(magic_link)
     db_session.flush()
-    magic_link = db_session.scalar(select(MagicLink).where(MagicLink.id == factory_ml.id))
-    assert magic_link.updated_at_utc == datetime.strptime("2025-01-01 13:30:00", "%Y-%m-%d %H:%M:%S")
+    magic_link = magic_link = db_session.get(MagicLink, factory_ml.id)
+    assert magic_link.updated_at_utc == datetime(2025, 1, 1, 13, 30, 0)
 
 
 @pytest.mark.freeze_time("2025-01-01 13:30:00")
 def test_update_magic_link_frozen_time_with_tick(db_session, factories, time_freezer):
     factory_ml = factories.magic_link.create()
-    magic_link = db_session.scalar(select(MagicLink).where(MagicLink.id == factory_ml.id))
-    assert magic_link.created_at_utc == datetime.strptime("2025-01-01 13:30:00", "%Y-%m-%d %H:%M:%S")
-    assert magic_link.updated_at_utc == datetime.strptime("2025-01-01 13:30:00", "%Y-%m-%d %H:%M:%S")
+    magic_link = magic_link = db_session.get(MagicLink, factory_ml.id)
+    assert magic_link.created_at_utc == datetime(2025, 1, 1, 13, 30, 0)
+    assert magic_link.updated_at_utc == datetime(2025, 1, 1, 13, 30, 0)
 
     time_freezer.update_frozen_time(timedelta(hours=1))
     magic_link.claimed_at_utc = datetime.now()
 
     db_session.add(magic_link)
     db_session.flush()
-    magic_link = db_session.scalar(select(MagicLink).where(MagicLink.id == factory_ml.id))
-    assert magic_link.updated_at_utc == datetime.strptime("2025-01-01 14:30:00", "%Y-%m-%d %H:%M:%S")
+    magic_link = magic_link = db_session.get(MagicLink, factory_ml.id)
+    assert magic_link.updated_at_utc == datetime(2025, 1, 1, 14, 30, 0)
 
 
 @pytest.mark.xfail

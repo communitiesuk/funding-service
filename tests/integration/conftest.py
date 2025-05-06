@@ -126,7 +126,7 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
     request.node.add_marker(pytest.mark.fail_slow("250ms"))
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function", autouse=True)
 def time_freezer(db_session: Session, request: FixtureRequest) -> Generator[TimeFreezer, None, None]:
     marker = request.node.get_closest_marker("freeze_time")
     if marker is None:
