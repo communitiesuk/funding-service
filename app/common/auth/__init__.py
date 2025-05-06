@@ -1,11 +1,12 @@
 import uuid
 from typing import cast
 
-from flask import Blueprint, abort, redirect, render_template, session, url_for
+from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
-from app.common.auth.forms import ClaimMagicLinkForm, SignInForm
+from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
+from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
 from app.common.data.interfaces.user import get_or_create_user
 from app.common.security.utils import sanitise_redirect_url
@@ -72,9 +73,30 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
 
 
-@auth_blueprint.route("/sign-in", methods=["GET"])
-def sign_in() -> str:
-    return render_template("common/auth/sign_in_sso.html")
+@auth_blueprint.route("/sso/login", methods=["GET", "POST"])
+def sign_in() -> ResponseReturnValue:
+    form = SSOSignInForm()
+    if form.validate_on_submit():
+        session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
+        return redirect(session["flow"]["auth_uri"]), 302
+    return render_template("common/auth/sign_in_sso.html", form=form)
+
+
+@auth_blueprint.route("/sso/get-token", methods=["GET"])
+def sso_get_token() -> ResponseReturnValue:
+    result = build_msal_app().acquire_token_by_auth_code_flow(session.get("flow", {}), request.args)
+
+    if "error" in result:
+        return abort(500, "Azure AD get-token flow failed with: {}".format(result))
+
+    sso_user = result.get("id_token_claims")
+
+    user = get_or_create_user(email_address=sso_user.get("preferred_username"))
+
+    if not login_user(user):
+        abort(400)
+
+    return redirect(sso_user.get("next", url_for("platform.list_grants")))
 
 
 @auth_blueprint.get("/sign-out")
