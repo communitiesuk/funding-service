@@ -12,6 +12,7 @@ def build_msal_app(
         authority=authority or current_app.config["AZURE_AD_AUTHORITY"],
         client_credential=current_app.config["AZURE_AD_CLIENT_SECRET"],
         token_cache=cache,
+        instance_discovery=False,
     )
 
 

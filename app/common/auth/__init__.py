@@ -73,8 +73,8 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
 
 
-@auth_blueprint.route("/sso/login", methods=["GET", "POST"])
-def sign_in() -> ResponseReturnValue:
+@auth_blueprint.route("/sso/sign-in", methods=["GET", "POST"])
+def sso_sign_in() -> ResponseReturnValue:
     form = SSOSignInForm()
     if form.validate_on_submit():
         session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
@@ -83,15 +83,18 @@ def sign_in() -> ResponseReturnValue:
 
 
 @auth_blueprint.route("/sso/get-token", methods=["GET"])
+@auto_commit_after_request
 def sso_get_token() -> ResponseReturnValue:
     result = build_msal_app().acquire_token_by_auth_code_flow(session.get("flow", {}), request.args)
 
     if "error" in result:
         return abort(500, "Azure AD get-token flow failed with: {}".format(result))
 
-    sso_user = result.get("id_token_claims")
+    sso_user = result["id_token_claims"]
 
-    user = get_or_create_user(email_address=sso_user.get("preferred_username"))
+    user = get_or_create_user(email_address=sso_user["preferred_username"])
+
+    session.pop("flow", None)
 
     if not login_user(user):
         abort(400)

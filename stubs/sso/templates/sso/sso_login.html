@@ -1,0 +1,12 @@
+<!doctype html>
+<title>SSO Stub</title>
+<section class="content">
+    <header>
+        <h1>SSO Login</h1>
+    </header>
+    <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.email_address(params={"type": "email", "autocomplete": "email", "spellcheck": false }) }}
+        {{ form.submit }}
+    </form>
+</section>

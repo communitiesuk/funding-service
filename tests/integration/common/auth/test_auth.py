@@ -163,3 +163,13 @@ class TestSignOutView:
 
         with anonymous_client.session_transaction() as session:
             assert "_user_id" not in session
+
+
+class TestSSOSignInView:
+    def test_get(self, anonymous_client):
+        response = anonymous_client.get(url_for("auth.sso_sign_in"))
+        assert response.status_code == 200
+        assert b"Connected and consistent set of funding services" in response.data
+
+    def test_redirect_to_ms(self):
+        pass

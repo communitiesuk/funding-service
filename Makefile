@@ -9,7 +9,7 @@ bootstrap: certs pre-commit vite clean-build
 certs:
 	mkdir -p certs
 	CAROOT=certs mkcert -install
-	CAROOT=certs mkcert -cert-file certs/cert.pem -key-file certs/key.pem "funding.communities.gov.localhost"
+	CAROOT=certs mkcert -cert-file certs/cert.pem -key-file certs/key.pem "*.communities.gov.localhost"
 
 .PHONY: pre-commit
 pre-commit:
