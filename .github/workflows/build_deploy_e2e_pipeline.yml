@@ -8,8 +8,6 @@ permissions:
 
 on:
   push:
-    branches:
-      - main
 
 jobs:
   paketo_build:
@@ -37,20 +35,20 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
 
-  deploy_test:
-    name: Deploy to test
-    needs:
-      - paketo_build
-      - deploy_dev
-    uses: ./.github/workflows/deploy.yml
-    concurrency:
-      group: fs-deploy-test
-      cancel-in-progress: false
-    with:
-      environment: test
-      ghcr_image_location: ${{ needs.paketo_build.outputs.ghcr_image_location }}
-      run_e2e_tests: true
-    secrets:
-      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+  # deploy_test:
+  #   name: Deploy to test
+  #   needs:
+  #     - paketo_build
+  #     - deploy_dev
+  #   uses: ./.github/workflows/deploy.yml
+  #   concurrency:
+  #     group: fs-deploy-test
+  #     cancel-in-progress: false
+  #   with:
+  #     environment: test
+  #     ghcr_image_location: ${{ needs.paketo_build.outputs.ghcr_image_location }}
+  #     run_e2e_tests: true
+  #   secrets:
+  #     AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+  #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  #     TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}

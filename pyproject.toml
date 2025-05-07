@@ -53,7 +53,8 @@ dev = [
     "types-pytz==2025.2.0.20250326",
     "boto3==1.38.10",
     "types-boto3==1.38.10",
-    "freezegun==1.5.1",
+    "freezegun>=1.5.1",
+    "gunicorn[gevent]>=23.0.0",
 ]
 
 [tool.ruff]
