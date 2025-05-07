@@ -6,7 +6,7 @@ from app.common.data.models import CollectionSchema, Grant, User
 from app.extensions import db
 
 
-def create_collection_schema(name: str, user: User, grant: Grant, version: int = 1) -> CollectionSchema:
+def create_collection_schema(*, name: str, user: User, grant: Grant, version: int = 1) -> CollectionSchema:
     schema = CollectionSchema(name=name, created_by=user, grant=grant, version=version)
     db.session.add(schema)
 
