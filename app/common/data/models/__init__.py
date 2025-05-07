@@ -65,7 +65,7 @@ class CollectionSchema(BaseModel):
 
     # Name will be superseded by domain specific application contexts but allows us to
     # try out different schemas and scenarios
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str]
     version: Mapped[int] = mapped_column(default=1)
 
     grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
