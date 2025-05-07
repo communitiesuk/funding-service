@@ -111,7 +111,7 @@ jobs:
           port: 5000
           cpu : 1
           memory : 2
-          wait-for-service-stability-seconds: 360
+          wait-for-service-stability-seconds: 600
 
   e2e_tests:
     name: Python E2E tests
