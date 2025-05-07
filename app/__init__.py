@@ -7,6 +7,7 @@ from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from app import logging
 from app.common.data import interfaces
 from app.common.data.models import User
+from app.common.filters.time_and_date_filters import format_date
 from app.config import get_settings
 from app.extensions import (
     auto_commit_after_request,
@@ -76,6 +77,8 @@ def create_app() -> Flask:
 
     Babel(app)
     app.jinja_env.add_extension("jinja2.ext.i18n")
+    app.jinja_env.add_extension("jinja2.ext.do")
+    app.jinja_env.filters["format_date"] = format_date
 
     # TODO: Remove our basic auth application code when the app is deployed behind CloudFront and the app is not
     #       otherwise publicly accessible; we can then do basic auth through something like a cloudfront edge function

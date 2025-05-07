@@ -3,7 +3,7 @@ import secrets
 import uuid
 
 from pytz import utc
-from sqlalchemy import ForeignKey, Index
+from sqlalchemy import ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
@@ -13,6 +13,8 @@ class Grant(BaseModel):
     __tablename__ = "grant"
 
     name: Mapped[CIStr] = mapped_column(unique=True)
+
+    collection_schemas: Mapped[list["CollectionSchema"]] = relationship("CollectionSchema", lazy=True)
 
 
 class User(BaseModel):
@@ -56,3 +58,20 @@ class MagicLink(BaseModel):
     @property
     def usable(self) -> bool:
         return self.claimed_at_utc is None and self.expires_at_utc > datetime.datetime.now(utc).replace(tzinfo=None)
+
+
+class CollectionSchema(BaseModel):
+    __tablename__ = "collection_schema"
+
+    # Name will be superseded by domain specific application contexts but allows us to
+    # try out different schemas and scenarios
+    name: Mapped[str]
+    version: Mapped[int] = mapped_column(default=1)
+
+    grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
+    grant: Mapped[Grant] = relationship("Grant", back_populates="collection_schemas")
+
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
+    created_by: Mapped[User] = relationship("User")
+
+    __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
