@@ -14,7 +14,7 @@ from uuid import uuid4
 import factory
 from flask import url_for
 
-from app.common.data.models import Grant, MagicLink, User
+from app.common.data.models import CollectionSchema, Grant, MagicLink, User
 from app.extensions import db
 
 
@@ -43,8 +43,23 @@ class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     code = factory.LazyFunction(lambda: secrets.token_urlsafe(12))
-    user_id = factory.LazyAttribute(lambda o: "o.user.id")
+    user_id = factory.LazyAttribute(lambda o: o.user.id)
     user = factory.SubFactory(_UserFactory)
     redirect_to_path = factory.LazyFunction(lambda: url_for("platform.list_grants"))
     expires_at_utc = factory.LazyFunction(lambda: datetime.datetime.now() + datetime.timedelta(minutes=15))
     claimed_at_utc = None
+
+
+class _CollectionSchemaFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = CollectionSchema
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+
+    id = factory.LazyFunction(uuid4)
+    name = factory.Sequence(lambda n: "Collection %d" % n)
+
+    created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
+    created_by = factory.SubFactory(_UserFactory)
+
+    grant_id = factory.LazyAttribute(lambda o: "o.grant.id")
+    grant = factory.SubFactory(_GrantFactory)

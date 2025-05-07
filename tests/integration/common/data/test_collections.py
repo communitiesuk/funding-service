@@ -1,8 +1,14 @@
 import pytest
 
-from app.common.data.interfaces.collections import create_collection_schema
+from app.common.data.interfaces.collections import create_collection_schema, get_collection_schema
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import CollectionSchema
+
+
+def test_get_collection(db_session, factories):
+    cs = factories.collection_schema.create()
+    from_db = get_collection_schema(collection_id=cs.id)
+    assert from_db is not None
 
 
 def test_create_collection(db_session, factories):
