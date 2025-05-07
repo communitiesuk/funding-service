@@ -20,6 +20,10 @@ vite:
 	npm install
 	npm run build
 
+.PHONY: format-html
+format-html:
+	npx prettier --plugin=prettier-plugin-jinja-template --parser=jinja-template --tab-width=2 --html-whitespace-sensitivity ignore --bracket-same-line=true --print-width=240 --write **/*.html
+
 .PHONY: build
 build:
 	docker compose build
