@@ -22,7 +22,7 @@ def get_collection_schema(collection_id: UUID4) -> CollectionSchema:
     return db.session.get_one(CollectionSchema, collection_id)
 
 
-def update_collection_schema(name: str, collection: CollectionSchema) -> CollectionSchema:
+def update_collection_schema(collection: CollectionSchema, *, name: str) -> CollectionSchema:
     collection.name = name
     try:
         db.session.flush()
