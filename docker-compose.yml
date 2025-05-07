@@ -33,7 +33,7 @@ services:
       uv run flask db upgrade
 
       npm run dev -- --host &
-      PYDEVD_DISABLE_FILE_VALIDATION=1 python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
+      PYDEVD_DISABLE_FILE_VALIDATION=1 python -m debugpy --listen 0.0.0.0:8081 -m gunicorn wsgi:app --certfile=/app/certs/cert.pem --key=/app/certs/key.pem
       "
     env_file: .env
     environment:
@@ -42,6 +42,7 @@ services:
       DATABASE_PORT: 5432
       DATABASE_NAME: "postgres"
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
+      GEVENT_SUPPORT: True
     depends_on:
       - db
     networks:
