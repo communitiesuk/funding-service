@@ -51,9 +51,9 @@ dev = [
     "html5lib==1.1",
     "types-html5lib==1.1.11.20241018",
     "types-pytz==2025.2.0.20250326",
-    "boto3==1.38.0",
-    "types-boto3==1.38.0",
-    "freezegun>=1.5.1",
+    "boto3==1.38.10",
+    "types-boto3==1.38.10",
+    "freezegun==1.5.1",
 ]
 
 [tool.ruff]
