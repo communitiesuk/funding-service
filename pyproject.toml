@@ -111,6 +111,7 @@ env = [
 markers = [
     "e2e: Run E2E (browser) tests using playwright",
     "authenticate_as: Email address to use for `authenticated_client` (integration) and `authenticated_browser` (e2e)",
+    "skip_in_environments: Environment in which this end to end test should be run",
     "freeze_time: Mock all calls to now() in code or database to return the specified date/time"
 ]
 

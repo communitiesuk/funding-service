@@ -43,10 +43,19 @@ def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     # If e2e tests are requested, skips everything not marked as e2e
     skip_e2e = pytest.mark.skip(reason="only running non-e2e tests")
     skip_non_e2e = pytest.mark.skip(reason="only running e2e tests")
+    skip_e2e_environment = pytest.mark.skip(reason="test is configured not to run in this e2e environment")
 
     e2e_run = config.getoption("--e2e")
+    e2e_env = config.getoption("--e2e-env")
+
     if e2e_run:
         for item in items:
+            if "e2e" in item.keywords:
+                if (
+                    item.get_closest_marker("skip_in_environments") is not None
+                    and e2e_env in item.get_closest_marker("skip_in_environments").args[0]
+                ):
+                    item.add_marker(skip_e2e_environment)
             if "e2e" not in item.keywords:
                 item.add_marker(skip_non_e2e)
     else:
