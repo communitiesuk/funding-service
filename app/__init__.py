@@ -26,20 +26,24 @@ from app.extensions import (
 
 def create_app() -> Flask:
     from app.common.data.base import BaseModel
+    from flask_sqlalchemy_lite import _extension
+
+    # Monkey patch to prevent app.teardown_appcontext(_close_async_sessions)
+    def noop(*args, **kwargs):
+        pass
+
+    _extension._close_async_sessions = noop  # Override the function with a no-op
 
     app = Flask(__name__, static_folder="assets/dist/", static_url_path="/static")
     app.config.from_object(get_settings())
 
     # Initialise extensions
     logging.init_app(app)
+    db.init_app(app)
+    # auto_commit_after_request.init_app(app)
 
     # Attach routes
-    # from app.common.auth import auth_blueprint
     from app.healthcheck import healthcheck_blueprint
-    # from app.platform import platform_blueprint
-
     app.register_blueprint(healthcheck_blueprint)
-    # app.register_blueprint(platform_blueprint)
-    # app.register_blueprint(auth_blueprint)
 
     return app
