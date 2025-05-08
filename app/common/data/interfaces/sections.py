@@ -3,13 +3,14 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import Section
+from app.common.data.models import CollectionSchema, Section
 from app.extensions import db
 
 
-def create_section(*, title: str, order: int, collection_schema_id: UUID) -> Section:
+def create_section(*, title: str, collection_schema: CollectionSchema) -> Section:
     """Create a new section."""
-    section = Section(title=title, order=order, collection_schema_id=collection_schema_id)
+    section = Section(title=title, collection_schema_id=collection_schema.id)
+    collection_schema.sections.append(section)
     db.session.add(section)
     try:
         db.session.flush()

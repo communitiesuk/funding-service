@@ -15,9 +15,10 @@ from app.common.data.interfaces.collections import (
     update_collection_schema,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.interfaces.sections import create_section
 from app.common.data.models import User
 from app.extensions import auto_commit_after_request
-from app.platform.forms import CollectionForm, GrantForm
+from app.platform.forms import CollectionForm, GrantForm, SectionForm
 
 platform_blueprint = Blueprint(name="platform", import_name=__name__)
 
@@ -136,4 +137,28 @@ def edit_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValu
 
     return render_template(
         "platform/developers/edit_collection.html", grant=collection.grant, collection=collection, form=form
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/add", methods=["GET", "POST"]
+)
+@mhclg_login_required
+@auto_commit_after_request
+def add_section(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
+    collection = get_collection_schema(collection_id)
+    form = SectionForm(collection_id=collection_id)
+    if form.validate_on_submit():
+        try:
+            assert form.title.data is not None
+            create_section(
+                title=form.title.data,
+                collection_schema=collection,
+            )
+            return redirect(url_for("platform.manage_collection", grant_id=grant_id, collection_id=collection_id))
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+    return render_template(
+        "platform/developers/add_section.html", grant=collection.grant, collection=collection, form=form
     )
