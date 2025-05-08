@@ -52,4 +52,9 @@
                   }
             }]
             }) }}
+{{ govukButton({
+            "text": "Add a section",
+            "classes": "govuk-button--secondary",
+            "href": url_for("platform.add_section", grant_id = grant.id, collection_id = collection.id)
+            }) }}
 {% endblock content %}
