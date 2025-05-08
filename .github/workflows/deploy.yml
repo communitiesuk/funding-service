@@ -82,23 +82,20 @@ jobs:
           echo "ecr_image_location=$ECR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
 
       - name: checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - name: Set up Python
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
+      - name: check if changeset includes migrations
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: changes
         with:
-          python-version: 3.13.3
+          filters: |
+            alembic-head:
+              - 'app/common/data/migrations/.current-alembic-head'
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
-        with:
-          enable-cache: true
 
-      - name: install dependencies
-        run: uv sync
       - name: Run Database Migrations
-        run: |
-          uv run scripts/run-ad-hoc-task.py --command "flask db upgrade"
+        if: steps.changes.outputs.alembic-head == 'true'
+        uses: ./.github/workflows/run-database-migrations
 
       - name: Deploy image to AppRunner
         id: deploy

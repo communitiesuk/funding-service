@@ -1,0 +1,41 @@
+name: Run Database Migrations
+
+
+permissions:
+  contents: read  # This is required for actions/checkout
+  id-token: write  # This is required for authenticating with aws
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description:  Which AWS Account to use
+        type: choice
+        required: true
+        options:
+        - dev
+        - test
+        - prod
+
+jobs:
+  run_migrations:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get current date
+        shell: bash
+        id: currentdatetime
+        run: echo "datetime=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4
+        with:
+            role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/GithubCopilotDeploy
+            role-session-name: "funding-service_deploy_${{ inputs.environment }}_${{ steps.currentdatetime.outputs.datetime }}"
+            aws-region: eu-west-2
+
+      - name: Run Database Migrations
+        uses: ./.github/workflows/run-database-migrations
