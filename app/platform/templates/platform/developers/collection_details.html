@@ -1,6 +1,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 
 {% extends "platform/manage_grant_base.html" %}
 
@@ -58,4 +59,28 @@
             "classes": "govuk-button--secondary",
             "href": url_for("platform.add_section", grant_id = grant.id, collection_id = collection.id)
             }) }}
+
+{% for section in collection.sections %}
+
+    <h2 class="govuk-heading-m">{{ section.title }}</h2>
+
+    {% set rows=[] %}
+    {% for form in section.forms %}
+        {% do rows.append({
+                "title": {
+                  "text": form,
+                },
+              "status": {
+                "text": "X questions"
+              },
+            "href": "#",
+          }) %}
+    {% endfor %}
+
+    {{ govukTaskList({
+        "idPrefix": section.slug,
+        "items": rows
+      }) }}
+
+{% endfor %}
 {% endblock content %}
