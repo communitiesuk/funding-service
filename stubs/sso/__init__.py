@@ -19,19 +19,23 @@ import uuid
 from urllib.parse import urlencode
 
 from flask import Flask, redirect, render_template, request
-from jinja2 import ChoiceLoader, PackageLoader
+from govuk_frontend_wtf.main import WTFormsHelpers
+from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
-from app.config import get_settings
 from stubs.sso.forms import SSOSignInForm
 
 app = Flask(__name__)
-app.config.from_object(get_settings())
+app.config["SECRET_KEY"] = "dummy-value"  # pragma: allowlist secret
 
 app.jinja_loader = ChoiceLoader(
     [
         PackageLoader("stubs.sso"),
+        PrefixLoader({"govuk_frontend_jinja": PackageLoader("govuk_frontend_jinja")}),
+        PrefixLoader({"govuk_frontend_wtf": PackageLoader("govuk_frontend_wtf")}),
     ]
 )
+
+WTFormsHelpers(app)
 
 dummy_nonce = ""
 email_address = ""

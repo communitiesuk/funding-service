@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextInput
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired, Email, ValidationError
 
@@ -17,6 +18,7 @@ class SSOSignInForm(FlaskForm):
             Email(message="Enter an email address in the correct format, like name@example.com"),
             validate_communities_gov_uk_email,
         ],
+        widget=GovTextInput(),
         filters=[lambda x: x.strip() if x else x],
     )
-    submit = SubmitField("Sign in")
+    submit = SubmitField("Sign in", widget=GovSubmitInput())
