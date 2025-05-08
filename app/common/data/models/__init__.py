@@ -74,4 +74,21 @@ class CollectionSchema(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
+    sections: Mapped[list["Section"]] = relationship("Section", lazy=True)
+
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
+
+
+class Section(BaseModel):
+    __tablename__ = "section"
+
+    title: Mapped[str]
+    order: Mapped[int]
+
+    collection_schema_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection_schema.id"))
+    collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema", back_populates="sections")
+
+    __table_args__ = (
+        UniqueConstraint("order", "collection_schema_id", name="uq_section_order_collection_schema"),
+        UniqueConstraint("title", "collection_schema_id", name="uq_section_title_collection_schema"),
+    )
