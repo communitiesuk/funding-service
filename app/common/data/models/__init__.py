@@ -104,21 +104,3 @@ class Section(BaseModel):
         UniqueConstraint("order", "collection_schema_id", name="uq_section_order_collection_schema", deferrable=True),
         UniqueConstraint("title", "collection_schema_id", name="uq_section_title_collection_schema"),
     )
-
-
-class Form(BaseModel):
-    __tablename__ = "form"
-
-    title: Mapped[str]
-    order: Mapped[int]
-    slug: Mapped[str]
-
-    section_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("section.id"))
-    section: Mapped[Section] = relationship("Section", back_populates="forms")
-
-    __table_args__ = (
-        UniqueConstraint("order", "section_id", name="uq_form_order_section", deferrable=True),
-        # TODO how can we make this unique per collection schema?
-        UniqueConstraint("title", "section_id", name="uq_form_title_section"),
-        UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
-    )
