@@ -4,6 +4,7 @@ import uuid
 
 from pytz import utc
 from sqlalchemy import ForeignKey, Index, UniqueConstraint
+from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
@@ -74,7 +75,9 @@ class CollectionSchema(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
-    sections: Mapped[list["Section"]] = relationship("Section", lazy=True)
+    sections: Mapped[list["Section"]] = relationship(
+        "Section", lazy=True, order_by="Section.order", collection_class=ordering_list("order", count_from=1)
+    )
 
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
 

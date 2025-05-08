@@ -26,7 +26,13 @@ from app import create_app
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _precompile_templates
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
-from tests.integration.models import _CollectionSchemaFactory, _GrantFactory, _MagicLinkFactory, _UserFactory
+from tests.integration.models import (
+    _CollectionSchemaFactory,
+    _GrantFactory,
+    _MagicLinkFactory,
+    _SectionFactory,
+    _UserFactory,
+)
 from tests.integration.utils import TimeFreezer
 from tests.utils import build_db_config
 
@@ -163,7 +169,7 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
             connection.close()
 
 
-_Factories = namedtuple("_Factories", ["grant", "user", "magic_link", "collection_schema"])
+_Factories = namedtuple("_Factories", ["grant", "user", "magic_link", "collection_schema", "section"])
 
 
 @pytest.fixture(scope="function")
@@ -173,6 +179,7 @@ def factories(db_session: Session) -> _Factories:
         user=_UserFactory,
         magic_link=_MagicLinkFactory,
         collection_schema=_CollectionSchemaFactory,
+        section=_SectionFactory,
     )
 
 
