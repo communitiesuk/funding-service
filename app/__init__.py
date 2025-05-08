@@ -19,6 +19,7 @@ from app.extensions import (
     talisman,
     toolbar,
 )
+from app.monkeypatch import patch_sqlalchemy_lite_async
 from app.sentry import init_sentry
 
 init_sentry()
@@ -32,6 +33,7 @@ def create_app() -> Flask:
 
     # Initialise extensions
     logging.init_app(app)
+    patch_sqlalchemy_lite_async()
     db.init_app(app)
     auto_commit_after_request.init_app(app)
     migrate.init_app(
