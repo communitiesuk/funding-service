@@ -25,7 +25,15 @@ init_sentry()
 
 
 def create_app() -> Flask:
+    from flask_sqlalchemy_lite import _extension
+
     from app.common.data.base import BaseModel
+
+    # Monkey patch to prevent app.teardown_appcontext(_close_async_sessions)
+    async def noop(*args: object, **kwargs: object) -> None:
+        pass
+
+    _extension._close_async_sessions = noop  # Override the function with a no-op
 
     app = Flask(__name__, static_folder="assets/dist/", static_url_path="/static")
     app.config.from_object(get_settings())
