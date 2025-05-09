@@ -22,13 +22,6 @@
     <span class="govuk-caption-l">{{ collection.name }}</span>
     {{ section.title }}
 </h1>
-{% set forms_text %}
-{% trans count=section.forms | length %}
-    {{ count }} form
-    {% pluralize %}
-    {{ count }} forms
-{% endtrans %}
-{% endset %}
 
 {{ govukSummaryList({
 "rows": [{
@@ -37,7 +30,7 @@
 "actions": {
 "items": [
 {
-"href": "#",
+"href": url_for("platform.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
 "text": "Change",
 "classes": "govuk-link--no-visited-state"
 }
@@ -46,6 +39,13 @@
 }]
 }) }}
 <h2 class="govuk-heading-m">Forms</h2>
+{% set forms_text %}
+{% trans count=section.forms | length %}
+    {{ count }} form
+    {% pluralize %}
+    {{ count }} forms
+{% endtrans %}
+{% endset %}
 
 
 {% if not section.forms %}
@@ -63,14 +63,18 @@
             </div>
             <div class="govuk-!-text-align-right">
                 {% if loop.index > 1 %}
-                    <a class="govuk-link--no-visited-state"
+                    <a class="govuk-link--no-visited-state {{ 'govuk-link--disabled' if loop.index == 1 else '' }}"
                        href="{{ url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, direction = 'up') }}">Move up</a>
+                {% else %}
+                    <span class="govuk-link--no-underline govuk-!-color-grey">Move up</span>
                 {% endif %}
-                {% if loop.index < collection.sections | length %}
-                    <a class="govuk-link--no-visited-state"
+                {% if loop.index < section.forms | length %}
+                    <a class="govuk-link--no-visited-state{{ 'govuk-link--disabled' if loop.index == collection.sections | length else '' }}"
                        href="{{ url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, direction = 'down') }}">Move down</a>
+                {% else %}
+                    <span class="govuk-link--no-underline govuk-!-color-grey">Move down</span>
                 {% endif %}
                 <a class="govuk-link--no-visited-state"
                    href="{{ url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
