@@ -34,3 +34,14 @@ class SectionForm(FlaskForm):
     )
     collection_id = HiddenField()
     submit = SubmitField(widget=GovSubmitInput())
+
+
+class FormForm(FlaskForm):
+    title = StringField(
+        "Form title",
+        validators=[DataRequired("Enter a form title")],
+        filters=[lambda x: x.strip() if x else x],
+        widget=GovTextInput(),
+    )
+    section_id = HiddenField()
+    submit = SubmitField(widget=GovSubmitInput())
