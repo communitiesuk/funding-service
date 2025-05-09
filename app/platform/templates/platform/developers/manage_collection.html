@@ -20,6 +20,7 @@
 {% block content %}
 <div class="app-body__watermark" aria-hidden="true">Developers</div>
 <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ grant.name }}</span>
     {{ collection.name }}
 </h1>
 {% set sections_text %}
@@ -37,7 +38,8 @@
                       "items": [
                           {
                             "href": url_for("platform.edit_collection", grant_id = grant.id, collection_id = collection.id),
-                            "text": "Change"
+                            "text": "Change",
+                            "classes": "govuk-link--no-visited-state"
                           }
                       ]
                   }
@@ -47,18 +49,21 @@
                   "actions": {
                       "items": [
                           {
-                            "href": "#",
-                            "text": "Manage"
+                            "href": url_for("platform.list_sections", grant_id = grant.id, collection_id = collection.id),
+                            "text": "Manage",
+                            "classes": "govuk-link--no-visited-state"
                           }
                       ]
                   }
             }]
             }) }}
-{{ govukButton({
-            "text": "Add a section",
-            "classes": "govuk-button--secondary",
-            "href": url_for("platform.add_section", grant_id = grant.id, collection_id = collection.id)
-            }) }}
+
+{% if not collection.sections %}
+    <p class="govuk-body">This collection has no sections, you can <a class="govuk-link--no-visited-state"
+                                                                      href="{{ url_for('platform.list_sections', grant_id = grant.id, collection_id = collection.id) }}">manage
+        sections</a>.</p>
+
+{% endif %}
 
 {% for section in collection.sections %}
 
@@ -73,7 +78,7 @@
               "status": {
                 "text": "X questions"
               },
-            "href": "#",
+            "href": "#"
           }) %}
     {% endfor %}
 
