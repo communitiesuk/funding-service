@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 # If updating the version here, also update in project.toml, .python-version, Dockerfile
-requires-python = ">=3.13"
+requires-python = "==3.13.3"
 dependencies = [
     "alembic-utils==0.8.8",
     "babel==2.17.0",
@@ -25,7 +25,7 @@ dependencies = [
     "flask-talisman==1.1.0",
     "flask-login==0.6.3",
     "sentry-sdk==2.26.1",
-    "msal>=1.32.3",
+    "msal==1.32.3",
 ]
 
 [dependency-groups]
