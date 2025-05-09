@@ -330,6 +330,14 @@ class PullPreviewConfig(_SharedConfig):
     PROXY_FIX_PROTO: int = 1
     PROXY_FIX_HOST: int = 1
 
+    # Azure Active Directory Config
+    # NB - this won't allow SSO to work yet on pull-previews, but will at least allow pull preview envs to start up
+    # correctly and magic link sign-in to be used until we can integrate the SSO stub server to work with pull preview.
+    AZURE_AD_CLIENT_ID: str = "00000000-0000-0000-0000-000000000000"
+    AZURE_AD_CLIENT_SECRET: str = "incorrect_value"
+    AZURE_AD_TENANT_ID: str = "00000000-0000-0000-0000-000000000000"
+    AZURE_AD_BASE_URL: str = "https://sso.communities.gov.localhost:4005/"
+
     # Talisman security settings
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
 
