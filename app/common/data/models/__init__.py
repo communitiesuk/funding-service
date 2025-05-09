@@ -97,10 +97,10 @@ class Section(BaseModel):
     collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema", back_populates="sections")
 
     __table_args__ = (
-        UniqueConstraint("order", "collection_schema_id", name="uq_section_order_collection_schema"),
+        UniqueConstraint("order", "collection_schema_id", name="uq_section_order_collection_schema", deferrable=True),
         UniqueConstraint("title", "collection_schema_id", name="uq_section_title_collection_schema"),
     )
 
     @property
-    def forms(self) -> list[str]:
-        return ["Form 1", "Form 2"]
+    def forms(self) -> list[dict[str, str]]:
+        return [{"title": "Form 1", "id": str(uuid.uuid4())}, {"title": "Form 2", "id": str(uuid.uuid4())}]

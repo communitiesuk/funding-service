@@ -1,0 +1,82 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+
+{% extends "platform/manage_grant_base.html" %}
+
+{% block pageTitle %}
+    {{ section.title }} - {{ collection.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+{% block beforeContent %}
+    {{ govukBackLink({
+        "text": "Back",
+        "href": url_for("platform.manage_collection", grant_id = grant.id, collection_id=collection.id)
+    }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+<h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ collection.name }}</span>
+    {{ section.title }}
+</h1>
+{% set forms_text %}
+{% trans count=section.forms | length %}
+    {{ count }} form
+    {% pluralize %}
+    {{ count }} forms
+{% endtrans %}
+{% endset %}
+
+{{ govukSummaryList({
+"rows": [{
+"key": {"text": "Title"},
+"value":{"text": section.title},
+"actions": {
+"items": [
+{
+"href": "#",
+"text": "Change",
+"classes": "govuk-link--no-visited-state"
+}
+]
+}
+}]
+}) }}
+<h2 class="govuk-heading-m">Forms</h2>
+
+
+{% if not section.forms %}
+    <p class="govuk-body">This section has no forms.</p>
+{% else %}
+
+    <p class="govuk-body">This collection has {{ forms_text }}.</p>
+{% endif %}
+
+<ul class="govuk-task-list">
+    {% for form in section.forms %}
+        <li class="govuk-task-list__item">
+            <div class="govuk-task-list__item-title">
+                {{ form.title }}
+            </div>
+            <div class="govuk-!-text-align-right">
+                {% if loop.index > 1 %}
+                    <a class="govuk-link--no-visited-state"
+                       href="{{ url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, direction = 'up') }}">Move up</a>
+                {% endif %}
+                {% if loop.index < collection.sections | length %}
+                    <a class="govuk-link--no-visited-state"
+                       href="{{ url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, direction = 'down') }}">Move down</a>
+                {% endif %}
+                <a class="govuk-link--no-visited-state"
+                   href="{{ url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id) }}">Manage</a>
+            </div>
+        </li>
+    {% endfor %}
+</ul>
+{% endblock content %}
