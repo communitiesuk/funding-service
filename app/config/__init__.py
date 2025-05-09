@@ -244,6 +244,9 @@ class _SharedConfig(_BaseConfig):
     # https://docs.microsoft.com/en-us/graph/permissions-reference
     MS_GRAPH_PERMISSIONS_SCOPE: list[str] = ["User.ReadBasic.All"]
 
+    # Internal Domains
+    INTERNAL_DOMAINS: tuple[str, ...] = ("@communities.gov.uk", "@test.communities.gov.uk")
+
     @property
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD
@@ -344,6 +347,9 @@ class ProdConfig(_SharedConfig):
     """
     Overrides / default configuration for our deployed 'prod' environment
     """
+
+    # Internal Domains
+    INTERNAL_DOMAINS: tuple[str, ...] = ("@communities.gov.uk",)
 
     # Flask app
     FLASK_ENV: Environment = Environment.PROD

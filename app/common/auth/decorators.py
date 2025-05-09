@@ -1,7 +1,7 @@
 import functools
 from typing import Callable, cast
 
-from flask import abort, redirect, request, session, url_for
+from flask import abort, current_app, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
 
@@ -29,7 +29,8 @@ def mhclg_login_required[**P](
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
         # This decorator is itself wrapped by `login_required`, so we know that `current_user` exists and is
         # not an anonymous user (ie a user is definitely logged-in) if we get here.
-        if not cast(User, current_user).email.endswith("@communities.gov.uk"):
+        internal_domains = current_app.config["INTERNAL_DOMAINS"]
+        if not cast(User, current_user).email.endswith(internal_domains):
             abort(403)
 
         return func(*args, **kwargs)
