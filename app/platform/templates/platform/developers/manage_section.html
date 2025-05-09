@@ -83,4 +83,9 @@
         </li>
     {% endfor %}
 </ul>
+{{ govukButton({
+            "text": "Add a form",
+            "classes": "govuk-button--secondary",
+            "href": url_for("platform.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
+            }) }}
 {% endblock content %}

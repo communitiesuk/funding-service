@@ -29,6 +29,7 @@ from tests.conftest import FundingServiceTestClient, _precompile_templates
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
 from tests.integration.models import (
     _CollectionSchemaFactory,
+    _FormFactory,
     _GrantFactory,
     _MagicLinkFactory,
     _SectionFactory,
@@ -182,7 +183,7 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
             connection.close()
 
 
-_Factories = namedtuple("_Factories", ["grant", "user", "magic_link", "collection_schema", "section"])
+_Factories = namedtuple("_Factories", ["grant", "user", "magic_link", "collection_schema", "section", "form"])
 
 
 @pytest.fixture(scope="function")
@@ -193,6 +194,7 @@ def factories(db_session: Session) -> _Factories:
         magic_link=_MagicLinkFactory,
         collection_schema=_CollectionSchemaFactory,
         section=_SectionFactory,
+        form=_FormFactory,
     )
 
 
