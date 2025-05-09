@@ -27,10 +27,9 @@ def get_section_by_id(section_id: UUID) -> Section:
     return db.session.get_one(Section, section_id)
 
 
-def update_section(section: Section, *, title: str, order: int) -> Section:
+def update_section(section: Section, *, title: str) -> Section:
     """Update an existing section."""
     section.title = title
-    section.order = order
 
     try:
         db.session.flush()
