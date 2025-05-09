@@ -28,7 +28,7 @@ class TestSignInView:
         response = client.post(url_for("auth.request_a_link_to_sign_in"), data={"email_address": "test@example.com"})
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Email address must end with @communities.gov.uk")
+        assert page_has_error(soup, "Email address must end with @communities.gov.uk or @test.communities.gov.uk")
 
     def test_post_valid_email(self, anonymous_client, mock_notification_service_calls):
         response = anonymous_client.post(
@@ -63,7 +63,7 @@ class TestSignInView:
 
         response = anonymous_client.post(
             url_for("auth.request_a_link_to_sign_in"),
-            data={"email_address": "test@communities.gov.uk"},
+            data={"email_address": "test@test.communities.gov.uk"},
             follow_redirects=True,
         )
         assert response.status_code == 200

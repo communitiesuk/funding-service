@@ -26,6 +26,7 @@ from stubs.sso.forms import SSOSignInForm
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "dummy-value"  # pragma: allowlist secret
+app.config["INTERNAL_DOMAINS"] = ("@communities.gov.uk", "@test.communities.gov.uk")
 
 app.jinja_loader = ChoiceLoader(
     [
