@@ -114,7 +114,7 @@ class Form(BaseModel):
     slug: Mapped[str]
 
     section_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("section.id"))
-    section: Mapped[CollectionSchema] = relationship("Section", back_populates="forms")
+    section: Mapped[Section] = relationship("Section", back_populates="forms")
 
     __table_args__ = (
         UniqueConstraint("order", "section_id", name="uq_form_order_section", deferrable=True),
