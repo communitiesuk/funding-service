@@ -105,7 +105,7 @@ jobs:
           image: ${{ steps.push_image.outputs.ecr_image_location }}
           access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
           region: eu-west-2
-          port: 5000
+          port: 8080
           cpu : 1
           memory : 2
           wait-for-service-stability-seconds: 600
