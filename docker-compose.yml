@@ -42,10 +42,35 @@ services:
       DATABASE_PORT: 5432
       DATABASE_NAME: "postgres"
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
     depends_on:
       - db
     networks:
       - ofs
+
+  sso:
+    build: .
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - '/app/.venv' # Don't overwrite this directory with local .venv because uv links won't translate in the container
+    ports:
+      - "4005:4005" # application
+    stdin_open: true
+    tty: true
+    command: >
+      bash -c "
+      cp /app/certs/rootCA.pem /usr/local/share/ca-certificates/rootCA.crt && \
+      update-ca-certificates
+
+      uv run flask run --host 0.0.0.0 --port 4005 --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
+      "
+    environment:
+      FLASK_APP: "stubs.sso"
+    networks:
+      ofs:
+        aliases:
+          - sso.communities.gov.localhost
 
 volumes:
   postgres_data:

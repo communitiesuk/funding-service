@@ -1,11 +1,11 @@
 {% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
 
 {% set nav_items = [
-    {"text": "Grants", "href": url_for("platform.list_grants"), "current": active_item_identifier == "grants"},
+{"text": "Grants", "href": url_for("platform.list_grants"), "current": active_item_identifier == "grants"},
 ] if current_user.is_authenticated else [] %}
 
 {{ govukServiceNavigation({
-    "serviceName": "Grant Management",
-    "serviceUrl": "#",
-    "navigation": nav_items,
+"serviceName": "Deliver grant funding",
+"serviceUrl": "#",
+"navigation": nav_items,
 }) }}

@@ -10,7 +10,7 @@ def validate_communities_gov_uk_email(form: FlaskForm, field: StringField) -> No
             raise ValidationError("Email address must end with @communities.gov.uk")
 
 
-class SignInForm(FlaskForm):
+class SSOSignInForm(FlaskForm):
     email_address = StringField(
         "Email address",
         validators=[
@@ -18,15 +18,7 @@ class SignInForm(FlaskForm):
             Email(message="Enter an email address in the correct format, like name@example.com"),
             validate_communities_gov_uk_email,
         ],
-        filters=[lambda x: x.strip() if x else x],
         widget=GovTextInput(),
+        filters=[lambda x: x.strip() if x else x],
     )
-    submit = SubmitField("Request a link", widget=GovSubmitInput())
-
-
-class ClaimMagicLinkForm(FlaskForm):
-    submit = SubmitField("Sign in", widget=GovSubmitInput())
-
-
-class SSOSignInForm(FlaskForm):
     submit = SubmitField("Sign in", widget=GovSubmitInput())

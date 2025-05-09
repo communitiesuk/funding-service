@@ -47,6 +47,34 @@ class RequestALinkToSignInPage(BasePage):
         self.request_a_link.click()
 
 
+class SSOSignInPage(BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Deliver grant funding")
+        self.sign_in = self.page.get_by_role("button", name="Sign in")
+
+    def navigate(self) -> None:
+        self.page.goto(f"{self.domain}/sso/sign-in")
+        expect(self.title).to_be_visible()
+
+    def click_sign_in(self) -> None:
+        self.sign_in.click()
+
+
+class StubSSOEmailLoginPage(BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Local SSO Stub Login")
+        self.email_address = self.page.get_by_role("textbox", name="Email address")
+        self.sign_in = self.page.get_by_role("button", name="Sign in")
+
+    def click_sign_in(self) -> None:
+        self.sign_in.click()
+
+    def fill_email_address(self, email_address: str) -> None:
+        self.email_address.fill(email_address)
+
+
 class AllGrantsPage(TopNavMixin, BasePage):
     title: Locator
 

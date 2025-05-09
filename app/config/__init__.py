@@ -229,6 +229,21 @@ class _SharedConfig(_BaseConfig):
     ASSETS_VITE_BASE_URL: str = "http://localhost:5173"
     ASSETS_VITE_LIVE_ENABLED: bool = False
 
+    # Azure Active Directory Config
+    AZURE_AD_CLIENT_ID: str
+    AZURE_AD_CLIENT_SECRET: str
+    AZURE_AD_TENANT_ID: str
+    AZURE_AD_BASE_URL: str = "https://login.microsoftonline.com/"
+
+    # consumers|organizations|<tenant_id> - signifies the Azure AD tenant endpoint # noqa
+    @property
+    def AZURE_AD_AUTHORITY(self) -> str:
+        return self.AZURE_AD_BASE_URL + self.AZURE_AD_TENANT_ID
+
+    # You can find the proper permission names from this document
+    # https://docs.microsoft.com/en-us/graph/permissions-reference
+    MS_GRAPH_PERMISSIONS_SCOPE: list[str] = ["User.ReadBasic.All"]
+
     @property
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD
@@ -245,6 +260,16 @@ class LocalConfig(_SharedConfig):
     PROXY_FIX_PROTO: int = 0
     PROXY_FIX_HOST: int = 0
     SERVER_NAME: str = "funding.communities.gov.localhost:8080"
+
+    # The LocalConfig needs default values for these AZURE_AD variables so that the Check DB Migrations job
+    # can run correctly in CI but these should be overwritten in your local .env file with real values
+    # and setting AZURE_AD_BASE_URL to https://login.microsoftonline.com/ if you want to sign in with SSO locally
+
+    # Azure Active Directory Config
+    AZURE_AD_CLIENT_ID: str = "00000000-0000-0000-0000-000000000000"
+    AZURE_AD_CLIENT_SECRET: str = "incorrect_value"
+    AZURE_AD_TENANT_ID: str = "00000000-0000-0000-0000-000000000000"
+    AZURE_AD_BASE_URL: str = "https://sso.communities.gov.localhost:4005/"
 
     # Talisman security settings
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
