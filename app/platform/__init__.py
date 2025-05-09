@@ -15,7 +15,13 @@ from app.common.data.interfaces.collections import (
     update_collection_schema,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.interfaces.sections import create_section, get_section_by_id, move_section_down, move_section_up
+from app.common.data.interfaces.sections import (
+    create_section,
+    get_section_by_id,
+    move_section_down,
+    move_section_up,
+    update_section,
+)
 from app.common.data.models import User
 from app.extensions import auto_commit_after_request
 from app.platform.forms import CollectionForm, GrantForm, SectionForm
@@ -255,4 +261,35 @@ def manage_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_i
 
     return redirect(
         url_for("platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id)
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/edit",
+    methods=["GET", "POST"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def edit_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> ResponseReturnValue:
+    section = get_section_by_id(section_id)
+    form = SectionForm(obj=section)
+    if form.validate_on_submit():
+        try:
+            assert form.title.data is not None
+            update_section(section=section, title=form.title.data)
+            return redirect(
+                url_for(
+                    "platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id
+                )
+            )
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "platform/developers/edit_section.html",
+        grant=section.collection_schema.grant,
+        collection=section.collection_schema,
+        section=section,
+        form=form,
     )

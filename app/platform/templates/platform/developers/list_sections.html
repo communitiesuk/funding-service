@@ -42,11 +42,15 @@
                     <a class="govuk-link--no-visited-state"
                        href="{{ url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, direction = 'up') }}">Move up</a>
+                {% else %}
+                    <span class="govuk-link--no-underline govuk-!-color-grey">Move up</span>
                 {% endif %}
                 {% if loop.index < collection.sections | length %}
                     <a class="govuk-link--no-visited-state"
                        href="{{ url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, direction = 'down') }}">Move down</a>
+                {% else %}
+                    <span class="govuk-link--no-underline govuk-!-color-grey">Move down</span>
                 {% endif %}
                 <a class="govuk-link--no-visited-state"
                    href="{{ url_for('platform.manage_section', grant_id = grant.id, collection_id = collection.id,
