@@ -4,7 +4,7 @@
 {% extends "platform/manage_grant_base.html" %}
 
 {% block pageTitle %}
-    Edit collection - MHCLG Funding Service
+    Edit section - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
@@ -12,17 +12,17 @@
 {% block beforeContent %}
     {{ govukBackLink({
       "text": "Back",
-      "href": url_for("platform.manage_collection", grant_id=grant.id, collection_id = collection.id)
+      "href": url_for("platform.manage_section", grant_id=grant.id, collection_id = collection.id, section_id = section.id)
     }) }}
 {% endblock %}
 
 {% block content %}
     <h1 class="govuk-heading-l">
-        Edit collection details
+        Edit section details
     </h1>
     <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.name }}
+        {{ form.title }}
         {{ form.submit }}
     </form>
 {% endblock %}
