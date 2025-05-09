@@ -15,7 +15,7 @@ from app.common.data.interfaces.collections import (
     update_collection_schema,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.interfaces.sections import create_section
+from app.common.data.interfaces.sections import create_section, get_section_by_id, move_section_down, move_section_up
 from app.common.data.models import User
 from app.extensions import auto_commit_after_request
 from app.platform.forms import CollectionForm, GrantForm, SectionForm
@@ -115,7 +115,7 @@ def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
 @auto_commit_after_request
 def manage_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
     collection = get_collection_schema(collection_id)
-    return render_template("platform/developers/collection_details.html", grant=collection.grant, collection=collection)
+    return render_template("platform/developers/manage_collection.html", grant=collection.grant, collection=collection)
 
 
 @platform_blueprint.route(
@@ -155,10 +155,104 @@ def add_section(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
                 title=form.title.data,
                 collection_schema=collection,
             )
-            return redirect(url_for("platform.manage_collection", grant_id=grant_id, collection_id=collection_id))
+            return redirect(url_for("platform.list_sections", grant_id=grant_id, collection_id=collection_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
     return render_template(
         "platform/developers/add_section.html", grant=collection.grant, collection=collection, form=form
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/", methods=["GET", "POST"]
+)
+@mhclg_login_required
+@auto_commit_after_request
+def list_sections(
+    grant_id: UUID4,
+    collection_id: UUID4,
+) -> ResponseReturnValue:
+    collection_schema = get_collection_schema(collection_id)
+    return render_template(
+        "platform/developers/list_sections.html", grant=collection_schema.grant, collection=collection_schema
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/move/<string:direction>",
+    methods=["GET"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def move_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, direction: str) -> ResponseReturnValue:
+    section = get_section_by_id(section_id)
+
+    if direction == "up":
+        move_section_up(section)
+    elif direction == "down":
+        move_section_down(section)
+
+    return redirect(url_for("platform.list_sections", grant_id=grant_id, collection_id=collection_id))
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/manage",
+    methods=["GET"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def manage_section(
+    grant_id: UUID4,
+    collection_id: UUID4,
+    section_id: UUID4,
+) -> ResponseReturnValue:
+    section = get_section_by_id(section_id)
+    return render_template(
+        "platform/developers/manage_section.html",
+        grant=section.collection_schema.grant,
+        collection=section.collection_schema,
+        section=section,
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/move/<string:direction>",
+    methods=["GET"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def move_form(
+    grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4, direction: str
+) -> ResponseReturnValue:
+    # section = get_section_by_id(section_id)
+    #
+    #
+    # if direction == "up":
+    #     move_section_up(section)
+    # elif direction == "down":
+    #     move_section_down(section)
+
+    return redirect(
+        url_for("platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id)
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/manage",
+    methods=["GET"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def manage_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
+    # section = get_section_by_id(section_id)
+    #
+    #
+    # if direction == "up":
+    #     move_section_up(section)
+    # elif direction == "down":
+    #     move_section_down(section)
+
+    return redirect(
+        url_for("platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id)
     )
