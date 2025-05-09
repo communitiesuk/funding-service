@@ -31,7 +31,9 @@ def upgrade() -> None:
             name=op.f("fk_section_collection_schema_id_collection_schema"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_section")),
-        sa.UniqueConstraint("order", "collection_schema_id", name="uq_section_order_collection_schema"),
+        sa.UniqueConstraint(
+            "order", "collection_schema_id", name="uq_section_order_collection_schema", deferrable=True
+        ),
         sa.UniqueConstraint("title", "collection_schema_id", name="uq_section_title_collection_schema"),
     )
     # ### end Alembic commands ###
