@@ -96,7 +96,7 @@ def grant_developers(grant_id: UUID4) -> str:
 @mhclg_login_required
 def grant_developers_collections(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("platform/developers/collections_list.html", grant=grant)
+    return render_template("platform/developers/list_collections.html", grant=grant)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>/developers/collections/set-up", methods=["GET", "POST"])
@@ -113,7 +113,7 @@ def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
-    return render_template("platform/developers/create_collection.html", grant=grant, form=form)
+    return render_template("platform/developers/add_collection.html", grant=grant, form=form)
 
 
 @platform_blueprint.route(
