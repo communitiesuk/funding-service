@@ -31,34 +31,35 @@
 <p class="govuk-body">This collection has {{ sections_text }}</p>
 
 
-<ul class="govuk-task-list">
-    {% for section in collection.sections %}
-        <li class="govuk-task-list__item">
-            <div class="govuk-task-list__item-title">
-                {{ section.title }}
-            </div>
-            <div class="govuk-!-text-align-right">
-                {% if loop.index > 1 %}
-                    <a class="govuk-link--no-visited-state"
-                       href="{{ url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, direction = 'up') }}">Move up</a>
-                {% else %}
-                    <span class="govuk-link--no-underline govuk-!-color-grey">Move up</span>
-                {% endif %}
-                {% if loop.index < collection.sections | length %}
-                    <a class="govuk-link--no-visited-state"
-                       href="{{ url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, direction = 'down') }}">Move down</a>
-                {% else %}
-                    <span class="govuk-link--no-underline govuk-!-color-grey">Move down</span>
-                {% endif %}
-                <a class="govuk-link--no-visited-state"
-                   href="{{ url_for('platform.manage_section', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id) }}">Manage</a>
-            </div>
-        </li>
-    {% endfor %}
-</ul>
+{% set section_rows = [] %}
+{% for section in collection.sections %}
+    {% do section_rows.append({
+        "key": {"text": "Section " + section.order| string },
+        "value": {"text": section.title},
+        "actions": {
+            "items": [
+            {   "href":url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, direction = 'up'),
+                "text": "Move up",
+},
+            {   "href":url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, direction = 'down') ,
+                "text": "Move down",
+},
+            {   "href":url_for('platform.manage_section', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id),
+                "text": "Manage",
+}
+
+            ]
+        }
+    }) %}
+{% endfor %}
+
+{% if collection.sections %}
+    {{ govukSummaryList({"rows":section_rows}) }}
+{% endif %}
+
 
 {{ govukButton({
             "text": "Add a section",

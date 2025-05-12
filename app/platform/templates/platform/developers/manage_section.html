@@ -49,40 +49,47 @@
 
 
 {% if not section.forms %}
-    <p class="govuk-body">This section has no forms.</p>
+    <p class="govuk-body">This section has no forms, you can
+        <a class="govuk-link--no-visited-state"
+           href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
+            a form</a>.</p>
 {% else %}
 
-    <p class="govuk-body">This collection has {{ forms_text }}.</p>
+    <p class="govuk-body">This section has {{ forms_text }}.</p>
 {% endif %}
 
-<ul class="govuk-task-list">
-    {% for form in section.forms %}
-        <li class="govuk-task-list__item">
-            <div class="govuk-task-list__item-title">
-                {{ form.title }}
-            </div>
-            <div class="govuk-!-text-align-right">
-                {% if loop.index > 1 %}
-                    <a class="govuk-link--no-visited-state {{ 'govuk-link--disabled' if loop.index == 1 else '' }}"
-                       href="{{ url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, direction = 'up') }}">Move up</a>
-                {% else %}
-                    <span class="govuk-link--no-underline govuk-!-color-grey">Move up</span>
-                {% endif %}
-                {% if loop.index < section.forms | length %}
-                    <a class="govuk-link--no-visited-state{{ 'govuk-link--disabled' if loop.index == collection.sections | length else '' }}"
-                       href="{{ url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, direction = 'down') }}">Move down</a>
-                {% else %}
-                    <span class="govuk-link--no-underline govuk-!-color-grey">Move down</span>
-                {% endif %}
-                <a class="govuk-link--no-visited-state"
-                   href="{{ url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, back_link="manage_section") }}">Manage</a>
-            </div>
-        </li>
-    {% endfor %}
-</ul>
+
+{% set form_rows = [] %}
+{% for form in section.forms %}
+    {% do form_rows.append({
+        "key": {"text": "Form " + form.order| string },
+        "value": {"text": form.title},
+        "actions": {
+            "items": [
+            {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, direction = 'up'),
+                "text": "Move up",
+                "classes": "govuk-link--no-visited-state",
+},
+            {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, direction = 'down'),
+                "text": "Move down",
+                "classes": "govuk-link--no-visited-state",
+},
+            {   "href":url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, back_link="manage_section"),
+                "text": "Manage",
+                "classes": "govuk-link--no-visited-state",
+}
+
+            ]
+        }
+    }) %}
+{% endfor %}
+
+{% if section.forms %}
+    {{ govukSummaryList({"rows":form_rows}) }}
+{% endif %}
 {{ govukButton({
             "text": "Add a form",
             "classes": "govuk-button--secondary",
