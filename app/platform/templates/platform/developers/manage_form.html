@@ -62,7 +62,7 @@
         {% for question in form.questions %}
             {% do rows.append({
                 "title": {
-                  "text": question,
+                  "text": question.text,
                 },
               "status": {
                 "text": "Move up | Move down"

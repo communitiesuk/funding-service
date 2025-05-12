@@ -1,6 +1,7 @@
 import datetime
 import secrets
 import uuid
+from typing import Optional
 
 from pytz import utc
 from slugify import slugify
@@ -103,4 +104,46 @@ class Section(BaseModel):
     __table_args__ = (
         UniqueConstraint("order", "collection_schema_id", name="uq_section_order_collection_schema", deferrable=True),
         UniqueConstraint("title", "collection_schema_id", name="uq_section_title_collection_schema"),
+    )
+
+
+class Form(BaseModel):
+    __tablename__ = "form"
+
+    title: Mapped[str]
+    order: Mapped[int]
+    slug: Mapped[str]
+
+    section_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("section.id"))
+    section: Mapped[Section] = relationship("Section", back_populates="forms")
+
+    __table_args__ = (
+        UniqueConstraint("order", "section_id", name="uq_form_order_section", deferrable=True),
+        # TODO how can we make this unique per collection schema?
+        UniqueConstraint("title", "section_id", name="uq_form_title_section"),
+        UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
+    )
+
+    questions: Mapped[list["Question"]] = relationship(
+        "Question", lazy=True, order_by="Question.order", collection_class=ordering_list("order", count_from=1)
+    )
+
+
+class Question(BaseModel):
+    __tablename__ = "question"
+
+    text: Mapped[str]
+    slug: Mapped[str]
+    order: Mapped[int]
+    hint: Mapped[Optional[str]]
+    data_type: Mapped[str]  # TODO this will be an enum in proper data model
+    name: Mapped[str]
+
+    form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
+    form: Mapped[Form] = relationship("Form", back_populates="questions")
+
+    __table_args__ = (
+        UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
+        UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
+        UniqueConstraint("name", "form_id", name="uq_question_name_form"),
     )

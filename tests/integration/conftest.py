@@ -31,6 +31,7 @@ from tests.integration.models import (
     _FormFactory,
     _GrantFactory,
     _MagicLinkFactory,
+    _QuestionFactory,
     _SectionFactory,
     _UserFactory,
 )
@@ -170,7 +171,9 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
             connection.close()
 
 
-_Factories = namedtuple("_Factories", ["grant", "user", "magic_link", "collection_schema", "section", "form"])
+_Factories = namedtuple(
+    "_Factories", ["grant", "user", "magic_link", "collection_schema", "section", "form", "question"]
+)
 
 
 @pytest.fixture(scope="function")
@@ -182,6 +185,7 @@ def factories(db_session: Session) -> _Factories:
         collection_schema=_CollectionSchemaFactory,
         section=_SectionFactory,
         form=_FormFactory,
+        question=_QuestionFactory,
     )
 
 

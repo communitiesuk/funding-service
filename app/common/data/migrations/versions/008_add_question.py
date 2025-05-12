@@ -1,0 +1,40 @@
+"""Add question table
+
+Revision ID: 008_add_question
+Revises: 007_add_section_form
+Create Date: 2025-05-12 14:51:11.943324
+
+"""
+
+import sqlalchemy as sa
+from alembic import op
+
+revision = "008_add_question"
+down_revision = "007_add_section_form"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "question",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("created_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column("text", sa.String(), nullable=False),
+        sa.Column("slug", sa.String(), nullable=False),
+        sa.Column("order", sa.Integer(), nullable=False),
+        sa.Column("hint", sa.String(), nullable=True),
+        sa.Column("data_type", sa.String(), nullable=False),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("form_id", sa.Uuid(), nullable=False),
+        sa.ForeignKeyConstraint(["form_id"], ["form.id"], name=op.f("fk_question_form_id_form")),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_question")),
+        sa.UniqueConstraint("name", "form_id", name="uq_question_name_form"),
+        sa.UniqueConstraint("order", "form_id", deferrable="True", name="uq_question_order_form"),
+        sa.UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
+    )
+
+
+def downgrade() -> None:
+    op.drop_table("question")

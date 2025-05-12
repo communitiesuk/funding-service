@@ -14,7 +14,7 @@ from uuid import uuid4
 import factory
 from flask import url_for
 
-from app.common.data.models import CollectionSchema, Form, Grant, MagicLink, Section, User
+from app.common.data.models import CollectionSchema, Form, Grant, MagicLink, Question, Section, User
 from app.extensions import db
 
 
@@ -90,3 +90,18 @@ class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     section = factory.SubFactory(_SectionFactory)
     section_id = factory.LazyAttribute(lambda o: o.section.id)
+
+
+class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Question
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+
+    id = factory.LazyFunction(uuid4)
+    text = factory.Sequence(lambda n: "Question %d" % n)
+    slug = factory.Sequence(lambda n: "question-%d" % n)
+    order = factory.LazyAttribute(lambda o: len(o.form.questions) + 1)
+    data_type = "text"
+
+    form = factory.SubFactory(_FormFactory)
+    form_id = factory.LazyAttribute(lambda o: o.form.id)
