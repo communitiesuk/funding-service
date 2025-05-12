@@ -6,8 +6,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import CollectionSchema, Form, Grant, Section, User
 from app.common.utils import slugify
+from app.common.data.models import CollectionSchema, Form, Grant, Question, Section, User
 from app.extensions import db
 
 
@@ -135,3 +135,20 @@ def update_form(form: Form, *, title: str) -> Form:
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return form
+
+
+def create_question(form: Form, *, text: str, hint: str) -> Question:
+    question = Question(text=text, form_id=form.id, slug=slugify(text), hint=hint)
+    form.questions.append(question)
+    db.session.add(question)
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return question
+
+
+def get_question_by_id(question_id: UUID4) -> Question:
+    return db.session.get_one(Question, question_id)

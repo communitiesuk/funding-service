@@ -2,6 +2,7 @@ import datetime
 import secrets
 import uuid
 from enum import Enum
+from typing import Optional
 
 from pytz import utc
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
@@ -189,4 +190,28 @@ class Form(BaseModel):
         # TODO how can we make this unique per collection schema?
         UniqueConstraint("title", "section_id", name="uq_form_title_section"),
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
+    )
+
+    questions: Mapped[list["Question"]] = relationship(
+        "Question", lazy=True, order_by="Question.order", collection_class=ordering_list("order")
+    )
+
+
+class Question(BaseModel):
+    __tablename__ = "question"
+
+    text: Mapped[str]
+    slug: Mapped[str]
+    order: Mapped[int]
+    hint: Mapped[Optional[str]]
+    data_type: Mapped[str]  # TODO this will be an enum in proper data model
+    name: Mapped[str]
+
+    form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
+    form: Mapped[Form] = relationship("Form", back_populates="questions")
+
+    __table_args__ = (
+        UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
+        UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
+        UniqueConstraint("name", "form_id", name="uq_question_name_form"),
     )

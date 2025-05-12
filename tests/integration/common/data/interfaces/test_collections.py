@@ -6,6 +6,7 @@ from app.common.data.interfaces.collections import (
     create_section,
     get_collection_schema,
     get_form_by_id,
+    get_question_by_id,
     get_section_by_id,
     move_form_down,
     move_form_up,
@@ -170,3 +171,9 @@ def test_move_form_up_down(db_session, factories):
 
     assert form1.order == 0
     assert form2.order == 1
+
+
+def test_get_question(db_session, factories):
+    q = factories.question.create()
+    from_db = get_question_by_id(question_id=q.id)
+    assert from_db is not None
