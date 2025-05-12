@@ -1,0 +1,75 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+
+{% extends "platform/manage_grant_base.html" %}
+
+{% block pageTitle %}
+    {{ collection.name }} - {{ grant.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+{% block beforeContent %}
+    {{ govukBackLink({
+        "text": "Back",
+        "href": back_link_href
+    }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+<h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ section.title }}</span>
+    {{ form.title }}
+</h1>
+{% set question_text %}
+{% trans count=form.questions | length %}
+    {{ count }} question
+    {% pluralize %}
+    {{ count }} questions
+{% endtrans %}
+{% endset %}
+{{ govukSummaryList({
+              "rows": [{
+                  "key": {"text": "Title"},
+                  "value":{"text": form.title},
+                  "actions": {
+                      "items": [
+                          {
+                            "href": "#",
+                            "text": "Change",
+                            "classes": "govuk-link--no-visited-state"
+                          }
+                      ]
+                  }
+            }]
+            }) }}
+
+{% if not collection.sections %}
+    <p class="govuk-body">This form has no questions, you can <a class="govuk-link--no-visited-state"
+                                                                 href="#">add a question</a>.</p>
+
+{% endif %}
+
+<h2 class="govuk-heading-m">Questions</h2>
+
+{% for question in form.questions %}
+    {% set rows=[] %}
+    {% for question in form.questions %}
+        {% do rows.append({
+                "title": {
+                  "text": question,
+                },
+              "status": {
+                "text": "Move up | Move down"
+              },
+          }) %}
+    {% endfor %}
+
+    {{ govukTaskList({
+        "idPrefix": form.slug,
+        "items": rows
+      }) }}
+
+{% endfor %}
+{% endblock content %}
