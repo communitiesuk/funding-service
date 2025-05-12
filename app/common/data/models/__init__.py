@@ -122,3 +122,7 @@ class Form(BaseModel):
         UniqueConstraint("title", "section_id", name="uq_form_title_section"),
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
     )
+
+    @property
+    def questions(self) -> list[str]:
+        return ["Dummy question 1", "Dummy question 2"]  # Placeholder for actual questions
