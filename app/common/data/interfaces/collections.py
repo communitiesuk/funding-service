@@ -128,3 +128,14 @@ def move_form_down(form: Form) -> Form:
     list_index = form.order - 1  # convert from 1-based order to 0-based list index
     swap_elements_in_list_and_flush(form.section.forms, list_index, list_index + 1)
     return form
+
+
+def update_form(form: Form, *, title: str) -> Form:
+    form.title = title
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return form
