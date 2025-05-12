@@ -252,10 +252,20 @@ def move_form(
 @mhclg_login_required
 @auto_commit_after_request
 def manage_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
-    # TODO placeholder route implementation
+    form = get_form_by_id(form_id)
 
-    return redirect(
-        url_for("platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id)
+    return render_template(
+        "platform/developers/manage_form.html",
+        grant=form.section.collection_schema.grant,
+        section=form.section,
+        collection=form.section.collection_schema,
+        form=form,
+        back_link_href=url_for(
+            f"platform.{request.args.get('back_link')}",
+            grant_id=grant_id,
+            collection_id=collection_id,
+            section_id=section_id,
+        ),
     )
 
 
