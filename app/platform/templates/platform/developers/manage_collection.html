@@ -67,22 +67,29 @@
 
 {% for section in collection.sections %}
 
-    <h2 class="govuk-heading-m">{{ section.title }}</h2>
+<h2 class="govuk-heading-m">{{ section.title }}</h2>
 
-    {% set rows=[] %}
-    {% for form in section.forms %}
-        {% do rows.append({
+{% set rows=[] %}
+{% for form in section.forms %}
+{% set question_text %}
+{% trans count=form.questions | length %}
+    {{ count }} question
+    {% pluralize %}
+    {{ count }} questions
+{% endtrans %}
+{% endset %}
+{% do rows.append({
                 "title": {
-                  "text": form,
+                  "text": form.title,
                 },
               "status": {
-                "text": "X questions"
+                "text": question_text
               },
-            "href": "#"
+            "href": url_for("platform.manage_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, back_link="manage_collection")
           }) %}
-    {% endfor %}
+{% endfor %}
 
-    {{ govukTaskList({
+{{ govukTaskList({
         "idPrefix": section.slug,
         "items": rows
       }) }}
