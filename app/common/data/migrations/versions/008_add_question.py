@@ -2,7 +2,7 @@
 
 Revision ID: 008_
 Revises: 007_add_section_form
-Create Date: 2025-05-13 17:33:58.162034
+Create Date: 2025-05-13 18:18:09.857946
 
 """
 
@@ -56,7 +56,7 @@ def upgrade() -> None:
         sa.Column("data_type", sa.Enum("TEXT", "INT", "CONTACT_DETAILS", name="datatype"), nullable=False),
         sa.Column("order", sa.Integer(), nullable=False),
         sa.Column("form_id", sa.Uuid(), nullable=False),
-        sa.Column("group_id", sa.Uuid(), nullable=False),
+        sa.Column("group_id", sa.Uuid(), nullable=True),
         sa.ForeignKeyConstraint(["form_id"], ["form.id"], name=op.f("fk_question_form_id_form")),
         sa.ForeignKeyConstraint(["group_id"], ["question_group.id"], name=op.f("fk_question_group_id_question_group")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_question")),
