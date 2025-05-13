@@ -3,12 +3,6 @@ import enum
 json_scalars = str | int | float | bool
 
 
-class QuestionType(enum.Enum):
-    QUESTION = "QUESTION"
-    INFORMATION = "INFORMATION"
-    GROUP = "GROUP"
-
-
 class DataType(enum.Enum):
     TEXT = "TEXT"
     INT = "INT"
