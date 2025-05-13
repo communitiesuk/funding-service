@@ -173,7 +173,7 @@ class Question(BaseModel):
     )
     validations: Mapped[list["Validation"]] = relationship("Validation", lazy=True)
 
-    group_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question_group.id"))
+    group_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question_group.id"), nullable=True)
     group: Mapped[QuestionGroup] = relationship("QuestionGroup", back_populates="questions")
 
     __table_args__ = (
