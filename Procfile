@@ -1,1 +1,1 @@
-web: /workspace/startup.sh
+web: gunicorn wsgi:app
