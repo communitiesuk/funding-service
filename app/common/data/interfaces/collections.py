@@ -137,8 +137,8 @@ def update_form(form: Form, *, title: str) -> Form:
     return form
 
 
-def create_question(form: Form, *, text: str, hint: str) -> Question:
-    question = Question(text=text, form_id=form.id, slug=slugify(text), hint=hint)
+def create_question(form: Form, *, text: str, hint: str, name: str, data_type: str) -> Question:
+    question = Question(text=text, form_id=form.id, slug=slugify(text), hint=hint, name=name, data_type=data_type)
     form.questions.append(question)
     db.session.add(question)
 

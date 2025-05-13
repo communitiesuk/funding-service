@@ -153,6 +153,7 @@ class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     text = factory.Sequence(lambda n: "Question %d" % n)
+    name = factory.Sequence(lambda n: "Question name %d" % n)
     slug = factory.Sequence(lambda n: "question-%d" % n)
     order = factory.LazyAttribute(lambda o: len(o.form.questions) + 1)
     data_type = "text"
