@@ -18,3 +18,8 @@ class DataType(enum.Enum):
 class ConditionType(enum.Enum):
     ANSWER_EQUALS = "="
     ANSWER_NOT_EQUALS = "!="
+
+
+class SubmissionType(enum.Enum):
+    CREATED = "Created"
+    COMPLETED = "Completed"

@@ -1,16 +1,17 @@
 import datetime
 import secrets
 import uuid
+from typing import Any
 
 from pytz import utc
 from slugify import slugify
+from sqlalchemy import JSON, ForeignKey, Index, UniqueConstraint
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, Index, UniqueConstraint
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
-from app.common.data.types import ConditionType, DataType, QuestionType
+from app.common.data.types import ConditionType, DataType, QuestionType, SubmissionType
 
 
 class Grant(BaseModel):
@@ -137,6 +138,7 @@ class Question(BaseModel):
     name: Mapped[str]
     slug: Mapped[str]
     hint: Mapped[str]
+    data_source: Mapped[dict[str, Any]] = mapped_column(JSON)
     data_type: Mapped[DataType] = mapped_column(SqlEnum(DataType), nullable=False)
     type: Mapped[QuestionType] = mapped_column(SqlEnum(QuestionType), nullable=False)
     order: Mapped[int]
@@ -194,3 +196,12 @@ class Validation(BaseModel):
 
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
     question: Mapped[Question] = relationship("Question", back_populates="validations")
+
+
+class Submission(BaseModel):
+    __tablename__ = "submission"
+
+    data: Mapped[dict[str, Any]] = mapped_column(JSON)
+    status: Mapped[SubmissionType] = mapped_column(SqlEnum(SubmissionType))
+    collection_schema_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection_schema.id"))
+    collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema", back_populates="collection_schema")
