@@ -16,9 +16,12 @@ from app.common.data.interfaces.collections import (
     create_section,
     get_collection_schema,
     get_form_by_id,
+    get_question_by_id,
     get_section_by_id,
     move_form_down,
     move_form_up,
+    move_question_down,
+    move_question_up,
     move_section_down,
     move_section_up,
     update_collection_schema,
@@ -448,3 +451,31 @@ def add_question(
                 form=form,
                 wt_form=wt_form,
             )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/move/<string:direction>",
+    methods=["POST"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def move_question(
+    grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4, question_id: UUID4, direction: str
+) -> ResponseReturnValue:
+    question = get_question_by_id(question_id=question_id)
+
+    if direction == "up":
+        move_question_up(question)
+    elif direction == "down":
+        move_question_down(question)
+
+    return redirect(
+        url_for(
+            "platform.manage_form",
+            grant_id=grant_id,
+            collection_id=collection_id,
+            section_id=section_id,
+            form_id=form_id,
+            back_link="manage_section",
+        )
+    )

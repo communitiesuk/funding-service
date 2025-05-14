@@ -6,8 +6,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.utils import slugify
 from app.common.data.models import CollectionSchema, Form, Grant, Question, Section, User
+from app.common.utils import slugify
 from app.extensions import db
 
 
@@ -80,7 +80,11 @@ def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, in
     """
     if 0 <= index_a < len(containing_list) and 0 <= index_b < len(containing_list):
         containing_list[index_a], containing_list[index_b] = containing_list[index_b], containing_list[index_a]
-    db.session.execute(text("SET CONSTRAINTS uq_section_order_collection_schema, uq_form_order_section DEFERRED"))
+    db.session.execute(
+        text(
+            "SET CONSTRAINTS uq_section_order_collection_schema, uq_form_order_section, uq_question_order_form DEFERRED"
+        )
+    )
     db.session.flush()
     return containing_list
 
@@ -152,3 +156,13 @@ def create_question(form: Form, *, text: str, hint: str, name: str, data_type: s
 
 def get_question_by_id(question_id: UUID4) -> Question:
     return db.session.get_one(Question, question_id)
+
+
+def move_question_up(question: Question) -> Question:
+    swap_elements_in_list_and_flush(question.form.questions, question.order, question.order - 1)
+    return question
+
+
+def move_question_down(question: Question) -> Question:
+    swap_elements_in_list_and_flush(question.form.questions, question.order, question.order + 1)
+    return question

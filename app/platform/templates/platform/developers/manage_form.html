@@ -2,41 +2,39 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+{% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
 {% extends "platform/manage_grant_base.html" %}
 
 {% block pageTitle %}
-  {{ collection.name }}
-  - {{ grant.name }} - MHCLG Funding Service
+    {{ collection.name }}
+    - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 {% block beforeContent %}
-  {{
-    govukBackLink({
+    {{ govukBackLink({
         "text": "Back",
         "href": back_link_href
-    })
-  }}
+    }) }}
 {% endblock beforeContent %}
 
 {% block content %}
-  <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
-  <h1 class="govuk-heading-l">
+<div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
+<h1 class="govuk-heading-l">
     <span class="govuk-caption-l">{{ section.title }}</span>
     {{ form.title }}
-  </h1>
-  {% set question_text %}
-    {% trans count=form.questions | length %}
-      {{ count }}
-      question {% pluralize %}
-      {{ count }}
-      questions
-    {% endtrans %}
-  {% endset %}
-  <div class="govuk-grid-row">
+</h1>
+{% set question_text %}
+{% trans count=form.questions | length %}
+    {{ count }}
+    question {% pluralize %}
+    {{ count }}
+    questions
+{% endtrans %}
+{% endset %}
+<div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
-      {{
-        govukSummaryList({
+        {{ govukSummaryList({
           "rows": [{
               "key": {"text": "Title"},
               "value":{"text": form.title},
@@ -50,62 +48,56 @@
                   ]
               }
         }]
-        })
-      }}
+        }) }}
     </div>
 </div>
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
 
-      {% if not form.questions %}
-        <p class="govuk-body">
-          This form has no questions, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="#">add a question</a>
-          .
-        </p>
-      {% endif %}
-      <h2 class="govuk-heading-m">Questions</h2>
+        <h2 class="govuk-heading-m">Questions</h2>
 
-{% set rows=[] %}
-{% for question in form.questions %}
-    {% do rows.append({
-        "key": {"text": "Question " + question.order| string },
-        "value": {"text": question.text},
-        "actions": {
-            "items": [
-            {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, direction = 'up'),
-                "text": "Move up",
-                "classes": "govuk-link--no-visited-state",
-},
-            {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, direction = 'down'),
-                "text": "Move down",
-                "classes": "govuk-link--no-visited-state",
-},
-            {   "href":url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, back_link="manage_section"),
-                "text": "Edit",
-                "classes": "govuk-link--no-visited-state",
-}
+        {% set table_rows = [] %}
+        {% for question in form.questions %}
+            {% do table_rows.append({
+          "text": question.text,
+          "actions":[
+          {"text":"Move up",
+              "href":url_for('platform.move_question', grant_id = grant.id, collection_id = collection.id,
+                     section_id = section.id, form_id=form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
+                     {"href":url_for('platform.move_question', grant_id = grant.id, collection_id = collection.id,
+                     section_id = section.id, form_id=form.id, question_id=question.id, direction = 'down') ,"post":true,
+                  "text": "Move down","disabled":(loop.index >= form.questions | length)},
+                  {"href":url_for('platform.edit_question', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, question_id=question.id),
+                  "text": "Manage","post":false}
+          ]
+                  }) %}
+        {% endfor %}
 
-            ]
-        }
-    }) %}
-{% endfor %}
-
-{% if form.questions %}
-    {{ govukSummaryList({"rows":rows}) }}
-{% endif %}
-{{ govukButton({
+        {% if form.questions %}
+            {{ moveUpDownTable(table_rows) }}
+            {{ govukButton({
         "text": "Add question",
         "classes": "govuk-button--secondary",
         "href": url_for("platform.add_question", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, step=1),
     }) }}
-{{ govukButton({
+            {{ govukButton({
         "text": "Add group",
         "classes": "govuk-button--secondary",
         "href": "#",
         "disabled":True
     }) }}
-{% endblock content %}
+
+        {% else %}
+
+            <p class="govuk-body">
+                This form has no questions, you can
+                <a class="govuk-link govuk-link--no-visited-state"
+                   href="{{ url_for('platform.add_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, step=1) }}">add
+                    a question</a>
+                .
+            </p>
+        {% endif %}
+        {% endblock content %}
+    </div>
+</div>

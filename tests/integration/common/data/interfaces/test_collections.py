@@ -10,6 +10,8 @@ from app.common.data.interfaces.collections import (
     get_section_by_id,
     move_form_down,
     move_form_up,
+    move_question_down,
+    move_question_up,
     move_section_down,
     move_section_up,
 )
@@ -177,3 +179,30 @@ def test_get_question(db_session, factories):
     q = factories.question.create()
     from_db = get_question_by_id(question_id=q.id)
     assert from_db is not None
+
+
+def test_move_question_up_down(db_session, factories):
+    form = factories.form.create()
+    q1 = factories.question.create(form=form)
+    q2 = factories.question.create(form=form)
+    q3 = factories.question.create(form=form)
+
+    assert q1
+    assert q2
+    assert q3
+
+    assert q1.order == 0
+    assert q2.order == 1
+    assert q3.order == 2
+
+    move_question_up(q2)
+
+    assert q1.order == 1
+    assert q2.order == 0
+    assert q3.order == 2
+
+    move_question_down(q1)
+
+    assert q1.order == 2
+    assert q2.order == 0
+    assert q3.order == 1

@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 from sqlalchemy import select
 
-from app.common.data.models import CollectionSchema, Grant, Section
+from app.common.data.models import CollectionSchema, Form, Grant, Question, Section
 from app.platform import CollectionForm, FormForm, GrantForm, SectionForm
 
 
@@ -278,3 +278,80 @@ def test_move_section(authenticated_client, factories, db_session):
     section2_from_db = db_session.scalars(select(Section).where(Section.id == section2.id)).one()
     assert section1_from_db.order == 0
     assert section2_from_db.order == 1
+
+
+def test_move_form(authenticated_client, factories, db_session):
+    section = factories.section.create()
+    form1 = factories.form.create(section=section, order=0)
+    form2 = factories.form.create(section=section, order=1)
+    result = authenticated_client.post(
+        url_for(
+            "platform.move_form",
+            grant_id=section.collection_schema.grant.id,
+            collection_id=section.collection_schema.id,
+            section_id=section.id,
+            form_id=form1.id,
+            direction="down",
+        ),
+    )
+    assert result.status_code == 302
+
+    form1_from_db = db_session.scalars(select(Form).where(Form.id == form1.id)).one()
+    form2_from_db = db_session.scalars(select(Form).where(Form.id == form2.id)).one()
+    assert form1_from_db.order == 1
+    assert form2_from_db.order == 0
+    result = authenticated_client.post(
+        url_for(
+            "platform.move_form",
+            grant_id=section.collection_schema.grant.id,
+            collection_id=section.collection_schema.id,
+            section_id=section.id,
+            form_id=form1.id,
+            direction="up",
+        ),
+    )
+    assert result.status_code == 302
+    form1_from_db = db_session.scalars(select(Form).where(Form.id == form1.id)).one()
+    form2_from_db = db_session.scalars(select(Form).where(Form.id == form2.id)).one()
+    assert form1_from_db.order == 0
+    assert form2_from_db.order == 1
+
+
+def test_move_question(authenticated_client, factories, db_session):
+    form = factories.form.create()
+    question1 = factories.question.create(form=form, order=0)
+    question2 = factories.question.create(form=form, order=1)
+    result = authenticated_client.post(
+        url_for(
+            "platform.move_question",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+            question_id=question1.id,
+            direction="down",
+        ),
+    )
+    assert result.status_code == 302
+
+    question1_from_db = db_session.scalars(select(Question).where(Question.id == question1.id)).one()
+    question2_from_db = db_session.scalars(select(Question).where(Question.id == question2.id)).one()
+    assert question1_from_db.order == 1
+    assert question2_from_db.order == 0
+
+    result = authenticated_client.post(
+        url_for(
+            "platform.move_question",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+            question_id=question1.id,
+            direction="up",
+        ),
+    )
+    assert result.status_code == 302
+    question1_from_db = db_session.scalars(select(Question).where(Question.id == question1.id)).one()
+    question2_from_db = db_session.scalars(select(Question).where(Question.id == question2.id)).one()
+    assert question1_from_db.order == 0
+    assert question2_from_db.order == 1
