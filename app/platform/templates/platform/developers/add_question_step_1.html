@@ -15,7 +15,7 @@
 {% block beforeContent %}
     {{ govukBackLink({
         "text": "Back",
-        "href": url_for("platform.manage_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_id=form.id)
+        "href": url_for("platform.manage_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_id=form.id, back_link="manage_section")
     }) }}
 {% endblock beforeContent %}
 
