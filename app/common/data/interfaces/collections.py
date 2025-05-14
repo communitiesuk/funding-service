@@ -38,7 +38,6 @@ def update_collection_schema(collection: CollectionSchema, *, name: str) -> Coll
 
 
 def create_section(*, title: str, collection_schema: CollectionSchema) -> Section:
-    """Create a new section."""
     section = Section(title=title, collection_schema_id=collection_schema.id)
     collection_schema.sections.append(section)
     db.session.add(section)
@@ -51,7 +50,6 @@ def create_section(*, title: str, collection_schema: CollectionSchema) -> Sectio
 
 
 def get_section_by_id(section_id: UUID) -> Section:
-    """Retrieve a section by its ID."""
     return db.session.get_one(Section, section_id)
 
 

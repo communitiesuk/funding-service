@@ -21,6 +21,7 @@
     <span class="govuk-caption-l">{{ collection.name }}</span>
     Sections
 </h1>
+
 {% set sections_text %}
 {% trans count=collection.sections | length %}
     {{ count }} section
@@ -28,42 +29,52 @@
     {{ count }} sections
 {% endtrans %}
 {% endset %}
-<p class="govuk-body">This collection has {{ sections_text }}</p>
+{% if not collection.sections %}
+    <p class="govuk-body">This collection has no sections, you can <a class="govuk-link--no-visited-state"
+                                                                      href="{{ url_for('platform.add_section', grant_id = grant.id, collection_id = collection.id) }}">add
+        a
+        section</a>.</p>
+{% else %}
+    <p class="govuk-body">This collection has {{ sections_text }}</p>
 
 
-{% set section_rows = [] %}
-{% for section in collection.sections %}
-    {% do section_rows.append({
-        "key": {"text": "Section " + section.order| string },
+    {% set section_rows = [] %}
+    {% for section in collection.sections %}
+
+        {% do section_rows.append({
+        "key": {},
         "value": {"text": section.title},
         "actions": {
             "items": [
             {   "href":url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, direction = 'up'),
                 "text": "Move up",
+                "classes": "fs-disabled-link" if (loop.index == 1) else "govuk-link--no-visited-state"
 },
             {   "href":url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, direction = 'down') ,
                 "text": "Move down",
+                "classes": "fs-disabled-link" if (loop.index >= collection.sections | length) else "govuk-link--no-visited-state"
 },
             {   "href":url_for('platform.manage_section', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id),
                 "text": "Manage",
+                "classes": "govuk-link--no-visited-state",
 }
 
             ]
         }
     }) %}
-{% endfor %}
+    {% endfor %}
 
-{% if collection.sections %}
-    {{ govukSummaryList({"rows":section_rows}) }}
-{% endif %}
-
-
-{{ govukButton({
+    {% if collection.sections %}
+        {{ govukSummaryList({"rows":section_rows, "classes":"fs-move-up-down-table"}) }}
+    {% endif %}
+    {{ govukButton({
             "text": "Add a section",
             "classes": "govuk-button--secondary",
             "href": url_for("platform.add_section", grant_id = grant.id, collection_id = collection.id)
             }) }}
+
+{% endif %}
 {% endblock content %}
