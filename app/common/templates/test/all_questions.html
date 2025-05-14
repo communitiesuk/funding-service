@@ -1,0 +1,157 @@
+{% extends "common/base.html" %}
+
+{# Macro to render individual question details #}
+{% macro render_question_details(question) %}
+  <h5 class="govuk-heading-s govuk-!-margin-bottom-3">Question: {{ question.title }}</h5>
+
+  <dl class="govuk-summary-list govuk-summary-list--no-border govuk-!-margin-bottom-2">
+    <div class="govuk-summary-list__row">
+      <dt class="govuk-summary-list__key" style="width: 30%;">Name</dt>
+      <dd class="govuk-summary-list__value">{{ question.name }}</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+      <dt class="govuk-summary-list__key" style="width: 30%;">Slug</dt>
+      <dd class="govuk-summary-list__value">{{ question.slug }}</dd>
+    </div>
+    {% if question.hint %}
+    <div class="govuk-summary-list__row">
+      <dt class="govuk-summary-list__key" style="width: 30%;">Hint</dt>
+      <dd class="govuk-summary-list__value govuk-hint" style="font-size: inherit; margin-bottom: 0px;">{{ question.hint }}</dd>
+    </div>
+    {% endif %}
+    <div class="govuk-summary-list__row">
+      <dt class="govuk-summary-list__key" style="width: 30%;">Data Type</dt>
+      <dd class="govuk-summary-list__value">{{ question.data_type.name if question.data_type else 'N/A' }}</dd>
+    </div>
+  </dl>
+
+  {# --- Conditions --- #}
+  {% if question.conditions %}
+    <div class="govuk-!-margin-top-4 govuk-!-margin-bottom-3 govuk-!-padding-3" style="border: 1px solid #b1b4b6; border-left: 3px solid #1d70b8; border-radius: 3px; background-color: #f3f2f1;">
+      <h6 class="govuk-heading-xs govuk-!-margin-bottom-2" style="display: flex; align-items: center;"><span class="govuk-tag govuk-tag--blue govuk-!-margin-right-2">Conditions</span> <span style="font-weight:normal;">that affect this question:</span></h6>
+      <ul class="govuk-list govuk-list--bullet govuk-list--spaced" style="padding-left: 20px;">
+        {% for condition in question.conditions %}
+          <li class="govuk-!-margin-bottom-1">
+            <p class="govuk-body-s govuk-!-margin-bottom-0"><strong>Expression:</strong> <code>{{ condition.expression }}</code></p>
+            <p class="govuk-body-s govuk-!-margin-bottom-0"><strong>Type:</strong> {{ condition.type.name if condition.type else 'Custom' }}</p>
+            <p class="govuk-body-s govuk-!-margin-bottom-0"><strong>Description:</strong> {{ condition.description }}</p>
+            {% if condition.context %}
+              <p class="govuk-body-s govuk-!-margin-bottom-0"><strong>Context:</strong> <code>{{ condition.context }}</code></p>
+            {% endif %}
+            {% if condition.depends_on %}
+              <p class="govuk-body-s govuk-!-font-style-italic govuk-!-margin-bottom-0">Depends on answer to: "{{ condition.depends_on.title }}"</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {# --- Validations --- #}
+  {% if question.validations %}
+    <div class="govuk-!-margin-top-3 govuk-!-margin-bottom-1 govuk-!-padding-3" style="border: 1px solid #b1b4b6; border-left: 3px solid #d4351c; border-radius: 3px; background-color: #f3f2f1;">
+      <h6 class="govuk-heading-xs govuk-!-margin-bottom-2" style="display: flex; align-items: center;"><span class="govuk-tag govuk-tag--red govuk-!-margin-right-2">Validations</span> <span style="font-weight:normal;">for this question:</span></h6>
+      <ul class="govuk-list govuk-list--bullet govuk-list--spaced" style="padding-left: 20px;">
+        {% for validation in question.validations %}
+          <li class="govuk-!-margin-bottom-1">
+            <p class="govuk-body-s govuk-!-margin-bottom-0"><strong>Expression:</strong> <code>{{ validation.expression }}</code></p>
+            <p class="govuk-body-s govuk-!-margin-bottom-0"><strong>Type:</strong> {{ validation.type.name if validation.type else 'Custom' }}</p>
+            <p class="govuk-body-s govuk-!-margin-bottom-0"><strong>Description:</strong> {{ validation.description }}</p>
+            <p class="govuk-body-s govuk-!-margin-bottom-0"><strong>Message:</strong> {{ validation.message }}</p>
+            {% if validation.context %}
+              <p class="govuk-body-s govuk-!-margin-bottom-0"><strong>Context:</strong> <code>{{ validation.context }}</code></p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+
+{% block content %}
+<div class="govuk-grid-row">
+  <div class="govuk-grid-column-full">
+    {% if collection_schema %}
+      <h1 class="govuk-heading-xl govuk-!-margin-bottom-6">Collection Schema: {{ collection_schema.name }} (Version {{ collection_schema.version }})</h1>
+      <hr class="govuk-section-break govuk-section-break--xl govuk-section-break--visible govuk-!-margin-bottom-8">
+
+      {% if collection_schema.sections %}
+        {% for section in collection_schema.sections %}
+          <section class="govuk-!-margin-bottom-9" style="border-top: 3px solid #1d70b8; padding-top: 24px; background-color: #f8f8f8; padding: 20px; border-radius: 5px;">
+            <h2 class="govuk-heading-l govuk-!-margin-bottom-4" style="border-bottom: 1px solid #b1b4b6; padding-bottom: 10px;">Section: {{ section.title }}</h2>
+
+            {% if section.forms %}
+              {% for form in section.forms %}
+                <article class="govuk-!-margin-bottom-6 govuk-!-padding-4" style="background-color: #ffffff; border: 1px solid #dee0e2; border-left: 5px solid #5694ca; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                  <h3 class="govuk-heading-m govuk-!-margin-bottom-3">Form: {{ form.title }} <span class="govuk-body-s govuk-!-font-weight-regular">(Slug: {{ form.slug }})</span></h3>
+                  <hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible govuk-!-margin-bottom-4">
+
+                  {% if form.questions %}
+                    {% set current_group_id = None %}
+                    <ul class="govuk-list">
+                      {% for question in form.questions %}
+                        <li class="govuk-!-margin-bottom-6 govuk-!-padding-4" style="border: 1px solid #e1e1e1; border-radius: 5px; background-color: #fdfdfd; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+
+                          {# --- Question Group Start --- #}
+                          {% if question.group_id and question.group_id != current_group_id %}
+                            {% if question.group %}
+                            <div class="govuk-!-margin-bottom-4 govuk-!-padding-3" style="background-color: #f0f4f7; border-radius: 3px; border-left: 3px solid #1d70b8;">
+                                <h4 class="govuk-heading-s" style="color: #0b0c0c;">Group: {{ question.group.title }}</h4>
+                                {% if question.group.allow_add_another %}
+                                  <p class="govuk-body-s govuk-!-margin-bottom-0" style="color: #383838;">
+                                    Allows "add another"
+                                    {% if question.group.item_limit is not none %}
+                                      (Item limit: {{ question.group.item_limit }})
+                                    {% endif %}
+                                  </p>
+                                {% endif %}
+                                {% if question.group.show_all_on_same_page %}
+                                     <p class="govuk-body-s govuk-!-margin-bottom-0" style="color: #383838;">All questions in this group are shown on the same page.</p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% set current_group_id = question.group_id %}
+                          {% elif not question.group_id and current_group_id %}
+                            {% set current_group_id = None %}
+                            {% if form.questions|selectattr('group_id', 'defined')|list|length > 0 %} {# Only add HR if groups exist in this form #}
+                                <hr class="govuk-section-break govuk-section-break--s govuk-section-break--visible govuk-!-margin-top-2 govuk-!-margin-bottom-3" style="border-color: #e0e0e0;">
+                            {% endif %}
+                          {% endif %}
+                          {# --- Question Group End --- #}
+
+                          {# Call the macro to render question details #}
+                          {{ render_question_details(question) }}
+
+                        </li>
+                        {% if not loop.last %}
+                           {# More subtle separator between questions #}
+                           <div style="height: 1px; background-color: #e7e7e7; margin: 20px 0;"></div>
+                        {% endif %}
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <p class="govuk-body">No questions in this form.</p>
+                  {% endif %}
+                </article>
+                {% if not loop.last %}
+                   <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible govuk-!-margin-top-6 govuk-!-margin-bottom-6" style="border-bottom: 2px solid #cccccc;">
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <p class="govuk-body">No forms in this section.</p>
+            {% endif %}
+          </section>
+          {% if not loop.last %}
+             <hr class="govuk-section-break govuk-section-break--xl govuk-section-break--visible govuk-!-margin-top-8 govuk-!-margin-bottom-8" style="border-bottom: 4px solid #0b0c0c;">
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <p class="govuk-body">No sections in this collection schema.</p>
+      {% endif %}
+    {% else %}
+      <p class="govuk-body">Collection schema not found.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

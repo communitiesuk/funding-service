@@ -3,7 +3,6 @@ from typing import List
 
 from app import User
 from app.common.data.interfaces.collections import (
-    add_test_grant_schema,
     get_all_questions_with_higher_order_from_current,
     get_form_by_id,
     get_question_by_id_for_form_and_question,
@@ -70,9 +69,6 @@ class QuestionService:
     def get_visible_questions(self) -> List[Question]:
         pass
 
-    def get_all_questions(self) -> List[Question]:
-        pass
-
     def _evaluate_condition(self, condition: Condition, answers: Submission | None):
         # TODO implementing condition eval & get answer by the submission to eval
         return True
@@ -116,6 +112,3 @@ class QuestionService:
             }
 
         return question_dict
-
-    def create_test_data(self):
-        add_test_grant_schema()
