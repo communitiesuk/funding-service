@@ -37,7 +37,7 @@ services:
       "
     env_file: .env
     environment:
-      FLASK_APP: app/__init__.py
+      FLASK_APP: app
       FLASK_ENV: local
       DATABASE_HOST: "db"
       DATABASE_PORT: 5432
