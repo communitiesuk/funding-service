@@ -51,31 +51,30 @@
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
 
-{% if not form.questions %}
-    <p class="govuk-body">This form has no questions, you can <a class="govuk-link--no-visited-state"
-                                                                 href="{{ url_for('platform.add_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, step=1) }}">add
-        a question</a>.</p>
+        {% if not form.questions %}
+            <p class="govuk-body">This form has no questions, you can <a class="govuk-link--no-visited-state"
+                                                                         href="{{ url_for('platform.add_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, step=1) }}">add
+                a question</a>.</p>
+        {% else %}
 
-{% endif %}
+            <h2 class="govuk-heading-m">Questions</h2>
 
-<h2 class="govuk-heading-m">Questions</h2>
-
-{% set rows=[] %}
-{% for question in form.questions %}
-    {% do rows.append({
-        "key": {"text": "Question " + question.order| string },
+            {% set rows=[] %}
+            {% for question in form.questions %}
+                {% do rows.append({
+        "key": {},
         "value": {"text": question.text},
         "actions": {
             "items": [
             {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, direction = 'up'),
                 "text": "Move up",
-                "classes": "govuk-link--no-visited-state",
+                "classes": "fs-disabled-link" if (loop.index == 1)  else "govuk-link--no-visited-state"
 },
             {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, direction = 'down'),
                 "text": "Move down",
-                "classes": "govuk-link--no-visited-state",
+                "classes": "fs-disabled-link" if (loop.index >= form.questions | length)  else "govuk-link--no-visited-state"
 },
             {   "href":url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, back_link="manage_section"),
@@ -86,20 +85,20 @@
             ]
         }
     }) %}
-{% endfor %}
+            {% endfor %}
 
-{% if form.questions %}
-    {{ govukSummaryList({"rows":rows}) }}
-{% endif %}
-{{ govukButton({
+            {% if form.questions %}
+                {{ govukSummaryList({"rows":rows, "classes": "fs-move-up-down-table"}) }}
+            {% endif %}
+            {{ govukButton({
         "text": "Add question",
         "classes": "govuk-button--secondary",
         "href": url_for("platform.add_question", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, step=1),
     }) }}
-{{ govukButton({
+            {{ govukButton({
         "text": "Add group",
         "classes": "govuk-button--secondary",
-        "href": "#",
-        "disabled":True
+        "disabled":true
     }) }}
-{% endblock content %}
+        {% endif %}
+        {% endblock content %}
