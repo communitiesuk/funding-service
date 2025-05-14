@@ -166,3 +166,16 @@ def move_question_up(question: Question) -> Question:
 def move_question_down(question: Question) -> Question:
     swap_elements_in_list_and_flush(question.form.questions, question.order, question.order + 1)
     return question
+
+
+def update_question(question: Question, *, text: str, hint: str | None, name: str) -> Question:
+    question.text = text
+    question.hint = hint
+    question.name = name
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return question

@@ -26,6 +26,7 @@ from app.common.data.interfaces.collections import (
     move_section_up,
     update_collection_schema,
     update_form,
+    update_question,
     update_section,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
@@ -478,4 +479,47 @@ def move_question(
             form_id=form_id,
             back_link="manage_section",
         )
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/edit",
+    methods=["GET", "POST"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def edit_question(
+    grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4, question_id: UUID4
+) -> ResponseReturnValue:
+    question = get_question_by_id(question_id=question_id)
+    wt_form = QuestionForm(obj=question)
+    if wt_form.validate_on_submit():
+        try:
+            assert wt_form.text.data is not None
+            assert wt_form.hint.data is not None
+            assert wt_form.data_type.data is not None
+            assert wt_form.name.data is not None
+            update_question(question=question, text=wt_form.text.data, hint=wt_form.hint.data, name=wt_form.name.data)
+            return redirect(
+                url_for(
+                    "platform.manage_form",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                    back_link="manage_section",
+                )
+            )
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "platform/developers/edit_question.html",
+        grant=question.form.section.collection_schema.grant,
+        collection=question.form.section.collection_schema,
+        section=question.form.section,
+        form=question.form,
+        question=question,
+        wt_form=wt_form,
     )
