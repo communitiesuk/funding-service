@@ -22,8 +22,10 @@
     <span class="govuk-caption-l">{{ collection.name }}</span>
     {{ section.title }}
 </h1>
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
 
-{{ govukSummaryList({
+        {{ govukSummaryList({
 "rows": [{
 "key": {"text": "Title"},
 "value":{"text": section.title},
@@ -37,44 +39,47 @@
 ]
 }
 }]
-}) }}
-<h2 class="govuk-heading-m">Forms</h2>
-{% set forms_text %}
-{% trans count=section.forms | length %}
-    {{ count }} form
-    {% pluralize %}
-    {{ count }} forms
-{% endtrans %}
-{% endset %}
+}) }}</div>
+</div>
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        <h2 class="govuk-heading-m">Forms</h2>
+        {% set forms_text %}
+        {% trans count=section.forms | length %}
+            {{ count }} form
+            {% pluralize %}
+            {{ count }} forms
+        {% endtrans %}
+        {% endset %}
 
 
-{% if not section.forms %}
-    <p class="govuk-body">This section has no forms, you can
-        <a class="govuk-link--no-visited-state"
-           href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
-            a form</a>.</p>
-{% else %}
+        {% if not section.forms %}
+            <p class="govuk-body">This section has no forms, you can
+                <a class="govuk-link--no-visited-state"
+                   href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
+                    a form</a>.</p>
+        {% else %}
 
-    <p class="govuk-body">This section has {{ forms_text }}.</p>
-{% endif %}
+            <p class="govuk-body">This section has {{ forms_text }}.</p>
+        {% endif %}
 
 
-{% set form_rows = [] %}
-{% for form in section.forms %}
-    {% do form_rows.append({
-        "key": {"text": "Form " + form.order| string },
+        {% set form_rows = [] %}
+        {% for form in section.forms %}
+            {% do form_rows.append({
+        "key": {},
         "value": {"text": form.title},
         "actions": {
             "items": [
             {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, direction = 'up'),
                 "text": "Move up",
-                "classes": "govuk-link--no-visited-state",
+                "classes": "fs-disabled-link" if (loop.index == 1)  else "govuk-link--no-visited-state"
 },
             {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, direction = 'down'),
                 "text": "Move down",
-                "classes": "govuk-link--no-visited-state",
+                "classes": "fs-disabled-link" if (loop.index >= section.forms | length)  else "govuk-link--no-visited-state"
 },
             {   "href":url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, back_link="manage_section"),
@@ -85,14 +90,16 @@
             ]
         }
     }) %}
-{% endfor %}
+        {% endfor %}
 
-{% if section.forms %}
-    {{ govukSummaryList({"rows":form_rows}) }}
-{% endif %}
-{{ govukButton({
+        {% if section.forms %}
+            {{ govukSummaryList({"rows":form_rows,"classes":"fs-move-up-down-table"}) }}
+        {% endif %}
+        {{ govukButton({
             "text": "Add a form",
             "classes": "govuk-button--secondary",
             "href": url_for("platform.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
             }) }}
+    </div>
+</div>
 {% endblock content %}

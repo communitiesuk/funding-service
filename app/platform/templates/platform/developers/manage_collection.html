@@ -30,7 +30,9 @@
     {{ count }} sections
 {% endtrans %}
 {% endset %}
-{{ govukSummaryList({
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
+        {{ govukSummaryList({
               "rows": [{
                   "key": {"text": "Name"},
                   "value":{"text": collection.name},
@@ -58,27 +60,39 @@
             }]
             }) }}
 
-{% if not collection.sections %}
-    <p class="govuk-body">This collection has no sections, you can <a class="govuk-link--no-visited-state"
-                                                                      href="{{ url_for('platform.list_sections', grant_id = grant.id, collection_id = collection.id) }}">manage
-        sections</a>.</p>
+        {% if not collection.sections %}
+            <p class="govuk-body">This collection has no sections, you can <a class="govuk-link--no-visited-state"
+                                                                              href="{{ url_for('platform.add_section', grant_id = grant.id, collection_id = collection.id) }}">add
+                a
+                section</a>.</p>
 
-{% endif %}
+        {% endif %}
+    </div>
+</div>
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
 
-{% for section in collection.sections %}
+        {% for section in collection.sections %}
 
-<h2 class="govuk-heading-m">{{ section.title }}</h2>
+        <h2 class="govuk-heading-m">{{ section.title }}</h2>
 
-{% set rows=[] %}
-{% for form in section.forms %}
-{% set question_text %}
-{% trans count=form.questions | length %}
-    {{ count }} question
-    {% pluralize %}
-    {{ count }} questions
-{% endtrans %}
-{% endset %}
-{% do rows.append({
+        {% if not section.forms %}
+            <p class="govuk-body">This section has no forms, you can
+                <a class="govuk-link--no-visited-state"
+                   href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
+                    a form</a>.</p>
+        {% endif %}
+
+        {% set rows=[] %}
+        {% for form in section.forms %}
+        {% set question_text %}
+        {% trans count=form.questions | length %}
+            {{ count }} question
+            {% pluralize %}
+            {{ count }} questions
+        {% endtrans %}
+        {% endset %}
+        {% do rows.append({
                 "title": {
                   "text": form.title,
                 },
@@ -87,12 +101,14 @@
               },
             "href": url_for("platform.manage_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, back_link="manage_collection")
           }) %}
-{% endfor %}
+        {% endfor %}
 
-{{ govukTaskList({
+        {{ govukTaskList({
         "idPrefix": section.slug,
         "items": rows
       }) }}
 
-{% endfor %}
+        {% endfor %}
+    </div>
+</div>
 {% endblock content %}
