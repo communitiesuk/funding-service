@@ -14,7 +14,7 @@ from uuid import uuid4
 import factory
 from flask import url_for
 
-from app.common.data.models import CollectionSchema, Grant, MagicLink, User
+from app.common.data.models import CollectionSchema, Form, Grant, MagicLink, Question, Section, User
 from app.extensions import db
 
 
@@ -63,3 +63,46 @@ class _CollectionSchemaFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     grant_id = factory.LazyAttribute(lambda o: "o.grant.id")
     grant = factory.SubFactory(_GrantFactory)
+
+
+class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Section
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+
+    id = factory.LazyFunction(uuid4)
+    title = factory.Sequence(lambda n: "Section %d" % n)
+    order = factory.LazyAttribute(lambda o: len(o.collection_schema.sections) + 1)
+
+    collection_schema = factory.SubFactory(_CollectionSchemaFactory)
+    collection_schema_id = factory.LazyAttribute(lambda o: o.collection_schema.id)
+
+
+class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Form
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+
+    id = factory.LazyFunction(uuid4)
+    title = factory.Sequence(lambda n: "Form %d" % n)
+    slug = factory.Sequence(lambda n: "form-%d" % n)
+    order = factory.LazyAttribute(lambda o: len(o.section.forms) + 1)
+
+    section = factory.SubFactory(_SectionFactory)
+    section_id = factory.LazyAttribute(lambda o: o.section.id)
+
+
+class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Question
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+
+    id = factory.LazyFunction(uuid4)
+    text = factory.Sequence(lambda n: "Question %d" % n)
+    name = factory.Sequence(lambda n: "Question name %d" % n)
+    slug = factory.Sequence(lambda n: "question-%d" % n)
+    order = factory.LazyAttribute(lambda o: len(o.form.questions) + 1)
+    data_type = "text"
+
+    form = factory.SubFactory(_FormFactory)
+    form_id = factory.LazyAttribute(lambda o: o.form.id)
