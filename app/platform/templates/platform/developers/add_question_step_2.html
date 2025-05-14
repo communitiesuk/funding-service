@@ -5,7 +5,7 @@
 
 
 {% block pageTitle %}
-    Edit form - {{ section.title }} - MHCLG Funding Service
+    Add a question - {{ form.title }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
@@ -19,23 +19,22 @@
 
 {% block content %}
     <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
-        <h1 class="govuk-heading-l">Add Question</h1>
-        <dl class="govuk-body govuk-!-margin-bottom-6">
-            <dt class="govuk-body govuk-!-margin-bottom-1">Question type</dt>
-            <dd class="govuk-summary-list__value">{{ wt_form.data_type.data }}</dd>
-        </dl>
+        <div class="govuk-grid-column-two-thirds">
+            <h1 class="govuk-heading-l">Add Question</h1>
+            <dl class="govuk-body govuk-!-margin-bottom-6">
+                <dt class="govuk-body govuk-!-margin-bottom-1">Question type</dt>
+                <dd class="govuk-summary-list__value">{{ wt_form.data_type.data }}</dd>
+            </dl>
 
-        <form method="post" novalidate>
-            {{ wt_form.csrf_token }}
-            {{ wt_form.form_id }}
-            {{ wt_form.data_type }}
-            {{ wt_form.text }}
-            {{ wt_form.name }}
-            {{ wt_form.hint }}
-            {{ wt_form.submit }}
-        </form>
-
-        </span>
+            <form method="post" novalidate>
+                {{ wt_form.csrf_token }}
+                {{ wt_form.form_id }}
+                {{ wt_form.data_type }}
+                {{ wt_form.text }}
+                {{ wt_form.name }}
+                {{ wt_form.hint }}
+                {{ wt_form.submit }}
+            </form>
+        </div>
     </div>
 {% endblock content %}

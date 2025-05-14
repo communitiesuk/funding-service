@@ -76,11 +76,11 @@
         <h2 class="govuk-heading-m">{{ section.title }}</h2>
 
         {% if not section.forms %}
-            <p class="govuk-body">This section has no forms, you can
-                <a class="govuk-link--no-visited-state"
-                   href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
-                    a form</a>.</p>
-        {% endif %}
+        <p class="govuk-body">This section has no forms, you can
+            <a class="govuk-link--no-visited-state"
+               href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
+                a form</a>.</p>
+        {% else %}
 
         {% set rows=[] %}
         {% for form in section.forms %}
@@ -106,7 +106,12 @@
         "idPrefix": section.slug,
         "items": rows
       }) }}
-
+        {{ govukButton({
+            "text": "Add a form",
+            "href":url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id),
+            "classes": "govuk-button--secondary"
+            }) }}
+        {% endif %}
         {% endfor %}
     </div>
 </div>

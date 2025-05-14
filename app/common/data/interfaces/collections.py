@@ -170,3 +170,16 @@ def move_question_down(question: Question) -> Question:
     list_index = question.order - 1  # convert from 1-based order to 0-based list index
     swap_elements_in_list_and_flush(question.form.questions, list_index, list_index + 1)
     return question
+
+
+def update_question(question: Question, *, text: str, hint: str | None, name: str) -> Question:
+    question.text = text
+    question.hint = hint
+    question.name = name
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return question

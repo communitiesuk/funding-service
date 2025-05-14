@@ -76,8 +76,8 @@
                 "text": "Move down",
                 "classes": "fs-disabled-link" if (loop.index >= form.questions | length)  else "govuk-link--no-visited-state"
 },
-            {   "href":url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, back_link="manage_section"),
+            {   "href":url_for('platform.edit_question', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, question_id=question.id),
                 "text": "Edit",
                 "classes": "govuk-link--no-visited-state",
 }
