@@ -42,3 +42,23 @@ body.govuk-template__body:has(div.app-body__watermark) {
 .govuk-template:has(div.app-body__watermark) {
     background-color: rgba(255, 255, 255, 0.5);
 }
+
+// Used to override the default GOV.UK Frontend styles for the summary list for a table with move up/down/manage links
+.fs-move-up-down-table dd.govuk-summary-list__actions a.govuk-link.fs-disabled-link {
+    pointer-events: none;
+    cursor: default;
+    color: govuk-colour("mid-grey");
+    text-decoration: none;
+}
+
+dl.govuk-summary-list.fs-move-up-down-table dt.govuk-summary-list__key {
+    display: none;
+}
+
+dl.govuk-summary-list.fs-move-up-down-table dd.govuk-summary-list__actions {
+    width: 50%
+}
+
+dl.govuk-summary-list.fs-move-up-down-table div.govuk-summary-list__row:first-child {
+    border-top: 1px solid govuk-colour("mid-grey");
+}

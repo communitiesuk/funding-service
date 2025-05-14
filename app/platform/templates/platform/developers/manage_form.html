@@ -29,7 +29,9 @@
     {{ count }} questions
 {% endtrans %}
 {% endset %}
-{{ govukSummaryList({
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
+        {{ govukSummaryList({
               "rows": [{
                   "key": {"text": "Title"},
                   "value":{"text": form.title},
@@ -44,19 +46,21 @@
                   }
             }]
             }) }}
+    </div>
+</div>
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
 
-{% if not form.questions %}
-    <p class="govuk-body">This form has no questions, you can <a class="govuk-link--no-visited-state"
-                                                                 href="#">add a question</a>.</p>
+        <h2 class="govuk-heading-m">Questions</h2>
 
-{% endif %}
+        {% if not form.questions %}
+            <p class="govuk-body">This form has no questions, you can <a class="govuk-link--no-visited-state"
+                                                                         href="#">add a question</a>.</p>
 
-<h2 class="govuk-heading-m">Questions</h2>
-
-{% for question in form.questions %}
-    {% set rows=[] %}
-    {% for question in form.questions %}
-        {% do rows.append({
+        {% endif %}
+        {% set rows=[] %}
+        {% for question in form.questions %}
+            {% do rows.append({
                 "title": {
                   "text": question,
                 },
@@ -64,12 +68,12 @@
                 "text": "Move up | Move down"
               },
           }) %}
-    {% endfor %}
+        {% endfor %}
 
-    {{ govukTaskList({
+        {{ govukTaskList({
         "idPrefix": form.slug,
         "items": rows
-      }) }}
+      }) }}</div>
+</div>
 
-{% endfor %}
 {% endblock content %}
