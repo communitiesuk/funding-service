@@ -142,8 +142,11 @@ class QuestionGroup(BaseModel):
     item_limit: Mapped[int | None]
 
     questions: Mapped[list["Question"]] = relationship(
-        "Question", lazy=True, order_by="Question.order", collection_class=ordering_list("order", count_from=1),
-        back_populates="group"
+        "Question",
+        lazy=True,
+        order_by="Question.order",
+        collection_class=ordering_list("order", count_from=1),
+        back_populates="group",
     )
 
 
