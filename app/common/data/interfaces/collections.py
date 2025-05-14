@@ -79,7 +79,11 @@ def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, in
     """
     if 0 <= index_a < len(containing_list) and 0 <= index_b < len(containing_list):
         containing_list[index_a], containing_list[index_b] = containing_list[index_b], containing_list[index_a]
-    db.session.execute(text("SET CONSTRAINTS uq_section_order_collection_schema, uq_form_order_section DEFERRED"))
+    db.session.execute(
+        text(
+            "SET CONSTRAINTS uq_section_order_collection_schema, uq_form_order_section, uq_question_order_form DEFERRED"
+        )
+    )
     db.session.flush()
     return containing_list
 
@@ -154,3 +158,15 @@ def create_question(form: Form, *, text: str, hint: str, name: str, data_type: s
 
 def get_question_by_id(question_id: UUID4) -> Question:
     return db.session.get_one(Question, question_id)
+
+
+def move_question_up(question: Question) -> Question:
+    list_index = question.order - 1  # convert from 1-based order to 0-based list index
+    swap_elements_in_list_and_flush(question.form.questions, list_index, list_index - 1)
+    return question
+
+
+def move_question_down(question: Question) -> Question:
+    list_index = question.order - 1  # convert from 1-based order to 0-based list index
+    swap_elements_in_list_and_flush(question.form.questions, list_index, list_index + 1)
+    return question

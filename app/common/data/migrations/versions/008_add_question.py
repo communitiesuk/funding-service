@@ -31,7 +31,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["form_id"], ["form.id"], name=op.f("fk_question_form_id_form")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_question")),
         sa.UniqueConstraint("name", "form_id", name="uq_question_name_form"),
-        sa.UniqueConstraint("order", "form_id", deferrable="True", name="uq_question_order_form"),
+        sa.UniqueConstraint("order", "form_id", deferrable=True, name="uq_question_order_form"),
         sa.UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
     )
 

@@ -66,13 +66,13 @@
         "value": {"text": question.text},
         "actions": {
             "items": [
-            {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, direction = 'up'),
+            {   "href":url_for('platform.move_question', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, question_id=question.id, direction = 'up'),
                 "text": "Move up",
                 "classes": "fs-disabled-link" if (loop.index == 1)  else "govuk-link--no-visited-state"
 },
-            {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, direction = 'down'),
+            {   "href":url_for('platform.move_question', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, question_id=question.id, direction = 'down'),
                 "text": "Move down",
                 "classes": "fs-disabled-link" if (loop.index >= form.questions | length)  else "govuk-link--no-visited-state"
 },
