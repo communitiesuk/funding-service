@@ -5,8 +5,11 @@ json_scalars = str | int | float | bool
 
 class DataType(enum.Enum):
     TEXT = "TEXT"
-    INT = "INT"
-    CONTACT_DETAILS = "CONTACT_DETAILS"
+    EMAIL = "EMAIL"
+    PHONE_NUMBER = "PHONE_NUMBER"
+    NUMBER = "NUMBER"
+    ADDRESS = "ADDRESS"
+    URL = "URL"
 
 
 class ConditionType(enum.Enum):
