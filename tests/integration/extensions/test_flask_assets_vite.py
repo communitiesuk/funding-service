@@ -3,7 +3,8 @@ from unittest.mock import patch
 import pytest
 from flask import Flask
 
-from app.extensions.flask_assets_vite import Environment, FlaskAssetsViteExtension
+from app.config import Environment
+from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
 
 
 @pytest.fixture(scope="module")
