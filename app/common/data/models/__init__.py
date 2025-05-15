@@ -200,9 +200,9 @@ class Condition(BaseModel):
     __tablename__ = "condition"
 
     expression: Mapped[str]
-    type: Mapped[ConditionType] = mapped_column(SqlEnum(ConditionType))
+    type: Mapped[ConditionType] = mapped_column(SqlEnum(ConditionType), nullable=True)
     description: Mapped[str]
-    context: Mapped[str]
+    context: Mapped[str | None] = mapped_column(nullable=True)
 
     depends_on_question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
     depends_on: Mapped["Question"] = relationship(

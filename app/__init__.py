@@ -10,7 +10,6 @@ from app import logging
 from app.common.data import interfaces
 from app.common.data.models import User
 from app.common.filters import format_date, format_date_range, format_datetime, format_datetime_range
-from app.common.filters.time_and_date_filters import format_date
 from app.common.forms import test_blueprint
 from app.config import get_settings
 from app.extensions import (
