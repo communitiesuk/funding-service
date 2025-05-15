@@ -44,7 +44,8 @@
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
         <h2 class="govuk-heading-m">Forms</h2>
-        {% set forms_text %}{% trans count=section.forms | length %}{{ count }} form{% pluralize %}{{ count }} forms{% endtrans %}{% endset %}
+        {% set forms_text %}{% trans count=section.forms | length %}{{ count }} form{% pluralize %}{{ count }}
+            forms{% endtrans %}{% endset %}
 
 
         {% if not section.forms %}
@@ -78,12 +79,12 @@
 
         {% if section.forms %}
             {{ moveUpDownTable(table_rows) }}
-        {% endif %}
-        {{ govukButton({
+            {{ govukButton({
             "text": "Add a form",
             "classes": "govuk-button--secondary",
             "href": url_for("platform.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
             }) }}
+        {% endif %}
     </div>
 </div>
 {% endblock content %}
