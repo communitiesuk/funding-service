@@ -21,62 +21,36 @@ class FormHandler:
     def __init__(self, form: Form) -> None:
         self.form = form
 
-    def _select_question_by_condition(self, current_question: Question) -> list[Question]:
+    def _higher_order_relevant_questions(self, current_question: Question) -> list[Question]:
         return [
             question
             for question in self.form.questions
             if question.order > current_question.order
-            and all(self._evaluate_condition(condition, None) for condition in question.conditions)
+               and all(self._evaluate_condition(condition, None) for condition in question.conditions)
         ]
 
     def get_questions_from_page_slug(self, page_slug: str) -> list[Question]:
-        questions = [
-            question
-            for question in self.form.questions
-            if question.slug == page_slug and (not question.group or not question.group.show_all_on_same_page)
-        ]
-        if questions:
-            return questions
+        for question in self.form.questions:
+            if question.slug == page_slug:
+                if question.group and question.group.show_all_on_same_page:
+                    continue
+                return [question]
 
-        group = next(
-            (group for group in self.form.question_groups if group.slug == page_slug and group.show_all_on_same_page),
-            None,
-        )
-        return group.questions if group else []
+        for group in self.form.question_groups:
+            if group.slug == page_slug and group.show_all_on_same_page:
+                return group.questions
+
+        raise Exception("Page slug not found")
 
     def get_next_page_slug(self, page_slug: str) -> str | None:
         questions = self.get_questions_from_page_slug(page_slug)
-        current_question = (
-            questions[-1]
-            if questions and questions[0].group and questions[0].group.show_all_on_same_page
-            else questions[0]
-            if questions
-            else None
-        )
-
-        selected_questions = self._select_question_by_condition(current_question)
+        current_question = questions[-1]
+        selected_questions = self._higher_order_relevant_questions(current_question)
         if not selected_questions:
             return None
         first_question = selected_questions[0]
-        if (
-            first_question.group
-            and first_question.group.show_all_on_same_page
-            and first_question.group_id != current_question.group_id
-        ):
+        if first_question.group and first_question.group.show_all_on_same_page:
             return first_question.group.slug
-        elif (
-            first_question.group
-            and first_question.group.show_all_on_same_page
-            and first_question.group_id == current_question.group_id
-        ):
-            filtered_questions = [
-                question
-                for question in selected_questions
-                if not question.group or question.group.id != current_question.group_id
-            ]
-            if not filtered_questions:
-                return None
-            return filtered_questions[0].slug
         return first_question.slug
 
     def _evaluate_condition(self, condition: Condition, answers: Submission | None):
