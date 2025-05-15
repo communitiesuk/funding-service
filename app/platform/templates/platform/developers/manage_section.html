@@ -1,7 +1,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+{% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
 
 {% extends "platform/manage_grant_base.html" %}
 
@@ -55,7 +55,7 @@
 
         {% if not section.forms %}
             <p class="govuk-body">This section has no forms, you can
-                <a class="govuk-link--no-visited-state"
+                <a class="govuk-link govuk-link--no-visited-state"
                    href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
                     a form</a>.</p>
         {% else %}
@@ -64,36 +64,26 @@
         {% endif %}
 
 
-        {% set form_rows = [] %}
+        {% set table_rows = [] %}
         {% for form in section.forms %}
-            {% do form_rows.append({
-        "key": {},
-        "value": {"text": form.title},
-        "actions": {
-            "items": [
-            {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, direction = 'up'),
-                "text": "Move up",
-                "classes": "fs-disabled-link" if (loop.index == 1)  else "govuk-link--no-visited-state"
-},
-            {   "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, direction = 'down'),
-                "text": "Move down",
-                "classes": "fs-disabled-link" if (loop.index >= section.forms | length)  else "govuk-link--no-visited-state"
-},
-            {   "href":url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
+            {% do table_rows.append({
+        "text": form.title,
+        "actions":[
+        {"text":"Move up",
+            "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1)},
+                   {"href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, form_id=form.id, direction = 'down') ,
+                "text": "Move down","disabled":(loop.index >= section.forms | length)},
+                {"href":url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, back_link="manage_section"),
-                "text": "Manage",
-                "classes": "govuk-link--no-visited-state",
-}
-
-            ]
-        }
-    }) %}
+                "text": "Manage",}
+        ]
+                }) %}
         {% endfor %}
 
         {% if section.forms %}
-            {{ govukSummaryList({"rows":form_rows,"classes":"fs-move-up-down-table"}) }}
+            {{ moveUpDownTable(table_rows) }}
         {% endif %}
         {{ govukButton({
             "text": "Add a form",

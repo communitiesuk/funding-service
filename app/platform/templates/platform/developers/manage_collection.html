@@ -41,7 +41,7 @@
                           {
                             "href": url_for("platform.edit_collection", grant_id = grant.id, collection_id = collection.id),
                             "text": "Change",
-                            "classes": "govuk-link--no-visited-state"
+                            "classes": "govuk-link govuk-link--no-visited-state"
                           }
                       ]
                   }
@@ -53,7 +53,7 @@
                           {
                             "href": url_for("platform.list_sections", grant_id = grant.id, collection_id = collection.id),
                             "text": "Manage",
-                            "classes": "govuk-link--no-visited-state"
+                            "classes": "govuk-link govuk-link--no-visited-state"
                           }
                       ]
                   }
@@ -61,8 +61,9 @@
             }) }}
 
         {% if not collection.sections %}
-            <p class="govuk-body">This collection has no sections, you can <a class="govuk-link--no-visited-state"
-                                                                              href="{{ url_for('platform.add_section', grant_id = grant.id, collection_id = collection.id) }}">add
+            <p class="govuk-body">This collection has no sections, you can <a
+                    class="govuk-link govuk-link--no-visited-state"
+                    href="{{ url_for('platform.add_section', grant_id = grant.id, collection_id = collection.id) }}">add
                 a
                 section</a>.</p>
 
@@ -78,7 +79,7 @@
 
         {% if not section.forms %}
             <p class="govuk-body">This section has no forms, you can
-                <a class="govuk-link--no-visited-state"
+                <a class="govuk-link govuk-link--no-visited-state"
                    href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
                     a form</a>.</p>
         {% endif %}

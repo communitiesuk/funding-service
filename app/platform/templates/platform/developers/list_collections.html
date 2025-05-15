@@ -24,12 +24,13 @@
     {% set rows=[] %}
     {% for collection in grant.collection_schemas %}
         {% do rows.append([{
-        "html": "<a class='govuk-link--no-visited-state' href='" + url_for("platform.manage_collection", grant_id = grant.id, collection_id = collection.id) + "'>" + collection.name + "</a>",
+        "html": "<a class='govuk-link govuk-link--no-visited-state' href='" + url_for("platform.manage_collection", grant_id = grant.id, collection_id = collection.id) + "'>" + collection.name + "</a>",
         }, {"text": collection.created_by.email}, {"text": format_date(collection.created_at_utc) }]) %}
     {% endfor %}
     {% if not grant.collection_schemas %}
-        <p class="govuk-body">This grant has no collections, you can <a
-                href="{{ url_for('platform.setup_collection', grant_id = grant.id) }}">add a collection</a>.</p>
+        <p class="govuk-body">This grant has no collections, you can <a class="govuk-link govuk-link--no-visited-state"
+                                                                        href="{{ url_for('platform.setup_collection', grant_id = grant.id) }}">add
+            a collection</a>.</p>
     {% else %}
         {{ govukTable({
   "captionClasses": "govuk-table__caption--m",
