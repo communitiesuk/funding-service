@@ -8,6 +8,7 @@ from app import logging
 from app.common.data import interfaces
 from app.common.data.models import User
 from app.common.filters.time_and_date_filters import format_date
+from app.common.forms import test_blueprint
 from app.config import get_settings
 from app.extensions import (
     auto_commit_after_request,
@@ -117,6 +118,7 @@ def create_app() -> Flask:
     app.register_blueprint(healthcheck_blueprint)
     app.register_blueprint(platform_blueprint)
     app.register_blueprint(auth_blueprint)
+    app.register_blueprint(test_blueprint)
 
     @app.route("/", methods=["GET"])
     def index() -> ResponseReturnValue:
