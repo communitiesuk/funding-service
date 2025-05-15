@@ -2,14 +2,14 @@
 
 {% block content %}
 
-    {% if not question_dict %}
+    {% if not questions %}
         <h1 class="govuk-heading-xl">404 - Questions Not Found</h1>
-        <p class="govuk-body">The form questions you’re looking for could not be found.</p>
+        <p class="govuk-body">The form questions you're looking for could not be found.</p>
     {% else %}
 
         <h1 class="govuk-heading-xl">Form Questions</h1>
 
-        {% for question in question_dict %}
+        {% for question in questions %}
             <div class="govuk-form-group">
                 <h2 class="govuk-heading-m">{{ question.title }}</h2>
 
@@ -56,8 +56,9 @@
             </div>
         {% endfor %}
 
-        {% set last_question = question_dict[-1] %}
-        <a href="{{ last_question.next_page }}" class="govuk-button">Next Page</a>
+        <form method="post">
+            <button type="submit" class="govuk-button">Next</button>
+        </form>
 
     {% endif %}
 

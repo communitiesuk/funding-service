@@ -107,25 +107,3 @@ class QuestionService:
     def _evaluate_condition(self, condition: Condition, answers: Submission | None):
         # TODO implementing condition eval & get answer by the submission to eval
         return True
-
-    def questions_to_dict(self, questions: List[Question]) -> dict[str, dict]:
-        question_dict = []
-
-        for question in questions:
-            question_dict.append(
-                {
-                    "title": question.title,
-                    "name": question.name,
-                    "next_page": f"/form/next/{question.form.slug}/{question.slug}",
-                    "hint": question.hint,
-                    "data_source": question.data_source,
-                    "data_type": question.data_type.name
-                    if hasattr(question.data_type, "name")
-                    else str(question.data_type),
-                    "order": question.order,
-                    "form_id": str(question.form_id),
-                    "group_id": str(question.group_id) if question.group_id else None,
-                }
-            )
-
-        return question_dict

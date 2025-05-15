@@ -177,6 +177,7 @@ def get_all_questions_with_higher_order_from_current(current_question) -> List[Q
 
 
 def add_test_grant_schema() -> Question | None:
+    """Add a test grant schema to the database."""
     user = db.session.query(User).filter_by(email="nuwan.samarasinghe@communities.gov.uk").first()
     if not user:
         user = User(email="nuwan.samarasinghe@communities.gov.uk")
@@ -193,7 +194,9 @@ def add_test_grant_schema() -> Question | None:
         db.session.query(CollectionSchema).filter_by(name="Community Ownership Funding Collection", version=1).first()
     )
     if schema:
-        return None  # Data already exists, do nothing or handle update logic here
+        # Delete the existing schema
+        db.session.delete(schema)
+        db.session.flush()
 
     schema = CollectionSchema(name="Community Ownership Funding Collection", version=1, created_by=user, grant=grant)
 
@@ -203,29 +206,41 @@ def add_test_grant_schema() -> Question | None:
     # Single question examples
     form_1.questions.extend(
         [
-            create_question(
-                "Name of lead contact", "lead_contact_name", "Enter the full name of the lead contact", 1, DataType.TEXT
+            Question(
+                title="Name of lead contact",
+                name="lead_contact_name",
+                slug=slugify("lead_contact_name"),
+                hint="Enter the full name of the lead contact",
+                data_source={},
+                data_type=DataType.TEXT,
+                order=1,
             ),
-            create_question(
-                "Lead contact job title",
-                "lead_contact_job_title",
-                "Enter the job title of the lead contact",
-                2,
-                DataType.TEXT,
+            Question(
+                title="Lead contact job title",
+                name="lead_contact_job_title",
+                slug=slugify("lead_contact_job_title"),
+                hint="Enter the job title of the lead contact",
+                data_source={},
+                data_type=DataType.TEXT,
+                order=2,
             ),
-            create_question(
-                "Lead contact email address",
-                "lead_contact_email",
-                "Enter the email address of the lead contact",
-                3,
-                DataType.EMAIL,
+            Question(
+                title="Lead contact email address",
+                name="lead_contact_email",
+                slug=slugify("lead_contact_email"),
+                hint="Enter the email address of the lead contact",
+                data_source={},
+                data_type=DataType.EMAIL,
+                order=3,
             ),
-            create_question(
-                "Lead contact telephone number",
-                "lead_contact_phone",
-                "Enter the telephone number of the lead contact",
-                4,
-                DataType.PHONE_NUMBER,
+            Question(
+                title="Lead contact telephone number",
+                name="lead_contact_phone",
+                slug=slugify("lead_contact_phone"),
+                hint="Enter the telephone number of the lead contact",
+                data_source={},
+                data_type=DataType.PHONE_NUMBER,
+                order=4,
             ),
         ]
     )
@@ -234,24 +249,45 @@ def add_test_grant_schema() -> Question | None:
     section_2 = Section(title="Risk and deliverability", order=2)
     form_2 = Form(title="Risk and deliverability", order=1, slug=slugify("Risk and deliverability"))
     question_group = QuestionGroup(
-        title="Your proposal risks", allow_add_another=True, show_all_on_same_page=False, item_limit=3
+        title="Your proposal risks",
+        slug="your-proposal-risks",
+        allow_add_another=True,
+        show_all_on_same_page=False,
+        item_limit=3,
+        form=form_2,
     )
     # Group question with add another
     form_2.questions.extend(
         [
-            create_group_question(
-                "Risk", "proposal_risk", "Describe a specific risk", 1, question_group, DataType.NUMBER
+            Question(
+                title="What is the risk?",
+                name="proposal_risk",
+                slug=slugify("proposal_risk"),
+                hint="Describe a specific risk",
+                data_source={},
+                data_type=DataType.TEXT,
+                order=1,
+                group=question_group,
             ),
-            create_group_question(
-                "Likelihood", "proposal_likelihood", "What is the likelihood?", 2, question_group, DataType.NUMBER
+            Question(
+                title="What is the likelihood?",
+                name="proposal_likelihood",
+                slug=slugify("proposal_likelihood"),
+                hint="What is the likelihood?",
+                data_source={},
+                data_type=DataType.NUMBER,
+                order=2,
+                group=question_group,
             ),
-            create_group_question(
-                "Proposed mitigation",
-                "proposal_mitigation",
-                "How will you mitigate this risk?",
-                3,
-                question_group,
-                DataType.TEXT,
+            Question(
+                title="How will you mitigate this risk?",
+                name="proposal_mitigation",
+                slug=slugify("proposal_mitigation"),
+                hint="How will you mitigate this risk?",
+                data_source={},
+                data_type=DataType.TEXT,
+                order=3,
+                group=question_group,
             ),
         ]
     )
@@ -260,27 +296,45 @@ def add_test_grant_schema() -> Question | None:
     section_3 = Section(title="Funding required", order=3)
     form_3 = Form(title="Funding required", order=1, slug=slugify("Funding required"))
     question_group_3 = QuestionGroup(
-        title="Funding required", allow_add_another=False, show_all_on_same_page=True, item_limit=None
+        title="Funding required",
+        slug="funding-required",
+        allow_add_another=False,
+        show_all_on_same_page=True,
+        item_limit=None,
+        form=form_3,
     )
     # Group question with logical group & show on same page
     form_3.questions.extend(
         [
-            create_group_question(
-                "Describe the cost",
-                "cost",
-                "Describe the cost",
-                1,
-                question_group_3,
-                DataType.TEXT,
+            Question(
+                title="What is the cost?",
+                name="cost",
+                slug=slugify("cost"),
+                hint="Describe the cost",
+                data_source={},
+                data_type=DataType.TEXT,
+                order=1,
+                group=question_group_3,
             ),
-            create_group_question("Amount", "amount", "Amount", 2, question_group_3, DataType.NUMBER),
-            create_group_question(
-                "How much money from the COF grant will you use to pay for this cost?",
-                "grant",
-                "How much money from the COF grant will you use to pay for this cost?",
-                3,
-                question_group_3,
-                DataType.TEXT,
+            Question(
+                title="Amount",
+                name="amount",
+                slug=slugify("amount"),
+                hint="Amount",
+                data_source={},
+                data_type=DataType.NUMBER,
+                order=2,
+                group=question_group_3,
+            ),
+            Question(
+                title="How much money from the COF grant will you use to pay for this cost?",
+                name="grant",
+                slug=slugify("grant"),
+                hint="How much money from the COF grant will you use to pay for this cost?",
+                data_source={},
+                data_type=DataType.TEXT,
+                order=3,
+                group=question_group_3,
             ),
         ]
     )
@@ -289,18 +343,53 @@ def add_test_grant_schema() -> Question | None:
     section_4 = Section(title="About your organization", order=4)
     form_4 = Form(title="About your organization", order=1, slug=slugify("About your organization"))
     question_group_4 = QuestionGroup(
-        title="About your organization", allow_add_another=False, show_all_on_same_page=True, item_limit=None
+        title="About your organization",
+        slug="about-your-organization",
+        allow_add_another=False,
+        show_all_on_same_page=True,
+        item_limit=None,
+        form=form_4,
     )
     # Group question with logical group and normal questions
     form_4.questions.extend(
         [
-            create_question("Organization name", "organization_name", "Enter the organization name", 1, DataType.TEXT),
-            create_group_question(
-                "Website and social media", "URL", "Website and social media", 2, question_group_4, DataType.URL
+            Question(
+                title="What is the name of your organization?",
+                name="organization_name",
+                slug=slugify("organization_name"),
+                hint="Enter the name of your organization",
+                data_source={},
+                data_type=DataType.TEXT,
+                order=1,
             ),
-            create_group_question("Are you a human?", "amount", "Are you a human?", 3, question_group_4, DataType.TEXT),
-            create_question(
-                "Organization address", "organization_address", "Enter the organization address", 4, DataType.ADDRESS
+            Question(
+                title="Website and social media",
+                name="website_and_social_media",
+                slug=slugify("website_and_social_media"),
+                hint="Enter the website and social media links",
+                data_source={},
+                data_type=DataType.URL,
+                order=2,
+                group=question_group_4,
+            ),
+            Question(
+                title="Are you a human?",
+                name="are_you_a_human",
+                slug=slugify("are_you_a_human"),
+                hint="Are you a human?",
+                data_source={},
+                data_type=DataType.TEXT,
+                order=3,
+                group=question_group_4,
+            ),
+            Question(
+                title="Organization address",
+                name="organization_address",
+                slug=slugify("organization_address"),
+                hint="Enter the organization address",
+                data_source={},
+                data_type=DataType.ADDRESS,
+                order=4,
             ),
         ]
     )
@@ -320,28 +409,3 @@ def add_test_grant_schema() -> Question | None:
     )
 
     return {"schema": schema.id}
-
-
-def create_question(title, name, hint, order, data_type):
-    return Question(
-        title=title,
-        name=name,
-        slug=slugify(name),
-        hint=hint,
-        data_source={},
-        data_type=data_type,
-        order=order,
-    )
-
-
-def create_group_question(title, name, hint, order, question_group, data_type):
-    return Question(
-        title=title,
-        name=name,
-        slug=slugify(name),
-        hint=hint,
-        data_source={},
-        data_type=data_type,
-        order=order,
-        group=question_group,
-    )
