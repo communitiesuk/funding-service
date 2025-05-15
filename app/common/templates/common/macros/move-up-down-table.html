@@ -1,0 +1,27 @@
+{% macro moveUpDownTable(table_rows) %}
+
+    <dl class="govuk-summary-list app-move-up-down-table">
+        {% for row in table_rows %}
+            <div class="govuk-summary-list__row app-move-up-down-table__row">
+                <dt class="govuk-summary-list__value">
+                    {{ row.text }}
+                </dt>
+                <dd class="govuk-summary-list__actions app-move-up-down-table__actions">
+                    <ul class="govuk-summary-list__actions-list">
+                        {% for action in row.actions %}
+                            <li class="govuk-summary-list__actions-list-item">
+                                {% if not action.disabled %}
+                                    <a class="govuk-link govuk-link--no-visited-state"
+                                       href="{{ action.href }}">{{ action.text }}<span
+                                            class="govuk-visually-hidden"> {{ row.text }}</span></a>
+                                {% else %}
+                                    <span class="app-move-up-down-table__action--disabled">{{ action.text }}</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </dd>
+            </div>
+        {% endfor %}
+    </dl>
+{% endmacro %}

@@ -3,7 +3,6 @@ import secrets
 import uuid
 
 from pytz import utc
-from slugify import slugify
 from sqlalchemy import ForeignKey, Index, UniqueConstraint
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -79,10 +78,6 @@ class CollectionSchema(BaseModel):
     sections: Mapped[list["Section"]] = relationship(
         "Section", lazy=True, order_by="Section.order", collection_class=ordering_list("order", count_from=1)
     )
-
-    @property
-    def slug(self) -> str:
-        return slugify(self.name)
 
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
 
