@@ -23,6 +23,12 @@ def upgrade() -> None:
         sa.Column("created_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("title", sa.String(), nullable=False),
+        sa.Column("slug", sa.String(), nullable=False),
+        sa.Column("form_id", sa.Uuid(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["form_id"], ["form.id"], name=op.f("fk_question_group_form_id_form"), ondelete="CASCADE"
+        ),
+        sa.Column("order", sa.Integer(), nullable=False),
         sa.Column("allow_add_another", sa.Boolean(), nullable=False),
         sa.Column("show_all_on_same_page", sa.Boolean(), nullable=False),
         sa.Column("item_limit", sa.Integer(), nullable=True),
@@ -53,7 +59,11 @@ def upgrade() -> None:
         sa.Column("slug", sa.String(), nullable=False),
         sa.Column("hint", sa.String(), nullable=False),
         sa.Column("data_source", sa.JSON(), nullable=False),
-        sa.Column("data_type", sa.Enum("TEXT", "INT", "CONTACT_DETAILS", name="datatype"), nullable=False),
+        sa.Column(
+            "data_type",
+            sa.Enum("TEXT", "EMAIL", "PHONE_NUMBER", "NUMBER", "URL", "ADDRESS", "CONTACT_DETAILS", name="datatype"),
+            nullable=False,
+        ),
         sa.Column("order", sa.Integer(), nullable=False),
         sa.Column("form_id", sa.Uuid(), nullable=False),
         sa.Column("group_id", sa.Uuid(), nullable=True),
@@ -105,4 +115,3 @@ def downgrade() -> None:
     op.drop_table("question")
     op.drop_table("submission")
     op.drop_table("question_group")
-    # ### end Alembic commands ###
