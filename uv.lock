@@ -570,7 +570,7 @@ requires-dist = [
     { name = "flask-wtf", specifier = "==1.2.2" },
     { name = "govuk-frontend-jinja", specifier = "==3.5.0" },
     { name = "govuk-frontend-wtf", specifier = "==3.2.0" },
-    { name = "gunicorn", extras = ["gevent"], specifier = ">=23.0.0" },
+    { name = "gunicorn", extras = ["gevent"], specifier = "==23.0.0" },
     { name = "msal", specifier = "==1.32.3" },
     { name = "notifications-python-client", specifier = "==10.0.1" },
     { name = "psycopg", specifier = "==3.2.9" },
