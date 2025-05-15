@@ -4,8 +4,8 @@ import uuid
 from typing import Any
 
 from pytz import utc
-from sqlalchemy import Enum as SqlEnum
 from sqlalchemy import JSON, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -200,9 +200,9 @@ class Condition(BaseModel):
     __tablename__ = "condition"
 
     expression: Mapped[str]
-    type: Mapped[ConditionType] = mapped_column(SqlEnum(ConditionType))
+    type: Mapped[ConditionType] = mapped_column(SqlEnum(ConditionType), nullable=True)
     description: Mapped[str]
-    context: Mapped[str]
+    context: Mapped[str | None] = mapped_column(nullable=True)
 
     depends_on_question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
     depends_on: Mapped["Question"] = relationship(
@@ -217,10 +217,10 @@ class Validation(BaseModel):
     __tablename__ = "validation"
 
     expression: Mapped[str]
-    type: Mapped[ConditionType] = mapped_column(SqlEnum(ConditionType))
-    description: Mapped[str]
+    type: Mapped[ConditionType] = mapped_column(SqlEnum(ConditionType), nullable=True)
+    description: Mapped[str] = mapped_column(nullable=True)
     message: Mapped[str]
-    context: Mapped[str]
+    context: Mapped[str] = mapped_column(nullable=True)
 
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
     question: Mapped[Question] = relationship("Question", back_populates="validations")

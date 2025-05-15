@@ -25,7 +25,6 @@ from app.common.data.interfaces.collections import (
     update_section,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.interfaces.sections import create_section
 from app.common.data.models import User
 from app.extensions import auto_commit_after_request
 from app.platform.forms import CollectionForm, FormForm, GrantForm, SectionForm
@@ -125,7 +124,7 @@ def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
 @auto_commit_after_request
 def manage_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
     collection = get_collection_schema(collection_id)
-    return render_template("platform/developers/collection_details.html", grant=collection.grant, collection=collection)
+    return render_template("platform/developers/manage_collection.html", grant=collection.grant, collection=collection)
 
 
 @platform_blueprint.route(
