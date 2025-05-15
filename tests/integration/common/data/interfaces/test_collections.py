@@ -25,9 +25,10 @@ def test_get_collection(db_session, factories):
 def test_create_collection(db_session, factories):
     g = factories.grant.create()
     u = factories.user.create()
-    collection = create_collection_schema(name="test_collection", user=u, grant=g)
+    collection = create_collection_schema(name="test collection", user=u, grant=g)
     assert collection is not None
     assert collection.id is not None
+    assert collection.slug == "test-collection"
 
     from_db = db_session.get(CollectionSchema, collection.id)
     assert from_db is not None
@@ -62,7 +63,7 @@ def test_get_section(db_session, factories):
     assert from_db is not None
     assert from_db.id == section.id
     assert from_db.title == section.title
-    assert from_db.order == 1
+    assert from_db.order == 0
 
 
 def test_create_section(db_session, factories):
@@ -74,7 +75,7 @@ def test_create_section(db_session, factories):
     assert from_db is not None
     assert from_db.id == section.id
     assert from_db.title == section.title
-    assert from_db.order == 1
+    assert from_db.order == 0
 
     section = create_section(title="test_section_2", collection_schema=cs)
 
@@ -83,11 +84,11 @@ def test_section_ordering(db_session, factories):
     cs = factories.collection_schema.create()
     section = create_section(title="test_section_1", collection_schema=cs)
     assert section
-    assert section.order == 1
+    assert section.order == 0
 
     section2 = create_section(title="test_section_2", collection_schema=cs)
     assert section2
-    assert section2.order == 2
+    assert section2.order == 1
 
 
 def test_section_name_unique_in_collection(db_session, factories):
@@ -106,20 +107,20 @@ def test_move_section_up_down(db_session, factories):
     assert section1
     assert section2
 
-    assert section1.order == 1
-    assert section2.order == 2
+    assert section1.order == 0
+    assert section2.order == 1
 
     # Move section 2 up
     move_section_up(section2)
 
-    assert section1.order == 2
-    assert section2.order == 1
+    assert section1.order == 1
+    assert section2.order == 0
 
     # Move section 2 down
     move_section_down(section2)
 
-    assert section1.order == 1
-    assert section2.order == 2
+    assert section1.order == 0
+    assert section2.order == 1
 
 
 def test_get_form(db_session, factories):
@@ -134,7 +135,7 @@ def test_create_form(db_session, factories):
     assert form is not None
     assert form.id is not None
     assert form.title == "Test Form"
-    assert form.order == 1
+    assert form.order == 0
     assert form.slug == "test-form"
 
 
@@ -155,17 +156,17 @@ def test_move_form_up_down(db_session, factories):
     assert form1
     assert form2
 
-    assert form1.order == 1
-    assert form2.order == 2
+    assert form1.order == 0
+    assert form2.order == 1
 
     # Move form 2 up
     move_form_up(form2)
 
-    assert form1.order == 2
-    assert form2.order == 1
+    assert form1.order == 1
+    assert form2.order == 0
 
     # Move form 2 down
     move_form_down(form2)
 
-    assert form1.order == 1
-    assert form2.order == 2
+    assert form1.order == 0
+    assert form2.order == 1
