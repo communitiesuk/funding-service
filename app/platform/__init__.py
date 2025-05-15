@@ -174,10 +174,9 @@ def add_section(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
 
 
 @platform_blueprint.route(
-    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/", methods=["GET", "POST"]
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/", methods=["GET"]
 )
 @mhclg_login_required
-@auto_commit_after_request
 def list_sections(
     grant_id: UUID4,
     collection_id: UUID4,
@@ -210,7 +209,6 @@ def move_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, direc
     methods=["GET"],
 )
 @mhclg_login_required
-@auto_commit_after_request
 def manage_section(
     grant_id: UUID4,
     collection_id: UUID4,
@@ -251,7 +249,6 @@ def move_form(
     methods=["GET"],
 )
 @mhclg_login_required
-@auto_commit_after_request
 def manage_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
 
