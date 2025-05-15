@@ -14,9 +14,10 @@ from app.common.data.models import (
     Question,
     QuestionGroup,
     Section,
+    Submission,
     User,
 )
-from app.common.data.types import DataType
+from app.common.data.types import DataType, SubmissionType
 from app.extensions import db
 
 
@@ -409,3 +410,82 @@ def add_test_grant_schema() -> Question | None:
     )
 
     return {"schema": schema.id}
+
+
+def add_test_grant_submission() -> Submission:
+    """Add a test grant submission to the database, with data structured by section and form."""
+    try:
+        schema = (
+            db.session.query(CollectionSchema).filter_by(name="Community Ownership Funding Collection", version=1).one()
+        )
+    except NoResultFound:
+        raise ValueError(
+            "Test collection schema 'Community Ownership Funding Collection v1' not found. "
+            "Please ensure add_test_grant_schema() has been run successfully before calling this function."
+        ) from None
+
+    submission_data = {
+        "applicant-information": {
+            "applicant-information": {
+                "lead-contact-name": "Maria Jones",
+                "lead-contact-job-title": "Project Lead",
+                "lead-contact-email": "maria.jones@example.org.uk",
+                "lead-contact-phone": "07123456789",
+            }
+        },
+        "risk-and-deliverability": {
+            "risk-and-deliverability": {
+                "your-proposal-risks": [
+                    {
+                        "proposal-risk": "Key supplier may not deliver materials on time.",
+                        "proposal-likelihood": 3,
+                        "proposal-mitigation": "Identify alternative suppliers and confirm lead times. Build buffer into project timeline.",
+                    },
+                    {
+                        "proposal-risk": "Lower than expected community engagement for fundraising events.",
+                        "proposal-likelihood": 2,
+                        "proposal-mitigation": "Broaden marketing efforts, partner with local community groups, offer early bird incentives.",
+                    },
+                ]
+            }
+        },
+        "funding-required": {
+            "funding-required": {
+                "funding-required": {
+                    "cost": "Renovation of main hall lighting system to LED.",
+                    "amount": 8500,
+                    "grant": "Seeking £6000 from COF, remaining £2500 from existing reserves.",
+                }
+            }
+        },
+        "about-your-organization": {
+            "about-your-organization": {
+                "organization-name": "The Community Hearth Association",
+                "about-your-organization": {
+                    "website-and-social-media": "https://www.communityhearth.example.com",
+                    "are-you-a-human": "Our organisation is run by humans, for humans.",
+                },
+                "organization-address": {
+                    "street_address_1": "Oakwell House",
+                    "street_address_2": "45 Chestnut Avenue",
+                    "town_city": "Little Whinging",
+                    "county": "Surrey",
+                    "postcode": "LW1 5PQ",
+                },
+            }
+        },
+    }
+
+    submission = Submission(
+        data=submission_data, status=SubmissionType.COMPLETED, collection_schema_id=schema.id, collection_schema=schema
+    )
+
+    db.session.add(submission)
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise RuntimeError(f"Failed to add test grant submission due to an integrity error: {e}") from e
+
+    return submission

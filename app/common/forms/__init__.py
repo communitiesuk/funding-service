@@ -2,6 +2,7 @@ from flask import Blueprint, redirect, render_template, request
 
 from app.common.data.interfaces.collections import (
     add_test_grant_schema,
+    add_test_grant_submission,
     get_collection_schema,
     get_form_by_slug,
 )
@@ -26,7 +27,7 @@ class FormHandler:
             question
             for question in self.form.questions
             if question.order > current_question.order
-               and all(self._evaluate_condition(condition, None) for condition in question.conditions)
+            and all(self._evaluate_condition(condition, None) for condition in question.conditions)
         ]
 
     def get_questions_from_page_slug(self, page_slug: str) -> list[Question]:
@@ -58,10 +59,11 @@ class FormHandler:
         return True
 
 
-@test_blueprint.route("/add-schema", methods=["GET"])
+@test_blueprint.route("/add-data", methods=["GET"])
 @auto_commit_after_request
-def add_collection_schema():
+def add_data():
     add_test_grant_schema()
+    add_test_grant_submission()
     return "Data added successfully"
 
 
