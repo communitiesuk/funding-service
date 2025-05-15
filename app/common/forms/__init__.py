@@ -1,14 +1,11 @@
-import uuid
-
 from flask import Blueprint, redirect, render_template, request
 
 from app.common.data.interfaces.collections import (
     add_test_grant_schema,
     get_collection_schema,
-    get_form_by_id,
     get_form_by_slug,
 )
-from app.common.data.models import Form, Question, QuestionGroup
+from app.common.data.models import Condition, Form, Question, QuestionGroup, Submission
 from app.extensions import auto_commit_after_request
 
 test_blueprint = Blueprint(
@@ -21,60 +18,70 @@ test_blueprint = Blueprint(
 class FormHandler:
     form: Form
 
-    def __init__(self, form_id: uuid.UUID) -> None:
-        self.form = get_form_by_id(form_id)
+    def __init__(self, form: Form) -> None:
+        self.form = form
 
-    @property
-    def standalone_questions(self) -> list[Question]:
-        res = []
-        for question in self.form.questions:
-            if not question.group_id:
-                res.append(question)
-                continue
-            if not question.group.show_all_on_same_page:
-                res.append(question)
-        res.sort(key=lambda q: q.order)
-        return res
-
-    @property
-    def standalone_question_groups(self) -> list[QuestionGroup]:
-        res = []
-        for question_group in self.form.question_groups:
-            if question_group.show_all_on_same_page:
-                res.append(question_group)
-        res.sort(key=lambda q: q.order)
-        return res
-
-    @staticmethod
-    def page_to_questions(page: Question | QuestionGroup) -> list[Question]:
-        if isinstance(page, Question):
-            return [page]
-        elif isinstance(page, QuestionGroup):
-            return page.questions
-        else:
-            raise ValueError("Invalid page type")
-
-    def page_slug_to_questions(self) -> dict[str, list[Question]]:
-        standalone_questions = self.standalone_questions
-        standalone_question_groups = self.standalone_question_groups
-        pages = standalone_questions + standalone_question_groups
-        page_slug_to_questions = {page.slug: self.page_to_questions(page) for page in pages}
-        return page_slug_to_questions
+    def _select_question_by_condition(self, current_question: Question) -> list[Question]:
+        return [
+            question
+            for question in self.form.questions
+            if question.order > current_question.order
+            and all(self._evaluate_condition(condition, None) for condition in question.conditions)
+        ]
 
     def get_questions_from_page_slug(self, page_slug: str) -> list[Question]:
-        # Assumption is that list of slugs is unique across questions and question groups, need to look into this
-        page_slug_to_questions = self.page_slug_to_questions()
-        return page_slug_to_questions[page_slug]
+        questions = [
+            question
+            for question in self.form.questions
+            if question.slug == page_slug and (not question.group or not question.group.show_all_on_same_page)
+        ]
+        if questions:
+            return questions
+
+        group = next(
+            (group for group in self.form.question_groups if group.slug == page_slug and group.show_all_on_same_page),
+            None,
+        )
+        return group.questions if group else []
 
     def get_next_page_slug(self, page_slug: str) -> str | None:
-        page_slug_to_questions = self.page_slug_to_questions()
-        page_slugs = list(page_slug_to_questions.keys())
-        if page_slug not in page_slugs:
+        questions = self.get_questions_from_page_slug(page_slug)
+        current_question = (
+            questions[-1]
+            if questions and questions[0].group and questions[0].group.show_all_on_same_page
+            else questions[0]
+            if questions
+            else None
+        )
+
+        selected_questions = self._select_question_by_condition(current_question)
+        if not selected_questions:
             return None
-        current_index = page_slugs.index(page_slug)
-        if current_index + 1 >= len(page_slugs):
-            return None
-        return page_slugs[current_index + 1]
+        first_question = selected_questions[0]
+        if (
+            first_question.group
+            and first_question.group.show_all_on_same_page
+            and first_question.group_id != current_question.group_id
+        ):
+            return first_question.group.slug
+        elif (
+            first_question.group
+            and first_question.group.show_all_on_same_page
+            and first_question.group_id == current_question.group_id
+        ):
+            filtered_questions = [
+                question
+                for question in selected_questions
+                if not question.group or question.group.id != current_question.group_id
+            ]
+            if not filtered_questions:
+                return None
+            return filtered_questions[0].slug
+        return first_question.slug
+
+    def _evaluate_condition(self, condition: Condition, answers: Submission | None):
+        # TODO implementing condition eval & get answer by the submission to eval
+        return True
 
 
 @test_blueprint.route("/add-schema", methods=["GET"])
@@ -91,7 +98,7 @@ def question_page(form_slug: str, page_slug: str):
     if not form:
         return "Form not found", 404
 
-    form_handler = FormHandler(form.id)
+    form_handler = FormHandler(form)
 
     if request.method == "POST":
         page_slug = form_handler.get_next_page_slug(page_slug)
