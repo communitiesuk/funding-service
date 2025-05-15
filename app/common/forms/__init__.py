@@ -1,6 +1,6 @@
 import uuid
 
-from flask import Blueprint, render_template
+from flask import Blueprint, redirect, render_template, request
 
 from app.common.data.interfaces.collections import (
     add_test_grant_schema,
@@ -33,6 +33,7 @@ class FormHandler:
                 continue
             if not question.group.show_all_on_same_page:
                 res.append(question)
+        res.sort(key=lambda q: q.order)
         return res
 
     @property
@@ -41,6 +42,7 @@ class FormHandler:
         for question_group in self.form.question_groups:
             if question_group.show_all_on_same_page:
                 res.append(question_group)
+        res.sort(key=lambda q: q.order)
         return res
 
     @staticmethod
@@ -52,13 +54,27 @@ class FormHandler:
         else:
             raise ValueError("Invalid page type")
 
-    def get_questions_from_page_slug(self, page_slug: str) -> list[Question]:
-        # Assumption is that list of slugs is unique across questions and question groups, need to look into this
+    def page_slug_to_questions(self) -> dict[str, list[Question]]:
         standalone_questions = self.standalone_questions
         standalone_question_groups = self.standalone_question_groups
         pages = standalone_questions + standalone_question_groups
         page_slug_to_questions = {page.slug: self.page_to_questions(page) for page in pages}
+        return page_slug_to_questions
+
+    def get_questions_from_page_slug(self, page_slug: str) -> list[Question]:
+        # Assumption is that list of slugs is unique across questions and question groups, need to look into this
+        page_slug_to_questions = self.page_slug_to_questions()
         return page_slug_to_questions[page_slug]
+
+    def get_next_page_slug(self, page_slug: str) -> str | None:
+        page_slug_to_questions = self.page_slug_to_questions()
+        page_slugs = list(page_slug_to_questions.keys())
+        if page_slug not in page_slugs:
+            return None
+        current_index = page_slugs.index(page_slug)
+        if current_index + 1 >= len(page_slugs):
+            return None
+        return page_slugs[current_index + 1]
 
 
 @test_blueprint.route("/add-schema", methods=["GET"])
@@ -68,7 +84,7 @@ def add_collection_schema():
     return "Data added successfully"
 
 
-@test_blueprint.route("/<string:form_slug>/<string:page_slug>", methods=["GET"])
+@test_blueprint.route("/<string:form_slug>/<string:page_slug>", methods=["GET", "POST"])
 def question_page(form_slug: str, page_slug: str):
     # Get the form by slug
     form = get_form_by_slug(form_slug)
@@ -76,6 +92,12 @@ def question_page(form_slug: str, page_slug: str):
         return "Form not found", 404
 
     form_handler = FormHandler(form.id)
+
+    if request.method == "POST":
+        page_slug = form_handler.get_next_page_slug(page_slug)
+        if not page_slug:
+            return "Page slug not found", 404
+        return redirect(f"/{form_slug}/{page_slug}")
 
     # Get the page by slug
     questions = form_handler.get_questions_from_page_slug(page_slug)
