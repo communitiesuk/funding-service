@@ -130,12 +130,22 @@ class Form(BaseModel):
     questions: Mapped[list["Question"]] = relationship(
         "Question", lazy=True, order_by="Question.order", collection_class=ordering_list("order", count_from=1)
     )
+    question_groups: Mapped[list["QuestionGroup"]] = relationship(
+        "QuestionGroup",
+        lazy=True,
+        order_by="QuestionGroup.order",
+        collection_class=ordering_list("order", count_from=1),
+        back_populates="form",
+    )
 
 
 class QuestionGroup(BaseModel):
     __tablename__ = "question_group"
 
     title: Mapped[str]
+    slug: Mapped[str]
+    order: Mapped[int]
+    form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
     allow_add_another: Mapped[bool] = mapped_column(default=False)
     show_all_on_same_page: Mapped[bool] = mapped_column(default=False)
     item_limit: Mapped[int | None]
@@ -147,6 +157,7 @@ class QuestionGroup(BaseModel):
         collection_class=ordering_list("order", count_from=1),
         back_populates="group",
     )
+    form: Mapped[Form] = relationship("Form", back_populates="question_groups")
 
 
 class Question(BaseModel):
