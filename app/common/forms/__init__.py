@@ -1,4 +1,4 @@
-from uuid import UUID
+from typing import List
 
 from flask import Blueprint, render_template
 
@@ -23,16 +23,18 @@ def add_collection_schema():
     return "Data added successfully"
 
 
-@test_blueprint.route("/form/next/<uuid:form_id>", methods=["GET"])
-@test_blueprint.route("/form/next/<uuid:form_id>/<uuid:question_id>", methods=["GET"])
+@test_blueprint.route("/form/next/<string:form_slug>", methods=["GET"])
+@test_blueprint.route("/form/next/<string:form_slug>/<string:question_slug>", methods=["GET"])
 @auto_commit_after_request
-def next_question(form_id: UUID, question_id: UUID | None = None):
+def next_question(form_slug: str, question_slug: str | None = None):
     # First time going inside the form
     question_service: QuestionService = QuestionService()
-    question: Question = question_service.get_next_unanswered_questions(
-        form_id=form_id, question_id=question_id, answers=None
+    questions: List[Question] = question_service.get_next_unanswered_questions(
+        form_slug=form_slug, question_slug=question_slug, answers=None
     )
-    return question_service.questions_to_dict([question])
+    if questions:
+        return render_template("test/next_question.html", question_dict=question_service.questions_to_dict(questions))
+    return render_template("test/next_question.html", question_dict=None)
 
 
 @test_blueprint.route("/all-questions/<collection_schema_id>", methods=["GET"])

@@ -1,11 +1,10 @@
-import uuid
 from typing import Any, List
 from uuid import UUID
 
 from pydantic import UUID4
 from slugify import slugify
-from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
@@ -113,6 +112,14 @@ def get_form_by_id(form_id: UUID4) -> Form:
     return db.session.get_one(Form, form_id)
 
 
+def get_form_by_slug(form_slug: str) -> Form | None:
+    stmt = select(Form).filter_by(slug=form_slug)
+    try:
+        return db.session.execute(stmt).scalar_one()
+    except NoResultFound:
+        return None
+
+
 def create_form(*, title: str, section: Section) -> Form:
     form = Form(title=title, section_id=section.id, slug=slugify(title))
     section.forms.append(form)
@@ -149,8 +156,14 @@ def update_form(form: Form, *, title: str) -> Form:
     return form
 
 
-def get_question_by_id_for_form_and_question(form_id: uuid.UUID, question_id: uuid.UUID) -> Question | None:
-    return db.session.query(Question).filter(Question.form_id == form_id, Question.id == question_id).one_or_none()
+def get_question_by_id_for_form_and_question(form_slug: str, question_slug: str) -> Question | None:
+    return (
+        db.session.query(Question)
+        .join(Question.form)
+        .filter(Form.slug == form_slug)
+        .filter(Question.slug == question_slug)
+        .one_or_none()
+    )
 
 
 def get_all_questions_with_higher_order_from_current(current_question) -> List[Question] | None:
