@@ -6,39 +6,39 @@ $govuk-assets-path: "/static/assets/";
 @import "../../node_modules/govuk-frontend/dist/govuk";
 
 .app-\!-no-wrap {
-  white-space: nowrap;
+    white-space: nowrap;
 }
 
 // this class will only be applied if GOV.UK Frontend Jinja has set the `.js-enabled` class meaning
 // it could execute JavaScript
 .js-enabled .app-js-hidden {
-  display: none;
+    display: none;
 }
 
 .fs-nav-item > a {
-  display: block;
-  padding: 7px 0;
-  width: 100%;
+    display: block;
+    padding: 7px 0;
+    width: 100%;
 }
 
 // Makes the content of this div display behind the other elements on the page, like a watermark
-div.fs-watermark {
-  transform: rotate(331deg);
-  font-size: 10em;
-  color: rgba(0, 0, 0, 0.22);
-  position: absolute;
-  padding-left: 1%;
-  padding-top: 5%;
-  font-family: GDS Transport, arial, sans-serif;
-  z-index: -1;
+.app-body__watermark {
+    transform: rotate(331deg);
+    font-size: 10em;
+    color: rgba(0, 0, 0, 0.22);
+    position: absolute;
+    padding-left: 1%;
+    padding-top: 5%;
+    font-family: GDS Transport, arial, sans-serif;
+    z-index: -1;
 }
 
 // Needed to make the watermark above visible
-body.govuk-template__body:has(div.fs-watermark) {
-  background-color: rgba(255, 255, 255, 0.5);
+body.govuk-template__body:has(div.app-body__watermark) {
+    background-color: rgba(255, 255, 255, 0.5);
 }
 
 // Needed to make the watermark above visible
-.govuk-template:has(div.fs-watermark) {
-  background-color: rgba(255, 255, 255, 0.5);
+.govuk-template:has(div.app-body__watermark) {
+    background-color: rgba(255, 255, 255, 0.5);
 }
