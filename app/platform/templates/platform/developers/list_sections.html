@@ -46,13 +46,13 @@
         "actions":[
         {"text":"Move up",
             "href":url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1)},
+                   section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
                    {"href":url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, direction = 'down') ,
-                "text": "Move down","disabled":(loop.index >= collection.sections | length)},
+                "text": "Move down","disabled":(loop.index >= collection.sections | length), "post":true},
                 {"href":url_for('platform.manage_section', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id),
-                "text": "Manage",}
+                "text": "Manage","post":false}
         ]
                 }) %}
     {% endfor %}
