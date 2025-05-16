@@ -24,7 +24,7 @@
     {% for collection in grant.collection_schemas %}
         {% do rows.append([{
         "html": "<a class='govuk-link--no-visited-state' href='" + url_for("platform.manage_collection", grant_id = grant.id, collection_id = collection.id) + "'>" + collection.name + "</a>",
-        }, {"text": collection.created_by.email}, {"text": collection.created_at_utc | format_date}]) %}
+        }, {"text": collection.created_by.email}, {"text": format_date(collection.created_at_utc) }]) %}
     {% endfor %}
     {{ govukTable({
   "caption": "Collections",
