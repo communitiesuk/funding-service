@@ -1,3 +1,5 @@
+from typing import Any
+
 from flask import Flask, Response, redirect, url_for
 from flask.typing import ResponseReturnValue
 from flask_babel import Babel
@@ -80,10 +82,15 @@ def create_app() -> Flask:
     Babel(app)
     app.jinja_env.add_extension("jinja2.ext.i18n")
     app.jinja_env.add_extension("jinja2.ext.do")
-    app.jinja_env.filters["format_date"] = format_date
-    app.jinja_env.filters["format_datetime"] = format_datetime
-    app.jinja_env.filters["format_date_range"] = format_date_range
-    app.jinja_env.filters["format_datetime_range"] = format_datetime_range
+
+    @app.context_processor
+    def _formatters() -> dict[str, Any]:
+        return dict(
+            format_date=format_date,
+            format_datetime=format_datetime,
+            format_date_range=format_date_range,
+            format_datetime_range=format_datetime_range,
+        )
 
     # TODO: Remove our basic auth application code when the app is deployed behind CloudFront and the app is not
     #       otherwise publicly accessible; we can then do basic auth through something like a cloudfront edge function
