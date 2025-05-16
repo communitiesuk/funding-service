@@ -3,8 +3,8 @@ from bs4 import BeautifulSoup
 from flask import url_for
 from sqlalchemy import select
 
-from app.common.data.models import Grant
-from app.platform import GrantForm
+from app.common.data.models import CollectionSchema, Grant, Section
+from app.platform import CollectionForm, FormForm, GrantForm, SectionForm
 
 
 def test_list_grants(authenticated_client, factories, templates_rendered):
@@ -89,7 +89,152 @@ def test_create_grant(authenticated_client, db_session):
     response = authenticated_client.post(
         url,
         data={"name": "My test grant"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     db_session.scalars(select(Grant).where(Grant.name == "My test grant")).one()
     assert response.status_code == 302
+
+
+def test_create_collection_get(authenticated_client, factories, templates_rendered):
+    grant = factories.grant.create()
+    result = authenticated_client.get(
+        url_for("platform.setup_collection", grant_id=grant.id),
+    )
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h1.text.strip() == "Set up a new collection"
+
+
+def test_create_collection_post(authenticated_client, factories, db_session):
+    grant = factories.grant.create()
+    collection_form = CollectionForm(name="My test collection")
+    result = authenticated_client.post(
+        url_for("platform.setup_collection", grant_id=grant.id),
+        data=collection_form.data,
+    )
+    assert result.status_code == 302
+    grant_from_db = db_session.scalars(select(Grant).where(Grant.id == grant.id)).one()
+    assert len(grant_from_db.collection_schemas) == 1
+
+
+def test_create_collection_post_duplicate_name(authenticated_client, factories, db_session):
+    grant = factories.grant.create()
+    factories.collection_schema.create(name="My test collection", grant=grant)
+    collection_form = CollectionForm(name="My test collection")
+    result = authenticated_client.post(
+        url_for("platform.setup_collection", grant_id=grant.id),
+        data=collection_form.data,
+    )
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h2.text.strip() == "There is a problem"
+    assert len(soup.find_all("a", href="#name")) == 1
+    assert soup.find_all("a", href="#name")[0].text.strip() == "Collection name already in use"
+
+
+def test_create_section_get(authenticated_client, factories, templates_rendered):
+    collection = factories.collection_schema.create()
+    result = authenticated_client.get(
+        url_for("platform.add_section", grant_id=collection.grant.id, collection_id=collection.id),
+    )
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h1.text.strip() == "What is the name of the section?"
+
+
+def test_create_section_post(authenticated_client, factories, db_session):
+    collection = factories.collection_schema.create()
+    section_form = SectionForm(title="My test section")
+    result = authenticated_client.post(
+        url_for("platform.add_section", grant_id=collection.grant.id, collection_id=collection.id),
+        data=section_form.data,
+    )
+    assert result.status_code == 302
+    collection_from_db = db_session.scalars(select(CollectionSchema).where(CollectionSchema.id == collection.id)).one()
+    assert len(collection_from_db.sections) == 1
+
+
+def test_create_section_post_duplicate_name(authenticated_client, factories, db_session):
+    collection = factories.collection_schema.create()
+    factories.section.create(title="My test section", collection_schema=collection)
+    section_form = SectionForm(title="My test section")
+    result = authenticated_client.post(
+        url_for("platform.add_section", grant_id=collection.grant.id, collection_id=collection.id),
+        data=section_form.data,
+    )
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h2.text.strip() == "There is a problem"
+    assert len(soup.find_all("a", href="#title")) == 1
+    assert soup.find_all("a", href="#title")[0].text.strip() == "Section title already in use"
+
+
+def test_create_form_get(authenticated_client, factories, templates_rendered):
+    section = factories.section.create()
+    result = authenticated_client.get(
+        url_for(
+            "platform.add_form",
+            grant_id=section.collection_schema.grant.id,
+            collection_id=section.collection_schema.id,
+            section_id=section.id,
+        ),
+    )
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h1.text.strip() == "Add a form"
+
+    result = authenticated_client.get(
+        url_for(
+            "platform.add_form",
+            grant_id=section.collection_schema.grant.id,
+            collection_id=section.collection_schema.id,
+            section_id=section.id,
+            form_type="text",
+        ),
+    )
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h1.text.strip() == "What is the name of the form?"
+
+
+def test_create_form_post(authenticated_client, factories, db_session):
+    section = factories.section.create()
+    form_form = FormForm(title="My test form")
+    result = authenticated_client.post(
+        url_for(
+            "platform.add_form",
+            grant_id=section.collection_schema.grant.id,
+            collection_id=section.collection_schema.id,
+            section_id=section.id,
+            form_type="text",
+        ),
+        data=form_form.data,
+    )
+    assert result.status_code == 302
+    section_from_db = db_session.scalars(select(Section).where(Section.id == section.id)).one()
+    assert len(section_from_db.forms) == 1
+
+
+def test_create_form_post_duplicate_name(authenticated_client, factories, db_session):
+    section = factories.section.create()
+    factories.form.create(title="My test form", section=section)
+    form_form = FormForm(title="My test form")
+    result = authenticated_client.post(
+        url_for(
+            "platform.add_form",
+            grant_id=section.collection_schema.grant.id,
+            collection_id=section.collection_schema.id,
+            section_id=section.id,
+            form_type="text",
+        ),
+        data=form_form.data,
+    )
+    assert result.status_code == 200
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h2.text.strip() == "There is a problem"
+    assert len(soup.find_all("a", href="#title")) == 1
+    assert soup.find_all("a", href="#title")[0].text.strip() == "Form name already in use"
