@@ -15,7 +15,7 @@ $govuk-assets-path: "/static/assets/";
     display: none;
 }
 
-.fs-nav-item > a {
+.app-left-nav__item > a {
     display: block;
     padding: 7px 0;
     width: 100%;
@@ -41,4 +41,31 @@ body.govuk-template__body:has(div.app-body__watermark) {
 // Needed to make the watermark above visible
 .govuk-template:has(div.app-body__watermark) {
     background-color: rgba(255, 255, 255, 0.5);
+}
+
+
+.app-move-up-down-table__actions {
+    width: 50%
+}
+
+.app-move-up-down-table__action--disabled {
+    color: govuk-colour("mid-grey");
+}
+
+.app-move-up-down-table__row:first-child {
+    border-top: 1px solid govuk-colour("mid-grey");
+}
+
+.app-link-button {
+    @include govuk-font(19);
+    color: $govuk-link-colour;
+    background: none;
+    border: 0;
+    padding: 0;
+    text-decoration: underline;
+
+    &:hover {
+        cursor: pointer;
+        text-decoration: none;
+    }
 }

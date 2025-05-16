@@ -30,7 +30,7 @@
                 <div class="govuk-grid-column-one-quarter">
                     <ul class="govuk-list">
                         {% for item in settingsNav %}
-                            <li class="fs-nav-item">
+                            <li class="app-left-nav__item">
                                 <a
                                         href="{{ item.href }}"
                                         class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == item.key else '') }}">
