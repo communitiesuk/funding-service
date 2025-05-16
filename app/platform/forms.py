@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextInput
-from wtforms.fields.simple import HiddenField, StringField, SubmitField
+from wtforms.fields.simple import StringField, SubmitField
 from wtforms.validators import DataRequired
 
 
@@ -25,7 +25,6 @@ class CollectionForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-    grant_id = HiddenField()
     submit = SubmitField(widget=GovSubmitInput())
 
 
@@ -36,16 +35,14 @@ class SectionForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-    collection_id = HiddenField()
     submit = SubmitField(widget=GovSubmitInput())
 
 
 class FormForm(FlaskForm):
     title = StringField(
-        "What is the name of the form?",
+        "Form name",
         validators=[DataRequired("Enter a form name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-    section_id = HiddenField()
     submit = SubmitField(widget=GovSubmitInput())

@@ -105,7 +105,7 @@ def grant_developers_collections(grant_id: UUID4) -> str:
 @auto_commit_after_request
 def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
-    form = CollectionForm(grant_id=grant.id)
+    form = CollectionForm()
     if form.validate_on_submit():
         try:
             assert form.name.data is not None
@@ -156,7 +156,7 @@ def edit_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValu
 @auto_commit_after_request
 def add_section(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
     collection = get_collection_schema(collection_id)
-    form = SectionForm(collection_id=collection_id)
+    form = SectionForm()
     if form.validate_on_submit():
         try:
             assert form.title.data is not None
@@ -189,7 +189,7 @@ def list_sections(
 
 @platform_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/move/<string:direction>",
-    methods=["GET"],
+    methods=["POST"],
 )
 @mhclg_login_required
 @auto_commit_after_request
@@ -225,7 +225,7 @@ def manage_section(
 
 @platform_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/move/<string:direction>",
-    methods=["GET"],
+    methods=["POST"],
 )
 @mhclg_login_required
 @auto_commit_after_request

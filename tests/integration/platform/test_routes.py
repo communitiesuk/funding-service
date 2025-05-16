@@ -238,3 +238,43 @@ def test_create_form_post_duplicate_name(authenticated_client, factories, db_ses
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#title")) == 1
     assert soup.find_all("a", href="#title")[0].text.strip() == "Form name already in use"
+
+
+def test_move_section(authenticated_client, factories, db_session):
+    collection = factories.collection_schema.create()
+    section1 = factories.section.create(collection_schema=collection, order=0)
+    section2 = factories.section.create(collection_schema=collection, order=1)
+
+    result = authenticated_client.post(
+        url_for(
+            "platform.move_section",
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            section_id=section1.id,
+            direction="down",
+        ),
+    )
+    assert result.status_code == 302
+
+    # Check the order has been updated in the database
+    section1_from_db = db_session.scalars(select(Section).where(Section.id == section1.id)).one()
+    section2_from_db = db_session.scalars(select(Section).where(Section.id == section2.id)).one()
+    assert section1_from_db.order == 1
+    assert section2_from_db.order == 0
+
+    result = authenticated_client.post(
+        url_for(
+            "platform.move_section",
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            section_id=section1.id,
+            direction="up",
+        ),
+    )
+    assert result.status_code == 302
+
+    # Check the order has been updated in the database
+    section1_from_db = db_session.scalars(select(Section).where(Section.id == section1.id)).one()
+    section2_from_db = db_session.scalars(select(Section).where(Section.id == section2.id)).one()
+    assert section1_from_db.order == 0
+    assert section2_from_db.order == 1
