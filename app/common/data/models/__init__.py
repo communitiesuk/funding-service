@@ -131,6 +131,7 @@ class Form(BaseModel):
     )
 
 
+# feels like types of "Question", "Group" or "Page" (informational only)
 class Question(BaseModel):
     __tablename__ = "question"
 
@@ -145,8 +146,25 @@ class Question(BaseModel):
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
     form: Mapped[Form] = relationship("Form", back_populates="questions")
 
+    parent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"), nullable=True)
+    parent: Mapped["Question"] = relationship(
+        "Question",
+        remote_side=[id],
+        back_populates="questions",
+        # lazy="joined",
+    )
+
+    questions: Mapped[list["Question"]] = relationship(
+        "Question",
+        back_populates="parent",
+        # cascade="all, delete-orphan", - might want to think about this,
+        order_by="Question.order",
+        collection_class=ordering_list("order", count_from=1),
+        # lazy="selectin" - consider performance, I think this allows a balance of perf and sensible queries - will have a think
+    )
+
     __table_args__ = (
-        UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
+        UniqueConstraint("order", "parent_id", "form_id", name="uq_question_order_parent_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
         UniqueConstraint("name", "form_id", name="uq_question_name_form"),
     )
