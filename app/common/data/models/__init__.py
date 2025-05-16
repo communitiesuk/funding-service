@@ -1,12 +1,24 @@
 import datetime
 import secrets
 import uuid
+from enum import Enum
 
 from pytz import utc
+from sqlalchemy import Enum as PgEnum
 from sqlalchemy import ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
+
+
+class RoleEnum(str, Enum):
+    ADMIN = (
+        "admin"  # Admin level permissions, combines with null columns in UserRole table to denote level of admin access
+    )
+    MEMBER = "member"  # Basic read level permissions
+    EDITOR = "editor"  # Read/write level permissions
+    ASSESSOR = "assessor"  # Assessor level permissions
+    S151_OFFICER = "s151_officer"  # S151 officer sign-off permissions
 
 
 class Grant(BaseModel):
@@ -17,12 +29,22 @@ class Grant(BaseModel):
     collection_schemas: Mapped[list["CollectionSchema"]] = relationship("CollectionSchema", lazy=True)
 
 
+class Organisation(BaseModel):
+    __tablename__ = "organisation"
+
+    name: Mapped[CIStr] = mapped_column(unique=True)
+
+
 class User(BaseModel):
     __tablename__ = "user"
 
     email: Mapped[CIStr] = mapped_column(unique=True)
 
     magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
+
+    roles: Mapped[list["UserRole"]] = relationship(
+        "UserRole", secondary="user_role", back_populates="user", cascade="all, delete-orphan"
+    )
 
     # Required by Flask-Login; should be provided by UserMixin, except that breaks our type hinting
     # when using this class in SQLAlchemy queries. So we've just lifted the key attributes here directly.
@@ -40,6 +62,29 @@ class User(BaseModel):
 
     def get_id(self) -> str:
         return str(self.id)
+
+
+class UserRole(BaseModel):
+    __tablename__ = "user_role"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("organisation.id", ondelete="CASCADE"), nullable=True)
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
+    role: Mapped[RoleEnum] = mapped_column(
+        PgEnum(
+            RoleEnum,
+            name="role_enum",
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "org_id", "grant_id", "role", name="uq_user_org_grant_role"),
+        Index("ix_user_roles_user_id", "user_id"),
+        Index("ix_user_roles_org_id", "org_id"),
+        Index("ix_user_roles_grant_id", "grant_id"),
+    )
 
 
 class MagicLink(BaseModel):
