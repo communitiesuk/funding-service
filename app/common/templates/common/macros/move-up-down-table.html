@@ -1,40 +1,35 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% macro moveUpDownTable(table_rows) %}
-
-    <dl class="govuk-summary-list app-move-up-down-table">
-        {% for row in table_rows %}
-            <div class="govuk-summary-list__row app-move-up-down-table__row">
-                <dt class="govuk-summary-list__value">
-                    {{ row.text }}
-                </dt>
-                <dd class="govuk-summary-list__actions app-move-up-down-table__actions">
-                    <ul class="govuk-summary-list__actions-list">
-                        {% for action in row.actions %}
-                            <li class="govuk-summary-list__actions-list-item">
-                                {% if action.post %}
-                                    {% if not action.disabled %}
-                                        <form method="POST" action="{{ action.href }}">
-
-                                            <button type="submit" class="app-link-button">
-                                                {{ action.text }} <span
-                                                    class='govuk-visually-hidden'>{{ row.text }}</span>
-                                            </button>
-
-                                        </form>
-                                    {% else %}
-                                        <span class="app-move-up-down-table__action--disabled">{{ action.text }}</span>
-                                    {% endif %}
-                                {% else %}
-                                    <a href="{{ action.href }}"
-                                       class="govuk-link govuk-link--no-visited-state">  {{ action.text }} <span
-                                            class='govuk-visually-hidden'>{{ row.text }}</span></a>
-
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </dd>
-            </div>
-        {% endfor %}
-    </dl>
+  <dl class="govuk-summary-list app-move-up-down-table">
+    {% for row in table_rows %}
+      <div class="govuk-summary-list__row app-move-up-down-table__row">
+        <dt class="govuk-summary-list__value">{{ row.text }}</dt>
+        <dd class="govuk-summary-list__actions app-move-up-down-table__actions">
+          <ul class="govuk-summary-list__actions-list">
+            {% for action in row.actions %}
+              <li class="govuk-summary-list__actions-list-item">
+                {% if action.post %}
+                  {% if not action.disabled %}
+                    <form method="POST" action="{{ action.href }}">
+                      <button type="submit" class="app-link-button">
+                        {{ action.text }}
+                        <span class="govuk-visually-hidden">{{ row.text }}</span>
+                      </button>
+                    </form>
+                  {% else %}
+                    <span class="app-move-up-down-table__action--disabled">{{ action.text }}</span>
+                  {% endif %}
+                {% else %}
+                  <a href="{{ action.href }}" class="govuk-link govuk-link--no-visited-state">
+                    {{ action.text }}
+                    <span class="govuk-visually-hidden">{{ row.text }}</span>
+                  </a>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </dd>
+      </div>
+    {% endfor %}
+  </dl>
 {% endmacro %}
