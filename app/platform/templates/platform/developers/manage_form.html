@@ -1,0 +1,90 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+{% extends "platform/manage_grant_base.html" %}
+
+{% block pageTitle %}
+  {{ collection.name }}
+  - {{ grant.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link_href
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ section.title }}</span>
+    {{ form.title }}
+  </h1>
+  {% set question_text %}
+    {% trans count=form.questions | length %}
+      {{ count }}
+      question {% pluralize %}
+      {{ count }}
+      questions
+    {% endtrans %}
+  {% endset %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
+      {{
+        govukSummaryList({
+          "rows": [{
+              "key": {"text": "Title"},
+              "value":{"text": form.title},
+              "actions": {
+                  "items": [
+                      {
+                        "href": url_for("platform.edit_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id = form.id),
+                        "text": "Change",
+                        "classes": "govuk-link govuk-link--no-visited-state"
+                      }
+                  ]
+              }
+        }]
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <h2 class="govuk-heading-m">Questions</h2>
+
+      {% if not form.questions %}
+        <p class="govuk-body">
+          This form has no questions, you can
+          <a class="govuk-link govuk-link--no-visited-state" href="#">add a question</a>
+          .
+        </p>
+      {% endif %}
+      {% set rows=[] %}
+      {% for question in form.questions %}
+        {%
+          do rows.append({
+                "title": {
+                  "text": question,
+                },
+              "status": {
+                "text": "Move up | Move down"
+              },
+          })
+        %}
+      {% endfor %}
+
+      {{
+        govukTaskList({
+          "idPrefix": form.slug,
+          "items": rows
+        })
+      }}
+    </div>
+  </div>
+{% endblock content %}

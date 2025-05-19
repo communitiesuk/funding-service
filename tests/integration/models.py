@@ -14,7 +14,7 @@ from uuid import uuid4
 import factory
 from flask import url_for
 
-from app.common.data.models import CollectionSchema, Grant, MagicLink, User
+from app.common.data.models import CollectionSchema, Form, Grant, MagicLink, Section, User
 from app.extensions import db
 
 
@@ -57,9 +57,38 @@ class _CollectionSchemaFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     name = factory.Sequence(lambda n: "Collection %d" % n)
+    slug = factory.Sequence(lambda n: "collection-%d" % n)
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)
 
     grant_id = factory.LazyAttribute(lambda o: "o.grant.id")
     grant = factory.SubFactory(_GrantFactory)
+
+
+class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Section
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+
+    id = factory.LazyFunction(uuid4)
+    title = factory.Sequence(lambda n: "Section %d" % n)
+    order = factory.LazyAttribute(lambda o: len(o.collection_schema.sections))
+    slug = factory.Sequence(lambda n: "section-%d" % n)
+
+    collection_schema = factory.SubFactory(_CollectionSchemaFactory)
+    collection_schema_id = factory.LazyAttribute(lambda o: o.collection_schema.id)
+
+
+class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Form
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+
+    id = factory.LazyFunction(uuid4)
+    title = factory.Sequence(lambda n: "Form %d" % n)
+    slug = factory.Sequence(lambda n: "form-%d" % n)
+    order = factory.LazyAttribute(lambda o: len(o.section.forms))
+
+    section = factory.SubFactory(_SectionFactory)
+    section_id = factory.LazyAttribute(lambda o: o.section.id)

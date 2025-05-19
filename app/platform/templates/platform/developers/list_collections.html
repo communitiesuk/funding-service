@@ -1,0 +1,62 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% extends "platform/manage_grant_base.html" %}
+
+{% block pageTitle %}
+  Collections - {{ grant.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+
+{% block content %}
+  <div class="app-body__watermark" aria-hidden="true">Developers</div>
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ grant.name }}</span>
+    Collections
+  </h1>
+  <p class="govuk-body">Use preview collections to try out the tools to set up, collect and review information from users.</p>
+
+  <h2 class="govuk-heading-m">Collections</h2>
+
+  {% set rows=[] %}
+  {% for collection in grant.collection_schemas %}
+    {%
+      do rows.append([{
+      "html": "<a class='govuk-link govuk-link--no-visited-state' href='" + url_for("platform.manage_collection", grant_id = grant.id, collection_id = collection.id) + "'>" + collection.name + "</a>",
+      }, {"text": collection.created_by.email}, {"text": format_date(collection.created_at_utc)}])
+    %}
+  {% endfor %}
+  {% if not grant.collection_schemas %}
+    <p class="govuk-body">
+      This grant has no collections, you can
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('platform.setup_collection', grant_id = grant.id) }}">add a collection</a>
+      .
+    </p>
+  {% else %}
+    {{
+      govukTable({
+      "captionClasses": "govuk-table__caption--m",
+      "head": [
+        {
+          "text": "Description"
+        },
+        {
+          "text": "Added by"
+        },
+        {
+          "text": "Added on"
+        }
+      ],
+            "rows": rows
+            })
+    }}
+    {{
+      govukButton({
+      "text": "Add collection",
+      "classes": "govuk-button--secondary",
+      "href": url_for("platform.setup_collection", grant_id = grant.id)
+      })
+    }}
+  {% endif %}
+{% endblock content %}

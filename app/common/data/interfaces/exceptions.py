@@ -9,7 +9,15 @@ class DuplicateValueError(Exception):
     field_name: str
     new_value: str
 
-    constraint_name_map: dict[str, str] = {"uq_grant_name": "name", "uq_schema_name_version_grant_id": "name"}
+    constraint_name_map: dict[str, str] = {
+        "uq_grant_name": "name",
+        "uq_schema_name_version_grant_id": "name",
+        "uq_section_title_collection_schema": "title",
+        "uq_form_title_section": "title",
+        "uq_form_slug_section": "title",
+        "uq_section_slug_collection_schema": "title",
+        "uq_collection_slug_grant_id": "name",
+    }
 
     def __init__(self, integrity_error: IntegrityError) -> None:
         diagnostics = cast(UniqueViolation, integrity_error.orig).diag

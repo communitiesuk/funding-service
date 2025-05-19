@@ -4,6 +4,7 @@ import uuid
 
 from pytz import utc
 from sqlalchemy import ForeignKey, Index, UniqueConstraint
+from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
@@ -67,6 +68,7 @@ class CollectionSchema(BaseModel):
     # try out different schemas and scenarios
     name: Mapped[str]
     version: Mapped[int] = mapped_column(default=1)
+    slug: Mapped[str]
 
     grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
     grant: Mapped[Grant] = relationship("Grant", back_populates="collection_schemas")
@@ -74,4 +76,49 @@ class CollectionSchema(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
+    sections: Mapped[list["Section"]] = relationship(
+        "Section", lazy=True, order_by="Section.order", collection_class=ordering_list("order")
+    )
+
+    # TODO think about unique constraint on slug, including verison, when we sort out versioning,
+    #  eg. compound key on id and version
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
+
+
+class Section(BaseModel):
+    __tablename__ = "section"
+
+    title: Mapped[str]
+    order: Mapped[int]
+    slug: Mapped[str]
+
+    collection_schema_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection_schema.id"))
+    collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema", back_populates="sections")
+
+    forms: Mapped[list["Form"]] = relationship(
+        "Form", lazy=True, order_by="Form.order", collection_class=ordering_list("order")
+    )
+
+    __table_args__ = (
+        UniqueConstraint("order", "collection_schema_id", name="uq_section_order_collection_schema", deferrable=True),
+        UniqueConstraint("title", "collection_schema_id", name="uq_section_title_collection_schema"),
+        UniqueConstraint("slug", "collection_schema_id", name="uq_section_slug_collection_schema"),
+    )
+
+
+class Form(BaseModel):
+    __tablename__ = "form"
+
+    title: Mapped[str]
+    order: Mapped[int]
+    slug: Mapped[str]
+
+    section_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("section.id"))
+    section: Mapped[Section] = relationship("Section", back_populates="forms")
+
+    __table_args__ = (
+        UniqueConstraint("order", "section_id", name="uq_form_order_section", deferrable=True),
+        # TODO how can we make this unique per collection schema?
+        UniqueConstraint("title", "section_id", name="uq_form_title_section"),
+        UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
+    )

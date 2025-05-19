@@ -1,0 +1,99 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
+{% extends "platform/manage_grant_base.html" %}
+
+{% block pageTitle %}
+  {{ section.title }}
+  - {{ collection.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("platform.manage_collection", grant_id = grant.id, collection_id=collection.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ collection.name }}</span>
+    {{ section.title }}
+  </h1>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
+      {{
+        govukSummaryList({
+        "rows": [{
+        "key": {"text": "Title"},
+        "value":{"text": section.title},
+        "actions": {
+        "items": [
+        {
+        "href": url_for("platform.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
+        "text": "Change",
+        "classes": "govuk-link--no-visited-state"
+        }
+        ]
+        }
+        }]
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <h2 class="govuk-heading-m">Forms</h2>
+      {% set forms_text %}{% trans count=section.forms | length %}
+        {{ count }}
+        form{% pluralize %}{{ count }} forms
+      {% endtrans %}{% endset %}
+
+      {% if not section.forms %}
+        <p class="govuk-body">
+          This section has no forms, you can
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add a form</a>
+          .
+        </p>
+      {% else %}
+        <p class="govuk-body">This section has {{ forms_text }}.</p>
+      {% endif %}
+
+      {% set table_rows = [] %}
+      {% for form in section.forms %}
+        {%
+          do table_rows.append({
+          "text": form.title,
+          "actions":[
+          {"text":"Move up",
+              "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+                     section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
+                     {"href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+                     section_id = section.id, form_id=form.id, direction = 'down') ,"post":true,
+                  "text": "Move down","disabled":(loop.index >= section.forms | length)},
+                  {"href":url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
+                     section_id = section.id, form_id=form.id, back_link="manage_section"),
+                  "text": "Manage","post":false}
+          ]
+                  })
+        %}
+      {% endfor %}
+
+      {% if section.forms %}
+        {{ moveUpDownTable(table_rows) }}
+        {{
+          govukButton({
+          "text": "Add a form",
+          "classes": "govuk-button--secondary",
+          "href": url_for("platform.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
+          })
+        }}
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

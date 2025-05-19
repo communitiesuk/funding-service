@@ -1,0 +1,77 @@
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
+{% extends "platform/manage_grant_base.html" %}
+
+{% block pageTitle %}
+  {{ collection.name }}
+  - {{ grant.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("platform.manage_collection", grant_id = grant.id, collection_id= collection.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ collection.name }}</span>
+    Sections
+  </h1>
+
+  {% set sections_text %}
+    {% trans count=collection.sections | length %}
+      {{ count }}
+      section {% pluralize %}
+      {{ count }}
+      sections
+    {% endtrans %}
+  {% endset %}
+  {% if not collection.sections %}
+    <p class="govuk-body">
+      This collection has no sections, you can
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('platform.add_section', grant_id = grant.id, collection_id = collection.id) }}">add a section</a>
+      .
+    </p>
+  {% else %}
+    <p class="govuk-body">This collection has {{ sections_text }}</p>
+
+    {% set section_rows = [] %}
+    {% set table_rows = [] %}
+    {% for section in collection.sections %}
+      {%
+        do table_rows.append({
+        "text": section.title,
+        "actions":[
+        {"text":"Move up",
+            "href":url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
+                   {"href":url_for('platform.move_section', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id, direction = 'down') ,
+                "text": "Move down","disabled":(loop.index >= collection.sections | length), "post":true},
+                {"href":url_for('platform.manage_section', grant_id = grant.id, collection_id = collection.id,
+                   section_id = section.id),
+                "text": "Manage","post":false}
+        ]
+                })
+      %}
+    {% endfor %}
+
+    {% if collection.sections %}
+      {{ moveUpDownTable(table_rows) }}
+    {% endif %}
+    {{
+      govukButton({
+      "text": "Add a section",
+      "classes": "govuk-button--secondary",
+      "href": url_for("platform.add_section", grant_id = grant.id, collection_id = collection.id)
+      })
+    }}
+  {% endif %}
+{% endblock content %}
