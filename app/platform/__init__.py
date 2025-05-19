@@ -345,12 +345,12 @@ def add_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Respon
 @mhclg_login_required
 @auto_commit_after_request
 def edit_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
-    form = get_form_by_id(form_id)
-    wt_form = FormForm(obj=form)
+    db_form = get_form_by_id(form_id)
+    wt_form = FormForm(obj=db_form)
     if wt_form.validate_on_submit():
         try:
             assert wt_form.title.data is not None
-            update_form(form=form, title=wt_form.title.data)
+            update_form(form=db_form, title=wt_form.title.data)
             return redirect(
                 url_for(
                     "platform.manage_form",
@@ -367,9 +367,9 @@ def edit_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id:
 
     return render_template(
         "platform/developers/edit_form.html",
-        grant=form.section.collection_schema.grant,
-        collection=form.section.collection_schema,
-        section=form.section,
-        form=form,
-        wt_form=wt_form,
+        grant=db_form.section.collection_schema.grant,
+        collection=db_form.section.collection_schema,
+        section=db_form.section,
+        db_form=db_form,
+        form=wt_form,
     )
