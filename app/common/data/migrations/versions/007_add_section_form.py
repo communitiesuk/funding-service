@@ -8,6 +8,11 @@ Create Date: 2025-05-15 15:46:51.388552
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.common.data.models import CollectionSchema
+from app.common.utils import slugify
 
 revision = "007_add_section_form"
 down_revision = "006_add_collection_schema"
@@ -53,7 +58,17 @@ def upgrade() -> None:
         sa.UniqueConstraint("title", "section_id", name="uq_form_title_section"),
     )
     with op.batch_alter_table("collection_schema", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("slug", sa.String(), nullable=False))
+        batch_op.add_column(sa.Column("slug", sa.String(), nullable=True))
+
+    # Update any existing rows with a new slug value
+    session = Session(bind=op.get_bind())
+    existing_schemas = session.scalars(select(CollectionSchema).where(CollectionSchema.slug.is_(None)))
+    for schema in existing_schemas:
+        schema.slug = slugify(schema.name)
+    session.commit()
+
+    with op.batch_alter_table("collection_schema", schema=None) as batch_op:
+        batch_op.alter_column("slug", nullable=False)
 
 
 def downgrade() -> None:
