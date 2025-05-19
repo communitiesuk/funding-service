@@ -20,7 +20,7 @@ class GrantForm(FlaskForm):
 
 class CollectionForm(FlaskForm):
     name = StringField(
-        "Collection name",
+        "What is the name of the collection?",
         validators=[DataRequired("Enter a collection name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
@@ -30,7 +30,7 @@ class CollectionForm(FlaskForm):
 
 class SectionForm(FlaskForm):
     title = StringField(
-        "Section title",
+        "What is the name of the section?",
         validators=[DataRequired("Enter a section title")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
@@ -40,7 +40,7 @@ class SectionForm(FlaskForm):
 
 class FormForm(FlaskForm):
     title = StringField(
-        "Form name",
+        "What is the name of the form?",
         validators=[DataRequired("Enter a form name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),

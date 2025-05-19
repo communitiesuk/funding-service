@@ -80,7 +80,7 @@ def test_grant_change_name_post_with_errors(authenticated_client, factories, tem
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#name")) == 1
-    assert soup.find_all("a", href="#name")[0].text.strip() == "Grant name already in use"
+    assert soup.find_all("a", href="#name")[0].text.strip() == "Name already in use"
 
 
 def test_create_grant(authenticated_client, db_session):
@@ -102,7 +102,7 @@ def test_create_collection_get(authenticated_client, factories, templates_render
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "Set up a new collection"
+    assert soup.h1.text.strip() == "What is the name of the collection?"
 
 
 def test_create_collection_post(authenticated_client, factories, db_session):
@@ -130,7 +130,7 @@ def test_create_collection_post_duplicate_name(authenticated_client, factories, 
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#name")) == 1
-    assert soup.find_all("a", href="#name")[0].text.strip() == "Collection name already in use"
+    assert soup.find_all("a", href="#name")[0].text.strip() == "Name already in use"
 
 
 def test_create_section_get(authenticated_client, factories, templates_rendered):
@@ -168,7 +168,7 @@ def test_create_section_post_duplicate_name(authenticated_client, factories, db_
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#title")) == 1
-    assert soup.find_all("a", href="#title")[0].text.strip() == "Section title already in use"
+    assert soup.find_all("a", href="#title")[0].text.strip() == "Title already in use"
 
 
 def test_create_form_get(authenticated_client, factories, templates_rendered):
@@ -237,7 +237,7 @@ def test_create_form_post_duplicate_name(authenticated_client, factories, db_ses
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#title")) == 1
-    assert soup.find_all("a", href="#title")[0].text.strip() == "Form name already in use"
+    assert soup.find_all("a", href="#title")[0].text.strip() == "Title already in use"
 
 
 def test_move_section(authenticated_client, factories, db_session):

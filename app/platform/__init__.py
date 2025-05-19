@@ -44,7 +44,7 @@ def create_grant() -> ResponseReturnValue:
             return redirect(url_for("platform.list_grants"))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template("platform/grant_create.html", form=form)
 
 
@@ -82,7 +82,7 @@ def grant_change_name(grant_id: UUID4) -> str | Response:
             return redirect(url_for("platform.grant_settings", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template("platform/settings/grant_change_name.html", form=form, grant=grant)
 
 
@@ -113,7 +113,7 @@ def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
             return redirect(url_for("platform.grant_developers_collections", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template("platform/developers/add_collection.html", grant=grant, form=form)
 
 
@@ -142,7 +142,7 @@ def edit_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValu
             return redirect(url_for("platform.manage_collection", grant_id=grant_id, collection_id=collection_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
         "platform/developers/edit_collection.html", grant=collection.grant, collection=collection, form=form
@@ -167,7 +167,7 @@ def add_section(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
             return redirect(url_for("platform.list_sections", grant_id=grant_id, collection_id=collection_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template(
         "platform/developers/add_section.html", grant=collection.grant, collection=collection, form=form
     )
@@ -287,7 +287,7 @@ def edit_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Re
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
         "platform/developers/edit_section.html",
@@ -327,7 +327,7 @@ def add_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Respon
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template(
         "platform/developers/add_form.html",
         grant=section.collection_schema.grant,
@@ -345,12 +345,12 @@ def add_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Respon
 @mhclg_login_required
 @auto_commit_after_request
 def edit_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
-    form = get_form_by_id(form_id)
-    wt_form = FormForm(obj=form)
+    db_form = get_form_by_id(form_id)
+    wt_form = FormForm(obj=db_form)
     if wt_form.validate_on_submit():
         try:
             assert wt_form.title.data is not None
-            update_form(form=form, title=wt_form.title.data)
+            update_form(form=db_form, title=wt_form.title.data)
             return redirect(
                 url_for(
                     "platform.manage_form",
@@ -363,13 +363,13 @@ def edit_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id:
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
         "platform/developers/edit_form.html",
-        grant=form.section.collection_schema.grant,
-        collection=form.section.collection_schema,
-        section=form.section,
-        form=form,
-        wt_form=wt_form,
+        grant=db_form.section.collection_schema.grant,
+        collection=db_form.section.collection_schema,
+        section=db_form.section,
+        db_form=db_form,
+        form=wt_form,
     )

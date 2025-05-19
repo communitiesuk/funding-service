@@ -13,7 +13,7 @@
 {% block beforeContent %}
     {{ govukBackLink({
         "text": "Back",
-        "href": url_for("platform.manage_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_id=form.id, back_link="manage_section")
+        "href": url_for("platform.manage_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
     }) }}
 {% endblock beforeContent %}
 
@@ -21,12 +21,15 @@
     <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-two-thirds">
-            <h1 class="govuk-heading-l">What is the name of the form?</h1>
             <form method="post" novalidate>
-                {{ wt_form.csrf_token }}
-                {{ wt_form.section_id }}
-                {{ wt_form.title }}
-                {{ wt_form.submit }}
+                {{ form.csrf_token }}
+                {{ form.section_id }}
+                {{ form.title(params={"label": {
+                        "classes": "govuk-label--l",
+                        "isPageHeading": true}}
+                ) }}
+
+                {{ form.submit }}
             </form>
 
         </div>
