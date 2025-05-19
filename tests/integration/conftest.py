@@ -15,6 +15,7 @@ from flask.testing import FlaskClient
 from flask_login import login_user
 from flask_migrate import upgrade
 from flask_sqlalchemy_lite import SQLAlchemy
+from flask_wtf import FlaskForm
 from jinja2 import Template
 from pytest_mock import MockerFixture
 from sqlalchemy.orm import Session
@@ -28,6 +29,7 @@ from tests.conftest import FundingServiceTestClient, _precompile_templates
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
 from tests.integration.models import _CollectionSchemaFactory, _GrantFactory, _MagicLinkFactory, _UserFactory
 from tests.integration.utils import TimeFreezer
+from tests.types import TTemplatesRendered
 from tests.utils import build_db_config
 
 
@@ -83,8 +85,18 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
     yield app
 
 
+def _validate_form_argument_to_render_template(response: TestResponse, templates_rendered: TTemplatesRendered) -> None:
+    if response.headers["content-type"].startswith("text/html"):
+        for _template, kwargs in templates_rendered:
+            if "form" in kwargs:
+                assert isinstance(kwargs["form"], FlaskForm), (
+                    "The `form` argument passed to `render_template` is expected to be a FlaskForm instance. "
+                    "This powers 'magic' handling of error summary rendering."
+                )
+
+
 @pytest.fixture()
-def anonymous_client(app: Flask) -> FlaskClient:
+def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> FlaskClient:
     class CustomClient(FundingServiceTestClient):
         # We want to be sure that any data methods that act during the request have been
         # committed by the flask app lifecycle before continuing. Because of the way we configure
@@ -98,6 +110,7 @@ def anonymous_client(app: Flask) -> FlaskClient:
             kwargs["headers"].setdefault("Host", "funding.communities.gov.localhost:8080")
 
             response = super().open(*args, **kwargs)
+            _validate_form_argument_to_render_template(response, templates_rendered)
 
             app.extensions["sqlalchemy"].session.rollback()
             return response
@@ -185,7 +198,7 @@ def example_factories() -> _ExampleFactories:
 
 
 @pytest.fixture(scope="function")
-def templates_rendered(app: Flask) -> Generator[list[tuple[Template, dict[str, Any]]]]:
+def templates_rendered(app: Flask) -> Generator[TTemplatesRendered]:
     recorded = []
 
     def record(sender: Flask, template: Template, context: dict[str, Any], **extra: dict[str, Any]) -> None:
