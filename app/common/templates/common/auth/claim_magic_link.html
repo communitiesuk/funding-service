@@ -1,20 +1,22 @@
 {% extends "common/base.html" %}
 
 {% block pageTitle %}
-    Sign in - MHCLG Funding Service
+  Sign in - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% block content %}
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
-            <form class="app-js-hidden" method="post" novalidate>
-              {{ form.csrf_token }}
-              {{ form.submit }}
-            </form>
-        </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form class="app-js-hidden" method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.submit }}
+      </form>
     </div>
+  </div>
 {% endblock content %}
 
 {% block bodyEnd %}
-  <script nonce="{{ csp_nonce() }}">document.getElementById('submit').click();</script>
+  <script nonce="{{ csp_nonce() }}">
+    document.getElementById("submit").click();
+  </script>
 {% endblock bodyEnd %}

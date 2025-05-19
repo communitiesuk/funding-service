@@ -1,41 +1,44 @@
 {% extends "platform/manage_grant_base.html" %}
-
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "govuk_frontend_jinja/components/input/macro.html" import govukInput %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
-
 {% block pageTitle %}
-    Add a form - {{ section.title }} - MHCLG Funding Service
+  Add a form - {{ section.title }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 
 {% block beforeContent %}
-    {{ govukBackLink({
+  {{
+    govukBackLink({
         "text": "Back",
         "href": url_for("platform.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
-    }) }}
+    })
+  }}
 {% endblock beforeContent %}
 
 {% block content %}
-    <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
-            <form method="post" novalidate>
-                {{ form.csrf_token }}
-                {{ form.collection_id }}
+  <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.collection_id }}
 
-                {{ form.title (params={"label": {
-                        "classes": "govuk-label--l",
-                        "isPageHeading": true,
-                        },}) }}
+        {{
+          form.title (params={"label": {
+          "classes": "govuk-label--l",
+          "isPageHeading": true,
+          },})
+        }}
 
-                {{ form.submit(params={
-                    "text": "Add form"
-                }) }}
-            </form>
-
-        </div>
+        {{
+          form.submit(params={
+              "text": "Add form"
+          })
+        }}
+      </form>
     </div>
+  </div>
 {% endblock content %}
