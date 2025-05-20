@@ -12,9 +12,19 @@ import secrets
 from uuid import uuid4
 
 import factory
+import factory.fuzzy
 from flask import url_for
 
-from app.common.data.models import CollectionSchema, Form, Grant, MagicLink, Section, User
+from app.common.data.models import (
+    CollectionSchema,
+    Form,
+    Grant,
+    MagicLink,
+    Organisation,
+    Section,
+    User,
+    UserRole,
+)
 from app.extensions import db
 
 
@@ -36,6 +46,41 @@ class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     email = factory.Faker("email")
+
+
+class _OrganisationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Organisation
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+
+    id = factory.LazyFunction(uuid4)
+    name = factory.Sequence(lambda n: "Organisation %d" % n)
+
+
+class _UserRoleFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = UserRole
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
+
+    id = factory.LazyFunction(uuid4)
+    user_id = factory.LazyAttribute(lambda o: o.user.id)
+    user = factory.SubFactory(_UserFactory)
+    organisation_id = None
+    organisation = None
+    grant_id = None
+    grant = None
+    role = None  # This needs to be overridden when initialising the factory
+
+    class Params:
+        has_organisation = factory.Trait(
+            organisation_id=factory.LazyAttribute(lambda o: o.organisation.id),
+            organisation=factory.SubFactory(_OrganisationFactory),
+        )
+        has_grant = factory.Trait(
+            grant_id=factory.LazyAttribute(lambda o: o.grant.id),
+            grant=factory.SubFactory(_GrantFactory),
+        )
 
 
 class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):

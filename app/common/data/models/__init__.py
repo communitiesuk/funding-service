@@ -5,7 +5,7 @@ from enum import Enum
 
 from pytz import utc
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
-from sqlalchemy import Enum as PgEnum
+from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -76,7 +76,7 @@ class UserRole(BaseModel):
     )
     grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
     role: Mapped[RoleEnum] = mapped_column(
-        PgEnum(
+        SqlEnum(
             RoleEnum,
             name="role_enum",
             validate_strings=True,
