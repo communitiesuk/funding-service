@@ -37,3 +37,9 @@ repos:
         types: [python]
         entry: uv run mypy
         pass_filenames: false
+      - id: format-html
+        name: Format HTML with prettier
+        language: system
+        types: [text]
+        files: \.html$
+        entry: bash -c "if docker compose ps --services --filter 'status=running' | grep funding-service; then docker compose exec -T --rm funding-service make format-html; else docker compose run -T funding-service make format-html; fi"
