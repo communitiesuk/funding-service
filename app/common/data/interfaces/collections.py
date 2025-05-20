@@ -135,3 +135,14 @@ def update_form(form: Form, *, title: str) -> Form:
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return form
+
+
+def update_form(form: Form, *, title: str) -> Form:
+    form.title = title
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return form
