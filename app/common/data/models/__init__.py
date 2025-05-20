@@ -1,16 +1,16 @@
 import datetime
 import secrets
 import uuid
-from enum import Enum
 from typing import Optional
 
 from pytz import utc
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
 from sqlalchemy import Enum as SqlEnum
+from sqlalchemy import Enum, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.common.data.base import BaseModel, CIStr
+from app.common.data.base import BaseModel, CIStr, QuestionDataType
 
 
 class RoleEnum(str, Enum):
@@ -204,7 +204,14 @@ class Question(BaseModel):
     slug: Mapped[str]
     order: Mapped[int]
     hint: Mapped[Optional[str]]
-    data_type: Mapped[str]  # TODO this will be an enum in proper data model
+    data_type: Mapped[QuestionDataType] = mapped_column(
+        Enum(
+            QuestionDataType,
+            name="question_data_type",
+            create_constraint=True,
+            validate_strings=True,
+        )
+    )
     name: Mapped[str]
 
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))

@@ -9,6 +9,7 @@ from wtforms.fields.core import Field
 
 from app.common.auth.decorators import mhclg_login_required
 from app.common.data import interfaces
+from app.common.data.base import QuestionDataType
 from app.common.data.interfaces.collections import (
     create_collection_schema,
     create_form,
@@ -405,7 +406,7 @@ def add_question(
                         text=wt_form.text.data,
                         hint=wt_form.hint.data,
                         name=wt_form.name.data,
-                        data_type=wt_form.data_type.data,
+                        data_type=QuestionDataType(wt_form.data_type.data),
                     )
                     return redirect(
                         url_for(

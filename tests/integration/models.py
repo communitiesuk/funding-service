@@ -12,9 +12,9 @@ import secrets
 from uuid import uuid4
 
 import factory
-import factory.fuzzy
 from flask import url_for
 
+from app.common.data.base import QuestionDataType
 from app.common.data.models import (
     CollectionSchema,
     Form,
@@ -156,7 +156,7 @@ class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
     name = factory.Sequence(lambda n: "Question name %d" % n)
     slug = factory.Sequence(lambda n: "question-%d" % n)
     order = factory.LazyAttribute(lambda o: len(o.form.questions))
-    data_type = "text"
+    data_type = QuestionDataType.TEXT
 
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)

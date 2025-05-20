@@ -5,6 +5,7 @@ from pydantic import UUID4
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from app.common.data.base import QuestionDataType
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import CollectionSchema, Form, Grant, Question, Section, User
 from app.common.utils import slugify
@@ -141,7 +142,7 @@ def update_form(form: Form, *, title: str) -> Form:
     return form
 
 
-def create_question(form: Form, *, text: str, hint: str, name: str, data_type: str) -> Question:
+def create_question(form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType) -> Question:
     question = Question(text=text, form_id=form.id, slug=slugify(text), hint=hint, name=name, data_type=data_type)
     form.questions.append(question)
     db.session.add(question)
