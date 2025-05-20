@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, List
 from uuid import UUID
 
@@ -9,14 +10,17 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     CollectionSchema,
+    Condition,
     Form,
     Grant,
     Question,
     QuestionGroup,
     Section,
     Submission,
-    User, Condition, Validation, )
-from app.common.data.types import DataType, SubmissionType, ConditionType
+    User,
+    Validation,
+)
+from app.common.data.types import DataType, SubmissionType
 from app.extensions import db
 
 
@@ -154,6 +158,31 @@ def update_form(form: Form, *, title: str) -> Form:
     return form
 
 
+def save_submission(submission: Submission) -> Submission | None:
+    db.session.add(submission)
+    try:
+        db.session.flush()
+        db.session.commit()
+        return submission
+    except Exception as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+
+
+def get_submission(submission_id: UUID4) -> Submission | None:
+    stmt = select(Submission).filter_by(id=submission_id)
+    try:
+        return db.session.execute(stmt).scalar_one()
+    except NoResultFound:
+        return None
+
+
+def get_submission_by_id(submission_id: uuid.UUID):
+    if submission_id is None:
+        return None
+    return db.session.get_one(Submission, submission_id)
+
+
 def get_question_by_id_for_form_and_question(form_slug: str, question_slug: str) -> Question | None:
     return (
         db.session.query(Question)
@@ -194,14 +223,20 @@ def add_test_grant_schema() -> dict:
         grant = db.session.query(Grant).filter_by(name=grant.name).first()
 
     # --- Schema ---
-    existing = db.session.query(CollectionSchema).filter_by(name="Community Ownership Funding Collection",
-                                                            version=1).first()
+    existing = (
+        db.session.query(CollectionSchema).filter_by(name="Community Ownership Funding Collection", version=1).first()
+    )
     if existing:
         db.session.delete(existing)
         db.session.flush()
 
-    schema = CollectionSchema(name="Community Ownership Funding Collection", version=1, created_by_id=user.id,
-                              grant_id=grant.id, slug=slugify("Community Ownership Funding Collection"))
+    schema = CollectionSchema(
+        name="Community Ownership Funding Collection",
+        version=1,
+        created_by_id=user.id,
+        grant_id=grant.id,
+        slug=slugify("Community Ownership Funding Collection"),
+    )
     db.session.add(schema)
     db.session.flush()
     schema = db.session.query(CollectionSchema).filter_by(id=schema.id).first()
@@ -209,13 +244,15 @@ def add_test_grant_schema() -> dict:
     # -------------------------------
     # Section 1: Applicant Information
     # -------------------------------
-    section_1 = Section(title="Applicant information", order=1, collection_schema_id=schema.id,
-                        slug=slugify("Applicant information"))
+    section_1 = Section(
+        title="Applicant information", order=1, collection_schema_id=schema.id, slug=slugify("Applicant information")
+    )
     db.session.add(section_1)
     db.session.flush()
 
-    form_1 = Form(title="Applicant information", order=1, slug=slugify("Applicant information"),
-                  section_id=section_1.id)
+    form_1 = Form(
+        title="Applicant information", order=1, slug=slugify("Applicant information"), section_id=section_1.id
+    )
     db.session.add(form_1)
     db.session.flush()
 
@@ -232,6 +269,14 @@ def add_test_grant_schema() -> dict:
     db.session.add(q1)
     db.session.flush()
     q1 = db.session.query(Question).filter_by(id=q1.id).first()
+
+    validation_f1_q1_1 = Validation(
+        question=q1,
+        expression=f"bool({q1.id})",
+        message="Name of the lead contact cannot be empty",
+    )
+    db.session.add(validation_f1_q1_1)
+    db.session.flush()
 
     q2 = Question(
         title="Lead contact job title ?",
@@ -254,6 +299,14 @@ def add_test_grant_schema() -> dict:
         description="If the first question empty this should not show up",
     )
     db.session.add(condition_f1_q2_1)
+    db.session.flush()
+
+    validation_f1_q2_1 = Validation(
+        question=q2,
+        expression=f"bool({q2.id})",
+        message="Lead contact job title cannot be empty",
+    )
+    db.session.add(validation_f1_q2_1)
     db.session.flush()
 
     q3 = Question(
@@ -279,6 +332,14 @@ def add_test_grant_schema() -> dict:
     db.session.add(condition_f1_q3_1)
     db.session.flush()
 
+    validation_f1_q3_1 = Validation(
+        question=q3,
+        expression=f"bool({q3.id})",
+        message="Lead contact email address cannot be empty",
+    )
+    db.session.add(validation_f1_q3_1)
+    db.session.flush()
+
     q4 = Question(
         title="Lead contact telephone number ?",
         name="Lead Contact Telephone Number",
@@ -302,16 +363,29 @@ def add_test_grant_schema() -> dict:
     db.session.add(condition_f1_q4_1)
     db.session.flush()
 
+    validation_f1_q4_1 = Validation(
+        question=q4,
+        expression=f"bool({q4.id})",
+        message="Lead contact email address cannot be empty",
+    )
+    db.session.add(validation_f1_q4_1)
+    db.session.flush()
+
     # -------------------------------
     # Section 2: Risk and Deliverability
     # -------------------------------
-    section_2 = Section(title="Risk and deliverability", order=2, collection_schema_id=schema.id,
-                        slug=slugify("Risk and deliverability"), )
+    section_2 = Section(
+        title="Risk and deliverability",
+        order=2,
+        collection_schema_id=schema.id,
+        slug=slugify("Risk and deliverability"),
+    )
     db.session.add(section_2)
     db.session.flush()
 
-    form_2 = Form(title="Risk and deliverability", order=1, slug=slugify("Risk and deliverability"),
-                  section_id=section_2.id)
+    form_2 = Form(
+        title="Risk and deliverability", order=1, slug=slugify("Risk and deliverability"), section_id=section_2.id
+    )
     db.session.add(form_2)
     db.session.flush()
 
@@ -352,6 +426,14 @@ def add_test_grant_schema() -> dict:
     db.session.add(condition_f2_q5_1)
     db.session.flush()
 
+    validation_f2_q5_1 = Validation(
+        question=q5,
+        expression=f"bool({q5.id})",
+        message="What is the risk cannot be empty",
+    )
+    db.session.add(validation_f2_q5_1)
+    db.session.flush()
+
     q6 = Question(
         title="What is the likelihood?",
         name="proposal_likelihood",
@@ -374,6 +456,14 @@ def add_test_grant_schema() -> dict:
         description="This second section will be depend on the first question of the form",
     )
     db.session.add(condition_f2_q6_1)
+    db.session.flush()
+
+    validation_f2_q6_1 = Validation(
+        question=q6,
+        expression=f"bool({q6.id})",
+        message="What is the likelihood cannot be empty",
+    )
+    db.session.add(validation_f2_q6_1)
     db.session.flush()
 
     q7 = Question(
@@ -400,11 +490,23 @@ def add_test_grant_schema() -> dict:
     db.session.add(condition_f2_q7_1)
     db.session.flush()
 
+    validation_f2_q7_1 = Validation(
+        question=q7,
+        expression=f"bool({q7.id})",
+        message="How will you mitigate this risk cannot be empty",
+    )
+    db.session.add(validation_f2_q7_1)
+    db.session.flush()
+
     # -------------------------------
     # Section 3: Funding Required
     # -------------------------------
-    section_3 = Section(title="Funding required", order=3, collection_schema_id=schema.id,
-                        slug=slugify("Funding required"), )
+    section_3 = Section(
+        title="Funding required",
+        order=3,
+        collection_schema_id=schema.id,
+        slug=slugify("Funding required"),
+    )
     db.session.add(section_3)
     db.session.flush()
 
@@ -500,13 +602,18 @@ def add_test_grant_schema() -> dict:
     # -------------------------------
     # Section 4: About Your Organization
     # -------------------------------
-    section_4 = Section(title="About your organization", order=4, collection_schema_id=schema.id,
-                        slug=slugify("About your organization"), )
+    section_4 = Section(
+        title="About your organization",
+        order=4,
+        collection_schema_id=schema.id,
+        slug=slugify("About your organization"),
+    )
     db.session.add(section_4)
     db.session.flush()
 
-    form_4 = Form(title="About your organization", order=1, slug=slugify("About your organization"),
-                  section_id=section_4.id)
+    form_4 = Form(
+        title="About your organization", order=1, slug=slugify("About your organization"), section_id=section_4.id
+    )
     db.session.add(form_4)
     db.session.flush()
 
@@ -652,9 +759,7 @@ def transform_submission_data(slug_data: dict, schema: CollectionSchema) -> dict
                         form_data[str(group.id)] = []
                         for item in group_answers:
                             item_data = {
-                                str(q.id): item.get(slugify(q.name))
-                                for q in group.questions
-                                if slugify(q.name) in item
+                                str(q.id): item.get(slugify(q.name)) for q in group.questions if slugify(q.name) in item
                             }
                             form_data[str(group.id)].append(item_data)
                 else:
@@ -732,13 +837,7 @@ def add_test_grant_submission():
         },
     }
 
-    submission_data_type_2 = {
-        "applicant-information": {
-            "applicant-information": {
-                "lead-contact-name": "Maria Jones"
-            }
-        }
-    }
+    submission_data_type_2 = {"applicant-information": {"applicant-information": {"lead-contact-name": "Maria Jones"}}}
 
     submission_data_type_3 = {
         "applicant-information": {
@@ -762,27 +861,31 @@ def add_test_grant_submission():
     }
 
     submission_1 = Submission(
-        data=transform_submission_data(submission_data, schema), status=SubmissionType.COMPLETED,
+        data=transform_submission_data(submission_data, schema),
+        status=SubmissionType.COMPLETED,
         collection_schema_id=schema.id,
-        collection_schema=schema
+        collection_schema=schema,
     )
 
     submission_2 = Submission(
-        data=transform_submission_data(submission_data, schema), status=SubmissionType.CREATED,
+        data=transform_submission_data(submission_data, schema),
+        status=SubmissionType.CREATED,
         collection_schema_id=schema.id,
-        collection_schema=schema
+        collection_schema=schema,
     )
 
     submission_3 = Submission(
-        data=transform_submission_data(submission_data_type_2, schema), status=SubmissionType.CREATED,
+        data=transform_submission_data(submission_data_type_2, schema),
+        status=SubmissionType.CREATED,
         collection_schema_id=schema.id,
-        collection_schema=schema
+        collection_schema=schema,
     )
 
     submission_4 = Submission(
-        data=transform_submission_data(submission_data_type_3, schema), status=SubmissionType.CREATED,
+        data=transform_submission_data(submission_data_type_3, schema),
+        status=SubmissionType.CREATED,
         collection_schema_id=schema.id,
-        collection_schema=schema
+        collection_schema=schema,
     )
 
     db.session.add_all([submission_1, submission_2, submission_3, submission_4])

@@ -7,56 +7,95 @@
         <p class="govuk-body">The form questions you're looking for could not be found.</p>
     {% else %}
 
-        <h1 class="govuk-heading-xl">Form Questions</h1>
-
-        {% for question in questions %}
-            <div class="govuk-form-group">
-                <h2 class="govuk-heading-m">{{ question.title }}</h2>
-
-                <dl class="govuk-summary-list">
-                    <div class="govuk-summary-list__row">
-                        <dt class="govuk-summary-list__key">Name</dt>
-                        <dd class="govuk-summary-list__value">{{ question.name }}</dd>
-                    </div>
-
-                    {% if question.hint %}
-                        <div class="govuk-summary-list__row">
-                            <dt class="govuk-summary-list__key">Hint</dt>
-                            <dd class="govuk-summary-list__value">{{ question.hint }}</dd>
-                        </div>
-                    {% endif %}
-
-                    <div class="govuk-summary-list__row">
-                        <dt class="govuk-summary-list__key">Data Source</dt>
-                        <dd class="govuk-summary-list__value">{{ question.data_source }}</dd>
-                    </div>
-
-                    <div class="govuk-summary-list__row">
-                        <dt class="govuk-summary-list__key">Data Type</dt>
-                        <dd class="govuk-summary-list__value">{{ question.data_type }}</dd>
-                    </div>
-
-                    <div class="govuk-summary-list__row">
-                        <dt class="govuk-summary-list__key">Order</dt>
-                        <dd class="govuk-summary-list__value">{{ question.order }}</dd>
-                    </div>
-
-                    <div class="govuk-summary-list__row">
-                        <dt class="govuk-summary-list__key">Form ID</dt>
-                        <dd class="govuk-summary-list__value">{{ question.form_id }}</dd>
-                    </div>
-
-                    {% if question.group_id %}
-                        <div class="govuk-summary-list__row">
-                            <dt class="govuk-summary-list__key">Group ID</dt>
-                            <dd class="govuk-summary-list__value">{{ question.group_id }}</dd>
-                        </div>
-                    {% endif %}
-                </dl>
+        {% if errors %}
+            <div class="govuk-error-summary" aria-labelledby="error-summary-title" role="alert" tabindex="-1">
+                <h2 class="govuk-error-summary__title" id="error-summary-title">
+                    There is a problem
+                </h2>
+                <div class="govuk-error-summary__body">
+                    <ul class="govuk-list govuk-error-summary__list">
+                        {% for slug, messages in errors.items() %}
+                            {% for message in messages %}
+                                <li><a href="#{{ slug }}">{{ message }}</a></li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
-        {% endfor %}
+        {% endif %}
 
         <form method="post">
+            <h1 class="govuk-heading-xl">Form Questions</h1>
+
+            {% for question in questions %}
+                {% set error_messages = errors[question.slug] if errors and question.slug in errors else [] %}
+                <div class="govuk-form-group {% if error_messages %}govuk-form-group--error{% endif %}">
+                    <label class="govuk-label" for="{{ question.slug }}">
+                        {{ question.title }}
+                    </label>
+                    {% if question.hint %}
+                        <div id="{{ question.name }}-hint" class="govuk-hint">{{ question.hint }}</div>
+                    {% endif %}
+
+                    {% if error_messages %}
+                        <p id="{{ question.slug }}-error" class="govuk-error-message">
+                            <span class="govuk-visually-hidden">Error:</span> {{ error_messages[0] }}
+                        </p>
+                    {% endif %}
+
+                    {% if question.data_type.value == 'TEXT' %}
+                        <input class="govuk-input" id="{{ question.name }}" name="{{ question.slug }}" type="text"
+                               aria-describedby="{{ question.name }}-hint
+                                       {% if error_messages %}{{ question.slug }}-error{% endif %}">
+                    {% elif question.data_type.value == 'EMAIL' %}
+                        <input class="govuk-input" id="{{ question.name }}" name="{{ question.slug }}" type="email"
+                               aria-describedby="{{ question.name }}-hint
+                                       {% if error_messages %}{{ question.slug }}-error{% endif %}">
+                    {% elif question.data_type.value == 'PHONE_NUMBER' %}
+                        <input class="govuk-input" id="{{ question.name }}" name="{{ question.slug }}" type="tel"
+                               aria-describedby="{{ question.name }}-hint
+                                       {% if error_messages %}{{ question.slug }}-error{% endif %}">
+                    {% elif question.data_type.value == 'NUMBER' %}
+                        <input class="govuk-input govuk-input--width-10" id="{{ question.name }}"
+                               name="{{ question.slug }}" type="number"
+                               aria-describedby="{{ question.name }}-hint
+                                       {% if error_messages %}{{ question.slug }}-error{% endif %}">
+                    {% elif question.data_type.value == 'ADDRESS' %}
+                        <textarea class="govuk-textarea" id="{{ question.name }}" name="{{ question.slug }}" rows="5"
+                                  aria-describedby="{{ question.name }}-hint
+                                          {% if error_messages %}{{ question.slug }}-error{% endif %}"></textarea>
+                    {% elif question.data_type.value == 'URL' %}
+                        <input class="govuk-input" id="{{ question.name }}" name="{{ question.slug }}" type="url"
+                               aria-describedby="{{ question.name }}-hint
+                                       {% if error_messages %}{{ question.slug }}-error{% endif %}">
+                    {% endif %}
+                </div>
+
+                <div class="govuk-form-group">
+                    <details class="govuk-details">
+                        <summary class="govuk-details__summary">
+                            <span class="govuk-details__summary-text">Additional settings</span>
+                        </summary>
+                        <div class="govuk-details__text">
+                            <dl class="govuk-summary-list">
+                                <div class="govuk-summary-list__row">
+                                    <dt class="govuk-summary-list__key">Name</dt>
+                                    <dd class="govuk-summary-list__value">{{ question.name }}</dd>
+                                </div>
+                                <div class="govuk-summary-list__row">
+                                    <dt class="govuk-summary-list__key">Data Source</dt>
+                                    <dd class="govuk-summary-list__value">{{ question.data_source }}</dd>
+                                </div>
+                                <div class="govuk-summary-list__row">
+                                    <dt class="govuk-summary-list__key">Order</dt>
+                                    <dd class="govuk-summary-list__value">{{ question.order }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </details>
+                </div>
+            {% endfor %}
+
             <button type="submit" class="govuk-button">Next</button>
         </form>
 
