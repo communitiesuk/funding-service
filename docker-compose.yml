@@ -44,6 +44,7 @@ services:
       DATABASE_NAME: "postgres"
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
       REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+      WERKZEUG_DEBUG_PIN: off
     depends_on:
       - db
     networks:
@@ -68,6 +69,7 @@ services:
       "
     environment:
       FLASK_APP: "stubs.sso"
+      WERKZEUG_DEBUG_PIN: off
     networks:
       ofs:
         aliases:
