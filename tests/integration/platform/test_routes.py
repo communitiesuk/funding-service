@@ -3,8 +3,8 @@ from bs4 import BeautifulSoup
 from flask import url_for
 from sqlalchemy import select
 
-from app.common.data.models import CollectionSchema, Form, Grant, Question, Section
-from app.platform import CollectionForm, FormForm, GrantForm, SectionForm
+from app.common.data.models import CollectionSchema, Form, Grant, Question, QuestionDataType, Section
+from app.platform import CollectionForm, FormForm, GrantForm, QuestionForm, QuestionTypeForm, SectionForm
 
 
 def test_list_grants(authenticated_client, factories, templates_rendered):
@@ -355,3 +355,120 @@ def test_move_question(authenticated_client, factories, db_session):
     question2_from_db = db_session.scalars(select(Question).where(Question.id == question2.id)).one()
     assert question1_from_db.order == 0
     assert question2_from_db.order == 1
+
+
+def test_create_question_choose_type_get(authenticated_client, factories):
+    form = factories.form.create()
+    result = authenticated_client.get(
+        url_for(
+            "platform.choose_question_type",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+        ),
+    )
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h1.text.strip() == "What is the type of the question?"
+
+
+def test_create_question_choose_type_post(authenticated_client, factories):
+    form = factories.form.create()
+    wt_form = QuestionTypeForm(data_type=QuestionDataType.TEXT.name)
+    result = authenticated_client.post(
+        url_for(
+            "platform.choose_question_type",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+        ),
+        data=wt_form.data,
+    )
+    assert result.status_code == 302
+
+
+def test_create_question_choose_type_post_error(authenticated_client, factories):
+    form = factories.form.create()
+    wt_form = QuestionTypeForm()
+    result = authenticated_client.post(
+        url_for(
+            "platform.choose_question_type",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+        ),
+        data=wt_form.data,
+    )
+    assert result.status_code == 200
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h2.text.strip() == "There is a problem"
+    assert len(soup.find_all("a", href="#data_type")) == 1
+    assert soup.find_all("a", href="#data_type")[0].text.strip() == "Select a question type"
+
+
+def test_add_text_question_get(authenticated_client, factories):
+    form = factories.form.create()
+    result = authenticated_client.get(
+        url_for(
+            "platform.add_question",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+            question_type=QuestionDataType.TEXT.name,
+        ),
+    )
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h1.text.strip() == "Add question"
+
+    assert soup.find_all("dd", class_="govuk-summary-list__value")[0].text.strip() == QuestionDataType.TEXT.value
+
+
+def test_add_text_question_post(authenticated_client, factories, db_session):
+    form = factories.form.create()
+    wt_form = QuestionForm(text="Text question 1", hint="some hint text", name="question 1")
+    result = authenticated_client.post(
+        url_for(
+            "platform.add_question",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+            question_type=QuestionDataType.TEXT.name,
+        ),
+        data=wt_form.data,
+    )
+    assert result.status_code == 302
+
+    form_from_db = db_session.scalars(select(Form).where(Form.id == form.id)).one()
+    assert len(form_from_db.questions) == 1
+    assert form_from_db.questions[0].data_type == QuestionDataType.TEXT
+
+
+def test_add_text_question_post_duplicate_text(authenticated_client, factories, db_session):
+    form = factories.form.create()
+    factories.question.create(form=form, text="duplicate text")
+    wt_form = QuestionForm(text="duplicate text", hint="some hint text", name="question 1")
+    result = authenticated_client.post(
+        url_for(
+            "platform.add_question",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+            question_type=QuestionDataType.TEXT.name,
+        ),
+        data=wt_form.data,
+    )
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h2.text.strip() == "There is a problem"
+    assert len(soup.find_all("a", href="#text")) == 1
+    assert soup.find_all("a", href="#text")[0].text.strip() == "Text already in use"

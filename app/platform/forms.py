@@ -1,8 +1,10 @@
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from wtforms.fields.choices import RadioField
-from wtforms.fields.simple import HiddenField, StringField, SubmitField
+from wtforms.fields.simple import StringField, SubmitField
 from wtforms.validators import DataRequired
+
+from app.common.data.models import QuestionDataType
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
@@ -53,10 +55,7 @@ class QuestionTypeForm(FlaskForm):
     data_type = RadioField(
         "Question type",
         choices=[
-            ("text", "Text"),
-            # ("number", "Number"),
-            # ("person-contact-details", "A person's contact details"),
-            # TODO put these back in when we have an enum for these types in the data model
+            (QuestionDataType.TEXT.name, QuestionDataType.TEXT.value),
         ],
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
@@ -84,6 +83,4 @@ class QuestionForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-    data_type = HiddenField()
-    form_id = HiddenField()
     submit = SubmitField(widget=GovSubmitInput())

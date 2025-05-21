@@ -1,7 +1,8 @@
 import datetime
+import enum
 import secrets
 import uuid
-from typing import Optional
+from typing import Any, Optional, Self
 
 from pytz import utc
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
@@ -10,7 +11,7 @@ from sqlalchemy import Enum, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.common.data.base import BaseModel, CIStr, QuestionDataType
+from app.common.data.base import BaseModel, CIStr
 
 
 class RoleEnum(str, Enum):
@@ -197,6 +198,20 @@ class Form(BaseModel):
     )
 
 
+class QuestionDataType(enum.StrEnum):
+    # If adding values here, also update QuestionTypeForm
+    # and manually create a migration to update question_type_enum in the db
+    TEXT = "A single line of text"
+
+    @staticmethod
+    def coerce(value: Any) -> "QuestionDataType":
+        if isinstance(value, QuestionDataType):
+            return value
+        if isinstance(value, str):
+            return QuestionDataType[value]
+        raise ValueError(f"Cannot coerce {value} to QuestionDataType")
+
+
 class Question(BaseModel):
     __tablename__ = "question"
 
@@ -207,8 +222,7 @@ class Question(BaseModel):
     data_type: Mapped[QuestionDataType] = mapped_column(
         Enum(
             QuestionDataType,
-            name="question_data_type",
-            create_constraint=True,
+            name="question_data_type_enum",
             validate_strings=True,
         )
     )
@@ -220,5 +234,6 @@ class Question(BaseModel):
     __table_args__ = (
         UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
+        UniqueConstraint("text", "form_id", name="uq_question_text_form"),
         UniqueConstraint("name", "form_id", name="uq_question_name_form"),
     )

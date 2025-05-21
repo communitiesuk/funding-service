@@ -9,7 +9,6 @@ from wtforms.fields.core import Field
 
 from app.common.auth.decorators import mhclg_login_required
 from app.common.data import interfaces
-from app.common.data.base import QuestionDataType
 from app.common.data.interfaces.collections import (
     create_collection_schema,
     create_form,
@@ -31,7 +30,7 @@ from app.common.data.interfaces.collections import (
     update_section,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import User
+from app.common.data.models import QuestionDataType, User
 from app.extensions import auto_commit_after_request
 from app.platform.forms import CollectionForm, FormForm, GrantForm, QuestionForm, QuestionTypeForm, SectionForm
 
@@ -382,77 +381,84 @@ def edit_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id:
 
 
 @platform_blueprint.route(
-    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add/<int:step>",
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add/choose-type",
+    methods=["GET", "POST"],
+)
+@mhclg_login_required
+def choose_question_type(
+    grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4
+) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id)
+    wt_form = QuestionTypeForm(data_type=request.args.get("question_type", None))
+    if wt_form.validate_on_submit():
+        question_type = wt_form.data_type.data
+        return redirect(
+            url_for(
+                "platform.add_question",
+                grant_id=grant_id,
+                collection_id=collection_id,
+                section_id=section_id,
+                form_id=form_id,
+                question_type=question_type,
+            )
+        )
+    return render_template(
+        "platform/developers/choose_question_type.html",
+        grant=db_form.section.collection_schema.grant,
+        collection=db_form.section.collection_schema,
+        section=db_form.section,
+        db_form=db_form,
+        form=wt_form,
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add",
     methods=["GET", "POST"],
 )
 @mhclg_login_required
 @auto_commit_after_request
-def add_question(
-    grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4, step: int
-) -> ResponseReturnValue:
+def add_question(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
-    match step:
-        case 2:
-            question_type = request.args.get("question_type", None)
-            wt_form = QuestionForm(data_type=question_type, form_id=form_id)
-            if wt_form.validate_on_submit():
-                try:
-                    assert wt_form.text.data is not None
-                    assert wt_form.hint.data is not None
-                    assert wt_form.data_type.data is not None
-                    assert wt_form.name.data is not None
-                    create_question(
-                        form=form,
-                        text=wt_form.text.data,
-                        hint=wt_form.hint.data,
-                        name=wt_form.name.data,
-                        data_type=QuestionDataType(wt_form.data_type.data),
-                    )
-                    return redirect(
-                        url_for(
-                            "platform.manage_form",
-                            grant_id=grant_id,
-                            collection_id=collection_id,
-                            section_id=section_id,
-                            form_id=form_id,
-                            back_link="manage_section",
-                        )
-                    )
-                except DuplicateValueError as e:
-                    field_with_error: Field = getattr(form, e.field_name)
-                    field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
-            return render_template(
-                "platform/developers/add_question_step_2.html",
-                grant=form.section.collection_schema.grant,
-                collection=form.section.collection_schema,
-                section=form.section,
+    question_type_arg = request.args.get("question_type", None)
+    question_type_enum = QuestionDataType.coerce(question_type_arg)
+
+    wt_form = QuestionForm()
+    if wt_form.validate_on_submit():
+        try:
+            assert wt_form.text.data is not None
+            assert wt_form.hint.data is not None
+            assert wt_form.name.data is not None
+            create_question(
                 form=form,
-                question_type=question_type,
-                wt_form=wt_form,
+                text=wt_form.text.data,
+                hint=wt_form.hint.data,
+                name=wt_form.name.data,
+                data_type=question_type_enum,
             )
-        case 1 | _:
-            wt_form = QuestionTypeForm()
-            if wt_form.validate_on_submit():
-                question_type = wt_form.data_type.data
-                return redirect(
-                    url_for(
-                        "platform.add_question",
-                        grant_id=grant_id,
-                        collection_id=collection_id,
-                        section_id=section_id,
-                        form_id=form_id,
-                        step=2,
-                        question_type=question_type,
-                    )
+            return redirect(
+                url_for(
+                    "platform.manage_form",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                    back_link="manage_section",
                 )
-            return render_template(
-                "platform/developers/add_question_step_1.html",
-                grant=form.section.collection_schema.grant,
-                collection=form.section.collection_schema,
-                section=form.section,
-                form=form,
-                wt_form=wt_form,
             )
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "platform/developers/add_question_text.html",
+        grant=form.section.collection_schema.grant,
+        collection=form.section.collection_schema,
+        section=form.section,
+        db_form=form,
+        chosen_question_type=question_type_enum,
+        form=wt_form,
+    )
 
 
 @platform_blueprint.route(

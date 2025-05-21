@@ -79,21 +79,16 @@
             {{ govukButton({
         "text": "Add question",
         "classes": "govuk-button--secondary",
-        "href": url_for("platform.add_question", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, step=1),
+        "href": url_for("platform.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id),
     }) }}
-            {{ govukButton({
-        "text": "Add group",
-        "classes": "govuk-button--secondary",
-        "href": "#",
-        "disabled":True
-    }) }}
+
 
         {% else %}
 
             <p class="govuk-body">
                 This form has no questions, you can
                 <a class="govuk-link govuk-link--no-visited-state"
-                   href="{{ url_for('platform.add_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, step=1) }}">add
+                   href="{{ url_for('platform.choose_question_type', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id) }}">add
                     a question</a>
                 .
             </p>

@@ -5,7 +5,7 @@
 
 
 {% block pageTitle %}
-    Add a question - {{ form.title }} - MHCLG Funding Service
+    Add a question - {{ db_form.title }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
@@ -13,27 +13,25 @@
 {% block beforeContent %}
     {{ govukBackLink({
         "text": "Back",
-        "href": url_for("platform.add_question", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_id=form.id, step=1)
+        "href": url_for("platform.choose_question_type", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_id=db_form.id, question_type=chosen_question_type.name, back_link="manage_section")
     }) }}
 {% endblock beforeContent %}
 
 {% block content %}
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-two-thirds">
-            <h1 class="govuk-heading-l">Add Question</h1>
+            <h1 class="govuk-heading-l">Add question</h1>
             <dl class="govuk-body govuk-!-margin-bottom-6">
                 <dt class="govuk-body govuk-!-margin-bottom-1">Question type</dt>
-                <dd class="govuk-summary-list__value">{{ wt_form.data_type.data }}</dd>
+                <dd class="govuk-summary-list__value">{{ chosen_question_type.value }}</dd>
             </dl>
 
             <form method="post" novalidate>
-                {{ wt_form.csrf_token }}
-                {{ wt_form.form_id }}
-                {{ wt_form.data_type }}
-                {{ wt_form.text }}
-                {{ wt_form.name }}
-                {{ wt_form.hint }}
-                {{ wt_form.submit }}
+                {{ form.csrf_token }}
+                {{ form.text }}
+                {{ form.name }}
+                {{ form.hint }}
+                {{ form.submit }}
             </form>
         </div>
     </div>

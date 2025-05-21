@@ -14,7 +14,6 @@ from uuid import uuid4
 import factory
 from flask import url_for
 
-from app.common.data.base import QuestionDataType
 from app.common.data.models import (
     CollectionSchema,
     Form,
@@ -22,6 +21,7 @@ from app.common.data.models import (
     MagicLink,
     Organisation,
     Question,
+    QuestionDataType,
     Section,
     User,
     UserRole,
@@ -150,6 +150,7 @@ class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Question
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
 
     id = factory.LazyFunction(uuid4)
     text = factory.Sequence(lambda n: "Question %d" % n)

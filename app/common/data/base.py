@@ -1,8 +1,6 @@
-import enum
 import uuid
 from datetime import datetime
 
-import sqlalchemy
 from sqlalchemy import MetaData, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import CITEXT
@@ -21,18 +19,12 @@ convention = {
 type CIStr = str
 
 
-class QuestionDataType(enum.Enum):
-    TEXT = "text"
-    NUMBER = "number"
-
-
 class BaseModel(DeclarativeBase):
     __abstract__ = True
     metadata = MetaData(naming_convention=convention)
     type_annotation_map = {
         json_scalars: postgresql.JSONB,
         CIStr: CITEXT,
-        QuestionDataType: sqlalchemy.Enum(QuestionDataType, native_enum=False),
     }
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, sort_order=-100, default=uuid.uuid4)

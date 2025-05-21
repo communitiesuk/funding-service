@@ -5,9 +5,8 @@ from pydantic import UUID4
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from app.common.data.base import QuestionDataType
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import CollectionSchema, Form, Grant, Question, Section, User
+from app.common.data.models import CollectionSchema, Form, Grant, Question, QuestionDataType, Section, User
 from app.common.utils import slugify
 from app.extensions import db
 
