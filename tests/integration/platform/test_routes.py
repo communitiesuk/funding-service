@@ -279,6 +279,17 @@ def test_move_section(authenticated_client, factories, db_session):
     assert section1_from_db.order == 0
     assert section2_from_db.order == 1
 
+    result = authenticated_client.post(
+        url_for(
+            "platform.move_section",
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            section_id=section1.id,
+            direction="bad_direction",
+        ),
+    )
+    assert result.status_code == 400
+
 
 def test_move_form(authenticated_client, factories, db_session):
     section = factories.section.create()
@@ -315,6 +326,18 @@ def test_move_form(authenticated_client, factories, db_session):
     form2_from_db = db_session.scalars(select(Form).where(Form.id == form2.id)).one()
     assert form1_from_db.order == 0
     assert form2_from_db.order == 1
+
+    result = authenticated_client.post(
+        url_for(
+            "platform.move_form",
+            grant_id=section.collection_schema.grant.id,
+            collection_id=section.collection_schema.id,
+            section_id=section.id,
+            form_id=form1.id,
+            direction="bad_direction",
+        ),
+    )
+    assert result.status_code == 400
 
 
 def test_move_question(authenticated_client, factories, db_session):
@@ -355,6 +378,19 @@ def test_move_question(authenticated_client, factories, db_session):
     question2_from_db = db_session.scalars(select(Question).where(Question.id == question2.id)).one()
     assert question1_from_db.order == 0
     assert question2_from_db.order == 1
+
+    result = authenticated_client.post(
+        url_for(
+            "platform.move_question",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+            question_id=question1.id,
+            direction="bad_direction",
+        ),
+    )
+    assert result.status_code == 400
 
 
 def test_create_question_choose_type_get(authenticated_client, factories):
@@ -475,3 +511,45 @@ def test_add_text_question_post_duplicate_text(authenticated_client, factories, 
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#text")) == 1
     assert soup.find_all("a", href="#text")[0].text.strip() == "Text already in use"
+
+
+def test_edit_question_get(authenticated_client, factories):
+    form = factories.form.create()
+    question = factories.question.create(form=form, text="Test Question", hint="Test Hint", name="Test Question Name")
+    result = authenticated_client.get(
+        url_for(
+            "platform.edit_question",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+            question_id=question.id,
+        ),
+    )
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert soup.h1.text.strip() == "Edit question"
+
+
+def test_edit_question_post(authenticated_client, factories, db_session):
+    form = factories.form.create()
+    question = factories.question.create(form=form, text="Test Question", hint="Test Hint", name="Test Question Name")
+    wt_form = QuestionForm(text="Updated Question", hint="Updated Hint", name="Updated Question Name")
+    result = authenticated_client.post(
+        url_for(
+            "platform.edit_question",
+            grant_id=form.section.collection_schema.grant.id,
+            collection_id=form.section.collection_schema.id,
+            section_id=form.section.id,
+            form_id=form.id,
+            question_id=question.id,
+        ),
+        data=wt_form.data,
+    )
+    assert result.status_code == 302
+
+    question_from_db = db_session.scalars(select(Question).where(Question.id == question.id)).one()
+    assert question_from_db.text == "Updated Question"
+    assert question_from_db.hint == "Updated Hint"
+    assert question_from_db.name == "Updated Question Name"

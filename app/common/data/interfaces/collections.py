@@ -172,6 +172,7 @@ def update_question(question: Question, *, text: str, hint: str | None, name: st
     question.text = text
     question.hint = hint
     question.name = name
+    question.slug = slugify(text)
 
     try:
         db.session.flush()

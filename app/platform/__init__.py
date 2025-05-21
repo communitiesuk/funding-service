@@ -1,6 +1,6 @@
 from typing import cast
 
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from pydantic import UUID4
@@ -205,6 +205,8 @@ def move_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, direc
         move_section_up(section)
     elif direction == "down":
         move_section_down(section)
+    else:
+        abort(400)
 
     return redirect(url_for("platform.list_sections", grant_id=grant_id, collection_id=collection_id))
 
@@ -243,6 +245,8 @@ def move_form(
         move_form_up(form)
     elif direction == "down":
         move_form_down(form)
+    else:
+        abort(400)
 
     return redirect(
         url_for("platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id)
@@ -476,6 +480,8 @@ def move_question(
         move_question_up(question)
     elif direction == "down":
         move_question_down(question)
+    else:
+        abort(400)
 
     return redirect(
         url_for(
@@ -504,7 +510,6 @@ def edit_question(
         try:
             assert wt_form.text.data is not None
             assert wt_form.hint.data is not None
-            assert wt_form.question_data_type.data is not None
             assert wt_form.name.data is not None
             update_question(question=question, text=wt_form.text.data, hint=wt_form.hint.data, name=wt_form.name.data)
             return redirect(
@@ -526,7 +531,7 @@ def edit_question(
         grant=question.form.section.collection_schema.grant,
         collection=question.form.section.collection_schema,
         section=question.form.section,
-        form=question.form,
+        db_form=question.form,
         question=question,
-        wt_form=wt_form,
+        form=wt_form,
     )

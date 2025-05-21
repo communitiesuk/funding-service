@@ -25,13 +25,8 @@
     {{ form.title }}
 </h1>
 {% set question_text %}
-{% trans count=form.questions | length %}
-    {{ count }}
-    question {% pluralize %}
-    {{ count }}
-    questions
-{% endtrans %}
-{% endset %}
+{% trans count=form.questions | length %}{{ count }} question{% pluralize %}{{ count }}
+    questions{% endtrans %}{% endset %}
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
         {{ govukSummaryList({
@@ -75,6 +70,7 @@
         {% endfor %}
 
         {% if form.questions %}
+            <p class="govuk-body">This form has {{ question_text }}.</p>
             {{ moveUpDownTable(table_rows) }}
             {{ govukButton({
         "text": "Add question",
