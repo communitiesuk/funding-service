@@ -92,7 +92,14 @@ class UserRole(BaseModel):
     grant: Mapped[Grant] = relationship("Grant", back_populates="roles")
 
     __table_args__ = (
-        UniqueConstraint("user_id", "organisation_id", "grant_id", "role", name="uq_user_org_grant_role"),
+        UniqueConstraint(
+            "user_id",
+            "organisation_id",
+            "grant_id",
+            "role",
+            name="uq_user_org_grant_role",
+            postgresql_nulls_not_distinct=True,
+        ),
         Index("ix_user_roles_user_id", "user_id"),
         Index("ix_user_roles_organisation_id", "organisation_id"),
         Index("ix_user_roles_grant_id", "grant_id"),
