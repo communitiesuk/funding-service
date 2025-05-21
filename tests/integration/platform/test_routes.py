@@ -376,7 +376,7 @@ def test_create_question_choose_type_get(authenticated_client, factories):
 
 def test_create_question_choose_type_post(authenticated_client, factories):
     form = factories.form.create()
-    wt_form = QuestionTypeForm(data_type=QuestionDataType.TEXT.name)
+    wt_form = QuestionTypeForm(question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name)
     result = authenticated_client.post(
         url_for(
             "platform.choose_question_type",
@@ -406,8 +406,8 @@ def test_create_question_choose_type_post_error(authenticated_client, factories)
     assert result.status_code == 200
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
-    assert len(soup.find_all("a", href="#data_type")) == 1
-    assert soup.find_all("a", href="#data_type")[0].text.strip() == "Select a question type"
+    assert len(soup.find_all("a", href="#question_data_type")) == 1
+    assert soup.find_all("a", href="#question_data_type")[0].text.strip() == "Select a question type"
 
 
 def test_add_text_question_get(authenticated_client, factories):
@@ -419,7 +419,7 @@ def test_add_text_question_get(authenticated_client, factories):
             collection_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
-            question_type=QuestionDataType.TEXT.name,
+            question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
         ),
     )
     assert result.status_code == 200
@@ -427,7 +427,10 @@ def test_add_text_question_get(authenticated_client, factories):
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h1.text.strip() == "Add question"
 
-    assert soup.find_all("dd", class_="govuk-summary-list__value")[0].text.strip() == QuestionDataType.TEXT.value
+    assert (
+        soup.find_all("dd", class_="govuk-summary-list__value")[0].text.strip()
+        == QuestionDataType.TEXT_SINGLE_LINE.value
+    )
 
 
 def test_add_text_question_post(authenticated_client, factories, db_session):
@@ -440,7 +443,7 @@ def test_add_text_question_post(authenticated_client, factories, db_session):
             collection_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
-            question_type=QuestionDataType.TEXT.name,
+            question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
         ),
         data=wt_form.data,
     )
@@ -448,7 +451,7 @@ def test_add_text_question_post(authenticated_client, factories, db_session):
 
     form_from_db = db_session.scalars(select(Form).where(Form.id == form.id)).one()
     assert len(form_from_db.questions) == 1
-    assert form_from_db.questions[0].data_type == QuestionDataType.TEXT
+    assert form_from_db.questions[0].data_type == QuestionDataType.TEXT_SINGLE_LINE
 
 
 def test_add_text_question_post_duplicate_text(authenticated_client, factories, db_session):
@@ -462,7 +465,7 @@ def test_add_text_question_post_duplicate_text(authenticated_client, factories, 
             collection_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
-            question_type=QuestionDataType.TEXT.name,
+            question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
         ),
         data=wt_form.data,
     )

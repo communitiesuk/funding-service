@@ -2,19 +2,18 @@ import datetime
 import enum
 import secrets
 import uuid
-from typing import Any, Optional, Self
+from typing import Any, Optional
 
 from pytz import utc
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import Enum, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
 
 
-class RoleEnum(str, Enum):
+class RoleEnum(str, enum.Enum):
     ADMIN = (
         "admin"  # Admin level permissions, combines with null columns in UserRole table to denote level of admin access
     )
@@ -201,7 +200,9 @@ class Form(BaseModel):
 class QuestionDataType(enum.StrEnum):
     # If adding values here, also update QuestionTypeForm
     # and manually create a migration to update question_type_enum in the db
-    TEXT = "A single line of text"
+    TEXT_SINGLE_LINE = "A single line of text"
+    INTEGER = "A whole number"
+    TEXT_MULTI_LINE = "Multiple lines of text"
 
     @staticmethod
     def coerce(value: Any) -> "QuestionDataType":
@@ -220,7 +221,7 @@ class Question(BaseModel):
     order: Mapped[int]
     hint: Mapped[Optional[str]]
     data_type: Mapped[QuestionDataType] = mapped_column(
-        Enum(
+        SqlEnum(
             QuestionDataType,
             name="question_data_type_enum",
             validate_strings=True,

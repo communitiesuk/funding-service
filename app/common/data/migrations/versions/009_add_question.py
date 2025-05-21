@@ -1,7 +1,7 @@
 """Add question table
 
-Revision ID: 008_add_question
-Revises: 007_add_section_form
+Revision ID: 009_add_question
+Revises: 008_add_userrole_org_tables
 Create Date: 2025-05-20 14:18:02.989992
 
 """
@@ -9,12 +9,12 @@ Create Date: 2025-05-20 14:18:02.989992
 import sqlalchemy as sa
 from alembic import op
 
-revision = "008_add_question"
-down_revision = "007_add_section_form"
+revision = "009_add_question"
+down_revision = "008_add_userrole_org_tables"
 branch_labels = None
 depends_on = None
 
-question_data_type_enum = sa.Enum("TEXT", name="question_data_type_enum")
+question_data_type_enum = sa.Enum("TEXT_SINGLE_LINE", "INTEGER", "TEXT_MULTI_LINE", name="question_data_type_enum")
 
 
 def upgrade() -> None:

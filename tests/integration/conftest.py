@@ -32,8 +32,8 @@ from tests.integration.models import (
     _FormFactory,
     _GrantFactory,
     _MagicLinkFactory,
-    _QuestionFactory,
     _OrganisationFactory,
+    _QuestionFactory,
     _SectionFactory,
     _UserFactory,
     _UserRoleFactory,
@@ -187,7 +187,8 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
 
 
 _Factories = namedtuple(
-    "_Factories", ["grant", "user", "magic_link", "collection_schema", "section", "form", "question", "organisation", "user_role"]
+    "_Factories",
+    ["grant", "user", "magic_link", "collection_schema", "section", "form", "question", "organisation", "user_role"],
 )
 
 

@@ -389,9 +389,9 @@ def choose_question_type(
     grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4
 ) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
-    wt_form = QuestionTypeForm(data_type=request.args.get("question_type", None))
+    wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
     if wt_form.validate_on_submit():
-        question_type = wt_form.data_type.data
+        question_data_type = wt_form.question_data_type.data
         return redirect(
             url_for(
                 "platform.add_question",
@@ -399,7 +399,7 @@ def choose_question_type(
                 collection_id=collection_id,
                 section_id=section_id,
                 form_id=form_id,
-                question_type=question_type,
+                question_data_type=question_data_type,
             )
         )
     return render_template(
@@ -420,8 +420,8 @@ def choose_question_type(
 @auto_commit_after_request
 def add_question(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
-    question_type_arg = request.args.get("question_type", None)
-    question_type_enum = QuestionDataType.coerce(question_type_arg)
+    question_data_type_arg = request.args.get("question_data_type", None)
+    question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
 
     wt_form = QuestionForm()
     if wt_form.validate_on_submit():
@@ -434,7 +434,7 @@ def add_question(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
-                data_type=question_type_enum,
+                data_type=question_data_type_enum,
             )
             return redirect(
                 url_for(
@@ -451,12 +451,12 @@ def add_question(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "platform/developers/add_question_text.html",
+        "platform/developers/add_question.html",
         grant=form.section.collection_schema.grant,
         collection=form.section.collection_schema,
         section=form.section,
         db_form=form,
-        chosen_question_type=question_type_enum,
+        chosen_question_data_type=question_data_type_enum,
         form=wt_form,
     )
 
@@ -504,7 +504,7 @@ def edit_question(
         try:
             assert wt_form.text.data is not None
             assert wt_form.hint.data is not None
-            assert wt_form.data_type.data is not None
+            assert wt_form.question_data_type.data is not None
             assert wt_form.name.data is not None
             update_question(question=question, text=wt_form.text.data, hint=wt_form.hint.data, name=wt_form.name.data)
             return redirect(
