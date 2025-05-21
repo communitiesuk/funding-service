@@ -201,8 +201,8 @@ class QuestionDataType(enum.StrEnum):
     # If adding values here, also update QuestionTypeForm
     # and manually create a migration to update question_type_enum in the db
     TEXT_SINGLE_LINE = "A single line of text"
-    INTEGER = "A whole number"
     TEXT_MULTI_LINE = "Multiple lines of text"
+    INTEGER = "A whole number"
 
     @staticmethod
     def coerce(value: Any) -> "QuestionDataType":

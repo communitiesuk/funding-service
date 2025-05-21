@@ -56,8 +56,8 @@ class QuestionTypeForm(FlaskForm):
         "Question type",
         choices=[
             (QuestionDataType.TEXT_SINGLE_LINE.name, QuestionDataType.TEXT_SINGLE_LINE.value),
-            (QuestionDataType.INTEGER.name, QuestionDataType.INTEGER.value),
             (QuestionDataType.TEXT_MULTI_LINE.name, QuestionDataType.TEXT_MULTI_LINE.value),
+            (QuestionDataType.INTEGER.name, QuestionDataType.INTEGER.value),
         ],
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),

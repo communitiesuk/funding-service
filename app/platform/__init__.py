@@ -424,7 +424,7 @@ def choose_question_type(
 @auto_commit_after_request
 def add_question(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
-    question_data_type_arg = request.args.get("question_data_type", None)
+    question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
 
     wt_form = QuestionForm()
