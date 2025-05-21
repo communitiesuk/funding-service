@@ -524,7 +524,7 @@ def edit_question(
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.label.text} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
         "platform/developers/edit_question.html",
