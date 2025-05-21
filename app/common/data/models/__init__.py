@@ -1,13 +1,16 @@
 import datetime
 import secrets
 import uuid
+from typing import Any
 
 from pytz import utc
-from sqlalchemy import ForeignKey, Index, UniqueConstraint
+from sqlalchemy import JSON, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
+from app.common.data.types import ConditionType, DataType, SubmissionType
 
 
 class Grant(BaseModel):
@@ -80,6 +83,7 @@ class CollectionSchema(BaseModel):
         "Section", lazy=True, order_by="Section.order", collection_class=ordering_list("order")
     )
 
+    submissions: Mapped[list["Submission"]] = relationship("Submission", lazy=True, back_populates="collection_schema")
     # TODO think about unique constraint on slug, including verison, when we sort out versioning,
     #  eg. compound key on id and version
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
@@ -122,3 +126,110 @@ class Form(BaseModel):
         UniqueConstraint("title", "section_id", name="uq_form_title_section"),
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
     )
+
+    questions: Mapped[list["Question"]] = relationship(
+        "Question", lazy=True, order_by="Question.order", collection_class=ordering_list("order", count_from=1)
+    )
+    question_groups: Mapped[list["QuestionGroup"]] = relationship(
+        "QuestionGroup",
+        lazy=True,
+        order_by="QuestionGroup.order",
+        collection_class=ordering_list("order", count_from=1),
+        back_populates="form",
+    )
+
+
+class QuestionGroup(BaseModel):
+    __tablename__ = "question_group"
+
+    title: Mapped[str]
+    slug: Mapped[str]
+    order: Mapped[int]
+    form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
+    allow_add_another: Mapped[bool] = mapped_column(default=False)
+    show_all_on_same_page: Mapped[bool] = mapped_column(default=False)
+    item_limit: Mapped[int | None]
+
+    questions: Mapped[list["Question"]] = relationship(
+        "Question",
+        lazy=True,
+        order_by="Question.order",
+        collection_class=ordering_list("order", count_from=1),
+        back_populates="group",
+    )
+    form: Mapped[Form] = relationship("Form", back_populates="question_groups")
+
+
+class Question(BaseModel):
+    __tablename__ = "question"
+
+    title: Mapped[str]
+    name: Mapped[str]
+    slug: Mapped[str]
+    hint: Mapped[str]
+    # TODO need to more think about the data source
+    data_source: Mapped[dict[str, Any]] = mapped_column(JSON)
+    data_type: Mapped[DataType] = mapped_column(SqlEnum(DataType), nullable=False)
+    order: Mapped[int]
+
+    form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
+    form: Mapped[Form] = relationship("Form", back_populates="questions")
+
+    conditions: Mapped[list["Condition"]] = relationship(
+        "Condition",
+        back_populates="question",  # Assuming bidirectional relationship
+        lazy=True,
+        foreign_keys="[Condition.question_id]",
+    )
+    dependent_conditions: Mapped[list["Condition"]] = relationship(
+        "Condition", back_populates="depends_on", foreign_keys="[Condition.depends_on_question_id]"
+    )
+    validations: Mapped[list["Validation"]] = relationship("Validation", lazy=True)
+
+    group_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question_group.id"), nullable=True)
+    group: Mapped[QuestionGroup] = relationship("QuestionGroup", back_populates="questions")
+
+    __table_args__ = (
+        UniqueConstraint("order", "form_id", name="uq_form_order_question", deferrable=True),
+        UniqueConstraint("title", "form_id", name="uq_form_title_question"),
+        UniqueConstraint("name", "form_id", name="uq_form_name_question"),
+    )
+
+
+class Condition(BaseModel):
+    __tablename__ = "condition"
+
+    expression: Mapped[str]
+    type: Mapped[ConditionType] = mapped_column(SqlEnum(ConditionType), nullable=True)
+    description: Mapped[str]
+    context: Mapped[str | None] = mapped_column(nullable=True)
+
+    depends_on_question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    depends_on: Mapped["Question"] = relationship(
+        "Question", back_populates="dependent_conditions", foreign_keys=[depends_on_question_id]
+    )
+
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    question: Mapped["Question"] = relationship("Question", back_populates="conditions", foreign_keys=[question_id])
+
+
+class Validation(BaseModel):
+    __tablename__ = "validation"
+
+    expression: Mapped[str]
+    type: Mapped[ConditionType] = mapped_column(SqlEnum(ConditionType), nullable=True)
+    description: Mapped[str] = mapped_column(nullable=True)
+    message: Mapped[str]
+    context: Mapped[str] = mapped_column(nullable=True)
+
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    question: Mapped[Question] = relationship("Question", back_populates="validations")
+
+
+class Submission(BaseModel):
+    __tablename__ = "submission"
+
+    data: Mapped[dict[str, Any]] = mapped_column(JSON)
+    status: Mapped[SubmissionType] = mapped_column(SqlEnum(SubmissionType))
+    collection_schema_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection_schema.id"))
+    collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema", back_populates="submissions")
