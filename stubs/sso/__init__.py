@@ -71,23 +71,24 @@ def create_sso_stub_app() -> Flask:
         # There are a number of URIs in this dict which we haven't defined in the stub server (eg. jwks_uri,
         # userinfo_endpoint etc.) which don't get used as part of this journey. If we remove these from the payload
         # it seems to break the server so they need to be there even if they're not used.
+        AZURE_AD_EXTERNAL_HOST_URL = app.config["AZURE_AD_EXTERNAL_HOST_URL"]
         return {
-            "token_endpoint": f"https://{request.host}/{tenant}/oauth2/v2.0/token",
+            "token_endpoint": f"https://{AZURE_AD_EXTERNAL_HOST_URL}/{tenant}/oauth2/v2.0/token",
             "token_endpoint_auth_methods_supported": ["client_secret_post", "private_key_jwt", "client_secret_basic"],
-            "jwks_uri": f"https://{request.host}/{tenant}/discovery/v2.0/keys",  # Not used
+            "jwks_uri": f"https://{AZURE_AD_EXTERNAL_HOST_URL}/{tenant}/discovery/v2.0/keys",  # Not used
             "response_modes_supported": ["query", "fragment", "form_post"],
             "subject_types_supported": ["pairwise"],
             "id_token_signing_alg_values_supported": ["RS256"],
             "response_types_supported": ["code", "id_token", "code id_token", "id_token token"],
             "scopes_supported": ["openid", "profile", "email", "offline_access"],
-            "issuer": f"https://{request.host}/{tenant}/v2.0",  # Not used
+            "issuer": f"https://{AZURE_AD_EXTERNAL_HOST_URL}/{tenant}/v2.0",  # Not used
             "request_uri_parameter_supported": False,
-            "userinfo_endpoint": f"https://{request.host}/oidc/userinfo",  # Not used
-            "authorization_endpoint": f"https://{request.host}/{tenant}/oauth2/v2.0/authorize",
-            "device_authorization_endpoint": f"https://{request.host}/{tenant}/oauth2/v2.0/devicecode",  # Not used
+            "userinfo_endpoint": f"https://{AZURE_AD_EXTERNAL_HOST_URL}/oidc/userinfo",  # Not used
+            "authorization_endpoint": f"https://{AZURE_AD_EXTERNAL_HOST_URL}/{tenant}/oauth2/v2.0/authorize",
+            "device_authorization_endpoint": f"https://{AZURE_AD_EXTERNAL_HOST_URL}/{tenant}/oauth2/v2.0/devicecode",  # Not used # noqa: E501
             "http_logout_supported": True,
             "frontchannel_logout_supported": True,
-            "end_session_endpoint": f"https://{request.host}/{tenant}/oauth2/v2.0/logout",  # Not used
+            "end_session_endpoint": f"https://{AZURE_AD_EXTERNAL_HOST_URL}/{tenant}/oauth2/v2.0/logout",  # Not used
             "claims_supported": [
                 "sub",
                 "iss",
@@ -109,9 +110,9 @@ def create_sso_stub_app() -> Flask:
                 "c_hash",
                 "email",
             ],
-            "kerberos_endpoint": f"https://{request.host}/{tenant}/kerberos",  # Not used
+            "kerberos_endpoint": f"https://{AZURE_AD_EXTERNAL_HOST_URL}/{tenant}/kerberos",  # Not used
             "tenant_region_scope": "EU",
-            "cloud_instance_name": request.host,
+            "cloud_instance_name": AZURE_AD_EXTERNAL_HOST_URL,
             # These are dummy values
             "cloud_graph_host_name": "graph.mhclg.localhost",
             "msgraph_host": "graph.mhclg.localhost",

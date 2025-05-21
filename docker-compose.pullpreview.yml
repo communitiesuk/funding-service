@@ -53,7 +53,6 @@ services:
       SECRET_KEY: unsafe  # pragma: allowlist secret
       SERVER_NAME: ${PULLPREVIEW_PUBLIC_DNS}
       DEBUG_TB_ENABLED: true
-      AZURE_AD_BASE_URL: https://sso.${PULLPREVIEW_PUBLIC_DNS}/
       # Removes the ConfigPanel, which could show sensitive configuration.
       DEBUG_TB_PANELS: |
         [
@@ -72,7 +71,6 @@ services:
       - db
     networks:
       - ofs
-    network_mode: "host"
 
   sso:
     build: .
@@ -91,10 +89,11 @@ services:
     environment:
       FLASK_APP: "stubs.sso"
       WERKZEUG_DEBUG_PIN: off
+      AZURE_AD_EXTERNAL_BASE_URL: https://sso.${PULLPREVIEW_PUBLIC_DNS}/
     networks:
       ofs:
         aliases:
-          - sso.${PULLPREVIEW_PUBLIC_DNS}
+          - sso.communities.gov.localhost
 
 volumes:
   postgres_data:
