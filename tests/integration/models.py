@@ -22,6 +22,7 @@ class _GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Grant
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
 
     id = factory.LazyFunction(uuid4)
     name = factory.Sequence(lambda n: "Grant %d" % n)
@@ -31,6 +32,7 @@ class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = User
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
 
     id = factory.LazyFunction(uuid4)
     email = factory.Faker("email")
@@ -40,6 +42,7 @@ class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = MagicLink
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
 
     id = factory.LazyFunction(uuid4)
     code = factory.LazyFunction(lambda: secrets.token_urlsafe(12))
@@ -54,6 +57,7 @@ class _CollectionSchemaFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = CollectionSchema
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
 
     id = factory.LazyFunction(uuid4)
     name = factory.Sequence(lambda n: "Collection %d" % n)
@@ -70,6 +74,7 @@ class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Section
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
 
     id = factory.LazyFunction(uuid4)
     title = factory.Sequence(lambda n: "Section %d" % n)
@@ -84,6 +89,7 @@ class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Form
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
 
     id = factory.LazyFunction(uuid4)
     title = factory.Sequence(lambda n: "Form %d" % n)
