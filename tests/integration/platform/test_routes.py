@@ -62,6 +62,10 @@ def test_grant_change_name_post(authenticated_client, factories, templates_rende
         url_for("platform.grant_change_name", grant_id=grant.id), data=form.data, follow_redirects=False
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.grant_settings",
+        grant_id=grant.id,
+    )
 
     # Check the update is in the database
     grant_from_db = db_session.get(Grant, grant.id)
@@ -86,12 +90,15 @@ def test_grant_change_name_post_with_errors(authenticated_client, factories, tem
 def test_create_grant(authenticated_client, db_session):
     url = url_for("platform.create_grant")
     authenticated_client.get(url)
-    response = authenticated_client.post(
+    result = authenticated_client.post(
         url,
         data={"name": "My test grant"},
     )
     db_session.scalars(select(Grant).where(Grant.name == "My test grant")).one()
-    assert response.status_code == 302
+    assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.list_grants",
+    )
 
 
 def test_create_collection_get(authenticated_client, factories, templates_rendered):
@@ -113,6 +120,8 @@ def test_create_collection_post(authenticated_client, factories, db_session):
         data=collection_form.data,
     )
     assert result.status_code == 302
+    assert result.location == url_for("platform.grant_developers_collections", grant_id=grant.id)
+
     grant_from_db = db_session.scalars(select(Grant).where(Grant.id == grant.id)).one()
     assert len(grant_from_db.collection_schemas) == 1
 
@@ -152,6 +161,10 @@ def test_create_section_post(authenticated_client, factories, db_session):
         data=section_form.data,
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.list_sections", grant_id=collection.grant.id, collection_id=collection.id
+    )
+
     collection_from_db = db_session.scalars(select(CollectionSchema).where(CollectionSchema.id == collection.id)).one()
     assert len(collection_from_db.sections) == 1
 
@@ -215,6 +228,13 @@ def test_create_form_post(authenticated_client, factories, db_session):
         data=form_form.data,
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.manage_section",
+        grant_id=section.collection_schema.grant.id,
+        collection_id=section.collection_schema.id,
+        section_id=section.id,
+    )
+
     section_from_db = db_session.scalars(select(Section).where(Section.id == section.id)).one()
     assert len(section_from_db.forms) == 1
 
@@ -255,6 +275,11 @@ def test_move_section(authenticated_client, factories, db_session):
         ),
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.list_sections",
+        grant_id=collection.grant.id,
+        collection_id=collection.id,
+    )
 
     # Check the order has been updated in the database
     section1_from_db = db_session.scalars(select(Section).where(Section.id == section1.id)).one()
@@ -272,6 +297,11 @@ def test_move_section(authenticated_client, factories, db_session):
         ),
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.list_sections",
+        grant_id=collection.grant.id,
+        collection_id=collection.id,
+    )
 
     # Check the order has been updated in the database
     section1_from_db = db_session.scalars(select(Section).where(Section.id == section1.id)).one()
@@ -306,6 +336,12 @@ def test_move_form(authenticated_client, factories, db_session):
         ),
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.manage_section",
+        grant_id=section.collection_schema.grant.id,
+        collection_id=section.collection_schema.id,
+        section_id=section.id,
+    )
 
     form1_from_db = db_session.scalars(select(Form).where(Form.id == form1.id)).one()
     form2_from_db = db_session.scalars(select(Form).where(Form.id == form2.id)).one()
@@ -322,6 +358,13 @@ def test_move_form(authenticated_client, factories, db_session):
         ),
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.manage_section",
+        grant_id=section.collection_schema.grant.id,
+        collection_id=section.collection_schema.id,
+        section_id=section.id,
+    )
+
     form1_from_db = db_session.scalars(select(Form).where(Form.id == form1.id)).one()
     form2_from_db = db_session.scalars(select(Form).where(Form.id == form2.id)).one()
     assert form1_from_db.order == 0
@@ -356,6 +399,14 @@ def test_move_question(authenticated_client, factories, db_session):
         ),
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.manage_form",
+        grant_id=form.section.collection_schema.grant.id,
+        collection_id=form.section.collection_schema.id,
+        section_id=form.section.id,
+        form_id=form.id,
+        back_link="manage_section",
+    )
 
     question1_from_db = db_session.scalars(select(Question).where(Question.id == question1.id)).one()
     question2_from_db = db_session.scalars(select(Question).where(Question.id == question2.id)).one()
@@ -374,6 +425,15 @@ def test_move_question(authenticated_client, factories, db_session):
         ),
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.manage_form",
+        grant_id=form.section.collection_schema.grant.id,
+        collection_id=form.section.collection_schema.id,
+        section_id=form.section.id,
+        form_id=form.id,
+        back_link="manage_section",
+    )
+
     question1_from_db = db_session.scalars(select(Question).where(Question.id == question1.id)).one()
     question2_from_db = db_session.scalars(select(Question).where(Question.id == question2.id)).one()
     assert question1_from_db.order == 0
@@ -424,6 +484,14 @@ def test_create_question_choose_type_post(authenticated_client, factories):
         data=wt_form.data,
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.add_question",
+        grant_id=form.section.collection_schema.grant.id,
+        collection_id=form.section.collection_schema.id,
+        section_id=form.section.id,
+        form_id=form.id,
+        question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
+    )
 
 
 def test_create_question_choose_type_post_error(authenticated_client, factories):
@@ -484,6 +552,14 @@ def test_add_text_question_post(authenticated_client, factories, db_session):
         data=wt_form.data,
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.manage_form",
+        grant_id=form.section.collection_schema.grant.id,
+        collection_id=form.section.collection_schema.id,
+        section_id=form.section.id,
+        form_id=form.id,
+        back_link="manage_section",
+    )
 
     form_from_db = db_session.scalars(select(Form).where(Form.id == form.id)).one()
     assert len(form_from_db.questions) == 1
@@ -548,6 +624,14 @@ def test_edit_question_post(authenticated_client, factories, db_session):
         data=wt_form.data,
     )
     assert result.status_code == 302
+    assert result.location == url_for(
+        "platform.manage_form",
+        grant_id=form.section.collection_schema.grant.id,
+        collection_id=form.section.collection_schema.id,
+        section_id=form.section.id,
+        form_id=form.id,
+        back_link="manage_section",
+    )
 
     question_from_db = db_session.scalars(select(Question).where(Question.id == question.id)).one()
     assert question_from_db.text == "Updated Question"
