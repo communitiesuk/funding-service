@@ -4,7 +4,14 @@ from flask import url_for
 from sqlalchemy import select
 
 from app.common.data.models import CollectionSchema, Form, Grant, Question, QuestionDataType, Section
-from app.deliver_grant_funding import CollectionForm, FormForm, GrantForm, QuestionForm, QuestionTypeForm, SectionForm
+from app.deliver_grant_funding.forms import (
+    CollectionForm,
+    FormForm,
+    GrantForm,
+    QuestionForm,
+    QuestionTypeForm,
+    SectionForm,
+)
 
 
 def test_list_grants(authenticated_client, factories, templates_rendered):
