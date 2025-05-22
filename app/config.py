@@ -339,7 +339,7 @@ class PullPreviewConfig(_SharedConfig):
     AZURE_AD_EXTERNAL_HOST_URL: str = os.getenv(
         "AZURE_AD_EXTERNAL_HOST_URL", "https://sso.communities.gov.localhost:4005/"
     )
-    AZURE_AD_BASE_URL: str = "http://sso.communities.gov.localhost:8080/"
+    AZURE_AD_BASE_URL: str = os.getenv("AZURE_AD_BASE_URL", "https://sso.communities.gov.localhost:4005/")
 
     # Talisman security settings
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
