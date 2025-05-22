@@ -21,13 +21,13 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import CollectionSchema, QuestionDataType
 
 
-def test_get_collection(db_session, factories):
+def test_get_collection_schema(db_session, factories):
     cs = factories.collection_schema.create()
     from_db = get_collection_schema(schema_id=cs.id)
     assert from_db is not None
 
 
-def test_get_collection_version(db_session, factories):
+def test_get_collection_schema_version(db_session, factories):
     cs = factories.collection_schema.create()
     _ = factories.collection_schema.create(id=cs.id, version=2)
 
@@ -37,7 +37,7 @@ def test_get_collection_version(db_session, factories):
     assert from_db_v2.version == 2
 
 
-def test_get_collection_version_latest_by_default(db_session, factories):
+def test_get_collection_schema_version_latest_by_default(db_session, factories):
     cs = factories.collection_schema.create()
     _ = factories.collection_schema.create(id=cs.id, version=2)
     _ = factories.collection_schema.create(id=cs.id, version=3)
@@ -47,7 +47,7 @@ def test_get_collection_version_latest_by_default(db_session, factories):
     assert from_db.version == 4
 
 
-def test_create_collection(db_session, factories):
+def test_create_collection_schema(db_session, factories):
     g = factories.grant.create()
     u = factories.user.create()
     collection = create_collection_schema(name="test collection", user=u, grant=g)
@@ -59,7 +59,7 @@ def test_create_collection(db_session, factories):
     assert from_db is not None
 
 
-def test_create_collection_name_is_unique_per_grant(db_session, factories):
+def test_create_collection_schema_name_is_unique_per_grant(db_session, factories):
     grants = factories.grant.create_batch(2)
     u = factories.user.create()
 
