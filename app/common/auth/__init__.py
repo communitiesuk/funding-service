@@ -99,7 +99,7 @@ def sso_get_token() -> ResponseReturnValue:
     if not login_user(user):
         abort(400)
 
-    return redirect(sso_user.get("next", url_for("platform.list_grants")))
+    return redirect(sso_user.get("next", url_for("deliver_grant_funding.list_grants")))
 
 
 @auth_blueprint.get("/sign-out")

@@ -13,7 +13,7 @@
 {% block beforeContent %}
     {{ govukBackLink({
         "text": "Back",
-        "href": url_for("platform.grant_developers_collections", grant_id = grant.id)
+        "href": url_for("deliver_grant_funding.grant_developers_collections", grant_id = grant.id)
     }) }}
 {% endblock beforeContent %}
 
@@ -40,7 +40,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("platform.edit_collection", grant_id = grant.id, collection_id = collection.id),
+                        "href": url_for("deliver_grant_funding.edit_collection", grant_id = grant.id, collection_id = collection.id),
                         "text": "Change",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -52,7 +52,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("platform.list_sections", grant_id = grant.id, collection_id = collection.id),
+                        "href": url_for("deliver_grant_funding.list_sections", grant_id = grant.id, collection_id = collection.id),
                         "text": "Manage",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -65,7 +65,7 @@
             <p class="govuk-body">
                 This collection has no sections, you can
                 <a class="govuk-link govuk-link--no-visited-state"
-                   href="{{ url_for('platform.add_section', grant_id = grant.id, collection_id = collection.id) }}">add
+                   href="{{ url_for('deliver_grant_funding.add_section', grant_id = grant.id, collection_id = collection.id) }}">add
                     a section</a>
                 .
             </p>
@@ -81,7 +81,7 @@
             <p class="govuk-body">
                 This section has no forms, you can
                 <a class="govuk-link govuk-link--no-visited-state"
-                   href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
+                   href="{{ url_for('deliver_grant_funding.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
                     a form</a>
                 .
             </p>
@@ -104,7 +104,7 @@
                 "status": {
                   "text": question_text
                 },
-              "href": url_for("platform.manage_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, back_link="manage_collection")
+              "href": url_for("deliver_grant_funding.manage_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, back_link="manage_collection")
             }) %}
         {% endfor %}
 

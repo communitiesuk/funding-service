@@ -12,7 +12,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("platform.manage_collection", grant_id = grant.id, collection_id = collection.id)
+        "href": url_for("deliver_grant_funding.manage_collection", grant_id = grant.id, collection_id = collection.id)
     })
   }}
 {% endblock beforeContent %}

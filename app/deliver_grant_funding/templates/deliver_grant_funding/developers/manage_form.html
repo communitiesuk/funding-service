@@ -36,7 +36,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("platform.edit_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id = form.id),
+                        "href": url_for("deliver_grant_funding.edit_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id = form.id),
                         "text": "Change",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -57,12 +57,12 @@
           "text": question.text,
           "actions":[
           {"text":"Move up",
-              "href":url_for('platform.move_question', grant_id = grant.id, collection_id = collection.id,
+              "href":url_for('deliver_grant_funding.move_question', grant_id = grant.id, collection_id = collection.id,
                      section_id = section.id, form_id=form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
-                     {"href":url_for('platform.move_question', grant_id = grant.id, collection_id = collection.id,
+                     {"href":url_for('deliver_grant_funding.move_question', grant_id = grant.id, collection_id = collection.id,
                      section_id = section.id, form_id=form.id, question_id=question.id, direction = 'down') ,"post":true,
                   "text": "Move down","disabled":(loop.index >= form.questions | length)},
-                  {"href":url_for('platform.edit_question', grant_id = grant.id, collection_id = collection.id,
+                  {"href":url_for('deliver_grant_funding.edit_question', grant_id = grant.id, collection_id = collection.id,
                    section_id = section.id, form_id=form.id, question_id=question.id),
                   "text": "Manage","post":false}
           ]
@@ -75,7 +75,7 @@
             {{ govukButton({
         "text": "Add question",
         "classes": "govuk-button--secondary",
-        "href": url_for("platform.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id),
+        "href": url_for("deliver_grant_funding.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id),
     }) }}
 
 
@@ -84,7 +84,7 @@
             <p class="govuk-body">
                 This form has no questions, you can
                 <a class="govuk-link govuk-link--no-visited-state"
-                   href="{{ url_for('platform.choose_question_type', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id) }}">add
+                   href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id) }}">add
                     a question</a>
                 .
             </p>

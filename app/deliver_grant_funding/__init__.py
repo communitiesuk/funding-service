@@ -41,10 +41,10 @@ from app.deliver_grant_funding.forms import (
 )
 from app.extensions import auto_commit_after_request
 
-platform_blueprint = Blueprint(name="platform", import_name=__name__)
+deliver_grant_funding_blueprint = Blueprint(name="deliver_grant_funding", import_name=__name__)
 
 
-@platform_blueprint.route("/grants/set-up", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grants/set-up", methods=["GET", "POST"])
 @mhclg_login_required
 @auto_commit_after_request
 def create_grant() -> ResponseReturnValue:
@@ -53,35 +53,35 @@ def create_grant() -> ResponseReturnValue:
         try:
             assert form.name.data is not None
             interfaces.grants.create_grant(name=form.name.data)
-            return redirect(url_for("platform.list_grants"))
+            return redirect(url_for("deliver_grant_funding.list_grants"))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template("deliver_grant_funding/grant_create.html", form=form)
 
 
-@platform_blueprint.route("/grants", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grants", methods=["GET"])
 @mhclg_login_required
 def list_grants() -> str:
     grants = interfaces.grants.get_all_grants()
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
 
 
-@platform_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
 @mhclg_login_required
 def view_grant(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
-@platform_blueprint.route("/grants/<uuid:grant_id>/settings", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/settings", methods=["GET"])
 @mhclg_login_required
 def grant_settings(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_settings.html", grant=grant)
 
 
-@platform_blueprint.route("/grants/<uuid:grant_id>/change-name", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/change-name", methods=["GET", "POST"])
 @mhclg_login_required
 @auto_commit_after_request
 def grant_change_name(grant_id: UUID4) -> str | Response:
@@ -91,28 +91,28 @@ def grant_change_name(grant_id: UUID4) -> str | Response:
         try:
             assert form.name.data is not None
             interfaces.grants.update_grant(grant=grant, name=form.name.data)
-            return redirect(url_for("platform.grant_settings", grant_id=grant_id))
+            return redirect(url_for("deliver_grant_funding.grant_settings", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template("deliver_grant_funding/settings/grant_change_name.html", form=form, grant=grant)
 
 
-@platform_blueprint.route("/grants/<uuid:grant_id>/developers", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/developers", methods=["GET"])
 @mhclg_login_required
 def grant_developers(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/developers/grant_developers.html", grant=grant)
 
 
-@platform_blueprint.route("/grants/<uuid:grant_id>/developers/collections", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/developers/collections", methods=["GET"])
 @mhclg_login_required
 def grant_developers_collections(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/developers/list_collections.html", grant=grant)
 
 
-@platform_blueprint.route("/grants/<uuid:grant_id>/developers/collections/set-up", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/developers/collections/set-up", methods=["GET", "POST"])
 @mhclg_login_required
 @auto_commit_after_request
 def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
@@ -122,14 +122,14 @@ def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
         try:
             assert form.name.data is not None
             create_collection_schema(name=form.name.data, user=cast(User, current_user), grant=grant)
-            return redirect(url_for("platform.grant_developers_collections", grant_id=grant_id))
+            return redirect(url_for("deliver_grant_funding.grant_developers_collections", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template("deliver_grant_funding/developers/add_collection.html", grant=grant, form=form)
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>", methods=["GET", "POST"]
 )
 @mhclg_login_required
@@ -141,7 +141,7 @@ def manage_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnVa
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/edit", methods=["GET", "POST"]
 )
 @mhclg_login_required
@@ -153,7 +153,9 @@ def edit_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValu
         try:
             assert form.name.data is not None
             update_collection_schema(name=form.name.data, collection=collection)
-            return redirect(url_for("platform.manage_collection", grant_id=grant_id, collection_id=collection_id))
+            return redirect(
+                url_for("deliver_grant_funding.manage_collection", grant_id=grant_id, collection_id=collection_id)
+            )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
@@ -166,7 +168,7 @@ def edit_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValu
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/add", methods=["GET", "POST"]
 )
 @mhclg_login_required
@@ -181,7 +183,9 @@ def add_section(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
                 title=form.title.data,
                 collection_schema=collection,
             )
-            return redirect(url_for("platform.list_sections", grant_id=grant_id, collection_id=collection_id))
+            return redirect(
+                url_for("deliver_grant_funding.list_sections", grant_id=grant_id, collection_id=collection_id)
+            )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
@@ -190,7 +194,7 @@ def add_section(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/", methods=["GET"]
 )
 @mhclg_login_required
@@ -206,7 +210,7 @@ def list_sections(
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/move/<string:direction>",
     methods=["POST"],
 )
@@ -222,10 +226,10 @@ def move_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, direc
     else:
         abort(400)
 
-    return redirect(url_for("platform.list_sections", grant_id=grant_id, collection_id=collection_id))
+    return redirect(url_for("deliver_grant_funding.list_sections", grant_id=grant_id, collection_id=collection_id))
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/manage",
     methods=["GET"],
 )
@@ -244,7 +248,7 @@ def manage_section(
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/move/<string:direction>",
     methods=["POST"],
 )
@@ -263,11 +267,16 @@ def move_form(
         abort(400)
 
     return redirect(
-        url_for("platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id)
+        url_for(
+            "deliver_grant_funding.manage_section",
+            grant_id=grant_id,
+            collection_id=collection_id,
+            section_id=section_id,
+        )
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/manage",
     methods=["GET"],
 )
@@ -282,7 +291,7 @@ def manage_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_i
         collection=form.section.collection_schema,
         form=form,
         back_link_href=url_for(
-            f"platform.{request.args.get('back_link')}",
+            f"deliver_grant_funding.{request.args.get('back_link')}",
             grant_id=grant_id,
             collection_id=collection_id,
             section_id=section_id,
@@ -290,7 +299,7 @@ def manage_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_i
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/edit",
     methods=["GET", "POST"],
 )
@@ -305,7 +314,10 @@ def edit_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Re
             update_section(section=section, title=form.title.data)
             return redirect(
                 url_for(
-                    "platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id
+                    "deliver_grant_funding.manage_section",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
                 )
             )
         except DuplicateValueError as e:
@@ -321,7 +333,7 @@ def edit_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Re
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/add",
     methods=["GET", "POST"],
 )
@@ -345,7 +357,10 @@ def add_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Respon
             create_form(title=form.title.data, section=section)
             return redirect(
                 url_for(
-                    "platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id
+                    "deliver_grant_funding.manage_section",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
                 )
             )
         except DuplicateValueError as e:
@@ -361,7 +376,7 @@ def add_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Respon
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/edit",
     methods=["GET", "POST"],
 )
@@ -376,7 +391,7 @@ def edit_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id:
             update_form(form=db_form, title=wt_form.title.data)
             return redirect(
                 url_for(
-                    "platform.manage_form",
+                    "deliver_grant_funding.manage_form",
                     grant_id=grant_id,
                     collection_id=collection_id,
                     section_id=section_id,
@@ -398,7 +413,7 @@ def edit_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id:
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add/choose-type",
     methods=["GET", "POST"],
 )
@@ -412,7 +427,7 @@ def choose_question_type(
         question_data_type = wt_form.question_data_type.data
         return redirect(
             url_for(
-                "platform.add_question",
+                "deliver_grant_funding.add_question",
                 grant_id=grant_id,
                 collection_id=collection_id,
                 section_id=section_id,
@@ -430,7 +445,7 @@ def choose_question_type(
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add",
     methods=["GET", "POST"],
 )
@@ -456,7 +471,7 @@ def add_question(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_
             )
             return redirect(
                 url_for(
-                    "platform.manage_form",
+                    "deliver_grant_funding.manage_form",
                     grant_id=grant_id,
                     collection_id=collection_id,
                     section_id=section_id,
@@ -479,7 +494,7 @@ def add_question(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/move/<string:direction>",
     methods=["POST"],
 )
@@ -499,7 +514,7 @@ def move_question(
 
     return redirect(
         url_for(
-            "platform.manage_form",
+            "deliver_grant_funding.manage_form",
             grant_id=grant_id,
             collection_id=collection_id,
             section_id=section_id,
@@ -509,7 +524,7 @@ def move_question(
     )
 
 
-@platform_blueprint.route(
+@deliver_grant_funding_blueprint.route(
     "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/edit",
     methods=["GET", "POST"],
 )
@@ -528,7 +543,7 @@ def edit_question(
             update_question(question=question, text=wt_form.text.data, hint=wt_form.hint.data, name=wt_form.name.data)
             return redirect(
                 url_for(
-                    "platform.manage_form",
+                    "deliver_grant_funding.manage_form",
                     grant_id=grant_id,
                     collection_id=collection_id,
                     section_id=section_id,
