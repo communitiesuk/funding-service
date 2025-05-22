@@ -14,6 +14,7 @@ also pass that email through to the `get_or_create_user` method and check behavi
 
 import base64
 import json
+import os
 import time
 import uuid
 from urllib.parse import urlencode
@@ -22,13 +23,23 @@ from flask import Flask, jsonify, redirect, render_template, request
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
+from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
 from stubs.sso.forms import SSOSignInForm
+
+dummy_nonce = ""  # noqa: F841
+email_address = ""  # noqa: F841
+
+dummy_client_info = {"uid": str(uuid.uuid4()), "utid": str(uuid.uuid4())}
+json_dummy_client_info = json.dumps(dummy_client_info)
+base_64_str_client_info = base64.b64encode(json_dummy_client_info.encode()).decode()  # noqa: F841
 
 
 def create_sso_stub_app() -> Flask:
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="../../app/assets/dist/", static_url_path="/static")
     app.config["SECRET_KEY"] = "dummy-value"  # pragma: allowlist secret
     app.config["INTERNAL_DOMAINS"] = ("@communities.gov.uk", "@test.communities.gov.uk")
+    app.config["ASSETS_VITE_LIVE_ENABLED"] = os.environ.get("ASSETS_VITE_LIVE_ENABLED", False)
+    app.config["ASSETS_VITE_BASE_URL"] = os.environ.get("ASSETS_VITE_BASE_URL", "http://localhost:5173")
 
     app.jinja_loader = ChoiceLoader(
         [
@@ -40,12 +51,7 @@ def create_sso_stub_app() -> Flask:
 
     WTFormsHelpers(app)
 
-    dummy_nonce = ""  # noqa: F841
-    email_address = ""  # noqa: F841
-
-    dummy_client_info = {"uid": str(uuid.uuid4()), "utid": str(uuid.uuid4())}
-    json_dummy_client_info = json.dumps(dummy_client_info)
-    base_64_str_client_info = base64.b64encode(json_dummy_client_info.encode()).decode()  # noqa: F841
+    FlaskAssetsViteExtension().init_app(app)
 
     @app.route("/<tenant>/oauth2/v2.0/authorize", methods=["GET", "POST"])
     def oauth_redirect(tenant):

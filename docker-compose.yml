@@ -70,6 +70,7 @@ services:
     environment:
       FLASK_APP: "stubs.sso:create_sso_stub_app"
       WERKZEUG_DEBUG_PIN: off
+      ASSETS_VITE_LIVE_ENABLED: true
     networks:
       ofs:
         aliases:
