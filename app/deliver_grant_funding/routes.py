@@ -135,7 +135,7 @@ def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
 @mhclg_login_required
 @auto_commit_after_request
 def manage_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
-    collection = get_collection_schema(collection_id)
+    collection = get_collection_schema(collection_id)  # TODO: handle collection versioning; this just grabs latest.
     return render_template(
         "deliver_grant_funding/developers/manage_collection.html", grant=collection.grant, collection=collection
     )
@@ -147,7 +147,7 @@ def manage_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnVa
 @mhclg_login_required
 @auto_commit_after_request
 def edit_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
-    collection = get_collection_schema(collection_id)
+    collection = get_collection_schema(collection_id)  # TODO: handle collection versioning; this just grabs latest.
     form = CollectionForm(obj=collection)
     if form.validate_on_submit():
         try:
@@ -174,7 +174,7 @@ def edit_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValu
 @mhclg_login_required
 @auto_commit_after_request
 def add_section(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
-    collection = get_collection_schema(collection_id)
+    collection = get_collection_schema(collection_id)  # TODO: handle collection versioning; this just grabs latest.
     form = SectionForm()
     if form.validate_on_submit():
         try:

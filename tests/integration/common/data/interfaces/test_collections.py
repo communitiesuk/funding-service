@@ -27,6 +27,26 @@ def test_get_collection(db_session, factories):
     assert from_db is not None
 
 
+def test_get_collection_version(db_session, factories):
+    cs = factories.collection_schema.create()
+    _ = factories.collection_schema.create(id=cs.id, version=2)
+
+    from_db = get_collection_schema(collection_id=cs.id, version=1)
+    from_db_v2 = get_collection_schema(collection_id=cs.id, version=2)
+    assert from_db.version == 1
+    assert from_db_v2.version == 2
+
+
+def test_get_collection_version_latest_by_default(db_session, factories):
+    cs = factories.collection_schema.create()
+    _ = factories.collection_schema.create(id=cs.id, version=2)
+    _ = factories.collection_schema.create(id=cs.id, version=3)
+    _ = factories.collection_schema.create(id=cs.id, version=4)
+
+    from_db = get_collection_schema(collection_id=cs.id)
+    assert from_db.version == 4
+
+
 def test_create_collection(db_session, factories):
     g = factories.grant.create()
     u = factories.user.create()
@@ -35,7 +55,7 @@ def test_create_collection(db_session, factories):
     assert collection.id is not None
     assert collection.slug == "test-collection"
 
-    from_db = db_session.get(CollectionSchema, collection.id)
+    from_db = db_session.get(CollectionSchema, [collection.id, collection.version])
     assert from_db is not None
 
 

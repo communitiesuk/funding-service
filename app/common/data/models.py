@@ -5,7 +5,7 @@ import uuid
 from typing import Any, Optional
 
 from pytz import utc
-from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -133,10 +133,13 @@ class MagicLink(BaseModel):
 class CollectionSchema(BaseModel):
     __tablename__ = "collection_schema"
 
+    # NOTE: The ID provided by the BaseModel should *NOT CHANGE* when incrementing the version. That part is a stable
+    #       identifier for linked collection schemas/versioning.
+    version: Mapped[int] = mapped_column(default=1, primary_key=True)
+
     # Name will be superseded by domain specific application contexts but allows us to
     # try out different schemas and scenarios
     name: Mapped[str]
-    version: Mapped[int] = mapped_column(default=1)
     slug: Mapped[str]
 
     grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
@@ -149,8 +152,6 @@ class CollectionSchema(BaseModel):
         "Section", lazy=True, order_by="Section.order", collection_class=ordering_list("order")
     )
 
-    # TODO think about unique constraint on slug, including verison, when we sort out versioning,
-    #  eg. compound key on id and version
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
 
 
@@ -161,7 +162,8 @@ class Section(BaseModel):
     order: Mapped[int]
     slug: Mapped[str]
 
-    collection_schema_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection_schema.id"))
+    collection_schema_id: Mapped[uuid.UUID]
+    collection_schema_version: Mapped[int]
     collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema", back_populates="sections")
 
     forms: Mapped[list["Form"]] = relationship(
@@ -169,9 +171,22 @@ class Section(BaseModel):
     )
 
     __table_args__ = (
-        UniqueConstraint("order", "collection_schema_id", name="uq_section_order_collection_schema", deferrable=True),
-        UniqueConstraint("title", "collection_schema_id", name="uq_section_title_collection_schema"),
-        UniqueConstraint("slug", "collection_schema_id", name="uq_section_slug_collection_schema"),
+        UniqueConstraint(
+            "collection_schema_id",
+            "collection_schema_version",
+            "order",
+            name="uq_section_order_collection_schema",
+            deferrable=True,
+        ),
+        UniqueConstraint(
+            "collection_schema_id", "collection_schema_version", "title", name="uq_section_title_collection_schema"
+        ),
+        UniqueConstraint(
+            "collection_schema_id", "collection_schema_version", "slug", name="uq_section_slug_collection_schema"
+        ),
+        ForeignKeyConstraint(
+            ["collection_schema_id", "collection_schema_version"], ["collection_schema.id", "collection_schema.version"]
+        ),
     )
 
 
