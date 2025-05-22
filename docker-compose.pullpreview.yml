@@ -99,7 +99,7 @@ services:
     networks:
       ofs:
         aliases:
-          - sso.communities.gov.localhost
+          - sso.${PULLPREVIEW_PUBLIC_DNS}
 
 volumes:
   postgres_data:
