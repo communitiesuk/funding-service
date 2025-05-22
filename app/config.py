@@ -247,6 +247,9 @@ class _SharedConfig(_BaseConfig):
     # Internal Domains
     INTERNAL_DOMAINS: tuple[str, ...] = ("@communities.gov.uk", "@test.communities.gov.uk")
 
+    # Service Desk
+    SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5"
+
     @property
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD

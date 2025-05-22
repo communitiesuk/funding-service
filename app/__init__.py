@@ -1,6 +1,6 @@
-from typing import Any
+from typing import Any, Literal
 
-from flask import Flask, Response, redirect, url_for
+from flask import Flask, Response, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
@@ -134,6 +134,10 @@ def create_app() -> Flask:
     @app.route("/", methods=["GET"])
     def index() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.list_grants"))
+
+    @app.errorhandler(403)
+    def forbidden_error(error: Literal[403]) -> tuple[str, Literal[403]]:
+        return render_template("common/errors/403.html", service_desk_url=app.config["SERVICE_DESK_URL"]), 403
 
     # when developing we want the toolbar assets to not cause the page to flicker
     # otherwise we don't want the server to continually 304 on assets the browser has
