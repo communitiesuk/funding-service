@@ -1,30 +1,27 @@
-{% extends "platform/manage_grant_base.html" %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
 
 {% block pageTitle %}
-  Add a form - {{ section.title }} - MHCLG Funding Service
+    Add a form - {{ section.title }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 
 {% block beforeContent %}
-  {{
-    govukBackLink({
+    {{ govukBackLink({
         "text": "Back",
         "href": url_for("platform.manage_section", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
-    })
-  }}
+    }) }}
 {% endblock beforeContent %}
 
 {% block content %}
-  <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
-      {{
-        govukRadios({
+    <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-two-thirds">
+            {{ govukRadios({
           "name": "form_type",
           "fieldset": {
             "legend": {
@@ -45,15 +42,12 @@
               "disabled": true
             },
           ]
-        })
-      }}
-      {{
-        govukButton({
+        }) }}
+            {{ govukButton({
         "text": "Continue",
         "classes": "govuk-button--secondary",
         "href": url_for("platform.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_type="empty")
-        })
-      }}
+        }) }}
+        </div>
     </div>
-  </div>
 {% endblock content %}

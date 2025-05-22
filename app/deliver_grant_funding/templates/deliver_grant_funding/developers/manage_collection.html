@@ -2,41 +2,38 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
-{% extends "platform/manage_grant_base.html" %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
-  {{ collection.name }}
-  - {{ grant.name }} - MHCLG Funding Service
+    {{ collection.name }}
+    - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 {% block beforeContent %}
-  {{
-    govukBackLink({
+    {{ govukBackLink({
         "text": "Back",
         "href": url_for("platform.grant_developers_collections", grant_id = grant.id)
-    })
-  }}
+    }) }}
 {% endblock beforeContent %}
 
 {% block content %}
-  <div class="app-body__watermark" aria-hidden="true">Developers</div>
-  <h1 class="govuk-heading-l">
+<div class="app-body__watermark" aria-hidden="true">Developers</div>
+<h1 class="govuk-heading-l">
     <span class="govuk-caption-l">{{ grant.name }}</span>
     {{ collection.name }}
-  </h1>
-  {% set sections_text %}
-    {% trans count=collection.sections | length %}
-      {{ count }}
-      section {% pluralize %}
-      {{ count }}
-      sections
-    {% endtrans %}
-  {% endset %}
-  <div class="govuk-grid-row">
+</h1>
+{% set sections_text %}
+{% trans count=collection.sections | length %}
+    {{ count }}
+    section {% pluralize %}
+    {{ count }}
+    sections
+{% endtrans %}
+{% endset %}
+<div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
-      {{
-        govukSummaryList({
+        {{ govukSummaryList({
           "rows": [{
               "key": {"text": "Name"},
               "value":{"text": collection.name},
@@ -62,43 +59,45 @@
                   ]
               }
         }]
-        })
-      }}
+        }) }}
 
-      {% if not collection.sections %}
-        <p class="govuk-body">
-          This collection has no sections, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('platform.add_section', grant_id = grant.id, collection_id = collection.id) }}">add a section</a>
-          .
-        </p>
-      {% endif %}
+        {% if not collection.sections %}
+            <p class="govuk-body">
+                This collection has no sections, you can
+                <a class="govuk-link govuk-link--no-visited-state"
+                   href="{{ url_for('platform.add_section', grant_id = grant.id, collection_id = collection.id) }}">add
+                    a section</a>
+                .
+            </p>
+        {% endif %}
     </div>
-  </div>
-  <div class="govuk-grid-row">
+</div>
+<div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {% for section in collection.sections %}
+        {% for section in collection.sections %}
         <h2 class="govuk-heading-m">{{ section.title }}</h2>
 
         {% if not section.forms %}
-          <p class="govuk-body">
-            This section has no forms, you can
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add a form</a>
-            .
-          </p>
+            <p class="govuk-body">
+                This section has no forms, you can
+                <a class="govuk-link govuk-link--no-visited-state"
+                   href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
+                    a form</a>
+                .
+            </p>
         {% endif %}
 
         {% set rows=[] %}
         {% for form in section.forms %}
-          {% set question_text %}
-            {% trans count=form.questions | length %}
-              {{ count }}
-              question {% pluralize %}
-              {{ count }}
-              questions
-            {% endtrans %}
-          {% endset %}
-          {%
-            do rows.append({
+        {% set question_text %}
+        {% trans count=form.questions | length %}
+            {{ count }}
+            question {% pluralize %}
+            {{ count }}
+            questions
+        {% endtrans %}
+        {% endset %}
+        {% do rows.append({
                   "title": {
                     "text": form.title,
                   },
@@ -106,17 +105,14 @@
                   "text": question_text
                 },
               "href": url_for("platform.manage_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, back_link="manage_collection")
-            })
-          %}
+            }) %}
         {% endfor %}
 
-        {{
-          govukTaskList({
+        {{ govukTaskList({
             "idPrefix": section.slug,
             "items": rows
-          })
-        }}
-      {% endfor %}
+          }) }}
+        {% endfor %}
     </div>
-  </div>
+</div>
 {% endblock content %}

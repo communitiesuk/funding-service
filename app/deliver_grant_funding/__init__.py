@@ -31,8 +31,15 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import QuestionDataType, User
+from app.deliver_grant_funding.forms import (
+    CollectionForm,
+    FormForm,
+    GrantForm,
+    QuestionForm,
+    QuestionTypeForm,
+    SectionForm,
+)
 from app.extensions import auto_commit_after_request
-from app.platform.forms import CollectionForm, FormForm, GrantForm, QuestionForm, QuestionTypeForm, SectionForm
 
 platform_blueprint = Blueprint(name="platform", import_name=__name__)
 
@@ -50,28 +57,28 @@ def create_grant() -> ResponseReturnValue:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-    return render_template("platform/grant_create.html", form=form)
+    return render_template("deliver_grant_funding/grant_create.html", form=form)
 
 
 @platform_blueprint.route("/grants", methods=["GET"])
 @mhclg_login_required
 def list_grants() -> str:
     grants = interfaces.grants.get_all_grants()
-    return render_template("platform/grant_list.html", grants=grants)
+    return render_template("deliver_grant_funding/grant_list.html", grants=grants)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
 @mhclg_login_required
 def view_grant(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("platform/grant_view.html", grant=grant)
+    return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>/settings", methods=["GET"])
 @mhclg_login_required
 def grant_settings(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("platform/grant_settings.html", grant=grant)
+    return render_template("deliver_grant_funding/grant_settings.html", grant=grant)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>/change-name", methods=["GET", "POST"])
@@ -88,21 +95,21 @@ def grant_change_name(grant_id: UUID4) -> str | Response:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-    return render_template("platform/settings/grant_change_name.html", form=form, grant=grant)
+    return render_template("deliver_grant_funding/settings/grant_change_name.html", form=form, grant=grant)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>/developers", methods=["GET"])
 @mhclg_login_required
 def grant_developers(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("platform/developers/grant_developers.html", grant=grant)
+    return render_template("deliver_grant_funding/developers/grant_developers.html", grant=grant)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>/developers/collections", methods=["GET"])
 @mhclg_login_required
 def grant_developers_collections(grant_id: UUID4) -> str:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("platform/developers/list_collections.html", grant=grant)
+    return render_template("deliver_grant_funding/developers/list_collections.html", grant=grant)
 
 
 @platform_blueprint.route("/grants/<uuid:grant_id>/developers/collections/set-up", methods=["GET", "POST"])
@@ -119,7 +126,7 @@ def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-    return render_template("platform/developers/add_collection.html", grant=grant, form=form)
+    return render_template("deliver_grant_funding/developers/add_collection.html", grant=grant, form=form)
 
 
 @platform_blueprint.route(
@@ -129,7 +136,9 @@ def setup_collection(grant_id: UUID4) -> ResponseReturnValue:
 @auto_commit_after_request
 def manage_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
     collection = get_collection_schema(collection_id)
-    return render_template("platform/developers/manage_collection.html", grant=collection.grant, collection=collection)
+    return render_template(
+        "deliver_grant_funding/developers/manage_collection.html", grant=collection.grant, collection=collection
+    )
 
 
 @platform_blueprint.route(
@@ -150,7 +159,10 @@ def edit_collection(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValu
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "platform/developers/edit_collection.html", grant=collection.grant, collection=collection, form=form
+        "deliver_grant_funding/developers/edit_collection.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
     )
 
 
@@ -174,7 +186,7 @@ def add_section(grant_id: UUID4, collection_id: UUID4) -> ResponseReturnValue:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template(
-        "platform/developers/add_section.html", grant=collection.grant, collection=collection, form=form
+        "deliver_grant_funding/developers/add_section.html", grant=collection.grant, collection=collection, form=form
     )
 
 
@@ -188,7 +200,9 @@ def list_sections(
 ) -> ResponseReturnValue:
     collection_schema = get_collection_schema(collection_id)
     return render_template(
-        "platform/developers/list_sections.html", grant=collection_schema.grant, collection=collection_schema
+        "deliver_grant_funding/developers/list_sections.html",
+        grant=collection_schema.grant,
+        collection=collection_schema,
     )
 
 
@@ -223,7 +237,7 @@ def manage_section(
 ) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
     return render_template(
-        "platform/developers/manage_section.html",
+        "deliver_grant_funding/developers/manage_section.html",
         grant=section.collection_schema.grant,
         collection=section.collection_schema,
         section=section,
@@ -262,7 +276,7 @@ def manage_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_i
     form = get_form_by_id(form_id)
 
     return render_template(
-        "platform/developers/manage_form.html",
+        "deliver_grant_funding/developers/manage_form.html",
         grant=form.section.collection_schema.grant,
         section=form.section,
         collection=form.section.collection_schema,
@@ -299,7 +313,7 @@ def edit_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Re
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "platform/developers/edit_section.html",
+        "deliver_grant_funding/developers/edit_section.html",
         grant=section.collection_schema.grant,
         collection=section.collection_schema,
         section=section,
@@ -318,7 +332,7 @@ def add_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Respon
     form_type = request.args.get("form_type", None)
     if not form_type:
         return render_template(
-            "platform/developers/select_form_type.html",
+            "deliver_grant_funding/developers/select_form_type.html",
             grant=section.collection_schema.grant,
             collection=section.collection_schema,
             section=section,
@@ -338,7 +352,7 @@ def add_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4) -> Respon
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template(
-        "platform/developers/add_form.html",
+        "deliver_grant_funding/developers/add_form.html",
         grant=section.collection_schema.grant,
         collection=section.collection_schema,
         section=section,
@@ -375,7 +389,7 @@ def edit_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id:
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "platform/developers/edit_form.html",
+        "deliver_grant_funding/developers/edit_form.html",
         grant=db_form.section.collection_schema.grant,
         collection=db_form.section.collection_schema,
         section=db_form.section,
@@ -407,7 +421,7 @@ def choose_question_type(
             )
         )
     return render_template(
-        "platform/developers/choose_question_type.html",
+        "deliver_grant_funding/developers/choose_question_type.html",
         grant=db_form.section.collection_schema.grant,
         collection=db_form.section.collection_schema,
         section=db_form.section,
@@ -455,7 +469,7 @@ def add_question(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "platform/developers/add_question.html",
+        "deliver_grant_funding/developers/add_question.html",
         grant=form.section.collection_schema.grant,
         collection=form.section.collection_schema,
         section=form.section,
@@ -527,7 +541,7 @@ def edit_question(
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "platform/developers/edit_question.html",
+        "deliver_grant_funding/developers/edit_question.html",
         grant=question.form.section.collection_schema.grant,
         collection=question.form.section.collection_schema,
         section=question.form.section,

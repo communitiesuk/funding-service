@@ -4,7 +4,7 @@ from flask import url_for
 from sqlalchemy import select
 
 from app.common.data.models import CollectionSchema, Form, Grant, Question, QuestionDataType, Section
-from app.platform import CollectionForm, FormForm, GrantForm, QuestionForm, QuestionTypeForm, SectionForm
+from app.deliver_grant_funding import CollectionForm, FormForm, GrantForm, QuestionForm, QuestionTypeForm, SectionForm
 
 
 def test_list_grants(authenticated_client, factories, templates_rendered):
@@ -46,7 +46,9 @@ def test_grant_change_name_get(authenticated_client, factories, templates_render
     result = authenticated_client.get(url_for("platform.grant_change_name", grant_id=grant.id))
     assert result.status_code == 200
     template = next(
-        template for template in templates_rendered if template[0].name == "platform/settings/grant_change_name.html"
+        template
+        for template in templates_rendered
+        if template[0].name == "deliver_grant_funding/settings/grant_change_name.html"
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
