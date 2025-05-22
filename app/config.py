@@ -336,9 +336,6 @@ class PullPreviewConfig(_SharedConfig):
     AZURE_AD_CLIENT_ID: str = "00000000-0000-0000-0000-000000000000"
     AZURE_AD_CLIENT_SECRET: str = "incorrect_value"
     AZURE_AD_TENANT_ID: str = "00000000-0000-0000-0000-000000000000"
-    AZURE_AD_EXTERNAL_HOST_URL: str = os.getenv(
-        "AZURE_AD_EXTERNAL_HOST_URL", "https://sso.communities.gov.localhost:4005/"
-    )
     AZURE_AD_BASE_URL: str = os.getenv("AZURE_AD_BASE_URL", "https://sso.communities.gov.localhost:4005/")
 
     # Talisman security settings

@@ -95,7 +95,6 @@ services:
     environment:
       FLASK_APP: "stubs.sso"
       WERKZEUG_DEBUG_PIN: off
-      AZURE_AD_EXTERNAL_BASE_URL: https://sso.${PULLPREVIEW_PUBLIC_DNS}/
     networks:
       ofs:
         aliases:
