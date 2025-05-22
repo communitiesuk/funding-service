@@ -23,14 +23,15 @@
   <hr class="govuk-section-break govuk-section-break--visible" />
   {{
     govukSummaryList({
-        "rows": [{
+        "rows": [
+        {
             "key": {
-                "text": "Collections",
+                "text": "Schemas",
                 "classes": "govuk-!-padding-top-4 govuk-!-padding-bottom-4"
             },
-            "value": { "text": ( grant.collection_schemas | length | string ) + " preview collections" },
+            "value": { "text": ( grant.collection_schemas | length | string ) + " preview schemas" },
             "actions": {
-                "items": [{ "text": "Manage", "href": url_for('deliver_grant_funding.grant_developers_collections', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
+                "items": [{ "text": "Manage", "href": url_for('deliver_grant_funding.grant_developers_schemas', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
             },
         }]
     })

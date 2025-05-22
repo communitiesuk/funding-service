@@ -23,7 +23,7 @@ from app.common.data.models import CollectionSchema, QuestionDataType
 
 def test_get_collection(db_session, factories):
     cs = factories.collection_schema.create()
-    from_db = get_collection_schema(collection_id=cs.id)
+    from_db = get_collection_schema(schema_id=cs.id)
     assert from_db is not None
 
 
@@ -31,8 +31,8 @@ def test_get_collection_version(db_session, factories):
     cs = factories.collection_schema.create()
     _ = factories.collection_schema.create(id=cs.id, version=2)
 
-    from_db = get_collection_schema(collection_id=cs.id, version=1)
-    from_db_v2 = get_collection_schema(collection_id=cs.id, version=2)
+    from_db = get_collection_schema(schema_id=cs.id, version=1)
+    from_db_v2 = get_collection_schema(schema_id=cs.id, version=2)
     assert from_db.version == 1
     assert from_db_v2.version == 2
 
@@ -43,7 +43,7 @@ def test_get_collection_version_latest_by_default(db_session, factories):
     _ = factories.collection_schema.create(id=cs.id, version=3)
     _ = factories.collection_schema.create(id=cs.id, version=4)
 
-    from_db = get_collection_schema(collection_id=cs.id)
+    from_db = get_collection_schema(schema_id=cs.id)
     assert from_db.version == 4
 
 
@@ -93,7 +93,7 @@ def test_get_section(db_session, factories):
 
 def test_create_section(db_session, factories):
     cs = factories.collection_schema.create()
-    section = create_section(title="test_section", collection_schema=cs)
+    section = create_section(title="test_section", schema=cs)
     assert section
 
     from_db = get_section_by_id(section.id)
@@ -102,33 +102,33 @@ def test_create_section(db_session, factories):
     assert from_db.title == section.title
     assert from_db.order == 0
 
-    section = create_section(title="test_section_2", collection_schema=cs)
+    section = create_section(title="test_section_2", schema=cs)
 
 
 def test_section_ordering(db_session, factories):
     cs = factories.collection_schema.create()
-    section = create_section(title="test_section_1", collection_schema=cs)
+    section = create_section(title="test_section_1", schema=cs)
     assert section
     assert section.order == 0
 
-    section2 = create_section(title="test_section_2", collection_schema=cs)
+    section2 = create_section(title="test_section_2", schema=cs)
     assert section2
     assert section2.order == 1
 
 
 def test_section_name_unique_in_collection(db_session, factories):
     cs = factories.collection_schema.create()
-    section = create_section(title="test_section", collection_schema=cs)
+    section = create_section(title="test_section", schema=cs)
     assert section
 
     with pytest.raises(DuplicateValueError):
-        create_section(title="test_section", collection_schema=cs)
+        create_section(title="test_section", schema=cs)
 
 
 def test_move_section_up_down(db_session, factories):
     cs = factories.collection_schema.create()
-    section1 = create_section(title="test_section_1", collection_schema=cs)
-    section2 = create_section(title="test_section_2", collection_schema=cs)
+    section1 = create_section(title="test_section_1", schema=cs)
+    section2 = create_section(title="test_section_2", schema=cs)
     assert section1
     assert section2
 

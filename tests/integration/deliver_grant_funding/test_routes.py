@@ -5,11 +5,11 @@ from sqlalchemy import select
 
 from app.common.data.models import CollectionSchema, Form, Grant, Question, QuestionDataType, Section
 from app.deliver_grant_funding.forms import (
-    CollectionForm,
     FormForm,
     GrantForm,
     QuestionForm,
     QuestionTypeForm,
+    SchemaForm,
     SectionForm,
 )
 
@@ -115,23 +115,23 @@ def test_create_grant(authenticated_client, db_session):
 def test_create_collection_get(authenticated_client, factories, templates_rendered):
     grant = factories.grant.create()
     result = authenticated_client.get(
-        url_for("deliver_grant_funding.setup_collection", grant_id=grant.id),
+        url_for("deliver_grant_funding.setup_schema", grant_id=grant.id),
     )
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the name of the collection?"
+    assert soup.h1.text.strip() == "What is the name of the schema?"
 
 
 def test_create_collection_post(authenticated_client, factories, db_session):
     grant = factories.grant.create()
-    collection_form = CollectionForm(name="My test collection")
+    collection_form = SchemaForm(name="My test collection")
     result = authenticated_client.post(
-        url_for("deliver_grant_funding.setup_collection", grant_id=grant.id),
+        url_for("deliver_grant_funding.setup_schema", grant_id=grant.id),
         data=collection_form.data,
     )
     assert result.status_code == 302
-    assert result.location == url_for("deliver_grant_funding.grant_developers_collections", grant_id=grant.id)
+    assert result.location == url_for("deliver_grant_funding.grant_developers_schemas", grant_id=grant.id)
 
     grant_from_db = db_session.scalars(select(Grant).where(Grant.id == grant.id)).one()
     assert len(grant_from_db.collection_schemas) == 1
@@ -140,9 +140,9 @@ def test_create_collection_post(authenticated_client, factories, db_session):
 def test_create_collection_post_duplicate_name(authenticated_client, factories, db_session):
     grant = factories.grant.create()
     factories.collection_schema.create(name="My test collection", grant=grant)
-    collection_form = CollectionForm(name="My test collection")
+    collection_form = SchemaForm(name="My test collection")
     result = authenticated_client.post(
-        url_for("deliver_grant_funding.setup_collection", grant_id=grant.id),
+        url_for("deliver_grant_funding.setup_schema", grant_id=grant.id),
         data=collection_form.data,
     )
     assert result.status_code == 200
@@ -154,9 +154,9 @@ def test_create_collection_post_duplicate_name(authenticated_client, factories, 
 
 
 def test_create_section_get(authenticated_client, factories, templates_rendered):
-    collection = factories.collection_schema.create()
+    schema = factories.collection_schema.create()
     result = authenticated_client.get(
-        url_for("deliver_grant_funding.add_section", grant_id=collection.grant.id, collection_id=collection.id),
+        url_for("deliver_grant_funding.add_section", grant_id=schema.grant.id, schema_id=schema.id),
     )
     assert result.status_code == 200
 
@@ -165,27 +165,27 @@ def test_create_section_get(authenticated_client, factories, templates_rendered)
 
 
 def test_create_section_post(authenticated_client, factories, db_session):
-    collection = factories.collection_schema.create()
+    schema = factories.collection_schema.create()
     section_form = SectionForm(title="My test section")
     result = authenticated_client.post(
-        url_for("deliver_grant_funding.add_section", grant_id=collection.grant.id, collection_id=collection.id),
+        url_for("deliver_grant_funding.add_section", grant_id=schema.grant.id, schema_id=schema.id),
         data=section_form.data,
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "deliver_grant_funding.list_sections", grant_id=collection.grant.id, collection_id=collection.id
+        "deliver_grant_funding.list_sections", grant_id=schema.grant.id, schema_id=schema.id
     )
 
-    collection_from_db = db_session.scalars(select(CollectionSchema).where(CollectionSchema.id == collection.id)).one()
+    collection_from_db = db_session.scalars(select(CollectionSchema).where(CollectionSchema.id == schema.id)).one()
     assert len(collection_from_db.sections) == 1
 
 
 def test_create_section_post_duplicate_name(authenticated_client, factories, db_session):
-    collection = factories.collection_schema.create()
-    factories.section.create(title="My test section", collection_schema=collection)
+    schema = factories.collection_schema.create()
+    factories.section.create(title="My test section", collection_schema=schema)
     section_form = SectionForm(title="My test section")
     result = authenticated_client.post(
-        url_for("deliver_grant_funding.add_section", grant_id=collection.grant.id, collection_id=collection.id),
+        url_for("deliver_grant_funding.add_section", grant_id=schema.grant.id, schema_id=schema.id),
         data=section_form.data,
     )
 
@@ -201,7 +201,7 @@ def test_create_form_get(authenticated_client, factories, templates_rendered):
         url_for(
             "deliver_grant_funding.add_form",
             grant_id=section.collection_schema.grant.id,
-            collection_id=section.collection_schema.id,
+            schema_id=section.collection_schema.id,
             section_id=section.id,
         ),
     )
@@ -214,7 +214,7 @@ def test_create_form_get(authenticated_client, factories, templates_rendered):
         url_for(
             "deliver_grant_funding.add_form",
             grant_id=section.collection_schema.grant.id,
-            collection_id=section.collection_schema.id,
+            schema_id=section.collection_schema.id,
             section_id=section.id,
             form_type="text",
         ),
@@ -232,7 +232,7 @@ def test_create_form_post(authenticated_client, factories, db_session):
         url_for(
             "deliver_grant_funding.add_form",
             grant_id=section.collection_schema.grant.id,
-            collection_id=section.collection_schema.id,
+            schema_id=section.collection_schema.id,
             section_id=section.id,
             form_type="text",
         ),
@@ -242,7 +242,7 @@ def test_create_form_post(authenticated_client, factories, db_session):
     assert result.location == url_for(
         "deliver_grant_funding.manage_section",
         grant_id=section.collection_schema.grant.id,
-        collection_id=section.collection_schema.id,
+        schema_id=section.collection_schema.id,
         section_id=section.id,
     )
 
@@ -258,7 +258,7 @@ def test_create_form_post_duplicate_name(authenticated_client, factories, db_ses
         url_for(
             "deliver_grant_funding.add_form",
             grant_id=section.collection_schema.grant.id,
-            collection_id=section.collection_schema.id,
+            schema_id=section.collection_schema.id,
             section_id=section.id,
             form_type="text",
         ),
@@ -272,15 +272,15 @@ def test_create_form_post_duplicate_name(authenticated_client, factories, db_ses
 
 
 def test_move_section(authenticated_client, factories, db_session):
-    collection = factories.collection_schema.create()
-    section1 = factories.section.create(collection_schema=collection, order=0)
-    section2 = factories.section.create(collection_schema=collection, order=1)
+    schema = factories.collection_schema.create()
+    section1 = factories.section.create(collection_schema=schema, order=0)
+    section2 = factories.section.create(collection_schema=schema, order=1)
 
     result = authenticated_client.post(
         url_for(
             "deliver_grant_funding.move_section",
-            grant_id=collection.grant.id,
-            collection_id=collection.id,
+            grant_id=schema.grant.id,
+            schema_id=schema.id,
             section_id=section1.id,
             direction="down",
         ),
@@ -288,8 +288,8 @@ def test_move_section(authenticated_client, factories, db_session):
     assert result.status_code == 302
     assert result.location == url_for(
         "deliver_grant_funding.list_sections",
-        grant_id=collection.grant.id,
-        collection_id=collection.id,
+        grant_id=schema.grant.id,
+        schema_id=schema.id,
     )
 
     # Check the order has been updated in the database
@@ -301,8 +301,8 @@ def test_move_section(authenticated_client, factories, db_session):
     result = authenticated_client.post(
         url_for(
             "deliver_grant_funding.move_section",
-            grant_id=collection.grant.id,
-            collection_id=collection.id,
+            grant_id=schema.grant.id,
+            schema_id=schema.id,
             section_id=section1.id,
             direction="up",
         ),
@@ -310,8 +310,8 @@ def test_move_section(authenticated_client, factories, db_session):
     assert result.status_code == 302
     assert result.location == url_for(
         "deliver_grant_funding.list_sections",
-        grant_id=collection.grant.id,
-        collection_id=collection.id,
+        grant_id=schema.grant.id,
+        schema_id=schema.id,
     )
 
     # Check the order has been updated in the database
@@ -323,8 +323,8 @@ def test_move_section(authenticated_client, factories, db_session):
     result = authenticated_client.post(
         url_for(
             "deliver_grant_funding.move_section",
-            grant_id=collection.grant.id,
-            collection_id=collection.id,
+            grant_id=schema.grant.id,
+            schema_id=schema.id,
             section_id=section1.id,
             direction="bad_direction",
         ),
@@ -340,7 +340,7 @@ def test_move_form(authenticated_client, factories, db_session):
         url_for(
             "deliver_grant_funding.move_form",
             grant_id=section.collection_schema.grant.id,
-            collection_id=section.collection_schema.id,
+            schema_id=section.collection_schema.id,
             section_id=section.id,
             form_id=form1.id,
             direction="down",
@@ -350,7 +350,7 @@ def test_move_form(authenticated_client, factories, db_session):
     assert result.location == url_for(
         "deliver_grant_funding.manage_section",
         grant_id=section.collection_schema.grant.id,
-        collection_id=section.collection_schema.id,
+        schema_id=section.collection_schema.id,
         section_id=section.id,
     )
 
@@ -362,7 +362,7 @@ def test_move_form(authenticated_client, factories, db_session):
         url_for(
             "deliver_grant_funding.move_form",
             grant_id=section.collection_schema.grant.id,
-            collection_id=section.collection_schema.id,
+            schema_id=section.collection_schema.id,
             section_id=section.id,
             form_id=form1.id,
             direction="up",
@@ -372,7 +372,7 @@ def test_move_form(authenticated_client, factories, db_session):
     assert result.location == url_for(
         "deliver_grant_funding.manage_section",
         grant_id=section.collection_schema.grant.id,
-        collection_id=section.collection_schema.id,
+        schema_id=section.collection_schema.id,
         section_id=section.id,
     )
 
@@ -385,7 +385,7 @@ def test_move_form(authenticated_client, factories, db_session):
         url_for(
             "deliver_grant_funding.move_form",
             grant_id=section.collection_schema.grant.id,
-            collection_id=section.collection_schema.id,
+            schema_id=section.collection_schema.id,
             section_id=section.id,
             form_id=form1.id,
             direction="bad_direction",
@@ -402,7 +402,7 @@ def test_move_question(authenticated_client, factories, db_session):
         url_for(
             "deliver_grant_funding.move_question",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question1.id,
@@ -413,7 +413,7 @@ def test_move_question(authenticated_client, factories, db_session):
     assert result.location == url_for(
         "deliver_grant_funding.manage_form",
         grant_id=form.section.collection_schema.grant.id,
-        collection_id=form.section.collection_schema.id,
+        schema_id=form.section.collection_schema.id,
         section_id=form.section.id,
         form_id=form.id,
         back_link="manage_section",
@@ -428,7 +428,7 @@ def test_move_question(authenticated_client, factories, db_session):
         url_for(
             "deliver_grant_funding.move_question",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question1.id,
@@ -439,7 +439,7 @@ def test_move_question(authenticated_client, factories, db_session):
     assert result.location == url_for(
         "deliver_grant_funding.manage_form",
         grant_id=form.section.collection_schema.grant.id,
-        collection_id=form.section.collection_schema.id,
+        schema_id=form.section.collection_schema.id,
         section_id=form.section.id,
         form_id=form.id,
         back_link="manage_section",
@@ -454,7 +454,7 @@ def test_move_question(authenticated_client, factories, db_session):
         url_for(
             "deliver_grant_funding.move_question",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question1.id,
@@ -470,7 +470,7 @@ def test_create_question_choose_type_get(authenticated_client, factories):
         url_for(
             "deliver_grant_funding.choose_question_type",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
         ),
@@ -488,7 +488,7 @@ def test_create_question_choose_type_post(authenticated_client, factories):
         url_for(
             "deliver_grant_funding.choose_question_type",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
             question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -499,7 +499,7 @@ def test_create_question_choose_type_post(authenticated_client, factories):
     assert result.location == url_for(
         "deliver_grant_funding.add_question",
         grant_id=form.section.collection_schema.grant.id,
-        collection_id=form.section.collection_schema.id,
+        schema_id=form.section.collection_schema.id,
         section_id=form.section.id,
         form_id=form.id,
         question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -513,7 +513,7 @@ def test_create_question_choose_type_post_error(authenticated_client, factories)
         url_for(
             "deliver_grant_funding.choose_question_type",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
         ),
@@ -532,7 +532,7 @@ def test_add_text_question_get(authenticated_client, factories):
         url_for(
             "deliver_grant_funding.add_question",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
             question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -556,7 +556,7 @@ def test_add_text_question_post(authenticated_client, factories, db_session):
         url_for(
             "deliver_grant_funding.add_question",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
             question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -567,7 +567,7 @@ def test_add_text_question_post(authenticated_client, factories, db_session):
     assert result.location == url_for(
         "deliver_grant_funding.manage_form",
         grant_id=form.section.collection_schema.grant.id,
-        collection_id=form.section.collection_schema.id,
+        schema_id=form.section.collection_schema.id,
         section_id=form.section.id,
         form_id=form.id,
         back_link="manage_section",
@@ -586,7 +586,7 @@ def test_add_text_question_post_duplicate_text(authenticated_client, factories, 
         url_for(
             "deliver_grant_funding.add_question",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
             question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -608,7 +608,7 @@ def test_edit_question_get(authenticated_client, factories):
         url_for(
             "deliver_grant_funding.edit_question",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question.id,
@@ -628,7 +628,7 @@ def test_edit_question_post(authenticated_client, factories, db_session):
         url_for(
             "deliver_grant_funding.edit_question",
             grant_id=form.section.collection_schema.grant.id,
-            collection_id=form.section.collection_schema.id,
+            schema_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question.id,
@@ -639,7 +639,7 @@ def test_edit_question_post(authenticated_client, factories, db_session):
     assert result.location == url_for(
         "deliver_grant_funding.manage_form",
         grant_id=form.section.collection_schema.grant.id,
-        collection_id=form.section.collection_schema.id,
+        schema_id=form.section.collection_schema.id,
         section_id=form.section.id,
         form_id=form.id,
         back_link="manage_section",

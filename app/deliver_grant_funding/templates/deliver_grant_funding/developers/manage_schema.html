@@ -5,7 +5,7 @@
 {% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
-  {{ collection.name }}
+  {{ schema.name }}
   - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
@@ -14,7 +14,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("deliver_grant_funding.grant_developers_collections", grant_id = grant.id)
+        "href": url_for("deliver_grant_funding.grant_developers_schemas", grant_id = grant.id)
     })
   }}
 {% endblock beforeContent %}
@@ -23,10 +23,10 @@
   <div class="app-body__watermark" aria-hidden="true">Developers</div>
   <h1 class="govuk-heading-l">
     <span class="govuk-caption-l">{{ grant.name }}</span>
-    {{ collection.name }}
+    {{ schema.name }}
   </h1>
   {% set sections_text %}
-    {% trans count=collection.sections | length %}
+    {% trans count=schema.sections | length %}
       {{ count }}
       section {% pluralize %}
       {{ count }}
@@ -39,11 +39,11 @@
         govukSummaryList({
           "rows": [{
               "key": {"text": "Name"},
-              "value":{"text": collection.name},
+              "value":{"text": schema.name},
               "actions": {
                   "items": [
                       {
-                        "href": url_for("deliver_grant_funding.edit_collection", grant_id = grant.id, collection_id = collection.id),
+                        "href": url_for("deliver_grant_funding.edit_schema", grant_id = grant.id, schema_id=schema.id),
                         "text": "Change",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -55,7 +55,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("deliver_grant_funding.list_sections", grant_id = grant.id, collection_id = collection.id),
+                        "href": url_for("deliver_grant_funding.list_sections", grant_id = grant.id, schema_id=schema.id),
                         "text": "Manage",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -65,10 +65,10 @@
         })
       }}
 
-      {% if not collection.sections %}
+      {% if not schema.sections %}
         <p class="govuk-body">
-          This collection has no sections, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id = grant.id, collection_id = collection.id) }}">add a section</a>
+          This schema has no sections, you can
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id = grant.id, schema_id=schema.id) }}">add a section</a>
           .
         </p>
       {% endif %}
@@ -76,13 +76,13 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {% for section in collection.sections %}
+      {% for section in schema.sections %}
         <h2 class="govuk-heading-m">{{ section.title }}</h2>
 
         {% if not section.forms %}
           <p class="govuk-body">
             This section has no forms, you can
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add a form</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_form', grant_id = grant.id, schema_id=schema.id, section_id=section.id) }}">add a form</a>
             .
           </p>
         {% endif %}
@@ -105,7 +105,7 @@
                 "status": {
                   "text": question_text
                 },
-              "href": url_for("deliver_grant_funding.manage_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, back_link="manage_collection")
+              "href": url_for("deliver_grant_funding.manage_form", grant_id = grant.id, schema_id=schema.id, section_id = section.id, form_id=form.id, back_link="manage_schema")
             })
           %}
         {% endfor %}
