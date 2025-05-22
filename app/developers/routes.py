@@ -9,10 +9,12 @@ from wtforms import Field
 from app.common.auth.decorators import mhclg_login_required
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    create_collection,
     create_collection_schema,
     create_form,
     create_question,
     create_section,
+    get_collection,
     get_collection_schema,
     get_form_by_id,
     get_question_by_id,
@@ -29,8 +31,16 @@ from app.common.data.interfaces.collections import (
     update_section,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.interfaces.temporary import delete_collections_created_by_user
 from app.common.data.models import QuestionDataType, User
-from app.deliver_grant_funding.forms import FormForm, QuestionForm, QuestionTypeForm, SchemaForm, SectionForm
+from app.deliver_grant_funding.forms import (
+    FormForm,
+    QuestionForm,
+    QuestionTypeForm,
+    SchemaForm,
+    SectionForm,
+)
+from app.developers.forms import PreviewCollectionForm
 from app.extensions import auto_commit_after_request
 
 developers_blueprint = Blueprint(name="developers", import_name=__name__, url_prefix="/developers")
@@ -72,7 +82,13 @@ def setup_schema(grant_id: UUID4) -> ResponseReturnValue:
 @auto_commit_after_request
 def manage_schema(grant_id: UUID4, schema_id: UUID4) -> ResponseReturnValue:
     schema = get_collection_schema(schema_id)  # TODO: handle collection versioning; this just grabs latest.
-    return render_template("developers/manage_schema.html", grant=schema.grant, schema=schema)
+    form = PreviewCollectionForm()
+    if form.validate_on_submit():
+        delete_collections_created_by_user(grant_id=schema.grant_id, created_by_id=cast(User, current_user).id)
+        collection = create_collection(schema=schema, created_by=cast(User, current_user))
+        return redirect(url_for("developers.collection_tasklist", collection_id=collection.id))
+
+    return render_template("developers/manage_schema.html", grant=schema.grant, schema=schema, form=form)
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/edit", methods=["GET", "POST"])
@@ -484,3 +500,10 @@ def edit_question(
         question=question,
         form=wt_form,
     )
+
+
+@developers_blueprint.route("/collections/<uuid:collection_id>", methods=["GET"])
+@mhclg_login_required
+def collection_tasklist(collection_id: UUID4) -> ResponseReturnValue:
+    collection = get_collection(collection_id)
+    return render_template("developers/collection_tasklist.html", collection=collection)

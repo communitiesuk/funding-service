@@ -6,7 +6,17 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import Collection, CollectionSchema, Form, Grant, Question, QuestionDataType, Section, User
+from app.common.data.models import (
+    Collection,
+    CollectionSchema,
+    CollectionStatusEnum,
+    Form,
+    Grant,
+    Question,
+    QuestionDataType,
+    Section,
+    User,
+)
 from app.common.utils import slugify
 from app.extensions import db
 
@@ -57,6 +67,18 @@ def get_collection(collection_id: UUID4) -> Collection | None:
         Collection,
         collection_id,
     )
+
+
+def create_collection(*, schema: CollectionSchema, created_by: User) -> Collection:
+    collection = Collection(
+        collection_schema=schema,
+        created_by=created_by,
+        data={},
+        status=CollectionStatusEnum.NOT_STARTED,
+    )
+    db.session.add(collection)
+    db.session.flush()
+    return collection
 
 
 def create_section(*, title: str, schema: CollectionSchema) -> Section:

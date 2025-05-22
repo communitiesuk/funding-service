@@ -69,3 +69,19 @@ body.govuk-template__body:has(div.app-body__watermark) {
         text-decoration: none;
     }
 }
+
+.app-metadata {
+    @include govuk-font(19);
+}
+
+.app-metadata__key {
+    @include govuk-typography-weight-bold(5);
+
+    display: inline;
+}
+
+.app-metadata__value {
+    @include govuk-responsive-margin(1, "left");
+
+    display: inline-block;
+}

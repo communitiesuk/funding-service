@@ -1,0 +1,22 @@
+{% extends "common/base.html" %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+
+{% set active_item_identifier = "grants" %}
+{% set cspNonce = csp_nonce() %}
+
+{% block main %}
+  <div class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}">
+    {% block beforeContent %}
+    {% endblock beforeContent %}
+
+    <main id="main-content" class="govuk-main-wrapper" {%- if mainLang %}lang="{{ mainLang }}"{% endif %}>
+      {% block errorSummary %}
+        {% if form is defined and form.errors %}
+          {{ govukErrorSummary(wtforms_errors(form)) }}
+        {% endif %}
+      {% endblock errorSummary %}
+      {% block content %}
+      {% endblock content %}
+    </main>
+  </div>
+{% endblock %}
