@@ -29,6 +29,7 @@ services:
     networks:
       - ofs
 
+
   web:
     build: .
     volumes:
