@@ -44,6 +44,8 @@ services:
         gunicorn wsgi:app
       "
     env_file: .env
+    extra_hosts:
+      - "sso.${PULLPREVIEW_PUBLIC_DNS}:host-gateway"
     environment:
       FLASK_ENV: pullpreview
       DATABASE_HOST: "db"
@@ -53,6 +55,7 @@ services:
       SECRET_KEY: unsafe  # pragma: allowlist secret
       SERVER_NAME: ${PULLPREVIEW_PUBLIC_DNS}
       DEBUG_TB_ENABLED: true
+      AZURE_AD_BASE_URL: https://sso.${PULLPREVIEW_PUBLIC_DNS}/
       # Removes the ConfigPanel, which could show sensitive configuration.
       DEBUG_TB_PANELS: |
         [
