@@ -2,7 +2,7 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import UUID4
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
@@ -23,8 +23,22 @@ def create_collection_schema(*, name: str, user: User, grant: Grant, version: in
     return schema
 
 
-def get_collection_schema(collection_id: UUID4) -> CollectionSchema:
-    return db.session.get_one(CollectionSchema, collection_id)
+def get_collection_schema(collection_id: UUID4, version: int | None = None) -> CollectionSchema:
+    """Get a collection schema by ID and optionally version.
+
+    If you do not pass a version, it will retrieve the latest version (ie highest version number).
+
+    Note: We may wish to change this behaviour to the latest 'published' version in the future, or some other logic.
+    """
+    if version is None:
+        return db.session.scalars(
+            select(CollectionSchema)
+            .where(CollectionSchema.id == collection_id)
+            .order_by(CollectionSchema.version.desc())
+            .limit(1)
+        ).one()
+
+    return db.session.get_one(CollectionSchema, [collection_id, version])
 
 
 def update_collection_schema(collection: CollectionSchema, *, name: str) -> CollectionSchema:
