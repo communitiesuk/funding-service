@@ -3,17 +3,22 @@ import pytest
 from app.common.data.interfaces.collections import (
     create_collection_schema,
     create_form,
+    create_question,
     create_section,
     get_collection_schema,
     get_form_by_id,
+    get_question_by_id,
     get_section_by_id,
     move_form_down,
     move_form_up,
+    move_question_down,
+    move_question_up,
     move_section_down,
     move_section_up,
+    update_question,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import CollectionSchema
+from app.common.data.models import CollectionSchema, QuestionDataType
 
 
 def test_get_collection(db_session, factories):
@@ -170,3 +175,80 @@ def test_move_form_up_down(db_session, factories):
 
     assert form1.order == 0
     assert form2.order == 1
+
+
+def test_get_question(db_session, factories):
+    q = factories.question.create()
+    from_db = get_question_by_id(question_id=q.id)
+    assert from_db is not None
+
+
+def test_create_question(db_session, factories):
+    form = factories.form.create()
+    question = create_question(
+        form=form,
+        text="Test Question",
+        hint="Test Hint",
+        name="Test Question Name",
+        data_type=QuestionDataType.TEXT_MULTI_LINE,
+    )
+    assert question is not None
+    assert question.id is not None
+    assert question.text == "Test Question"
+    assert question.hint == "Test Hint"
+    assert question.name == "Test Question Name"
+    assert question.data_type == QuestionDataType.TEXT_MULTI_LINE
+    assert question.order == 0
+    assert question.slug == "test-question"
+
+
+def test_update_question(db_session, factories):
+    form = factories.form.create()
+    question = create_question(
+        form=form,
+        text="Test Question",
+        hint="Test Hint",
+        name="Test Question Name",
+        data_type=QuestionDataType.INTEGER,
+    )
+    assert question is not None
+
+    updated_question = update_question(
+        question=question,
+        text="Updated Question",
+        hint="Updated Hint",
+        name="Updated Question Name",
+    )
+
+    assert updated_question.text == "Updated Question"
+    assert updated_question.hint == "Updated Hint"
+    assert updated_question.name == "Updated Question Name"
+    assert updated_question.data_type == QuestionDataType.INTEGER
+    assert updated_question.slug == "updated-question"
+
+
+def test_move_question_up_down(db_session, factories):
+    form = factories.form.create()
+    q1 = factories.question.create(form=form)
+    q2 = factories.question.create(form=form)
+    q3 = factories.question.create(form=form)
+
+    assert q1
+    assert q2
+    assert q3
+
+    assert q1.order == 0
+    assert q2.order == 1
+    assert q3.order == 2
+
+    move_question_up(q2)
+
+    assert q1.order == 1
+    assert q2.order == 0
+    assert q3.order == 2
+
+    move_question_down(q1)
+
+    assert q1.order == 2
+    assert q2.order == 0
+    assert q3.order == 1

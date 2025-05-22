@@ -1,7 +1,8 @@
 import datetime
+import enum
 import secrets
 import uuid
-from enum import Enum
+from typing import Any, Optional
 
 from pytz import utc
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.common.data.base import BaseModel, CIStr
 
 
-class RoleEnum(str, Enum):
+class RoleEnum(str, enum.Enum):
     ADMIN = (
         "admin"  # Admin level permissions, combines with null columns in UserRole table to denote level of admin access
     )
@@ -189,4 +190,51 @@ class Form(BaseModel):
         # TODO how can we make this unique per collection schema?
         UniqueConstraint("title", "section_id", name="uq_form_title_section"),
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
+    )
+
+    questions: Mapped[list["Question"]] = relationship(
+        "Question", lazy=True, order_by="Question.order", collection_class=ordering_list("order")
+    )
+
+
+class QuestionDataType(enum.StrEnum):
+    # If adding values here, also update QuestionTypeForm
+    # and manually create a migration to update question_type_enum in the db
+    TEXT_SINGLE_LINE = "A single line of text"
+    TEXT_MULTI_LINE = "Multiple lines of text"
+    INTEGER = "A whole number"
+
+    @staticmethod
+    def coerce(value: Any) -> "QuestionDataType":
+        if isinstance(value, QuestionDataType):
+            return value
+        if isinstance(value, str):
+            return QuestionDataType[value]
+        raise ValueError(f"Cannot coerce {value} to QuestionDataType")
+
+
+class Question(BaseModel):
+    __tablename__ = "question"
+
+    text: Mapped[str]
+    slug: Mapped[str]
+    order: Mapped[int]
+    hint: Mapped[Optional[str]]
+    data_type: Mapped[QuestionDataType] = mapped_column(
+        SqlEnum(
+            QuestionDataType,
+            name="question_data_type_enum",
+            validate_strings=True,
+        )
+    )
+    name: Mapped[str]
+
+    form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
+    form: Mapped[Form] = relationship("Form", back_populates="questions")
+
+    __table_args__ = (
+        UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
+        UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
+        UniqueConstraint("text", "form_id", name="uq_question_text_form"),
+        UniqueConstraint("name", "form_id", name="uq_question_name_form"),
     )

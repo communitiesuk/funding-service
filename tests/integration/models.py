@@ -12,7 +12,6 @@ import secrets
 from uuid import uuid4
 
 import factory
-import factory.fuzzy
 from flask import url_for
 
 from app.common.data.models import (
@@ -21,6 +20,8 @@ from app.common.data.models import (
     Grant,
     MagicLink,
     Organisation,
+    Question,
+    QuestionDataType,
     Section,
     User,
     UserRole,
@@ -143,3 +144,20 @@ class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     section = factory.SubFactory(_SectionFactory)
     section_id = factory.LazyAttribute(lambda o: o.section.id)
+
+
+class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Question
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
+
+    id = factory.LazyFunction(uuid4)
+    text = factory.Sequence(lambda n: "Question %d" % n)
+    name = factory.Sequence(lambda n: "Question name %d" % n)
+    slug = factory.Sequence(lambda n: "question-%d" % n)
+    order = factory.LazyAttribute(lambda o: len(o.form.questions))
+    data_type = QuestionDataType.TEXT_SINGLE_LINE
+
+    form = factory.SubFactory(_FormFactory)
+    form_id = factory.LazyAttribute(lambda o: o.form.id)

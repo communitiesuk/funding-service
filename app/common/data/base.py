@@ -22,7 +22,10 @@ type CIStr = str
 class BaseModel(DeclarativeBase):
     __abstract__ = True
     metadata = MetaData(naming_convention=convention)
-    type_annotation_map = {json_scalars: postgresql.JSONB, CIStr: CITEXT}
+    type_annotation_map = {
+        json_scalars: postgresql.JSONB,
+        CIStr: CITEXT,
+    }
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, sort_order=-100, default=uuid.uuid4)
     created_at_utc: Mapped[datetime] = mapped_column(server_default=func.now(), sort_order=-99)

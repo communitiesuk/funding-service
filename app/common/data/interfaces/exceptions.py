@@ -17,6 +17,9 @@ class DuplicateValueError(Exception):
         "uq_form_slug_section": "title",
         "uq_section_slug_collection_schema": "title",
         "uq_collection_slug_grant_id": "name",
+        "uq_question_slug_form": "text",
+        "uq_question_text_form": "text",
+        "uq_question_name_form": "name",
     }
 
     def __init__(self, integrity_error: IntegrityError) -> None:

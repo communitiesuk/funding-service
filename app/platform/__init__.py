@@ -1,6 +1,6 @@
 from typing import cast
 
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from pydantic import UUID4
@@ -12,22 +12,27 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     create_collection_schema,
     create_form,
+    create_question,
     create_section,
     get_collection_schema,
     get_form_by_id,
+    get_question_by_id,
     get_section_by_id,
     move_form_down,
     move_form_up,
+    move_question_down,
+    move_question_up,
     move_section_down,
     move_section_up,
     update_collection_schema,
     update_form,
+    update_question,
     update_section,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import User
+from app.common.data.models import QuestionDataType, User
 from app.extensions import auto_commit_after_request
-from app.platform.forms import CollectionForm, FormForm, GrantForm, SectionForm
+from app.platform.forms import CollectionForm, FormForm, GrantForm, QuestionForm, QuestionTypeForm, SectionForm
 
 platform_blueprint = Blueprint(name="platform", import_name=__name__)
 
@@ -200,6 +205,8 @@ def move_section(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, direc
         move_section_up(section)
     elif direction == "down":
         move_section_down(section)
+    else:
+        abort(400)
 
     return redirect(url_for("platform.list_sections", grant_id=grant_id, collection_id=collection_id))
 
@@ -238,6 +245,8 @@ def move_form(
         move_form_up(form)
     elif direction == "down":
         move_form_down(form)
+    else:
+        abort(400)
 
     return redirect(
         url_for("platform.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id)
@@ -371,5 +380,158 @@ def edit_form(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id:
         collection=db_form.section.collection_schema,
         section=db_form.section,
         db_form=db_form,
+        form=wt_form,
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add/choose-type",
+    methods=["GET", "POST"],
+)
+@mhclg_login_required
+def choose_question_type(
+    grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4
+) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id)
+    wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
+    if wt_form.validate_on_submit():
+        question_data_type = wt_form.question_data_type.data
+        return redirect(
+            url_for(
+                "platform.add_question",
+                grant_id=grant_id,
+                collection_id=collection_id,
+                section_id=section_id,
+                form_id=form_id,
+                question_data_type=question_data_type,
+            )
+        )
+    return render_template(
+        "platform/developers/choose_question_type.html",
+        grant=db_form.section.collection_schema.grant,
+        collection=db_form.section.collection_schema,
+        section=db_form.section,
+        db_form=db_form,
+        form=wt_form,
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add",
+    methods=["GET", "POST"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def add_question(grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
+    form = get_form_by_id(form_id)
+    question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
+    question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
+
+    wt_form = QuestionForm()
+    if wt_form.validate_on_submit():
+        try:
+            assert wt_form.text.data is not None
+            assert wt_form.hint.data is not None
+            assert wt_form.name.data is not None
+            create_question(
+                form=form,
+                text=wt_form.text.data,
+                hint=wt_form.hint.data,
+                name=wt_form.name.data,
+                data_type=question_data_type_enum,
+            )
+            return redirect(
+                url_for(
+                    "platform.manage_form",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                    back_link="manage_section",
+                )
+            )
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "platform/developers/add_question.html",
+        grant=form.section.collection_schema.grant,
+        collection=form.section.collection_schema,
+        section=form.section,
+        db_form=form,
+        chosen_question_data_type=question_data_type_enum,
+        form=wt_form,
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/move/<string:direction>",
+    methods=["POST"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def move_question(
+    grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4, question_id: UUID4, direction: str
+) -> ResponseReturnValue:
+    question = get_question_by_id(question_id=question_id)
+
+    if direction == "up":
+        move_question_up(question)
+    elif direction == "down":
+        move_question_down(question)
+    else:
+        abort(400)
+
+    return redirect(
+        url_for(
+            "platform.manage_form",
+            grant_id=grant_id,
+            collection_id=collection_id,
+            section_id=section_id,
+            form_id=form_id,
+            back_link="manage_section",
+        )
+    )
+
+
+@platform_blueprint.route(
+    "/grants/<uuid:grant_id>/developers/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/edit",
+    methods=["GET", "POST"],
+)
+@mhclg_login_required
+@auto_commit_after_request
+def edit_question(
+    grant_id: UUID4, collection_id: UUID4, section_id: UUID4, form_id: UUID4, question_id: UUID4
+) -> ResponseReturnValue:
+    question = get_question_by_id(question_id=question_id)
+    wt_form = QuestionForm(obj=question)
+    if wt_form.validate_on_submit():
+        try:
+            assert wt_form.text.data is not None
+            assert wt_form.hint.data is not None
+            assert wt_form.name.data is not None
+            update_question(question=question, text=wt_form.text.data, hint=wt_form.hint.data, name=wt_form.name.data)
+            return redirect(
+                url_for(
+                    "platform.manage_form",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                    back_link="manage_section",
+                )
+            )
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "platform/developers/edit_question.html",
+        grant=question.form.section.collection_schema.grant,
+        collection=question.form.section.collection_schema,
+        section=question.form.section,
+        db_form=question.form,
+        question=question,
         form=wt_form,
     )
