@@ -14,7 +14,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("deliver_grant_funding.grant_developers_schemas", grant_id = grant.id)
+        "href": url_for("developers.grant_developers_schemas", grant_id = grant.id)
     })
   }}
 {% endblock beforeContent %}
@@ -43,7 +43,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("deliver_grant_funding.edit_schema", grant_id = grant.id, schema_id=schema.id),
+                        "href": url_for("developers.edit_schema", grant_id = grant.id, schema_id=schema.id),
                         "text": "Change",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -55,7 +55,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("deliver_grant_funding.list_sections", grant_id = grant.id, schema_id=schema.id),
+                        "href": url_for("developers.list_sections", grant_id = grant.id, schema_id=schema.id),
                         "text": "Manage",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -68,7 +68,7 @@
       {% if not schema.sections %}
         <p class="govuk-body">
           This schema has no sections, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id = grant.id, schema_id=schema.id) }}">add a section</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_section', grant_id = grant.id, schema_id=schema.id) }}">add a section</a>
           .
         </p>
       {% endif %}
@@ -82,7 +82,7 @@
         {% if not section.forms %}
           <p class="govuk-body">
             This section has no forms, you can
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_form', grant_id = grant.id, schema_id=schema.id, section_id=section.id) }}">add a form</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_form', grant_id = grant.id, schema_id=schema.id, section_id=section.id) }}">add a form</a>
             .
           </p>
         {% endif %}
@@ -105,7 +105,7 @@
                 "status": {
                   "text": question_text
                 },
-              "href": url_for("deliver_grant_funding.manage_form", grant_id = grant.id, schema_id=schema.id, section_id = section.id, form_id=form.id, back_link="manage_schema")
+              "href": url_for("developers.manage_form", grant_id = grant.id, schema_id=schema.id, section_id = section.id, form_id=form.id, back_link="manage_schema")
             })
           %}
         {% endfor %}
