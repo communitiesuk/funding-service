@@ -4,7 +4,8 @@
 {% set active_item_identifier = "grants" %}
 {% set cspNonce = csp_nonce() %}
 
-{% set settingsNav = [
+{%
+  set settingsNav = [
       {
           "text": "Dashboard",
           "key": "grant_dashboard",
@@ -20,38 +21,38 @@
           "key": "grant_developers",
           "href": url_for("deliver_grant_funding.grant_developers", grant_id=grant.id)
       }
-  ] %}
+  ]
+%}
 
 {% block main %}
-    <div class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}">
-        <div class="govuk-main-wrapper {%- if mainClasses %}{{ mainClasses }}{% endif %}">
-            <div class="govuk-grid-row">
-                <div class="govuk-grid-column-one-quarter">
-                    <ul class="govuk-list">
-                        {% for item in settingsNav %}
-                            <li class="app-left-nav__item">
-                                <a href="{{ item.href }}"
-                                   class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == item.key else '') }}">{{ item.text }}</a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                <div class="govuk-grid-column-three-quarters">
-                    {% block mainWrapper %}
-                        {% block beforeContent %}
-                        {% endblock beforeContent %}
-                        <main id="main-content" {%- if mainLang %}lang="{{ mainLang }}"{% endif %}>
-                            {% block errorSummary %}
-                                {% if form is defined and form.errors %}
-                                    {{ govukErrorSummary(wtforms_errors(form)) }}
-                                {% endif %}
-                            {% endblock errorSummary %}
-                            {% block content %}
-                            {% endblock content %}
-                        </main>
-                    {% endblock mainWrapper %}
-                </div>
-            </div>
+  <div class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}">
+    <div class="govuk-main-wrapper {%- if mainClasses %}{{ mainClasses }}{% endif %}">
+      <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-quarter">
+          <ul class="govuk-list">
+            {% for item in settingsNav %}
+              <li class="app-left-nav__item">
+                <a href="{{ item.href }}" class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if active_sub_navigation_tab == item.key else '') }}">{{ item.text }}</a>
+              </li>
+            {% endfor %}
+          </ul>
         </div>
+        <div class="govuk-grid-column-three-quarters">
+          {% block mainWrapper %}
+            {% block beforeContent %}
+            {% endblock beforeContent %}
+            <main id="main-content" {%- if mainLang %}lang="{{ mainLang }}"{% endif %}>
+              {% block errorSummary %}
+                {% if form is defined and form.errors %}
+                  {{ govukErrorSummary(wtforms_errors(form)) }}
+                {% endif %}
+              {% endblock errorSummary %}
+              {% block content %}
+              {% endblock content %}
+            </main>
+          {% endblock mainWrapper %}
+        </div>
+      </div>
     </div>
+  </div>
 {% endblock %}

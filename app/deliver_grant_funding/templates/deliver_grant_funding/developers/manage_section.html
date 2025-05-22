@@ -5,27 +5,30 @@
 {% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
-    {{ section.title }}
-    - {{ collection.name }} - MHCLG Funding Service
+  {{ section.title }}
+  - {{ collection.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 {% block beforeContent %}
-    {{ govukBackLink({
+  {{
+    govukBackLink({
         "text": "Back",
         "href": url_for("deliver_grant_funding.manage_collection", grant_id = grant.id, collection_id=collection.id)
-    }) }}
+    })
+  }}
 {% endblock beforeContent %}
 
 {% block content %}
-<div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
-<h1 class="govuk-heading-l">
+  <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
+  <h1 class="govuk-heading-l">
     <span class="govuk-caption-l">{{ collection.name }}</span>
     {{ section.title }}
-</h1>
-<div class="govuk-grid-row">
+  </h1>
+  <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
-        {{ govukSummaryList({
+      {{
+        govukSummaryList({
         "rows": [{
         "key": {"text": "Title"},
         "value":{"text": section.title},
@@ -39,32 +42,32 @@
         ]
         }
         }]
-        }) }}
+        })
+      }}
     </div>
-</div>
-<div class="govuk-grid-row">
+  </div>
+  <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-        <h2 class="govuk-heading-m">Forms</h2>
-        {% set forms_text %}{% trans count=section.forms | length %}
-            {{ count }}
-            form{% pluralize %}{{ count }} forms
-        {% endtrans %}{% endset %}
+      <h2 class="govuk-heading-m">Forms</h2>
+      {% set forms_text %}{% trans count=section.forms | length %}
+        {{ count }}
+        form{% pluralize %}{{ count }} forms
+      {% endtrans %}{% endset %}
 
-        {% if not section.forms %}
-            <p class="govuk-body">
-                This section has no forms, you can
-                <a class="govuk-link govuk-link--no-visited-state"
-                   href="{{ url_for('deliver_grant_funding.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add
-                    a form</a>
-                .
-            </p>
-        {% else %}
-            <p class="govuk-body">This section has {{ forms_text }}.</p>
-        {% endif %}
+      {% if not section.forms %}
+        <p class="govuk-body">
+          This section has no forms, you can
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add a form</a>
+          .
+        </p>
+      {% else %}
+        <p class="govuk-body">This section has {{ forms_text }}.</p>
+      {% endif %}
 
-        {% set table_rows = [] %}
-        {% for form in section.forms %}
-            {% do table_rows.append({
+      {% set table_rows = [] %}
+      {% for form in section.forms %}
+        {%
+          do table_rows.append({
           "text": form.title,
           "actions":[
           {"text":"Move up",
@@ -77,17 +80,20 @@
                      section_id = section.id, form_id=form.id, back_link="manage_section"),
                   "text": "Manage","post":false}
           ]
-                  }) %}
-        {% endfor %}
+                  })
+        %}
+      {% endfor %}
 
-        {% if section.forms %}
-            {{ moveUpDownTable(table_rows) }}
-            {{ govukButton({
+      {% if section.forms %}
+        {{ moveUpDownTable(table_rows) }}
+        {{
+          govukButton({
           "text": "Add a form",
           "classes": "govuk-button--secondary",
           "href": url_for("deliver_grant_funding.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
-          }) }}
-        {% endif %}
+          })
+        }}
+      {% endif %}
     </div>
-</div>
+  </div>
 {% endblock content %}

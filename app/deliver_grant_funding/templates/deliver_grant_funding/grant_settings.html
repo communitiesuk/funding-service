@@ -2,17 +2,18 @@
 {% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
-    Settings - {{ grant.name }} - MHCLG Funding Service
+  Settings - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_settings" %}
 
 {% block content %}
-    <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ grant.name }}</span>
-        Settings
-    </h1>
-    {{ govukSummaryList({
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ grant.name }}</span>
+    Settings
+  </h1>
+  {{
+    govukSummaryList({
           "rows": [{
               "key": {"text": "Name"},
               "value": {"text": grant.name},
@@ -26,5 +27,6 @@
                   ]
               }
           }]
-    }) }}
+    })
+  }}
 {% endblock content %}

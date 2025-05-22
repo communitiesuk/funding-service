@@ -5,26 +5,29 @@
 {% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
 
 {% block pageTitle %}
-    Add a question - {{ form.title }} - MHCLG Funding Service
+  Add a question - {{ form.title }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 
 {% block beforeContent %}
-    {{ govukBackLink({
+  {{
+    govukBackLink({
         "text": "Back",
         "href": url_for("deliver_grant_funding.manage_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
-    }) }}
+    })
+  }}
 {% endblock beforeContent %}
 
 {% block content %}
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
-            <form method="post" novalidate>
-                {{ form.csrf_token }}
-                {{ form.form_id }}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.form_id }}
 
-                {{ form.question_data_type (params={
+        {{
+          form.question_data_type (params={
                         "fieldset": {
             "legend": {
               "text": form.question_data_type.label,
@@ -32,12 +35,15 @@
               "classes": "govuk-fieldset__legend--l"
             }
           }
-                        }) }}
+                        })
+        }}
 
-                {{ form.submit(params={
+        {{
+          form.submit(params={
               "text": "Continue"
-          }) }}
-            </form>
-        </div>
+          })
+        }}
+      </form>
     </div>
+  </div>
 {% endblock content %}

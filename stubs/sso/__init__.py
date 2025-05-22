@@ -125,7 +125,7 @@ def token_endpoint(tenant):
 
     # We've replaced a lot of the values in this dictionary with empty strings as they won't be referenced anywhere else
     # The only ones that are needed are the global variables, roles and timestamps.
-    # For more info on these look at the docs https://learn.microsoft.com/en-us/entra/identity-deliver_grant_funding/id-token-claims-reference
+    # For more info on these look at the docs https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference
     return {
         "token_type": "Bearer",
         "scope": "User.Read User.ReadBasic.All profile openid email",

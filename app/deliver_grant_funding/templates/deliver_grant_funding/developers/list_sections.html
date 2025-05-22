@@ -4,49 +4,49 @@
 {% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
-    {{ collection.name }}
-    - {{ grant.name }} - MHCLG Funding Service
+  {{ collection.name }}
+  - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 {% block beforeContent %}
-    {{ govukBackLink({
+  {{
+    govukBackLink({
         "text": "Back",
         "href": url_for("deliver_grant_funding.manage_collection", grant_id = grant.id, collection_id= collection.id)
-    }) }}
+    })
+  }}
 {% endblock beforeContent %}
 
 {% block content %}
-<div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
-<h1 class="govuk-heading-l">
+  <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
+  <h1 class="govuk-heading-l">
     <span class="govuk-caption-l">{{ collection.name }}</span>
     Sections
-</h1>
+  </h1>
 
-{% set sections_text %}
-{% trans count=collection.sections | length %}
-    {{ count }}
-    section {% pluralize %}
-    {{ count }}
-    sections
-{% endtrans %}
-{% endset %}
-{% if not collection.sections %}
+  {% set sections_text %}
+    {% trans count=collection.sections | length %}
+      {{ count }}
+      section {% pluralize %}
+      {{ count }}
+      sections
+    {% endtrans %}
+  {% endset %}
+  {% if not collection.sections %}
     <p class="govuk-body">
-        This collection has no sections, you can
-        <a class="govuk-link govuk-link--no-visited-state"
-           href="{{ url_for('deliver_grant_funding.add_section', grant_id = grant.id, collection_id = collection.id) }}">add
-            a
-            section</a>
-        .
+      This collection has no sections, you can
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id = grant.id, collection_id = collection.id) }}">add a section</a>
+      .
     </p>
-{% else %}
+  {% else %}
     <p class="govuk-body">This collection has {{ sections_text }}</p>
 
     {% set section_rows = [] %}
     {% set table_rows = [] %}
     {% for section in collection.sections %}
-        {% do table_rows.append({
+      {%
+        do table_rows.append({
         "text": section.title,
         "actions":[
         {"text":"Move up",
@@ -59,16 +59,19 @@
                    section_id = section.id),
                 "text": "Manage","post":false}
         ]
-                }) %}
+                })
+      %}
     {% endfor %}
 
     {% if collection.sections %}
-        {{ moveUpDownTable(table_rows) }}
+      {{ moveUpDownTable(table_rows) }}
     {% endif %}
-    {{ govukButton({
+    {{
+      govukButton({
       "text": "Add a section",
       "classes": "govuk-button--secondary",
       "href": url_for("deliver_grant_funding.add_section", grant_id = grant.id, collection_id = collection.id)
-      }) }}
-{% endif %}
+      })
+    }}
+  {% endif %}
 {% endblock content %}

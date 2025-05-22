@@ -3,25 +3,26 @@
 {% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
-    Developers - {{ grant.name }} - MHCLG Funding Service
+  Developers - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 
 {% block content %}
-    <div class="app-body__watermark" aria-hidden="true">Developers</div>
-    <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ grant.name }}</span>
-        Developers
-    </h1>
-    <p class="govuk-body">You can try out tech and designs that are work in progress.</p>
+  <div class="app-body__watermark" aria-hidden="true">Developers</div>
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ grant.name }}</span>
+    Developers
+  </h1>
+  <p class="govuk-body">You can try out tech and designs that are work in progress.</p>
 
-    <h2 class="govuk-heading-m">Collecting information from users</h2>
+  <h2 class="govuk-heading-m">Collecting information from users</h2>
 
-    {# we probably want to extend this component to always set the padding and have a top line #}
-    {# or add a class to the top that will then apply the right styling - for menu summary lists #}
-    <hr class="govuk-section-break govuk-section-break--visible"/>
-    {{ govukSummaryList({
+  {# we probably want to extend this component to always set the padding and have a top line #}
+  {# or add a class to the top that will then apply the right styling - for menu summary lists #}
+  <hr class="govuk-section-break govuk-section-break--visible" />
+  {{
+    govukSummaryList({
         "rows": [{
             "key": {
                 "text": "Collections",
@@ -32,5 +33,6 @@
                 "items": [{ "text": "Manage", "href": url_for('deliver_grant_funding.grant_developers_collections', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
             },
         }]
-    }) }}
+    })
+  }}
 {% endblock content %}

@@ -3,34 +3,36 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% block pageTitle %}
-    Add a question - {{ db_form.title }} - MHCLG Funding Service
+  Add a question - {{ db_form.title }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 
 {% block beforeContent %}
-    {{ govukBackLink({
+  {{
+    govukBackLink({
         "text": "Back",
         "href": url_for("deliver_grant_funding.choose_question_type", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_id=db_form.id, question_data_type=chosen_question_data_type.name, back_link="manage_section")
-    }) }}
+    })
+  }}
 {% endblock beforeContent %}
 
 {% block content %}
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
-            <h1 class="govuk-heading-l">Add question</h1>
-            <dl class="govuk-body govuk-!-margin-bottom-6">
-                <dt class="govuk-body govuk-!-margin-bottom-1">Question type</dt>
-                <dd class="govuk-summary-list__value">{{ chosen_question_data_type.value }}</dd>
-            </dl>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Add question</h1>
+      <dl class="govuk-body govuk-!-margin-bottom-6">
+        <dt class="govuk-body govuk-!-margin-bottom-1">Question type</dt>
+        <dd class="govuk-summary-list__value">{{ chosen_question_data_type.value }}</dd>
+      </dl>
 
-            <form method="post" novalidate>
-                {{ form.csrf_token }}
-                {{ form.text }}
-                {{ form.name }}
-                {{ form.hint }}
-                {{ form.submit }}
-            </form>
-        </div>
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.text }}
+        {{ form.name }}
+        {{ form.hint }}
+        {{ form.submit }}
+      </form>
     </div>
+  </div>
 {% endblock content %}
