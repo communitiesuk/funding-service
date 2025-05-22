@@ -22,13 +22,20 @@
 {% block content %}
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-two-thirds">
-            <h1 class="govuk-heading-l">What is the type of the question?</h1>
             <form method="post" novalidate>
 
                 {{ form.csrf_token }}
                 {{ form.form_id }}
 
-                {{ form.question_data_type }}
+                {{ form.question_data_type (params={
+                "fieldset": {
+    "legend": {
+      "text": form.question_data_type.label,
+      "isPageHeading": true,
+      "classes": "govuk-fieldset__legend--l"
+    }
+  }
+                }) }}
 
                 {{ form.submit(params={
                 "text": "Continue"

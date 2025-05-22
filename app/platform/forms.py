@@ -53,7 +53,7 @@ class FormForm(FlaskForm):
 
 class QuestionTypeForm(FlaskForm):
     question_data_type = RadioField(
-        "Question type",
+        "What is the type of the question?",
         choices=[
             (QuestionDataType.TEXT_SINGLE_LINE.name, QuestionDataType.TEXT_SINGLE_LINE.value),
             (QuestionDataType.TEXT_MULTI_LINE.name, QuestionDataType.TEXT_MULTI_LINE.value),
@@ -61,6 +61,7 @@ class QuestionTypeForm(FlaskForm):
         ],
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
+        name="question type",
     )
     submit = SubmitField(widget=GovSubmitInput())
 

@@ -480,6 +480,7 @@ def test_create_question_choose_type_post(authenticated_client, factories):
             collection_id=form.section.collection_schema.id,
             section_id=form.section.id,
             form_id=form.id,
+            question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
         ),
         data=wt_form.data,
     )
@@ -510,8 +511,8 @@ def test_create_question_choose_type_post_error(authenticated_client, factories)
     assert result.status_code == 200
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
-    assert len(soup.find_all("a", href="#question_data_type")) == 1
-    assert soup.find_all("a", href="#question_data_type")[0].text.strip() == "Select a question type"
+    assert len(soup.find_all("a", href="#question type")) == 1
+    assert soup.find_all("a", href="#question type")[0].text.strip() == "Select a question type"
 
 
 def test_add_text_question_get(authenticated_client, factories):
