@@ -1,7 +1,9 @@
 import uuid
 
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
+from sqlalchemy.exc import IntegrityError
 
+from app.common.data.interfaces.exceptions import InvalidUserRoleError
 from app.common.data.models import RoleEnum, User, UserRole
 from app.extensions import db
 
@@ -31,25 +33,29 @@ def add_user_role(
     # As with the `get_or_create_user` function, this feels like it should be a `on_conflict_do_nothing`,
     # except in that case the DB won't return any rows. So we use the same behaviour as above to ensure we always get a
     # result back regardless of if its doing an insert or an 'update'.
-    user_role = db.session.scalars(
-        postgresql_upsert(UserRole)
-        .values(
-            user_id=user_id,
-            organisation_id=organisation_id,
-            grant_id=grant_id,
-            role=role,
-        )
-        .on_conflict_do_update(
-            index_elements=["user_id", "organisation_id", "grant_id", "role"],
-            set_={
-                "user_id": user_id,
-                "organisation_id": organisation_id,
-                "grant_id": grant_id,
-                "role": role,
-            },
-        )
-        .returning(UserRole),
-        execution_options={"populate_existing": True},
-    ).one()
+
+    try:
+        user_role = db.session.scalars(
+            postgresql_upsert(UserRole)
+            .values(
+                user_id=user_id,
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                role=role,
+            )
+            .on_conflict_do_update(
+                index_elements=["user_id", "organisation_id", "grant_id", "role"],
+                set_={
+                    "user_id": user_id,
+                    "organisation_id": organisation_id,
+                    "grant_id": grant_id,
+                    "role": role,
+                },
+            )
+            .returning(UserRole),
+            execution_options={"populate_existing": True},
+        ).one()
+    except IntegrityError as e:
+        raise InvalidUserRoleError(e) from e
 
     return user_role
