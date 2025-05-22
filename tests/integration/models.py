@@ -94,7 +94,7 @@ class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
     code = factory.LazyFunction(lambda: secrets.token_urlsafe(12))
     user_id = factory.LazyAttribute(lambda o: o.user.id)
     user = factory.SubFactory(_UserFactory)
-    redirect_to_path = factory.LazyFunction(lambda: url_for("platform.list_grants"))
+    redirect_to_path = factory.LazyFunction(lambda: url_for("deliver_grant_funding.list_grants"))
     expires_at_utc = factory.LazyFunction(lambda: datetime.datetime.now() + datetime.timedelta(minutes=15))
     claimed_at_utc = None
 

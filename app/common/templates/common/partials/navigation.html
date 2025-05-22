@@ -2,7 +2,7 @@
 
 {%
   set nav_items = [
-  {"text": "Grants", "href": url_for("platform.list_grants"), "current": active_item_identifier == "grants"},
+  {"text": "Grants", "href": url_for("deliver_grant_funding.list_grants"), "current": active_item_identifier == "grants"},
   ] if current_user.is_authenticated else []
 %}
 

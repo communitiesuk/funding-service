@@ -72,7 +72,7 @@ def create_app() -> Flask:
     app.jinja_loader = ChoiceLoader(
         [
             PackageLoader("app.common"),
-            PackageLoader("app.platform"),
+            PackageLoader("app.deliver_grant_funding"),
             PrefixLoader({"govuk_frontend_jinja": PackageLoader("govuk_frontend_jinja")}),
             PrefixLoader({"govuk_frontend_wtf": PackageLoader("govuk_frontend_wtf")}),
         ]
@@ -121,16 +121,16 @@ def create_app() -> Flask:
 
     # Attach routes
     from app.common.auth import auth_blueprint
+    from app.deliver_grant_funding import deliver_grant_funding_blueprint
     from app.healthcheck import healthcheck_blueprint
-    from app.platform import platform_blueprint
 
     app.register_blueprint(healthcheck_blueprint)
-    app.register_blueprint(platform_blueprint)
+    app.register_blueprint(deliver_grant_funding_blueprint)
     app.register_blueprint(auth_blueprint)
 
     @app.route("/", methods=["GET"])
     def index() -> ResponseReturnValue:
-        return redirect(url_for("platform.list_grants"))
+        return redirect(url_for("deliver_grant_funding.list_grants"))
 
     # when developing we want the toolbar assets to not cause the page to flicker
     # otherwise we don't want the server to continually 304 on assets the browser has

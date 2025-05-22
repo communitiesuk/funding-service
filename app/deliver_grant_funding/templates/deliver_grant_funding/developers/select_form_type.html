@@ -1,4 +1,4 @@
-{% extends "platform/manage_grant_base.html" %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
@@ -14,7 +14,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("platform.manage_section", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
+        "href": url_for("deliver_grant_funding.manage_section", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
     })
   }}
 {% endblock beforeContent %}
@@ -51,7 +51,7 @@
         govukButton({
         "text": "Continue",
         "classes": "govuk-button--secondary",
-        "href": url_for("platform.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_type="empty")
+        "href": url_for("deliver_grant_funding.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id, form_type="empty")
         })
       }}
     </div>

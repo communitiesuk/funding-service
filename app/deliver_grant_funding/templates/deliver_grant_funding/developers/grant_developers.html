@@ -1,6 +1,6 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
-{% extends "platform/manage_grant_base.html" %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
   Developers - {{ grant.name }} - MHCLG Funding Service
@@ -30,7 +30,7 @@
             },
             "value": { "text": ( grant.collection_schemas | length | string ) + " preview collections" },
             "actions": {
-                "items": [{ "text": "Manage", "href": url_for('platform.grant_developers_collections', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
+                "items": [{ "text": "Manage", "href": url_for('deliver_grant_funding.grant_developers_collections', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
             },
         }]
     })

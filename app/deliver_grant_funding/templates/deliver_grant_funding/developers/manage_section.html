@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
-{% extends "platform/manage_grant_base.html" %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
   {{ section.title }}
@@ -14,7 +14,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("platform.manage_collection", grant_id = grant.id, collection_id=collection.id)
+        "href": url_for("deliver_grant_funding.manage_collection", grant_id = grant.id, collection_id=collection.id)
     })
   }}
 {% endblock beforeContent %}
@@ -35,7 +35,7 @@
         "actions": {
         "items": [
         {
-        "href": url_for("platform.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
+        "href": url_for("deliver_grant_funding.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
         "text": "Change",
         "classes": "govuk-link--no-visited-state"
         }
@@ -57,7 +57,7 @@
       {% if not section.forms %}
         <p class="govuk-body">
           This section has no forms, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('platform.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add a form</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_form', grant_id = grant.id, collection_id = collection.id, section_id=section.id) }}">add a form</a>
           .
         </p>
       {% else %}
@@ -71,12 +71,12 @@
           "text": form.title,
           "actions":[
           {"text":"Move up",
-              "href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+              "href":url_for('deliver_grant_funding.move_form', grant_id = grant.id, collection_id = collection.id,
                      section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
-                     {"href":url_for('platform.move_form', grant_id = grant.id, collection_id = collection.id,
+                     {"href":url_for('deliver_grant_funding.move_form', grant_id = grant.id, collection_id = collection.id,
                      section_id = section.id, form_id=form.id, direction = 'down') ,"post":true,
                   "text": "Move down","disabled":(loop.index >= section.forms | length)},
-                  {"href":url_for('platform.manage_form', grant_id = grant.id, collection_id = collection.id,
+                  {"href":url_for('deliver_grant_funding.manage_form', grant_id = grant.id, collection_id = collection.id,
                      section_id = section.id, form_id=form.id, back_link="manage_section"),
                   "text": "Manage","post":false}
           ]
@@ -90,7 +90,7 @@
           govukButton({
           "text": "Add a form",
           "classes": "govuk-button--secondary",
-          "href": url_for("platform.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
+          "href": url_for("deliver_grant_funding.add_form", grant_id = grant.id, collection_id = collection.id, section_id=section.id)
           })
         }}
       {% endif %}
