@@ -19,7 +19,7 @@ dependencies = [
     "pydantic==2.11.4",
     "pydantic-settings==2.9.1",
     "python-json-logger==3.3.0",
-    "sqlalchemy==2.0.40",
+    "sqlalchemy==2.0.41",
     "wtforms[email]==3.2.1",
     "notifications-python-client==10.0.1",
     "flask-talisman==1.1.0",
