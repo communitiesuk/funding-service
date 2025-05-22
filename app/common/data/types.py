@@ -1,1 +1,3 @@
-json_scalars = str | int | float | bool
+from typing import Dict
+
+json_scalars = Dict[str, str | int | float | bool]

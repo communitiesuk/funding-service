@@ -28,6 +28,7 @@ from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _precompile_templates
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
 from tests.integration.models import (
+    _CollectionFactory,
     _CollectionSchemaFactory,
     _FormFactory,
     _GrantFactory,
@@ -188,7 +189,18 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
 
 _Factories = namedtuple(
     "_Factories",
-    ["grant", "user", "magic_link", "collection_schema", "section", "form", "question", "organisation", "user_role"],
+    [
+        "grant",
+        "user",
+        "magic_link",
+        "collection_schema",
+        "collection",
+        "section",
+        "form",
+        "question",
+        "organisation",
+        "user_role",
+    ],
 )
 
 
@@ -199,6 +211,7 @@ def factories(db_session: Session) -> _Factories:
         user=_UserFactory,
         magic_link=_MagicLinkFactory,
         collection_schema=_CollectionSchemaFactory,
+        collection=_CollectionFactory,
         section=_SectionFactory,
         form=_FormFactory,
         organisation=_OrganisationFactory,

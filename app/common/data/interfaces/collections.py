@@ -6,7 +6,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import CollectionSchema, Form, Grant, Question, QuestionDataType, Section, User
+from app.common.data.models import Collection, CollectionSchema, Form, Grant, Question, QuestionDataType, Section, User
 from app.common.utils import slugify
 from app.extensions import db
 
@@ -50,6 +50,13 @@ def update_collection_schema(schema: CollectionSchema, *, name: str) -> Collecti
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return schema
+
+
+def get_collection(collection_id: UUID4) -> Collection | None:
+    return db.session.get(
+        Collection,
+        collection_id,
+    )
 
 
 def create_section(*, title: str, schema: CollectionSchema) -> Section:

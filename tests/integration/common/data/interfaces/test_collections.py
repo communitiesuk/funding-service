@@ -5,6 +5,7 @@ from app.common.data.interfaces.collections import (
     create_form,
     create_question,
     create_section,
+    get_collection,
     get_collection_schema,
     get_form_by_id,
     get_question_by_id,
@@ -79,6 +80,12 @@ def test_create_collection_schema_name_is_unique_per_grant(db_session, factories
     # Check same name in the same grant is not allowed with the same version
     with pytest.raises(DuplicateValueError):
         create_collection_schema(name="test_collection", user=u, grant=grants[0])
+
+
+def test_get_collection(db_session, factories):
+    collection = factories.collection.create()
+    from_db = get_collection(collection_id=collection.id)
+    assert from_db is not None
 
 
 def test_get_section(db_session, factories):
