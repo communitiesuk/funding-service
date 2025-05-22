@@ -72,6 +72,28 @@ services:
     networks:
       - ofs
 
+  sso:
+    build: .
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - '/app/.venv' # Don't overwrite this directory with local .venv because uv links won't translate in the container
+    ports:
+      - "8080" # application
+    stdin_open: true
+    tty: true
+    command: >
+      bash -c "
+      gunicorn wsgi_sso_stub:app
+      "
+    environment:
+      FLASK_APP: "stubs.sso"
+      WERKZEUG_DEBUG_PIN: off
+    networks:
+      ofs:
+        aliases:
+          - sso.${PULLPREVIEW_PUBLIC_DNS}
+
 volumes:
   postgres_data:
 
