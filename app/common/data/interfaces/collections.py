@@ -23,7 +23,7 @@ def create_collection_schema(*, name: str, user: User, grant: Grant, version: in
     return schema
 
 
-def get_collection_schema(collection_id: UUID4, version: int | None = None) -> CollectionSchema:
+def get_collection_schema(schema_id: UUID4, version: int | None = None) -> CollectionSchema:
     """Get a collection schema by ID and optionally version.
 
     If you do not pass a version, it will retrieve the latest version (ie highest version number).
@@ -33,28 +33,28 @@ def get_collection_schema(collection_id: UUID4, version: int | None = None) -> C
     if version is None:
         return db.session.scalars(
             select(CollectionSchema)
-            .where(CollectionSchema.id == collection_id)
+            .where(CollectionSchema.id == schema_id)
             .order_by(CollectionSchema.version.desc())
             .limit(1)
         ).one()
 
-    return db.session.get_one(CollectionSchema, [collection_id, version])
+    return db.session.get_one(CollectionSchema, [schema_id, version])
 
 
-def update_collection_schema(collection: CollectionSchema, *, name: str) -> CollectionSchema:
-    collection.name = name
-    collection.slug = slugify(name)
+def update_collection_schema(schema: CollectionSchema, *, name: str) -> CollectionSchema:
+    schema.name = name
+    schema.slug = slugify(name)
     try:
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
-    return collection
+    return schema
 
 
-def create_section(*, title: str, collection_schema: CollectionSchema) -> Section:
-    section = Section(title=title, collection_schema_id=collection_schema.id, slug=slugify(title))
-    collection_schema.sections.append(section)
+def create_section(*, title: str, schema: CollectionSchema) -> Section:
+    section = Section(title=title, collection_schema_id=schema.id, slug=slugify(title))
+    schema.sections.append(section)
     db.session.add(section)
     try:
         db.session.flush()

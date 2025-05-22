@@ -12,7 +12,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("deliver_grant_funding.grant_developers_collections", grant_id = grant.id)
+        "href": url_for("deliver_grant_funding.grant_developers_schemas", grant_id = grant.id)
     })
   }}
 {% endblock beforeContent %}
@@ -28,7 +28,7 @@
         }}
         {{
           form.submit(params={
-              "text": "Set up collection"
+              "text": "Set up schema"
           })
         }}
       </form>

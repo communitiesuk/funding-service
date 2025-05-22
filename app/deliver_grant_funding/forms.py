@@ -21,10 +21,10 @@ class GrantForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
-class CollectionForm(FlaskForm):
+class SchemaForm(FlaskForm):
     name = StringField(
-        "What is the name of the collection?",
-        validators=[DataRequired("Enter a collection name")],
+        "What is the name of the schema?",
+        validators=[DataRequired("Enter a schema name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
