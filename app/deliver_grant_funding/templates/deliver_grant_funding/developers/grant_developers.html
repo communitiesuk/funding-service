@@ -31,7 +31,7 @@
             },
             "value": { "text": ( grant.collection_schemas | length | string ) + " preview schemas" },
             "actions": {
-                "items": [{ "text": "Manage", "href": url_for('deliver_grant_funding.grant_developers_schemas', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
+                "items": [{ "text": "Manage", "href": url_for('developers.grant_developers_schemas', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
             },
         }]
     })

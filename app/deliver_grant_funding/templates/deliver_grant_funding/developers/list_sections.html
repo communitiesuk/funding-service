@@ -13,7 +13,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("deliver_grant_funding.manage_schema", grant_id = grant.id, schema_id= schema.id)
+        "href": url_for("developers.manage_schema", grant_id = grant.id, schema_id= schema.id)
     })
   }}
 {% endblock beforeContent %}
@@ -36,7 +36,7 @@
   {% if not schema.sections %}
     <p class="govuk-body">
       This schema has no sections, you can
-      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id = grant.id, schema_id=schema.id) }}">add a section</a>
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_section', grant_id = grant.id, schema_id=schema.id) }}">add a section</a>
       .
     </p>
   {% else %}
@@ -50,12 +50,12 @@
         "text": section.title,
         "actions":[
         {"text":"Move up",
-            "href":url_for('deliver_grant_funding.move_section', grant_id = grant.id, schema_id=schema.id,
+            "href":url_for('developers.move_section', grant_id = grant.id, schema_id=schema.id,
                    section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
-                   {"href":url_for('deliver_grant_funding.move_section', grant_id = grant.id, schema_id=schema.id,
+                   {"href":url_for('developers.move_section', grant_id = grant.id, schema_id=schema.id,
                    section_id = section.id, direction = 'down') ,
                 "text": "Move down","disabled":(loop.index >= schema.sections | length), "post":true},
-                {"href":url_for('deliver_grant_funding.manage_section', grant_id = grant.id, schema_id=schema.id,
+                {"href":url_for('developers.manage_section', grant_id = grant.id, schema_id=schema.id,
                    section_id = section.id),
                 "text": "Manage","post":false}
         ]
@@ -70,7 +70,7 @@
       govukButton({
       "text": "Add a section",
       "classes": "govuk-button--secondary",
-      "href": url_for("deliver_grant_funding.add_section", grant_id = grant.id, schema_id=schema.id)
+      "href": url_for("developers.add_section", grant_id = grant.id, schema_id=schema.id)
       })
     }}
   {% endif %}
