@@ -1,0 +1,39 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+{% extends "developers/access_grant_funding_base.html" %}
+
+{% block pageTitle %}
+  {{ question.text }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("developers.manage_schema", grant_id=collection_helper.grant.id, schema_id=collection_helper.schema.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+<div class="govuk-grid-row">
+  <div class="govuk-grid-column-two-thirds">
+    <div class="app-body__watermark" aria-hidden="true">Developers</div>
+
+    <form method="post" novalidate>
+      {{ form.csrf_token }}
+
+      {% if question.data_type == question_types.TEXT_SINGLE_LINE or question.data_type == question_types.TEXT_MULTI_LINE %}
+      {{ form.question(params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
+      {% elif question.data_type == question_types.INTEGER %}
+      {{ form.question(params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
+      {% endif %}
+
+      {{ form.submit }}
+    </form>
+  </div>
+</div>
+{% endblock content %}

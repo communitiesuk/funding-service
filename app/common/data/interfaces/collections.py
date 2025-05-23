@@ -1,8 +1,11 @@
+import uuid
+from itertools import chain
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload, raiseload, selectinload
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
@@ -61,10 +64,7 @@ def update_collection_schema(schema: CollectionSchema, *, name: str) -> Collecti
 
 
 def get_collection(collection_id: UUID) -> Collection:
-    return db.session.get_one(
-        Collection,
-        collection_id,
-    )
+    return db.session.get_one(Collection, collection_id, options=[joinedload(Collection.collection_schema)])
 
 
 def create_collection(*, schema: CollectionSchema, created_by: User) -> Collection:
@@ -221,3 +221,42 @@ def update_question(question: Question, *, text: str, hint: str | None, name: st
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return question
+
+
+def get_full_collection_schema(
+    collection_id: uuid.UUID,
+    section_id: uuid.UUID | None = None,
+    form_id: uuid.UUID | None = None,
+    question_id: uuid.UUID | None = None,
+) -> tuple[Collection, CollectionSchema, Section | None, Form | None, Question | None]:
+    collection = get_collection(collection_id)
+
+    query = db.session.execute(
+        select(CollectionSchema)
+        .options(
+            # We don't want to fetch actual collection instances here, just the schema, so block those.
+            raiseload(CollectionSchema.collections),
+            # But we do want to get the deeply nested sections, forms and questions.
+            selectinload(CollectionSchema.sections).selectinload(Section.forms).selectinload(Form.questions),
+        )
+        .where(CollectionSchema.id == collection.collection_schema_id)
+    )
+    schema = query.scalar_one()
+
+    section, form, question = None, None, None
+    if section_id:
+        section = next(filter(lambda s: s.id == section_id, schema.sections), None)
+    if form_id:
+        form = next(
+            filter(lambda f: f.id == form_id, chain.from_iterable(section.forms for section in schema.sections)), None
+        )
+    if question_id:
+        question = next(
+            filter(
+                lambda q: q.id == question_id,
+                list(chain.from_iterable(form.questions for section in schema.sections for form in section.forms)),
+            ),
+            None,
+        )
+
+    return collection, schema, section, form, question

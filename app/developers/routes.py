@@ -7,6 +7,7 @@ from flask_login import current_user
 from wtforms import Field
 
 from app.common.auth.decorators import platform_admin_role_required
+from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     create_collection,
@@ -16,6 +17,7 @@ from app.common.data.interfaces.collections import (
     create_section,
     get_collection_schema,
     get_form_by_id,
+    get_full_collection_schema,
     get_question_by_id,
     get_section_by_id,
     move_form_down,
@@ -509,5 +511,35 @@ def edit_question(
 @developers_blueprint.route("/collections/<uuid:collection_id>", methods=["GET"])
 @platform_admin_role_required
 def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
-    collection_helper = CollectionHelper.load(collection_id)
+    collection, *_ = get_full_collection_schema(collection_id=collection_id)
+    collection_helper = CollectionHelper(collection)
     return render_template("developers/collection_tasklist.html", collection_helper=collection_helper)
+
+
+@developers_blueprint.route("/collections/<uuid:collection_id>/<uuid:question_id>", methods=["GET", "POST"])
+@platform_admin_role_required
+def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    collection, schema, section, db_form, question = get_full_collection_schema(
+        collection_id=collection_id, question_id=question_id
+    )
+    assert question is not None
+
+    collection_helper = CollectionHelper(collection)
+    form = build_question_form(question)
+
+    if form.validate_on_submit():
+        next_question = collection_helper.get_next_question(current_question_id=question_id)
+        if next_question:
+            return redirect(
+                url_for("developers.ask_a_question", collection_id=collection_id, question_id=next_question.id)
+            )
+
+        return redirect(url_for("developers.collection_tasklist", collection_id=collection_id))
+
+    return render_template(
+        "developers/ask_a_question.html",
+        collection_helper=collection_helper,
+        form=form,
+        question=question,
+        question_types=QuestionDataType,
+    )

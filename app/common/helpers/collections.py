@@ -1,11 +1,10 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from app.common.data.interfaces.collections import get_collection
 from app.common.data.types import CollectionStatusEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, CollectionSchema, Form, Grant, Question, Section
+    from app.common.data.models import Collection, Form, Grant, Question, Section
 
 
 class CollectionHelper:
@@ -17,27 +16,20 @@ class CollectionHelper:
     """
 
     def __init__(self, collection: "Collection"):
-        self._collection = collection
-
-    @classmethod
-    def load(cls, collection_id: UUID) -> "CollectionHelper":
-        return cls(get_collection(collection_id))
+        self.collection = collection
+        self.schema = collection.collection_schema
 
     @property
     def grant(self) -> "Grant":
-        return self._collection.collection_schema.grant
-
-    @property
-    def schema(self) -> "CollectionSchema":
-        return self._collection.collection_schema
+        return self.schema.grant
 
     @property
     def sections(self) -> list["Section"]:
-        return self._collection.collection_schema.sections
+        return self.schema.sections
 
     @property
     def name(self) -> str:
-        return self._collection.collection_schema.name
+        return self.schema.name
 
     @property
     def status(self) -> str:
@@ -57,3 +49,34 @@ class CollectionHelper:
     def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
         return sorted(form.questions, key=lambda q: q.order)
+
+    def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
+        questions = self.get_ordered_visible_questions_for_form(form)
+        if questions:
+            return questions[0]
+        return None
+
+    def get_form_for_question(self, question_id: UUID) -> "Form":
+        for section in self.schema.sections:
+            for form in section.forms:
+                if any(q.id == question_id for q in form.questions):
+                    return form
+
+        raise ValueError(f"Could not find form for {question_id=} in collection_schema={self.schema.id}")
+
+    def get_next_question(self, current_question_id: UUID) -> Optional["Question"]:
+        """
+        Retrieve the next question that should be shown to the user, or None if this was the last relevant question.
+        """
+        form = self.get_form_for_question(current_question_id)
+        questions = self.get_ordered_visible_questions_for_form(form)
+
+        question_iterator = iter(questions)
+        if not current_question_id:
+            return next(question_iterator, None)
+
+        for question in question_iterator:
+            if question.id == current_question_id:
+                return next(question_iterator, None)
+
+        return None
