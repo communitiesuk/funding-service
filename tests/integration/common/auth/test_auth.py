@@ -169,4 +169,4 @@ class TestSSOSignInView:
     def test_get(self, anonymous_client):
         response = anonymous_client.get(url_for("auth.sso_sign_in"))
         assert response.status_code == 200
-        assert b"Connected and consistent set of funding services" in response.data
+        assert b"A connected and consistent digital service" in response.data
