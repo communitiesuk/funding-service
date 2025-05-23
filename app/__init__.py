@@ -8,7 +8,7 @@ from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 
 from app import logging
 from app.common.data import interfaces
-from app.common.data.models import User
+from app.common.data.models_user import User
 from app.common.filters import format_date, format_date_range, format_datetime, format_datetime_range
 from app.config import get_settings
 from app.extensions import (

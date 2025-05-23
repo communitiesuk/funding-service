@@ -97,6 +97,31 @@ layers = [
   "common : deliver_grant_funding : extensions : healthcheck : services : config : logging : monkeypatch : sentry : types"
 ]
 
+[[tool.importlinter.contracts]]
+name = "DB models should not be used directly by any other parts of the app; queries should go through interfaces instead."
+type = "forbidden"
+source_modules = [
+    "app.deliver_grant_funding",
+    "app.developers",
+    "app.extensions",
+    "app.services",
+    "app.config",
+    "app.healthcheck",
+    "app.logging",
+    "app.monkeypatch",
+    "app.sentry",
+    "app.types",
+]
+# Unable to do `exhaustive` here unfortunately, so we won't get told if new modules are added and we forget to put them
+# in here. C'est la vie.
+# Importantly we don't block `app.common.data.models_user` because this is used in a lot of places to cast Flask's
+# `current_user` to the right thing. Again, alas, not ideal but OK.
+forbidden_modules = [
+    "app.common.data.models",
+]
+# Lots of things import interfaces (correctly); interfaces import models; indirect imports therefore must be allowed
+allow_indirect_imports = true
+
 
 
 [tool.mypy]

@@ -1,7 +1,8 @@
 from uuid import UUID
 
 from app.common.data.interfaces.collections import get_collection
-from app.common.data.models import Collection, CollectionSchema, CollectionStatusEnum, Form, Grant, Question, Section
+from app.common.data.models import Collection, CollectionSchema, Form, Grant, Question, Section
+from app.common.data.types import CollectionStatusEnum
 
 
 class CollectionHelper:

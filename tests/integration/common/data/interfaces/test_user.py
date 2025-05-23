@@ -3,7 +3,8 @@ from sqlalchemy import func, select
 
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
-from app.common.data.models import RoleEnum, User, UserRole
+from app.common.data.models_user import User, UserRole
+from app.common.data.types import RoleEnum
 
 
 class TestGetUser:

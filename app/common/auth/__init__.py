@@ -9,7 +9,7 @@ from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
 from app.common.data.interfaces.user import add_user_role, get_or_create_user
-from app.common.data.models import RoleEnum
+from app.common.data.types import RoleEnum
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
 

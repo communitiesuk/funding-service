@@ -3,7 +3,8 @@ import uuid
 
 from sqlalchemy import func, select, update
 
-from app.common.data.models import MagicLink, User
+from app.common.data.models import MagicLink
+from app.common.data.models_user import User
 from app.extensions import db
 
 

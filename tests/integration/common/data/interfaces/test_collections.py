@@ -19,7 +19,8 @@ from app.common.data.interfaces.collections import (
     update_question,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import CollectionSchema, QuestionDataType
+from app.common.data.models import CollectionSchema
+from app.common.data.types import QuestionDataType
 
 
 def test_get_collection_schema(db_session, factories):

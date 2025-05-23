@@ -4,7 +4,7 @@ from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField
 from wtforms.validators import DataRequired
 
-from app.common.data.models import QuestionDataType
+from app.common.data.types import QuestionDataType
 
 
 def strip_string_if_not_empty(value: str) -> str | None:

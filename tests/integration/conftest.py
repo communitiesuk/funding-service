@@ -24,7 +24,7 @@ from testcontainers.postgres import PostgresContainer
 from werkzeug.test import TestResponse
 
 from app import create_app
-from app.common.data.models import RoleEnum
+from app.common.data.types import RoleEnum
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _precompile_templates
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory

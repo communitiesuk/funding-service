@@ -3,7 +3,7 @@ from flask_login import login_user
 from werkzeug.exceptions import Forbidden
 
 from app.common.auth.decorators import login_required, mhclg_login_required, platform_admin_role_required
-from app.common.data.models import RoleEnum
+from app.common.data.types import RoleEnum
 
 
 class TestLoginRequired:
