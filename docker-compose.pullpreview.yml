@@ -41,7 +41,7 @@ services:
     command: >
       bash -c "
         flask db upgrade & \
-        gunicorn --preload --reload wsgi:app
+        gunicorn --reload wsgi:app
       "
     env_file: .env
     extra_hosts:
