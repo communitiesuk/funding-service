@@ -11,6 +11,7 @@ from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
+from app.common.data.types import json_scalars
 
 
 class RoleEnum(str, enum.Enum):
@@ -49,6 +50,7 @@ class User(BaseModel):
     magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
 
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
+    collections: Mapped[list["Collection"]] = relationship("Collection", back_populates="created_by")
 
     # Required by Flask-Login; should be provided by UserMixin, except that breaks our type hinting
     # when using this class in SQLAlchemy queries. So we've just lifted the key attributes here directly.
@@ -153,6 +155,32 @@ class CollectionSchema(BaseModel):
     )
 
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
+
+
+class CollectionStatusEnum(enum.StrEnum):
+    NOT_STARTED = "Not started"
+
+
+class Collection(BaseModel):
+    __tablename__ = "collection"
+
+    data: Mapped[json_scalars] = mapped_column(default=dict)
+    status: Mapped[CollectionStatusEnum] = mapped_column(
+        SqlEnum(CollectionStatusEnum, name="collection_status_enum", validate_strings=True)
+    )
+
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
+    created_by: Mapped[User] = relationship("User", back_populates="collections")
+
+    collection_schema_id: Mapped[uuid.UUID]
+    collection_schema_version: Mapped[int]
+    collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema")
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["collection_schema_id", "collection_schema_version"], ["collection_schema.id", "collection_schema.version"]
+        ),
+    )
 
 
 class Section(BaseModel):

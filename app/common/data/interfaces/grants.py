@@ -1,6 +1,6 @@
 from typing import Sequence
+from uuid import UUID
 
-from pydantic.v1 import UUID4
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -9,7 +9,7 @@ from app.common.data.models import Grant
 from app.extensions import db
 
 
-def get_grant(grant_id: UUID4) -> Grant:
+def get_grant(grant_id: UUID) -> Grant:
     return db.session.get_one(Grant, grant_id)
 
 

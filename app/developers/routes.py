@@ -1,14 +1,15 @@
 from typing import cast
+from uuid import UUID
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
-from pydantic import UUID4
 from wtforms import Field
 
 from app.common.auth.decorators import mhclg_login_required
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    create_collection,
     create_collection_schema,
     create_form,
     create_question,
@@ -29,8 +30,17 @@ from app.common.data.interfaces.collections import (
     update_section,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.interfaces.temporary import delete_collections_created_by_user
 from app.common.data.models import QuestionDataType, User
-from app.deliver_grant_funding.forms import FormForm, QuestionForm, QuestionTypeForm, SchemaForm, SectionForm
+from app.common.helpers.collections import CollectionHelper
+from app.deliver_grant_funding.forms import (
+    FormForm,
+    QuestionForm,
+    QuestionTypeForm,
+    SchemaForm,
+    SectionForm,
+)
+from app.developers.forms import PreviewCollectionForm
 from app.extensions import auto_commit_after_request
 
 developers_blueprint = Blueprint(name="developers", import_name=__name__, url_prefix="/developers")
@@ -38,14 +48,14 @@ developers_blueprint = Blueprint(name="developers", import_name=__name__, url_pr
 
 @developers_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
 @mhclg_login_required
-def grant_developers(grant_id: UUID4) -> str:
+def grant_developers(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("developers/grant_developers.html", grant=grant)
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/schemas", methods=["GET"])
 @mhclg_login_required
-def grant_developers_schemas(grant_id: UUID4) -> str:
+def grant_developers_schemas(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("developers/list_schemas.html", grant=grant)
 
@@ -53,7 +63,7 @@ def grant_developers_schemas(grant_id: UUID4) -> str:
 @developers_blueprint.route("/grants/<uuid:grant_id>/schemas/set-up", methods=["GET", "POST"])
 @mhclg_login_required
 @auto_commit_after_request
-def setup_schema(grant_id: UUID4) -> ResponseReturnValue:
+def setup_schema(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     form = SchemaForm()
     if form.validate_on_submit():
@@ -70,15 +80,21 @@ def setup_schema(grant_id: UUID4) -> ResponseReturnValue:
 @developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>", methods=["GET", "POST"])
 @mhclg_login_required
 @auto_commit_after_request
-def manage_schema(grant_id: UUID4, schema_id: UUID4) -> ResponseReturnValue:
+def manage_schema(grant_id: UUID, schema_id: UUID) -> ResponseReturnValue:
     schema = get_collection_schema(schema_id)  # TODO: handle collection versioning; this just grabs latest.
-    return render_template("developers/manage_schema.html", grant=schema.grant, schema=schema)
+    form = PreviewCollectionForm()
+    if form.validate_on_submit():
+        delete_collections_created_by_user(grant_id=schema.grant_id, created_by_id=cast(User, current_user).id)
+        collection = create_collection(schema=schema, created_by=cast(User, current_user))
+        return redirect(url_for("developers.collection_tasklist", collection_id=collection.id))
+
+    return render_template("developers/manage_schema.html", grant=schema.grant, schema=schema, form=form)
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/edit", methods=["GET", "POST"])
 @mhclg_login_required
 @auto_commit_after_request
-def edit_schema(grant_id: UUID4, schema_id: UUID4) -> ResponseReturnValue:
+def edit_schema(grant_id: UUID, schema_id: UUID) -> ResponseReturnValue:
     schema = get_collection_schema(schema_id)  # TODO: handle collection versioning; this just grabs latest.
     form = SchemaForm(obj=schema)
     if form.validate_on_submit():
@@ -101,7 +117,7 @@ def edit_schema(grant_id: UUID4, schema_id: UUID4) -> ResponseReturnValue:
 @developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/add", methods=["GET", "POST"])
 @mhclg_login_required
 @auto_commit_after_request
-def add_section(grant_id: UUID4, schema_id: UUID4) -> ResponseReturnValue:
+def add_section(grant_id: UUID, schema_id: UUID) -> ResponseReturnValue:
     collection = get_collection_schema(schema_id)  # TODO: handle collection versioning; this just grabs latest.
     form = SectionForm()
     if form.validate_on_submit():
@@ -121,8 +137,8 @@ def add_section(grant_id: UUID4, schema_id: UUID4) -> ResponseReturnValue:
 @developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/", methods=["GET"])
 @mhclg_login_required
 def list_sections(
-    grant_id: UUID4,
-    schema_id: UUID4,
+    grant_id: UUID,
+    schema_id: UUID,
 ) -> ResponseReturnValue:
     collection_schema = get_collection_schema(schema_id)
     return render_template(
@@ -138,7 +154,7 @@ def list_sections(
 )
 @mhclg_login_required
 @auto_commit_after_request
-def move_section(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, direction: str) -> ResponseReturnValue:
+def move_section(grant_id: UUID, schema_id: UUID, section_id: UUID, direction: str) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
 
     if direction == "up":
@@ -157,9 +173,9 @@ def move_section(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, direction
 )
 @mhclg_login_required
 def manage_section(
-    grant_id: UUID4,
-    schema_id: UUID4,
-    section_id: UUID4,
+    grant_id: UUID,
+    schema_id: UUID,
+    section_id: UUID,
 ) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
     return render_template(
@@ -176,9 +192,7 @@ def manage_section(
 )
 @mhclg_login_required
 @auto_commit_after_request
-def move_form(
-    grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: UUID4, direction: str
-) -> ResponseReturnValue:
+def move_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID, direction: str) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
 
     if direction == "up":
@@ -203,7 +217,7 @@ def move_form(
     methods=["GET"],
 )
 @mhclg_login_required
-def manage_form(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
+def manage_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
 
     return render_template(
@@ -227,7 +241,7 @@ def manage_form(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: U
 )
 @mhclg_login_required
 @auto_commit_after_request
-def edit_section(grant_id: UUID4, schema_id: UUID4, section_id: UUID4) -> ResponseReturnValue:
+def edit_section(grant_id: UUID, schema_id: UUID, section_id: UUID) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
     form = SectionForm(obj=section)
     if form.validate_on_submit():
@@ -261,7 +275,7 @@ def edit_section(grant_id: UUID4, schema_id: UUID4, section_id: UUID4) -> Respon
 )
 @mhclg_login_required
 @auto_commit_after_request
-def add_form(grant_id: UUID4, schema_id: UUID4, section_id: UUID4) -> ResponseReturnValue:
+def add_form(grant_id: UUID, schema_id: UUID, section_id: UUID) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
     form_type = request.args.get("form_type", None)
     if not form_type:
@@ -304,7 +318,7 @@ def add_form(grant_id: UUID4, schema_id: UUID4, section_id: UUID4) -> ResponseRe
 )
 @mhclg_login_required
 @auto_commit_after_request
-def edit_form(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
+def edit_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = FormForm(obj=db_form)
     if wt_form.validate_on_submit():
@@ -340,7 +354,7 @@ def edit_form(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: UUI
     methods=["GET", "POST"],
 )
 @mhclg_login_required
-def choose_question_type(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
+def choose_question_type(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
     if wt_form.validate_on_submit():
@@ -371,7 +385,7 @@ def choose_question_type(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, f
 )
 @mhclg_login_required
 @auto_commit_after_request
-def add_question(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: UUID4) -> ResponseReturnValue:
+def add_question(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
@@ -421,7 +435,7 @@ def add_question(grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: 
 @mhclg_login_required
 @auto_commit_after_request
 def move_question(
-    grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: UUID4, question_id: UUID4, direction: str
+    grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID, direction: str
 ) -> ResponseReturnValue:
     question = get_question_by_id(question_id=question_id)
 
@@ -451,7 +465,7 @@ def move_question(
 @mhclg_login_required
 @auto_commit_after_request
 def edit_question(
-    grant_id: UUID4, schema_id: UUID4, section_id: UUID4, form_id: UUID4, question_id: UUID4
+    grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID
 ) -> ResponseReturnValue:
     question = get_question_by_id(question_id=question_id)
     wt_form = QuestionForm(obj=question)
@@ -484,3 +498,10 @@ def edit_question(
         question=question,
         form=wt_form,
     )
+
+
+@developers_blueprint.route("/collections/<uuid:collection_id>", methods=["GET"])
+@mhclg_login_required
+def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
+    collection_helper = CollectionHelper.load(collection_id)
+    return render_template("developers/collection_tasklist.html", collection_helper=collection_helper)

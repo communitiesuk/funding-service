@@ -1,12 +1,21 @@
 from typing import Any
 from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import CollectionSchema, Form, Grant, Question, QuestionDataType, Section, User
+from app.common.data.models import (
+    Collection,
+    CollectionSchema,
+    CollectionStatusEnum,
+    Form,
+    Grant,
+    Question,
+    QuestionDataType,
+    Section,
+    User,
+)
 from app.common.utils import slugify
 from app.extensions import db
 
@@ -23,7 +32,7 @@ def create_collection_schema(*, name: str, user: User, grant: Grant, version: in
     return schema
 
 
-def get_collection_schema(schema_id: UUID4, version: int | None = None) -> CollectionSchema:
+def get_collection_schema(schema_id: UUID, version: int | None = None) -> CollectionSchema:
     """Get a collection schema by ID and optionally version.
 
     If you do not pass a version, it will retrieve the latest version (ie highest version number).
@@ -50,6 +59,25 @@ def update_collection_schema(schema: CollectionSchema, *, name: str) -> Collecti
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return schema
+
+
+def get_collection(collection_id: UUID) -> Collection:
+    return db.session.get_one(
+        Collection,
+        collection_id,
+    )
+
+
+def create_collection(*, schema: CollectionSchema, created_by: User) -> Collection:
+    collection = Collection(
+        collection_schema=schema,
+        created_by=created_by,
+        data={},
+        status=CollectionStatusEnum.NOT_STARTED,
+    )
+    db.session.add(collection)
+    db.session.flush()
+    return collection
 
 
 def create_section(*, title: str, schema: CollectionSchema) -> Section:
@@ -116,7 +144,7 @@ def move_section_down(section: Section) -> Section:
     return section
 
 
-def get_form_by_id(form_id: UUID4) -> Form:
+def get_form_by_id(form_id: UUID) -> Form:
     return db.session.get_one(Form, form_id)
 
 
@@ -168,7 +196,7 @@ def create_question(form: Form, *, text: str, hint: str, name: str, data_type: Q
     return question
 
 
-def get_question_by_id(question_id: UUID4) -> Question:
+def get_question_by_id(question_id: UUID) -> Question:
     return db.session.get_one(Question, question_id)
 
 

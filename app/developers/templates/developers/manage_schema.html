@@ -75,7 +75,7 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
+    <div class="govuk-grid-column-full govuk-!-margin-bottom-5">
       {% for section in schema.sections %}
         <h2 class="govuk-heading-m">{{ section.title }}</h2>
 
@@ -117,6 +117,14 @@
           })
         }}
       {% endfor %}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.submit(params={"classes": "govuk-button--secondary"}) }}
+      </form>
     </div>
   </div>
 {% endblock content %}

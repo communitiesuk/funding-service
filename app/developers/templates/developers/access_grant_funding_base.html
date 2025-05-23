@@ -1,0 +1,42 @@
+{% extends "common/base.html" %}
+{% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+
+{% set active_item_identifier = "grants" %}
+{% set cspNonce = csp_nonce() %}
+
+
+{#
+common/base.html embeds "Deliver grant funding" in the service navigation. That doesn't feel right here, so this just removes it.
+
+This is only OK because we're in the `developers` package and nothing here should get freely lifted out into real-user-facing things.
+#}
+{% block header %}
+  {{
+    mhclgHeader({
+        "productName": "MHCLG Funding Service",
+        "homepageUrl": "#",
+        "classes": "govuk-header--full-width-border app-!-no-wrap",
+        "navigation": [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if current_user.is_authenticated else [],
+        "navigationClasses": "govuk-header__navigation--end",
+        "assetPath": assetPath
+    })
+  }}
+{% endblock header %}
+
+{% block main %}
+  <div class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}">
+    {% block beforeContent %}
+    {% endblock beforeContent %}
+
+    <main id="main-content" class="govuk-main-wrapper" {%- if mainLang %}lang="{{ mainLang }}"{% endif %}>
+      {% block errorSummary %}
+        {% if form is defined and form.errors %}
+          {{ govukErrorSummary(wtforms_errors(form)) }}
+        {% endif %}
+      {% endblock errorSummary %}
+      {% block content %}
+      {% endblock content %}
+    </main>
+  </div>
+{% endblock %}

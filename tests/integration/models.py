@@ -15,7 +15,9 @@ import factory
 from flask import url_for
 
 from app.common.data.models import (
+    Collection,
     CollectionSchema,
+    CollectionStatusEnum,
     Form,
     Grant,
     MagicLink,
@@ -114,6 +116,24 @@ class _CollectionSchemaFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     grant_id = factory.LazyAttribute(lambda o: "o.grant.id")
     grant = factory.SubFactory(_GrantFactory)
+
+
+class _CollectionFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Collection
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "flush"
+
+    id = factory.LazyFunction(uuid4)
+    data = factory.LazyFunction(dict)
+    status = CollectionStatusEnum.NOT_STARTED
+
+    created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
+    created_by = factory.SubFactory(_UserFactory)
+
+    collection_schema = factory.SubFactory(_CollectionSchemaFactory)
+    collection_schema_id = factory.LazyAttribute(lambda o: o.collection_schema.id)
+    collection_schema_version = factory.LazyAttribute(lambda o: o.collection_schema.version)
 
 
 class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
