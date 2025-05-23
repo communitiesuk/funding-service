@@ -71,6 +71,10 @@ class CollectionSchema(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
+    collections: Mapped[list["Collection"]] = relationship(
+        "Collection", lazy=True, order_by="Collection.created_at_utc", back_populates="collection_schema"
+    )
+
     sections: Mapped[list["Section"]] = relationship(
         "Section", lazy=True, order_by="Section.order", collection_class=ordering_list("order")
     )

@@ -89,6 +89,37 @@ def test_get_collection(db_session, factories):
     assert from_db is not None
 
 
+def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):
+    collection = factories.collection.create()
+    collection_id = collection.id
+    sections = factories.section.create_batch(3, collection_schema=collection.collection_schema)
+    for section in sections:
+        forms = factories.form.create_batch(3, section=section)
+        for form in forms:
+            factories.question.create_batch(3, form=form)
+
+    with track_sql_queries() as queries:
+        from_db = get_collection(collection_id=collection_id, with_full_schema=True)
+    assert from_db is not None
+
+    # Expected queries:
+    # * Load the collection with the schema attached
+    # * Load the sections
+    # * Load the forms
+    # * Load the question
+    assert len(queries) == 4
+
+    # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
+    count = 0
+    with track_sql_queries() as queries:
+        for s in from_db.collection_schema.sections:
+            for f in s.forms:
+                for _q in f.questions:
+                    count += 1
+
+    assert queries == []
+
+
 def test_get_section(db_session, factories):
     cs = factories.collection_schema.create()
     section = factories.section.create(collection_schema=cs)

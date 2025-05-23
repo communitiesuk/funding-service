@@ -7,6 +7,7 @@ from flask_login import current_user
 from wtforms import Field
 
 from app.common.auth.decorators import platform_admin_role_required
+from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     create_collection,
@@ -511,3 +512,37 @@ def edit_question(
 def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
     collection_helper = CollectionHelper.load(collection_id)
     return render_template("developers/collection_tasklist.html", collection_helper=collection_helper)
+
+
+@developers_blueprint.route("/collections/<uuid:collection_id>/<uuid:question_id>", methods=["GET", "POST"])
+@platform_admin_role_required
+def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    collection_helper = CollectionHelper.load(collection_id)
+    question = collection_helper.get_question(question_id)
+    form = build_question_form(question)
+
+    if form.validate_on_submit():
+        next_question = collection_helper.get_next_question(current_question_id=question_id)
+        if next_question:
+            return redirect(
+                url_for("developers.ask_a_question", collection_id=collection_id, question_id=next_question.id)
+            )
+
+        return redirect(url_for("developers.collection_tasklist", collection_id=collection_id))
+
+    previous_question = collection_helper.get_previous_question(current_question_id=question_id)
+    back_link = (
+        url_for(
+            "developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=previous_question.id
+        )
+        if previous_question
+        else url_for("developers.collection_tasklist", collection_id=collection_helper.collection.id)
+    )
+    return render_template(
+        "developers/ask_a_question.html",
+        back_link=back_link,
+        collection_helper=collection_helper,
+        form=form,
+        question=question,
+        question_types=QuestionDataType,
+    )
