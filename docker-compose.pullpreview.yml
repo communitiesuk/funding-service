@@ -91,6 +91,7 @@ services:
     environment:
       FLASK_APP: "stubs.sso"
       WERKZEUG_DEBUG_PIN: off
+      FLASK_ENV: pullpreview
     networks:
       ofs:
         aliases:
