@@ -56,6 +56,7 @@ dev = [
     "boto3==1.38.11",
     "types-boto3==1.38.11",
     "freezegun==1.5.1",
+    "import-linter>=2.3",
 ]
 
 [tool.ruff]
@@ -79,6 +80,24 @@ exclude = [
     "__pycache__",
 ]
 mccabe.max-complexity = 12
+
+
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true
+exclude_type_checking_guards = true
+
+[[tool.importlinter.contracts]]
+name = "Block importing anything from the `developers` package in the rest of the app."
+type = "layers"
+exhaustive = true
+containers = ["app"]
+layers = [
+  "developers",
+  "common : deliver_grant_funding : extensions : healthcheck : services : config : logging : monkeypatch : sentry : types"
+]
+
+
 
 [tool.mypy]
 strict = true

@@ -74,3 +74,18 @@ jobs:
         run: uv sync
       - name: run type checking
         run: uv run mypy
+
+
+  lint_imports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          enable-cache: true
+      - name: install dependencies
+        run: uv sync
+      - name: run imports linting
+        run: uv run lint-imports

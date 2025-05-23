@@ -37,3 +37,8 @@ repos:
         types: [python]
         entry: uv run mypy
         pass_filenames: false
+
+  - repo: https://github.com/seddonym/import-linter
+    rev: v2.3
+    hooks:
+      - id: import-linter
