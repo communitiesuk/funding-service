@@ -9,7 +9,8 @@ This file should be removed once the scaffolding is complete and some domain ski
 The only place that should import from here is the `app.developers` package.
 """
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlalchemy import delete
 
 from app.common.data.models import (
@@ -19,7 +20,7 @@ from app.common.data.models import (
 from app.extensions import db
 
 
-def delete_collections_created_by_user(*, grant_id: UUID4, created_by_id: UUID4) -> None:
+def delete_collections_created_by_user(*, grant_id: UUID, created_by_id: UUID) -> None:
     db.session.execute(
         delete(Collection).where(
             Collection.collection_schema_id == CollectionSchema.id,

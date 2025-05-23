@@ -1,4 +1,4 @@
-from pydantic import UUID4
+from uuid import UUID
 
 from app.common.data.interfaces.collections import get_collection
 from app.common.data.models import Collection, CollectionSchema, CollectionStatusEnum, Form, Grant, Question, Section
@@ -16,7 +16,7 @@ class CollectionHelper:
         self._collection = collection
 
     @classmethod
-    def load(cls, collection_id: UUID4) -> "CollectionHelper":
+    def load(cls, collection_id: UUID) -> "CollectionHelper":
         return cls(get_collection(collection_id))
 
     @property

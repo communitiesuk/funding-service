@@ -1,6 +1,7 @@
+from uuid import UUID
+
 from flask import Blueprint, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
-from pydantic import UUID4
 from werkzeug import Response
 from wtforms.fields.core import Field
 
@@ -40,14 +41,14 @@ def list_grants() -> str:
 
 @deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
 @mhclg_login_required
-def view_grant(grant_id: UUID4) -> str:
+def view_grant(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/settings", methods=["GET"])
 @mhclg_login_required
-def grant_settings(grant_id: UUID4) -> str:
+def grant_settings(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_settings.html", grant=grant)
 
@@ -55,7 +56,7 @@ def grant_settings(grant_id: UUID4) -> str:
 @deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/change-name", methods=["GET", "POST"])
 @mhclg_login_required
 @auto_commit_after_request
-def grant_change_name(grant_id: UUID4) -> str | Response:
+def grant_change_name(grant_id: UUID) -> str | Response:
     grant = interfaces.grants.get_grant(grant_id)
     form = GrantForm(obj=grant)
     if form.validate_on_submit():
