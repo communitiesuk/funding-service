@@ -14,7 +14,6 @@ from app.common.data.interfaces.collections import (
     create_form,
     create_question,
     create_section,
-    get_collection,
     get_collection_schema,
     get_form_by_id,
     get_question_by_id,
@@ -33,6 +32,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.temporary import delete_collections_created_by_user
 from app.common.data.models import QuestionDataType, User
+from app.common.helpers.collections import CollectionHelper
 from app.deliver_grant_funding.forms import (
     FormForm,
     QuestionForm,
@@ -505,5 +505,5 @@ def edit_question(
 @developers_blueprint.route("/collections/<uuid:collection_id>", methods=["GET"])
 @mhclg_login_required
 def collection_tasklist(collection_id: UUID4) -> ResponseReturnValue:
-    collection = get_collection(collection_id)
-    return render_template("developers/collection_tasklist.html", collection=collection)
+    collection_helper = CollectionHelper.load(collection_id)
+    return render_template("developers/collection_tasklist.html", collection_helper=collection_helper)

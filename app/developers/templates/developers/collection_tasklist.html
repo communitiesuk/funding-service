@@ -6,14 +6,14 @@
 {% extends "developers/access_grant_funding_base.html" %}
 
 {% block pageTitle %}
-  Collection for {{ collection.collection_schema.name }} - MHCLG Funding Service
+  Collection for {{ collection_helper.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% block beforeContent %}
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_schema", grant_id=collection.collection_schema.grant_id, schema_id=collection.collection_schema_id)
+        "href": url_for("developers.manage_schema", grant_id=collection_helper.grant.id, schema_id=collection_helper.schema.id)
     })
   }}
 {% endblock beforeContent %}
@@ -24,26 +24,27 @@
     <div class="app-body__watermark" aria-hidden="true">Developers</div>
 
     <h1 class="govuk-heading-l">
-      <span class="govuk-caption-l">{{ collection.collection_schema.name }}</span>
+      <span class="govuk-caption-l">{{ collection_helper.name }}</span>
       Collection
     </h1>
 
     {# NOTE: Should we have this as a custom component or macro-ize it? #}
     <dl class="app-metadata">
       <dt class="app-metadata__key">Status:</dt>
-      <dd class="app-metadata__value">{{ govukTag({"text": "Not started", "classes": "govuk-tag--grey"}) }}</dd>
+      <dd class="app-metadata__value">{{ govukTag({"text": collection_helper.status, "classes": "govuk-tag--grey"}) }}</dd>
     </dl>
 
     <p class="govuk-body">None of the sections have been completed.</p>
 
-    {% for section in collection.collection_schema.sections %}
+    {% for section in collection_helper.get_ordered_visible_sections() %}
       <h2 class="govuk-heading-m">{{ section.title }}</h2>
 
-      {% if not section.forms %}
+      {% set forms = collection_helper.get_ordered_visible_forms_for_section(section) %}
+      {% if not forms %}
         <p class="govuk-body">This section has no forms.</p>
       {% else %}
         {% set rows=[] %}
-        {% for form in section.forms %}
+        {% for form in forms %}
           {%
             do rows.append({
                   "title": {
@@ -51,7 +52,7 @@
                   },
                 "status": {
                   "tag": {
-                    "text": "Not started",
+                    "text": collection_helper.get_status_for_form(form),
                     "classes": "govuk-tag govuk-tag--grey"
                   },
                 },

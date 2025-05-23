@@ -62,8 +62,8 @@ def update_collection_schema(schema: CollectionSchema, *, name: str) -> Collecti
     return schema
 
 
-def get_collection(collection_id: UUID4) -> Collection | None:
-    return db.session.get(
+def get_collection(collection_id: UUID4) -> Collection:
+    return db.session.get_one(
         Collection,
         collection_id,
     )
