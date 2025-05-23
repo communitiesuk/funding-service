@@ -123,6 +123,27 @@ forbidden_modules = [
 allow_indirect_imports = true
 
 
+[[tool.importlinter.contracts]]
+name = "Temporary interfaces are intended for use in the `developers` package only and should not be used directly by any other parts of the app."
+type = "forbidden"
+source_modules = [
+    "app.deliver_grant_funding",
+    "app.extensions",
+    "app.services",
+    "app.config",
+    "app.healthcheck",
+    "app.logging",
+    "app.monkeypatch",
+    "app.sentry",
+    "app.types",
+]
+# Unable to do `exhaustive` here unfortunately, so we won't get told if new modules are added and we forget to put them
+# in here. C'est la vie.
+forbidden_modules = [
+    "app.common.data.interfaces.temporary",
+]
+
+
 
 [tool.mypy]
 strict = true
