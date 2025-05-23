@@ -5,7 +5,7 @@ from flask import abort, current_app, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
 
-from app.common.data.models import RoleEnum, User
+from app.common.data.models import User
 
 
 def login_required[**P](
@@ -47,11 +47,7 @@ def platform_admin_role_required[**P](
         # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
         user = cast(User, current_user)
 
-        is_platform_admin = any(
-            role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id is None
-            for role in user.roles
-        )
-        if not is_platform_admin:
+        if not user.is_platform_admin:
             abort(403)
 
         return func(*args, **kwargs)

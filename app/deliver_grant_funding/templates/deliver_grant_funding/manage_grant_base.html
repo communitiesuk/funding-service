@@ -16,13 +16,17 @@
           "key": "grant_settings",
           "href": url_for("deliver_grant_funding.grant_settings", grant_id=grant.id)
       },
-      {
-          "text": "Developers",
-          "key": "grant_developers",
-          "href": url_for("developers.grant_developers", grant_id=grant.id)
-      }
   ]
 %}
+
+{% if current_user.is_platform_admin %}
+  {% do settingsNav.append({
+      "text": "Developers",
+      "key": "grant_developers",
+      "href": url_for("developers.grant_developers", grant_id=grant.id)
+  })
+  %}
+{% endif %}
 
 {% block main %}
   <div class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}">

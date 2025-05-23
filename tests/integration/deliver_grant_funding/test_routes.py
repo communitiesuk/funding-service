@@ -112,9 +112,9 @@ def test_create_grant(authenticated_client, db_session):
     )
 
 
-def test_create_collection_get(authenticated_client, factories, templates_rendered):
+def test_create_collection_get(authenticated_platform_admin_client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = authenticated_client.get(
+    result = authenticated_platform_admin_client.get(
         url_for("developers.setup_schema", grant_id=grant.id),
     )
     assert result.status_code == 200
@@ -123,10 +123,10 @@ def test_create_collection_get(authenticated_client, factories, templates_render
     assert soup.h1.text.strip() == "What is the name of the schema?"
 
 
-def test_create_collection_post(authenticated_client, factories, db_session):
+def test_create_collection_post(authenticated_platform_admin_client, factories, db_session):
     grant = factories.grant.create()
     collection_form = SchemaForm(name="My test collection")
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for("developers.setup_schema", grant_id=grant.id),
         data=collection_form.data,
     )
@@ -137,11 +137,11 @@ def test_create_collection_post(authenticated_client, factories, db_session):
     assert len(grant_from_db.collection_schemas) == 1
 
 
-def test_create_collection_post_duplicate_name(authenticated_client, factories, db_session):
+def test_create_collection_post_duplicate_name(authenticated_platform_admin_client, factories, db_session):
     grant = factories.grant.create()
     factories.collection_schema.create(name="My test collection", grant=grant)
     collection_form = SchemaForm(name="My test collection")
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for("developers.setup_schema", grant_id=grant.id),
         data=collection_form.data,
     )
@@ -153,9 +153,9 @@ def test_create_collection_post_duplicate_name(authenticated_client, factories, 
     assert soup.find_all("a", href="#name")[0].text.strip() == "Name already in use"
 
 
-def test_create_section_get(authenticated_client, factories, templates_rendered):
+def test_create_section_get(authenticated_platform_admin_client, factories, templates_rendered):
     schema = factories.collection_schema.create()
-    result = authenticated_client.get(
+    result = authenticated_platform_admin_client.get(
         url_for("developers.add_section", grant_id=schema.grant.id, schema_id=schema.id),
     )
     assert result.status_code == 200
@@ -164,10 +164,10 @@ def test_create_section_get(authenticated_client, factories, templates_rendered)
     assert soup.h1.text.strip() == "What is the name of the section?"
 
 
-def test_create_section_post(authenticated_client, factories, db_session):
+def test_create_section_post(authenticated_platform_admin_client, factories, db_session):
     schema = factories.collection_schema.create()
     section_form = SectionForm(title="My test section")
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for("developers.add_section", grant_id=schema.grant.id, schema_id=schema.id),
         data=section_form.data,
     )
@@ -178,11 +178,11 @@ def test_create_section_post(authenticated_client, factories, db_session):
     assert len(collection_from_db.sections) == 1
 
 
-def test_create_section_post_duplicate_name(authenticated_client, factories, db_session):
+def test_create_section_post_duplicate_name(authenticated_platform_admin_client, factories, db_session):
     schema = factories.collection_schema.create()
     factories.section.create(title="My test section", collection_schema=schema)
     section_form = SectionForm(title="My test section")
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for("developers.add_section", grant_id=schema.grant.id, schema_id=schema.id),
         data=section_form.data,
     )
@@ -193,9 +193,9 @@ def test_create_section_post_duplicate_name(authenticated_client, factories, db_
     assert soup.find_all("a", href="#title")[0].text.strip() == "Title already in use"
 
 
-def test_create_form_get(authenticated_client, factories, templates_rendered):
+def test_create_form_get(authenticated_platform_admin_client, factories, templates_rendered):
     section = factories.section.create()
-    result = authenticated_client.get(
+    result = authenticated_platform_admin_client.get(
         url_for(
             "developers.add_form",
             grant_id=section.collection_schema.grant.id,
@@ -208,7 +208,7 @@ def test_create_form_get(authenticated_client, factories, templates_rendered):
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h1.text.strip() == "Add a form"
 
-    result = authenticated_client.get(
+    result = authenticated_platform_admin_client.get(
         url_for(
             "developers.add_form",
             grant_id=section.collection_schema.grant.id,
@@ -223,10 +223,10 @@ def test_create_form_get(authenticated_client, factories, templates_rendered):
     assert soup.h1.text.strip() == "What is the name of the form?"
 
 
-def test_create_form_post(authenticated_client, factories, db_session):
+def test_create_form_post(authenticated_platform_admin_client, factories, db_session):
     section = factories.section.create()
     form_form = FormForm(title="My test form")
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.add_form",
             grant_id=section.collection_schema.grant.id,
@@ -248,11 +248,11 @@ def test_create_form_post(authenticated_client, factories, db_session):
     assert len(section_from_db.forms) == 1
 
 
-def test_create_form_post_duplicate_name(authenticated_client, factories, db_session):
+def test_create_form_post_duplicate_name(authenticated_platform_admin_client, factories, db_session):
     section = factories.section.create()
     factories.form.create(title="My test form", section=section)
     form_form = FormForm(title="My test form")
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.add_form",
             grant_id=section.collection_schema.grant.id,
@@ -269,12 +269,12 @@ def test_create_form_post_duplicate_name(authenticated_client, factories, db_ses
     assert soup.find_all("a", href="#title")[0].text.strip() == "Title already in use"
 
 
-def test_move_section(authenticated_client, factories, db_session):
+def test_move_section(authenticated_platform_admin_client, factories, db_session):
     schema = factories.collection_schema.create()
     section1 = factories.section.create(collection_schema=schema, order=0)
     section2 = factories.section.create(collection_schema=schema, order=1)
 
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_section",
             grant_id=schema.grant.id,
@@ -296,7 +296,7 @@ def test_move_section(authenticated_client, factories, db_session):
     assert section1_from_db.order == 1
     assert section2_from_db.order == 0
 
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_section",
             grant_id=schema.grant.id,
@@ -318,7 +318,7 @@ def test_move_section(authenticated_client, factories, db_session):
     assert section1_from_db.order == 0
     assert section2_from_db.order == 1
 
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_section",
             grant_id=schema.grant.id,
@@ -330,11 +330,11 @@ def test_move_section(authenticated_client, factories, db_session):
     assert result.status_code == 400
 
 
-def test_move_form(authenticated_client, factories, db_session):
+def test_move_form(authenticated_platform_admin_client, factories, db_session):
     section = factories.section.create()
     form1 = factories.form.create(section=section, order=0)
     form2 = factories.form.create(section=section, order=1)
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_form",
             grant_id=section.collection_schema.grant.id,
@@ -356,7 +356,7 @@ def test_move_form(authenticated_client, factories, db_session):
     form2_from_db = db_session.scalars(select(Form).where(Form.id == form2.id)).one()
     assert form1_from_db.order == 1
     assert form2_from_db.order == 0
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_form",
             grant_id=section.collection_schema.grant.id,
@@ -379,7 +379,7 @@ def test_move_form(authenticated_client, factories, db_session):
     assert form1_from_db.order == 0
     assert form2_from_db.order == 1
 
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_form",
             grant_id=section.collection_schema.grant.id,
@@ -392,11 +392,11 @@ def test_move_form(authenticated_client, factories, db_session):
     assert result.status_code == 400
 
 
-def test_move_question(authenticated_client, factories, db_session):
+def test_move_question(authenticated_platform_admin_client, factories, db_session):
     form = factories.form.create()
     question1 = factories.question.create(form=form, order=0)
     question2 = factories.question.create(form=form, order=1)
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_question",
             grant_id=form.section.collection_schema.grant.id,
@@ -422,7 +422,7 @@ def test_move_question(authenticated_client, factories, db_session):
     assert question1_from_db.order == 1
     assert question2_from_db.order == 0
 
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_question",
             grant_id=form.section.collection_schema.grant.id,
@@ -448,7 +448,7 @@ def test_move_question(authenticated_client, factories, db_session):
     assert question1_from_db.order == 0
     assert question2_from_db.order == 1
 
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_question",
             grant_id=form.section.collection_schema.grant.id,
@@ -462,9 +462,9 @@ def test_move_question(authenticated_client, factories, db_session):
     assert result.status_code == 400
 
 
-def test_create_question_choose_type_get(authenticated_client, factories):
+def test_create_question_choose_type_get(authenticated_platform_admin_client, factories):
     form = factories.form.create()
-    result = authenticated_client.get(
+    result = authenticated_platform_admin_client.get(
         url_for(
             "developers.choose_question_type",
             grant_id=form.section.collection_schema.grant.id,
@@ -479,10 +479,10 @@ def test_create_question_choose_type_get(authenticated_client, factories):
     assert soup.h1.text.strip() == "What is the type of the question?"
 
 
-def test_create_question_choose_type_post(authenticated_client, factories):
+def test_create_question_choose_type_post(authenticated_platform_admin_client, factories):
     form = factories.form.create()
     wt_form = QuestionTypeForm(question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name)
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.choose_question_type",
             grant_id=form.section.collection_schema.grant.id,
@@ -504,10 +504,10 @@ def test_create_question_choose_type_post(authenticated_client, factories):
     )
 
 
-def test_create_question_choose_type_post_error(authenticated_client, factories):
+def test_create_question_choose_type_post_error(authenticated_platform_admin_client, factories):
     form = factories.form.create()
     wt_form = QuestionTypeForm()
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.choose_question_type",
             grant_id=form.section.collection_schema.grant.id,
@@ -524,9 +524,9 @@ def test_create_question_choose_type_post_error(authenticated_client, factories)
     assert soup.find_all("a", href="#question type")[0].text.strip() == "Select a question type"
 
 
-def test_add_text_question_get(authenticated_client, factories):
+def test_add_text_question_get(authenticated_platform_admin_client, factories):
     form = factories.form.create()
-    result = authenticated_client.get(
+    result = authenticated_platform_admin_client.get(
         url_for(
             "developers.add_question",
             grant_id=form.section.collection_schema.grant.id,
@@ -547,10 +547,10 @@ def test_add_text_question_get(authenticated_client, factories):
     )
 
 
-def test_add_text_question_post(authenticated_client, factories, db_session):
+def test_add_text_question_post(authenticated_platform_admin_client, factories, db_session):
     form = factories.form.create()
     wt_form = QuestionForm(text="Text question 1", hint="some hint text", name="question 1")
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.add_question",
             grant_id=form.section.collection_schema.grant.id,
@@ -576,11 +576,11 @@ def test_add_text_question_post(authenticated_client, factories, db_session):
     assert form_from_db.questions[0].data_type == QuestionDataType.TEXT_SINGLE_LINE
 
 
-def test_add_text_question_post_duplicate_text(authenticated_client, factories, db_session):
+def test_add_text_question_post_duplicate_text(authenticated_platform_admin_client, factories, db_session):
     form = factories.form.create()
     factories.question.create(form=form, text="duplicate text")
     wt_form = QuestionForm(text="duplicate text", hint="some hint text", name="question 1")
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.add_question",
             grant_id=form.section.collection_schema.grant.id,
@@ -599,10 +599,10 @@ def test_add_text_question_post_duplicate_text(authenticated_client, factories, 
     assert soup.find_all("a", href="#text")[0].text.strip() == "Text already in use"
 
 
-def test_edit_question_get(authenticated_client, factories):
+def test_edit_question_get(authenticated_platform_admin_client, factories):
     form = factories.form.create()
     question = factories.question.create(form=form, text="Test Question", hint="Test Hint", name="Test Question Name")
-    result = authenticated_client.get(
+    result = authenticated_platform_admin_client.get(
         url_for(
             "developers.edit_question",
             grant_id=form.section.collection_schema.grant.id,
@@ -618,11 +618,11 @@ def test_edit_question_get(authenticated_client, factories):
     assert soup.h1.text.strip() == "Edit question"
 
 
-def test_edit_question_post(authenticated_client, factories, db_session):
+def test_edit_question_post(authenticated_platform_admin_client, factories, db_session):
     form = factories.form.create()
     question = factories.question.create(form=form, text="Test Question", hint="Test Hint", name="Test Question Name")
     wt_form = QuestionForm(text="Updated Question", hint="Updated Hint", name="Updated Question Name")
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for(
             "developers.edit_question",
             grant_id=form.section.collection_schema.grant.id,

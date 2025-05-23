@@ -66,6 +66,14 @@ class User(BaseModel):
     def is_anonymous(self) -> bool:
         return False
 
+    @property
+    def is_platform_admin(self) -> bool:
+        is_platform_admin = any(
+            role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id is None
+            for role in self.roles
+        )
+        return is_platform_admin
+
     def get_id(self) -> str:
         return str(self.id)
 
