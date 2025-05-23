@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.common.data.models import RoleEnum
+from app.common.data.types import RoleEnum
 
 
 class TestUserRoleConstraints:

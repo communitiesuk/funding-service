@@ -8,14 +8,13 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
     CollectionSchema,
-    CollectionStatusEnum,
     Form,
     Grant,
     Question,
-    QuestionDataType,
     Section,
-    User,
 )
+from app.common.data.models_user import User
+from app.common.data.types import CollectionStatusEnum, QuestionDataType
 from app.common.utils import slugify
 from app.extensions import db
 

@@ -3,7 +3,8 @@ from bs4 import BeautifulSoup
 from flask import url_for
 from sqlalchemy import select
 
-from app.common.data.models import CollectionSchema, Form, Grant, Question, QuestionDataType, Section
+from app.common.data.models import CollectionSchema, Form, Grant, Question, Section
+from app.common.data.types import QuestionDataType
 from app.deliver_grant_funding.forms import (
     FormForm,
     GrantForm,

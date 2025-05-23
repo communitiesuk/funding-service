@@ -17,17 +17,15 @@ from flask import url_for
 from app.common.data.models import (
     Collection,
     CollectionSchema,
-    CollectionStatusEnum,
     Form,
     Grant,
     MagicLink,
     Organisation,
     Question,
-    QuestionDataType,
     Section,
-    User,
-    UserRole,
 )
+from app.common.data.models_user import User, UserRole
+from app.common.data.types import CollectionStatusEnum, QuestionDataType
 from app.extensions import db
 
 

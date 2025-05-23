@@ -4,7 +4,8 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
-from app.common.data.models import RoleEnum, User, UserRole
+from app.common.data.models_user import User, UserRole
+from app.common.data.types import RoleEnum
 from app.extensions import db
 
 

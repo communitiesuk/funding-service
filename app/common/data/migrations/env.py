@@ -44,6 +44,7 @@ def get_engine_url() -> str:
 
 from app.common.data.base import BaseModel  # noqa
 import app.common.data.models  # noqa  # loads the actual models for alembic/flask-migrate to parse
+import app.common.data.models_user  # noqa  # loads the actual models for alembic/flask-migrate to parse
 
 target_metadata = BaseModel.metadata
 

@@ -5,7 +5,7 @@ from flask import abort, current_app, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
 
-from app.common.data.models import User
+from app.common.data.models_user import User
 
 
 def login_required[**P](
