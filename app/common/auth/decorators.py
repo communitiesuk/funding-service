@@ -36,3 +36,20 @@ def mhclg_login_required[**P](
         return func(*args, **kwargs)
 
     return login_required(wrapper)
+
+
+def platform_admin_role_required[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        # This decorator is itself wrapped by `mhclg_login_required`, so we know that `current_user` exists and is
+        # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
+        user = cast(User, current_user)
+
+        if not user.is_platform_admin:
+            abort(403)
+
+        return func(*args, **kwargs)
+
+    return mhclg_login_required(wrapper)

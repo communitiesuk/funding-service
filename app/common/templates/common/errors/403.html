@@ -1,0 +1,20 @@
+{% extends "common/base.html" %}
+
+{% block pageTitle %}
+Sorry, you don't currently have permission to access this page
+{% endblock pageTitle %}
+
+{% block content %}
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-l">Sorry, you don't currently have permission to access this page</h1>
+        <p class="govuk-body">
+            If you believe this is incorrect, please contact us through our
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support
+                desk</a> if you
+            need help.
+        </p>
+        <p class="govuk-body">Monday to Friday: 9am to 5pm (except public holidays).</p>
+    </div>
+</div>
+{% endblock content %}

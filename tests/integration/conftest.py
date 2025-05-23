@@ -24,6 +24,7 @@ from testcontainers.postgres import PostgresContainer
 from werkzeug.test import TestResponse
 
 from app import create_app
+from app.common.data.models import RoleEnum
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _precompile_templates
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
@@ -266,6 +267,22 @@ def authenticated_client(
     email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
 
     user = factories.user.create(email=email)
+
+    login_user(user)
+
+    yield anonymous_client
+
+
+@pytest.fixture()
+def authenticated_platform_admin_client(
+    anonymous_client: FlaskClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FlaskClient, None, None]:
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
+    db_session.commit()
 
     login_user(user)
 

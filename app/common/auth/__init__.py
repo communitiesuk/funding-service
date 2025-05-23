@@ -8,7 +8,8 @@ from flask_login import login_user, logout_user
 from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
-from app.common.data.interfaces.user import get_or_create_user
+from app.common.data.interfaces.user import add_user_role, get_or_create_user
+from app.common.data.models import RoleEnum
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
 
@@ -93,6 +94,9 @@ def sso_get_token() -> ResponseReturnValue:
     sso_user = result["id_token_claims"]
 
     user = get_or_create_user(email_address=sso_user["preferred_username"])
+
+    if "FSD_ADMIN" in sso_user["roles"]:
+        add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
 
     session.pop("flow", None)
 

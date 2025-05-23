@@ -66,6 +66,14 @@ class User(BaseModel):
     def is_anonymous(self) -> bool:
         return False
 
+    @property
+    def is_platform_admin(self) -> bool:
+        is_platform_admin = any(
+            role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id is None
+            for role in self.roles
+        )
+        return is_platform_admin
+
     def get_id(self) -> str:
         return str(self.id)
 
@@ -92,7 +100,14 @@ class UserRole(BaseModel):
     grant: Mapped[Grant] = relationship("Grant", back_populates="roles")
 
     __table_args__ = (
-        UniqueConstraint("user_id", "organisation_id", "grant_id", "role", name="uq_user_org_grant_role"),
+        UniqueConstraint(
+            "user_id",
+            "organisation_id",
+            "grant_id",
+            "role",
+            name="uq_user_org_grant_role",
+            postgresql_nulls_not_distinct=True,
+        ),
         Index("ix_user_roles_user_id", "user_id"),
         Index("ix_user_roles_organisation_id", "organisation_id"),
         Index("ix_user_roles_grant_id", "grant_id"),
