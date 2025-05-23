@@ -101,6 +101,11 @@ layers = [
 name = "DB models should not be used directly by any other parts of the app; queries should go through interfaces instead."
 type = "forbidden"
 source_modules = [
+    "app.common.auth",
+    "app.common.helpers",
+    "app.common.security",
+    "app.common.filters",
+    "app.common.utils",
     "app.deliver_grant_funding",
     "app.developers",
     "app.extensions",
@@ -118,6 +123,9 @@ source_modules = [
 # `current_user` to the right thing. Again, alas, not ideal but OK.
 forbidden_modules = [
     "app.common.data.models",
+]
+ignore_imports = [
+    "app.common.helpers.collections -> app.common.data.models"
 ]
 # Lots of things import interfaces (correctly); interfaces import models; indirect imports therefore must be allowed
 allow_indirect_imports = true

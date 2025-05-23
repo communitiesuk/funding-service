@@ -1,8 +1,11 @@
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from app.common.data.interfaces.collections import get_collection
-from app.common.data.models import Collection, CollectionSchema, Form, Grant, Question, Section
 from app.common.data.types import CollectionStatusEnum
+
+if TYPE_CHECKING:
+    from app.common.data.models import Collection, CollectionSchema, Form, Grant, Question, Section
 
 
 class CollectionHelper:
@@ -13,7 +16,7 @@ class CollectionHelper:
     conditionals, routing, storing+retrieving data, etc in one place, consistently.
     """
 
-    def __init__(self, collection: Collection):
+    def __init__(self, collection: "Collection"):
         self._collection = collection
 
     @classmethod
@@ -21,15 +24,15 @@ class CollectionHelper:
         return cls(get_collection(collection_id))
 
     @property
-    def grant(self) -> Grant:
+    def grant(self) -> "Grant":
         return self._collection.collection_schema.grant
 
     @property
-    def schema(self) -> CollectionSchema:
+    def schema(self) -> "CollectionSchema":
         return self._collection.collection_schema
 
     @property
-    def sections(self) -> list[Section]:
+    def sections(self) -> list["Section"]:
         return self._collection.collection_schema.sections
 
     @property
@@ -40,17 +43,17 @@ class CollectionHelper:
     def status(self) -> str:
         return CollectionStatusEnum.NOT_STARTED
 
-    def get_ordered_visible_sections(self) -> list[Section]:
+    def get_ordered_visible_sections(self) -> list["Section"]:
         """Returns the visible, ordered sections based upon the current state of this collection."""
         return sorted(self.sections, key=lambda s: s.order)
 
-    def get_status_for_form(self, form: Form) -> str:
+    def get_status_for_form(self, form: "Form") -> str:
         return CollectionStatusEnum.NOT_STARTED
 
-    def get_ordered_visible_forms_for_section(self, section: Section) -> list[Form]:
+    def get_ordered_visible_forms_for_section(self, section: "Section") -> list["Form"]:
         """Returns the visible, ordered forms for a given section based upon the current state of this collection."""
         return sorted(section.forms, key=lambda f: f.order)
 
-    def get_ordered_visible_questions_for_form(self, form: Form) -> list[Question]:
+    def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
         return sorted(form.questions, key=lambda q: q.order)
