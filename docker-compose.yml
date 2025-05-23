@@ -68,8 +68,10 @@ services:
       uv run flask run --host 0.0.0.0 --port 4005 --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
     environment:
-      FLASK_APP: "stubs.sso"
+      FLASK_APP: "stubs.sso:create_sso_stub_app"
       WERKZEUG_DEBUG_PIN: off
+      ASSETS_VITE_LIVE_ENABLED: true
+      FLASK_ENV: local
     networks:
       ofs:
         aliases:

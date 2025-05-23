@@ -5,3 +5,7 @@ ${PULLPREVIEW_PUBLIC_DNS}:443 {
 
     reverse_proxy web:8080
 }
+
+sso.${PULLPREVIEW_PUBLIC_DNS}:443 {
+    reverse_proxy sso:8080
+}

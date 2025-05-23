@@ -44,6 +44,8 @@ services:
         gunicorn wsgi:app
       "
     env_file: .env
+    extra_hosts:
+      - "sso.${PULLPREVIEW_PUBLIC_DNS}:host-gateway"
     environment:
       FLASK_ENV: pullpreview
       DATABASE_HOST: "db"
@@ -53,6 +55,7 @@ services:
       SECRET_KEY: unsafe  # pragma: allowlist secret
       SERVER_NAME: ${PULLPREVIEW_PUBLIC_DNS}
       DEBUG_TB_ENABLED: true
+      AZURE_AD_BASE_URL: https://sso.${PULLPREVIEW_PUBLIC_DNS}/
       # Removes the ConfigPanel, which could show sensitive configuration.
       DEBUG_TB_PANELS: |
         [
@@ -71,6 +74,28 @@ services:
       - db
     networks:
       - ofs
+
+  sso:
+    build: .
+    volumes:
+      - .:/app
+      - '/app/.venv' # Don't overwrite this directory with local .venv because uv links won't translate in the container
+    ports:
+      - "8080" # application
+    stdin_open: true
+    tty: true
+    command: >
+      bash -c "
+      gunicorn wsgi_sso_stub:app
+      "
+    environment:
+      FLASK_APP: "stubs.sso"
+      WERKZEUG_DEBUG_PIN: off
+      FLASK_ENV: pullpreview
+    networks:
+      ofs:
+        aliases:
+          - sso.${PULLPREVIEW_PUBLIC_DNS}
 
 volumes:
   postgres_data:
