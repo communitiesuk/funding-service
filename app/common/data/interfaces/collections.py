@@ -1,8 +1,10 @@
 from pydantic import UUID4
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import CollectionSchema, Grant, User
+from app.common.data.models import CollectionSchema, Form, Grant, Question, Section, Submission, User
 from app.extensions import db
 
 
@@ -16,6 +18,54 @@ def create_collection_schema(*, name: str, user: User, grant: Grant, version: in
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return schema
+
+
+def _get_collection_schema(id: UUID4) -> CollectionSchema:
+    stmt = (
+        select(CollectionSchema)
+        .options(
+            joinedload(CollectionSchema.sections)
+            .joinedload(Section.forms)
+            .joinedload(Form.questions)
+            .selectinload(Question.questions)
+        )
+        .where(CollectionSchema.id == id)
+    )
+    result = db.session.execute(stmt).unique().scalar_one()
+    return result
+
+
+def _get_submission(id: UUID4) -> Submission:
+    stmt = (
+        select(Submission)
+        .options(
+            joinedload(Submission.collection)
+            .joinedload(CollectionSchema.sections)
+            .joinedload(Section.forms)
+            .joinedload(Form.questions)
+            .selectinload(Question.questions)
+        )
+        .where(Submission.id == id)
+    )
+    return db.session.execute(stmt).unique().scalar_one()
+
+    # joinedload(CollectionSchema.sections)
+    # .selectinload(Section.forms)  # Load top-level forms
+    # .selectinload(Form.child_forms)  # Load nested forms recursively (SQLAlchemy handles depth)
+    # .selectinload(Form.questions),  # Load questions within nested forms
+
+    # these are almost definitely not being applied
+
+    # I suspect these aren't being applied
+    # joinedload(CollectionSchema.sections)
+    #     .selectinload(Section.forms)
+    #     .selectinload(Form.questions)
+    #     .selectinload(Question.questions)
+
+    # .selectinload(Question.questions),  # Load nested questions recursively
+    # selectinload(Section.forms)  # Need to specify path from Schema again for questions
+    # .selectinload(Form.questions)  # Load top-level questions in top-level forms
+    # .selectinload(Question.questions),  # Load nested questions recursively
 
 
 def get_collection_schema(collection_id: UUID4) -> CollectionSchema:

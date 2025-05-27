@@ -16,6 +16,34 @@
                 }
             ],
             "justMyCode": true
+        },
+        {
+            "name": "Script: Schema - Funding Service",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "flask",
+            // for some reason we're not loading in the values from the env file (I think this is the default
+            // value anyway) - I've just thrown the env in here for now
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "FLASK_ENV": "local",
+                "SECRET_KEY": "pretend_secret_key",
+                "SERVER_NAME": "funding.communities.gov.localhost:8080",
+                "DATABASE_HOST": "localhost",
+                "DATABASE_PORT": "5432",
+                "DATABASE_NAME": "postgres",
+                "DATABASE_SECRET": "{\"username\":\"postgres\",\"password\":\"postgres\"}",
+                "GOVUK_NOTIFY_API_KEY": "pretend-api-key",
+                "GOVUK_NOTIFY_DISABLE": "false",
+                "AZURE_AD_BASE_URL": "https://login.microsoftonline.com/",
+                "GEVENT_SUPPORT": "True"
+            },
+            "args": [
+                "schema",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "stopOnEntry": false 
         }
     ]
 }

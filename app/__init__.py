@@ -127,4 +127,24 @@ def create_app() -> Flask:
     # should make an intentional decision for when to be setting this
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
 
+    # set up a schema to be used by scenarios - eventually this will be persisted
+    @app.cli.command("schema")
+    def schema() -> None:
+        from app.bootstrap import set_up_schema
+
+        set_up_schema()
+
+    # this is the one that should output JSON, CSV etc. depending on what params are passed
+    @app.cli.command("swap")
+    def swap() -> None:
+        from app.bootstrap import scenario_swap
+
+        scenario_swap()
+
+    @app.cli.command("form")
+    def form() -> None:
+        from app.bootstrap import scenario_form
+
+        scenario_form()
+
     return app
