@@ -5,6 +5,7 @@
 {% block pageTitle %}
   Edit collection - MHCLG Funding Service
 {% endblock pageTitle %}
+{% set show_watermark = "DEVELOPER" %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 
@@ -18,7 +19,6 @@
 {% endblock %}
 
 {% block content %}
-  <div class="app-body__watermark" aria-hidden="true">Developers</div>
   <form method="post" novalidate>
     {{ form.csrf_token }}
     {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l" }})

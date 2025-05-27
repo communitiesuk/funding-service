@@ -5,11 +5,11 @@
 {% block pageTitle %}
   Developers - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
+{% set show_watermark = "DEVELOPER" %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
 
 {% block content %}
-  <div class="app-body__watermark" aria-hidden="true">Developers</div>
   <h1 class="govuk-heading-l">
     <span class="govuk-caption-l">{{ grant.name }}</span>
     Developers

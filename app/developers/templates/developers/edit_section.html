@@ -7,6 +7,7 @@
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_developers" %}
+{% set show_watermark = "SCAFFOLDING" %}
 
 {% block beforeContent %}
   {{
@@ -18,7 +19,6 @@
 {% endblock %}
 
 {% block content %}
-  <div class="app-body__watermark" aria-hidden="true">Scaffolding</div>
   <form method="post" novalidate>
     {{ form.csrf_token }}
     {{ form.title (params={"label": {"isPageHeading": true, "classes": "govuk-label--l" }})}}
