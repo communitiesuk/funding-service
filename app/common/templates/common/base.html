@@ -17,7 +17,7 @@
   {{
     mhclgHeader({
         "productName": "MHCLG Funding Service",
-        "homepageUrl": "#",
+        "homepageUrl": url_for("deliver_grant_funding.list_grants"),
         "classes": "govuk-header--full-width-border app-!-no-wrap",
         "navigation": [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if current_user.is_authenticated else [],
         "navigationClasses": "govuk-header__navigation--end",
