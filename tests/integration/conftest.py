@@ -3,7 +3,7 @@ import os
 import typing as t
 import uuid
 from collections import namedtuple
-from contextlib import contextmanager
+from contextlib import _GeneratorContextManager, contextmanager
 from typing import Any, Generator
 from unittest.mock import _Call, patch
 
@@ -25,6 +25,7 @@ from werkzeug.test import TestResponse
 
 from app import create_app
 from app.common.data.types import RoleEnum
+from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _precompile_templates
 from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
@@ -287,3 +288,19 @@ def authenticated_platform_admin_client(
     login_user(user)
 
     yield anonymous_client
+
+
+@contextmanager
+def _count_sqlalchemy_queries() -> Generator[list[QueryInfo], None, None]:
+    queries: list[QueryInfo] = []
+    num_existing_queries = len(get_recorded_queries())
+
+    yield queries
+
+    new_queries = get_recorded_queries()
+    queries.extend(new_queries[num_existing_queries:])
+
+
+@pytest.fixture
+def track_sql_queries() -> t.Callable[[], _GeneratorContextManager[list[QueryInfo], None, None]]:
+    return _count_sqlalchemy_queries

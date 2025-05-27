@@ -15,13 +15,15 @@ from app.deliver_grant_funding.forms import (
 )
 
 
-def test_list_grants(authenticated_client, factories, templates_rendered):
+def test_list_grants(app, authenticated_client, factories, templates_rendered, track_sql_queries):
     factories.grant.create_batch(5)
-    result = authenticated_client.get("/grants")
+    with track_sql_queries() as queries:
+        result = authenticated_client.get("/grants")
     assert result.status_code == 200
     assert len(templates_rendered[0][1]["grants"]) == 5
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h1.text == "My grants"
+    assert len(queries) == 2  # 1) select grants, 2) rollback
 
 
 @pytest.mark.authenticate_as("test@google.com")
