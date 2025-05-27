@@ -22,30 +22,12 @@ $govuk-assets-path: "/static/assets/";
 }
 
 // Makes the content of this div display behind the other elements on the page, like a watermark
-.app-body__watermark {
-    transform: rotate(331deg);
-    font-size: 10em;
-    color: rgba(0, 0, 0, 0.22);
-    position: absolute;
-    padding-left: 1%;
-    padding-top: 5%;
-    font-family: GDS Transport, arial, sans-serif;
-    z-index: -1;
-}
-
-.watermark-container {
+.app-watermark-container {
     min-height: 300px;
     background-repeat: repeat;
     background-size: 150px 150px;
     background-image: var(--watermark-image);
-}
-
-.watermark-developer {
     --watermark-image: url('/static/assets/images/watermark-developer.svg');
-}
-
-.watermark-scaffolding {
-    --watermark-image: url('/static/assets/images/watermark-scaffolding.svg');
 }
 
 // Needed to make the watermark above visible

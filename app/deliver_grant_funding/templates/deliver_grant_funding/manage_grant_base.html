@@ -3,7 +3,6 @@
 
 {% set active_item_identifier = "grants" %}
 {% set cspNonce = csp_nonce() %}
-{% set show_watermark = show_watermark | default('') %}
 
 {% set settingsNav = [
       {
@@ -27,8 +26,7 @@
 {% endif %}
 
 {% block main %}
-    <div {% if show_watermark == "DEVELOPER" %} class="watermark-container watermark-developer"{% endif %}
-            {% if show_watermark == "SCAFFOLDING" %} class="watermark-container watermark-scaffolding"{% endif %}>
+    <div {% if show_watermark %} class="app-watermark-container"{% endif %}>
         <div class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}">
             <div class="govuk-main-wrapper {%- if mainClasses %}{{ mainClasses }}{% endif %}">
                 <div class="govuk-grid-row">
