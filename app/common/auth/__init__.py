@@ -5,6 +5,7 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
+from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
@@ -21,6 +22,7 @@ auth_blueprint = Blueprint(
 
 
 @auth_blueprint.route("/request-a-link-to-sign-in", methods=["GET", "POST"])
+@redirect_if_authenticated
 @auto_commit_after_request
 def request_a_link_to_sign_in() -> ResponseReturnValue:
     form = SignInForm()
@@ -47,6 +49,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 
 
 @auth_blueprint.get("/check-your-email/<uuid:magic_link_id>")
+@redirect_if_authenticated
 def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(id_=magic_link_id)
     if not magic_link or not magic_link.usable:
@@ -57,6 +60,7 @@ def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
 
 
 @auth_blueprint.route("/sign-in/<magic_link_code>", methods=["GET", "POST"])
+@redirect_if_authenticated
 @auto_commit_after_request
 def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(code=magic_link_code)
@@ -75,6 +79,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
 
 
 @auth_blueprint.route("/sso/sign-in", methods=["GET", "POST"])
+@redirect_if_authenticated
 def sso_sign_in() -> ResponseReturnValue:
     form = SSOSignInForm()
     if form.validate_on_submit():
@@ -84,6 +89,7 @@ def sso_sign_in() -> ResponseReturnValue:
 
 
 @auth_blueprint.route("/sso/get-token", methods=["GET"])
+@redirect_if_authenticated
 @auto_commit_after_request
 def sso_get_token() -> ResponseReturnValue:
     result = build_msal_app().acquire_token_by_auth_code_flow(session.get("flow", {}), request.args)

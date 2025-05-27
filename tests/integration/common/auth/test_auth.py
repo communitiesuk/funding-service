@@ -170,3 +170,13 @@ class TestSSOSignInView:
         response = anonymous_client.get(url_for("auth.sso_sign_in"))
         assert response.status_code == 200
         assert b"A connected and consistent digital service" in response.data
+
+
+class TestAuthenticatedUserRedirect:
+    def test_magic_link_get(self, authenticated_client):
+        response = authenticated_client.get(url_for("auth.request_a_link_to_sign_in"))
+        assert response.status_code == 302
+
+    def test_sso_get(self, authenticated_client):
+        response = authenticated_client.get(url_for("auth.sso_sign_in"))
+        assert response.status_code == 302

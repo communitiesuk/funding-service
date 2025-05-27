@@ -22,6 +22,26 @@ def login_required[**P](
     return wrapper
 
 
+def redirect_if_authenticated[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        # TODO: As we add more roles/users to the platform we will want to extend this to redirect appropriately based
+        # on the user's role. For now, this covers internal MHCLG users and will hard error for anyone else so that
+        # we get a Sentry notification and can get it fixed.
+        if current_user.is_authenticated:
+            internal_domains = current_app.config["INTERNAL_DOMAINS"]
+            if cast(User, current_user).email.endswith(internal_domains):
+                return redirect(url_for("deliver_grant_funding.list_grants"))
+
+            abort(500)
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def mhclg_login_required[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:

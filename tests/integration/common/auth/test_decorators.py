@@ -1,8 +1,13 @@
 import pytest
 from flask_login import login_user
-from werkzeug.exceptions import Forbidden
+from werkzeug.exceptions import Forbidden, InternalServerError
 
-from app.common.auth.decorators import login_required, mhclg_login_required, platform_admin_role_required
+from app.common.auth.decorators import (
+    login_required,
+    mhclg_login_required,
+    platform_admin_role_required,
+    redirect_if_authenticated,
+)
 from app.common.data.types import RoleEnum
 
 
@@ -96,3 +101,37 @@ class TestPlatformAdminRoleRequired:
         with app.test_client(), app.test_request_context("/"):
             response = test_login_required()
             assert response.status_code == 302
+
+
+class TestRedirectIfAuthenticated:
+    def test_authenticated_user_gets_redirect(self, app, factories):
+        @redirect_if_authenticated
+        def test_authenticated_redirect():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+
+        with app.test_client(), app.test_request_context("/"):
+            login_user(user)
+            response = test_authenticated_redirect()
+            assert response.status_code == 302
+
+    def test_external_authenticated_user_gets_403(self, app, factories):
+        @redirect_if_authenticated
+        def test_authenticated_redirect():
+            return "OK"
+
+        user = factories.user.create(email="test@anything.com")
+
+        with app.test_client(), app.test_request_context("/"), pytest.raises(InternalServerError):
+            login_user(user)
+            test_authenticated_redirect()
+
+    def test_anonymous_user_gets_response(self, app):
+        @redirect_if_authenticated
+        def test_authenticated_redirect():
+            return "OK"
+
+        with app.test_client(), app.test_request_context("/"):
+            response = test_authenticated_redirect()
+            assert response == "OK"
