@@ -1,4 +1,4 @@
-from typing import Protocol, runtime_checkable
+from typing import cast
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea, GovTextInput
@@ -11,17 +11,20 @@ from app.common.data.types import QuestionDataType
 _accepted_fields = StringField | IntegerField
 
 
-@runtime_checkable
-class QuestionFormProtocol(Protocol):
+# FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
+#        python doesn't currently support this. As of May 2025, it looks like we might be close to some progress on
+#        this in https://github.com/python/typing/issues/213.
+# This is a bit of a hack so that we have an externally-accessible type that represents the kind of form returned
+# by `build_question_form`. This gives us nicer intellisense/etc. The downside is that this class needs to be kept
+# in sync manually with the one inside `build_question_form`.
+class DynamicQuestionForm(FlaskForm):
     question: _accepted_fields
     submit: SubmitField
 
 
-# FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
-#        python doesn't currently support this. As of May 2025, it looks like we might be close to some progress on
-#        this in https://github.com/python/typing/issues/213.
-def build_question_form(question: Question) -> FlaskForm:
-    class DynamicQuestionForm(FlaskForm):
+def build_question_form(question: Question) -> DynamicQuestionForm:
+    # NOTE: Keep the fields+types in sync with the class of the same name above.
+    class _DynamicQuestionForm(FlaskForm):  # noqa
         question: _accepted_fields
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
@@ -44,9 +47,6 @@ def build_question_form(question: Question) -> FlaskForm:
         case _:
             raise Exception("Unable to generate dynamic form for question type {_}")
 
-    DynamicQuestionForm.question = field
+    _DynamicQuestionForm.question = field
 
-    if not isinstance(DynamicQuestionForm, QuestionFormProtocol):
-        raise RuntimeError("DynamicQuestionForm must implement QuestionFormProtocol")
-
-    return DynamicQuestionForm()
+    return cast(DynamicQuestionForm, _DynamicQuestionForm())
