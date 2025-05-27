@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
@@ -45,6 +45,11 @@ from app.developers.forms import PreviewCollectionForm
 from app.extensions import auto_commit_after_request
 
 developers_blueprint = Blueprint(name="developers", import_name=__name__, url_prefix="/developers")
+
+
+@developers_blueprint.context_processor
+def inject_variables() -> dict[str, Any]:
+    return dict(show_watermark=True)
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])

@@ -18,7 +18,6 @@
 {% endblock %}
 
 {% block content %}
-  <div class="app-body__watermark" aria-hidden="true">Developers</div>
   <form method="post" novalidate>
     {{ form.csrf_token }}
     {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l" }})
