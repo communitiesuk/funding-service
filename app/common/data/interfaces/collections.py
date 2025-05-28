@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
@@ -60,11 +61,27 @@ def update_collection_schema(schema: CollectionSchema, *, name: str) -> Collecti
     return schema
 
 
-def get_collection(collection_id: UUID) -> Collection:
-    return db.session.get_one(
-        Collection,
-        collection_id,
-    )
+def get_collection(collection_id: UUID, with_full_schema: bool = False) -> Collection:
+    options = []
+    if with_full_schema:
+        options.append(
+            joinedload(Collection.collection_schema)
+            .selectinload(CollectionSchema.sections)
+            .selectinload(Section.forms)
+            .selectinload(Form.questions)
+        )
+
+    # We set `populate_existing` here to force a new query to be emitted to the database. The mechanics of `get_one`
+    # relies on the session cache and does a lookup in the session memory based on the PK we're trying to retrieve.
+    # If the object exists, no query is emitted and the options won't take effect - we would fall back to lazy loading,
+    # which is n+1 select. If we don't care about fetching the full nested schema then it's fine to grab whatever is
+    # cached in the session alright, but if we do specifically want all of the related objects, we want to force the
+    # loading options above. This does mean that if you call this function twice with `with_full_schema=True`, it will
+    # do redundant DB trips. We should try to avoid that. =]
+    # If we took the principle that all relationships should be declared on the model as `lazy='raiseload'`, and we
+    # specify lazy loading explicitly at all points of use, we could potentially remove the `populate_existing`
+    # override below.
+    return db.session.get_one(Collection, collection_id, options=options, populate_existing=bool(options))
 
 
 def create_collection(*, schema: CollectionSchema, created_by: User) -> Collection:

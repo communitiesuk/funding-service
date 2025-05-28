@@ -55,7 +55,7 @@
                     "classes": "govuk-tag govuk-tag--grey"
                   },
                 },
-              "href": "#"
+              "href": url_for("developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=collection_helper.get_first_question_for_form(form).id)
             })
           %}
         {% endfor %}
