@@ -21,6 +21,10 @@ class Grant(BaseModel):
     __tablename__ = "grant"
 
     name: Mapped[CIStr] = mapped_column(unique=True)
+    ggis_number: Mapped[str | None] = mapped_column(nullable=True)
+    description: Mapped[str | None] = mapped_column(nullable=True)
+    primary_contact_name: Mapped[str | None] = mapped_column(nullable=True)
+    primary_contact_email: Mapped[str | None] = mapped_column(nullable=True)
 
     collection_schemas: Mapped[list["CollectionSchema"]] = relationship("CollectionSchema", lazy=True)
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="grant", cascade="all, delete-orphan")

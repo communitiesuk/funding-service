@@ -1,0 +1,47 @@
+{% extends "common/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+
+{% block pageTitle %}
+  What is the name of this grant? - Add a grant - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_item_identifier = "grants" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("deliver_grant_funding.grant_setup_ggis")
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-xl">
+        <span class="govuk-visually-hidden">This section is: </span>Add a grant
+      </span>
+      <h1 class="govuk-heading-xl">What is the name of this grant?</h1>
+
+      <p class="govuk-body">This should be the full and official name of the grant. Do not include abbreviations or acronyms.</p>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{
+          form.name(params={
+            "label": {
+              "text": "Grant name",
+              "classes": "govuk-visually-hidden"
+            },
+            "classes": "govuk-!-width-two-thirds"
+          })
+        }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

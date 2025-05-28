@@ -1,8 +1,8 @@
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from wtforms.fields.choices import RadioField
-from wtforms.fields.simple import StringField, SubmitField
-from wtforms.validators import DataRequired
+from wtforms.fields.simple import StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
 from app.common.data.types import QuestionDataType
 
@@ -19,6 +19,79 @@ class GrantForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField(widget=GovSubmitInput())
+
+
+class GrantSetupIntroForm(FlaskForm):
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class GrantGGISForm(FlaskForm):
+    has_ggis = RadioField(
+        "Do you have a Government Grants Information System (GGIS) reference number?",
+        choices=[("yes", "Yes"), ("no", "No")],
+        validators=[DataRequired("Select yes if you have a GGIS reference number")],
+        widget=GovRadioInput(),
+        default="no",
+    )
+    ggis_number = StringField(
+        "Enter your GGIS reference number",
+        validators=[Optional()],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())
+
+
+class GrantNameSetupForm(FlaskForm):
+    name = StringField(
+        "What is the name of this grant?",
+        validators=[DataRequired("Enter the grant name")],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())
+
+
+class GrantDescriptionForm(FlaskForm):
+    description = TextAreaField(
+        "What is the main purpose of this grant?",
+        validators=[
+            DataRequired("Enter the main purpose of this grant"),
+        ],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextArea(),
+        render_kw={"rows": "6"},
+    )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())
+
+    def validate_description(self, field: TextAreaField) -> None:
+        """
+        Validate the description field to ensure it does not exceed 200 words.
+        """
+        if field.data:
+            words = field.data.split()
+            max_words = 200
+            if len(words) > max_words:
+                raise ValidationError(f"Description must be {max_words} words or fewer.")
+
+
+class GrantContactForm(FlaskForm):
+    primary_contact_name = StringField(
+        "Full name",
+        validators=[DataRequired("Enter the full name")],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
+    primary_contact_email = StringField(
+        "Email address",
+        validators=[
+            DataRequired("Enter the email address"),
+            Email(message="Enter an email address in the correct format, like name@example.com"),
+        ],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Add grant", widget=GovSubmitInput())
 
 
 class SchemaForm(FlaskForm):
