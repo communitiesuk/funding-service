@@ -29,7 +29,7 @@ class SubmissionForm:
 
     # TODO: this should be calculated once and stored in the constructor
     @property
-    def visible_questions(self) -> list[Question]:
+    def visible_questions(self) -> list["SubmissionQuestion"]:
         # should run all of the questions through any condition based on the current self.submission
         # works through an ordered list getting the "next question"
 
@@ -40,7 +40,8 @@ class SubmissionForm:
         # done in the constructor
 
         # if you come across a question group, you step into it (unless its a same page, in which case they're all the next question)
-        return self.form_schema.questions
+        # return self.form_schema.questions
+        return [SubmissionQuestion(self, question) for question in self.form_schema.questions]
 
     @property
     def id(self) -> UUID:
@@ -62,7 +63,7 @@ class SubmissionForm:
     # alongside what submission events have happened to this form (i.e marked as complete)
 
     # presumably none only returned when you're finished and have no more valid questions
-    def next_question(self, question: Optional[Question] = None) -> Question | None:
+    def next_question(self, question: Optional["SubmissionQuestion"] = None) -> "SubmissionQuestion" | None:
         # if there's a question we'll be stepping through or picking it out of this form
         # otherwise we'll return the first
         # I'll probably want to wrap questions in a helper here - I think each wrapper
@@ -77,7 +78,7 @@ class SubmissionForm:
         #   otherwise we're routing according to the forms visible questions (top level)
         return self.visible_questions[self.visible_questions.index(question) + 1]
 
-    def previous_question(self, question: Question) -> Question | None:
+    def previous_question(self, question: "SubmissionQuestion") -> "SubmissionQuestion" | None:
         return self.visible_questions[self.visible_questions.index(question) - 1]
 
 
@@ -157,6 +158,17 @@ class SubmissionQuestion:
     # sumission to look things up? - to be decided
     # the data that this will receive will very likely come from wtforms - the type signature
     # and other intrefaces and logic could probably reflect this
+
+    # I think this should only accept the pydantic model that represents the validated question answer
+    # it can then serialise that and store it reliably in the submission
+    # this then shouldn't need to know the type
+    # come back to this
+
+    # the steps are
+    # wtform data submission
+    # -> validation based on question type and question validators
+    # -> pydantic model based on question type
+    # -> model dump to JSON, assuming it will be read back by the same model
     def submit_answer(self, value: Any):
         # alternatively this could be set in the constructor based on the question type
         # if it extends a standard root model then anything it needs to expose can be called here
