@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
 {% block pageTitle %}
-  My grants - MHCLG Funding Service
+  Grants - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grants" %}
@@ -10,18 +10,12 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-l">My grants</h1>
-      <p class="govuk-body">
-        {% trans count=grants | length %}
-          You have access to 1 grant. {% pluralize %} You have access to {{ count }} grants.
-        {% endtrans %}
-      </p>
+      <h1 class="govuk-heading-l">Grants</h1>
 
       {{
         govukButton({
-           "text": "Set up a new grant",
-           "classes": "govuk-button--secondary",
-           "href": url_for("deliver_grant_funding.create_grant")
+           "text": "Add a grant",
+           "href": url_for("deliver_grant_funding.grant_setup_intro")
         })
       }}
 

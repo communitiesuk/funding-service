@@ -18,8 +18,21 @@ def get_all_grants() -> Sequence[Grant]:
     return db.session.scalars(statement).all()
 
 
-def create_grant(name: str) -> Grant:
-    grant: Grant = Grant(name=name)
+def create_grant(
+    *,
+    name: str,
+    description: str,
+    primary_contact_name: str,
+    primary_contact_email: str,
+    ggis_number: str | None = None,
+) -> Grant:
+    grant: Grant = Grant(
+        name=name,
+        ggis_number=ggis_number,
+        description=description,
+        primary_contact_name=primary_contact_name,
+        primary_contact_email=primary_contact_email,
+    )
     db.session.add(grant)
 
     try:
