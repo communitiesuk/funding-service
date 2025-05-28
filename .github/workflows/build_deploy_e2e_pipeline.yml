@@ -13,7 +13,7 @@ on:
       - main
 
 jobs:
-  paketo_build:
+  cnb_build:
     name: Build
     uses: ./.github/workflows/package.yml
     secrets:
@@ -24,14 +24,14 @@ jobs:
   deploy_dev:
     name: Deploy to dev
     needs:
-      - paketo_build
+      - cnb_build
     uses: ./.github/workflows/deploy.yml
     concurrency:
       group: fs-deploy-dev
       cancel-in-progress: false
     with:
       environment: dev
-      ghcr_image_location: ${{ needs.paketo_build.outputs.ghcr_image_location }}
+      ghcr_image_location: ${{ needs.cnb_build.outputs.ghcr_image_location }}
       run_e2e_tests: true
     secrets:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
@@ -44,7 +44,7 @@ jobs:
     #       it should only deploy to the dev env. Test env will only be deployed to on a merge (push) to main.
     if: github.event_name == 'push'
     needs:
-      - paketo_build
+      - cnb_build
       - deploy_dev
     uses: ./.github/workflows/deploy.yml
     concurrency:
@@ -52,7 +52,7 @@ jobs:
       cancel-in-progress: false
     with:
       environment: test
-      ghcr_image_location: ${{ needs.paketo_build.outputs.ghcr_image_location }}
+      ghcr_image_location: ${{ needs.cnb_build.outputs.ghcr_image_location }}
       run_e2e_tests: true
     secrets:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
