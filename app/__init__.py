@@ -18,6 +18,7 @@ from app.extensions import (
     login_manager,
     migrate,
     notification_service,
+    record_sqlalchemy_queries,
     talisman,
     toolbar,
 )
@@ -51,6 +52,7 @@ def create_app() -> Flask:
     notification_service.init_app(app)
     talisman.init_app(app, **app.config["TALISMAN_SETTINGS"])
     login_manager.init_app(app)
+    record_sqlalchemy_queries.init_app(app, db)
 
     @login_manager.user_loader  # type: ignore[misc]
     def load_user(user_id: str) -> User | None:

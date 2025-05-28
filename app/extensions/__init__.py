@@ -6,6 +6,7 @@ from flask_talisman import Talisman
 
 from app.extensions.auto_commit_after_request import AutoCommitAfterRequestExtension
 from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
+from app.extensions.record_sqlalchemy_queries import RecordSqlalchemyQueriesExtension
 from app.services.notify import NotificationService
 
 db = SQLAlchemy()
@@ -16,6 +17,7 @@ notification_service = NotificationService()
 talisman = Talisman()
 flask_assets_vite = FlaskAssetsViteExtension()
 login_manager = LoginManager()
+record_sqlalchemy_queries = RecordSqlalchemyQueriesExtension()
 
 __all__ = [
     "db",
@@ -26,4 +28,5 @@ __all__ = [
     "talisman",
     "flask_assets_vite",
     "login_manager",
+    "record_sqlalchemy_queries",
 ]

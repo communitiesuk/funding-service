@@ -196,7 +196,7 @@ class _SharedConfig(_BaseConfig):
             "default": str(self.build_database_uri()),
         }
 
-    SQLALCHEMY_RECORD_QUERIES: bool = False
+    RECORD_SQLALCHEMY_QUERIES: bool = False
 
     # Logging
     LOG_LEVEL: LogLevels = "INFO"
@@ -280,8 +280,8 @@ class LocalConfig(_SharedConfig):
     # Talisman security settings
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
 
-    # Databases
-    SQLALCHEMY_RECORD_QUERIES: bool = True
+    # Our `record_sqlalchemy_queries` extension`
+    RECORD_SQLALCHEMY_QUERIES: bool = True
 
     # Flask-DebugToolbar
     DEBUG_TB_ENABLED: bool = True
