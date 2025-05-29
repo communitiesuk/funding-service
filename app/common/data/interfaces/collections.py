@@ -64,9 +64,6 @@ def update_collection_schema(schema: CollectionSchema, *, name: str) -> Collecti
 
 
 def update_collection_data(collection: Collection, question: Question, data: BaseModel) -> Collection:
-    # copying the existing data will convince SQLAlchemy that something needs to be updated
-    # this could also be done using the mutability extension which may be more performant
-    # https://docs.sqlalchemy.org/en/20/orm/extensions/mutable.html#module-sqlalchemy.ext.mutable
     collection.data = copy.deepcopy(collection.data)
     collection.data[str(question.id)] = data.model_dump()
     db.session.flush()
