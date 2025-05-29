@@ -26,7 +26,7 @@ class UniqueGrantName:
         self.message = message or "Grant name already in use"
 
     def __call__(self, form: FlaskForm, field: StringField) -> None:
-        if grant_name_exists(field.data):
+        if field.data and grant_name_exists(field.data):
             raise ValidationError(self.message)
 
 
