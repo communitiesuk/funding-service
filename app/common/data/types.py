@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import enum
 from typing import Any, Dict
 
-json_scalars = Dict[str, str | int | float | bool]
+json_scalars = Dict[str, Any]
 
 
 class RoleEnum(str, enum.Enum):
