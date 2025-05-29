@@ -109,7 +109,7 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     # * Load the sections
     # * Load the forms
     # * Load the question
-    assert len(queries) == 5
+    assert len(queries) == 4
 
     # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
     count = 0

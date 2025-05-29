@@ -21,7 +21,6 @@ from pytest_mock import MockerFixture
 from sqlalchemy import event
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
-from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm.session import SessionTransaction
 from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
@@ -133,8 +132,8 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Flas
 
             session = app.extensions["sqlalchemy"].session
             if not session.info.get("clean", True):
-                method = kwargs.get("method") or (args[0] if args else "GET")
-                path = kwargs.get("path") or (args[0] if args else "/")
+                method = kwargs["method"]
+                path = kwargs["path"]
 
                 pytest.fail(
                     f"Detected uncommitted changes in the SQLAlchemy session after handling "
@@ -309,36 +308,30 @@ def authenticated_platform_admin_client(
 
 def _setup_session_clean_tracking() -> None:
     # 1. When a transaction starts, assume session is clean
-    @event.listens_for(SASession, "after_begin")
-    def after_begin(session: SASession, transaction: SessionTransaction, connection: Connection) -> None:
+    @event.listens_for(Session, "after_begin")
+    def after_begin(session: Session, transaction: SessionTransaction, connection: Connection) -> None:
         session.info["clean"] = True
 
     # 2. Before flush — catch dirty state even if flush hasn't happened yet
-    @event.listens_for(SASession, "before_flush")
-    def before_flush(session: SASession, flush_context: Any, instances: object | None) -> None:
+    @event.listens_for(Session, "before_flush")
+    def before_flush(session: Session, flush_context: Any, instances: object | None) -> None:
         if session.new or session.dirty or session.deleted:
             session.info["clean"] = False
 
-    # 3. After flush — useful if more changes happen in-process
-    @event.listens_for(SASession, "after_flush")
-    def after_flush(session: SASession, flush_context: Any) -> None:
+    # 3. Before commit — set false since session has changes and did not flush
+    @event.listens_for(Session, "before_commit")
+    def before_commit(session: Session) -> None:
         if session.new or session.dirty or session.deleted:
             session.info["clean"] = False
 
-    # 4. Before commit — set false since session has changes and did not flush
-    @event.listens_for(SASession, "before_commit")
-    def before_commit(session: SASession) -> None:
-        if session.new or session.dirty or session.deleted:
-            session.info["clean"] = False
-
-    # 5. After commit — reset clean flag
-    @event.listens_for(SASession, "after_commit")
-    def after_commit(session: SASession) -> None:
+    # 4. After commit — reset clean flag
+    @event.listens_for(Session, "after_commit")
+    def after_commit(session: Session) -> None:
         session.info["clean"] = True
 
-    # 6. After rollback — reset clean flag
-    @event.listens_for(SASession, "after_rollback")
-    def after_rollback(session: SASession) -> None:
+    # 5. After rollback — reset clean flag
+    @event.listens_for(Session, "after_rollback")
+    def after_rollback(session: Session) -> None:
         session.info["clean"] = True
 
 
