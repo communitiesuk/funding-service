@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from app.common.collections.forms import build_question_form
-from app.common.data.types import QuestionDataType
+from app.common.data.types import CollectionStatusEnum, QuestionDataType
 from app.common.helpers.collections import CollectionHelper, Integer, TextSingleLine
 from tests.utils import AnyStringMatching
 
@@ -268,3 +268,50 @@ class TestCollectionHelper:
             helper.submit_answer_for_question(question.id, form)
 
             assert helper.get_answer_for_question(question.id) == Integer(5)
+
+    class TestStatuses:
+        def test_form_status_based_on_questions(self, db_session, factories):
+            form = factories.form.build()
+            question_one = factories.question.build(form=form)
+            question_two = factories.question.build(form=form)
+
+            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            helper = CollectionHelper(collection)
+
+            assert helper.get_status_for_form(form) == CollectionStatusEnum.NOT_STARTED
+
+            helper.submit_answer_for_question(
+                question_one.id, build_question_form(question_one)(question="User submitted data")
+            )
+
+            assert helper.get_status_for_form(form) == CollectionStatusEnum.IN_PROGRESS
+
+            helper.submit_answer_for_question(
+                question_two.id, build_question_form(question_two)(question="User submitted data")
+            )
+
+            assert helper.get_status_for_form(form) == CollectionStatusEnum.COMPLETED
+
+        def test_collection_status_based_on_forms(self, db_session, factories):
+            question = factories.question.build()
+            form_two = factories.form.build(section=question.form.section)
+            question_two = factories.question.build(form=form_two)
+
+            collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
+            helper = CollectionHelper(collection)
+
+            assert helper.status == CollectionStatusEnum.NOT_STARTED
+
+            helper.submit_answer_for_question(
+                question.id, build_question_form(question)(question="User submitted data")
+            )
+
+            assert helper.get_status_for_form(question.form) == CollectionStatusEnum.COMPLETED
+            assert helper.status == CollectionStatusEnum.IN_PROGRESS
+
+            helper.submit_answer_for_question(
+                question_two.id, build_question_form(question_two)(question="User submitted data")
+            )
+
+            assert helper.get_status_for_form(question_two.form) == CollectionStatusEnum.COMPLETED
+            assert helper.status == CollectionStatusEnum.COMPLETED
