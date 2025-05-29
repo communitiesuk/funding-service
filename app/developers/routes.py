@@ -1,9 +1,11 @@
+import random
 from typing import Any, cast
 from uuid import UUID
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
+from sqlalchemy.exc import IntegrityError
 from wtforms import Field
 
 from app.common.auth.decorators import platform_admin_role_required
@@ -42,7 +44,7 @@ from app.deliver_grant_funding.forms import (
     SchemaForm,
     SectionForm,
 )
-from app.developers.forms import PreviewCollectionForm
+from app.developers.forms import PreviewCollectionForm, SeedGrantForm
 from app.extensions import auto_commit_after_request
 
 developers_blueprint = Blueprint(name="developers", import_name=__name__, url_prefix="/developers")
@@ -546,3 +548,35 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
         question=question,
         question_types=QuestionDataType,
     )
+
+
+@developers_blueprint.route("/seed-grant", methods=["GET", "POST"])
+@auto_commit_after_request
+@platform_admin_role_required
+def seed_grant() -> ResponseReturnValue:
+    form = SeedGrantForm()
+    if form.validate_on_submit():
+        from tests.integration.models import (
+            _CollectionSchemaFactory,
+            _FormFactory,
+            _GrantFactory,
+            _QuestionFactory,
+            _SectionFactory,
+        )
+
+        try:
+            grant = _GrantFactory.create(name=form.grant_name.data)
+        except IntegrityError:
+            form.grant_name.errors.append("Grant name already in use")  # type: ignore[attr-defined]
+        else:
+            schema = _CollectionSchemaFactory.create(grant=grant)
+            for _ in range(random.randrange(form.min_sections.data, form.max_sections.data)):  # type: ignore[arg-type]
+                s = _SectionFactory.create(collection_schema=schema)
+                for _ in range(random.randrange(form.min_forms.data, form.max_forms.data)):  # type: ignore[arg-type]
+                    f = _FormFactory.create(section=s)
+                    for _ in range(random.randrange(form.min_questions.data, form.max_questions.data)):  # type: ignore[arg-type]
+                        _QuestionFactory.create(form=f)
+
+                return redirect(url_for("deliver_grant_funding.view_grant", grant_id=grant.id))
+
+    return render_template("developers/seed_grant.html", form=form)

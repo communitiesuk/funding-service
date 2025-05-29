@@ -1,0 +1,46 @@
+{% extends "common/base.html" %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+{% from "govuk_frontend_jinja/components/input/macro.html" import govukInput %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% block pageTitle %}
+  Seed a grant - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+
+{% block main %}
+<div class="app-watermark-container">
+  <div class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}">
+    <div class="govuk-main-wrapper {%- if mainClasses %}{{ mainClasses }}{% endif %}">
+        <main id="main-content" {%- if mainLang %}lang="{{ mainLang }}"{% endif %}>
+            <div class="govuk-grid-row">
+              <div class="govuk-grid-column-two-thirds">
+                {% if form is defined and form.errors %}
+                  {{ govukErrorSummary(wtforms_errors(form)) }}
+                {% endif %}
+              </div>
+            </div>
+
+          <div class="govuk-grid-row">
+            <div class="govuk-grid-column-two-thirds">
+              <h1 class="govuk-heading-l">Seed a grant</h1>
+
+              <form method="post" novalidate>
+                {{ form.csrf_token }}
+                {{ form.grant_name }}
+                {{ form.min_sections }}
+                {{ form.max_sections }}
+                {{ form.min_forms }}
+                {{ form.max_forms }}
+                {{ form.min_questions }}
+                {{ form.max_questions }}
+                {{ form.submit }}
+              </form>
+            </div>
+          </div>
+        </main>
+    </div>
+  </div>
+</div>
+{% endblock %}
