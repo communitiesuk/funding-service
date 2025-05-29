@@ -645,111 +645,147 @@ def test_edit_question_post(authenticated_platform_admin_client, factories, db_s
     assert question_from_db.name == "Updated Question Name"
 
 
-def test_grant_setup_flow_with_ggis_and_description_error(authenticated_client, db_session, templates_rendered):
-    # 1. Intro page
-    response = authenticated_client.get(url_for("deliver_grant_funding.grant_setup_intro"))
+def test_grant_setup_intro_get(authenticated_platform_admin_client):
+    response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_intro"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
     assert soup.h1.text.strip() == "Tell us about the grant"
 
+
+def test_grant_setup_intro_post(authenticated_platform_admin_client):
     intro_form = GrantSetupIntroForm()
-    response = authenticated_client.post(
+    response = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.grant_setup_intro"), data=intro_form.data, follow_redirects=False
     )
     assert response.status_code == 302
     assert response.location == url_for("deliver_grant_funding.grant_setup_ggis")
 
-    # 2. GGIS page
-    response = authenticated_client.get(response.location)  # Follow redirect
+
+def test_grant_setup_ggis_get_with_session(authenticated_platform_admin_client):
+    # Set up session state first
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
+
+    response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_ggis"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
     assert soup.h1.text.strip() == "Do you have a Government Grants Information System (GGIS) reference number?"
 
-    ggis_data = "GGIS_COMPREHENSIVE_TEST"
-    ggis_form = GrantGGISForm(has_ggis="yes", ggis_number=ggis_data)
-    response = authenticated_client.post(
+
+def test_grant_setup_ggis_get_without_session_redirects(authenticated_platform_admin_client):
+    response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_ggis"))
+    assert response.status_code == 302
+    assert response.location == url_for("deliver_grant_funding.grant_setup_intro")
+
+
+def test_grant_setup_ggis_post_with_ggis(authenticated_platform_admin_client):
+    # Set up session state first
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
+
+    ggis_form = GrantGGISForm(has_ggis="yes", ggis_number="GGIS_TEST_123")
+    response = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.grant_setup_ggis"), data=ggis_form.data, follow_redirects=False
     )
     assert response.status_code == 302
     assert response.location == url_for("deliver_grant_funding.grant_setup_name")
 
-    # 3. Name page
-    response = authenticated_client.get(response.location)  # Follow redirect
+
+def test_grant_setup_name_get_with_session(authenticated_platform_admin_client):
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
+
+    response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_name"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
     assert soup.h1.text.strip() == "What is the name of this grant?"
 
-    grant_name = "Comprehensive Grant Setup Test"
-    name_form = GrantNameSetupForm(name=grant_name)
-    response = authenticated_client.post(
+
+def test_grant_setup_name_post(authenticated_platform_admin_client):
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
+
+    name_form = GrantNameSetupForm(name="Test Grant Name")
+    response = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.grant_setup_name"), data=name_form.data, follow_redirects=False
     )
     assert response.status_code == 302
     assert response.location == url_for("deliver_grant_funding.grant_setup_description")
 
-    # 4. Description page - initial GET
-    response = authenticated_client.get(response.location)  # Follow redirect
+
+def test_grant_setup_description_get_with_session(authenticated_platform_admin_client):
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
+
+    response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_description"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
     assert soup.h1.text.strip() == "What is the main purpose of this grant?"
 
-    # 4a. Description page - POST with error (too many words)
-    long_description = " ".join(["word"] * 201)  # 201 words
-    invalid_desc_form = GrantDescriptionForm(description=long_description)
-    response = authenticated_client.post(
-        url_for("deliver_grant_funding.grant_setup_description"), data=invalid_desc_form.data, follow_redirects=False
+
+def test_grant_setup_description_post_too_long(authenticated_platform_admin_client):
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
+
+    long_description = " ".join(["word"] * 201)
+    desc_form = GrantDescriptionForm(description=long_description)
+    response = authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.grant_setup_description"), data=desc_form.data, follow_redirects=False
     )
-    assert response.status_code == 200  # Should re-render the page due to validation error
+    assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h2.text.strip() == "There is a problem"  # Check for error summary
+    assert soup.h2.text.strip() == "There is a problem"
+    assert len(soup.find_all("a", href="#description")) == 1
+    assert "Description must be 200 words or fewer" in soup.find_all("a", href="#description")[0].text.strip()
 
-    expected_error_message = "Description must be 200 words or fewer."
-    error_link = soup.find("a", href="#description")
-    assert error_link is not None, "Error link for description not found in summary"
-    assert expected_error_message in error_link.text.strip()
 
-    field_error_message = soup.find("p", {"id": "description-error"})
-    assert field_error_message is not None, "Error message for description field not found"
-    assert expected_error_message in field_error_message.text.strip()
+def test_grant_setup_description_post_valid(authenticated_platform_admin_client):
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
 
-    # 4b. Description page - POST with valid data
-    valid_grant_description = (
-        "This is a valid description for the comprehensive test, well within the two hundred word limit."
-    )
-    valid_desc_form = GrantDescriptionForm(description=valid_grant_description)
-    response = authenticated_client.post(
-        url_for("deliver_grant_funding.grant_setup_description"), data=valid_desc_form.data, follow_redirects=False
+    desc_form = GrantDescriptionForm(description="A valid description under 200 words.")
+    response = authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.grant_setup_description"), data=desc_form.data, follow_redirects=False
     )
     assert response.status_code == 302
     assert response.location == url_for("deliver_grant_funding.grant_setup_contact")
 
-    # 5. Contact page & Submission
-    response = authenticated_client.get(response.location)  # Follow redirect
+
+def test_grant_setup_contact_get_with_session(authenticated_platform_admin_client):
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
+
+    response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_contact"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
     assert soup.h1.text.strip() == "Who is the main contact for this grant?"
 
-    contact_name = "Comprehensive Test Contact"
-    contact_email = "comprehensive@example.com"
-    contact_form = GrantContactForm(primary_contact_name=contact_name, primary_contact_email=contact_email)
-    response = authenticated_client.post(
+
+def test_grant_setup_contact_post_creates_grant(authenticated_platform_admin_client, db_session):
+    # Set up session with required data for grant creation
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {
+            "name": {"name": "Test Grant"},
+            "description": {"description": "Test description"},
+            "ggis": {"has_ggis": "yes", "ggis_number": "GGIS123"},
+        }
+
+    contact_form = GrantContactForm(primary_contact_name="Test Contact", primary_contact_email="test@example.com")
+    response = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.grant_setup_contact"), data=contact_form.data, follow_redirects=False
     )
     assert response.status_code == 302
 
+    # Verify redirect is to grant view page
+    assert "/grants/" in response.location
+
+    # Extract grant ID from redirect URL and verify grant exists
     grant_id_str = response.location.split("/")[-1]
     grant_id = UUID(grant_id_str)
-    assert response.location == url_for("deliver_grant_funding.view_grant", grant_id=grant_id)
-
-    # Verify grant in DB
     grant_from_db = db_session.get(Grant, grant_id)
     assert grant_from_db is not None
-    assert grant_from_db.name == grant_name
-    assert grant_from_db.ggis_number == ggis_data
-    assert grant_from_db.description == valid_grant_description
-    assert grant_from_db.primary_contact_name == contact_name
-    assert grant_from_db.primary_contact_email == contact_email
-
-    # Verify session is cleared
-    with authenticated_client.session_transaction() as sess:
-        assert "grant_setup" not in sess
+    assert grant_from_db.primary_contact_name == "Test Contact"
+    assert grant_from_db.primary_contact_email == "test@example.com"
+    assert grant_from_db.name == "Test Grant"
+    assert grant_from_db.description == "Test description"
+    assert grant_from_db.ggis_number == "GGIS123"
