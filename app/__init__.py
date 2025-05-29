@@ -147,4 +147,10 @@ def create_app() -> Flask:
 
         scenario_form()
 
+    @app.cli.command("load")
+    def load() -> None:
+        from app.bootstrap import scenario_load
+
+        scenario_load()
+
     return app

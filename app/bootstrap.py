@@ -1,9 +1,15 @@
 # set up some collections/ forms for the time being - for integration tests
 # this would use factoryboy. For now I'll just use the models directly
-from flask import current_app
-from sqlalchemy import text
+from typing import Any
 
-from app.common.collections import Collection
+from flask import current_app
+from flask_wtf import FlaskForm
+from govuk_frontend_wtf.wtforms_widgets import GovTextInput
+from sqlalchemy import text
+from wtforms import Form as WTForm
+from wtforms import StringField, SubmitField
+
+from app.common.collections import Collection, SingleLineOfText, SubmissionQuestion
 from app.common.data.interfaces import collections, grants, user
 from app.common.data.models import (
     CollectionSchema,
@@ -63,19 +69,42 @@ def scenario_swap():
     db.session.commit()
 
 
+def scenario_load():
+    # will worry about how its fetching these things later
+    # with depth limiters etc.
+    all = db.session.query(Submission).all()
+    submission = collections._get_submission(all[0].id)
+    user = set_up_user()
+
+    submission = Collection(submission)
+
+    form_id = next(form.id for form in submission.forms if form.title == "Check eligibility")
+    form = submission.form(form_id)
+
+    question = next(question for question in form.visible_questions if question.name == "Applicant name")
+
+    current_app.logger.info(question.answer)
+
+    current_app.logger.info(form.to_json)
+
+
 # note - loading all of the depends on combinations seems expensive - are we OK to only
 # lazy load depends on if we need it - depends when it will be used
 def scenario_form():
     all = db.session.query(CollectionSchema).all()
     schema = collections._get_collection_schema(all[0].id)
+    user = set_up_user()
 
     # create an empty submission for the form
     # for future scenarios use _get_submission and make sure the joins for getting the associated collection
     # are appropriately configured
-    submission = Submission(collection=schema)
+    submission = Submission(collection=schema, created_by_user=user)
 
+    db.session.add(submission)
+
+    db.session.flush()
     # create a new "application" or collection instance/ submission
-    db.session.commit()
+    # db.session.commit()
 
     instance = Collection(submission=submission)
 
@@ -88,6 +117,44 @@ def scenario_form():
     question = form.next_question()
 
     current_app.logger.info(f"Starting with question: {question.name}: {question.text}")
+
+    # the form will be "built" based on the question being passed in, each question will define
+    # whatever fields it needs to be answered, if a question group that is same page is bassed in
+    # each of the questions will build their fields to be rendered sequentially
+    # the data for the form will then be interpreted based on the type
+
+    class AnExampleForm(FlaskForm):
+        field = StringField(label=question.text, description=question.question_schema.hint or "", widget=GovTextInput())
+
+    # input_from_browser = AnExampleForm(field="Users submitted answer")
+
+    # is it that it has a property called field _because_ its a text type or
+    # i.e for uk address will it have line1, line2, line3 - will we collate that information in wtforms or after
+    # or would we do something like prefix the dynamic form with the question ID - should that be in the
+    # name of the entries rather than the field names
+
+    # should this be passed straight into
+    # TODO: it would be good to see what it does with date behaviour for example (this might help)
+    #       extrapolate a clean interface for address
+    # input_from_browser.data
+
+    # this is definitely based on knowing the shape of the form data
+    # interpretted_data = SingleLineOfText.from_form(input_from_browser.data)
+
+    # i guess when building it dynamically - it can set default values based on the
+    # pydantic model of that question type - or those can be set when initialising it
+    AForm = _build_dynamic_form(question)
+    params = {}
+    params[f"{question.question_schema.id}-value"] = "Users submitted answer 2"
+
+    # typing falls apart here - I haven't dug into why
+    aform = AForm(**params)
+
+    interpretted_data = _parse_dynamic_form(question, aform.data)
+
+    current_app.logger.info(interpretted_data)
+
+    question.submit(interpretted_data)
 
     # routing will want to factor in if we're coming from the summary page, that probably happens outside
     # of the collections helper (in forms handler logic) but there may be an argument for moving it inside
@@ -114,6 +181,59 @@ def scenario_form():
     # - that would call form.next_question(self)
     # it's likely that I want something else deciding if I should be showing the summary page rather than this helper
     question = form.next_question()
+
+    db.session.commit()
+
+
+# the question may already have a submitted answer which will be in the pydnatic model type of that question
+# that could be used to set its default value in the fields
+# for some things like file upload and uk address that might be distributed differentlt
+# the template will know to step through question IDs-type-specific-value based on the type which
+# it already needs to switch on
+def _build_dynamic_form(question: SubmissionQuestion) -> WTForm:
+    form = dict()
+
+    # factor in question of questions if its a same page later
+    match question.question_schema.data_type:
+        case DataType.SINGLE_LINE_OF_TEXT:
+            # theoretically these fields could be set on
+            # single line of text will only have one answer, this key should be set somewhere else
+            # or it should line up with what the model expects (like root)
+            key = f"{question.question_schema.id}-value"
+            # this could add multiple fields if it needed to in theory based on question type
+            # the template would need to know how to use that but they should line up either way
+            form[key] = StringField(
+                label=question.text,
+                description=question.question_schema.hint or "",
+                # as we're building it dynamically on the question anyway we could set the default here
+                # this could also be set when intialising the form but this probably easier
+                # how defaults are set would depend on the type of the question
+                # it could be set across multiple fields based on nested properties
+                # default=question.answer
+            )
+
+    form["submit"] = SubmitField()
+
+    return type("DynamicForm", (WTForm,), form)
+
+
+# this probably returns the pydantic model which then gets submitted
+# validation is _all_ hooked up while building the dynamic form based on the questions context and submitted answers
+# validation for things like addresses and x-field components will be more involved I suspect
+
+
+# this should return the base pydnatic model that used ABC and abstractmethod to ensure everything
+# - inherits from pydantic root model
+# - exposes thing like "human_readbale", "csv_string", "json_string", "json_nested", etc.
+def _parse_dynamic_form(question: SubmissionQuestion, data: dict[str, Any]):
+    # also designed to be able to understand there might be multiple inputs for a given question
+    # something we might not need to actually do depending on if we model those as components
+    # I don't know if they can set multiple or nested properties on data though
+    # will also need to loop through multiple things if the question has questions (only if same page, otherwise will have been routed away)
+    match question.question_schema.data_type:
+        case DataType.SINGLE_LINE_OF_TEXT:
+            key = f"{question.question_schema.id}-value"
+            return SingleLineOfText(data[key])
 
 
 #### temporary methods so simplify not needed

@@ -39,7 +39,7 @@
                 "GEVENT_SUPPORT": "True"
             },
             "args": [
-                "schema",
+                "load",
             ],
             "console": "integratedTerminal",
             "justMyCode": true,

@@ -1,3 +1,5 @@
+import copy
+
 from pydantic import UUID4
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -18,6 +20,40 @@ def create_collection_schema(*, name: str, user: User, grant: Grant, version: in
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return schema
+
+
+# should this be the submission, the question and the data to write
+# plenty of questions about what if this is multiple questions or what its add another
+# but this is a start
+# I get the _sense_ the interface should deal with models and not helper wrappers
+# for now assumes the model has been serialised for us, it would be to move that down to here as the interface should be consistent
+def _submit_data(submission: Submission, question: Question, data: str):
+    # I _think_ the default value isn't provided if its just been created - should look into if this is true even
+    # after a flush
+
+    # note should consider the cost of this as it gets _big_
+    # could also use sql alvhemy mutable extension
+    submission.data = copy.deepcopy(submission.data)
+    submission.data[str(question.id)] = data
+    db.session.flush()
+
+    # only when we're doing the mark as complete part do we need to be writing
+    # submission events
+
+
+def _get_submission(id: UUID4) -> Submission:
+    stmt = (
+        select(Submission)
+        .options(
+            joinedload(CollectionSchema.sections)
+            .joinedload(Section.forms)
+            .joinedload(Form.questions)
+            .selectinload(Question.questions)
+        )
+        .where(Submission.id == id)
+    )
+    result = db.session.execute(stmt).unique().scalar_one()
+    return result
 
 
 def _get_collection_schema(id: UUID4) -> CollectionSchema:
