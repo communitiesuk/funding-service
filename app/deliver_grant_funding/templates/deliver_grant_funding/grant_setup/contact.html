@@ -33,7 +33,7 @@
         {{
           form.primary_contact_name(params={
             "label": {
-              "text": "Full name"
+              "text": form.primary_contact_name.label.text,
             },
             "classes": "govuk-!-width-two-thirds"
           })
@@ -42,7 +42,7 @@
         {{
           form.primary_contact_email(params={
             "label": {
-              "text": "Email address"
+              "text": form.primary_contact_email.label.text,
             },
             "hint": {
               "text": "Use the shared email address for the grant team."
@@ -52,11 +52,7 @@
           })
         }}
 
-        {{
-          form.submit(params={
-              "text": "Add grant"
-          })
-        }}
+        {{ form.submit }}
       </form>
     </div>
   </div>

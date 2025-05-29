@@ -23,9 +23,6 @@
       <span class="govuk-caption-xl">
         <span class="govuk-visually-hidden">This section is: </span>Add a grant
       </span>
-      <h1 class="govuk-heading-xl">What is the name of this grant?</h1>
-
-      <p class="govuk-body">This should be the full and official name of the grant. Do not include abbreviations or acronyms.</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
@@ -33,8 +30,13 @@
         {{
           form.name(params={
             "label": {
-              "text": "Grant name",
-              "classes": "govuk-visually-hidden"
+              "text": form.name.label.text,
+              "isPageHeading": true,
+              "classes": "govuk-fieldset__legend--xl"
+            },
+            "hint": {
+              "text": "This should be the full and official name of the grant. Do not include abbreviations or acronyms.",
+              "classes": "govuk-!-margin-top-7"
             },
             "classes": "govuk-!-width-two-thirds"
           })

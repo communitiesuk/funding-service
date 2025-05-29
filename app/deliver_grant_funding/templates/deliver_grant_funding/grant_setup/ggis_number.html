@@ -1,6 +1,5 @@
 {% extends "common/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 
 {% block pageTitle %}
@@ -24,9 +23,6 @@
       <span class="govuk-caption-xl">
         <span class="govuk-visually-hidden">This section is: </span>Add a grant
       </span>
-      <h1 class="govuk-heading-xl">Do you have a Government Grants Information System (GGIS) reference number?</h1>
-
-      <p class="govuk-body">You'll need to provide your GGIS number before you can create forms or assess grant applications.</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
@@ -35,9 +31,14 @@
           form.has_ggis(params={
             "fieldset": {
               "legend": {
-                "text": "Do you have a Government Grants Information System (GGIS) reference number?",
-                "classes": "govuk-visually-hidden"
-              }
+                "text": form.has_ggis.label.text,
+                "isPageHeading": true,
+                "classes": "govuk-fieldset__legend--xl",
+              },
+            },
+            "hint": {
+              "text": "You'll need to provide your GGIS number before you can create forms or assess grant applications.",
+              "classes": "govuk-!-margin-top-7",
             },
             "items": [
               {
@@ -47,7 +48,7 @@
                   "html": form.ggis_number(
                     params={
                       "label": {
-                        "text": "Enter your GGIS reference number"
+                        "text": form.ggis_number.label.text,
                       },
                       "hint": {
                         "text": "For example, G2-SCH-2025-05-12346."

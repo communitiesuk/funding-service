@@ -1,5 +1,11 @@
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import (
+    GovCharacterCount,
+    GovRadioInput,
+    GovSubmitInput,
+    GovTextArea,
+    GovTextInput,
+)
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
@@ -59,8 +65,7 @@ class GrantDescriptionForm(FlaskForm):
             DataRequired("Enter the main purpose of this grant"),
         ],
         filters=[strip_string_if_not_empty],
-        widget=GovTextArea(),
-        render_kw={"rows": "6"},
+        widget=GovCharacterCount(),
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
