@@ -48,7 +48,7 @@ class GrantGGISForm(FlaskForm):
     has_ggis = RadioField(
         "Do you have a Government Grants Information System (GGIS) reference number?",
         choices=[("yes", "Yes"), ("no", "No")],
-        validators=[DataRequired("Select yes if you have a GGIS reference number")],
+        validators=[DataRequired("Please select an option")],
         widget=GovRadioInput(),
     )
     ggis_number = StringField(
@@ -60,7 +60,7 @@ class GrantGGISForm(FlaskForm):
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
 
-class GrantNameSetupForm(FlaskForm):
+class GrantNameForm(FlaskForm):
     name = StringField(
         "What is the name of this grant?",
         validators=[
@@ -74,11 +74,13 @@ class GrantNameSetupForm(FlaskForm):
 
 
 class GrantDescriptionForm(FlaskForm):
+    DESCRIPTION_MAX_WORDS = 200
+
     description = TextAreaField(
         "What is the main purpose of this grant?",
         validators=[
             DataRequired("Enter the main purpose of this grant"),
-            MaxWords(200, "Description must be 200 words or fewer"),
+            MaxWords(DESCRIPTION_MAX_WORDS, f"Description must be {DESCRIPTION_MAX_WORDS} words or fewer"),
         ],
         filters=[strip_string_if_not_empty],
         widget=GovCharacterCount(),

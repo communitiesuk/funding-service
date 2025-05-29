@@ -13,7 +13,7 @@ from app.deliver_grant_funding.forms import (
     GrantDescriptionForm,
     GrantForm,
     GrantGGISForm,
-    GrantNameSetupForm,
+    GrantNameForm,
     GrantSetupIntroForm,
 )
 from app.deliver_grant_funding.session_models import (
@@ -69,7 +69,7 @@ def grant_setup_name() -> ResponseReturnValue:
 
     grant_session = GrantSetupSession.from_session(session["grant_setup"])
     form_data = grant_session.name.model_dump() if grant_session.name else {}
-    form = GrantNameSetupForm(data=form_data)
+    form = GrantNameForm(data=form_data)
 
     if form.validate_on_submit():
         assert form.name.data is not None, "Grant name must be provided"
