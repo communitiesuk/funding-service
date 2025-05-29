@@ -1,6 +1,5 @@
 {% extends "common/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/character-count/macro.html" import govukCharacterCount %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 
 {% block pageTitle %}
@@ -24,30 +23,21 @@
       <span class="govuk-caption-xl">
         <span class="govuk-visually-hidden">This section is: </span>Add a grant
       </span>
-      <h1 class="govuk-heading-xl">What is the main purpose of this grant?</h1>
-
-      <p class="govuk-body">Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
         {{
-          govukCharacterCount({
-            "id": "description",
-            "name": "description",
-            "value": form.description.data or "",
-            "maxwords": 200,
-            "rows": 6,
+          form.description(params={
             "label": {
-              "text": "What is the main purpose of this grant?",
-              "classes": "govuk-visually-hidden"
+              "text": form.description.label.text,
+              "isPageHeading": true,
+              "classes": "govuk-fieldset__legend--xl"
             },
             "hint": {
-              "text": "Do not include personal information"
-            },
-            "errorMessage": {
-              "text": form.description.errors[0]
-            } if form.description.errors else None
+              "html": "Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.<br><br>Do not include personal information",
+              "classes": "govuk-!-margin-top-7"
+            }
           })
         }}
 
