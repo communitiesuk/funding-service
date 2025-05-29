@@ -1,6 +1,8 @@
+import copy
 from typing import Any
 from uuid import UUID
 
+from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
@@ -59,6 +61,16 @@ def update_collection_schema(schema: CollectionSchema, *, name: str) -> Collecti
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return schema
+
+
+def update_collection_data(collection: Collection, question: Question, data: BaseModel) -> Collection:
+    # copying the existing data will convince SQLAlchemy that something needs to be updated
+    # this could also be done using the mutability extension which may be more performant
+    # https://docs.sqlalchemy.org/en/20/orm/extensions/mutable.html#module-sqlalchemy.ext.mutable
+    collection.data = copy.deepcopy(collection.data)
+    collection.data[str(question.id)] = data.model_dump()
+    db.session.flush()
+    return collection
 
 
 def get_collection(collection_id: UUID, with_full_schema: bool = False) -> Collection:

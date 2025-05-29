@@ -516,12 +516,18 @@ def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
 
 @developers_blueprint.route("/collections/<uuid:collection_id>/<uuid:question_id>", methods=["GET", "POST"])
 @platform_admin_role_required
+@auto_commit_after_request
 def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValue:
     collection_helper = CollectionHelper.load(collection_id)
     question = collection_helper.get_question(question_id)
-    form = build_question_form(question)
+    answer = collection_helper.get_answer_for_question(question.id)
+
+    # this method should work as long as data types are a single field any may
+    # need to be revised if we have compound data types
+    form = build_question_form(question)(question=answer.root if answer else None)
 
     if form.validate_on_submit():
+        collection_helper.submit_answer_for_question(question.id, form)
         next_question = collection_helper.get_next_question(current_question_id=question_id)
         if next_question:
             return redirect(
