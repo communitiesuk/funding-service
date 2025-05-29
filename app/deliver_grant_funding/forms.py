@@ -8,9 +8,10 @@ from govuk_frontend_wtf.wtforms_widgets import (
 )
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Optional, ValidationError
+from wtforms.validators import DataRequired, Email, Optional
 
 from app.common.data.types import QuestionDataType
+from app.common.forms.validators import MaxWords
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
@@ -63,21 +64,12 @@ class GrantDescriptionForm(FlaskForm):
         "What is the main purpose of this grant?",
         validators=[
             DataRequired("Enter the main purpose of this grant"),
+            MaxWords(200, "Description must be 200 words or fewer"),
         ],
         filters=[strip_string_if_not_empty],
         widget=GovCharacterCount(),
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
-
-    def validate_description(self, field: TextAreaField) -> None:
-        """
-        Validate the description field to ensure it does not exceed 200 words.
-        """
-        if field.data:
-            words = field.data.split()
-            max_words = 200
-            if len(words) > max_words:
-                raise ValidationError(f"Description must be {max_words} words or fewer.")
 
 
 class GrantContactForm(FlaskForm):
