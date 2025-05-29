@@ -34,3 +34,5 @@ class QuestionDataType(enum.StrEnum):
 
 class CollectionStatusEnum(enum.StrEnum):
     NOT_STARTED = "Not started"
+    IN_PROGRESS = "In progress"
+    COMPLETED = "Completed"

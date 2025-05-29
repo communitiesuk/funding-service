@@ -55,7 +55,18 @@ class CollectionHelper:
 
     @property
     def status(self) -> str:
-        return CollectionStatusEnum.NOT_STARTED
+        form_statuses = set(
+            [
+                self.get_status_for_form(form)
+                for form in chain.from_iterable(section.forms for section in self.schema.sections)
+            ]
+        )
+        if {CollectionStatusEnum.COMPLETED} == form_statuses:
+            return CollectionStatusEnum.COMPLETED
+        elif {CollectionStatusEnum.NOT_STARTED} == form_statuses:
+            return CollectionStatusEnum.NOT_STARTED
+        else:
+            return CollectionStatusEnum.IN_PROGRESS
 
     def get_section(self, section_id: uuid.UUID) -> "Section":
         try:
@@ -89,7 +100,15 @@ class CollectionHelper:
         return sorted(self.sections, key=lambda s: s.order)
 
     def get_status_for_form(self, form: "Form") -> str:
-        return CollectionStatusEnum.NOT_STARTED
+        # there's likely a slicker interface for this helper but just brute forcing it for now
+        visible_questions = self.get_ordered_visible_questions_for_form(form)
+        answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
+        if len(visible_questions) == len(answers):
+            return CollectionStatusEnum.COMPLETED
+        elif answers:
+            return CollectionStatusEnum.IN_PROGRESS
+        else:
+            return CollectionStatusEnum.NOT_STARTED
 
     def get_ordered_visible_forms_for_section(self, section: "Section") -> list["Form"]:
         """Returns the visible, ordered forms for a given section based upon the current state of this collection."""
