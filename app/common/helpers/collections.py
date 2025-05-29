@@ -118,7 +118,6 @@ class CollectionHelper:
         serialised_data = self.collection.data.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data else None
 
-    # this likely receives the forms validated data and then maps it
     def submit_answer_for_question(self, question_id: UUID, form: DynamicQuestionForm) -> None:
         question = self.get_question(question_id)
         data = _form_data_to_question_type(question, form)

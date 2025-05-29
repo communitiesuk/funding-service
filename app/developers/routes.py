@@ -522,7 +522,7 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
     question = collection_helper.get_question(question_id)
     answer = collection_helper.get_answer_for_question(question.id)
 
-    # this method should work as long as data types are a single field any may
+    # this method should work as long as data types are a single field and may
     # need to be revised if we have compound data types
     form = build_question_form(question)(question=answer.root if answer else None)
 
