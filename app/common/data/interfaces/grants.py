@@ -13,6 +13,12 @@ def get_grant(grant_id: UUID) -> Grant:
     return db.session.get_one(Grant, grant_id)
 
 
+def grant_name_exists(name: str) -> bool:
+    statement = select(Grant).where(Grant.name == name)
+    grant = db.session.scalar(statement)
+    return grant is not None
+
+
 def get_all_grants() -> Sequence[Grant]:
     statement = select(Grant).order_by(Grant.name)
     return db.session.scalars(statement).all()
