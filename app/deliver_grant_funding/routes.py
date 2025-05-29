@@ -28,7 +28,7 @@ from app.extensions import auto_commit_after_request
 deliver_grant_funding_blueprint = Blueprint(name="deliver_grant_funding", import_name=__name__)
 
 
-@deliver_grant_funding_blueprint.route("/grants/add", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grants/setup", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_intro() -> ResponseReturnValue:
     form = GrantSetupIntroForm()
@@ -39,7 +39,7 @@ def grant_setup_intro() -> ResponseReturnValue:
     return render_template("deliver_grant_funding/grant_setup/intro.html", form=form)
 
 
-@deliver_grant_funding_blueprint.route("/grants/add/ggis-number", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grants/setup/ggis-number", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_ggis() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -61,7 +61,7 @@ def grant_setup_ggis() -> ResponseReturnValue:
     return render_template("deliver_grant_funding/grant_setup/ggis_number.html", form=form)
 
 
-@deliver_grant_funding_blueprint.route("/grants/add/name", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grants/setup/name", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_name() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -81,7 +81,7 @@ def grant_setup_name() -> ResponseReturnValue:
     return render_template("deliver_grant_funding/grant_setup/name.html", form=form)
 
 
-@deliver_grant_funding_blueprint.route("/grants/add/description", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grants/setup/description", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_description() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -101,7 +101,7 @@ def grant_setup_description() -> ResponseReturnValue:
     return render_template("deliver_grant_funding/grant_setup/description.html", form=form)
 
 
-@deliver_grant_funding_blueprint.route("/grants/add/contact", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grants/setup/contact", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
 def grant_setup_contact() -> ResponseReturnValue:
