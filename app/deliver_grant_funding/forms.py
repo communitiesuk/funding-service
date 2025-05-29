@@ -50,7 +50,6 @@ class GrantGGISForm(FlaskForm):
         choices=[("yes", "Yes"), ("no", "No")],
         validators=[DataRequired("Select yes if you have a GGIS reference number")],
         widget=GovRadioInput(),
-        default="no",
     )
     ggis_number = StringField(
         "Enter your GGIS reference number",
