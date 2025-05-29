@@ -13,7 +13,7 @@ from app.deliver_grant_funding.forms import (
     GrantDescriptionForm,
     GrantForm,
     GrantGGISForm,
-    GrantNameSetupForm,
+    GrantNameForm,
     GrantSetupIntroForm,
     QuestionForm,
     QuestionTypeForm,
@@ -705,7 +705,7 @@ def test_grant_setup_name_post(authenticated_platform_admin_client):
     with authenticated_platform_admin_client.session_transaction() as sess:
         sess["grant_setup"] = {}
 
-    name_form = GrantNameSetupForm(name="Test Grant Name")
+    name_form = GrantNameForm(name="Test Grant Name")
     response = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.grant_setup_name"), data=name_form.data, follow_redirects=False
     )

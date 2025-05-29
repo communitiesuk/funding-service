@@ -17,11 +17,20 @@
   }}
 {% endblock beforeContent %}
 
+{% set before_input_text %}
+  <p class="govuk-body govuk-!-margin-top-7">
+    Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.
+  </p>
+  <p class="govuk-hint">
+    Do not include personal information
+  </p>
+{% endset %}
+
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-xl">
-        <span class="govuk-visually-hidden">This section is: </span>Add a grant
+        <span class="govuk-visually-hidden">This section is: </span>Set up the grant
       </span>
 
       <form method="post" novalidate>
@@ -34,10 +43,13 @@
               "isPageHeading": true,
               "classes": "govuk-fieldset__legend--xl"
             },
-            "hint": {
-              "html": "Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.<br><br>Do not include personal information",
-              "classes": "govuk-!-margin-top-7"
-            }
+            "fromGroup": true,
+            "formGroup": {
+              "beforeInput": {
+                "html": before_input_text
+              }
+            },
+            "maxwords": form.DESCRIPTION_MAX_WORDS
           })
         }}
 

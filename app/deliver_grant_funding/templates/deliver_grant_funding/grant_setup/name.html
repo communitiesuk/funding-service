@@ -17,11 +17,17 @@
   }}
 {% endblock beforeContent %}
 
+{% set hint_text %}
+  <p class="govuk-!-margin-top-7 color-black">
+    This should be the full and official name of the grant. Do not include abbreviations or acronyms.
+  </p>
+{% endset %}
+
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-xl">
-        <span class="govuk-visually-hidden">This section is: </span>Add a grant
+        <span class="govuk-visually-hidden">This section is: </span>Set up the grant
       </span>
 
       <form method="post" novalidate>
@@ -35,8 +41,7 @@
               "classes": "govuk-fieldset__legend--xl"
             },
             "hint": {
-              "text": "This should be the full and official name of the grant. Do not include abbreviations or acronyms.",
-              "classes": "govuk-!-margin-top-7"
+              "html": hint_text
             },
             "classes": "govuk-!-width-two-thirds"
           })

@@ -17,11 +17,17 @@
   }}
 {% endblock beforeContent %}
 
+{% set before_inputs_text %}
+  <p class="govuk-body govuk-!-margin-top-7">
+    You'll need to provide your GGIS number before you can create forms or assess grant applications.
+  </p>
+{% endset %}
+
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-xl">
-        <span class="govuk-visually-hidden">This section is: </span>Add a grant
+        <span class="govuk-visually-hidden">This section is: </span>Set up the grant
       </span>
 
       <form method="post" novalidate>
@@ -36,9 +42,10 @@
                 "classes": "govuk-fieldset__legend--xl",
               },
             },
-            "hint": {
-              "text": "You'll need to provide your GGIS number before you can create forms or assess grant applications.",
-              "classes": "govuk-!-margin-top-7",
+            "formGroup": {
+              "beforeInputs": {
+                "html": before_inputs_text
+              }
             },
             "items": [
               {
