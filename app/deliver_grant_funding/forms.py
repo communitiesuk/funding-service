@@ -8,14 +8,26 @@ from govuk_frontend_wtf.wtforms_widgets import (
 )
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Optional
+from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
+from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.types import QuestionDataType
 from app.common.forms.validators import MaxWords
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
     return value.strip() if value else value
+
+
+class UniqueGrantName:
+    """Validator to ensure grant name is unique."""
+
+    def __init__(self, message: str | None = None):
+        self.message = message or "Grant name already in use"
+
+    def __call__(self, form: FlaskForm, field: StringField) -> None:
+        if grant_name_exists(field.data):
+            raise ValidationError(self.message)
 
 
 class GrantForm(FlaskForm):
@@ -52,7 +64,10 @@ class GrantGGISForm(FlaskForm):
 class GrantNameSetupForm(FlaskForm):
     name = StringField(
         "What is the name of this grant?",
-        validators=[DataRequired("Enter the grant name")],
+        validators=[
+            DataRequired("Enter the grant name"),
+            UniqueGrantName(),
+        ],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
