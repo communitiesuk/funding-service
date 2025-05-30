@@ -554,3 +554,35 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
         question=question,
         question_types=QuestionDataType,
     )
+
+
+@developers_blueprint.route("/schemas/<uuid:schema_id>/collections", methods=["GET"])
+@platform_admin_role_required
+def list_collections_for_schema(schema_id: UUID) -> ResponseReturnValue:
+    schema = interfaces.collections.get_collection_schema(schema_id, with_full_schema=True)
+
+    collections = [CollectionHelper(collection) for collection in schema.collections]
+
+    return render_template(
+        "developers/list_collections.html",
+        back_link=url_for("developers.manage_schema", schema_id=schema.id, grant_id=schema.grant.id),
+        grant=schema.grant,
+        schema=schema,
+        collections=collections,
+        statuses=CollectionStatusEnum,
+    )
+
+
+@developers_blueprint.route("/collection/<uuid:collection_id>", methods=["GET"])
+@platform_admin_role_required
+def manage_collection(collection_id: UUID) -> ResponseReturnValue:
+    collection_helper = CollectionHelper.load(collection_id)
+
+    return render_template(
+        "developers/manage_collection.html",
+        back_link=url_for("developers.list_collections_for_schema", schema_id=collection_helper.schema.id),
+        collection_helper=collection_helper,
+        grant=collection_helper.schema.grant,
+        schema=collection_helper.schema,
+        statuses=CollectionStatusEnum,
+    )
