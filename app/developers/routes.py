@@ -559,12 +559,15 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
 @developers_blueprint.route("/schemas/<uuid:schema_id>/collections", methods=["GET"])
 @platform_admin_role_required
 def list_collections_for_schema(schema_id: UUID) -> ResponseReturnValue:
-    schema = interfaces.collections.get_collection_schema(schema_id)
+    schema = interfaces.collections.get_collection_schema(schema_id, with_full_schema=True)
+
+    collections = [CollectionHelper(collection) for collection in schema.collections]
 
     return render_template(
         "developers/list_collections.html",
         back_link=url_for("developers.manage_schema", schema_id=schema.id, grant_id=schema.grant.id),
         grant=schema.grant,
         schema=schema,
-        collections=schema.collections,
+        collections=collections,
+        statuses=CollectionStatusEnum,
     )

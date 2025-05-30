@@ -9,7 +9,7 @@ from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from app import logging
 from app.common.data import interfaces
 from app.common.data.models_user import User
-from app.common.filters import format_date, format_date_range, format_datetime, format_datetime_range
+from app.common.filters import format_date, format_date_range, format_date_short, format_datetime, format_datetime_range
 from app.config import get_settings
 from app.extensions import (
     auto_commit_after_request,
@@ -90,6 +90,7 @@ def create_app() -> Flask:
     def _formatters() -> dict[str, Any]:
         return dict(
             format_date=format_date,
+            format_date_short=format_date_short,
             format_datetime=format_datetime,
             format_date_range=format_date_range,
             format_datetime_range=format_datetime_range,
