@@ -2,7 +2,9 @@ import uuid
 
 import pytest
 
-from app.common.helpers.collections import CollectionHelper
+from app.common.collections.forms import build_question_form
+from app.common.data.types import QuestionDataType
+from app.common.helpers.collections import CollectionHelper, Integer, TextSingleLine
 from tests.utils import AnyStringMatching
 
 
@@ -243,3 +245,26 @@ class TestCollectionHelper:
                 r"Could not find form for question_id=00000000-0000-0000-0000-000000000009 "
                 r"in collection_schema=[a-z0-9-]+"
             )
+
+    class TestGetAndSubmitAnswerForQuestion:
+        def test_submit_valid_data(self, db_session, factories):
+            question = factories.question.build()
+            collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
+            helper = CollectionHelper(collection)
+
+            assert helper.get_answer_for_question(question.id) is None
+
+            form = build_question_form(question)(question="User submitted data")
+            helper.submit_answer_for_question(question.id, form)
+
+            assert helper.get_answer_for_question(question.id) == TextSingleLine("User submitted data")
+
+        def test_get_data_maps_type(self, db_session, factories):
+            question = factories.question.build(data_type=QuestionDataType.INTEGER)
+            collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
+            helper = CollectionHelper(collection)
+
+            form = build_question_form(question)(question=5)
+            helper.submit_answer_for_question(question.id, form)
+
+            assert helper.get_answer_for_question(question.id) == Integer(5)

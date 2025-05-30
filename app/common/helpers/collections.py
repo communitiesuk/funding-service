@@ -3,11 +3,20 @@ from itertools import chain
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
+from pydantic import RootModel, TypeAdapter
+
+from app.common.collections.forms import DynamicQuestionForm
+from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection
-from app.common.data.types import CollectionStatusEnum
+from app.common.data.types import CollectionStatusEnum, QuestionDataType
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Form, Grant, Question, Section
+
+
+TextSingleLine = RootModel[str]
+TextMultiLine = RootModel[str]
+Integer = RootModel[int]
 
 
 class CollectionHelper:
@@ -104,6 +113,16 @@ class CollectionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection_schema={self.schema.id}")
 
+    def get_answer_for_question(self, question_id: UUID) -> TextSingleLine | TextMultiLine | Integer | None:
+        question = self.get_question(question_id)
+        serialised_data = self.collection.data.get(str(question_id))
+        return _deserialise_question_type(question, serialised_data) if serialised_data else None
+
+    def submit_answer_for_question(self, question_id: UUID, form: DynamicQuestionForm) -> None:
+        question = self.get_question(question_id)
+        data = _form_data_to_question_type(question, form)
+        interfaces.collections.update_collection_data(self.collection, question, data)
+
     def get_next_question(self, current_question_id: UUID) -> Optional["Question"]:
         """
         Retrieve the next question that should be shown to the user, or None if this was the last relevant question.
@@ -132,3 +151,34 @@ class CollectionHelper:
                 return next(question_iterator, None)
 
         raise ValueError(f"Could not find a question with id={current_question_id} in schema={self.schema}")
+
+
+def _form_data_to_question_type(
+    question: "Question", form: DynamicQuestionForm
+) -> TextSingleLine | TextMultiLine | Integer:
+    match question.data_type:
+        case QuestionDataType.TEXT_SINGLE_LINE:
+            assert isinstance(form.question.data, str)
+            return TextSingleLine(form.question.data)
+        case QuestionDataType.TEXT_MULTI_LINE:
+            assert isinstance(form.question.data, str)
+            return TextMultiLine(form.question.data)
+        case QuestionDataType.INTEGER:
+            assert isinstance(form.question.data, int)
+            return Integer(form.question.data)
+        case _:
+            raise ValueError(f"Could not parse data for question type={question.data_type}")
+
+
+def _deserialise_question_type(
+    question: "Question", serialised_data: str | int | float | bool
+) -> TextSingleLine | TextMultiLine | Integer:
+    match question.data_type:
+        case QuestionDataType.TEXT_SINGLE_LINE:
+            return TypeAdapter(TextSingleLine).validate_python(serialised_data)
+        case QuestionDataType.TEXT_MULTI_LINE:
+            return TypeAdapter(TextMultiLine).validate_python(serialised_data)
+        case QuestionDataType.INTEGER:
+            return TypeAdapter(Integer).validate_python(serialised_data)
+        case _:
+            raise ValueError(f"Could not deserialise data for question type={question.data_type}")

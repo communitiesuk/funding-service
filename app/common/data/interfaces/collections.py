@@ -1,6 +1,7 @@
 from typing import Any
 from uuid import UUID
 
+from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
@@ -59,6 +60,12 @@ def update_collection_schema(schema: CollectionSchema, *, name: str) -> Collecti
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return schema
+
+
+def update_collection_data(collection: Collection, question: Question, data: BaseModel) -> Collection:
+    collection.data[str(question.id)] = data.model_dump()
+    db.session.flush()
+    return collection
 
 
 def get_collection(collection_id: UUID, with_full_schema: bool = False) -> Collection:

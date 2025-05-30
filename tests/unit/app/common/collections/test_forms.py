@@ -31,7 +31,7 @@ class TestBuildQuestionForm:
     def test_expected_field_types(self, app, data_type, expected_field_type, expected_widget):
         """Feels like a bit of a redundant test that's just reimplementing the function, but ... :shrug:"""
         q = Question(text="Question text", hint="Question hint", data_type=data_type)
-        form = build_question_form(q)
+        form = build_question_form(q)()
 
         assert isinstance(form.question, expected_field_type)
         assert isinstance(form.question.widget, expected_widget)

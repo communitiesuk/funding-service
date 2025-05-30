@@ -16,11 +16,13 @@ from app.common.data.interfaces.collections import (
     move_question_up,
     move_section_down,
     move_section_up,
+    update_collection_data,
     update_question,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import CollectionSchema
 from app.common.data.types import QuestionDataType
+from app.common.helpers.collections import TextSingleLine
 
 
 def test_get_collection_schema(db_session, factories):
@@ -311,3 +313,15 @@ def test_move_question_up_down(db_session, factories):
     assert q1.order == 2
     assert q2.order == 0
     assert q3.order == 1
+
+
+def test_update_collection_data(db_session, factories):
+    question = factories.question.build()
+    collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
+
+    assert str(question.id) not in collection.data
+
+    data = TextSingleLine("User submitted data")
+    updated_collection = update_collection_data(collection, question, data)
+
+    assert updated_collection.data[str(question.id)] == "User submitted data"

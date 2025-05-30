@@ -1,5 +1,3 @@
-from typing import cast
-
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea, GovTextInput
 from wtforms.fields.numeric import IntegerField
@@ -22,7 +20,7 @@ class DynamicQuestionForm(FlaskForm):
     submit: SubmitField
 
 
-def build_question_form(question: Question) -> DynamicQuestionForm:
+def build_question_form(question: Question) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(FlaskForm):  # noqa
         question: _accepted_fields
@@ -49,4 +47,4 @@ def build_question_form(question: Question) -> DynamicQuestionForm:
 
     _DynamicQuestionForm.question = field
 
-    return cast(DynamicQuestionForm, _DynamicQuestionForm())
+    return _DynamicQuestionForm
