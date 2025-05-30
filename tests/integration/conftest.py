@@ -18,7 +18,10 @@ from flask_sqlalchemy_lite import SQLAlchemy
 from flask_wtf import FlaskForm
 from jinja2 import Template
 from pytest_mock import MockerFixture
+from sqlalchemy import event
+from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.session import SessionTransaction
 from sqlalchemy_utils import create_database, database_exists
 from testcontainers.postgres import PostgresContainer
 from werkzeug.test import TestResponse
@@ -110,6 +113,8 @@ def _validate_form_argument_to_render_template(response: TestResponse, templates
 
 @pytest.fixture()
 def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> FlaskClient:
+    _setup_session_clean_tracking()  # setting up listeners
+
     class CustomClient(FundingServiceTestClient):
         # We want to be sure that any data methods that act during the request have been
         # committed by the flask app lifecycle before continuing. Because of the way we configure
@@ -124,6 +129,17 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Flas
 
             response = super().open(*args, **kwargs)
             _validate_form_argument_to_render_template(response, templates_rendered)
+
+            session = app.extensions["sqlalchemy"].session
+            if not session.info.get("clean", True):
+                method = kwargs["method"]
+                path = kwargs["path"]
+
+                pytest.fail(
+                    f"Detected uncommitted changes in the SQLAlchemy session after handling "
+                    f"{method} request to {path}. "
+                    f"To ensure database consistency, wrap your request handler with @auto_commit_after_request."
+                )
 
             app.extensions["sqlalchemy"].session.rollback()
             return response
@@ -288,6 +304,35 @@ def authenticated_platform_admin_client(
     login_user(user)
 
     yield anonymous_client
+
+
+def _setup_session_clean_tracking() -> None:
+    # 1. When a transaction starts, assume session is clean
+    @event.listens_for(Session, "after_begin")
+    def after_begin(session: Session, transaction: SessionTransaction, connection: Connection) -> None:
+        session.info["clean"] = True
+
+    # 2. Before flush — catch dirty state even if flush hasn't happened yet
+    @event.listens_for(Session, "before_flush")
+    def before_flush(session: Session, flush_context: Any, instances: object | None) -> None:
+        if session.new or session.dirty or session.deleted:
+            session.info["clean"] = False
+
+    # 3. Before commit — set false since session has changes and did not flush
+    @event.listens_for(Session, "before_commit")
+    def before_commit(session: Session) -> None:
+        if session.new or session.dirty or session.deleted:
+            session.info["clean"] = False
+
+    # 4. After commit — reset clean flag
+    @event.listens_for(Session, "after_commit")
+    def after_commit(session: Session) -> None:
+        session.info["clean"] = True
+
+    # 5. After rollback — reset clean flag
+    @event.listens_for(Session, "after_rollback")
+    def after_rollback(session: Session) -> None:
+        session.info["clean"] = True
 
 
 @contextmanager

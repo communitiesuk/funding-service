@@ -23,7 +23,7 @@ def test_list_grants(app, authenticated_client, factories, templates_rendered, t
     assert len(templates_rendered[0][1]["grants"]) == 5
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h1.text == "My grants"
-    assert len(queries) == 2  # 1) select grants, 2) rollback
+    assert len(queries) == 3  # 1) select grant, 2) rollback
 
 
 @pytest.mark.authenticate_as("test@google.com")

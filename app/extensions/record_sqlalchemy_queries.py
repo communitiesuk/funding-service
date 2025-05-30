@@ -105,6 +105,11 @@ class RecordSqlalchemyQueriesExtension:
         else:
             location = "<unknown>"
 
+        # Ignore SAVEPOINT-related queries
+        statement = context.statement.strip().upper()
+        if statement.startswith("SAVEPOINT"):
+            return
+
         g._recorded_sqlalchemy_queries.append(
             QueryInfo(
                 statement=context.statement,

@@ -33,7 +33,7 @@ class _GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Grant
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "flush"
+        sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     name = factory.Sequence(lambda n: "Grant %d" % n)
@@ -43,7 +43,7 @@ class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = User
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "flush"
+        sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     email = factory.Faker("email")
@@ -62,7 +62,7 @@ class _UserRoleFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = UserRole
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "flush"
+        sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     user_id = factory.LazyAttribute(lambda o: o.user.id)
@@ -88,7 +88,7 @@ class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = MagicLink
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "flush"
+        sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     code = factory.LazyFunction(lambda: secrets.token_urlsafe(12))
@@ -103,7 +103,7 @@ class _CollectionSchemaFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = CollectionSchema
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "flush"
+        sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     name = factory.Sequence(lambda n: "Collection %d" % n)
@@ -120,7 +120,7 @@ class _CollectionFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Collection
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "flush"
+        sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     data = factory.LazyFunction(dict)
@@ -138,7 +138,7 @@ class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Section
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "flush"
+        sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     title = factory.Sequence(lambda n: "Section %d" % n)
@@ -153,7 +153,7 @@ class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Form
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "flush"
+        sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     title = factory.Sequence(lambda n: "Form %d" % n)
@@ -168,7 +168,7 @@ class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Question
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "flush"
+        sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     text = factory.Sequence(lambda n: "Question %d" % n)
