@@ -43,6 +43,12 @@
       {% else %}
         {% set rows=[] %}
         {% for form in forms %}
+          {% set linkHref = (
+              url_for("developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=collection_helper.get_first_question_for_form(form).id)
+              if collection_helper.get_status_for_form(form) == statuses.NOT_STARTED else
+              url_for("developers.check_your_answers", collection_id=collection_helper.collection.id, form_id=form.id, source=back_link_source_enum.TASKLIST.value)
+            )
+          %}
           {%
             do rows.append({
                   "title": {
@@ -51,7 +57,7 @@
                 "status": {
                   "html": status(collection_helper.get_status_for_form(form), statuses)
                 },
-              "href": url_for("developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=collection_helper.get_first_question_for_form(form).id)
+              "href": linkHref,
             })
           %}
         {% endfor %}

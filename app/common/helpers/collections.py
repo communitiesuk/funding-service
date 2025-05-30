@@ -141,6 +141,12 @@ class CollectionHelper:
             return questions[0]
         return None
 
+    def get_last_question_for_form(self, form: "Form") -> Optional["Question"]:
+        questions = self.get_ordered_visible_questions_for_form(form)
+        if questions:
+            return questions[-1]
+        return None
+
     def get_form_for_question(self, question_id: UUID) -> "Form":
         for section in self.schema.sections:
             for form in section.forms:
