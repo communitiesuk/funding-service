@@ -1,4 +1,5 @@
 import datetime
+from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
@@ -170,6 +171,20 @@ class TestSSOSignInView:
         response = anonymous_client.get(url_for("auth.sso_sign_in"))
         assert response.status_code == 200
         assert b"A connected and consistent digital service" in response.data
+
+
+class TestSSOGetTokenView:
+    def test_get_without_fsd_admin_role(self, app, anonymous_client):
+        with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
+            # Partially mock the expected return value; just enough for the test.
+            mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {"preferred_username": "test@test.communities.gov.uk", "roles": []}
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"))
+
+        assert response.status_code == 403
+        assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5" in response.text
 
 
 class TestAuthenticatedUserRedirect:

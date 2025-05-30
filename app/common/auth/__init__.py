@@ -103,6 +103,10 @@ def sso_get_token() -> ResponseReturnValue:
 
     if "FSD_ADMIN" in sso_user["roles"]:
         add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
+    else:  # TODO: also allow to log in if they're a member of a grant.
+        return render_template(
+            "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]
+        ), 403
 
     session.pop("flow", None)
 
