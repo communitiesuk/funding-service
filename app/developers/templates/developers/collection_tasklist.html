@@ -29,12 +29,10 @@
     </h1>
 
     {# NOTE: Should we have this as a custom component or macro-ize it? #}
-    <dl class="app-metadata">
+    <dl class="app-metadata govuk-!-margin-bottom-7">
       <dt class="app-metadata__key">Status:</dt>
       <dd class="app-metadata__value">{{ status(collection_helper.status, statuses) }}</dd>
     </dl>
-
-    <p class="govuk-body">None of the sections have been completed.</p>
 
     {% for section in collection_helper.get_ordered_visible_sections() %}
       <h2 class="govuk-heading-m">{{ section.title }}</h2>
@@ -65,6 +63,8 @@
           })
         }}
       {% endif %}
+    {% else %}
+      <p class="govuk-body">This collection has no sections.</p>
     {% endfor %}
   </div>
 </div>
