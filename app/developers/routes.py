@@ -554,3 +554,30 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
         question=question,
         question_types=QuestionDataType,
     )
+
+
+@developers_blueprint.route(
+    "/collections/<uuid:collection_id>/check-yours-answers/<uuid:form_id>", methods=["GET", "POST"]
+)
+@platform_admin_role_required
+def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    collection_helper = CollectionHelper.load(collection_id)
+    form = collection_helper.get_form(form_id)
+
+    # this now probably wants to have an option to pass in nothing which would mean you want the last question
+    # does it want to be able to go to the tasklist if you've come form there? how many states will we be juggling
+    # previous_question = collection_helper.get_previous_question()
+    back_link = (
+        # url_for(
+        # "developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=previous_question.id
+        # )
+        # if previous_question
+        url_for("developers.collection_tasklist", collection_id=collection_helper.collection.id)
+    )
+    return render_template(
+        "developers/check_your_answers.html",
+        back_link=back_link,
+        collection_helper=collection_helper,
+        form=form,
+        question_types=QuestionDataType,
+    )

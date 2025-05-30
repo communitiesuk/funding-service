@@ -1,0 +1,25 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "developers/access_grant_funding_base.html" %}
+
+{% block pageTitle %}
+  Check your answers - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% block beforeContent %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+<div class="govuk-grid-row">
+  <div class="govuk-grid-column-two-thirds">
+    <span class="govuk-caption-l">{{ form.name }}</span>
+    <h1 class="govuk-heading-l">Check your answers</h1>
+
+    {{ govukButton({
+      "text": "Save and continue"
+    })}}
+  </div>
+</div>
+{% endblock content %}
