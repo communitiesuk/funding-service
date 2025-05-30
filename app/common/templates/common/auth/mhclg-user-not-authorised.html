@@ -1,0 +1,16 @@
+{% extends "common/base.html" %}
+{% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
+
+{% block pageTitle %}
+  Access denied - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Access denied</h1>
+      <p class="govuk-body">You do not have permission to log into the Funding Service.</p>
+      <p class="govuk-body">If you think you should have access, please contact us through our <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk</a> if you need help.</p>
+    </div>
+  </div>
+{% endblock content %}
