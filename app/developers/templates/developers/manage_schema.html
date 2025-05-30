@@ -32,8 +32,15 @@
       sections
     {% endtrans %}
   {% endset %}
+  {% set collections_text %}
+    {% trans count=schema.collections | length %}
+      {{ count }} preview collection
+      {% pluralize %}
+      {{ count }} preview collections
+    {% endtrans %}
+  {% endset %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
+    <div class="govuk-grid-column-two-thirds">
       {{
         govukSummaryList({
           "rows": [{
@@ -60,6 +67,18 @@
                       }
                   ]
               }
+        }, {
+              "key": {"text": "Collections"},
+              "value":{"text": collections_text },
+              "actions": {
+                  "items": [
+                      {
+                        "href": url_for("developers.list_collections_for_schema", schema_id=schema.id),
+                        "text": "View",
+                        "classes": "govuk-link govuk-link--no-visited-state"
+                      }
+                  ]
+              }
         }]
         })
       }}
@@ -74,7 +93,15 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full govuk-!-margin-bottom-5">
+    <div class="govuk-grid-column-full">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.submit(params={"classes": "govuk-button--secondary"}) }}
+      </form>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full govuk-!-margin-top-5">
       {% for section in schema.sections %}
         <h2 class="govuk-heading-m">{{ section.title }}</h2>
 
@@ -116,14 +143,6 @@
           })
         }}
       {% endfor %}
-    </div>
-  </div>
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {{ form.submit(params={"classes": "govuk-button--secondary"}) }}
-      </form>
     </div>
   </div>
 {% endblock content %}
