@@ -29,6 +29,17 @@ def test_list_grants(app, authenticated_client, factories, templates_rendered, t
     assert result.status_code == 200
     assert len(templates_rendered[0][1]["grants"]) == 5
     soup = BeautifulSoup(result.data, "html.parser")
+
+    button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
+    assert button is not None, "'Set up a grant' button not found"
+
+    headers = soup.find_all("th")
+    header_texts = [th.get_text(strip=True) for th in headers]
+
+    expected_headers = ["Grant", "GGIS number", "Email"]
+    for expected in expected_headers:
+        assert expected in header_texts, f"Header '{expected}' not found in table"
+
     assert soup.h1.text == "Grants"
     assert len(queries) == 3  # 1) select grant, 2) rollback, 3) savepoint
 
