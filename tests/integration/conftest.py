@@ -148,8 +148,15 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
 
     These tests may talk over the network (eg to the DB), so we need to make some allowance for that, but they should
     still be able to be fairly fast.
+
+    HACK: We double the allowable runtime duration if running in CI. We've seen that github runners are a lot slower
+    than local machines. If we still keep butting up against this and it feels painful, we should feel OK to revisit
+    whether this is a worthwhile check to have at all.
     """
-    request.node.add_marker(pytest.mark.fail_slow("250ms"))
+    bad_duration = request.node.get_closest_marker("fail_if_takes_longer_than_ms", 250).args[0]
+    if os.getenv("CI", "false") == "true":
+        bad_duration *= 2
+    request.node.add_marker(pytest.mark.fail_slow(f"{bad_duration}ms"))
 
 
 @pytest.fixture(scope="function", autouse=True)

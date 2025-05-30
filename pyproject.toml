@@ -191,7 +191,8 @@ markers = [
     "e2e: Run E2E (browser) tests using playwright",
     "authenticate_as: Email address to use for `authenticated_client` (integration) and `authenticated_browser` (e2e)",
     "skip_in_environments: Environment in which this end to end test should be run",
-    "freeze_time: Mock all calls to now() in code or database to return the specified date/time"
+    "freeze_time: Mock all calls to now() in code or database to return the specified date/time",
+    "fail_if_takes_longer_than_ms: Fail integration tests if they take longer than this amount of time, in milliseconds. Defaults to 250ms. Override this only in clearly-defined, exception circumstances. Note: this duration gets doubled when tests run in CI (eg GitHub Actions)."
 ]
 
 filterwarnings = [
