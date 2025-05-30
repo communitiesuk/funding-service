@@ -87,6 +87,7 @@ mccabe.max-complexity = 12
 root_package = "app"
 include_external_packages = true
 exclude_type_checking_guards = true
+exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Block importing anything from the `developers` package in the rest of the app."
@@ -124,9 +125,6 @@ source_modules = [
 # `current_user` to the right thing. Again, alas, not ideal but OK.
 forbidden_modules = [
     "app.common.data.models",
-]
-ignore_imports = [
-    "app.common.helpers.collections -> app.common.data.models"
 ]
 # Lots of things import interfaces (correctly); interfaces import models; indirect imports therefore must be allowed
 allow_indirect_imports = true
