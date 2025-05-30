@@ -53,7 +53,7 @@ jobs:
       - name: install dependencies
         run: uv sync --frozen
       - name: run unit tests
-        run: uv run pytest -nauto .
+        run: uv run pytest -nauto . --durations=20
         env:
           FLASK_ENV: unit_test
           DATABASE_HOST: localhost
