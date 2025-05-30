@@ -316,13 +316,12 @@ def test_move_question_up_down(db_session, factories):
 
 
 def test_update_collection_data(db_session, factories):
-    form = factories.form.build()
-    question = factories.question.build(form=form)
-    collection = factories.collection.build(collection_schema=form.section.collection_schema)
+    question = factories.question.build()
+    collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
 
-    assert collection.data.get(str(question.id)) is None
+    assert str(question.id) not in collection.data
 
     data = TextSingleLine("User submitted data")
     updated_collection = update_collection_data(collection, question, data)
 
-    assert updated_collection.data.get(str(question.id)) == "User submitted data"
+    assert updated_collection.data[str(question.id)] == "User submitted data"

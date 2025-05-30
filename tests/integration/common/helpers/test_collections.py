@@ -248,10 +248,8 @@ class TestCollectionHelper:
 
     class TestGetAndSubmitAnswerForQuestion:
         def test_submit_valid_data(self, db_session, factories):
-            section = factories.section.build()
-            form = factories.form.build(section=section)
-            question = factories.question.build(form=form)
-            collection = factories.collection.build(collection_schema=section.collection_schema)
+            question = factories.question.build()
+            collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
             helper = CollectionHelper(collection)
 
             assert helper.get_answer_for_question(question.id) is None
@@ -262,10 +260,8 @@ class TestCollectionHelper:
             assert helper.get_answer_for_question(question.id) == TextSingleLine("User submitted data")
 
         def test_get_data_maps_type(self, db_session, factories):
-            section = factories.section.build()
-            form = factories.form.build(section=section)
-            question = factories.question.build(form=form, data_type=QuestionDataType.INTEGER)
-            collection = factories.collection.build(collection_schema=section.collection_schema)
+            question = factories.question.build(data_type=QuestionDataType.INTEGER)
+            collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
             helper = CollectionHelper(collection)
 
             form = build_question_form(question)(question=5)
