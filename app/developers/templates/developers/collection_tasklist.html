@@ -3,6 +3,7 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+{% from "common/macros/status.html" import status %}
 {% extends "developers/access_grant_funding_base.html" %}
 
 {% block pageTitle %}
@@ -28,12 +29,10 @@
     </h1>
 
     {# NOTE: Should we have this as a custom component or macro-ize it? #}
-    <dl class="app-metadata">
+    <dl class="app-metadata govuk-!-margin-bottom-7">
       <dt class="app-metadata__key">Status:</dt>
-      <dd class="app-metadata__value">{{ govukTag({"text": collection_helper.status, "classes": "govuk-tag--grey"}) }}</dd>
+      <dd class="app-metadata__value">{{ status(collection_helper.status, statuses) }}</dd>
     </dl>
-
-    <p class="govuk-body">None of the sections have been completed.</p>
 
     {% for section in collection_helper.get_ordered_visible_sections() %}
       <h2 class="govuk-heading-m">{{ section.title }}</h2>
@@ -50,10 +49,7 @@
                     "text": form.title,
                   },
                 "status": {
-                  "tag": {
-                    "text": collection_helper.get_status_for_form(form),
-                    "classes": "govuk-tag govuk-tag--grey"
-                  },
+                  "html": status(collection_helper.get_status_for_form(form), statuses)
                 },
               "href": url_for("developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=collection_helper.get_first_question_for_form(form).id)
             })
@@ -67,6 +63,8 @@
           })
         }}
       {% endif %}
+    {% else %}
+      <p class="govuk-body">This collection has no sections.</p>
     {% endfor %}
   </div>
 </div>
