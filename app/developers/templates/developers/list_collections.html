@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/macros/status.html" import status %}
 {% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
@@ -38,9 +39,11 @@
       {
         "html": link_to_collection,
       }, {
-        "text": collection.created_by.email
+        "html": status(collection.status, statuses)
       }, {
-        "text": format_date(collection.created_at_utc)
+        "text": collection.created_by_email
+      }, {
+        "text": format_date_short(collection.created_at_utc)
       }
     ]) %}
 
@@ -51,7 +54,7 @@
     {% do rows.append([
       {
         "html": no_collections_text,
-        "colspan": 3
+        "colspan": 4
       }
     ]) %}
   {% endfor %}
@@ -60,6 +63,7 @@
     "captionClasses": "govuk-table__caption--m",
     "head": [
       { "text": "Collection" },
+      { "text": "" },
       { "text": "Started by" },
       { "text": "Created" }
     ],

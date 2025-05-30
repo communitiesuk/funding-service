@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
@@ -67,6 +68,18 @@ class CollectionHelper:
             return CollectionStatusEnum.NOT_STARTED
         else:
             return CollectionStatusEnum.IN_PROGRESS
+
+    @property
+    def created_by_email(self) -> str:
+        return self.collection.created_by.email
+
+    @property
+    def created_at_utc(self) -> datetime:
+        return self.collection.created_at_utc
+
+    @property
+    def id(self) -> UUID:
+        return self.collection.id
 
     def get_section(self, section_id: uuid.UUID) -> "Section":
         try:
