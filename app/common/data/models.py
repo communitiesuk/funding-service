@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING, Optional
 from pytz import utc
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import User
@@ -85,7 +87,7 @@ class CollectionSchema(BaseModel):
 class Collection(BaseModel):
     __tablename__ = "collection"
 
-    data: Mapped[json_scalars] = mapped_column(default=dict)
+    data: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
     status: Mapped[CollectionStatusEnum] = mapped_column(
         SqlEnum(CollectionStatusEnum, name="collection_status_enum", validate_strings=True)
     )

@@ -525,6 +525,7 @@ dependencies = [
     { name = "python-json-logger" },
     { name = "sentry-sdk" },
     { name = "sqlalchemy" },
+    { name = "sqlalchemy-json" },
     { name = "wtforms", extra = ["email"] },
 ]
 
@@ -580,6 +581,7 @@ requires-dist = [
     { name = "python-json-logger", specifier = "==3.3.0" },
     { name = "sentry-sdk", specifier = "==2.26.1" },
     { name = "sqlalchemy", specifier = "==2.0.41" },
+    { name = "sqlalchemy-json", specifier = ">=0.7.0" },
     { name = "wtforms", extras = ["email"], specifier = "==3.2.1" },
 ]
 
@@ -1436,6 +1438,18 @@ wheels = [
 [package.optional-dependencies]
 asyncio = [
     { name = "greenlet" },
+]
+
+[[package]]
+name = "sqlalchemy-json"
+version = "0.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "sqlalchemy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3e/57/73ba3d0ee5efbec5a0d15ee3e21606edd33b1d1fd11b5d64e581c8b8a3f6/sqlalchemy-json-0.7.0.tar.gz", hash = "sha256:620d0b26f648f21a8fa9127df66f55f83a5ab4ae010e5397a5c6989a08238561", size = 8848, upload-time = "2023-08-30T19:52:57.367Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e1/79/1fc7309ecf75756e9ad9280f19cd83ca7b79a0dae36cd025f668e8e2741f/sqlalchemy_json-0.7.0-py3-none-any.whl", hash = "sha256:27881d662ca18363a4ac28175cc47ea2a6f2bef997ae1159c151026b741818e6", size = 7688, upload-time = "2023-08-30T19:52:56.219Z" },
 ]
 
 [[package]]

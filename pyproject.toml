@@ -27,6 +27,7 @@ dependencies = [
     "sentry-sdk==2.26.1",
     "msal==1.32.3",
     "gunicorn[gevent]==23.0.0",
+    "sqlalchemy-json>=0.7.0",
 ]
 
 [dependency-groups]
@@ -160,7 +161,7 @@ disallow_subclassing_any = false
 # enforce type checking on fixtures in conftest but not on all test files
 packages = ["app", "tests"]
 # Exclude actual test files, but include stuff in __init__ or conftest as they are used more widely
-exclude = ['.*test_.*']
+exclude = [".*test_.*"]
 
 
 [[tool.mypy.overrides]]
@@ -174,8 +175,12 @@ module = ["app.common.data.migrations.versions.*"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ['factory']
+module = ["factory"]
 implicit_reexport = true
+
+[[tool.mypy.overrides]]
+module = ["sqlalchemy_json"]
+follow_untyped_imports = true
 
 [tool.pytest.ini_options]
 env = [

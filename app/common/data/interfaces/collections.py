@@ -1,4 +1,3 @@
-import copy
 from typing import Any
 from uuid import UUID
 
@@ -64,7 +63,6 @@ def update_collection_schema(schema: CollectionSchema, *, name: str) -> Collecti
 
 
 def update_collection_data(collection: Collection, question: Question, data: BaseModel) -> Collection:
-    collection.data = copy.deepcopy(collection.data)
     collection.data[str(question.id)] = data.model_dump()
     db.session.flush()
     return collection
