@@ -1,0 +1,68 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
+
+{% block pageTitle %}
+  Collections - {{ schema.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link,
+        "classes": "govuk-!-margin-bottom-7"
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ schema.name }}</span>
+    Collections
+  </h1>
+  <p class="govuk-body">View the information that has been provided by users for a schema.</p>
+
+
+  {% set rows=[] %}
+  {# collections is probably a list of collection helpers? to be decided #}
+  {% for collection in collections %}
+    {% set link_to_collection %}
+      <a class="govuk-link govuk-link--no-visited-state" href="#">{{ collection.id | string | truncate(11) }}</a>
+    {% endset %}
+    {% do rows.append([
+      {
+        "html": link_to_collection,
+      }, {
+        "text": collection.created_by.email
+      }, {
+        "text": format_date(collection.created_at_utc)
+      }
+    ]) %}
+
+  {% else %}
+    {% set no_collections_text %}
+    <span><i>No collections found for this schema</i></span>
+    {% endset %}
+    {% do rows.append([
+      {
+        "html": no_collections_text,
+        "colspan": 3
+      }
+    ]) %}
+  {% endfor %}
+
+  {{ govukTable({
+    "captionClasses": "govuk-table__caption--m",
+    "head": [
+      { "text": "Collection" },
+      { "text": "Started by" },
+      { "text": "Created" }
+    ],
+    "rows": rows
+  }) }}
+{% endblock content %}
