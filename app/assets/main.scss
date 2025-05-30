@@ -82,3 +82,9 @@ body.govuk-template__body:has(div.app-body__watermark) {
 
     display: inline-block;
 }
+
+.app-aligned-header-tag {
+    display: flex;
+    align-items: anchor-center;
+    gap: 0.5em;
+}

@@ -1,0 +1,59 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/macros/status.html" import status %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
+
+{% block pageTitle %}
+  Collection - {{ schema.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_developers" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link,
+        "classes": "govuk-!-margin-bottom-7"
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="app-aligned-header-tag">
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ collection_helper.id | string | truncate(11) }}</span>
+    Collection
+  </h1>
+  {{ status(collection_helper.status, statuses)}}
+  </div>
+
+  {% for section in collection_helper.get_ordered_visible_sections() %}
+    <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ section.title }}</h2>
+    {% for form in collection_helper.get_ordered_visible_forms_for_section(section) %}
+      <h3 class="govuk-heading-s govuk-!-margin-top-4">{{ form.title }}</h3>
+      {% for question in collection_helper.get_ordered_visible_questions_for_form(form) %}
+        {% set rows = [] %}
+
+        {# the answer is a well formed, validated pydantic thing we could access any of the properties #}
+        {# of for the templates use - we'll probably generally just want the interface of that model to tell #}
+        {# us what to put when we need a single line text representation #}
+        {% do rows.append({
+          "key": {
+            "text": question.text
+          },
+          "value": {
+            "text": collection_helper.get_answer_for_question(question.id).root or "(Not answered)"
+          }
+        }) %}
+
+        {{ govukSummaryList({
+          "rows": rows
+        })}}
+      {% endfor %}
+    {% endfor %}
+  {% endfor %}
+
+{% endblock content %}
