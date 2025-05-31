@@ -103,7 +103,7 @@ class CollectionHelper:
         # there's likely a slicker interface for this helper but just brute forcing it for now
         visible_questions = self.get_ordered_visible_questions_for_form(form)
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
-        if len(visible_questions) == len(answers):
+        if visible_questions and len(visible_questions) == len(answers):
             return CollectionStatusEnum.COMPLETED
         elif answers:
             return CollectionStatusEnum.IN_PROGRESS
