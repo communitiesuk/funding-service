@@ -292,6 +292,12 @@ class TestCollectionHelper:
 
             assert helper.get_status_for_form(form) == CollectionStatusEnum.COMPLETED
 
+        def test_form_status_with_no_questions(self, db_session, factories):
+            form = factories.form.build()
+            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            helper = CollectionHelper(collection)
+            assert helper.get_status_for_form(form) == CollectionStatusEnum.NOT_STARTED
+
         def test_collection_status_based_on_forms(self, db_session, factories):
             question = factories.question.build()
             form_two = factories.form.build(section=question.form.section)
