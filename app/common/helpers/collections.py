@@ -81,6 +81,10 @@ class CollectionHelper:
     def id(self) -> UUID:
         return self.collection.id
 
+    @property
+    def schema_id(self) -> UUID:
+        return self.schema.id
+
     def get_section(self, section_id: uuid.UUID) -> "Section":
         try:
             return next(filter(lambda s: s.id == section_id, self.schema.sections))

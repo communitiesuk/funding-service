@@ -571,3 +571,18 @@ def list_collections_for_schema(schema_id: UUID) -> ResponseReturnValue:
         collections=collections,
         statuses=CollectionStatusEnum,
     )
+
+
+@developers_blueprint.route("/collection/<uuid:collection_id>", methods=["GET"])
+@platform_admin_role_required
+def manage_collection(collection_id: UUID) -> ResponseReturnValue:
+    collection_helper = CollectionHelper.load(collection_id)
+
+    return render_template(
+        "developers/manage_collection.html",
+        back_link=url_for("developers.list_collections_for_schema", schema_id=collection_helper.schema.id),
+        collection_helper=collection_helper,
+        grant=collection_helper.schema.grant,
+        schema=collection_helper.schema,
+        statuses=CollectionStatusEnum,
+    )
