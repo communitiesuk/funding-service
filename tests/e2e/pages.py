@@ -197,11 +197,13 @@ class GrantSetupContactPage(TopNavMixin, BasePage):
 class GrantDashboardBasePage(TopNavMixin, BasePage):
     dashboard_nav: Locator
     settings_nav: Locator
+    developers_nav: Locator
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.dashboard_nav = self.page.get_by_role("link", name="Dashboard")
         self.settings_nav = self.page.get_by_role("link", name="Settings")
+        self.developers_nav = self.page.get_by_role("link", name="Developers")
 
     def click_dashboard(self) -> GrantDashboardPage:
         self.dashboard_nav.click()
@@ -216,9 +218,23 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
     def check_grant_name(self, grant_name: str) -> None:
         expect(self.page.get_by_role("heading", name=grant_name)).to_be_visible()
 
+    def click_developers(self, grant_name: str) -> GrantDevelopersPage:
+        self.developers_nav.click()
+        grant_developers_page = GrantDevelopersPage(self.page, self.domain)
+        expect(grant_developers_page.page.get_by_role("heading", name=f"{grant_name} Developers")).to_be_visible()
+        return grant_developers_page
+
 
 class GrantDashboardPage(GrantDashboardBasePage):
     pass
+
+
+class GrantDevelopersPage(GrantDashboardBasePage):
+    manage_schemas_link: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.manage_schemas_link = self.page.get_by_role("link", name="Manage")
 
 
 class GrantSettingsPage(GrantDashboardBasePage):
