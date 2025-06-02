@@ -8,7 +8,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 )
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Optional, ValidationError
+from wtforms.validators import DataRequired, Email, ValidationError
 
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.types import QuestionDataType
@@ -27,6 +27,17 @@ class UniqueGrantName:
 
     def __call__(self, form: FlaskForm, field: StringField) -> None:
         if field.data and grant_name_exists(field.data):
+            raise ValidationError(self.message)
+
+
+class ConditionalGGISRequired:
+    """Validator to ensure GGIS number is provided when 'yes' is selected."""
+
+    def __init__(self, message: str | None = None):
+        self.message = message or "Enter your GGIS reference number"
+
+    def __call__(self, form: FlaskForm, field: StringField) -> None:
+        if form.has_ggis.data == "yes" and (not field.data or not field.data.strip()):
             raise ValidationError(self.message)
 
 
@@ -53,7 +64,7 @@ class GrantGGISForm(FlaskForm):
     )
     ggis_number = StringField(
         "Enter your GGIS reference number",
-        validators=[Optional()],
+        validators=[ConditionalGGISRequired()],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
