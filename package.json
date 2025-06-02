@@ -11,7 +11,7 @@
     "govuk-frontend": "5.9.0"
   },
   "devDependencies": {
-    "sass": "1.89.0",
+    "sass": "1.89.1",
     "vite": "6.3.5",
     "vite-plugin-static-copy": "2.3.1"
   }
