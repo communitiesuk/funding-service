@@ -90,7 +90,7 @@
       {% endfor %}
 
       {% if form.questions %}
-        <p class="govuk-body">This form has {{ question_text }}.</p>
+        <p class="govuk-body">This form has {% trans count=form.questions | length %}{{ count }} question{% pluralize %}{{ count }} questions{% endtrans %}.</p>
         {{ moveUpDownTable(table_rows) }}
         {{
           govukButton({
