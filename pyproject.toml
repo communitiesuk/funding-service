@@ -27,7 +27,7 @@ dependencies = [
     "sentry-sdk==2.26.1",
     "msal==1.32.3",
     "gunicorn[gevent]==23.0.0",
-    "sqlalchemy-json>=0.7.0",
+    "sqlalchemy-json==0.7.0",
 ]
 
 [dependency-groups]
