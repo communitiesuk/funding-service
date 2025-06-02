@@ -59,7 +59,7 @@ def test_list_grants_as_member_with_single_grant(
     assert dashboard_link is not None, "Dashboard link not found"
     settings_link = soup.find("a", string="Settings")
     assert settings_link is not None, "Settings link not found"
-    assert len(queries) == 3
+    assert len(queries) == 2
 
 
 def test_list_grants_as_member_with_multiple_grants(
