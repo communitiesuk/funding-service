@@ -31,7 +31,6 @@ from app.common.data.types import RoleEnum
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _precompile_templates
-from tests.integration.example_models import ExampleAccountFactory, ExamplePersonFactory
 from tests.integration.models import (
     _CollectionFactory,
     _CollectionSchemaFactory,
@@ -236,14 +235,6 @@ def factories(db_session: Session) -> _Factories:
         user_role=_UserRoleFactory,
         question=_QuestionFactory,
     )
-
-
-_ExampleFactories = namedtuple("_ExampleFactories", ["person", "account"])
-
-
-@pytest.fixture(scope="function")
-def example_factories() -> _ExampleFactories:
-    return _ExampleFactories(person=ExamplePersonFactory, account=ExampleAccountFactory)
 
 
 @pytest.fixture(scope="function")
