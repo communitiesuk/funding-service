@@ -379,3 +379,33 @@ def test_remove_metadata_for_a_key(db_session, factories):
 
     assert len(collection.collection_metadata) == 1
     assert collection.collection_metadata[0].form == form_two
+
+
+def test_get_collection_schema_with_full_schema(db_session, factories, track_sql_queries):
+    schema = factories.collection_schema.create()
+    sections = factories.section.create_batch(3, collection_schema=schema)
+    for section in sections:
+        forms = factories.form.create_batch(3, section=section)
+        for form in forms:
+            factories.question.create_batch(3, form=form)
+
+    with track_sql_queries() as queries:
+        from_db = get_collection_schema(schema_id=schema.id, with_full_schema=True)
+    assert from_db is not None
+
+    # Expected queries:
+    # * Initial queries for schema and user
+    # * Load the sections
+    # * Load the forms
+    # * Load the question
+    assert len(queries) == 5
+
+    # No additional queries when inspecting the ORM model
+    count = 0
+    with track_sql_queries() as queries:
+        for s in from_db.sections:
+            for f in s.forms:
+                for _q in f.questions:
+                    count += 1
+
+    assert queries == []
