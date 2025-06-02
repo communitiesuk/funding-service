@@ -37,10 +37,8 @@ def test_unique_grant_name_fails_when_name_exists():
             validator(form, form.name)
 
 
-def test_grant_ggis_form_validates_when_no_selected():
-    app = Flask(__name__)
+def test_grant_ggis_form_validates_when_no_selected(app: Flask):
     app.config["SECRET_KEY"] = "test-key"  # pragma: allowlist secret
-    app.config["WTF_CSRF_ENABLED"] = False  # Disable CSRF for testing
 
     with app.test_request_context():
         form = GrantGGISForm(data={"has_ggis": "no", "ggis_number": ""})
@@ -50,10 +48,8 @@ def test_grant_ggis_form_validates_when_no_selected():
         assert len(form.ggis_number.errors) == 0
 
 
-def test_grant_ggis_form_validates_when_yes_selected_with_ggis_number():
-    app = Flask(__name__)
+def test_grant_ggis_form_validates_when_yes_selected_with_ggis_number(app: Flask):
     app.config["SECRET_KEY"] = "test-key"  # pragma: allowlist secret
-    app.config["WTF_CSRF_ENABLED"] = False  # Disable CSRF for testing
 
     with app.test_request_context():
         form = GrantGGISForm(data={"has_ggis": "yes", "ggis_number": "GGIS123456"})
@@ -63,7 +59,7 @@ def test_grant_ggis_form_validates_when_yes_selected_with_ggis_number():
         assert len(form.ggis_number.errors) == 0
 
 
-def test_grant_ggis_form_fails_when_yes_selected_and_empty():
+def test_grant_ggis_form_fails_when_yes_selected_and_empty(app: Flask):
     app = Flask(__name__)
     app.config["SECRET_KEY"] = "test-key"  # pragma: allowlist secret
     app.config["WTF_CSRF_ENABLED"] = False  # Disable CSRF for testing

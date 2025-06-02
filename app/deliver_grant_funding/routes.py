@@ -106,11 +106,11 @@ def grant_setup_contact() -> ResponseReturnValue:
             grant_session.primary_contact_email = form.primary_contact_email.data
 
             grant = interfaces.grants.create_grant(
-                name=grant_session.name or "",
-                ggis_number=grant_session.ggis_number,
-                description=grant_session.description or "",
+                name=grant_session.name,
+                description=grant_session.description,
                 primary_contact_name=grant_session.primary_contact_name,
                 primary_contact_email=grant_session.primary_contact_email,
+                ggis_number=grant_session.ggis_number,
             )
 
             session.pop("grant_setup", None)

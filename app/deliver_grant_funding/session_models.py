@@ -6,10 +6,10 @@ from pydantic import BaseModel
 class GrantSetupSession(BaseModel):
     has_ggis: Literal["yes", "no"] | None = None
     ggis_number: str | None = None
-    name: str | None = None
-    description: str | None = None
-    primary_contact_name: str | None = None
-    primary_contact_email: str | None = None
+    name: str = ""
+    description: str = ""
+    primary_contact_name: str = ""
+    primary_contact_email: str = ""
 
     def to_session_dict(self) -> dict[str, Any]:
         """Convert to dict for session storage"""

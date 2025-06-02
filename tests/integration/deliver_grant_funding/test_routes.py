@@ -30,7 +30,7 @@ def test_list_grants(app, authenticated_client, factories, templates_rendered, t
     assert len(templates_rendered[0][1]["grants"]) == 5
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h1.text == "Grants"
-    assert len(queries) == 3  # 1) select grants, 2) rollback
+    assert len(queries) == 3  # 1) select grant, 2) rollback, 3) savepoint
 
 
 @pytest.mark.authenticate_as("test@google.com")
@@ -736,7 +736,7 @@ def test_grant_setup_description_post_too_long(authenticated_platform_admin_clie
     soup = BeautifulSoup(response.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#description")) == 1
-    assert "Description must be 200 words or fewer" in soup.find_all("a", href="#description")[0].text.strip()
+    assert "Description must be 200 words or less" in soup.find_all("a", href="#description")[0].text.strip()
 
 
 def test_grant_setup_description_post_valid(authenticated_platform_admin_client):
@@ -769,8 +769,8 @@ def test_grant_setup_contact_post_creates_grant(authenticated_platform_admin_cli
             "description": "Test description",
             "has_ggis": "yes",
             "ggis_number": "GGIS123",
-            "primary_contact_name": None,
-            "primary_contact_email": None,
+            "primary_contact_name": "Joe Bloggs",
+            "primary_contact_email": "joe.bloggs@gmail.com",
         }
 
     contact_form = GrantContactForm(primary_contact_name="Test Contact", primary_contact_email="test@example.com")

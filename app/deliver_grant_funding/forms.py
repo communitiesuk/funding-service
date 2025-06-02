@@ -97,11 +97,7 @@ class GrantDescriptionForm(FlaskForm):
         "What is the main purpose of this grant?",
         validators=[
             DataRequired("Enter the main purpose of this grant"),
-            WordRange(
-                min_words=0,
-                max_words=DESCRIPTION_MAX_WORDS,
-                message=f"Description must be {DESCRIPTION_MAX_WORDS} words or fewer",
-            ),
+            WordRange(max_words=DESCRIPTION_MAX_WORDS, field_display_name="Description"),
         ],
         filters=[strip_string_if_not_empty],
         widget=GovCharacterCount(),
