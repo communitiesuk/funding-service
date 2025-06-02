@@ -1,4 +1,5 @@
 import typing as t
+from collections import namedtuple
 from typing import Any, Generator
 
 import html5lib
@@ -7,9 +8,22 @@ from _pytest.config import Config
 from _pytest.config.argparsing import Parser
 from flask import Flask
 from flask.testing import FlaskClient
+from sqlalchemy.orm import Session
 from werkzeug.test import TestResponse
 
 from app import create_app
+from tests.models import (
+    _CollectionFactory,
+    _CollectionSchemaFactory,
+    _FormFactory,
+    _GrantFactory,
+    _MagicLinkFactory,
+    _OrganisationFactory,
+    _QuestionFactory,
+    _SectionFactory,
+    _UserFactory,
+    _UserRoleFactory,
+)
 
 html5parser = html5lib.HTMLParser(strict=False)
 
@@ -110,3 +124,47 @@ def _precompile_templates(app: Flask) -> None:
     # takes away a significant amount of the difference between the first and second pass.
     for template_name in app.jinja_env.list_templates():
         app.jinja_env.get_template(template_name)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def db_session(app: Flask) -> Generator[None, None, None]:
+    # No-op fixture that blocks access to the DB by default. Fixtures in the `integration` sub-directory will properly
+    # set up the database connection/session with transactional isolation between tests.
+    # This blank fixture helps us still provide the ability to use FactoryBoy to build ephemeral instances of our DB
+    # models for unit testing.
+
+    with app.app_context():
+        yield
+
+
+_Factories = namedtuple(
+    "_Factories",
+    [
+        "grant",
+        "user",
+        "magic_link",
+        "collection_schema",
+        "collection",
+        "section",
+        "form",
+        "question",
+        "organisation",
+        "user_role",
+    ],
+)
+
+
+@pytest.fixture(scope="function")
+def factories(db_session: Session) -> _Factories:
+    return _Factories(
+        grant=_GrantFactory,
+        user=_UserFactory,
+        magic_link=_MagicLinkFactory,
+        collection_schema=_CollectionSchemaFactory,
+        collection=_CollectionFactory,
+        section=_SectionFactory,
+        form=_FormFactory,
+        organisation=_OrganisationFactory,
+        user_role=_UserRoleFactory,
+        question=_QuestionFactory,
+    )

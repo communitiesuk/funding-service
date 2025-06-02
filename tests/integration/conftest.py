@@ -2,7 +2,6 @@ import multiprocessing
 import os
 import typing as t
 import uuid
-from collections import namedtuple
 from contextlib import _GeneratorContextManager, contextmanager
 from typing import Any, Generator
 from unittest.mock import _Call, patch
@@ -30,19 +29,7 @@ from app import create_app
 from app.common.data.types import RoleEnum
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from app.services.notify import Notification
-from tests.conftest import FundingServiceTestClient, _precompile_templates
-from tests.integration.models import (
-    _CollectionFactory,
-    _CollectionSchemaFactory,
-    _FormFactory,
-    _GrantFactory,
-    _MagicLinkFactory,
-    _OrganisationFactory,
-    _QuestionFactory,
-    _SectionFactory,
-    _UserFactory,
-    _UserRoleFactory,
-)
+from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
 from tests.integration.utils import TimeFreezer
 from tests.types import TTemplatesRendered
 from tests.utils import build_db_config
@@ -202,39 +189,6 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
             db.session.close()
             transaction.rollback()
             connection.close()
-
-
-_Factories = namedtuple(
-    "_Factories",
-    [
-        "grant",
-        "user",
-        "magic_link",
-        "collection_schema",
-        "collection",
-        "section",
-        "form",
-        "question",
-        "organisation",
-        "user_role",
-    ],
-)
-
-
-@pytest.fixture(scope="function")
-def factories(db_session: Session) -> _Factories:
-    return _Factories(
-        grant=_GrantFactory,
-        user=_UserFactory,
-        magic_link=_MagicLinkFactory,
-        collection_schema=_CollectionSchemaFactory,
-        collection=_CollectionFactory,
-        section=_SectionFactory,
-        form=_FormFactory,
-        organisation=_OrganisationFactory,
-        user_role=_UserRoleFactory,
-        question=_QuestionFactory,
-    )
 
 
 @pytest.fixture(scope="function")

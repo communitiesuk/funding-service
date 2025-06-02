@@ -18,7 +18,7 @@ def _seed_chessboards_in_parks(grants: Sequence["Grant"]) -> None:
         click.echo(f"Grant '{grant_name}' already exists; recreating it.")
         delete_grant(grant.id)
 
-    from tests.integration.models import (
+    from tests.models import (
         _CollectionSchemaFactory,
         _FormFactory,
         _GrantFactory,
