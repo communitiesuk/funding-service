@@ -1,4 +1,5 @@
-from typing import Any, cast
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any, Optional, cast
 from uuid import UUID
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
@@ -44,6 +45,9 @@ from app.deliver_grant_funding.forms import (
 )
 from app.developers.forms import PreviewCollectionForm
 from app.extensions import auto_commit_after_request
+
+if TYPE_CHECKING:
+    from app.common.data.models import Collection, Form, Question
 
 developers_blueprint = Blueprint(name="developers", import_name=__name__, url_prefix="/developers")
 
@@ -507,12 +511,40 @@ def edit_question(
     )
 
 
+class FormRunnerSourceEnum(StrEnum):
+    QUESTION = "question"
+    TASKLIST = "tasklist"
+    CHECK_YOUR_ANSWERS = "check-your-answers"
+
+
+def _get_form_runner_link_from_source(
+    source: str | None,
+    collection: Optional["Collection"] = None,
+    form: Optional["Form"] = None,
+    question: Optional["Question"] = None,
+) -> str | None:
+    if not source:
+        return None
+
+    if source == FormRunnerSourceEnum.QUESTION and collection and question:
+        return url_for("developers.ask_a_question", collection_id=collection.id, question_id=question.id)
+    elif source == FormRunnerSourceEnum.TASKLIST and collection:
+        return url_for("developers.collection_tasklist", collection_id=collection.id)
+    elif source == FormRunnerSourceEnum.CHECK_YOUR_ANSWERS and collection and form:
+        return url_for("developers.check_your_answers", collection_id=collection.id, form_id=form.id)
+
+    return None
+
+
 @developers_blueprint.route("/collections/<uuid:collection_id>", methods=["GET"])
 @platform_admin_role_required
 def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
     collection_helper = CollectionHelper.load(collection_id)
     return render_template(
-        "developers/collection_tasklist.html", collection_helper=collection_helper, statuses=CollectionStatusEnum
+        "developers/collection_tasklist.html",
+        collection_helper=collection_helper,
+        statuses=CollectionStatusEnum,
+        back_link_source_enum=FormRunnerSourceEnum,
     )
 
 
@@ -530,17 +562,31 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
 
     if form.validate_on_submit():
         collection_helper.submit_answer_for_question(question.id, form)
+
+        if request.args.get("source") == FormRunnerSourceEnum.CHECK_YOUR_ANSWERS:
+            return redirect(
+                url_for("developers.check_your_answers", collection_id=collection_id, form_id=question.form_id)
+            )
+
         next_question = collection_helper.get_next_question(current_question_id=question_id)
         if next_question:
             return redirect(
                 url_for("developers.ask_a_question", collection_id=collection_id, question_id=next_question.id)
             )
 
-        return redirect(url_for("developers.collection_tasklist", collection_id=collection_id))
+        return redirect(url_for("developers.check_your_answers", collection_id=collection_id, form_id=question.form_id))
 
     previous_question = collection_helper.get_previous_question(current_question_id=question_id)
+    back_link_from_context = _get_form_runner_link_from_source(
+        source=request.args.get("source"),
+        collection=collection_helper.collection,
+        form=question.form,
+        question=question,
+    )
     back_link = (
-        url_for(
+        back_link_from_context
+        if back_link_from_context
+        else url_for(
             "developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=previous_question.id
         )
         if previous_question
@@ -553,6 +599,37 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
         form=form,
         question=question,
         question_types=QuestionDataType,
+        back_link_source_enum=FormRunnerSourceEnum,
+    )
+
+
+@developers_blueprint.route(
+    "/collections/<uuid:collection_id>/check-yours-answers/<uuid:form_id>", methods=["GET", "POST"]
+)
+@platform_admin_role_required
+def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    collection_helper = CollectionHelper.load(collection_id)
+    form = collection_helper.get_form(form_id)
+    previous_question = collection_helper.get_last_question_for_form(form)
+    assert previous_question
+
+    back_link_from_context = _get_form_runner_link_from_source(
+        source=request.args.get("source"), collection=collection_helper.collection, form=form
+    )
+    back_link = (
+        back_link_from_context
+        if back_link_from_context
+        else url_for(
+            "developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=previous_question.id
+        )
+    )
+
+    return render_template(
+        "developers/check_your_answers.html",
+        back_link=back_link,
+        collection_helper=collection_helper,
+        form=form,
+        back_link_source_enum=FormRunnerSourceEnum,
     )
 
 

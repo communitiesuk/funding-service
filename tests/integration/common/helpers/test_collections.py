@@ -132,6 +132,30 @@ class TestCollectionHelper:
             helper = CollectionHelper(collection)
             assert helper.get_first_question_for_form(form) is None
 
+
+class TestGetLastQuestionForForm:
+    # TODO: Extend this test suite when we add the business logic that make questions conditional
+
+    def test_at_least_one_question_in_form(self, db_session, factories):
+        form = factories.form.build()
+
+        for x in reversed(range(5)):
+            factories.question.build(form=form, id=uuid.UUID(int=x), order=x)
+
+        collection = factories.collection.build(collection_schema=form.section.collection_schema)
+
+        helper = CollectionHelper(collection)
+        question = helper.get_last_question_for_form(form)
+        assert question.id == uuid.UUID("00000000-0000-0000-0000-000000000004")
+
+    def test_no_visible_questions_in_form(self, db_session, factories):
+        form = factories.form.build()
+
+        collection = factories.collection.build(collection_schema=form.section.collection_schema)
+
+        helper = CollectionHelper(collection)
+        assert helper.get_last_question_for_form(form) is None
+
     class TestGetFormForQuestion:
         def test_question_exists_in_schema_forms(self, db_session, factories):
             section = factories.section.build()
