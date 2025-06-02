@@ -36,7 +36,11 @@ class _GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
+    ggis_number = factory.Sequence(lambda n: f"GGIS-{n:06d}")
     name = factory.Sequence(lambda n: "Grant %d" % n)
+    description = factory.Faker("text", max_nb_chars=200)
+    primary_contact_name = factory.Faker("name")
+    primary_contact_email = factory.Faker("email")
 
 
 class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):

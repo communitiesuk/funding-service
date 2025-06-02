@@ -17,7 +17,12 @@ def test_get_all_grants(factories):
 
 
 def test_create_grant(db_session) -> None:
-    result = create_grant(name="test_grant")
+    result = create_grant(
+        name="Test Grant",
+        description="This is a test grant.",
+        primary_contact_name="John Doe",
+        primary_contact_email="johndoe@example.com",
+    )
     assert result is not None
     assert result.id is not None
 
@@ -26,9 +31,14 @@ def test_create_grant(db_session) -> None:
 
 
 def test_create_duplicate_grant(factories) -> None:
-    factories.grant.create(name="duplicate_grant")
+    factories.grant.create(name="Duplicate Grant")
     with pytest.raises(DuplicateValueError) as e:
-        create_grant(name="Duplicate_Grant")
+        create_grant(
+            name="Duplicate Grant",
+            description="This is a duplicate grant.",
+            primary_contact_name="Jane Doe",
+            primary_contact_email="janedoe@example.com",
+        )
     assert e.value.model_name == "grant"
     assert e.value.field_name == "name"
 
