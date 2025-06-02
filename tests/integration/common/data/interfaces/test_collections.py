@@ -1,6 +1,8 @@
 import pytest
 
 from app.common.data.interfaces.collections import (
+    add_collection_metadata,
+    clear_form_metadata,
     create_collection_schema,
     create_form,
     create_question,
@@ -21,7 +23,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import CollectionSchema
-from app.common.data.types import QuestionDataType
+from app.common.data.types import MetadataEventKey, QuestionDataType
 from app.common.helpers.collections import TextSingleLine
 
 
@@ -325,3 +327,55 @@ def test_update_collection_data(db_session, factories):
     updated_collection = update_collection_data(collection, question, data)
 
     assert updated_collection.data[str(question.id)] == "User submitted data"
+
+
+def test_add_collection_metadata(db_session, factories):
+    user = factories.user.build()
+    collection = factories.collection.build()
+    db_session.add(collection)
+
+    add_collection_metadata(collection=collection, user=user, event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED)
+
+    # pull it back out of the database to also check all of the serialisation/ enums are mapped appropriately
+    from_db = get_collection(collection.id, with_full_schema=True)
+
+    assert len(from_db.collection_metadata) == 1
+    assert from_db.collection_metadata[0].event_key == MetadataEventKey.FORM_RUNNER_FORM_COMPLETED
+
+
+def test_remove_metadata_for_a_key(db_session, factories):
+    collection = factories.collection.build()
+    section = factories.section.build(collection_schema=collection.collection_schema)
+    form_one = factories.form.build(section=section)
+    form_two = factories.form.build(section=section)
+
+    add_collection_metadata(
+        collection=collection, user=collection.created_by, event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED
+    )
+    add_collection_metadata(
+        collection=collection, user=collection.created_by, event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED
+    )
+
+    # clears all keys of type
+    clear_form_metadata(collection=collection, event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED)
+
+    assert collection.collection_metadata == []
+
+    # clears only a specific forms
+    add_collection_metadata(
+        collection=collection,
+        user=collection.created_by,
+        event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED,
+        form=form_one,
+    )
+    add_collection_metadata(
+        collection=collection,
+        user=collection.created_by,
+        event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED,
+        form=form_two,
+    )
+
+    clear_form_metadata(collection=collection, event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, form=form_one)
+
+    assert len(collection.collection_metadata) == 1
+    assert collection.collection_metadata[0].form == form_two

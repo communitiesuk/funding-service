@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
+    CollectionMetadata,
     CollectionSchema,
     Form,
     Grant,
@@ -16,7 +17,7 @@ from app.common.data.models import (
     Section,
 )
 from app.common.data.models_user import User
-from app.common.data.types import CollectionStatusEnum, QuestionDataType
+from app.common.data.types import CollectionStatusEnum, MetadataEventKey, QuestionDataType
 from app.common.utils import slugify
 from app.extensions import db
 
@@ -77,11 +78,14 @@ def update_collection_data(collection: Collection, question: Question, data: Bas
 def get_collection(collection_id: UUID, with_full_schema: bool = False) -> Collection:
     options = []
     if with_full_schema:
-        options.append(
-            joinedload(Collection.collection_schema)
-            .selectinload(CollectionSchema.sections)
-            .selectinload(Section.forms)
-            .selectinload(Form.questions)
+        options.extend(
+            [
+                joinedload(Collection.collection_schema)
+                .selectinload(CollectionSchema.sections)
+                .selectinload(Section.forms)
+                .selectinload(Form.questions),
+                joinedload(Collection.collection_metadata),
+            ]
         )
 
     # We set `populate_existing` here to force a new query to be emitted to the database. The mechanics of `get_one`
@@ -251,3 +255,21 @@ def update_question(question: Question, *, text: str, hint: str | None, name: st
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return question
+
+
+def add_collection_metadata(
+    collection: Collection, event_key: MetadataEventKey, user: User, form: Form | None = None
+) -> Collection:
+    collection.collection_metadata.append(CollectionMetadata(event_key=event_key, created_by=user, form=form))
+    db.session.flush()
+    return collection
+
+
+def clear_form_metadata(collection: Collection, event_key: MetadataEventKey, form: Form | None = None) -> Collection:
+    collection.collection_metadata = [
+        x
+        for x in collection.collection_metadata
+        if not (x.event_key == event_key and (x.form == form if form else True))
+    ]
+    db.session.flush()
+    return collection
