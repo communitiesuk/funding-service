@@ -22,7 +22,7 @@ def grant_name_exists(name: str) -> bool:
 
 
 def get_all_grants_by_user() -> Sequence[Grant]:
-    user: User = cast(User, current_user)
+    user = cast(User, current_user)
     if user.is_platform_admin:
         statement = select(Grant).order_by(Grant.name)
         return db.session.scalars(statement).all()
