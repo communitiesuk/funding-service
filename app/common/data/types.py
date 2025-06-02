@@ -36,3 +36,7 @@ class CollectionStatusEnum(enum.StrEnum):
     NOT_STARTED = "Not started"
     IN_PROGRESS = "In progress"
     COMPLETED = "Completed"
+
+
+class MetadataEventKey(enum.StrEnum):
+    FORM_RUNNER_FORM_COMPLETED = "Form completed"
