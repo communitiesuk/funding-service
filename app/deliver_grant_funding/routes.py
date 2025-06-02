@@ -126,8 +126,12 @@ def grant_setup_contact() -> ResponseReturnValue:
 
 @deliver_grant_funding_blueprint.route("/grants", methods=["GET"])
 @mhclg_login_required
-def list_grants() -> str:
-    grants = interfaces.grants.get_all_grants()
+def list_grants() -> Response | str:
+    grants = interfaces.grants.get_all_grants_by_user()
+    if not grants:
+        return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
+    if len(grants) == 1:
+        return redirect(url_for("deliver_grant_funding.view_grant", grant_id=grants[0].id))
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
 
 
