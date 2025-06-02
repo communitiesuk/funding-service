@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
@@ -33,22 +33,28 @@ def create_collection_schema(*, name: str, user: User, grant: Grant, version: in
     return schema
 
 
-def get_collection_schema(schema_id: UUID, version: int | None = None) -> CollectionSchema:
+def get_collection_schema(
+    schema_id: UUID, version: int | None = None, with_full_schema: bool = False
+) -> CollectionSchema:
     """Get a collection schema by ID and optionally version.
 
     If you do not pass a version, it will retrieve the latest version (ie highest version number).
 
     Note: We may wish to change this behaviour to the latest 'published' version in the future, or some other logic.
     """
+    options = []
+    if with_full_schema:
+        options.append(selectinload(CollectionSchema.sections).selectinload(Section.forms).selectinload(Form.questions))
     if version is None:
         return db.session.scalars(
             select(CollectionSchema)
             .where(CollectionSchema.id == schema_id)
             .order_by(CollectionSchema.version.desc())
+            .options(*options)
             .limit(1)
         ).one()
 
-    return db.session.get_one(CollectionSchema, [schema_id, version])
+    return db.session.get_one(CollectionSchema, [schema_id, version], options=options)
 
 
 def update_collection_schema(schema: CollectionSchema, *, name: str) -> CollectionSchema:
