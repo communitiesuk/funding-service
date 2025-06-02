@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 
 {% block pageTitle %}
-  What is the main purpose of this grant? - Add a grant - MHCLG Funding Service
+  {{ form.description.label.text }}
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grants" %}
@@ -18,11 +18,11 @@
 {% endblock beforeContent %}
 
 {% set before_input_text %}
-  <p class="govuk-body govuk-!-margin-top-7">
+  <p class="govuk-body">
     Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.
   </p>
   <p class="govuk-hint">
-    Do not include personal information
+    Do not include personal information.
   </p>
 {% endset %}
 
@@ -36,10 +36,11 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
+        <!-- Erroneous-looking fromGroup attribute currently required due to typo in library -->
+        <!-- See here: https://github.com/LandRegistry/govuk-frontend-jinja/blob/45849744d2bf058937402f291e4a2c7a44eb7e23/govuk_frontend_jinja/templates/components/character-count/macro.html#L107 -->
         {{
           form.description(params={
             "label": {
-              "text": form.description.label.text,
               "isPageHeading": true,
               "classes": "govuk-fieldset__legend--xl"
             },

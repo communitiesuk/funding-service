@@ -16,13 +16,7 @@ from app.deliver_grant_funding.forms import (
     GrantNameForm,
     GrantSetupIntroForm,
 )
-from app.deliver_grant_funding.session_models import (
-    GrantSetupContact,
-    GrantSetupDescription,
-    GrantSetupGGIS,
-    GrantSetupName,
-    GrantSetupSession,
-)
+from app.deliver_grant_funding.session_models import GrantSetupSession
 from app.extensions import auto_commit_after_request
 
 deliver_grant_funding_blueprint = Blueprint(name="deliver_grant_funding", import_name=__name__)
@@ -46,16 +40,12 @@ def grant_setup_ggis() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
 
     grant_session = GrantSetupSession.from_session(session["grant_setup"])
-    form_data = grant_session.ggis.model_dump() if grant_session.ggis else {}
-    form = GrantGGISForm(data=form_data)
+    form = GrantGGISForm(obj=grant_session)
 
     if form.validate_on_submit():
-        grant_session.ggis = GrantSetupGGIS(
-            has_ggis=form.has_ggis.data,
-            ggis_number=form.ggis_number.data if form.has_ggis.data == "yes" else None,
-        )
+        grant_session.has_ggis = form.has_ggis.data
+        grant_session.ggis_number = form.ggis_number.data if form.has_ggis.data == "yes" else None
         session["grant_setup"] = grant_session.to_session_dict()
-        session.modified = True
         return redirect(url_for("deliver_grant_funding.grant_setup_name"))
 
     return render_template("deliver_grant_funding/grant_setup/ggis_number.html", form=form)
@@ -68,14 +58,12 @@ def grant_setup_name() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
 
     grant_session = GrantSetupSession.from_session(session["grant_setup"])
-    form_data = grant_session.name.model_dump() if grant_session.name else {}
-    form = GrantNameForm(data=form_data)
+    form = GrantNameForm(obj=grant_session)
 
     if form.validate_on_submit():
         assert form.name.data is not None, "Grant name must be provided"
-        grant_session.name = GrantSetupName(name=form.name.data)
+        grant_session.name = form.name.data
         session["grant_setup"] = grant_session.to_session_dict()
-        session.modified = True
         return redirect(url_for("deliver_grant_funding.grant_setup_description"))
 
     return render_template("deliver_grant_funding/grant_setup/name.html", form=form)
@@ -88,14 +76,12 @@ def grant_setup_description() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
 
     grant_session = GrantSetupSession.from_session(session["grant_setup"])
-    form_data = grant_session.description.model_dump() if grant_session.description else {}
-    form = GrantDescriptionForm(data=form_data)
+    form = GrantDescriptionForm(obj=grant_session)
 
     if form.validate_on_submit():
         assert form.description.data is not None, "Grant description must be provided"
-        grant_session.description = GrantSetupDescription(description=form.description.data)
+        grant_session.description = form.description.data
         session["grant_setup"] = grant_session.to_session_dict()
-        session.modified = True
         return redirect(url_for("deliver_grant_funding.grant_setup_contact"))
 
     return render_template("deliver_grant_funding/grant_setup/description.html", form=form)
@@ -109,24 +95,22 @@ def grant_setup_contact() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
 
     grant_session = GrantSetupSession.from_session(session["grant_setup"])
-    form_data = grant_session.contact.model_dump() if grant_session.contact else {}
-    form = GrantContactForm(data=form_data)
+    form = GrantContactForm(obj=grant_session)
 
     if form.validate_on_submit():
         try:
             assert form.primary_contact_name.data, "Primary contact name must be provided"
             assert form.primary_contact_email.data, "Primary contact email must be provided"
-            grant_session.contact = GrantSetupContact(
-                primary_contact_name=form.primary_contact_name.data,
-                primary_contact_email=form.primary_contact_email.data,
-            )
+
+            grant_session.primary_contact_name = form.primary_contact_name.data
+            grant_session.primary_contact_email = form.primary_contact_email.data
 
             grant = interfaces.grants.create_grant(
-                name=grant_session.name.name if grant_session.name else "",
-                ggis_number=grant_session.ggis.ggis_number if grant_session.ggis else None,
-                description=grant_session.description.description if grant_session.description else "",
-                primary_contact_name=grant_session.contact.primary_contact_name,
-                primary_contact_email=grant_session.contact.primary_contact_email,
+                name=grant_session.name or "",
+                ggis_number=grant_session.ggis_number,
+                description=grant_session.description or "",
+                primary_contact_name=grant_session.primary_contact_name,
+                primary_contact_email=grant_session.primary_contact_email,
             )
 
             session.pop("grant_setup", None)

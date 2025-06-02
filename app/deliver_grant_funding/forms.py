@@ -1,3 +1,5 @@
+from typing import Any
+
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
@@ -12,7 +14,7 @@ from wtforms.validators import DataRequired, Email, ValidationError
 
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.types import QuestionDataType
-from app.common.forms.validators import MaxWords
+from app.common.forms.validators import WordRange
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
@@ -27,17 +29,6 @@ class UniqueGrantName:
 
     def __call__(self, form: FlaskForm, field: StringField) -> None:
         if field.data and grant_name_exists(field.data):
-            raise ValidationError(self.message)
-
-
-class ConditionalGGISRequired:
-    """Validator to ensure GGIS number is provided when 'yes' is selected."""
-
-    def __init__(self, message: str | None = None):
-        self.message = message or "Enter your GGIS reference number"
-
-    def __call__(self, form: FlaskForm, field: StringField) -> None:
-        if form.has_ggis.data == "yes" and (not field.data or not field.data.strip()):
             raise ValidationError(self.message)
 
 
@@ -58,22 +49,37 @@ class GrantSetupIntroForm(FlaskForm):
 class GrantGGISForm(FlaskForm):
     has_ggis = RadioField(
         "Do you have a Government Grants Information System (GGIS) reference number?",
+        description="You'll need to provide your GGIS number before you can create forms or assess grant applications.",
+        # These choices have no effect on the frontend, but are used for validation. Frontend choices are found in the
+        # template, currently at app/deliver_grant_funding/templates/deliver_grant_funding/grant_setup/ggis_number.html.
+        # Developers will need to keep these in sync manually.
         choices=[("yes", "Yes"), ("no", "No")],
         validators=[DataRequired("Please select an option")],
         widget=GovRadioInput(),
     )
     ggis_number = StringField(
         "Enter your GGIS reference number",
-        validators=[ConditionalGGISRequired()],
+        description="For example, G2-SCH-2025-05-12346.",
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
+    def validate(self, extra_validators: dict[str, list[Any]] | None = None) -> bool:
+        if not super().validate(extra_validators):
+            return False
+
+        if self.has_ggis.data == "yes" and not self.ggis_number.data:
+            self.ggis_number.errors = list(self.ggis_number.errors) + ["Enter your GGIS reference number"]
+            return False
+
+        return True
+
 
 class GrantNameForm(FlaskForm):
     name = StringField(
         "What is the name of this grant?",
+        description="This should be the full and official name of the grant. Do not include abbreviations or acronyms.",
         validators=[
             DataRequired("Enter the grant name"),
             UniqueGrantName(),
@@ -91,7 +97,11 @@ class GrantDescriptionForm(FlaskForm):
         "What is the main purpose of this grant?",
         validators=[
             DataRequired("Enter the main purpose of this grant"),
-            MaxWords(DESCRIPTION_MAX_WORDS, f"Description must be {DESCRIPTION_MAX_WORDS} words or fewer"),
+            WordRange(
+                min_words=0,
+                max_words=DESCRIPTION_MAX_WORDS,
+                message=f"Description must be {DESCRIPTION_MAX_WORDS} words or fewer",
+            ),
         ],
         filters=[strip_string_if_not_empty],
         widget=GovCharacterCount(),
@@ -108,6 +118,7 @@ class GrantContactForm(FlaskForm):
     )
     primary_contact_email = StringField(
         "Email address",
+        description="Use the shared email address for the grant team.",
         validators=[
             DataRequired("Enter the email address"),
             Email(message="Enter an email address in the correct format, like name@example.com"),

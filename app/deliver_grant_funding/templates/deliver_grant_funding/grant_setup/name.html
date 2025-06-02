@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 
 {% block pageTitle %}
-  What is the name of this grant? - Add a grant - MHCLG Funding Service
+  {{ form.name.label.text }}
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grants" %}
@@ -16,12 +16,6 @@
     })
   }}
 {% endblock beforeContent %}
-
-{% set hint_text %}
-  <p class="govuk-!-margin-top-7 color-black">
-    This should be the full and official name of the grant. Do not include abbreviations or acronyms.
-  </p>
-{% endset %}
 
 {% block content %}
   <div class="govuk-grid-row">
@@ -36,12 +30,8 @@
         {{
           form.name(params={
             "label": {
-              "text": form.name.label.text,
               "isPageHeading": true,
               "classes": "govuk-fieldset__legend--xl"
-            },
-            "hint": {
-              "html": hint_text
             },
             "classes": "govuk-!-width-two-thirds"
           })

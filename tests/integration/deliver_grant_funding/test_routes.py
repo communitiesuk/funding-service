@@ -765,9 +765,12 @@ def test_grant_setup_contact_post_creates_grant(authenticated_platform_admin_cli
     # Set up session with required data for grant creation
     with authenticated_platform_admin_client.session_transaction() as sess:
         sess["grant_setup"] = {
-            "name": {"name": "Test Grant"},
-            "description": {"description": "Test description"},
-            "ggis": {"has_ggis": "yes", "ggis_number": "GGIS123"},
+            "name": "Test Grant",
+            "description": "Test description",
+            "has_ggis": "yes",
+            "ggis_number": "GGIS123",
+            "primary_contact_name": None,
+            "primary_contact_email": None,
         }
 
     contact_form = GrantContactForm(primary_contact_name="Test Contact", primary_contact_email="test@example.com")

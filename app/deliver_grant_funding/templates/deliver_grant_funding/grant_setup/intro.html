@@ -34,11 +34,7 @@
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{
-          form.submit(params={
-              "classes": "govuk-!-margin-top-5"
-          })
-        }}
+        {{ form.submit }}
       </form>
     </div>
   </div>

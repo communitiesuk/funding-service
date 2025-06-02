@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 
 {% block pageTitle %}
-  Do you have a GGIS reference number? - Add a grant - MHCLG Funding Service
+  {{ form.has_ggis.label.text }}
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grants" %}
@@ -16,12 +16,6 @@
     })
   }}
 {% endblock beforeContent %}
-
-{% set before_inputs_text %}
-  <p class="govuk-body govuk-!-margin-top-7">
-    You'll need to provide your GGIS number before you can create forms or assess grant applications.
-  </p>
-{% endset %}
 
 {% block content %}
   <div class="govuk-grid-row">
@@ -42,11 +36,6 @@
                 "classes": "govuk-fieldset__legend--xl",
               },
             },
-            "formGroup": {
-              "beforeInputs": {
-                "html": before_inputs_text
-              }
-            },
             "items": [
               {
                 "value": "yes",
@@ -54,12 +43,6 @@
                 "conditional": {
                   "html": form.ggis_number(
                     params={
-                      "label": {
-                        "text": form.ggis_number.label.text,
-                      },
-                      "hint": {
-                        "text": "For example, G2-SCH-2025-05-12346."
-                      },
                       "classes": "govuk-!-width-two-thirds",
                       "spellcheck": false,
                       "autocomplete": "off"

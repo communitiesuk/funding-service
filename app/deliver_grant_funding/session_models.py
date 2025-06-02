@@ -3,29 +3,13 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 
-class GrantSetupGGIS(BaseModel):
-    has_ggis: Literal["yes", "no"]
-    ggis_number: str | None = None
-
-
-class GrantSetupName(BaseModel):
-    name: str
-
-
-class GrantSetupDescription(BaseModel):
-    description: str
-
-
-class GrantSetupContact(BaseModel):
-    primary_contact_name: str
-    primary_contact_email: str
-
-
 class GrantSetupSession(BaseModel):
-    ggis: GrantSetupGGIS | None = None
-    name: GrantSetupName | None = None
-    description: GrantSetupDescription | None = None
-    contact: GrantSetupContact | None = None
+    has_ggis: Literal["yes", "no"] | None = None
+    ggis_number: str | None = None
+    name: str | None = None
+    description: str | None = None
+    primary_contact_name: str | None = None
+    primary_contact_email: str | None = None
 
     def to_session_dict(self) -> dict[str, Any]:
         """Convert to dict for session storage"""

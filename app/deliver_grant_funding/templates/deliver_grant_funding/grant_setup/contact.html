@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 
 {% block pageTitle %}
-  Who is the main contact for this grant? - Add a grant - MHCLG Funding Service
+  Who is the main contact for this grant?
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grants" %}
@@ -23,7 +23,7 @@
       <span class="govuk-caption-xl">
         <span class="govuk-visually-hidden">This section is: </span>Set up the grant
       </span>
-      <h1 class="govuk-heading-xl">Who is the main contact for this grant?</h1>
+      <h1 class="govuk-heading-xl govuk-!-margin-bottom-3">Who is the main contact for this grant?</h1>
 
       <p class="govuk-body">This is the person that teams at MHCLG can contact if they have any questions about the grant.</p>
 
@@ -32,21 +32,12 @@
 
         {{
           form.primary_contact_name(params={
-            "label": {
-              "text": form.primary_contact_name.label.text,
-            },
             "classes": "govuk-!-width-two-thirds"
           })
         }}
 
         {{
           form.primary_contact_email(params={
-            "label": {
-              "text": form.primary_contact_email.label.text,
-            },
-            "hint": {
-              "text": "Use the shared email address for the grant team."
-            },
             "classes": "govuk-!-width-two-thirds",
             "type": "email"
           })
