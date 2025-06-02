@@ -4,6 +4,8 @@ from abc import ABC
 
 from playwright.sync_api import Locator, Page, expect
 
+from tests.e2e.developer_pages import GrantDevelopersPage
+
 
 class BasePage:
     domain: str
@@ -227,14 +229,6 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
 
 class GrantDashboardPage(GrantDashboardBasePage):
     pass
-
-
-class GrantDevelopersPage(GrantDashboardBasePage):
-    manage_schemas_link: Locator
-
-    def __init__(self, page: Page, domain: str) -> None:
-        super().__init__(page, domain)
-        self.manage_schemas_link = self.page.get_by_role("link", name="Manage")
 
 
 class GrantSettingsPage(GrantDashboardBasePage):

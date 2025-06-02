@@ -30,7 +30,7 @@ def create_grant(grant_name: str, page: Page, domain: str) -> None:
 @pytest.mark.skip_in_environments(["dev", "test", "prod"])
 def test_create_and_preview_schema(domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: Page):
     # TODO - FSPT-441: Decide if we want to create the grant in this test or not.
-    new_grant_name = f"E2E schema {uuid.uuid4()}"
+    new_grant_name = f"E2E create_schema_grant {uuid.uuid4()}"
     create_grant(new_grant_name, authenticated_browser_sso, domain)
 
     # Go to Grant Dashboard
@@ -40,4 +40,13 @@ def test_create_and_preview_schema(domain: str, e2e_test_secrets: EndToEndTestSe
 
     # Go to developers tab
     developers_page = grant_dashboard_page.click_developers(new_grant_name)
-    assert developers_page is not None
+    manage_schemas_page = developers_page.click_manage_schemas(grant_name=new_grant_name)
+
+    # Add a new schema
+    add_schema_page = manage_schemas_page.click_add_schema()
+    new_schema_name = f"E2E schema {uuid.uuid4()}"
+    add_schema_page.fill_in_schema_name(new_schema_name)
+    manage_schemas_page = add_schema_page.click_submit(new_grant_name)
+    manage_schemas_page.check_schema_exists(new_schema_name)
+
+    schema_detail_page = manage_schemas_page.click_on_schema(schema_name=new_schema_name, grant_name=new_grant_name)
