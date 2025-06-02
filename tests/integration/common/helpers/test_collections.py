@@ -314,6 +314,10 @@ class TestGetLastQuestionForForm:
                 question_two.id, build_question_form(question_two)(question="User submitted data")
             )
 
+            assert helper.get_status_for_form(form) == CollectionStatusEnum.IN_PROGRESS
+
+            helper.mark_form_as_complete(form, collection.created_by)
+
             assert helper.get_status_for_form(form) == CollectionStatusEnum.COMPLETED
 
         def test_form_status_with_no_questions(self, db_session, factories):
@@ -335,6 +339,7 @@ class TestGetLastQuestionForForm:
             helper.submit_answer_for_question(
                 question.id, build_question_form(question)(question="User submitted data")
             )
+            helper.mark_form_as_complete(question.form, collection.created_by)
 
             assert helper.get_status_for_form(question.form) == CollectionStatusEnum.COMPLETED
             assert helper.status == CollectionStatusEnum.IN_PROGRESS
@@ -342,6 +347,7 @@ class TestGetLastQuestionForForm:
             helper.submit_answer_for_question(
                 question_two.id, build_question_form(question_two)(question="User submitted data")
             )
+            helper.mark_form_as_complete(question_two.form, collection.created_by)
 
             assert helper.get_status_for_form(question_two.form) == CollectionStatusEnum.COMPLETED
             assert helper.status == CollectionStatusEnum.COMPLETED
