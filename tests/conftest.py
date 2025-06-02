@@ -8,6 +8,7 @@ from _pytest.config import Config
 from _pytest.config.argparsing import Parser
 from flask import Flask
 from flask.testing import FlaskClient
+from flask_sqlalchemy_lite import SQLAlchemy
 from sqlalchemy.orm import Session
 from werkzeug.test import TestResponse
 
@@ -134,7 +135,17 @@ def db_session(app: Flask) -> Generator[None, None, None]:
     # models for unit testing.
 
     with app.app_context():
-        yield
+        original_session_property = SQLAlchemy.session
+
+        def session_error(self: SQLAlchemy) -> None:
+            raise RuntimeError("No access to DB session available outside of integration tests")
+
+        SQLAlchemy.session = property(session_error)  # type: ignore[method-assign, assignment]
+
+        try:
+            yield
+        finally:
+            SQLAlchemy.session = original_session_property  # type: ignore[method-assign]
 
 
 _Factories = namedtuple(
