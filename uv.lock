@@ -581,7 +581,7 @@ requires-dist = [
     { name = "python-json-logger", specifier = "==3.3.0" },
     { name = "sentry-sdk", specifier = "==2.26.1" },
     { name = "sqlalchemy", specifier = "==2.0.41" },
-    { name = "sqlalchemy-json", specifier = ">=0.7.0" },
+    { name = "sqlalchemy-json", specifier = "==0.7.0" },
     { name = "wtforms", extras = ["email"], specifier = "==3.2.1" },
 ]
 
