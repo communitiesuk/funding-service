@@ -28,7 +28,8 @@ def test_create_view_edit_grant_success(
     grant_contact_page = grant_description_page.click_save_and_continue()
     grant_contact_page.fill_contact_name()
     grant_contact_page.fill_contact_email()
-    grant_dashboard_page = grant_contact_page.click_add_grant()
+    grant_check_your_answers_page = grant_contact_page.click_save_and_continue()
+    grant_dashboard_page = grant_check_your_answers_page.click_add_grant()
 
     # On grant dashboard
     grant_dashboard_page.check_grant_name(new_grant_name)

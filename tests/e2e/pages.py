@@ -183,13 +183,26 @@ class GrantSetupContactPage(TopNavMixin, BasePage):
         self.title = self.page.get_by_role("heading", name="Who is the main contact for this grant?")
         self.contact_name_input = self.page.get_by_role("textbox", name="Full name")
         self.contact_email_input = self.page.get_by_role("textbox", name="Email address")
-        self.add_grant_button = self.page.get_by_role("button", name="Add grant")
+        self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
 
     def fill_contact_name(self, name: str = "Test Contact") -> None:
         self.contact_name_input.fill(name)
 
     def fill_contact_email(self, email: str = "test.contact@communities.gov.uk") -> None:
         self.contact_email_input.fill(email)
+
+    def click_save_and_continue(self) -> GrantSetupCheckYourAnswersPage:
+        self.save_continue_button.click()
+        grant_setup_check_your_answers_page = GrantSetupCheckYourAnswersPage(self.page, self.domain)
+        expect(grant_setup_check_your_answers_page.title).to_be_visible()
+        return grant_setup_check_your_answers_page
+
+
+class GrantSetupCheckYourAnswersPage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Check your answers")
+        self.add_grant_button = self.page.get_by_role("button", name="Add grant")
 
     def click_add_grant(self) -> GrantDashboardPage:
         self.add_grant_button.click()

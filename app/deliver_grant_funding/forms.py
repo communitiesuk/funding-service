@@ -122,6 +122,10 @@ class GrantContactForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())
+
+
+class GrantCheckYourAnswersForm(FlaskForm):
     submit = SubmitField("Add grant", widget=GovSubmitInput())
 
 
