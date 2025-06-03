@@ -843,11 +843,11 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     )
     assert response.status_code == 302
 
-    # Verify redirect is to grant dashboard page
-    assert "/grants/" in response.location
+    # Verify redirect is to grant setup confirmation page
+    assert "/setup-confirmation" in response.location
 
     # Extract grant ID from redirect URL and verify grant exists
-    grant_id_str = response.location.split("/")[-1]
+    grant_id_str = response.location.split("/")[-2]
     grant_id = UUID(grant_id_str)
     grant_from_db = db_session.get(Grant, grant_id)
     assert grant_from_db is not None

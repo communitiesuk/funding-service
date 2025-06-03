@@ -204,8 +204,21 @@ class GrantSetupCheckYourAnswersPage(TopNavMixin, BasePage):
         self.title = self.page.get_by_role("heading", name="Check your answers")
         self.add_grant_button = self.page.get_by_role("button", name="Add grant")
 
-    def click_add_grant(self) -> GrantDashboardPage:
+    def click_add_grant(self) -> GrantSetupConfirmationPage:
         self.add_grant_button.click()
+        grant_setup_confirmation_page = GrantSetupConfirmationPage(self.page, self.domain)
+        expect(grant_setup_confirmation_page.title).to_be_visible()
+        return grant_setup_confirmation_page
+
+
+class GrantSetupConfirmationPage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.locator("h1:has-text('added')")
+        self.continue_button = self.page.get_by_role("link", name="Continue to grant home")
+
+    def click_continue(self) -> GrantDashboardPage:
+        self.continue_button.click()
         return GrantDashboardPage(self.page, self.domain)
 
 

@@ -1,0 +1,26 @@
+{% extends "common/base.html" %}
+
+{% block pageTitle %}
+  {{ grant.name }}
+  added
+{% endblock %}
+
+{% set active_item_identifier = "grants" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <span class="govuk-caption-xl">
+      <span class="govuk-visually-hidden">This section is:</span>
+      Set up the grant
+    </span>
+    <h1 class="govuk-heading-xl">{{ grant.name }} added</h1>
+
+    <p class="govuk-body">You can now:</p>
+    <ul class="govuk-list govuk-list--bullet">
+      <li>update or add more information about the grant</li>
+      <li>create forms</li>
+    </ul>
+
+    <a href="{{ url_for('deliver_grant_funding.view_grant', grant_id=grant.id) }}" class="govuk-button">Continue to grant home</a>
+  </div>
+{% endblock %}
