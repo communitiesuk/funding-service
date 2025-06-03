@@ -28,11 +28,11 @@
 {% endblock header %}
 
 {% block main %}
-  <div class="govuk-width-container {%- if containerClasses %}{{ containerClasses }}{% endif %}">
+  <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
     {% block beforeContent %}{% endblock %}
-    <div class="govuk-main-wrapper {%- if mainClasses %}{{ mainClasses }}{% endif %}">
+    <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
       {% block mainWrapper %}
-        <main id="main-content" {%- if mainLang %}lang="{{ mainLang }}"{% endif %}>
+        <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
           {% block errorSummary %}
             <div class="govuk-grid-row">
               <div class="govuk-grid-column-two-thirds">

@@ -8,7 +8,7 @@
     <img src="{{ params.assetPath }}/images/mhclg-crest.png" alt="MHCLG Crest" width="32" height="32" style="color: white; filter: brightness(0) invert(1);" nonce="{{ csp_nonce() }}" />
   {% endset -%}
 
-  <header class="govuk-header {%- if params.classes %}{{ params.classes }}{% endif %}" data-module="govuk-header" {{- govukAttributes(params.attributes) }}>
+  <header class="govuk-header {% if params.classes %}{{ params.classes }}{% endif %}" data-module="govuk-header" {{- govukAttributes(params.attributes) }}>
     <div class="govuk-header__container {{ params.containerClasses | default("govuk-width-container", true) }}">
       <div class="govuk-header__logo govuk-!-margin-bottom-1">
         <a href="{{ params.homepageUrl | default("/", true) }}" class="govuk-header__link govuk-header__link--homepage">
@@ -34,7 +34,7 @@
             {% endif %}
           {% endif %}
           {% if params.navigation | length %}
-            <nav aria-label="{{ params.navigationLabel | default(menuButtonText, true) }}" class="govuk-header__navigation {%- if params.navigationClasses %}{{ params.navigationClasses }}{% endif %}">
+            <nav aria-label="{{ params.navigationLabel | default(menuButtonText, true) }}" class="govuk-header__navigation {% if params.navigationClasses %}{{ params.navigationClasses }}{% endif %}">
               {# <button type="button" class="govuk-header__menu-button govuk-js-header-toggle" aria-controls="navigation" {%- if params.menuButtonLabel and params.menuButtonLabel != menuButtonText %} aria-label="{{ params.menuButtonLabel }}"{% endif %} hidden>
           {{ menuButtonText }}
         </button> #}
@@ -42,7 +42,7 @@
               <ul class="govuk-header__navigation-list">
                 {% for item in params.navigation %}
                   {% if item.text or item.html %}
-                    <li class="govuk-header__navigation-item {%- if item.active %}govuk-header__navigation-item--active{% endif %}">
+                    <li class="govuk-header__navigation-item {% if item.active %}govuk-header__navigation-item--active{% endif %}">
                       {% if item.href %}
                         <a class="govuk-header__link" href="{{ item.href }}" {{- govukAttributes(item.attributes) -}}>{{ item.text }}</a>
                       {% else %}
