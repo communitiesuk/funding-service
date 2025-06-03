@@ -5,7 +5,8 @@ from uuid import UUID
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
-from wtforms.validators import DataRequired, Optional as WTFOptional
+from wtforms.validators import DataRequired
+from wtforms.validators import Optional as WTFOptional
 
 from app.common.auth.decorators import platform_admin_role_required
 from app.common.collections.forms import build_question_form
