@@ -125,7 +125,6 @@ class CollectionHelper:
         return len(visible_questions) == len(answers), answers
 
     def get_status_for_form(self, form: "Form") -> str:
-        # there's likely a slicker interface for this helper but just brute forcing it for now
         all_questions_answered, answers = self.get_all_questions_answered_for_form(form)
         marked_as_complete = MetadataEventKey.FORM_RUNNER_FORM_COMPLETED in [
             x.event_key for x in self.collection.collection_metadata
@@ -176,7 +175,6 @@ class CollectionHelper:
         interfaces.collections.update_collection_data(self.collection, question, data)
 
     def mark_form_as_complete(self, form: "Form", user: "User", is_complete: bool) -> None:
-        # we should check if all of the questions have been answered - should that be in the helper or the interface
         if is_complete:
             if not self.status == CollectionStatusEnum.COMPLETED:
                 all_questions_answered, _ = self.get_all_questions_answered_for_form(form)
