@@ -104,7 +104,7 @@ class Collection(BaseModel):
     collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema")
 
     collection_metadata: Mapped[list["CollectionMetadata"]] = relationship(
-        "CollectionMetadata", back_populates="collection"
+        "CollectionMetadata", back_populates="collection", cascade="all, delete, delete-orphan"
     )
 
     __table_args__ = (
