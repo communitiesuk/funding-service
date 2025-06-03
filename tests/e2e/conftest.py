@@ -8,7 +8,7 @@ from pytest_playwright import CreateContextCallback
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
 from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.helpers import retrieve_magic_link
-from tests.e2e.pages import RequestALinkToSignInPage
+from tests.e2e.pages import RequestALinkToSignInPage, SSOSignInPage, StubSSOEmailLoginPage
 
 
 @pytest.fixture(autouse=True)
@@ -71,7 +71,9 @@ def email(request: FixtureRequest) -> str:
 
 
 @pytest.fixture()
-def authenticated_browser(domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str) -> E2ETestUser:
+def authenticated_browser_magic_link(
+    domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str
+) -> E2ETestUser:
     request_a_link_page = RequestALinkToSignInPage(page, domain)
     request_a_link_page.navigate()
 
@@ -83,5 +85,20 @@ def authenticated_browser(domain: str, e2e_test_secrets: EndToEndTestSecrets, pa
 
     magic_link_url = retrieve_magic_link(notification_id, e2e_test_secrets)
     page.goto(magic_link_url)
+
+    return E2ETestUser(email_address=email)
+
+
+@pytest.fixture()
+def authenticated_browser_sso(
+    domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str
+) -> E2ETestUser:
+    sso_sign_in_page = SSOSignInPage(page, domain)
+    sso_sign_in_page.navigate()
+    sso_sign_in_page.click_sign_in()
+
+    sso_email_login_page = StubSSOEmailLoginPage(page, domain)
+    sso_email_login_page.fill_email_address(email)
+    sso_email_login_page.click_sign_in()
 
     return E2ETestUser(email_address=email)
