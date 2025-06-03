@@ -88,8 +88,8 @@ class SchemaDetailPage(GrantDevelopersBasePage):
         self.schema_name = schema_name
         self.add_section_link = self.page.get_by_role("link", name="add a section")
 
-    def check_section_exists(self, section_title: str) -> bool:
-        return self.page.get_by_role("link", name=section_title).is_visible()
+    def check_section_exists(self, section_title: str) -> None:
+        expect(self.page.get_by_role("link", name=section_title)).to_be_visible()
 
     def click_add_section(self) -> AddSectionPage:
         self.add_section_link.click()
@@ -107,8 +107,8 @@ class SectionsListPage(GrantDevelopersBasePage):
         )
         self.schema_name = schema_name
 
-    def check_section_exists(self, section_title: str) -> bool:
-        return self.page.get_by_role("listitem", name=section_title).is_visible()
+    def check_section_exists(self, section_title: str) -> None:
+        expect(self.page.get_by_role("link", name=section_title)).to_be_visible()
 
     def click_manage_section(self, section_title: str) -> SectionDetailsPage:
         self.page.get_by_role("link", name=f"Manage {section_title}").click()
@@ -174,8 +174,134 @@ class SectionDetailsPage(GrantDevelopersBasePage):
         expect(form_type_page.heading).to_be_visible()
         return form_type_page
 
-    def check_form_exists(self, form_name: str) -> bool:
-        return self.page.get_by_role("listitem", name=form_name).is_visible()
+    def check_form_exists(self, form_name: str) -> None:
+        expect(self.page.get_by_role("term").filter(has_text=form_name)).to_be_visible()
+
+    def click_manage_form(self, form_name: str) -> ManageFormPage:
+        self.page.get_by_role("link", name=f"Manage {form_name}").click()
+        manage_form_page = ManageFormPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            schema_name=self.schema_name,
+            section_title=self.section_title,
+            form_name=form_name,
+        )
+        expect(manage_form_page.heading).to_be_visible()
+        return manage_form_page
+
+
+class ManageFormPage(GrantDevelopersBasePage):
+    add_question_link: Locator
+    section_title: str
+    schema_name: str
+    form_name: str
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, schema_name: str, section_title: str, form_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"{section_title} {form_name}"),
+        )
+        self.section_title = section_title
+        self.schema_name = schema_name
+        self.form_name = form_name
+        self.add_question_link = self.page.get_by_role("link", name="add a question")
+
+    def click_add_question(self) -> SelectQuestionTypePage:
+        self.add_question_link.click()
+        select_question_type_page = SelectQuestionTypePage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            schema_name=self.schema_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(select_question_type_page.heading).to_be_visible()
+        return select_question_type_page
+
+    def check_question_exists(self, question_name: str) -> None:
+        expect(self.page.get_by_role("term").filter(has_text=question_name)).to_be_visible()
+
+
+class SelectQuestionTypePage(GrantDevelopersBasePage):
+    section_title: str
+    schema_name: str
+    form_name: str
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, schema_name: str, section_title: str, form_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="What is the type of the question?"),
+        )
+        self.section_title = section_title
+        self.schema_name = schema_name
+        self.form_name = form_name
+
+    def click_question_type(self, question_type: str) -> None:
+        self.page.get_by_role("radio", name=question_type).click()
+
+    def click_continue(self) -> QuestionDetailsPage:
+        self.page.get_by_role("button", name="Continue").click()
+        question_details_page = QuestionDetailsPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            schema_name=self.schema_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(question_details_page.heading).to_be_visible()
+        return question_details_page
+
+
+class QuestionDetailsPage(GrantDevelopersBasePage):
+    section_title: str
+    schema_name: str
+    form_name: str
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, schema_name: str, section_title: str, form_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Add question"),
+        )
+        self.section_title = section_title
+        self.schema_name = schema_name
+        self.form_name = form_name
+
+    def fill_question_text(self, question_text: str) -> None:
+        self.page.get_by_role("textbox", name="What is the question?").fill(question_text)
+
+    def fill_question_name(self, question_name: str) -> None:
+        self.page.get_by_role("textbox", name="Question name").fill(question_name)
+
+    def fill_question_hint(self, question_hint: str) -> None:
+        self.page.get_by_role("textbox", name="Question hint").fill(question_hint)
+
+    def click_submit(self) -> ManageFormPage:
+        self.page.get_by_role("button", name="Submit").click()
+        manage_form_page = ManageFormPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            schema_name=self.schema_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(manage_form_page.heading).to_be_visible()
+        return manage_form_page
 
 
 class SelectFormTypePage(GrantDevelopersBasePage):
