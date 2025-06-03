@@ -1,4 +1,4 @@
-"""empty message
+"""Adds a collection metadata table and enum
 
 Revision ID: 005_collection_metadata
 Revises: 004_add_detailed_grant_fields
