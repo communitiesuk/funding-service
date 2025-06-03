@@ -127,10 +127,10 @@ def grant_setup_contact() -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route("/grants", methods=["GET"])
 @mhclg_login_required
 def list_grants() -> Response | str:
-    grants = interfaces.grants.get_all_grants_by_user()
+    grants, is_platform_admin = interfaces.grants.get_all_grants_by_user()
     # TODO if the user is a MEMBER and does not have any grant we need to handle that but if you are a
     #  ADMIN then should be able to see grants or empty page with create grant feature
-    if len(grants) == 1:
+    if len(grants) == 1 and not is_platform_admin:
         return redirect(url_for("deliver_grant_funding.view_grant", grant_id=grants[0].id))
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
 

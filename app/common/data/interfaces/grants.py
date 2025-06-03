@@ -1,4 +1,4 @@
-from typing import Sequence, cast
+from typing import Sequence, Tuple, cast
 from uuid import UUID
 
 from flask_login import current_user
@@ -21,17 +21,17 @@ def grant_name_exists(name: str) -> bool:
     return grant is not None
 
 
-def get_all_grants_by_user() -> Sequence[Grant]:
+def get_all_grants_by_user() -> Tuple[Sequence[Grant], bool]:
     user = cast(User, current_user)
     if user.is_platform_admin:
         statement = select(Grant).order_by(Grant.name)
-        return db.session.scalars(statement).all()
+        return db.session.scalars(statement).all(), user.is_platform_admin
     else:
         grant_ids = [role.grant_id for role in user.roles]
         if not grant_ids:
-            return []
+            return [], user.is_platform_admin
         statement = select(Grant).where(Grant.id.in_(grant_ids)).order_by(Grant.name)
-        return db.session.scalars(statement).all()
+        return db.session.scalars(statement).all(), user.is_platform_admin
 
 
 def get_all_grants() -> Sequence[Grant]:
