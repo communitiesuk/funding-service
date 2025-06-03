@@ -1,6 +1,6 @@
 ci:
   autofix_prs: false
-  skip: ["mypy"]
+  skip: ["mypy", "format-html"]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -29,6 +29,11 @@ repos:
           ]
         exclude: tests/pre_award/keys/rsa256
 
+  - repo: https://github.com/seddonym/import-linter
+    rev: v2.3
+    hooks:
+      - id: import-linter
+
   - repo: local
     hooks:
       - id: mypy
@@ -37,8 +42,12 @@ repos:
         types: [python]
         entry: uv run mypy
         pass_filenames: false
-
-  - repo: https://github.com/seddonym/import-linter
-    rev: v2.3
-    hooks:
-      - id: import-linter
+      - id: format-html
+        name: Format Jinja HTML templates with Prettier
+        entry: make format-html
+        language: node
+        files: \.html$
+        additional_dependencies:
+          - 'prettier@^3.5.3'
+          - 'prettier-plugin-jinja-template@^2.1.0'
+        pass_filenames: false

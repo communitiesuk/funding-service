@@ -1,10 +1,12 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {% macro status(status, statuses) %}
-    {% set classMap = {
+  {%
+    set classMap = {
         statuses.NOT_STARTED: "govuk-tag--grey",
         statuses.IN_PROGRESS: "govuk-tag--blue",
         statuses.COMPLETED: "govuk-tag--green",
-    } %}
-    {{ govukTag({"text": status, "classes": classMap[status] }) }}
+    }
+  %}
+  {{ govukTag({"text": status, "classes": classMap[status] }) }}
 {% endmacro %}

@@ -23,11 +23,11 @@
 
 {% block content %}
   <div class="app-aligned-header-tag">
-  <h1 class="govuk-heading-l">
-    <span class="govuk-caption-l">{{ collection_helper.id | string | truncate(11) }}</span>
-    Collection
-  </h1>
-  {{ status(collection_helper.status, statuses)}}
+    <h1 class="govuk-heading-l">
+      <span class="govuk-caption-l">{{ collection_helper.id | string | truncate(11) }}</span>
+      Collection
+    </h1>
+    {{ status(collection_helper.status, statuses) }}
   </div>
 
   {% for section in collection_helper.get_ordered_visible_sections() %}
@@ -40,20 +40,23 @@
         {# the answer is a well formed, validated pydantic thing we could access any of the properties #}
         {# of for the templates use - we'll probably generally just want the interface of that model to tell #}
         {# us what to put when we need a single line text representation #}
-        {% do rows.append({
-          "key": {
-            "text": question.text
-          },
-          "value": {
-            "text": collection_helper.get_answer_for_question(question.id).root or "(Not answered)"
-          }
-        }) %}
+        {%
+          do rows.append({
+            "key": {
+              "text": question.text
+            },
+            "value": {
+              "text": collection_helper.get_answer_for_question(question.id).root or "(Not answered)"
+            }
+          })
+        %}
 
-        {{ govukSummaryList({
-          "rows": rows
-        })}}
+        {{
+          govukSummaryList({
+            "rows": rows
+          })
+        }}
       {% endfor %}
     {% endfor %}
   {% endfor %}
-
 {% endblock content %}

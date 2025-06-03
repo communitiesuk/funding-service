@@ -6,7 +6,8 @@
 {% extends "developers/access_grant_funding_base.html" %}
 
 {% block pageTitle %}
-  {{ question.text }} - MHCLG Funding Service
+  {{ question.text }}
+  - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% block beforeContent %}
@@ -14,19 +15,19 @@
 {% endblock beforeContent %}
 
 {% block content %}
-<div class="govuk-grid-row">
-  <div class="govuk-grid-column-two-thirds">
-    <form method="post" novalidate>
-      {{ form.csrf_token }}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
 
-      {% if question.data_type == question_types.TEXT_SINGLE_LINE or question.data_type == question_types.TEXT_MULTI_LINE %}
-      {{ form.question(params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
-      {% elif question.data_type == question_types.INTEGER %}
-      {{ form.question(params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
-      {% endif %}
+        {% if question.data_type == question_types.TEXT_SINGLE_LINE or question.data_type == question_types.TEXT_MULTI_LINE %}
+          {{ form.question(params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
+        {% elif question.data_type == question_types.INTEGER %}
+          {{ form.question(params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
+        {% endif %}
 
-      {{ form.submit }}
-    </form>
+        {{ form.submit }}
+      </form>
+    </div>
   </div>
-</div>
 {% endblock content %}

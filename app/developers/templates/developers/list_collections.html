@@ -28,45 +28,49 @@
   </h1>
   <p class="govuk-body">View the information that has been provided by users for a schema.</p>
 
-
   {% set rows=[] %}
   {# collections is probably a list of collection helpers? to be decided #}
   {% for collection in collections %}
     {% set link_to_collection %}
-      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_collection', collection_id=collection.id)}}">{{ collection.id | string | truncate(11) }}</a>
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_collection', collection_id=collection.id) }}">{{ collection.id | string | truncate(11) }}</a>
     {% endset %}
-    {% do rows.append([
-      {
-        "html": link_to_collection,
-      }, {
-        "html": status(collection.status, statuses)
-      }, {
-        "text": collection.created_by_email
-      }, {
-        "text": format_date_short(collection.created_at_utc)
-      }
-    ]) %}
-
+    {%
+      do rows.append([
+        {
+          "html": link_to_collection,
+        }, {
+          "html": status(collection.status, statuses)
+        }, {
+          "text": collection.created_by_email
+        }, {
+          "text": format_date_short(collection.created_at_utc)
+        }
+      ])
+    %}
   {% else %}
     {% set no_collections_text %}
-    <span><i>No collections found for this schema</i></span>
+      <span><i>No collections found for this schema</i></span>
     {% endset %}
-    {% do rows.append([
-      {
-        "html": no_collections_text,
-        "colspan": 4
-      }
-    ]) %}
+    {%
+      do rows.append([
+        {
+          "html": no_collections_text,
+          "colspan": 4
+        }
+      ])
+    %}
   {% endfor %}
 
-  {{ govukTable({
-    "captionClasses": "govuk-table__caption--m",
-    "head": [
-      { "text": "Collection" },
-      { "text": "" },
-      { "text": "Started by" },
-      { "text": "Created" }
-    ],
-    "rows": rows
-  }) }}
+  {{
+    govukTable({
+      "captionClasses": "govuk-table__caption--m",
+      "head": [
+        { "text": "Collection" },
+        { "text": "" },
+        { "text": "Started by" },
+        { "text": "Created" }
+      ],
+      "rows": rows
+    })
+  }}
 {% endblock content %}
