@@ -222,8 +222,8 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
 
     def click_developers(self, grant_name: str) -> GrantDevelopersPage:
         self.developers_nav.click()
-        grant_developers_page = GrantDevelopersPage(self.page, self.domain)
-        expect(grant_developers_page.page.get_by_role("heading", name=f"{grant_name} Developers")).to_be_visible()
+        grant_developers_page = GrantDevelopersPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_developers_page.heading).to_be_visible()
         return grant_developers_page
 
 
