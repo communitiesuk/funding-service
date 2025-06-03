@@ -5,6 +5,7 @@ from uuid import UUID
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
+from wtforms.validators import DataRequired, Optional as WTFOptional
 
 from app.common.auth.decorators import platform_admin_role_required
 from app.common.collections.forms import build_question_form
@@ -629,12 +630,23 @@ def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValu
         )
     )
 
-    if form.validate_on_submit():
-        collection_helper.mark_form_as_complete(
-            form=schema_form, user=current_user, is_complete=form.section_completed.data == "yes"
-        )
+    all_questions_answered, _ = collection_helper.get_all_questions_answered_for_form(schema_form)
+    extra_validators = {
+        "section_completed": [
+            DataRequired("Select if you have you completed this section") if all_questions_answered else WTFOptional()
+        ]
+    }
 
-        return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
+    if form.validate_on_submit(extra_validators=extra_validators):
+        try:
+            collection_helper.mark_form_as_complete(
+                form=schema_form, user=current_user, is_complete=form.section_completed.data == "yes"
+            )
+            return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
+        except ValueError:
+            form.section_completed.errors.append(  # type:ignore[attr-defined]
+                "You must complete all questions before marking this section as complete"
+            )
 
     return render_template(
         "developers/check_your_answers.html",
