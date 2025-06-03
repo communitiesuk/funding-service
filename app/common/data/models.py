@@ -13,7 +13,7 @@ from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import User
-from app.common.data.types import CollectionStatusEnum, QuestionDataType, json_scalars
+from app.common.data.types import CollectionStatusEnum, MetadataEventKey, QuestionDataType, json_scalars
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
@@ -102,6 +102,10 @@ class Collection(BaseModel):
     collection_schema_id: Mapped[uuid.UUID]
     collection_schema_version: Mapped[int]
     collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema")
+
+    collection_metadata: Mapped[list["CollectionMetadata"]] = relationship(
+        "CollectionMetadata", back_populates="collection"
+    )
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -192,3 +196,20 @@ class Question(BaseModel):
         UniqueConstraint("text", "form_id", name="uq_question_text_form"),
         UniqueConstraint("name", "form_id", name="uq_question_name_form"),
     )
+
+
+class CollectionMetadata(BaseModel):
+    __tablename__ = "collection_metadata"
+
+    event_key: Mapped[MetadataEventKey] = mapped_column(
+        SqlEnum(MetadataEventKey, name="metadata_event_key_enum", validate_strings=True)
+    )
+
+    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id"))
+    collection: Mapped[Collection] = relationship("Collection", back_populates="collection_metadata")
+
+    form_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("form.id"))
+    form: Mapped[Optional[Form]] = relationship("Form")
+
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
+    created_by: Mapped[User] = relationship("User")

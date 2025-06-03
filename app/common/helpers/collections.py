@@ -9,7 +9,8 @@ from pydantic import RootModel, TypeAdapter
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection
-from app.common.data.types import CollectionStatusEnum, QuestionDataType
+from app.common.data.models_user import User
+from app.common.data.types import CollectionStatusEnum, MetadataEventKey, QuestionDataType
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Form, Grant, Question, Section
@@ -120,7 +121,10 @@ class CollectionHelper:
         # there's likely a slicker interface for this helper but just brute forcing it for now
         visible_questions = self.get_ordered_visible_questions_for_form(form)
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
-        if visible_questions and len(visible_questions) == len(answers):
+        marked_as_complete = MetadataEventKey.FORM_RUNNER_FORM_COMPLETED in [
+            x.event_key for x in self.collection.collection_metadata
+        ]
+        if visible_questions and len(visible_questions) == len(answers) and marked_as_complete:
             return CollectionStatusEnum.COMPLETED
         elif answers:
             return CollectionStatusEnum.IN_PROGRESS
@@ -164,6 +168,11 @@ class CollectionHelper:
         question = self.get_question(question_id)
         data = _form_data_to_question_type(question, form)
         interfaces.collections.update_collection_data(self.collection, question, data)
+
+    def mark_form_as_complete(self, form: "Form", user: "User") -> None:
+        interfaces.collections.add_collection_metadata(
+            self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, user, form
+        )
 
     def get_next_question(self, current_question_id: UUID) -> Optional["Question"]:
         """
