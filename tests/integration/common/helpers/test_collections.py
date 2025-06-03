@@ -316,7 +316,7 @@ class TestGetLastQuestionForForm:
 
             assert helper.get_status_for_form(form) == CollectionStatusEnum.IN_PROGRESS
 
-            helper.mark_form_as_complete(form, collection.created_by)
+            helper.mark_form_as_complete(form, collection.created_by, True)
 
             assert helper.get_status_for_form(form) == CollectionStatusEnum.COMPLETED
 
@@ -339,7 +339,7 @@ class TestGetLastQuestionForForm:
             helper.submit_answer_for_question(
                 question.id, build_question_form(question)(question="User submitted data")
             )
-            helper.mark_form_as_complete(question.form, collection.created_by)
+            helper.mark_form_as_complete(question.form, collection.created_by, True)
 
             assert helper.get_status_for_form(question.form) == CollectionStatusEnum.COMPLETED
             assert helper.status == CollectionStatusEnum.IN_PROGRESS
@@ -347,7 +347,27 @@ class TestGetLastQuestionForForm:
             helper.submit_answer_for_question(
                 question_two.id, build_question_form(question_two)(question="User submitted data")
             )
-            helper.mark_form_as_complete(question_two.form, collection.created_by)
+            helper.mark_form_as_complete(question_two.form, collection.created_by, True)
 
             assert helper.get_status_for_form(question_two.form) == CollectionStatusEnum.COMPLETED
             assert helper.status == CollectionStatusEnum.COMPLETED
+
+        def test_form_status_mark_as_complete(self, db_session, factories):
+            question = factories.question.build()
+            form = question.form
+            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            helper = CollectionHelper(collection)
+
+            with pytest.raises(ValueError) as e:
+                helper.mark_form_as_complete(form, collection.created_by, True)
+
+            assert str(e.value) == AnyStringMatching(
+                r"Could not mark form id=[a-z0-9-]+ as complete because not all questions have been answered."
+            )
+
+            helper.submit_answer_for_question(
+                question.id, build_question_form(question)(question="User submitted data")
+            )
+            helper.mark_form_as_complete(form, collection.created_by, True)
+
+            assert helper.get_status_for_form(form) == CollectionStatusEnum.COMPLETED

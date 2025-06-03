@@ -41,7 +41,7 @@ from app.deliver_grant_funding.forms import (
     SchemaForm,
     SectionForm,
 )
-from app.developers.forms import PreviewCollectionForm
+from app.developers.forms import CheckYourAnswersForm, PreviewCollectionForm
 from app.extensions import auto_commit_after_request
 
 if TYPE_CHECKING:
@@ -606,15 +606,20 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
 @developers_blueprint.route(
     "/collections/<uuid:collection_id>/check-yours-answers/<uuid:form_id>", methods=["GET", "POST"]
 )
+@auto_commit_after_request
 @platform_admin_role_required
 def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValue:
     collection_helper = CollectionHelper.load(collection_id)
-    form = collection_helper.get_form(form_id)
-    previous_question = collection_helper.get_last_question_for_form(form)
+    schema_form = collection_helper.get_form(form_id)
+
+    form = CheckYourAnswersForm(
+        section_completed="yes" if collection_helper.status == CollectionStatusEnum.COMPLETED else None
+    )
+    previous_question = collection_helper.get_last_question_for_form(schema_form)
     assert previous_question
 
     back_link_from_context = _get_form_runner_link_from_source(
-        source=request.args.get("source"), collection=collection_helper.collection, form=form
+        source=request.args.get("source"), collection=collection_helper.collection, form=schema_form
     )
     back_link = (
         back_link_from_context
@@ -624,10 +629,18 @@ def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValu
         )
     )
 
+    if form.validate_on_submit():
+        collection_helper.mark_form_as_complete(
+            form=schema_form, user=current_user, is_complete=form.section_completed.data == "yes"
+        )
+
+        return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
+
     return render_template(
         "developers/check_your_answers.html",
         back_link=back_link,
         collection_helper=collection_helper,
+        schema_form=schema_form,
         form=form,
         back_link_source_enum=FormRunnerSourceEnum,
     )

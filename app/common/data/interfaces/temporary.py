@@ -11,8 +11,6 @@ The only place that should import from here is the `app.developers` package.
 
 from uuid import UUID
 
-from sqlalchemy import delete
-
 from app.common.data.models import (
     Collection,
     CollectionSchema,
@@ -21,11 +19,16 @@ from app.extensions import db
 
 
 def delete_collections_created_by_user(*, grant_id: UUID, created_by_id: UUID) -> None:
-    db.session.execute(
-        delete(Collection).where(
-            Collection.collection_schema_id == CollectionSchema.id,
+    collections = (
+        db.session.query(Collection)
+        .join(CollectionSchema)
+        .where(
             CollectionSchema.grant_id == grant_id,
             Collection.created_by_id == created_by_id,
         )
+        .all()
     )
+
+    for collection in collections:
+        db.session.delete(collection)
     db.session.flush()
