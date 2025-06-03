@@ -3,47 +3,52 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 
 {% block pageTitle %}
-    Grants - MHCLG Funding Service
+  Grants - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grants" %}
 
 {% block content %}
-<div class="govuk-grid-row">
+  <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-        <h1 class="govuk-heading-l">Grants</h1>
-        {{ govukButton({
+      <h1 class="govuk-heading-l">Grants</h1>
+      {{
+        govukButton({
            "text": "Set up a grant",
            "href": url_for("deliver_grant_funding.grant_setup_intro")
-        }) }}
+        })
+      }}
     </div>
-</div>
-<div class="govuk-grid-row">
+  </div>
+  <div class="govuk-grid-row">
     {% if grants %}
-    {% set table_rows = namespace(items=[]) %}
-    {% for grant in grants %}
-    {% set grant_detail_link %}
-    <a class='govuk-link govuk-link--no-visited-state'
-       href={{ url_for("deliver_grant_funding.view_grant", grant_id=grant.id) }}>{{ grant.name }}</a>
-    {% endset %}
-    {% set table_rows.items = table_rows.items + [
-                [{"html": grant_detail_link},
-                 {"text": grant.ggis_number},
-                 {"text": grant.primary_contact_email}]
-            ] %}
-    {% endfor %}
-    <div class="govuk-grid-column-full">
-        {{ govukTable({
-                    "captionClasses": "govuk-table__caption--m",
-                    "firstCellIsHeader": false,
-                    "head": [{"text": "Grant"}, {"text": "GGIS number"}, {"text": "Email"}],
-                    "rows": table_rows.items
-                }) }}
-    </div>
+      {% set table_rows = namespace(items=[]) %}
+      {% for grant in grants %}
+        {% set grant_detail_link %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.view_grant", grant_id=grant.id) }}">{{ grant.name }}</a>
+        {% endset %}
+        {%
+          set table_rows.items = table_rows.items + [
+              [{"html": grant_detail_link},
+               {"text": grant.ggis_number or ''},
+               {"text": grant.primary_contact_email}]
+          ]
+        %}
+      {% endfor %}
+      <div class="govuk-grid-column-full">
+        {{
+          govukTable({
+              "captionClasses": "govuk-table__caption--m",
+              "firstCellIsHeader": false,
+              "head": [{"text": "Grant"}, {"text": "GGIS number"}, {"text": "Email"}],
+              "rows": table_rows.items
+          })
+        }}
+      </div>
     {% else %}
-    <div class="govuk-grid-column-full">
+      <div class="govuk-grid-column-full">
         <p class="govuk-body">No grants available at the moment.</p>
-    </div>
+      </div>
     {% endif %}
-</div>
+  </div>
 {% endblock content %}

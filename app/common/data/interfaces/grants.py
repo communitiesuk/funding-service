@@ -1,7 +1,6 @@
-from typing import Sequence, Tuple, cast
+from typing import Sequence
 from uuid import UUID
 
-from flask_login import current_user
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -21,17 +20,16 @@ def grant_name_exists(name: str) -> bool:
     return grant is not None
 
 
-def get_all_grants_by_user() -> Tuple[Sequence[Grant], bool]:
-    user = cast(User, current_user)
+def get_all_grants_by_user(user: User) -> Sequence[Grant]:
     if user.is_platform_admin:
         statement = select(Grant).order_by(Grant.name)
-        return db.session.scalars(statement).all(), user.is_platform_admin
+        return db.session.scalars(statement).all()
     else:
         grant_ids = [role.grant_id for role in user.roles]
         if not grant_ids:
-            return [], user.is_platform_admin
+            return []
         statement = select(Grant).where(Grant.id.in_(grant_ids)).order_by(Grant.name)
-        return db.session.scalars(statement).all(), user.is_platform_admin
+        return db.session.scalars(statement).all()
 
 
 def get_all_grants() -> Sequence[Grant]:

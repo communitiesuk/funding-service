@@ -1,7 +1,15 @@
 import pytest
 
-from app.common.data.interfaces.grants import DuplicateValueError, create_grant, get_all_grants, get_grant, update_grant
+from app.common.data.interfaces.grants import (
+    DuplicateValueError,
+    create_grant,
+    get_all_grants,
+    get_all_grants_by_user,
+    get_grant,
+    update_grant,
+)
 from app.common.data.models import Grant
+from app.common.data.types import RoleEnum
 
 
 def test_get_grant(factories):
@@ -10,7 +18,23 @@ def test_get_grant(factories):
     assert result is not None
 
 
-def test_get_all_grants(factories):
+def test_get_all_grants_platform_admin(factories):
+    user_obj = factories.user.create(email="testadmin@communities.gov.uk")
+    factories.user_role.create(user=user_obj, role=RoleEnum.ADMIN)
+    factories.grant.create_batch(5)
+    result = get_all_grants_by_user(user_obj)
+    assert len(result) == 5
+
+
+def test_get_all_grants_member(factories):
+    user_member = factories.user.create(email="testmember@communities.gov.uk")
+    grants = factories.grant.create_batch(5)
+    factories.user_role.create(user=user_member, role=RoleEnum.MEMBER, grant=grants[0])
+    result = get_all_grants_by_user(user_member)
+    assert len(result) == 1
+
+
+def test_get_all_grants_by_user(factories):
     factories.grant.create_batch(5)
     result = get_all_grants()
     assert len(result) == 5
