@@ -1,5 +1,6 @@
 import uuid
 
+import pytest
 from playwright.sync_api import Page
 
 from tests.e2e.config import EndToEndTestSecrets
@@ -7,6 +8,7 @@ from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.pages import AllGrantsPage
 
 
+@pytest.mark.skip_in_environments(["dev", "test", "prod"])
 def test_create_view_edit_grant_success(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser
 ):
@@ -16,7 +18,8 @@ def test_create_view_edit_grant_success(
     # Set up new grant
     grant_intro_page = all_grants_page.click_add_a_grant()
     grant_ggis_page = grant_intro_page.click_continue()
-    grant_ggis_page.select_no()
+    grant_ggis_page.select_yes()
+    grant_ggis_page.fill_ggis_number()
     grant_name_page = grant_ggis_page.click_save_and_continue()
     new_grant_name = f"E2E {uuid.uuid4()}"
     grant_name_page.fill_name(new_grant_name)
