@@ -49,4 +49,20 @@ def test_create_and_preview_schema(domain: str, e2e_test_secrets: EndToEndTestSe
     manage_schemas_page = add_schema_page.click_submit(new_grant_name)
     manage_schemas_page.check_schema_exists(new_schema_name)
 
+    # Add a new section
     schema_detail_page = manage_schemas_page.click_on_schema(schema_name=new_schema_name, grant_name=new_grant_name)
+    add_section_page = schema_detail_page.click_add_section()
+    new_section_name = f"E2E section {uuid.uuid4()}"
+    add_section_page.fill_in_section_title(new_section_name)
+    sections_list_page = add_section_page.click_submit(schema_name=new_schema_name)
+    sections_list_page.check_section_exists(new_section_name)
+
+    # Add a new form
+    section_detail_page = sections_list_page.click_manage_section(new_section_name)
+    form_type_page = section_detail_page.click_add_form()
+    form_type_page.click_add_empty_form()
+    form_details_page = form_type_page.click_continue()
+    form_name = f"E2E form {uuid.uuid4()}"
+    form_details_page.fill_in_form_name(form_name)
+    section_detail_page = form_details_page.click_add_form()
+    section_detail_page.check_form_exists(form_name)
