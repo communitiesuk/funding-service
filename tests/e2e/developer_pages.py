@@ -26,14 +26,14 @@ class GrantDevelopersPage(GrantDevelopersBasePage):
         )
         self.manage_schemas_link = self.page.get_by_role("link", name="Manage")
 
-    def click_manage_schemas(self, grant_name: str) -> GrantManageSchemasPage:
+    def click_manage_schemas(self, grant_name: str) -> ListSchemasPage:
         self.manage_schemas_link.click()
-        manage_schemas_page = GrantManageSchemasPage(self.page, self.domain, self.grant_name)
+        manage_schemas_page = ListSchemasPage(self.page, self.domain, self.grant_name)
         expect(manage_schemas_page.heading).to_be_visible()
         return manage_schemas_page
 
 
-class GrantManageSchemasPage(GrantDevelopersBasePage):
+class ListSchemasPage(GrantDevelopersBasePage):
     add_schema_link: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
@@ -70,9 +70,9 @@ class AddSchemaPage(GrantDevelopersBasePage):
     def fill_in_schema_name(self, name: str) -> None:
         self.page.get_by_role("textbox", name="What is the name of the schema?").fill(name)
 
-    def click_submit(self, grant_name: str) -> GrantManageSchemasPage:
+    def click_submit(self, grant_name: str) -> ListSchemasPage:
         self.page.get_by_role("button", name="Set up schema").click()
-        manage_schemas_page = GrantManageSchemasPage(self.page, self.domain, grant_name=grant_name)
+        manage_schemas_page = ListSchemasPage(self.page, self.domain, grant_name=grant_name)
         expect(manage_schemas_page.heading).to_be_visible()
         return manage_schemas_page
 
@@ -254,9 +254,9 @@ class SelectQuestionTypePage(GrantDevelopersBasePage):
     def click_question_type(self, question_type: str) -> None:
         self.page.get_by_role("radio", name=question_type).click()
 
-    def click_continue(self) -> QuestionDetailsPage:
+    def click_continue(self) -> AddQuestionDetailsPage:
         self.page.get_by_role("button", name="Continue").click()
-        question_details_page = QuestionDetailsPage(
+        question_details_page = AddQuestionDetailsPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
@@ -268,7 +268,7 @@ class SelectQuestionTypePage(GrantDevelopersBasePage):
         return question_details_page
 
 
-class QuestionDetailsPage(GrantDevelopersBasePage):
+class AddQuestionDetailsPage(GrantDevelopersBasePage):
     section_title: str
     schema_name: str
     form_name: str
@@ -321,9 +321,9 @@ class SelectFormTypePage(GrantDevelopersBasePage):
     def click_add_empty_form(self) -> None:
         self.page.get_by_role("radio", name="Add an empty form").click()
 
-    def click_continue(self) -> FormDetailsPage:
+    def click_continue(self) -> AddFormDetailsPage:
         self.page.get_by_role("button", name="Continue").click()
-        form_details_page = FormDetailsPage(
+        form_details_page = AddFormDetailsPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
@@ -334,7 +334,7 @@ class SelectFormTypePage(GrantDevelopersBasePage):
         return form_details_page
 
 
-class FormDetailsPage(GrantDevelopersBasePage):
+class AddFormDetailsPage(GrantDevelopersBasePage):
     section_title: str
     schema_name: str
 
