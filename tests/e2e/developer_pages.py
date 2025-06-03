@@ -192,10 +192,11 @@ class SectionDetailsPage(GrantDevelopersBasePage):
 
 
 class ManageFormPage(GrantDevelopersBasePage):
-    add_question_link: Locator
     section_title: str
     schema_name: str
     form_name: str
+    add_question_button: Locator
+    add_question_link: Locator
 
     def __init__(
         self, page: Page, domain: str, grant_name: str, schema_name: str, section_title: str, form_name: str
@@ -209,10 +210,14 @@ class ManageFormPage(GrantDevelopersBasePage):
         self.section_title = section_title
         self.schema_name = schema_name
         self.form_name = form_name
+        self.add_question_button = self.page.get_by_role("button", name="Add question")
         self.add_question_link = self.page.get_by_role("link", name="add a question")
 
     def click_add_question(self) -> SelectQuestionTypePage:
-        self.add_question_link.click()
+        if self.add_question_button.is_visible(timeout=0.2):
+            self.add_question_button.click()
+        else:
+            self.add_question_link.click()
         select_question_type_page = SelectQuestionTypePage(
             self.page,
             self.domain,

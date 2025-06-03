@@ -3,7 +3,9 @@ import uuid
 import pytest
 from playwright.sync_api import Page, expect
 
+from app.common.data.types import QuestionDataType
 from tests.e2e.config import EndToEndTestSecrets
+from tests.e2e.developer_pages import ManageFormPage
 from tests.e2e.pages import AllGrantsPage
 
 
@@ -25,6 +27,24 @@ def create_grant(grant_name: str, page: Page, domain: str) -> None:
     new_grant_page.fill_in_grant_name(grant_name)
     all_grants_page = new_grant_page.click_submit()
     all_grants_page.check_grant_exists(grant_name)
+
+
+def create_question(
+    question_type: str,
+    manage_form_page: ManageFormPage,
+) -> None:
+    question_type_page = manage_form_page.click_add_question()
+    question_type_page.click_question_type(question_type)
+    question_details_page = question_type_page.click_continue()
+
+    expect(question_details_page.page.get_by_text(question_type, exact=True)).to_be_visible()
+    question_uuid = uuid.uuid4()
+    question_text = f"E2E question {question_uuid}"
+    question_details_page.fill_question_text(question_text)
+    question_details_page.fill_question_name(f"e2e_question_{question_uuid}")
+    question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
+    manage_form_page = question_details_page.click_submit()
+    manage_form_page.check_question_exists(question_text)
 
 
 @pytest.mark.skip_in_environments(["dev", "test", "prod"])
@@ -67,18 +87,8 @@ def test_create_and_preview_schema(domain: str, e2e_test_secrets: EndToEndTestSe
     section_detail_page = form_details_page.click_add_form()
     section_detail_page.check_form_exists(form_name)
 
-    # Add a question - single line of text
+    # Add a question of each type
     manage_form_page = section_detail_page.click_manage_form(form_name)
-    question_type_page = manage_form_page.click_add_question()
-    question_type = "A single line of text"
-    question_type_page.click_question_type(question_type)
-    question_details_page = question_type_page.click_continue()
-
-    expect(question_details_page.page.get_by_text(question_type, exact=True)).to_be_visible()
-    question_uuid = uuid.uuid1()
-    question_text = f"E2E question {question_uuid}"
-    question_details_page.fill_question_text(question_text)
-    question_details_page.fill_question_name(f"e2e_question_{question_uuid}")
-    question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
-    manage_form_page = question_details_page.click_submit()
-    manage_form_page.check_question_exists(question_text)
+    create_question(QuestionDataType.TEXT_SINGLE_LINE.value, manage_form_page)
+    create_question(QuestionDataType.TEXT_MULTI_LINE.value, manage_form_page)
+    create_question(QuestionDataType.INTEGER.value, manage_form_page)
