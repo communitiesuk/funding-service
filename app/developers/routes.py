@@ -5,8 +5,6 @@ from uuid import UUID
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
-from wtforms.validators import DataRequired
-from wtforms.validators import Optional as WTFOptional
 
 from app.common.auth.decorators import platform_admin_role_required
 from app.common.collections.forms import build_question_form
@@ -632,16 +630,14 @@ def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValu
     )
 
     all_questions_answered, _ = collection_helper.get_all_questions_answered_for_form(schema_form)
-    extra_validators = {
-        "section_completed": [
-            DataRequired("Select if you have you completed this section") if all_questions_answered else WTFOptional()
-        ]
-    }
+    form.set_is_required(all_questions_answered)
 
-    if form.validate_on_submit(extra_validators=extra_validators):
+    if form.validate_on_submit():
         try:
-            collection_helper.mark_form_as_complete(
-                form=schema_form, user=current_user, is_complete=form.section_completed.data == "yes"
+            collection_helper.toggle_form_completed(
+                form=schema_form,
+                user=interfaces.user.get_current_user(),
+                is_complete=form.section_completed.data == "yes",
             )
             return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
         except ValueError:
