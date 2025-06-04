@@ -3,7 +3,7 @@
 {% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
-  Change grant name - MHCLG Funding Service
+  Change grant GGIS - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_settings" %}
@@ -19,21 +19,38 @@
 {% endblock %}
 
 {% block content %}
-  <h1 class="govuk-heading-l">Change grant name</h1>
+  <h1 class="govuk-heading-l">Change grant GGIS</h1>
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
     {{
-      form.name(params={
-        "label": {
-          "classes": "govuk-visually-hidden"
-        }
+      form.has_ggis(params={
+        "items": [
+          {
+            "value": "yes",
+            "text": "Yes",
+            "conditional": {
+              "html": form.ggis_number(
+                params={
+                  "classes": "govuk-!-width-two-thirds",
+                  "spellcheck": false,
+                  "autocomplete": "off"
+                }
+              )
+            }
+          },
+          {
+            "value": "no",
+            "text": "No",
+            "checked": true if form.has_ggis.data == "no" else false
+          }
+        ]
       })
     }}
 
     {{
       form.submit(params={
-          "text": "Change grant name"
+        "text": "Change grant GGIS"
       })
     }}
   </form>
