@@ -117,14 +117,19 @@ class CollectionHelper:
         """Returns the visible, ordered sections based upon the current state of this collection."""
         return sorted(self.sections, key=lambda s: s.order)
 
-    def get_status_for_form(self, form: "Form") -> str:
-        # there's likely a slicker interface for this helper but just brute forcing it for now
+    def get_all_questions_answered_for_form(
+        self, form: "Form"
+    ) -> tuple[bool, list[TextSingleLine | TextMultiLine | Integer]]:
         visible_questions = self.get_ordered_visible_questions_for_form(form)
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
+        return len(visible_questions) == len(answers), answers
+
+    def get_status_for_form(self, form: "Form") -> str:
+        all_questions_answered, answers = self.get_all_questions_answered_for_form(form)
         marked_as_complete = MetadataEventKey.FORM_RUNNER_FORM_COMPLETED in [
             x.event_key for x in self.collection.collection_metadata
         ]
-        if visible_questions and len(visible_questions) == len(answers) and marked_as_complete:
+        if form.questions and all_questions_answered and marked_as_complete:
             return CollectionStatusEnum.COMPLETED
         elif answers:
             return CollectionStatusEnum.IN_PROGRESS
@@ -169,10 +174,25 @@ class CollectionHelper:
         data = _form_data_to_question_type(question, form)
         interfaces.collections.update_collection_data(self.collection, question, data)
 
-    def mark_form_as_complete(self, form: "Form", user: "User") -> None:
-        interfaces.collections.add_collection_metadata(
-            self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, user, form
-        )
+    def toggle_form_completed(self, form: "Form", user: "User", is_complete: bool) -> None:
+        form_complete = self.get_status_for_form(form) == CollectionStatusEnum.COMPLETED
+        if is_complete == form_complete:
+            return
+
+        if is_complete:
+            all_questions_answered, _ = self.get_all_questions_answered_for_form(form)
+            if not all_questions_answered:
+                raise ValueError(
+                    f"Could not mark form id={form.id} as complete because not all questions have been answered."
+                )
+
+            interfaces.collections.add_collection_metadata(
+                self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, user, form
+            )
+        else:
+            interfaces.collections.clear_form_metadata(
+                self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, form
+            )
 
     def get_next_question(self, current_question_id: UUID) -> Optional["Question"]:
         """

@@ -1,6 +1,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
 {% extends "developers/access_grant_funding_base.html" %}
 
 {% block pageTitle %}
@@ -19,11 +20,11 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">{{ form.name }}</span>
+      <span class="govuk-caption-l">{{ schema_form.name }}</span>
       <h1 class="govuk-heading-l">Check your answers</h1>
 
       {% set rows = [] %}
-      {% for question in collection_helper.get_ordered_visible_questions_for_form(form) %}
+      {% for question in collection_helper.get_ordered_visible_questions_for_form(schema_form) %}
         {% set answer = collection_helper.get_answer_for_question(question.id) %}
         {% if answer is not none %}
           {%
@@ -55,12 +56,24 @@
         })
       }}
 
-      {{
-        govukButton({
-          "text": "Save and continue",
-          "href": url_for("developers.collection_tasklist", collection_id=collection_helper.collection.id)
-        })
-      }}
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {% set all_questions_answered, _ = collection_helper.get_all_questions_answered_for_form(schema_form) %}
+        {% if all_questions_answered %}
+          {{
+            form.section_completed(params={
+              "fieldset": {
+                "legend": {
+                  "text": "Have you completed this section?",
+                  "isPageHeading": false,
+                  "classes": "govuk-fieldset__legend--m"
+                }
+              }
+            })
+          }}
+        {% endif %}
+        {{ form.submit }}
+      </form>
     </div>
   </div>
 {% endblock content %}
