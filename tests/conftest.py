@@ -8,7 +8,6 @@ from _pytest.config import Config
 from _pytest.config.argparsing import Parser
 from flask import Flask
 from flask.testing import FlaskClient
-from flask_sqlalchemy_lite import SQLAlchemy
 from sqlalchemy.orm import Session
 from werkzeug.test import TestResponse
 
@@ -125,27 +124,6 @@ def _precompile_templates(app: Flask) -> None:
     # takes away a significant amount of the difference between the first and second pass.
     for template_name in app.jinja_env.list_templates():
         app.jinja_env.get_template(template_name)
-
-
-@pytest.fixture(scope="function", autouse=True)
-def db_session(app: Flask) -> Generator[None, None, None]:
-    # No-op fixture that blocks access to the DB by default. Fixtures in the `integration` sub-directory will properly
-    # set up the database connection/session with transactional isolation between tests.
-    # This blank fixture helps us still provide the ability to use FactoryBoy to build ephemeral instances of our DB
-    # models for unit testing.
-
-    with app.app_context():
-        original_session_property = SQLAlchemy.session
-
-        def session_error(self: SQLAlchemy) -> None:
-            raise RuntimeError("No access to DB session available outside of integration tests")
-
-        SQLAlchemy.session = property(session_error)  # type: ignore[method-assign, assignment]
-
-        try:
-            yield
-        finally:
-            SQLAlchemy.session = original_session_property  # type: ignore[method-assign]
 
 
 _Factories = namedtuple(

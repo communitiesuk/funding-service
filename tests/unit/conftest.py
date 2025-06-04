@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from _pytest.fixtures import FixtureRequest
 from flask import Flask
+from flask_sqlalchemy_lite import SQLAlchemy
 
 from app import create_app
 from tests.conftest import _precompile_templates
@@ -30,3 +31,24 @@ def app() -> Generator[Flask, None, None]:
     app.config.update({"TESTING": True})
     _precompile_templates(app)
     yield app
+
+
+@pytest.fixture(scope="function", autouse=True)
+def db_session(app: Flask) -> Generator[None, None, None]:
+    # No-op fixture that blocks access to the DB by default. Fixtures in the `integration` sub-directory will properly
+    # set up the database connection/session with transactional isolation between tests.
+    # This blank fixture helps us still provide the ability to use FactoryBoy to build ephemeral instances of our DB
+    # models for unit testing.
+
+    with app.app_context():
+        original_session_property = SQLAlchemy.session
+
+        def session_error(self: SQLAlchemy) -> None:
+            raise RuntimeError("No access to DB session available outside of integration tests")
+
+        SQLAlchemy.session = property(session_error)  # type: ignore[method-assign, assignment]
+
+        try:
+            yield
+        finally:
+            SQLAlchemy.session = original_session_property  # type: ignore[method-assign]
