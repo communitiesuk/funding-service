@@ -75,7 +75,7 @@ def test_list_grants_as_member_with_multiple_grants(
     assert result.status_code == 200
     soup = BeautifulSoup(result.data, "html.parser")
     button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
-    assert button is not None, "'Set up a grant' button not found"
+    assert button is None, "'Set up a grant' button found"
     headers = soup.find_all("th")
     header_texts = [th.get_text(strip=True) for th in headers]
     expected_headers = ["Grant", "GGIS number", "Email"]

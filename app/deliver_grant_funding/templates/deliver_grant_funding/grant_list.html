@@ -12,12 +12,14 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">Grants</h1>
-      {{
-        govukButton({
-           "text": "Set up a grant",
-           "href": url_for("deliver_grant_funding.grant_setup_intro")
-        })
-      }}
+      {% if current_user.is_platform_admin %}
+        {{
+          govukButton({
+            "text": "Set up a grant",
+            "href": url_for("deliver_grant_funding.grant_setup_intro")
+          })
+        }}
+      {% endif %}
     </div>
   </div>
   <div class="govuk-grid-row">
