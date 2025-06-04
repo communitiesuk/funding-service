@@ -32,16 +32,6 @@ class UniqueGrantName:
             raise ValidationError(self.message)
 
 
-class GrantForm(FlaskForm):
-    name = StringField(
-        "Grant name",
-        validators=[DataRequired("Enter a grant name")],
-        filters=[strip_string_if_not_empty],
-        widget=GovTextInput(),
-    )
-    submit = SubmitField(widget=GovSubmitInput())
-
-
 class GrantSetupIntroForm(FlaskForm):
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
