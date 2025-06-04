@@ -126,6 +126,15 @@ class CollectionHelper:
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
         return len(visible_questions) == len(answers), answers
 
+    def get_all_forms_completed(self) -> bool:
+        form_statuses = set(
+            [
+                self.get_status_for_form(form)
+                for form in chain.from_iterable(section.forms for section in self.schema.sections)
+            ]
+        )
+        return {CollectionStatusEnum.COMPLETED} == form_statuses
+
     def get_status_for_form(self, form: "Form") -> str:
         all_questions_answered, answers = self.get_all_questions_answered_for_form(form)
         marked_as_complete = MetadataEventKey.FORM_RUNNER_FORM_COMPLETED in [
@@ -181,14 +190,7 @@ class CollectionHelper:
         if collection_complete:
             return
 
-        # TODO: is there a nice way to remove this duplication with the status check?
-        form_statuses = set(
-            [
-                self.get_status_for_form(form)
-                for form in chain.from_iterable(section.forms for section in self.schema.sections)
-            ]
-        )
-        if {CollectionStatusEnum.COMPLETED} == form_statuses:
+        if self.get_all_forms_completed():
             interfaces.collections.add_collection_metadata(self.collection, MetadataEventKey.COLLECTION_SUBMITTED, user)
         else:
             raise ValueError(f"Could not submit collection id={self.id} because not all forms are complete.")
