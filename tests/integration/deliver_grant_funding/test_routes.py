@@ -12,6 +12,7 @@ from app.common.data.models import CollectionSchema, Form, Grant, Question, Sect
 from app.common.data.types import QuestionDataType, RoleEnum
 from app.deliver_grant_funding.forms import (
     FormForm,
+    GrantCheckYourAnswersForm,
     GrantContactForm,
     GrantDescriptionForm,
     GrantForm,
@@ -811,7 +812,20 @@ def test_grant_setup_contact_get_with_session(authenticated_platform_admin_clien
     assert soup.h1.text.strip() == "Who is the main contact for this grant?"
 
 
-def test_grant_setup_contact_post_creates_grant(authenticated_platform_admin_client, db_session):
+def test_grant_setup_contact_post_valid(authenticated_platform_admin_client):
+    # Set up session with required data for grant creation
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
+
+    contact_form = GrantContactForm(primary_contact_name="Test Contact", primary_contact_email="test@example.com")
+    response = authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.grant_setup_contact"), data=contact_form.data, follow_redirects=False
+    )
+    assert response.status_code == 302
+    assert response.location == url_for("deliver_grant_funding.grant_setup_check_your_answers")
+
+
+def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admin_client, db_session):
     # Set up session with required data for grant creation
     with authenticated_platform_admin_client.session_transaction() as sess:
         sess["grant_setup"] = {
@@ -823,22 +837,22 @@ def test_grant_setup_contact_post_creates_grant(authenticated_platform_admin_cli
             "primary_contact_email": "joe.bloggs@gmail.com",
         }
 
-    contact_form = GrantContactForm(primary_contact_name="Test Contact", primary_contact_email="test@example.com")
+    contact_form = GrantCheckYourAnswersForm()
     response = authenticated_platform_admin_client.post(
-        url_for("deliver_grant_funding.grant_setup_contact"), data=contact_form.data, follow_redirects=False
+        url_for("deliver_grant_funding.grant_setup_check_your_answers"), data=contact_form.data, follow_redirects=False
     )
     assert response.status_code == 302
 
-    # Verify redirect is to grant view page
-    assert "/grants/" in response.location
+    # Verify redirect is to grant setup confirmation page
+    assert "/setup-confirmation" in response.location
 
     # Extract grant ID from redirect URL and verify grant exists
-    grant_id_str = response.location.split("/")[-1]
+    grant_id_str = response.location.split("/")[-2]
     grant_id = UUID(grant_id_str)
     grant_from_db = db_session.get(Grant, grant_id)
     assert grant_from_db is not None
-    assert grant_from_db.primary_contact_name == "Test Contact"
-    assert grant_from_db.primary_contact_email == "test@example.com"
+    assert grant_from_db.primary_contact_name == "Joe Bloggs"
+    assert grant_from_db.primary_contact_email == "joe.bloggs@gmail.com"
     assert grant_from_db.name == "Test Grant"
     assert grant_from_db.description == "Test description"
     assert grant_from_db.ggis_number == "GGIS123"

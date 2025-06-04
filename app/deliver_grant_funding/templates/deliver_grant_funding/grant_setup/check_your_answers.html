@@ -1,0 +1,74 @@
+{% extends "common/base.html" %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+
+{% block pageTitle %}Check your answers{% endblock %}
+
+{% set active_item_identifier = "grants" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <span class="govuk-caption-xl">
+      <span class="govuk-visually-hidden">This section is:</span>
+      Set up the grant
+    </span>
+    <h1 class="govuk-heading-xl">Check your answers</h1>
+
+    {{
+      govukSummaryList({
+        "rows": [
+          {
+            "key": {"text": "GGIS"},
+            "value": {"text": grant_session.ggis_number or ""},
+            "actions": {
+              "items": [{
+                "href": url_for("deliver_grant_funding.grant_setup_ggis", source=check_your_answers_source),
+                "text": "Change",
+                "visuallyHiddenText": "the GGIS number"
+              }]
+            }
+          },
+          {
+            "key": {"text": "Name"},
+            "value": {"text": grant_session.name},
+            "actions": {
+              "items": [{
+                "href": url_for("deliver_grant_funding.grant_setup_name", source=check_your_answers_source),
+                "text": "Change",
+                "visuallyHiddenText": "the grant name"
+              }]
+            }
+          },
+          {
+            "key": {"text": "Main purpose"},
+            "value": {"text": grant_session.description},
+            "actions": {
+              "items": [{
+                "href": url_for("deliver_grant_funding.grant_setup_description", source=check_your_answers_source),
+                "text": "Change",
+                "visuallyHiddenText": "the main purpose"
+              }]
+            }
+          },
+          {
+            "key": {"text": "Main contact"},
+            "value": {"html": grant_session.primary_contact_name + "<br>" + grant_session.primary_contact_email},
+            "actions": {
+              "items": [{
+                "href": url_for("deliver_grant_funding.grant_setup_contact", source=check_your_answers_source),
+                "text": "Change",
+                "visuallyHiddenText": "the main contact details"
+              }]
+            }
+          }
+        ]
+      })
+    }}
+
+    <p class="govuk-body">You can edit, update and add more information about this grant at any time.</p>
+
+    <form method="post" novalidate>
+      {{ form.csrf_token }}
+      {{ form.submit }}
+    </form>
+  </div>
+{% endblock %}

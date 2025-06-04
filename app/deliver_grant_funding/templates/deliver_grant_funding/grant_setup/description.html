@@ -9,10 +9,15 @@
 {% set active_item_identifier = "grants" %}
 
 {% block beforeContent %}
+  {%
+    set back_href = url_for("deliver_grant_funding.grant_setup_check_your_answers")
+    if request.args.get("source") == check_your_answers_source
+    else url_for("deliver_grant_funding.grant_setup_name")
+  %}
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("deliver_grant_funding.grant_setup_name")
+        "href": back_href
     })
   }}
 {% endblock beforeContent %}

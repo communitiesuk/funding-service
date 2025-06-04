@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from flask import Blueprint, redirect, render_template, session, url_for
+from flask import Blueprint, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from werkzeug import Response
 from wtforms.fields.core import Field
@@ -9,6 +9,7 @@ from app.common.auth.decorators import mhclg_login_required, platform_admin_role
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.deliver_grant_funding.forms import (
+    GrantCheckYourAnswersForm,
     GrantContactForm,
     GrantDescriptionForm,
     GrantForm,
@@ -20,6 +21,8 @@ from app.deliver_grant_funding.session_models import GrantSetupSession
 from app.extensions import auto_commit_after_request
 
 deliver_grant_funding_blueprint = Blueprint(name="deliver_grant_funding", import_name=__name__)
+
+CHECK_YOUR_ANSWERS = "check-your-answers"
 
 
 @deliver_grant_funding_blueprint.route("/grants/setup", methods=["GET", "POST"])
@@ -46,9 +49,15 @@ def grant_setup_ggis() -> ResponseReturnValue:
         grant_session.has_ggis = form.has_ggis.data
         grant_session.ggis_number = form.ggis_number.data if form.has_ggis.data == "yes" else None
         session["grant_setup"] = grant_session.to_session_dict()
+        if request.args.get("source") == CHECK_YOUR_ANSWERS:
+            return redirect(url_for("deliver_grant_funding.grant_setup_check_your_answers"))
         return redirect(url_for("deliver_grant_funding.grant_setup_name"))
 
-    return render_template("deliver_grant_funding/grant_setup/ggis_number.html", form=form)
+    return render_template(
+        "deliver_grant_funding/grant_setup/ggis_number.html",
+        form=form,
+        check_your_answers_source=CHECK_YOUR_ANSWERS,
+    )
 
 
 @deliver_grant_funding_blueprint.route("/grants/setup/name", methods=["GET", "POST"])
@@ -64,9 +73,15 @@ def grant_setup_name() -> ResponseReturnValue:
         assert form.name.data is not None, "Grant name must be provided"
         grant_session.name = form.name.data
         session["grant_setup"] = grant_session.to_session_dict()
+        if request.args.get("source") == CHECK_YOUR_ANSWERS:
+            return redirect(url_for("deliver_grant_funding.grant_setup_check_your_answers"))
         return redirect(url_for("deliver_grant_funding.grant_setup_description"))
 
-    return render_template("deliver_grant_funding/grant_setup/name.html", form=form)
+    return render_template(
+        "deliver_grant_funding/grant_setup/name.html",
+        form=form,
+        check_your_answers_source=CHECK_YOUR_ANSWERS,
+    )
 
 
 @deliver_grant_funding_blueprint.route("/grants/setup/description", methods=["GET", "POST"])
@@ -82,14 +97,19 @@ def grant_setup_description() -> ResponseReturnValue:
         assert form.description.data is not None, "Grant description must be provided"
         grant_session.description = form.description.data
         session["grant_setup"] = grant_session.to_session_dict()
+        if request.args.get("source") == CHECK_YOUR_ANSWERS:
+            return redirect(url_for("deliver_grant_funding.grant_setup_check_your_answers"))
         return redirect(url_for("deliver_grant_funding.grant_setup_contact"))
 
-    return render_template("deliver_grant_funding/grant_setup/description.html", form=form)
+    return render_template(
+        "deliver_grant_funding/grant_setup/description.html",
+        form=form,
+        check_your_answers_source=CHECK_YOUR_ANSWERS,
+    )
 
 
 @deliver_grant_funding_blueprint.route("/grants/setup/contact", methods=["GET", "POST"])
 @platform_admin_role_required
-@auto_commit_after_request
 def grant_setup_contact() -> ResponseReturnValue:
     if "grant_setup" not in session:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
@@ -98,30 +118,54 @@ def grant_setup_contact() -> ResponseReturnValue:
     form = GrantContactForm(obj=grant_session)
 
     if form.validate_on_submit():
-        try:
-            assert form.primary_contact_name.data, "Primary contact name must be provided"
-            assert form.primary_contact_email.data, "Primary contact email must be provided"
+        assert form.primary_contact_name.data, "Primary contact name must be provided"
+        assert form.primary_contact_email.data, "Primary contact email must be provided"
+        grant_session.primary_contact_name = form.primary_contact_name.data
+        grant_session.primary_contact_email = form.primary_contact_email.data
+        session["grant_setup"] = grant_session.to_session_dict()
+        return redirect(url_for("deliver_grant_funding.grant_setup_check_your_answers"))
 
-            grant_session.primary_contact_name = form.primary_contact_name.data
-            grant_session.primary_contact_email = form.primary_contact_email.data
+    return render_template(
+        "deliver_grant_funding/grant_setup/contact.html",
+        form=form,
+        check_your_answers_source=CHECK_YOUR_ANSWERS,
+    )
 
-            grant = interfaces.grants.create_grant(
-                name=grant_session.name,
-                description=grant_session.description,
-                primary_contact_name=grant_session.primary_contact_name,
-                primary_contact_email=grant_session.primary_contact_email,
-                ggis_number=grant_session.ggis_number,
-            )
 
-            session.pop("grant_setup", None)
+@deliver_grant_funding_blueprint.route("/grants/setup/check-your-answers", methods=["GET", "POST"])
+@platform_admin_role_required
+@auto_commit_after_request
+def grant_setup_check_your_answers() -> ResponseReturnValue:
+    if "grant_setup" not in session:
+        return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
 
-            return redirect(url_for("deliver_grant_funding.view_grant", grant_id=grant.id))
+    grant_session = GrantSetupSession.from_session(session["grant_setup"])
+    form = GrantCheckYourAnswersForm()
 
-        except DuplicateValueError as e:
-            field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+    if form.validate_on_submit():
+        grant = interfaces.grants.create_grant(
+            name=grant_session.name,
+            description=grant_session.description,
+            primary_contact_name=grant_session.primary_contact_name,
+            primary_contact_email=grant_session.primary_contact_email,
+            ggis_number=grant_session.ggis_number,
+        )
+        session.pop("grant_setup", None)
+        return redirect(url_for("deliver_grant_funding.grant_setup_confirmation", grant_id=grant.id))
 
-    return render_template("deliver_grant_funding/grant_setup/contact.html", form=form)
+    return render_template(
+        "deliver_grant_funding/grant_setup/check_your_answers.html",
+        form=form,
+        grant_session=grant_session,
+        check_your_answers_source=CHECK_YOUR_ANSWERS,
+    )
+
+
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/setup-confirmation", methods=["GET"])
+@platform_admin_role_required
+def grant_setup_confirmation(grant_id: UUID) -> ResponseReturnValue:
+    grant = interfaces.grants.get_grant(grant_id)
+    return render_template("deliver_grant_funding/grant_setup/confirmation.html", grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grants", methods=["GET"])
