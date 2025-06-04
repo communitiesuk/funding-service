@@ -40,3 +40,9 @@ def delete_grant(grant_id: UUID) -> None:
     grant = db.session.query(Grant).where(Grant.id == grant_id).one()
     db.session.delete(grant)
     db.session.flush()
+
+
+def delete_collection_schema(schema_id: UUID) -> None:
+    schema = db.session.query(CollectionSchema).where(CollectionSchema.id == schema_id).one()
+    db.session.delete(schema)
+    db.session.flush()

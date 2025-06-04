@@ -31,7 +31,7 @@ from app.common.data.interfaces.collections import (
     update_section,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.interfaces.temporary import delete_collections_created_by_user
+from app.common.data.interfaces.temporary import delete_collection_schema, delete_collections_created_by_user
 from app.common.data.types import CollectionStatusEnum, QuestionDataType
 from app.common.helpers.collections import CollectionHelper
 from app.deliver_grant_funding.forms import (
@@ -42,7 +42,7 @@ from app.deliver_grant_funding.forms import (
     SectionForm,
 )
 from app.developers import developers_blueprint
-from app.developers.forms import CheckYourAnswersForm, PreviewCollectionForm
+from app.developers.forms import CheckYourAnswersForm, ConfirmDeletionForm, PreviewCollectionForm
 from app.extensions import auto_commit_after_request
 
 if TYPE_CHECKING:
@@ -91,14 +91,31 @@ def setup_schema(grant_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def manage_schema(grant_id: UUID, schema_id: UUID) -> ResponseReturnValue:
     schema = get_collection_schema(schema_id)  # TODO: handle collection versioning; this just grabs latest.
+
     form = PreviewCollectionForm()
-    if form.validate_on_submit():
+    confirm_deletion_form = ConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        delete_collection_schema(schema_id=schema_id)
+        # TODO: Flash message for deletion?
+        return redirect(url_for("developers.grant_developers_schemas", grant_id=grant_id))
+
+    if form.validate_on_submit() and form.submit.data:
         user = interfaces.user.get_current_user()
         delete_collections_created_by_user(grant_id=schema.grant_id, created_by_id=user.id)
         collection = create_collection(schema=schema, created_by=user)
         return redirect(url_for("developers.collection_tasklist", collection_id=collection.id))
 
-    return render_template("developers/manage_schema.html", grant=schema.grant, schema=schema, form=form)
+    return render_template(
+        "developers/manage_schema.html",
+        grant=schema.grant,
+        schema=schema,
+        form=form,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/edit", methods=["GET", "POST"])
