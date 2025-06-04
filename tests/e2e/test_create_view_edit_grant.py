@@ -16,7 +16,7 @@ def test_create_view_edit_grant_success(
     all_grants_page.navigate()
 
     # Set up new grant
-    grant_intro_page = all_grants_page.click_add_a_grant()
+    grant_intro_page = all_grants_page.click_set_up_a_grant()
     grant_ggis_page = grant_intro_page.click_continue()
     grant_ggis_page.select_yes()
     grant_ggis_page.fill_ggis_number()

@@ -88,8 +88,8 @@ class AllGrantsPage(TopNavMixin, BasePage):
         self.page.goto(f"{self.domain}/grants")
         expect(self.title).to_be_visible()
 
-    def click_add_a_grant(self) -> GrantSetupIntroPage:
-        self.page.get_by_role("button", name="Add a grant").click()
+    def click_set_up_a_grant(self) -> GrantSetupIntroPage:
+        self.page.get_by_role("button", name="Set up a grant").click()
         grant_setup_intro_page = GrantSetupIntroPage(self.page, self.domain)
         expect(grant_setup_intro_page.title).to_be_visible()
         return grant_setup_intro_page
