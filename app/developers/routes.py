@@ -1,10 +1,9 @@
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
-from flask_login import current_user
 from wtforms import Field
 
 from app.common.auth.decorators import platform_admin_role_required
@@ -33,7 +32,6 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.temporary import delete_collections_created_by_user
-from app.common.data.models_user import User
 from app.common.data.types import CollectionStatusEnum, QuestionDataType
 from app.common.helpers.collections import CollectionHelper
 from app.deliver_grant_funding.forms import (
@@ -80,7 +78,8 @@ def setup_schema(grant_id: UUID) -> ResponseReturnValue:
     if form.validate_on_submit():
         try:
             assert form.name.data is not None
-            create_collection_schema(name=form.name.data, user=cast(User, current_user), grant=grant)
+            user = interfaces.user.get_current_user()
+            create_collection_schema(name=form.name.data, user=user, grant=grant)
             return redirect(url_for("developers.grant_developers_schemas", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
@@ -95,8 +94,9 @@ def manage_schema(grant_id: UUID, schema_id: UUID) -> ResponseReturnValue:
     schema = get_collection_schema(schema_id)  # TODO: handle collection versioning; this just grabs latest.
     form = PreviewCollectionForm()
     if form.validate_on_submit():
-        delete_collections_created_by_user(grant_id=schema.grant_id, created_by_id=cast(User, current_user).id)
-        collection = create_collection(schema=schema, created_by=cast(User, current_user))
+        user = interfaces.user.get_current_user()
+        delete_collections_created_by_user(grant_id=schema.grant_id, created_by_id=user.id)
+        collection = create_collection(schema=schema, created_by=user)
         return redirect(url_for("developers.collection_tasklist", collection_id=collection.id))
 
     return render_template("developers/manage_schema.html", grant=schema.grant, schema=schema, form=form)

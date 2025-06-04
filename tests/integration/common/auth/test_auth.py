@@ -4,9 +4,9 @@ from unittest.mock import patch
 import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
-from flask_login import current_user
 from sqlalchemy import select
 
+from app.common.data import interfaces
 from app.common.data.models import MagicLink
 from tests.utils import AnyStringMatching, page_has_error
 
@@ -131,8 +131,9 @@ class TestClaimMagicLinkView:
         magic_link = factories.magic_link.create(
             user__email="test@communities.gov.uk", redirect_to_path=redirect_to, claimed_at_utc=None
         )
+        user = interfaces.user.get_current_user()
 
-        assert current_user.is_authenticated is False
+        assert user.is_authenticated is False
 
         response = anonymous_client.post(
             url_for("auth.claim_magic_link", magic_link_code=magic_link.code),
@@ -143,8 +144,8 @@ class TestClaimMagicLinkView:
         assert response.status_code == 302
         assert response.location == safe_redirect_to
         assert magic_link.claimed_at_utc is not None
-        assert current_user.is_authenticated is True
-        assert magic_link.user.id == current_user.id
+        assert user.is_authenticated is True
+        assert magic_link.user.id == user.id
 
 
 class TestSignOutView:
