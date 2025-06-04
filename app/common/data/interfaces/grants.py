@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Grant
+from app.common.data.models_user import User
 from app.extensions import db
 
 
@@ -17,6 +18,18 @@ def grant_name_exists(name: str) -> bool:
     statement = select(Grant).where(Grant.name == name)
     grant = db.session.scalar(statement)
     return grant is not None
+
+
+def get_all_grants_by_user(user: User) -> Sequence[Grant]:
+    if user.is_platform_admin:
+        statement = select(Grant).order_by(Grant.name)
+        return db.session.scalars(statement).all()
+    else:
+        grant_ids = [role.grant_id for role in user.roles]
+        if not grant_ids:
+            return []
+        statement = select(Grant).where(Grant.id.in_(grant_ids)).order_by(Grant.name)
+        return db.session.scalars(statement).all()
 
 
 def get_all_grants() -> Sequence[Grant]:

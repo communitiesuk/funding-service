@@ -291,6 +291,23 @@ def authenticated_client(
 
 
 @pytest.fixture()
+def authenticated_member_client(
+    anonymous_client: FlaskClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FlaskClient, None, None]:
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    grant = factories.grant.create()
+    factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
+    db_session.commit()
+
+    login_user(user)
+
+    yield anonymous_client
+
+
+@pytest.fixture()
 def authenticated_platform_admin_client(
     anonymous_client: FlaskClient, factories: _Factories, db_session: Session, request: FixtureRequest
 ) -> Generator[FlaskClient, None, None]:

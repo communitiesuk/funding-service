@@ -1,12 +1,15 @@
+from typing import cast
 from uuid import UUID
 
 import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
+from flask_login import current_user
 from sqlalchemy import select
 
+from app import User
 from app.common.data.models import CollectionSchema, Form, Grant, Question, Section
-from app.common.data.types import QuestionDataType
+from app.common.data.types import QuestionDataType, RoleEnum
 from app.deliver_grant_funding.forms import (
     FormForm,
     GrantContactForm,
@@ -22,15 +25,62 @@ from app.deliver_grant_funding.forms import (
 )
 
 
-def test_list_grants(app, authenticated_client, factories, templates_rendered, track_sql_queries):
+def test_list_grants_as_admin(
+    app, authenticated_platform_admin_client, factories, templates_rendered, track_sql_queries
+):
     factories.grant.create_batch(5)
     with track_sql_queries() as queries:
-        result = authenticated_client.get("/grants")
+        result = authenticated_platform_admin_client.get("/grants")
     assert result.status_code == 200
     assert len(templates_rendered[0][1]["grants"]) == 5
     soup = BeautifulSoup(result.data, "html.parser")
+    button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
+    assert button is not None, "'Set up a grant' button not found"
+    headers = soup.find_all("th")
+    header_texts = [th.get_text(strip=True) for th in headers]
+    expected_headers = ["Grant", "GGIS number", "Email"]
+    for expected in expected_headers:
+        assert expected in header_texts, f"Header '{expected}' not found in table"
     assert soup.h1.text == "Grants"
     assert len(queries) == 3  # 1) select grant, 2) rollback, 3) savepoint
+
+
+def test_list_grants_as_member_with_single_grant(
+    app, authenticated_member_client, factories, templates_rendered, track_sql_queries
+):
+    with track_sql_queries() as queries:
+        result = authenticated_member_client.get("/grants")
+    assert result.status_code == 302
+    redirect_url = result.headers["Location"]
+    final_response = authenticated_member_client.get(redirect_url)
+    assert final_response.status_code == 200
+    soup = BeautifulSoup(final_response.data, "html.parser")
+    dashboard_link = soup.find("a", string="Dashboard")
+    assert dashboard_link is not None, "Dashboard link not found"
+    settings_link = soup.find("a", string="Settings")
+    assert settings_link is not None, "Settings link not found"
+    assert len(queries) == 2
+
+
+def test_list_grants_as_member_with_multiple_grants(
+    app, authenticated_member_client, factories, templates_rendered, track_sql_queries
+):
+    grants = factories.grant.create_batch(5)
+    user: User = cast(User, current_user)
+    for grant in grants:
+        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
+
+    result = authenticated_member_client.get("/grants")
+    assert result.status_code == 200
+    soup = BeautifulSoup(result.data, "html.parser")
+    button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
+    assert button is not None, "'Set up a grant' button not found"
+    headers = soup.find_all("th")
+    header_texts = [th.get_text(strip=True) for th in headers]
+    expected_headers = ["Grant", "GGIS number", "Email"]
+    for expected in expected_headers:
+        assert expected in header_texts, f"Header '{expected}' not found in table"
+    assert soup.h1.text == "Grants"
 
 
 @pytest.mark.authenticate_as("test@google.com")

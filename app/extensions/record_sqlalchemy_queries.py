@@ -107,7 +107,7 @@ class RecordSqlalchemyQueriesExtension:
 
         # Ignore SAVEPOINT-related queries
         statement = context.statement.strip().upper()
-        if statement.startswith("SAVEPOINT"):
+        if "SAVEPOINT" in statement:
             return
 
         g._recorded_sqlalchemy_queries.append(
