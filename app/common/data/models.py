@@ -28,7 +28,9 @@ class Grant(BaseModel):
     primary_contact_name: Mapped[str]
     primary_contact_email: Mapped[str]
 
-    collection_schemas: Mapped[list["CollectionSchema"]] = relationship("CollectionSchema", lazy=True)
+    collection_schemas: Mapped[list["CollectionSchema"]] = relationship(
+        "CollectionSchema", lazy=True, cascade="all, delete-orphan"
+    )
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="grant", cascade="all, delete-orphan")
 
 
@@ -45,7 +47,7 @@ class MagicLink(BaseModel):
     __tablename__ = "magic_link"
 
     code: Mapped[str] = mapped_column(unique=True, default=lambda: secrets.token_urlsafe(12))
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"))
     redirect_to_path: Mapped[str]
     expires_at_utc: Mapped[datetime.datetime]
     claimed_at_utc: Mapped[datetime.datetime | None]
@@ -71,18 +73,27 @@ class CollectionSchema(BaseModel):
     name: Mapped[str]
     slug: Mapped[str]
 
-    grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
+    grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id", ondelete="RESTRICT"))
     grant: Mapped[Grant] = relationship("Grant", back_populates="collection_schemas")
 
-    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"))
     created_by: Mapped[User] = relationship("User")
 
     collections: Mapped[list["Collection"]] = relationship(
-        "Collection", lazy=True, order_by="Collection.created_at_utc", back_populates="collection_schema"
+        "Collection",
+        lazy=True,
+        order_by="Collection.created_at_utc",
+        back_populates="collection_schema",
     )
 
     sections: Mapped[list["Section"]] = relationship(
-        "Section", lazy=True, order_by="Section.order", collection_class=ordering_list("order")
+        "Section",
+        lazy=True,
+        order_by="Section.order",
+        collection_class=ordering_list("order"),
+        # Importantly we don't `delete-orphan` here; when we move sections up/down, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all",
     )
 
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
@@ -96,7 +107,7 @@ class Collection(BaseModel):
         SqlEnum(CollectionStatusEnum, name="collection_status_enum", validate_strings=True)
     )
 
-    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"))
     created_by: Mapped[User] = relationship("User", back_populates="collections")
 
     collection_schema_id: Mapped[uuid.UUID]
@@ -109,7 +120,9 @@ class Collection(BaseModel):
 
     __table_args__ = (
         ForeignKeyConstraint(
-            ["collection_schema_id", "collection_schema_version"], ["collection_schema.id", "collection_schema.version"]
+            ["collection_schema_id", "collection_schema_version"],
+            ["collection_schema.id", "collection_schema.version"],
+            ondelete="RESTRICT",
         ),
     )
 
@@ -126,7 +139,13 @@ class Section(BaseModel):
     collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema", back_populates="sections")
 
     forms: Mapped[list["Form"]] = relationship(
-        "Form", lazy=True, order_by="Form.order", collection_class=ordering_list("order")
+        "Form",
+        lazy=True,
+        order_by="Form.order",
+        collection_class=ordering_list("order"),
+        # Importantly we don't `delete-orphan` here; when we move sections up/down, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all, save-update, merge",
     )
 
     __table_args__ = (
@@ -144,7 +163,9 @@ class Section(BaseModel):
             "collection_schema_id", "collection_schema_version", "slug", name="uq_section_slug_collection_schema"
         ),
         ForeignKeyConstraint(
-            ["collection_schema_id", "collection_schema_version"], ["collection_schema.id", "collection_schema.version"]
+            ["collection_schema_id", "collection_schema_version"],
+            ["collection_schema.id", "collection_schema.version"],
+            ondelete="RESTRICT",
         ),
     )
 
@@ -156,7 +177,7 @@ class Form(BaseModel):
     order: Mapped[int]
     slug: Mapped[str]
 
-    section_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("section.id"))
+    section_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("section.id", ondelete="RESTRICT"))
     section: Mapped[Section] = relationship("Section", back_populates="forms")
 
     __table_args__ = (
@@ -167,7 +188,13 @@ class Form(BaseModel):
     )
 
     questions: Mapped[list["Question"]] = relationship(
-        "Question", lazy=True, order_by="Question.order", collection_class=ordering_list("order")
+        "Question",
+        lazy=True,
+        order_by="Question.order",
+        collection_class=ordering_list("order"),
+        # Importantly we don't `delete-orphan` here; when we move sections up/down, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all, save-update, merge",
     )
 
 
@@ -187,7 +214,7 @@ class Question(BaseModel):
     )
     name: Mapped[str]
 
-    form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
+    form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id", ondelete="RESTRICT"))
     form: Mapped[Form] = relationship("Form", back_populates="questions")
 
     __table_args__ = (
@@ -205,11 +232,11 @@ class CollectionMetadata(BaseModel):
         SqlEnum(MetadataEventKey, name="metadata_event_key_enum", validate_strings=True)
     )
 
-    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id"))
+    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id", ondelete="RESTRICT"))
     collection: Mapped[Collection] = relationship("Collection", back_populates="collection_metadata")
 
-    form_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("form.id"))
+    form_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("form.id", ondelete="RESTRICT"))
     form: Mapped[Optional[Form]] = relationship("Form")
 
-    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"))
     created_by: Mapped[User] = relationship("User")
