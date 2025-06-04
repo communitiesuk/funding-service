@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from werkzeug import Response
 from wtforms.fields.core import Field
@@ -8,6 +8,7 @@ from wtforms.fields.core import Field
 from app.common.auth.decorators import mhclg_login_required, platform_admin_role_required
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.interfaces.user import get_current_user
 from app.deliver_grant_funding.forms import (
     GrantCheckYourAnswersForm,
     GrantContactForm,
@@ -16,6 +17,7 @@ from app.deliver_grant_funding.forms import (
     GrantGGISForm,
     GrantNameForm,
     GrantSetupIntroForm,
+    ShareGrantUserForm,
 )
 from app.deliver_grant_funding.session_models import GrantSetupSession
 from app.extensions import auto_commit_after_request
@@ -178,6 +180,30 @@ def list_grants() -> Response | str:
     if len(grants) == 1 and not user.is_platform_admin:
         return redirect(url_for("deliver_grant_funding.view_grant", grant_id=grants[0].id))
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
+
+
+@deliver_grant_funding_blueprint.route("/users/<uuid:grant_id>", methods=["GET", "POST"])
+@mhclg_login_required
+def list_users_for_grant(grant_id: UUID) -> str:
+    grant = interfaces.grants.get_grant(grant_id)
+    if grant is None:
+        abort(404)
+    # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
+    users = [get_current_user()]
+    return render_template("deliver_grant_funding/user_list.html", grant=grant, users=users)
+
+
+@deliver_grant_funding_blueprint.route("/grant/share/user/<uuid:grant_id>", methods=["GET", "POST"])
+@mhclg_login_required
+@platform_admin_role_required
+def share_grant_with_user(grant_id: UUID) -> ResponseReturnValue:
+    wt_form = ShareGrantUserForm()
+    grant = interfaces.grants.get_grant(grant_id)
+    if wt_form.validate_on_submit():
+        # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
+        flash("We’ve sent the team member a link to sign in.")
+        return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
+    return render_template("deliver_grant_funding/add_user.html", form=wt_form, grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
