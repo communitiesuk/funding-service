@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
 
@@ -41,13 +41,12 @@ from app.deliver_grant_funding.forms import (
     SchemaForm,
     SectionForm,
 )
+from app.developers import developers_blueprint
 from app.developers.forms import CheckYourAnswersForm, PreviewCollectionForm
 from app.extensions import auto_commit_after_request
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Form, Question
-
-developers_blueprint = Blueprint(name="developers", import_name=__name__, url_prefix="/developers")
 
 
 @developers_blueprint.context_processor

@@ -126,7 +126,7 @@ def create_app() -> Flask:
     # Attach routes
     from app.common.auth import auth_blueprint
     from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
-    from app.developers.routes import developers_blueprint
+    from app.developers import developers_blueprint
     from app.healthcheck import healthcheck_blueprint
 
     app.register_blueprint(healthcheck_blueprint)
