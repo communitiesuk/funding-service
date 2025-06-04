@@ -34,6 +34,7 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.temporary import (
     delete_collection_schema,
     delete_collections_created_by_user,
+    delete_form,
     delete_section,
 )
 from app.common.data.types import CollectionStatusEnum, QuestionDataType
@@ -258,11 +259,30 @@ def move_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID, 
 
 @developers_blueprint.route(
     "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/manage",
-    methods=["GET"],
+    methods=["GET", "POST"],
 )
 @platform_admin_role_required
+@auto_commit_after_request
 def manage_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
+    back_link = url_for(
+        f"developers.{request.args.get('back_link')}",
+        grant_id=grant_id,
+        schema_id=schema_id,
+        section_id=section_id,
+    )
+
+    confirm_deletion_form = ConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        delete_form(form_id=form_id)
+        # TODO: Flash message for deletion?
+        return redirect(
+            url_for("developers.manage_section", grant_id=grant_id, schema_id=schema_id, section_id=section_id)
+        )
 
     return render_template(
         "developers/manage_form.html",
@@ -270,12 +290,8 @@ def manage_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID
         section=form.section,
         schema=form.section.collection_schema,
         form=form,
-        back_link_href=url_for(
-            f"developers.{request.args.get('back_link')}",
-            grant_id=grant_id,
-            schema_id=schema_id,
-            section_id=section_id,
-        ),
+        back_link_href=back_link,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
 

@@ -14,6 +14,7 @@ from uuid import UUID
 from app.common.data.models import (
     Collection,
     CollectionSchema,
+    Form,
     Grant,
     Section,
 )
@@ -52,4 +53,10 @@ def delete_collection_schema(schema_id: UUID) -> None:
 def delete_section(section_id: UUID) -> None:
     section = db.session.query(Section).where(Section.id == section_id).one()
     db.session.delete(section)
+    db.session.flush()
+
+
+def delete_form(form_id: UUID) -> None:
+    form = db.session.query(Form).where(Form.id == form_id).one()
+    db.session.delete(form)
     db.session.flush()
