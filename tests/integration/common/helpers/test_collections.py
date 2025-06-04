@@ -95,6 +95,11 @@ class TestCollectionHelper:
             helper.toggle_form_completed(question_two.form, collection.created_by, True)
 
             assert helper.get_status_for_form(question_two.form) == CollectionStatusEnum.COMPLETED
+
+            assert helper.status == CollectionStatusEnum.IN_PROGRESS
+
+            helper.submit_collection(collection.created_by)
+
             assert helper.status == CollectionStatusEnum.COMPLETED
 
         def test_toggle_form_status(self, db_session, factories):
@@ -140,3 +145,19 @@ class TestCollectionHelper:
             helper.toggle_form_completed(question.form, collection.created_by, True)
             assert helper.get_status_for_form(question.form) == CollectionStatusEnum.COMPLETED
             assert len(collection.collection_metadata) == 1
+
+        def test_submit_collection_rejected_if_not_complete(self, db_session, factories):
+            question = factories.question.build()
+            collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
+            helper = CollectionHelper(collection)
+
+            helper.submit_answer_for_question(
+                question.id, build_question_form(question)(question="User submitted data")
+            )
+
+            with pytest.raises(ValueError) as e:
+                helper.submit_collection(collection.created_by)
+
+            assert str(e.value) == AnyStringMatching(
+                r"Could not submit collection id=[a-z0-9-]+ because not all forms are complete."
+            )

@@ -40,3 +40,4 @@ class CollectionStatusEnum(enum.StrEnum):
 
 class MetadataEventKey(enum.StrEnum):
     FORM_RUNNER_FORM_COMPLETED = "Form completed"
+    COLLECTION_SUBMITTED = "Collection submitted"
