@@ -15,7 +15,7 @@ def login_required[**P](
         user = get_current_user()
         if not user.is_authenticated:
             session["next"] = request.full_path
-            return redirect(url_for("auth.request_a_link_to_sign_in"))
+            return redirect(url_for("auth.sso_sign_in"))
 
         return func(*args, **kwargs)
 
