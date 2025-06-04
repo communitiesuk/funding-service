@@ -24,7 +24,7 @@ def create_grant(new_grant_name: str, page: Page, domain: str) -> GrantDashboard
     all_grants_page.navigate()
 
     # Set up new grant
-    grant_intro_page = all_grants_page.click_add_a_grant()
+    grant_intro_page = all_grants_page.click_set_up_a_grant()
     grant_ggis_page = grant_intro_page.click_continue()
     grant_ggis_page.select_yes()
     grant_ggis_page.fill_ggis_number()
@@ -35,7 +35,9 @@ def create_grant(new_grant_name: str, page: Page, domain: str) -> GrantDashboard
     grant_contact_page = grant_description_page.click_save_and_continue()
     grant_contact_page.fill_contact_name()
     grant_contact_page.fill_contact_email()
-    grant_dashboard_page = grant_contact_page.click_add_grant()
+    grant_check_your_answers_page = grant_contact_page.click_save_and_continue()
+    grant_confirmation_page = grant_check_your_answers_page.click_add_grant()
+    grant_dashboard_page = grant_confirmation_page.click_continue()
     return grant_dashboard_page
 
 
