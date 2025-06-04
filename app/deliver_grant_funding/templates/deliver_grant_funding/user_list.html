@@ -43,35 +43,36 @@
       }}
     </div>
   {% endif %}
-  <div class="govuk-grid-row govuk-!-margin-bottom-9">
-    <h2 class="govuk-heading-m govuk-!-margin-bottom-1 govuk-!-margin-top-9">Not yet signed in</h2>
-    <p class="govuk-body">Grant team members who have been added but not signed in yet.</p>
-    {% set table_rows = namespace(items=[]) %}
-    {% if users %}
-      {% for user in users if user.name|lower == '' %}
-        {%
-          set table_rows.items = table_rows.items + [[
-            {"text": user.email},
-            {"text": "Grant team member"}
-          ]]
-        %}
-      {% endfor %}
-    {% endif %}
 
-    {% if table_rows.items|length > 0 %}
+  {% set table_pending_signin_rows = namespace(items=[]) %}
+  {% if users %}
+    {% for user in users if user.name|lower == '' %}
+      {%
+        set table_pending_signin_rows.items = table_pending_signin_rows.items + [[
+          {"text": user.email},
+          {"text": "Grant team member"}
+        ]]
+      %}
+    {% endfor %}
+  {% endif %}
+
+  {% if table_pending_signin_rows.items|length > 0 %}
+    <div class="govuk-grid-row govuk-!-margin-bottom-9">
+      <h2 class="govuk-heading-m govuk-!-margin-bottom-1 govuk-!-margin-top-9">Not yet signed in</h2>
+      <p class="govuk-body">Grant team members who have been added but not signed in yet.</p>
       {{
         govukTable({
             "captionClasses": "govuk-table__caption--m",
             "firstCellIsHeader": false,
             "head": [{"text": "Email"}, {"text": "Role"}],
-            "rows": table_rows.items
+            "rows": table_pending_signin_rows.items
         })
       }}
-    {% else %}
-      <p class="govuk-body">No pending signin members.</p>
-    {% endif %}
-  </div>
+    </div>
+  {% endif %}
+
   <div class="govuk-grid-row">
+    <h2 class="govuk-heading-m govuk-!-margin-bottom-1 govuk-!-margin-top-9">Grant team members</h2>
     {% set table_rows = namespace(items=[]) %}
 
     {% if users %}
@@ -96,7 +97,7 @@
         })
       }}
     {% else %}
-      <p class="govuk-body">Grant is not shared with a team.</p>
+      <p class="govuk-body">There are currently no shared members available for the grant.</p>
     {% endif %}
   </div>
 {% endblock content %}

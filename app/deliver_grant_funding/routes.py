@@ -201,7 +201,7 @@ def share_grant_with_user(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     if wt_form.validate_on_submit():
         # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
-        flash("We’ve sent the team member a link to sign in.")
+        flash("We’ve sent you a confirmation email and sent the team member a sign-in link.")
         return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
     return render_template("deliver_grant_funding/add_user.html", form=wt_form, grant=grant)
 
