@@ -16,6 +16,7 @@ from app.common.data.models import (
     CollectionSchema,
     Form,
     Grant,
+    Question,
     Section,
 )
 from app.extensions import db
@@ -59,4 +60,10 @@ def delete_section(section_id: UUID) -> None:
 def delete_form(form_id: UUID) -> None:
     form = db.session.query(Form).where(Form.id == form_id).one()
     db.session.delete(form)
+    db.session.flush()
+
+
+def delete_question(question_id: UUID) -> None:
+    question = db.session.query(Question).where(Question.id == question_id).one()
+    db.session.delete(question)
     db.session.flush()

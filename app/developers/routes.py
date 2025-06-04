@@ -35,6 +35,7 @@ from app.common.data.interfaces.temporary import (
     delete_collection_schema,
     delete_collections_created_by_user,
     delete_form,
+    delete_question,
     delete_section,
 )
 from app.common.data.types import CollectionStatusEnum, QuestionDataType
@@ -529,6 +530,26 @@ def edit_question(
 ) -> ResponseReturnValue:
     question = get_question_by_id(question_id=question_id)
     wt_form = QuestionForm(obj=question)
+
+    confirm_deletion_form = ConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        delete_question(question_id=question_id)
+        # TODO: Flash message for deletion?
+        return redirect(
+            url_for(
+                "developers.manage_form",
+                grant_id=grant_id,
+                schema_id=schema_id,
+                section_id=section_id,
+                form_id=form_id,
+                back_link="manage_section",
+            )
+        )
+
     if wt_form.validate_on_submit():
         try:
             assert wt_form.text.data is not None
@@ -557,6 +578,7 @@ def edit_question(
         db_form=question.form,
         question=question,
         form=wt_form,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
 
