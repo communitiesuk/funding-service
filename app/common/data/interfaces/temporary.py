@@ -14,6 +14,7 @@ from uuid import UUID
 from app.common.data.models import (
     Collection,
     CollectionSchema,
+    Grant,
 )
 from app.extensions import db
 
@@ -31,4 +32,11 @@ def delete_collections_created_by_user(*, grant_id: UUID, created_by_id: UUID) -
 
     for collection in collections:
         db.session.delete(collection)
+    db.session.flush()
+
+
+def delete_grant(grant_id: UUID) -> None:
+    # Not optimised; do not lift+shift unedited.
+    grant = db.session.query(Grant).where(Grant.id == grant_id).one()
+    db.session.delete(grant)
     db.session.flush()

@@ -30,7 +30,8 @@ services:
       bash -c "
       cp /app/certs/rootCA.pem /usr/local/share/ca-certificates/rootCA.crt && \
       update-ca-certificates && \
-      uv run flask db upgrade
+      uv run flask db upgrade && \
+      uv run flask developers seed-grants
 
       npm run dev -- --host &
       PYDEVD_DISABLE_FILE_VALIDATION=1 python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem

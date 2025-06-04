@@ -28,7 +28,9 @@ class Grant(BaseModel):
     primary_contact_name: Mapped[str]
     primary_contact_email: Mapped[str]
 
-    collection_schemas: Mapped[list["CollectionSchema"]] = relationship("CollectionSchema", lazy=True)
+    collection_schemas: Mapped[list["CollectionSchema"]] = relationship(
+        "CollectionSchema", lazy=True, cascade="all, delete-orphan"
+    )
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="grant", cascade="all, delete-orphan")
 
 
@@ -78,11 +80,21 @@ class CollectionSchema(BaseModel):
     created_by: Mapped[User] = relationship("User")
 
     collections: Mapped[list["Collection"]] = relationship(
-        "Collection", lazy=True, order_by="Collection.created_at_utc", back_populates="collection_schema"
+        "Collection",
+        lazy=True,
+        order_by="Collection.created_at_utc",
+        back_populates="collection_schema",
+        cascade="all, delete-orphan",
     )
 
     sections: Mapped[list["Section"]] = relationship(
-        "Section", lazy=True, order_by="Section.order", collection_class=ordering_list("order")
+        "Section",
+        lazy=True,
+        order_by="Section.order",
+        collection_class=ordering_list("order"),
+        # Importantly we don't `delete-orphan` here; when we move sections up/down, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all",
     )
 
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
@@ -126,7 +138,13 @@ class Section(BaseModel):
     collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema", back_populates="sections")
 
     forms: Mapped[list["Form"]] = relationship(
-        "Form", lazy=True, order_by="Form.order", collection_class=ordering_list("order")
+        "Form",
+        lazy=True,
+        order_by="Form.order",
+        collection_class=ordering_list("order"),
+        # Importantly we don't `delete-orphan` here; when we move forms up/down, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all, save-update, merge",
     )
 
     __table_args__ = (
@@ -167,7 +185,13 @@ class Form(BaseModel):
     )
 
     questions: Mapped[list["Question"]] = relationship(
-        "Question", lazy=True, order_by="Question.order", collection_class=ordering_list("order")
+        "Question",
+        lazy=True,
+        order_by="Question.order",
+        collection_class=ordering_list("order"),
+        # Importantly we don't `delete-orphan` here; when we move questions up/down, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all, save-update, merge",
     )
 
 
