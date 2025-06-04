@@ -33,8 +33,10 @@ class TestCollectionHelper:
     class TestStatuses:
         def test_form_status_based_on_questions(self, db_session, factories):
             form = factories.form.build()
+            form_two = factories.form.build(section=form.section)
             question_one = factories.question.build(form=form)
             question_two = factories.question.build(form=form)
+            question_three = factories.question.build(form=form_two)
 
             collection = factories.collection.build(collection_schema=form.section.collection_schema)
             helper = CollectionHelper(collection)
@@ -56,6 +58,12 @@ class TestCollectionHelper:
             helper.toggle_form_completed(form, collection.created_by, True)
 
             assert helper.get_status_for_form(form) == CollectionStatusEnum.COMPLETED
+
+            # make sure the second form is unaffected by the first forms status
+            helper.submit_answer_for_question(
+                question_three.id, build_question_form(question_three)(question="User submitted data")
+            )
+            assert helper.get_status_for_form(form_two) == CollectionStatusEnum.IN_PROGRESS
 
         def test_form_status_with_no_questions(self, db_session, factories):
             form = factories.form.build()

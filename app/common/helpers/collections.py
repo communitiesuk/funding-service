@@ -127,7 +127,7 @@ class CollectionHelper:
     def get_status_for_form(self, form: "Form") -> str:
         all_questions_answered, answers = self.get_all_questions_answered_for_form(form)
         marked_as_complete = MetadataEventKey.FORM_RUNNER_FORM_COMPLETED in [
-            x.event_key for x in self.collection.collection_metadata
+            x.event_key for x in self.collection.collection_metadata if x.form and x.form.id == form.id
         ]
         if form.questions and all_questions_answered and marked_as_complete:
             return CollectionStatusEnum.COMPLETED
