@@ -174,23 +174,25 @@ class CollectionHelper:
         data = _form_data_to_question_type(question, form)
         interfaces.collections.update_collection_data(self.collection, question, data)
 
-    def mark_form_as_complete(self, form: "Form", user: "User", is_complete: bool) -> None:
+    def toggle_form_completed(self, form: "Form", user: "User", is_complete: bool) -> None:
+        form_complete = self.get_status_for_form(form) == CollectionStatusEnum.COMPLETED
+        if is_complete == form_complete:
+            return
+
         if is_complete:
-            if not self.status == CollectionStatusEnum.COMPLETED:
-                all_questions_answered, _ = self.get_all_questions_answered_for_form(form)
-                if all_questions_answered:
-                    interfaces.collections.add_collection_metadata(
-                        self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, user, form
-                    )
-                else:
-                    raise ValueError(
-                        f"Could not mark form id={form.id} as complete because not all questions have been answered."
-                    )
-        else:
-            if self.status == CollectionStatusEnum.COMPLETED:
-                interfaces.collections.clear_form_metadata(
-                    self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, form
+            all_questions_answered, _ = self.get_all_questions_answered_for_form(form)
+            if not all_questions_answered:
+                raise ValueError(
+                    f"Could not mark form id={form.id} as complete because not all questions have been answered."
                 )
+
+            interfaces.collections.add_collection_metadata(
+                self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, user, form
+            )
+        else:
+            interfaces.collections.clear_form_metadata(
+                self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, form
+            )
 
     def get_next_question(self, current_question_id: UUID) -> Optional["Question"]:
         """
