@@ -15,6 +15,7 @@ from app.common.data.models import (
     Collection,
     CollectionSchema,
     Grant,
+    Section,
 )
 from app.extensions import db
 
@@ -45,4 +46,10 @@ def delete_grant(grant_id: UUID) -> None:
 def delete_collection_schema(schema_id: UUID) -> None:
     schema = db.session.query(CollectionSchema).where(CollectionSchema.id == schema_id).one()
     db.session.delete(schema)
+    db.session.flush()
+
+
+def delete_section(section_id: UUID) -> None:
+    section = db.session.query(Section).where(Section.id == section_id).one()
+    db.session.delete(section)
     db.session.flush()

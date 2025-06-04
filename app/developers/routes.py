@@ -31,7 +31,11 @@ from app.common.data.interfaces.collections import (
     update_section,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.interfaces.temporary import delete_collection_schema, delete_collections_created_by_user
+from app.common.data.interfaces.temporary import (
+    delete_collection_schema,
+    delete_collections_created_by_user,
+    delete_section,
+)
 from app.common.data.types import CollectionStatusEnum, QuestionDataType
 from app.common.helpers.collections import CollectionHelper
 from app.deliver_grant_funding.forms import (
@@ -196,20 +200,33 @@ def move_section(grant_id: UUID, schema_id: UUID, section_id: UUID, direction: s
 
 @developers_blueprint.route(
     "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/manage",
-    methods=["GET"],
+    methods=["GET", "POST"],
 )
 @platform_admin_role_required
+@auto_commit_after_request
 def manage_section(
     grant_id: UUID,
     schema_id: UUID,
     section_id: UUID,
 ) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
+
+    confirm_deletion_form = ConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        delete_section(section_id=section_id)
+        # TODO: Flash message for deletion?
+        return redirect(url_for("developers.manage_schema", grant_id=grant_id, schema_id=schema_id))
+
     return render_template(
         "developers/manage_section.html",
         grant=section.collection_schema.grant,
         schema=section.collection_schema,
         section=section,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
 
