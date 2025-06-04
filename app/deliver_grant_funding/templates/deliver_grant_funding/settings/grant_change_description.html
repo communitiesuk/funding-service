@@ -1,0 +1,56 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
+
+{% block pageTitle %}
+  Change grant description - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_settings" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for("deliver_grant_funding.grant_settings", grant_id=grant.id),
+      "classes": "govuk-!-margin-bottom-6"
+    })
+  }}
+{% endblock %}
+
+
+{% set before_input_text %}
+  <p class="govuk-body">Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.</p>
+  <p class="govuk-hint">Do not include personal information.</p>
+{% endset %}
+
+{% block content %}
+  <h1 class="govuk-heading-l">Change grant description</h1>
+  <form method="post" novalidate>
+    {{ form.csrf_token }}
+
+    <!-- Erroneous-looking fromGroup attribute currently required due to typo in library -->
+    <!-- See here: https://github.com/LandRegistry/govuk-frontend-jinja/blob/45849744d2bf058937402f291e4a2c7a44eb7e23/govuk_frontend_jinja/templates/components/character-count/macro.html#L107 -->
+    <!-- Fix PR here: https://github.com/LandRegistry/govuk-frontend-jinja/pull/96 -->
+    {{
+      form.description(params={
+        "label": {
+          "classes": "govuk-visually-hidden"
+        },
+        "fromGroup": true,
+        "formGroup": {
+          "beforeInput": {
+          "html": before_input_text
+          }
+        },
+        "maxwords": form.DESCRIPTION_MAX_WORDS
+      })
+    }}
+
+    {{
+      form.submit(params={
+        "text": "Change grant description"
+      })
+    }}
+  </form>
+{% endblock %}

@@ -314,13 +314,15 @@ class GrantSettingsPage(GrantDashboardBasePage):
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.change_link = self.page.get_by_role("link", name="Change")
+        self.change_link = self.page.get_by_role("link", name="Change the grant name")
 
     def click_change_grant_name(self, grant_name: str) -> ChangeGrantNamePage:
         self.change_link.click()
         change_grant_name_page = ChangeGrantNamePage(self.page, self.domain)
         expect(change_grant_name_page.title).to_be_visible()
-        expect(change_grant_name_page.page.get_by_role("textbox", name="Grant name")).to_have_value(grant_name)
+        expect(
+            change_grant_name_page.page.get_by_role("textbox", name="What is the name of this grant?")
+        ).to_have_value(grant_name)
         return change_grant_name_page
 
 
@@ -334,7 +336,7 @@ class ChangeGrantNamePage(GrantDashboardBasePage):
         self.title = self.page.get_by_role("heading", name="Grant name")
 
     def fill_in_grant_name(self, name: str) -> None:
-        self.page.get_by_role("textbox", name="Grant name").fill(name)
+        self.page.get_by_role("textbox", name="What is the name of this grant?").fill(name)
 
     def click_submit(self, grant_name: str) -> GrantSettingsPage:
         self.page.get_by_role("button", name="Save").click()
