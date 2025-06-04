@@ -1,9 +1,9 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% extends "deliver_grant_funding/base.html" %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
-  Change grant name - MHCLG Funding Service
+  Change grant contact details - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_settings" %}
@@ -13,26 +13,32 @@
     govukBackLink({
       "text": "Back",
       "href": url_for("deliver_grant_funding.grant_settings", grant_id=grant.id),
+      "classes": "govuk-!-margin-bottom-6"
     })
   }}
 {% endblock %}
 
 {% block content %}
-  <h1 class="govuk-heading-l">Change grant name</h1>
+  <h1 class="govuk-heading-l">Change grant contact details</h1>
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
     {{
-      form.name(params={
-        "label": {
-          "classes": "govuk-visually-hidden"
-        }
+      form.primary_contact_name(params={
+        "classes": "govuk-!-width-two-thirds"
+      })
+    }}
+
+    {{
+      form.primary_contact_email(params={
+        "classes": "govuk-!-width-two-thirds",
+        "type": "email"
       })
     }}
 
     {{
       form.submit(params={
-          "text": "Change grant name"
+        "text": "Change grant contact details"
       })
     }}
   </form>

@@ -14,7 +14,6 @@ from app.deliver_grant_funding.forms import (
     GrantCheckYourAnswersForm,
     GrantContactForm,
     GrantDescriptionForm,
-    GrantForm,
     GrantGGISForm,
     GrantNameForm,
     GrantSetupIntroForm,
@@ -124,7 +123,7 @@ def test_grant_change_name_get(authenticated_client, factories, templates_render
 def test_grant_change_name_post(authenticated_client, factories, templates_rendered, db_session):
     grant = factories.grant.create()
     # Update the name
-    form = GrantForm()
+    form = GrantNameForm()
     form.name.data = "New name"
     result = authenticated_client.post(
         url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id), data=form.data, follow_redirects=False
@@ -143,7 +142,7 @@ def test_grant_change_name_post(authenticated_client, factories, templates_rende
 def test_grant_change_name_post_with_errors(authenticated_client, factories, templates_rendered):
     grants = factories.grant.create_batch(2)
     # Test error handling on an update
-    form = GrantForm(data={"name": grants[1].name})
+    form = GrantNameForm(data={"name": grants[1].name})
     result = authenticated_client.post(
         url_for("deliver_grant_funding.grant_change_name", grant_id=grants[0].id),
         data=form.data,
@@ -154,7 +153,7 @@ def test_grant_change_name_post_with_errors(authenticated_client, factories, tem
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#name")) == 1
-    assert soup.find_all("a", href="#name")[0].text.strip() == "Name already in use"
+    assert soup.find_all("a", href="#name")[0].text.strip() == "Grant name already in use"
 
 
 def test_create_collection_get(authenticated_platform_admin_client, factories, templates_rendered):

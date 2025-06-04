@@ -1,0 +1,57 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
+
+{% block pageTitle %}
+  Change grant GGIS - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_sub_navigation_tab = "grant_settings" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for("deliver_grant_funding.grant_settings", grant_id=grant.id),
+      "classes": "govuk-!-margin-bottom-6"
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  <h1 class="govuk-heading-l">Change grant GGIS</h1>
+  <form method="post" novalidate>
+    {{ form.csrf_token }}
+
+    {{
+      form.has_ggis(params={
+        "items": [
+          {
+            "value": "yes",
+            "text": "Yes",
+            "conditional": {
+              "html": form.ggis_number(
+                params={
+                  "classes": "govuk-!-width-two-thirds",
+                  "spellcheck": false,
+                  "autocomplete": "off"
+                }
+              )
+            }
+          },
+          {
+            "value": "no",
+            "text": "No",
+            "checked": true if form.has_ggis.data == "no" else false
+          }
+        ]
+      })
+    }}
+
+    {{
+      form.submit(params={
+        "text": "Change grant GGIS"
+      })
+    }}
+  </form>
+{% endblock %}
