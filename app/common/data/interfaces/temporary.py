@@ -14,7 +14,10 @@ from uuid import UUID
 from app.common.data.models import (
     Collection,
     CollectionSchema,
+    Form,
     Grant,
+    Question,
+    Section,
 )
 from app.extensions import db
 
@@ -39,4 +42,28 @@ def delete_grant(grant_id: UUID) -> None:
     # Not optimised; do not lift+shift unedited.
     grant = db.session.query(Grant).where(Grant.id == grant_id).one()
     db.session.delete(grant)
+    db.session.flush()
+
+
+def delete_collection_schema(schema_id: UUID) -> None:
+    schema = db.session.query(CollectionSchema).where(CollectionSchema.id == schema_id).one()
+    db.session.delete(schema)
+    db.session.flush()
+
+
+def delete_section(section_id: UUID) -> None:
+    section = db.session.query(Section).where(Section.id == section_id).one()
+    db.session.delete(section)
+    db.session.flush()
+
+
+def delete_form(form_id: UUID) -> None:
+    form = db.session.query(Form).where(Form.id == form_id).one()
+    db.session.delete(form)
+    db.session.flush()
+
+
+def delete_question(question_id: UUID) -> None:
+    question = db.session.query(Question).where(Question.id == question_id).one()
+    db.session.delete(question)
     db.session.flush()

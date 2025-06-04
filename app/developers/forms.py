@@ -25,3 +25,7 @@ class CheckYourAnswersForm(FlaskForm):
             self.section_completed.validators = [DataRequired("Select if you have you completed this section")]
         else:
             self.section_completed.validators = [Optional()]
+
+
+class ConfirmDeletionForm(FlaskForm):
+    confirm_deletion = SubmitField("Confirm deletion", widget=GovSubmitInput())
