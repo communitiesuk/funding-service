@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
-from flask import abort, redirect, render_template, request, url_for
+from flask import abort, current_app, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
 
@@ -631,17 +631,20 @@ def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
 
 
 @developers_blueprint.route("/collections/<uuid:collection_id>/confirmation", methods=["GET", "POST"])
-@auto_commit_after_request
 @platform_admin_role_required
 def collection_confirmation(collection_id: UUID) -> ResponseReturnValue:
     collection_helper = CollectionHelper.load(collection_id)
 
-    # TODO: only show this if it has actually been submitted - for now you can get to this page anytime
+    if collection_helper.status != CollectionStatusEnum.COMPLETED:
+        current_app.logger.warning(
+            "Cannot access submission confirmation for non complete collection for collection_id=%(collection_id)s",
+            dict(collection_id=str(collection_helper.id)),
+        )
+        return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
 
     return render_template(
         "developers/collection_submit_confirmation.html",
         collection_helper=collection_helper,
-        statuses=CollectionStatusEnum,
     )
 
 

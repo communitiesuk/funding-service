@@ -1,9 +1,8 @@
 {% from "govuk_frontend_jinja/components/panel/macro.html" import govukPanel %}
-{% from "common/macros/status.html" import status %}
 {% extends "developers/access_grant_funding_base.html" %}
 
 {% block pageTitle %}
-  Submitted {{ collection_helper.name }} - MHCLG Funding Service
+  Collection submitted {{ collection_helper.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% block content %}
@@ -22,7 +21,8 @@
         })
       }}
 
-      <p class="govuk-body">We have sent you a confirmation email.</p>
+      {# <p class="govuk-body">We have sent you a confirmation email.</p> #}
+      <p class="govuk-body">We do not currently send a confirmation email.</p>
 
       <h2 class="govuk-heading-m">What happens next</h2>
 
