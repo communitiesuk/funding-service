@@ -9,30 +9,34 @@
 {% set active_item_identifier = "developers" %}
 
 {% block content %}
-  <h1 class="govuk-heading-l">
-    <span class="govuk-caption-l">{{ grant.name }}</span>
-    Developers
-  </h1>
-  <p class="govuk-body">You can try out tech and designs that are work in progress.</p>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Developers
+      </h1>
+      <p class="govuk-body">You can try out tech and designs that are work in progress.</p>
 
-  <h2 class="govuk-heading-m">Collecting information from users</h2>
+      <h2 class="govuk-heading-m">Collecting information from users</h2>
 
-  {# we probably want to extend this component to always set the padding and have a top line #}
-  {# or add a class to the top that will then apply the right styling - for menu summary lists #}
-  <hr class="govuk-section-break govuk-section-break--visible" />
-  {{
-    govukSummaryList({
-        "rows": [
-        {
-            "key": {
-                "text": "Schemas",
-                "classes": "govuk-!-padding-top-4 govuk-!-padding-bottom-4"
-            },
-            "value": { "text": ( grant.collection_schemas | length | string ) + " preview schemas" },
-            "actions": {
-                "items": [{ "text": "Manage", "href": url_for('developers.grant_developers_schemas', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
-            },
-        }]
-    })
-  }}
+      {# we probably want to extend this component to always set the padding and have a top line #}
+      {# or add a class to the top that will then apply the right styling - for menu summary lists #}
+      <hr class="govuk-section-break govuk-section-break--visible" />
+      {{
+        govukSummaryList({
+            "rows": [
+            {
+                "key": {
+                    "text": "Schemas",
+                    "classes": "govuk-!-padding-top-4 govuk-!-padding-bottom-4"
+                },
+                "value": { "text": ( grant.collection_schemas | length | string ) + " preview schemas" },
+                "actions": {
+                    "items": [{ "text": "Manage", "href": url_for('developers.grant_developers_schemas', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
+                },
+            }]
+        })
+      }}
+    </div>
+  </div>
 {% endblock content %}
