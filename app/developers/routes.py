@@ -617,8 +617,7 @@ def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
     if form.validate_on_submit():
         try:
             collection_helper.submit_collection(interfaces.user.get_current_user())
-            # TODO: this will go to a confirmation page
-            return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
+            return redirect(url_for("developers.collection_confirmation", collection_id=collection_helper.id))
         except ValueError:
             form.submit.errors.append("You must complete all forms before submitting the collection")  # type:ignore[attr-defined]
 
@@ -628,6 +627,21 @@ def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
         statuses=CollectionStatusEnum,
         back_link_source_enum=FormRunnerSourceEnum,
         form=form,
+    )
+
+
+@developers_blueprint.route("/collections/<uuid:collection_id>/confirmation", methods=["GET", "POST"])
+@auto_commit_after_request
+@platform_admin_role_required
+def collection_confirmation(collection_id: UUID) -> ResponseReturnValue:
+    collection_helper = CollectionHelper.load(collection_id)
+
+    # only show this if it has actually been submitted - for now you can get to this page anytime
+
+    return render_template(
+        "developers/collection_submit_confirmation.html",
+        collection_helper=collection_helper,
+        statuses=CollectionStatusEnum,
     )
 
 
