@@ -56,7 +56,7 @@ def test_list_grants_as_member_with_single_grant(
     soup = BeautifulSoup(final_response.data, "html.parser")
 
     nav_items = [item.text.strip() for item in soup.select(".govuk-service-navigation__item")]
-    assert nav_items == ["Home", "Grant details"]
+    assert nav_items == ["Home", "Grant details", "Grant team"]
     assert len(queries) == 2
 
 
@@ -867,6 +867,15 @@ def test_list_users_for_grant_with_platform_admin(authenticated_platform_admin_c
     soup = BeautifulSoup(result.data, "html.parser")
     button = soup.find("a", string=lambda text: text and "Add grant team member" in text)
     assert button is not None, "'Add grant team member' button not found"
+
+    # add new grant member and test
+    result = authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
+        json={"user_email": "test1@communities.gov.uk"},
+        follow_redirects=True,
+    )
+    soup = BeautifulSoup(result.data, "html.parser")
+
     headers = soup.find_all("th")
     header_texts = [th.get_text(strip=True) for th in headers]
     expected_headers = ["Email", "Role"]
@@ -879,7 +888,7 @@ def test_list_users_for_grant_with_member(authenticated_member_client, factories
     # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
     grant = factories.grant.create()
     user = get_current_user()
-    factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
+    factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
     result = authenticated_member_client.get(
         url_for(
             "deliver_grant_funding.list_users_for_grant",
@@ -897,12 +906,12 @@ def test_list_users_for_grant_with_member(authenticated_member_client, factories
     assert "Grant team" in soup.h1.text
 
 
-def test_share_grant_with_user_with_platform_admin(authenticated_platform_admin_client, factories):
+def test_add_user_to_grant_with_platform_admin(authenticated_platform_admin_client, factories):
     # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
     grant = factories.grant.create()
     result = authenticated_platform_admin_client.get(
         url_for(
-            "deliver_grant_funding.share_grant_with_user",
+            "deliver_grant_funding.add_user_to_grant",
             grant_id=grant.id,
         ),
     )

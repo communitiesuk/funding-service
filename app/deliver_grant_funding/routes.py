@@ -1,15 +1,17 @@
 from uuid import UUID
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
+from sqlalchemy.exc import NoResultFound
 from werkzeug import Response
 from wtforms.fields.core import Field
 
 from app.common.auth.decorators import mhclg_login_required, platform_admin_role_required
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.interfaces.user import get_current_user
+from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.forms import (
+    GrantAddUserForm,
     GrantCheckYourAnswersForm,
     GrantContactForm,
     GrantDescriptionForm,
@@ -17,7 +19,6 @@ from app.deliver_grant_funding.forms import (
     GrantGGISForm,
     GrantNameForm,
     GrantSetupIntroForm,
-    ShareGrantUserForm,
 )
 from app.deliver_grant_funding.session_models import GrantSetupSession
 from app.extensions import auto_commit_after_request
@@ -182,28 +183,36 @@ def list_grants() -> Response | str:
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
 
 
-@deliver_grant_funding_blueprint.route("/users/<uuid:grant_id>", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/users/<uuid:grant_id>", methods=["GET"])
 @mhclg_login_required
 def list_users_for_grant(grant_id: UUID) -> str:
-    grant = interfaces.grants.get_grant(grant_id)
-    if grant is None:
+    try:
+        grant = interfaces.grants.get_grant(grant_id)
+    except NoResultFound:
         abort(404)
-    # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
-    users = [get_current_user()]
-    return render_template("deliver_grant_funding/user_list.html", grant=grant, users=users)
+    grant_users = [role.user for role in grant.roles if role.role == RoleEnum.MEMBER]
+    return render_template(
+        "deliver_grant_funding/grant_team/grant_user_list.html",
+        grant=grant,
+        users=grant_users,
+        service_desk_url=current_app.config["SERVICE_DESK_URL"],
+    )
 
 
 @deliver_grant_funding_blueprint.route("/grant/share/user/<uuid:grant_id>", methods=["GET", "POST"])
-@mhclg_login_required
 @platform_admin_role_required
-def share_grant_with_user(grant_id: UUID) -> ResponseReturnValue:
-    wt_form = ShareGrantUserForm()
+@auto_commit_after_request
+def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
+    form = GrantAddUserForm()
     grant = interfaces.grants.get_grant(grant_id)
-    if wt_form.validate_on_submit():
-        # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
-        flash("We’ve sent you a confirmation email and sent the team member a sign-in link.")
-        return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
-    return render_template("deliver_grant_funding/add_user.html", form=wt_form, grant=grant)
+    if form.validate_on_submit():
+        if form.user_email.data:
+            created_user = interfaces.user.get_or_create_user(email_address=form.user_email.data)
+            interfaces.user.add_user_role(user_id=created_user.id, grant_id=grant_id, role=RoleEnum.MEMBER)
+            # TODO send gov notify email
+            flash("We’ve emailed the grant team member a link to sign in.")
+            return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
+    return render_template("deliver_grant_funding/grant_team/grant_user_add.html", form=form, grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])

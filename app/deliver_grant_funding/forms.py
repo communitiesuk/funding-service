@@ -1,6 +1,5 @@
 from typing import Any
 
-from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
@@ -15,18 +14,11 @@ from wtforms.validators import DataRequired, Email, ValidationError
 
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.types import QuestionDataType
-from app.common.forms.validators import WordRange
+from app.common.forms.validators import CommunitiesEmail, WordRange
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
     return value.strip() if value else value
-
-
-def validate_communities_gov_uk_email(_form: FlaskForm, field: StringField) -> None:
-    if field.data and "@" in field.data:
-        internal_domains = current_app.config["INTERNAL_DOMAINS"]
-        if not field.data.endswith(internal_domains):
-            raise ValidationError(f"Email address must end with {' or '.join(internal_domains)}")
 
 
 class UniqueGrantName:
@@ -205,13 +197,13 @@ class QuestionForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
-class ShareGrantUserForm(FlaskForm):
+class GrantAddUserForm(FlaskForm):
     user_email = StringField(
-        "This needs to be the user’s personal 'communities.gov.uk' email address, not a shared email address.",
+        description="This needs to be the user’s personal 'communities.gov.uk' "
+        "email address, not a shared email address.",
         validators=[
-            DataRequired("Enter the email address"),
-            Email(message="Enter an email address in the correct format, like name@communities.gov.uk"),
-            validate_communities_gov_uk_email,
+            DataRequired("Enter an email address"),
+            CommunitiesEmail(),
         ],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),

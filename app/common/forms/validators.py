@@ -1,6 +1,8 @@
+from email_validator import EmailNotValidError, validate_email
+from flask import current_app
 from wtforms.fields.core import Field
 from wtforms.form import BaseForm
-from wtforms.validators import ValidationError
+from wtforms.validators import Email, ValidationError
 
 
 class WordRange:
@@ -41,3 +43,21 @@ class WordRange:
         if self.max_words is not None:
             if word_count > self.max_words:
                 raise ValidationError(f"{field_display_name} must be {self.max_words} words or less")
+
+
+class CommunitiesEmail(Email):
+    def __call__(self, form: BaseForm, field: Field) -> None:
+        allowed_domains = current_app.config["INTERNAL_DOMAINS"]
+        try:
+            result = validate_email(
+                field.data,
+                check_deliverability=self.check_deliverability,
+                allow_smtputf8=self.allow_smtputf8,
+                allow_empty_local=self.allow_empty_local,
+            )
+            domain = f"@{result.domain}"
+        except EmailNotValidError as e:
+            raise ValidationError("Enter an email address in the correct format, like name@example.com") from e
+
+        if allowed_domains and domain.lower() not in [d.lower() for d in allowed_domains]:
+            raise ValidationError(f"Email address must end with {' or '.join(allowed_domains)}")
