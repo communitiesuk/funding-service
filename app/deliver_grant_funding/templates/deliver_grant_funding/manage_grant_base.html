@@ -33,7 +33,16 @@
     ]
   %}
 
+  {% set right_nav_items = [] %}
+
   {% if current_user.is_platform_admin %}
+    {%
+      do right_nav_items.append({
+          "text": "See all grants",
+          "href": url_for("deliver_grant_funding.list_grants"),
+          "current": false
+      })
+    %}
     {%
       do nav_items.append({
           "text": "Developers",
@@ -44,5 +53,5 @@
     %}
   {% endif %}
 
-  {{ deliverGrantFundingServiceNavigation(nav_items) }}
+  {{ deliverGrantFundingServiceNavigation(nav_items, right_nav_items) }}
 {% endblock header %}

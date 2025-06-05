@@ -1,11 +1,12 @@
 {% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
 
-{% macro deliverGrantFundingServiceNavigation(nav_items) %}
+{% macro deliverGrantFundingServiceNavigation(nav_items=[], right_nav_items=[]) %}
   {{
     govukServiceNavigation({
     "serviceName": "Deliver grant funding",
     "serviceUrl": url_for("deliver_grant_funding.list_grants"),
-    "navigation": nav_items,
+    "navigation": nav_items + right_nav_items,
+    "navigationClasses": "app-service-navigation__wrapper--sectional" if right_nav_items else "",
     })
   }}
 {% endmacro %}
