@@ -7,38 +7,7 @@ from app.common.data.types import QuestionDataType
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.developer_pages import ManageFormPage
-from tests.e2e.pages import AllGrantsPage, GrantDashboardPage
-
-
-def create_grant(new_grant_name: str, page: Page, domain: str) -> GrantDashboardPage:
-    """
-    Split this out as a separate function for now while we decide if we want this test to create the grant it uses,
-    or whether we go with a different option
-    (See notes in ticket FSPT-441)
-    :param new_grant_name: name of grant to create
-    :param page: page object from Playwright
-    :param domain: domain to use for the test
-    :return: Grant dashboard page object for the newly created grant
-    """
-    all_grants_page = AllGrantsPage(page, domain)
-    all_grants_page.navigate()
-
-    # Set up new grant
-    grant_intro_page = all_grants_page.click_set_up_a_grant()
-    grant_ggis_page = grant_intro_page.click_continue()
-    grant_ggis_page.select_yes()
-    grant_ggis_page.fill_ggis_number()
-    grant_name_page = grant_ggis_page.click_save_and_continue()
-    grant_name_page.fill_name(new_grant_name)
-    grant_description_page = grant_name_page.click_save_and_continue()
-    grant_description_page.fill_description()
-    grant_contact_page = grant_description_page.click_save_and_continue()
-    grant_contact_page.fill_contact_name()
-    grant_contact_page.fill_contact_email()
-    grant_check_your_answers_page = grant_contact_page.click_save_and_continue()
-    grant_confirmation_page = grant_check_your_answers_page.click_add_grant()
-    grant_dashboard_page = grant_confirmation_page.click_continue()
-    return grant_dashboard_page
+from tests.e2e.pages import AllGrantsPage
 
 
 def create_question(
@@ -63,14 +32,25 @@ def create_question(
 def test_create_and_preview_schema(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser
 ):
-    # TODO - FSPT-441: Decide if we want to create the grant in this test or not.
-    new_grant_name = f"E2E create_schema_grant {uuid.uuid4()}"
-    grant_dashboard_page = create_grant(new_grant_name, page, domain)
-    #
-    # # Go to Grant Dashboard
-    # all_grants_page = AllGrantsPage(page, domain)
-    # all_grants_page.navigate()
-    # grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
+    new_grant_name = f"E2E developer_grant {uuid.uuid4()}"
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
+
+    # Set up new grant
+    grant_intro_page = all_grants_page.click_set_up_a_grant()
+    grant_ggis_page = grant_intro_page.click_continue()
+    grant_ggis_page.select_yes()
+    grant_ggis_page.fill_ggis_number()
+    grant_name_page = grant_ggis_page.click_save_and_continue()
+    grant_name_page.fill_name(new_grant_name)
+    grant_description_page = grant_name_page.click_save_and_continue()
+    grant_description_page.fill_description()
+    grant_contact_page = grant_description_page.click_save_and_continue()
+    grant_contact_page.fill_contact_name()
+    grant_contact_page.fill_contact_email()
+    grant_check_your_answers_page = grant_contact_page.click_save_and_continue()
+    grant_confirmation_page = grant_check_your_answers_page.click_add_grant()
+    grant_dashboard_page = grant_confirmation_page.click_continue()
 
     # Go to developers tab
     developers_page = grant_dashboard_page.click_developers(new_grant_name)
@@ -106,3 +86,12 @@ def test_create_and_preview_schema(
     create_question(QuestionDataType.TEXT_SINGLE_LINE.value, manage_form_page)
     create_question(QuestionDataType.TEXT_MULTI_LINE.value, manage_form_page)
     create_question(QuestionDataType.INTEGER.value, manage_form_page)
+
+    # Preview the form
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
+    grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
+    developers_page = grant_dashboard_page.click_developers(new_grant_name)
+    list_schemas_page = developers_page.click_manage_schemas(grant_name=new_grant_name)
+    schema_detail_page = list_schemas_page.click_on_schema(grant_name=new_grant_name, schema_name=new_schema_name)
+    schema_detail_page.click_preview_collection()

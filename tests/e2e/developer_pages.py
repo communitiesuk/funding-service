@@ -80,6 +80,7 @@ class AddSchemaPage(GrantDevelopersBasePage):
 class SchemaDetailPage(GrantDevelopersBasePage):
     schema_name: str
     add_section_link: Locator
+    preview_collection_button: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, schema_name: str) -> None:
         super().__init__(
@@ -87,6 +88,7 @@ class SchemaDetailPage(GrantDevelopersBasePage):
         )
         self.schema_name = schema_name
         self.add_section_link = self.page.get_by_role("link", name="add a section")
+        self.preview_collection_button = self.page.get_by_role("button", name="Preview this collection")
 
     def check_section_exists(self, section_title: str) -> None:
         expect(self.page.get_by_role("link", name=section_title)).to_be_visible()
@@ -96,6 +98,12 @@ class SchemaDetailPage(GrantDevelopersBasePage):
         add_section_page = AddSectionPage(self.page, self.domain, grant_name=self.grant_name)
         expect(add_section_page.heading).to_be_visible()
         return add_section_page
+
+    def click_preview_collection(self) -> TasklistPage:
+        self.preview_collection_button.click()
+        tasklist_page = TasklistPage(self.page, self.domain, grant_name=self.grant_name, schema_name=self.schema_name)
+        expect(tasklist_page.heading).to_be_visible()
+        return tasklist_page
 
 
 class SectionsListPage(GrantDevelopersBasePage):
@@ -362,3 +370,22 @@ class AddFormDetailsPage(GrantDevelopersBasePage):
         )
         expect(section_details_page.heading).to_be_visible()
         return section_details_page
+
+
+class TasklistPage(GrantDevelopersBasePage):
+    schema_name: str
+
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_name: str,
+        schema_name: str,
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"{schema_name} Collection"),
+        )
+        self.schema_name = schema_name
