@@ -58,7 +58,7 @@
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {% set all_questions_answered, _ = collection_helper.get_all_questions_answered_for_form(schema_form) %}
+        {% set all_questions_answered, _ = collection_helper.get_all_questions_are_answered_for_form(schema_form) %}
         {% if all_questions_answered %}
           {{
             form.section_completed(params={
