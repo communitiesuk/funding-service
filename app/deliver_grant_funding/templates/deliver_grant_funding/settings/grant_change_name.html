@@ -18,14 +18,13 @@
 {% endblock %}
 
 {% block content %}
-  <h1 class="govuk-heading-l">Change grant name</h1>
-  <form method="post" novalidate>
-    {{ form.csrf_token }}
-    {{ form.name }}
-    {{
-      form.submit(params={
-          "text": "Change grant name"
-      })
-    }}
-  </form>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l" }})
+        }} {{ form.submit }}
+      </form>
+    </div>
+  </div>
 {% endblock %}
