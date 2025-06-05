@@ -1,0 +1,36 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% extends "deliver_grant_funding/manage_grant_base.html" %}
+
+{% block pageTitle %}
+  Grant details - {{ grant.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_item_identifier = "settings" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Grant details
+      </h1>
+      {{
+        govukSummaryList({
+              "rows": [{
+                  "key": {"text": "Name"},
+                  "value": {"text": grant.name},
+                  "actions": {
+                      "items": [
+                          {
+                            "href": url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id),
+                            "text": "Change",
+                            "visuallyHiddenText": "name"
+                          }
+                      ]
+                  }
+              }]
+        })
+      }}
+    </div>
+  </div>
+{% endblock content %}

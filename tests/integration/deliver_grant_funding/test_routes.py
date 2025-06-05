@@ -56,10 +56,9 @@ def test_list_grants_as_member_with_single_grant(
     final_response = authenticated_member_client.get(redirect_url)
     assert final_response.status_code == 200
     soup = BeautifulSoup(final_response.data, "html.parser")
-    dashboard_link = soup.find("a", string="Dashboard")
-    assert dashboard_link is not None, "Dashboard link not found"
-    settings_link = soup.find("a", string="Settings")
-    assert settings_link is not None, "Settings link not found"
+
+    nav_items = [item.text.strip() for item in soup.select(".govuk-service-navigation__item")]
+    assert nav_items == ["Home", "Grant details"]
     assert len(queries) == 2
 
 
@@ -106,7 +105,7 @@ def test_view_grant_settings(authenticated_client, factories, templates_rendered
     assert templates_rendered[0][1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert grant.name in soup.h1.text.strip()
-    assert "Settings" in soup.h1.text.strip()
+    assert "Grant details" in soup.h1.text.strip()
 
 
 def test_grant_change_name_get(authenticated_client, factories, templates_rendered):

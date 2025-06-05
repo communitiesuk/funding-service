@@ -34,12 +34,12 @@ class UniqueGrantName:
 
 class GrantForm(FlaskForm):
     name = StringField(
-        "Grant name",
+        "Change grant name",
         validators=[DataRequired("Enter a grant name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-    submit = SubmitField(widget=GovSubmitInput())
+    submit = SubmitField("Save", widget=GovSubmitInput())
 
 
 class GrantSetupIntroForm(FlaskForm):

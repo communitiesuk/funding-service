@@ -6,7 +6,7 @@
   Edit collection - MHCLG Funding Service
 {% endblock pageTitle %}
 
-{% set active_sub_navigation_tab = "grant_developers" %}
+{% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
   {{
@@ -18,9 +18,13 @@
 {% endblock %}
 
 {% block content %}
-  <form method="post" novalidate>
-    {{ form.csrf_token }}
-    {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l" }})
-    }} {{ form.submit }}
-  </form>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l" } } ) }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
 {% endblock %}

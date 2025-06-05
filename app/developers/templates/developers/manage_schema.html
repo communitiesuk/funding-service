@@ -10,52 +10,52 @@
   - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
-{% set active_sub_navigation_tab = "grant_developers" %}
+{% set active_item_identifier = "developers" %}
 {% block beforeContent %}
   {{
     govukBackLink({
         "text": "Back",
         "href": url_for("developers.grant_developers_schemas", grant_id = grant.id),
-        "classes": "govuk-!-margin-bottom-7"
     })
   }}
 {% endblock beforeContent %}
 
 {% block content %}
-  {% if confirm_deletion_form %}
-    {% set banner_html %}
-      <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this collection?</p>
-      <form method="post" novalidate>
-        {{ confirm_deletion_form.csrf_token }}
-        {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
-      </form>
-    {% endset %}
-
-    {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
-  {% endif %}
-
-  <h1 class="govuk-heading-l">
-    <span class="govuk-caption-l">{{ grant.name }}</span>
-    {{ schema.name }}
-  </h1>
-  {% set sections_text %}
-    {% trans count=schema.sections | length %}
-      {{ count }}
-      section {% pluralize %}
-      {{ count }}
-      sections
-    {% endtrans %}
-  {% endset %}
-  {% set collections_text %}
-    {% trans count=schema.collections | length %}
-      {{ count }}
-      preview collection {% pluralize %}
-      {{ count }}
-      preview collections
-    {% endtrans %}
-  {% endset %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% if confirm_deletion_form %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this collection?</p>
+          <form method="post" novalidate>
+            {{ confirm_deletion_form.csrf_token }}
+            {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        {{ schema.name }}
+      </h1>
+      {% set sections_text %}
+        {% trans count=schema.sections | length %}
+          {{ count }}
+          section {% pluralize %}
+          {{ count }}
+          sections
+        {% endtrans %}
+      {% endset %}
+      {% set collections_text %}
+        {% trans count=schema.collections | length %}
+          {{ count }}
+          preview collection {% pluralize %}
+          {{ count }}
+          preview collections
+        {% endtrans %}
+      {% endset %}
+
       {{
         govukSummaryList({
           "rows": [{
@@ -105,10 +105,7 @@
           .
         </p>
       {% endif %}
-    </div>
-  </div>
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.submit(params={"classes": "govuk-button--secondary"}) }}
@@ -158,11 +155,12 @@
           })
         }}
       {% endfor %}
-    </div>
-  </div>
-  <div class="govuk-grid-row govuk-!-margin-top-7">
-    <div class="govuk-grid-column-two-thirds">
-      <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_schema', grant_id=grant.id, schema_id=schema.id, delete='') }}">Delete this collection</a></p>
+
+      <div class="govuk-grid-row govuk-!-margin-top-7">
+        <div class="govuk-grid-column-two-thirds">
+          <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_schema', grant_id=grant.id, schema_id=schema.id, delete='') }}">Delete this collection</a></p>
+        </div>
+      </div>
     </div>
   </div>
 {% endblock content %}

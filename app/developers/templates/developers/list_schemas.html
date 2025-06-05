@@ -7,55 +7,63 @@
   Schemas - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
-{% set active_sub_navigation_tab = "grant_developers" %}
+{% set active_item_identifier = "developers" %}
 
 {% block content %}
-  <h1 class="govuk-heading-l">
-    <span class="govuk-caption-l">{{ grant.name }}</span>
-    Schemas
-  </h1>
-  <p class="govuk-body">Use preview schemas to try out the tools to set up, collect and review information from users.</p>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Schemas
+      </h1>
+      <p class="govuk-body">Use preview schemas to try out the tools to set up, collect and review information from users.</p>
+    </div>
+  </div>
 
-  <h2 class="govuk-heading-m">Schemas</h2>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <h2 class="govuk-heading-m">Schemas</h2>
 
-  {% set rows=[] %}
-  {% for schema in grant.collection_schemas %}
-    {%
-      do rows.append([{
-      "html": "<a class='govuk-link govuk-link--no-visited-state' href='" + url_for("developers.manage_schema", grant_id = grant.id, schema_id=schema.id) + "'>" + schema.name + "</a>",
-      }, {"text": schema.created_by.email}, {"text": format_date(schema.created_at_utc)}])
-    %}
-  {% endfor %}
-  {% if not grant.collection_schemas %}
-    <p class="govuk-body">
-      This grant has no schemas, you can
-      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.setup_schema', grant_id = grant.id) }}">add a schema</a>
-      .
-    </p>
-  {% else %}
-    {{
-      govukTable({
-      "captionClasses": "govuk-table__caption--m",
-      "head": [
-        {
-          "text": "Description"
-        },
-        {
-          "text": "Added by"
-        },
-        {
-          "text": "Added on"
-        }
-      ],
-            "rows": rows
-            })
-    }}
-    {{
-      govukButton({
-      "text": "Add schema",
-      "classes": "govuk-button--secondary",
-      "href": url_for("developers.setup_schema", grant_id = grant.id)
-      })
-    }}
-  {% endif %}
+      {% set rows=[] %}
+      {% for schema in grant.collection_schemas %}
+        {%
+          do rows.append([{
+          "html": "<a class='govuk-link govuk-link--no-visited-state' href='" + url_for("developers.manage_schema", grant_id = grant.id, schema_id=schema.id) + "'>" + schema.name + "</a>",
+          }, {"text": schema.created_by.email}, {"text": format_date(schema.created_at_utc)}])
+        %}
+      {% endfor %}
+      {% if not grant.collection_schemas %}
+        <p class="govuk-body">
+          This grant has no schemas, you can
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.setup_schema', grant_id = grant.id) }}">add a schema</a>
+          .
+        </p>
+      {% else %}
+        {{
+          govukTable({
+          "captionClasses": "govuk-table__caption--m",
+          "head": [
+            {
+              "text": "Description"
+            },
+            {
+              "text": "Added by"
+            },
+            {
+              "text": "Added on"
+            }
+          ],
+                "rows": rows
+                })
+        }}
+        {{
+          govukButton({
+          "text": "Add schema",
+          "classes": "govuk-button--secondary",
+          "href": url_for("developers.setup_schema", grant_id = grant.id)
+          })
+        }}
+      {% endif %}
+    </div>
+  </div>
 {% endblock content %}
