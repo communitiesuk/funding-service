@@ -241,7 +241,7 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
     def click_settings(self, grant_name: str) -> GrantSettingsPage:
         self.settings_nav.click()
         grant_settings_page = GrantSettingsPage(self.page, self.domain)
-        expect(grant_settings_page.page.get_by_role("heading", name=f"{grant_name} Settings")).to_be_visible()
+        expect(grant_settings_page.page.get_by_role("heading", name=f"{grant_name} Grant details")).to_be_visible()
         return grant_settings_page
 
     def check_grant_name(self, grant_name: str) -> None:
@@ -288,5 +288,5 @@ class ChangeGrantNamePage(GrantDashboardBasePage):
     def click_submit(self, grant_name: str) -> GrantSettingsPage:
         self.page.get_by_role("button", name="Save").click()
         grant_settings_page = GrantSettingsPage(self.page, self.domain)
-        expect(grant_settings_page.page.get_by_role("heading", name=f"{grant_name} Settings")).to_be_visible()
+        expect(grant_settings_page.page.get_by_role("heading", name=f"{grant_name} Grant details")).to_be_visible()
         return grant_settings_page
