@@ -21,7 +21,8 @@ class TopNavMixin(ABC):
     page: Page
 
     def click_grants(self) -> AllGrantsPage:
-        self.page.get_by_role("link", name="Grants").click()
+        # This should be the 'Show all grants' link, to be added shortly.
+        self.page.get_by_role("link", name="Deliver grant funding").click()
         return AllGrantsPage(self.page, self.domain)
 
 
@@ -229,8 +230,8 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.dashboard_nav = self.page.get_by_role("link", name="Dashboard")
-        self.settings_nav = self.page.get_by_role("link", name="Settings")
+        self.dashboard_nav = self.page.get_by_role("link", name="Grant home")
+        self.settings_nav = self.page.get_by_role("link", name="Grant details")
         self.developers_nav = self.page.get_by_role("link", name="Developers")
 
     def click_dashboard(self) -> GrantDashboardPage:
@@ -285,7 +286,7 @@ class ChangeGrantNamePage(GrantDashboardBasePage):
         self.page.get_by_role("textbox", name="Grant name").fill(name)
 
     def click_submit(self, grant_name: str) -> GrantSettingsPage:
-        self.page.get_by_role("button", name="Change grant name").click()
+        self.page.get_by_role("button", name="Save").click()
         grant_settings_page = GrantSettingsPage(self.page, self.domain)
         expect(grant_settings_page.page.get_by_role("heading", name=f"{grant_name} Settings")).to_be_visible()
         return grant_settings_page

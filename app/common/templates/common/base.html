@@ -1,6 +1,7 @@
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
 {% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
+{% from "common/partials/navigation.html" import deliverGrantFundingServiceNavigation %}
 
 {% set assetPath = vite_asset('assets') %}
 {% set cspNonce = csp_nonce() %}
@@ -24,29 +25,32 @@
         "assetPath": assetPath
     })
   }}
-  {% include "common/partials/navigation.html" %}
+
+  {{ deliverGrantFundingServiceNavigation([]) }}
 {% endblock header %}
 
 {% block main %}
-  <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
-    {% block beforeContent %}{% endblock %}
-    <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
-      {% block mainWrapper %}
-        <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
-          {% block errorSummary %}
-            <div class="govuk-grid-row">
-              <div class="govuk-grid-column-two-thirds">
-                {% if form is defined and form.errors %}
-                  {{ govukErrorSummary(wtforms_errors(form)) }}
-                {% endif %}
+  <div {% if show_watermark %}class="app-watermark-container"{% endif %}>
+    <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
+      {% block beforeContent %}{% endblock %}
+      <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
+        {% block mainWrapper %}
+          <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
+            {% block errorSummary %}
+              <div class="govuk-grid-row">
+                <div class="govuk-grid-column-two-thirds">
+                  {% if form is defined and form.errors %}
+                    {{ govukErrorSummary(wtforms_errors(form)) }}
+                  {% endif %}
+                </div>
               </div>
-            </div>
-          {% endblock errorSummary %}
+            {% endblock errorSummary %}
 
-          {% block content %}
-          {% endblock content %}
-        </main>
-      {% endblock mainWrapper %}
+            {% block content %}
+            {% endblock content %}
+          </main>
+        {% endblock mainWrapper %}
+      </div>
     </div>
   </div>
 {% endblock %}
