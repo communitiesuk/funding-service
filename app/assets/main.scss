@@ -134,3 +134,11 @@ $app-destructive-link-active-colour: $govuk-text-colour;
         @include govuk-link-style-error;
     }
 }
+
+.app-service-navigation__wrapper--sectional {
+  flex: 1;
+
+  .govuk-service-navigation__item:last-child {
+    margin-left: auto;
+  }
+}
