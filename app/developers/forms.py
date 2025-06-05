@@ -22,7 +22,7 @@ class CheckYourAnswersForm(FlaskForm):
     # the form should be validly optional unless all questions in the section have been answered
     def set_is_required(self, all_questions_answered: bool) -> None:
         if all_questions_answered:
-            self.section_completed.validators = [DataRequired("Select if you have you completed this section")]
+            self.section_completed.validators = [DataRequired("Select if you have completed this section")]
         else:
             self.section_completed.validators = [Optional()]
 
