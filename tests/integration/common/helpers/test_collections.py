@@ -161,3 +161,32 @@ class TestCollectionHelper:
             assert str(e.value) == AnyStringMatching(
                 r"Could not submit collection id=[a-z0-9-]+ because not all forms are complete."
             )
+
+        def test_all_forms_are_completed(self, db_session, factories):
+            form_one = factories.form.build()
+            form_two = factories.form.build(section=form_one.section)
+            question_one = factories.question.build(form=form_one)
+            question_two = factories.question.build(form=form_two)
+
+            collection = factories.collection.build(collection_schema=form_one.section.collection_schema)
+            helper = CollectionHelper(collection)
+
+            assert helper.all_forms_are_completed is False
+
+            helper.submit_answer_for_question(
+                question_one.id, build_question_form(question_one)(question="User submitted data")
+            )
+            helper.toggle_form_completed(form=form_one, user=collection.created_by, is_complete=True)
+
+            # all forms need to be answered and completed
+            assert helper.all_forms_are_completed is False
+
+            helper.submit_answer_for_question(
+                question_two.id, build_question_form(question_one)(question="User submitted data")
+            )
+
+            assert helper.all_forms_are_completed is False
+
+            # only completed after questions are answered and they've been marked as complete
+            helper.toggle_form_completed(form=form_two, user=collection.created_by, is_complete=True)
+            assert helper.all_forms_are_completed is True

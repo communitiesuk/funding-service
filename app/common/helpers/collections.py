@@ -119,14 +119,15 @@ class CollectionHelper:
         """Returns the visible, ordered sections based upon the current state of this collection."""
         return sorted(self.sections, key=lambda s: s.order)
 
-    def get_all_questions_answered_for_form(
+    def get_all_questions_are_answered_for_form(
         self, form: "Form"
     ) -> tuple[bool, list[TextSingleLine | TextMultiLine | Integer]]:
         visible_questions = self.get_ordered_visible_questions_for_form(form)
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
         return len(visible_questions) == len(answers), answers
 
-    def get_all_forms_completed(self) -> bool:
+    @property
+    def all_forms_are_completed(self) -> bool:
         form_statuses = set(
             [
                 self.get_status_for_form(form)
@@ -136,7 +137,7 @@ class CollectionHelper:
         return {CollectionStatusEnum.COMPLETED} == form_statuses
 
     def get_status_for_form(self, form: "Form") -> str:
-        all_questions_answered, answers = self.get_all_questions_answered_for_form(form)
+        all_questions_answered, answers = self.get_all_questions_are_answered_for_form(form)
         marked_as_complete = MetadataEventKey.FORM_RUNNER_FORM_COMPLETED in [
             x.event_key for x in self.collection.collection_metadata if x.form and x.form.id == form.id
         ]
@@ -190,7 +191,7 @@ class CollectionHelper:
         if collection_complete:
             return
 
-        if self.get_all_forms_completed():
+        if self.all_forms_are_completed:
             interfaces.collections.add_collection_metadata(self.collection, MetadataEventKey.COLLECTION_SUBMITTED, user)
         else:
             raise ValueError(f"Could not submit collection id={self.id} because not all forms are complete.")
@@ -201,7 +202,7 @@ class CollectionHelper:
             return
 
         if is_complete:
-            all_questions_answered, _ = self.get_all_questions_answered_for_form(form)
+            all_questions_answered, _ = self.get_all_questions_are_answered_for_form(form)
             if not all_questions_answered:
                 raise ValueError(
                     f"Could not mark form id={form.id} as complete because not all questions have been answered."

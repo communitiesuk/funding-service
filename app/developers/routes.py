@@ -712,7 +712,7 @@ def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValu
         )
     )
 
-    all_questions_answered, _ = collection_helper.get_all_questions_answered_for_form(schema_form)
+    all_questions_answered, _ = collection_helper.get_all_questions_are_answered_for_form(schema_form)
     form.set_is_required(all_questions_answered)
 
     if form.validate_on_submit():
