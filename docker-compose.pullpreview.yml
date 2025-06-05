@@ -40,7 +40,8 @@ services:
     tty: true
     command: >
       bash -c "
-        flask db upgrade & \
+        flask db upgrade && \
+        flask developers seed-grants && \
         gunicorn wsgi:app
       "
     env_file: .env
