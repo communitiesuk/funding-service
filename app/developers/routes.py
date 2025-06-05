@@ -48,7 +48,7 @@ from app.deliver_grant_funding.forms import (
     SectionForm,
 )
 from app.developers import developers_blueprint
-from app.developers.forms import CheckYourAnswersForm, ConfirmDeletionForm, PreviewCollectionForm
+from app.developers.forms import CheckYourAnswersForm, ConfirmDeletionForm, PreviewCollectionForm, SubmitCollectionForm
 from app.extensions import auto_commit_after_request
 
 if TYPE_CHECKING:
@@ -607,15 +607,27 @@ def _get_form_runner_link_from_source(
     return None
 
 
-@developers_blueprint.route("/collections/<uuid:collection_id>", methods=["GET"])
+@developers_blueprint.route("/collections/<uuid:collection_id>", methods=["GET", "POST"])
+@auto_commit_after_request
 @platform_admin_role_required
 def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
     collection_helper = CollectionHelper.load(collection_id)
+    form = SubmitCollectionForm()
+
+    if form.validate_on_submit():
+        try:
+            collection_helper.submit_collection(interfaces.user.get_current_user())
+            # TODO: this will go to a confirmation page
+            return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
+        except ValueError:
+            form.submit.errors.append("You must complete all forms before submitting the collection")  # type:ignore[attr-defined]
+
     return render_template(
         "developers/collection_tasklist.html",
         collection_helper=collection_helper,
         statuses=CollectionStatusEnum,
         back_link_source_enum=FormRunnerSourceEnum,
+        form=form,
     )
 
 
@@ -700,7 +712,7 @@ def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValu
         )
     )
 
-    all_questions_answered, _ = collection_helper.get_all_questions_answered_for_form(schema_form)
+    all_questions_answered, _ = collection_helper.get_all_questions_are_answered_for_form(schema_form)
     form.set_is_required(all_questions_answered)
 
     if form.validate_on_submit():

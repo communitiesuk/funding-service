@@ -74,4 +74,22 @@
       {% endfor %}
     </div>
   </div>
+  {% if collection_helper.status != statuses.COMPLETED %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds">
+        {% if not collection_helper.all_forms_are_completed %}
+          <p class="govuk-body">You must complete all sections before you can submit the collection.</p>
+        {% endif %}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+
+          {{
+            form.submit(params={
+              "disabled": not collection_helper.all_forms_are_completed
+            })
+          }}
+        </form>
+      </div>
+    </div>
+  {% endif %}
 {% endblock content %}
