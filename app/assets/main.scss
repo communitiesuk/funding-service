@@ -2,6 +2,7 @@
 // didn't want to fight the config at the time
 $govuk-new-organisation-colours: true;
 $govuk-assets-path: "/static/assets/";
+$govuk-brand-colour: #00625e;
 
 @import "../../node_modules/govuk-frontend/dist/govuk";
 
