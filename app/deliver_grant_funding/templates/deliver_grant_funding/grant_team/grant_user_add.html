@@ -1,9 +1,9 @@
-{% extends "common/base.html" %}
+{% extends "deliver_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% block pageTitle %}
-  Set up a new grant - MHCLG Funding Service
+  Add grant team member - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grant_team" %}
@@ -28,7 +28,8 @@
         {{ form.csrf_token }}
         {{
           form.user_email(params={
-            "classes": "govuk-!-width-two-thirds"
+            "classes": "govuk-!-width-two-thirds",
+            "label": None
           })
         }}
         {{ form.submit }}
