@@ -2,6 +2,7 @@ import uuid
 
 import pytest
 
+from app.common.data.types import MetadataEventKey
 from app.common.helpers.collections import CollectionHelper
 from tests.utils import AnyStringMatching
 
@@ -266,3 +267,40 @@ class TestCollectionHelper:
                 r"Could not find form for question_id=00000000-0000-0000-0000-000000000009 "
                 r"in collection_schema=[a-z0-9-]+"
             )
+
+    class TestStatuses:
+        def test_all_forms_are_completed(self, db_session, factories):
+            form_one = factories.form.build()
+            form_two = factories.form.build(section=form_one.section)
+            question_one = factories.question.build(form=form_one)
+            question_two = factories.question.build(form=form_two)
+
+            collection = factories.collection.build(collection_schema=form_one.section.collection_schema)
+            helper = CollectionHelper(collection)
+
+            # empty collections are not completed
+            assert helper.all_forms_are_completed is False
+
+            collection.data[str(question_one.id)] = "User submitted data"
+            collection.collection_metadata = [
+                factories.collection_metadata.build(
+                    collection=collection, form=form_one, event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED
+                )
+            ]
+
+            # one complete form and one incomplete is still not completed
+            assert helper.all_forms_are_completed is False
+
+            collection.data[str(question_two.id)] = "User submitted data"
+
+            # all questions complete but a form not marked as completed is still not completed
+            assert helper.all_forms_are_completed is False
+
+            collection.collection_metadata.append(
+                factories.collection_metadata.build(
+                    collection=collection, form=form_two, event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED
+                )
+            )
+
+            # all questions answered and all marked as complete is complete
+            assert helper.all_forms_are_completed is True

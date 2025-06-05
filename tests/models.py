@@ -16,6 +16,7 @@ from flask import url_for
 
 from app.common.data.models import (
     Collection,
+    CollectionMetadata,
     CollectionSchema,
     Form,
     Grant,
@@ -25,7 +26,7 @@ from app.common.data.models import (
     Section,
 )
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import CollectionStatusEnum, QuestionDataType
+from app.common.data.types import CollectionStatusEnum, MetadataEventKey, QuestionDataType
 from app.extensions import db
 
 
@@ -183,3 +184,15 @@ class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)
+
+
+class _CollectionMetadataFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = CollectionMetadata
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+    event_key = MetadataEventKey.FORM_RUNNER_FORM_COMPLETED
+    collection = factory.SubFactory(_CollectionFactory)
+    created_by = factory.SubFactory(_UserFactory)
