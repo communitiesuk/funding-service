@@ -105,7 +105,7 @@ def test_view_grant_settings(authenticated_client, factories, templates_rendered
     assert templates_rendered[0][1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert grant.name in soup.h1.text.strip()
-    assert "Settings" in soup.h1.text.strip()
+    assert "Grant details" in soup.h1.text.strip()
 
 
 def test_grant_change_name_get(authenticated_client, factories, templates_rendered):

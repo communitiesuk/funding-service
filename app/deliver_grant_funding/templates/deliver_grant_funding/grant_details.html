@@ -2,7 +2,7 @@
 {% extends "deliver_grant_funding/manage_grant_base.html" %}
 
 {% block pageTitle %}
-  Settings - {{ grant.name }} - MHCLG Funding Service
+  Grant details - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "settings" %}
@@ -12,7 +12,7 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
-        Settings
+        Grant details
       </h1>
       {{
         govukSummaryList({

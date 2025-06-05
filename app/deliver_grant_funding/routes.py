@@ -191,7 +191,7 @@ def view_grant(grant_id: UUID) -> str:
 @mhclg_login_required
 def grant_settings(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("deliver_grant_funding/grant_settings.html", grant=grant)
+    return render_template("deliver_grant_funding/grant_details.html", grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/change-name", methods=["GET", "POST"])
