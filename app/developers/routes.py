@@ -636,7 +636,7 @@ def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
 def collection_confirmation(collection_id: UUID) -> ResponseReturnValue:
     collection_helper = CollectionHelper.load(collection_id)
 
-    # only show this if it has actually been submitted - for now you can get to this page anytime
+    # TODO: only show this if it has actually been submitted - for now you can get to this page anytime
 
     return render_template(
         "developers/collection_submit_confirmation.html",

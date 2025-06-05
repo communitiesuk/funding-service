@@ -1,4 +1,3 @@
-{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/panel/macro.html" import govukPanel %}
 {% from "common/macros/status.html" import status %}
 {% extends "developers/access_grant_funding_base.html" %}
@@ -7,24 +6,33 @@
   Submitted {{ collection_helper.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
-{% block beforeContent %}
-  {{
-    govukBackLink({
-        "text": "Back",
-        "href": url_for("developers.manage_schema", grant_id=collection_helper.grant.id, schema_id=collection_helper.schema.id)
-    })
-  }}
-{% endblock beforeContent %}
-
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% set reference = collection_helper.id | string | truncate(8, True, "") %}
+      {% set reference_html %}
+        Your reference number
+        <br />
+        <strong>{{ reference }}</strong>
+      {% endset %}
       {{
         govukPanel({
           "titleText": "Collection submitted",
-          "text": "There are no reference numbers"
+          "html": reference_html
         })
       }}
+
+      <p class="govuk-body">We have sent you a confirmation email.</p>
+
+      <h2 class="govuk-heading-m">What happens next</h2>
+
+      <p class="govuk-body">We will review your collection and ask if we need more information.</p>
+
+      <p class="govuk-body">
+        You can
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.collection_tasklist', collection_id=collection_helper.id) }}">view your submission</a>
+        at any time.
+      </p>
     </div>
   </div>
 {% endblock content %}
