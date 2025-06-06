@@ -56,6 +56,10 @@ class CollectionHelper:
         return self.schema.name
 
     @property
+    def reference(self) -> str:
+        return self.collection.reference
+
+    @property
     def status(self) -> str:
         submitted = MetadataEventKey.COLLECTION_SUBMITTED in [x.event_key for x in self.collection.collection_metadata]
 

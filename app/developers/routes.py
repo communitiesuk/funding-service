@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
-from flask import abort, redirect, render_template, request, url_for
+from flask import abort, current_app, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
 
@@ -617,8 +617,7 @@ def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
     if form.validate_on_submit():
         try:
             collection_helper.submit_collection(interfaces.user.get_current_user())
-            # TODO: this will go to a confirmation page
-            return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
+            return redirect(url_for("developers.collection_confirmation", collection_id=collection_helper.id))
         except ValueError:
             form.submit.errors.append("You must complete all forms before submitting the collection")  # type:ignore[attr-defined]
 
@@ -628,6 +627,24 @@ def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
         statuses=CollectionStatusEnum,
         back_link_source_enum=FormRunnerSourceEnum,
         form=form,
+    )
+
+
+@developers_blueprint.route("/collections/<uuid:collection_id>/confirmation", methods=["GET", "POST"])
+@platform_admin_role_required
+def collection_confirmation(collection_id: UUID) -> ResponseReturnValue:
+    collection_helper = CollectionHelper.load(collection_id)
+
+    if collection_helper.status != CollectionStatusEnum.COMPLETED:
+        current_app.logger.warning(
+            "Cannot access submission confirmation for non complete collection for collection_id=%(collection_id)s",
+            dict(collection_id=str(collection_helper.id)),
+        )
+        return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
+
+    return render_template(
+        "developers/collection_submit_confirmation.html",
+        collection_helper=collection_helper,
     )
 
 
