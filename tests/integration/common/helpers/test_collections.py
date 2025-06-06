@@ -30,6 +30,24 @@ class TestCollectionHelper:
 
             assert helper.get_answer_for_question(question.id) == Integer(5)
 
+        def test_cannot_submit_answer_on_submitted_collection(self, db_session, factories):
+            question = factories.question.build()
+            collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
+            helper = CollectionHelper(collection)
+
+            form = build_question_form(question)(question="User submitted data")
+            helper.submit_answer_for_question(question.id, form)
+            helper.toggle_form_completed(question.form, collection.created_by, True)
+            helper.submit_collection(collection.created_by)
+
+            with pytest.raises(ValueError) as e:
+                helper.submit_answer_for_question(question.id, form)
+
+            assert str(e.value) == AnyStringMatching(
+                "Could not submit answer for question_id=[a-z0-9-]+ "
+                "because collection id=[a-z0-9-]+ is already submitted."
+            )
+
     class TestStatuses:
         def test_form_status_based_on_questions(self, db_session, factories):
             form = factories.form.build()
