@@ -374,6 +374,8 @@ class AddFormDetailsPage(GrantDevelopersBasePage):
 
 class TasklistPage(GrantDevelopersBasePage):
     schema_name: str
+    collection_status_box: Locator
+    submit_button: Locator
 
     def __init__(
         self,
@@ -389,9 +391,17 @@ class TasklistPage(GrantDevelopersBasePage):
             heading=page.get_by_role("heading", name=f"{schema_name} Collection"),
         )
         self.schema_name = schema_name
+        self.collection_status_box = page.get_by_test_id("collection-status")
+        self.submit_button = page.get_by_role("button", name="Submit collection")
 
     def click_on_form(self, form_name: str) -> None:
         self.page.get_by_role("link", name=form_name).click()
+
+    def click_submit_collection(self) -> TasklistPage:
+        self.submit_button.click()
+        tasklist_page = TasklistPage(self.page, self.domain, self.grant_name, self.schema_name)
+        expect(tasklist_page.heading).to_be_visible()
+        return tasklist_page
 
 
 class QuestionPage(GrantDevelopersBasePage):
