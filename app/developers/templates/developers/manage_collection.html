@@ -33,8 +33,8 @@
     <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ section.title }}</h2>
     {% for form in collection_helper.get_ordered_visible_forms_for_section(section) %}
       <h3 class="govuk-heading-s govuk-!-margin-top-4">{{ form.title }}</h3>
+      {% set rows = [] %}
       {% for question in collection_helper.get_ordered_visible_questions_for_form(form) %}
-        {% set rows = [] %}
 
         {# the answer is a well formed, validated pydantic thing we could access any of the properties #}
         {# of for the templates use - we'll probably generally just want the interface of that model to tell #}
@@ -49,13 +49,13 @@
             }
           })
         %}
-
-        {{
-          govukSummaryList({
-            "rows": rows
-          })
-        }}
       {% endfor %}
+
+      {{
+        govukSummaryList({
+          "rows": rows
+        })
+      }}
     {% endfor %}
   {% endfor %}
 {% endblock content %}
