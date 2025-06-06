@@ -24,18 +24,20 @@ This is only OK because we're in the `developers` package and nothing here shoul
 {% endblock header %}
 
 {% block main %}
-  <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
-    {% block beforeContent %}
-    {% endblock beforeContent %}
+  <div {% if show_watermark %}class="app-watermark-container"{% endif %}>
+    <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
+      {% block beforeContent %}
+      {% endblock beforeContent %}
 
-    <main id="main-content" class="govuk-main-wrapper" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
-      {% block errorSummary %}
-        {% if form is defined and form.errors %}
-          {{ govukErrorSummary(wtforms_errors(form)) }}
-        {% endif %}
-      {% endblock errorSummary %}
-      {% block content %}
-      {% endblock content %}
-    </main>
+      <main id="main-content" class="govuk-main-wrapper" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
+        {% block errorSummary %}
+          {% if form is defined and form.errors %}
+            {{ govukErrorSummary(wtforms_errors(form)) }}
+          {% endif %}
+        {% endblock errorSummary %}
+        {% block content %}
+        {% endblock content %}
+      </main>
+    </div>
   </div>
 {% endblock %}
