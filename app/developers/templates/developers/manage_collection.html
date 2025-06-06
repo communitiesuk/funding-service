@@ -23,7 +23,7 @@
 {% block content %}
   <div class="app-aligned-header-tag">
     <h1 class="govuk-heading-l">
-      <span class="govuk-caption-l">{{ collection_helper.id | string | truncate(11) }}</span>
+      <span class="govuk-caption-l">{{ collection_helper.reference }}</span>
       Collection
     </h1>
     {{ status(collection_helper.status, statuses) }}

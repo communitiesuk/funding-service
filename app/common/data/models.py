@@ -108,6 +108,12 @@ class Collection(BaseModel):
         SqlEnum(CollectionStatusEnum, name="collection_status_enum", validate_strings=True)
     )
 
+    # TODO: generated and persisted human readable references for submissions
+    #       these will likely want to fit the domain need
+    @property
+    def reference(self) -> str:
+        return str(self.id)[:8]
+
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User", back_populates="collections")
 
