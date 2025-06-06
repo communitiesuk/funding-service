@@ -6,19 +6,27 @@ from playwright.sync_api import Page, expect
 from app.common.data.types import QuestionDataType
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
-from tests.e2e.developer_pages import ManageFormPage
+from tests.e2e.developer_pages import CheckYourAnswersPage, ManageFormPage, QuestionPage
 from tests.e2e.pages import AllGrantsPage
+
+question_response_data_by_type = {
+    QuestionDataType.TEXT_SINGLE_LINE.value: "E2E question text single line",
+    QuestionDataType.TEXT_MULTI_LINE.value: "E2E question text multi line\nwith a second line",
+    QuestionDataType.INTEGER.value: "234",
+}
+
+created_questions_to_test = []
 
 
 def create_question(
-    question_type: str,
+    question_type: QuestionDataType,
     manage_form_page: ManageFormPage,
 ) -> None:
     question_type_page = manage_form_page.click_add_question()
-    question_type_page.click_question_type(question_type)
+    question_type_page.click_question_type(question_type.value)
     question_details_page = question_type_page.click_continue()
 
-    expect(question_details_page.page.get_by_text(question_type, exact=True)).to_be_visible()
+    expect(question_details_page.page.get_by_text(question_type.value, exact=True)).to_be_visible()
     question_uuid = uuid.uuid4()
     question_text = f"E2E question {question_uuid}"
     question_details_page.fill_question_text(question_text)
@@ -26,6 +34,10 @@ def create_question(
     question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
     manage_form_page = question_details_page.click_submit()
     manage_form_page.check_question_exists(question_text)
+
+    created_questions_to_test.append(
+        {"question_text": question_text, "question_response": question_response_data_by_type[question_type.value]}
+    )
 
 
 @pytest.mark.skip_in_environments(["dev", "test", "prod"])
@@ -83,9 +95,9 @@ def test_create_and_preview_schema(
 
     # Add a question of each type
     manage_form_page = section_detail_page.click_manage_form(form_name)
-    create_question(QuestionDataType.TEXT_SINGLE_LINE.value, manage_form_page)
-    create_question(QuestionDataType.TEXT_MULTI_LINE.value, manage_form_page)
-    create_question(QuestionDataType.INTEGER.value, manage_form_page)
+    create_question(QuestionDataType.TEXT_SINGLE_LINE, manage_form_page)
+    create_question(QuestionDataType.TEXT_MULTI_LINE, manage_form_page)
+    create_question(QuestionDataType.INTEGER, manage_form_page)
 
     # Preview the form
     all_grants_page = AllGrantsPage(page, domain)
@@ -94,4 +106,31 @@ def test_create_and_preview_schema(
     developers_page = grant_dashboard_page.click_developers(new_grant_name)
     list_schemas_page = developers_page.click_manage_schemas(grant_name=new_grant_name)
     schema_detail_page = list_schemas_page.click_on_schema(grant_name=new_grant_name, schema_name=new_schema_name)
-    schema_detail_page.click_preview_collection()
+    tasklist_page = schema_detail_page.click_preview_collection()
+
+    # Check the tasklist has loaded
+    expect(tasklist_page.page.get_by_role("heading", name=new_section_name)).to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=form_name)).to_be_visible()
+
+    # Complete the first form
+    tasklist_page.click_on_form(form_name=form_name)
+    for question in created_questions_to_test:
+        question_page = QuestionPage(page, domain, new_grant_name, question["question_text"])
+        expect(question_page.heading).to_be_visible()
+        question_page.respond_to_question(answer=question["question_response"])
+        question_page.click_continue()
+
+    # Check the answers page
+    check_your_answers = CheckYourAnswersPage(page, domain, new_grant_name)
+
+    for question in created_questions_to_test:
+        question_heading = check_your_answers.page.get_by_text(question["question_text"], exact=True)
+        expect(question_heading).to_be_visible()
+        expect(check_your_answers.page.get_by_test_id(f"answer-{question['question_text']}")).to_have_text(
+            question["question_response"]
+        )
+
+    expect(check_your_answers.page.get_by_text("Have you completed this section?", exact=True)).to_be_visible()
+
+    check_your_answers.click_mark_as_complete_yes()
+    task_list_page = check_your_answers.click_save_and_continue(schema_name=new_schema_name)
