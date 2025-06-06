@@ -99,11 +99,13 @@ def sso_get_token() -> ResponseReturnValue:
 
     sso_user = result["id_token_claims"]
 
-    user = get_or_create_user(email_address=sso_user["preferred_username"])
+    user = get_or_create_user(
+        email_address=sso_user["preferred_username"], name=sso_user["name"] if "name" in sso_user else None
+    )
 
     if "FSD_ADMIN" in sso_user["roles"]:
         add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
-    else:  # TODO: also allow to log in if they're a member of a grant.
+    elif not user.roles:
         return render_template(
             "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]
         ), 403
