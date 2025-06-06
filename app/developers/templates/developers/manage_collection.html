@@ -12,12 +12,10 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
-  {{
-    govukBackLink({
+  {{ govukBackLink({
         "text": "Back",
         "href": back_link,
-    })
-  }}
+    }) }}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -39,23 +37,20 @@
         {# the answer is a well formed, validated pydantic thing we could access any of the properties #}
         {# of for the templates use - we'll probably generally just want the interface of that model to tell #}
         {# us what to put when we need a single line text representation #}
-        {%
-          do rows.append({
+        {% do rows.append({
             "key": {
               "text": question.text
             },
             "value": {
               "text": collection_helper.get_answer_for_question(question.id).root or "(Not answered)"
             }
-          })
-        %}
+          }) %}
       {% endfor %}
 
-      {{
-        govukSummaryList({
-          "rows": rows
-        })
-      }}
+      {{ govukSummaryList({
+          "rows": rows,
+          "attributes":{"data-testid":form.title}
+        }) }}
     {% endfor %}
   {% endfor %}
 {% endblock content %}
