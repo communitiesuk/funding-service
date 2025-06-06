@@ -190,7 +190,9 @@ def list_users_for_grant(grant_id: UUID) -> str:
         grant = interfaces.grants.get_grant(grant_id)
     except NoResultFound:
         abort(404)
-    grant_users = [role.user for role in grant.roles if role.role == RoleEnum.MEMBER]
+    grant_users = [
+        role.user for role in grant.roles if role.role == RoleEnum.MEMBER and not role.user.is_platform_admin
+    ]
     return render_template(
         "deliver_grant_funding/grant_team/grant_user_list.html",
         grant=grant,
@@ -207,10 +209,15 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     if form.validate_on_submit():
         if form.user_email.data:
-            created_user = interfaces.user.get_or_create_user(email_address=form.user_email.data)
-            interfaces.user.add_user_role(user_id=created_user.id, grant_id=grant_id, role=RoleEnum.MEMBER)
-            # TODO send gov notify email
-            flash("We’ve emailed the grant team member a link to sign in.")
+            user = next((role for role in grant.roles if role.user.email == form.user_email.data), None)
+            if user is None:
+                created_user = interfaces.user.get_or_create_user(email_address=form.user_email.data)
+                user_role = interfaces.user.add_user_role(
+                    user_id=created_user.id, grant_id=grant_id, role=RoleEnum.MEMBER
+                )
+                if user_role:
+                    # TODO send gov notify email
+                    flash("We’ve emailed the grant team member a link to sign in")
             return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
     return render_template("deliver_grant_funding/grant_team/grant_user_add.html", form=form, grant=grant)
 
