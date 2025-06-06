@@ -144,8 +144,4 @@ def test_create_and_preview_schema(
         tasklist_page.collection_status_box.filter(has=tasklist_page.page.get_by_text("In progress"))
     ).to_be_visible()
     expect(tasklist_page.submit_button).to_be_enabled()
-    tasklist_page = tasklist_page.click_submit_collection()
-
-    # Check the collection status is now completed
-    expect(tasklist_page.collection_status_box.filter(has=tasklist_page.page.get_by_text("Completed"))).to_be_visible()
-    expect(tasklist_page.submit_button).not_to_be_visible()
+    tasklist_page.click_submit_collection()

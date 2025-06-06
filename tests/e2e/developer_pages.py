@@ -397,11 +397,9 @@ class TasklistPage(GrantDevelopersBasePage):
     def click_on_form(self, form_name: str) -> None:
         self.page.get_by_role("link", name=form_name).click()
 
-    def click_submit_collection(self) -> TasklistPage:
+    def click_submit_collection(self) -> None:
         self.submit_button.click()
-        tasklist_page = TasklistPage(self.page, self.domain, self.grant_name, self.schema_name)
-        expect(tasklist_page.heading).to_be_visible()
-        return tasklist_page
+        expect(self.page.get_by_role("heading", name="Collection submitted")).to_be_visible()
 
 
 class QuestionPage(GrantDevelopersBasePage):
