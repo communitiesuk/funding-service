@@ -389,3 +389,64 @@ class TasklistPage(GrantDevelopersBasePage):
             heading=page.get_by_role("heading", name=f"{schema_name} Collection"),
         )
         self.schema_name = schema_name
+
+    def click_on_form(self, form_name: str) -> None:
+        self.page.get_by_role("link", name=form_name).click()
+
+
+class QuestionPage(GrantDevelopersBasePage):
+    continue_button: Locator
+    question_name: str
+
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_name: str,
+        question_name: str,
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=question_name),
+        )
+        self.question_name = question_name
+        self.continue_button = page.get_by_role("button", name="Continue")
+
+    def respond_to_question(self, answer: str) -> None:
+        self.page.get_by_role("textbox", name=self.question_name).fill(answer)
+
+    def click_continue(
+        self,
+    ) -> None:
+        self.continue_button.click()
+
+
+class CheckYourAnswersPage(GrantDevelopersBasePage):
+    save_and_continue_button: Locator
+    mark_as_complete_yes: Locator
+
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_name: str,
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Check your answers"),
+        )
+        self.save_and_continue_button = page.get_by_role("button", name="Save and continue")
+        self.mark_as_complete_yes = page.get_by_role("radio", name="Yes, I’ve completed this section")
+
+    def click_mark_as_complete_yes(self) -> None:
+        self.mark_as_complete_yes.click()
+
+    def click_save_and_continue(self, schema_name: str) -> TasklistPage:
+        self.save_and_continue_button.click()
+        task_list_page = TasklistPage(self.page, self.domain, self.grant_name, schema_name=schema_name)
+        expect(task_list_page.heading).to_be_visible()
+        return task_list_page
