@@ -14,7 +14,7 @@ from wtforms.validators import DataRequired, Email, ValidationError
 
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.types import QuestionDataType
-from app.common.forms.validators import WordRange
+from app.common.forms.validators import CommunitiesEmail, WordRange
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
@@ -195,3 +195,17 @@ class QuestionForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField(widget=GovSubmitInput())
+
+
+class GrantAddUserForm(FlaskForm):
+    user_email = StringField(
+        description="This needs to be the user’s personal 'communities.gov.uk' "
+        "email address, not a shared email address.",
+        validators=[
+            DataRequired("Enter an email address"),
+            CommunitiesEmail(),
+        ],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
