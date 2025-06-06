@@ -661,7 +661,7 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
     form = build_question_form(question)(question=answer.root if answer else None)
 
     if collection_helper.is_completed:
-        if form.is_completed():
+        if form.is_submitted():
             # TODO: Add an error flash message?
             pass
         return redirect(url_for("developers.check_your_answers", collection_id=collection_id, form_id=question.form_id))
