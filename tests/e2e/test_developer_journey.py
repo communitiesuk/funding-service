@@ -155,6 +155,10 @@ def test_create_and_preview_schema(
     #  Expect this to eventually find by the reference we assign a collection, but at the moment the link text
     #  is the collection guid so using a testid for now as users don't know that guid, and we will only have
     #  one collection
-    # collections_list_page.page.pause()
     collection_id = collections_list_page.page.get_by_test_id("collection-link").inner_text()
     view_collection_page = collections_list_page.click_on_collection(collection_id=collection_id)
+
+    answers_list = view_collection_page.get_questions_list_for_form(form_name)
+    expect(answers_list).to_be_visible()
+    for question in created_questions_to_test:
+        expect(answers_list.get_by_text(f"{question['question_text']} {question['question_response']}")).to_be_visible()

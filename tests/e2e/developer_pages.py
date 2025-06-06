@@ -512,3 +512,6 @@ class ViewCollectionResponsesPage(GrantDevelopersBasePage):
             heading=page.get_by_role("heading", name=f"{collection_id} Collection"),
         )
         self.collection_id = collection_id
+
+    def get_questions_list_for_form(self, form_name:str) -> Locator:
+        return self.page.get_by_test_id(form_name)
