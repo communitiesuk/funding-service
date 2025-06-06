@@ -4,9 +4,11 @@ import uuid
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from flask import Flask, current_app
+from flask import Flask, current_app, url_for
 from notifications_python_client import NotificationsAPIClient  # type: ignore[attr-defined]
 from notifications_python_client.errors import APIError, TokenError
+
+from app.common.data.models import Collection
 
 
 class NotificationError(Exception):
@@ -85,4 +87,17 @@ class NotificationService:
                 "request_new_magic_link": request_new_magic_link_url,
             },
             govuk_notify_reference=govuk_notify_reference,
+        )
+
+    def send_collection_submission(self, collection: "Collection") -> Notification:
+        return self._send_email(
+            collection.created_by.email,
+            current_app.config["GOVUK_NOTIFY_COLLECTION_SUBMISSION_TEMPLATE_ID"],
+            personalisation={
+                "collection name": collection.collection_schema.name,
+                "collection reference": collection.reference,
+                "collection url": url_for(
+                    "developers.collection_tasklist", collection_id=collection.id, _external=True
+                ),
+            },
         )
