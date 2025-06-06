@@ -93,7 +93,8 @@ def test_view_grant_dashboard(authenticated_client, factories, templates_rendere
     assert result.status_code == 200
     assert templates_rendered[0][1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text == grant.name
+    assert grant.name in soup.h1.text
+    assert "Home" in soup.h1.text
 
 
 def test_view_grant_settings(authenticated_client, factories, templates_rendered):
