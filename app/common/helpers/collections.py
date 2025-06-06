@@ -77,6 +77,10 @@ class CollectionHelper:
             return CollectionStatusEnum.IN_PROGRESS
 
     @property
+    def is_completed(self) -> bool:
+        return self.status == CollectionStatusEnum.COMPLETED
+
+    @property
     def created_by_email(self) -> str:
         return self.collection.created_by.email
 
@@ -186,13 +190,18 @@ class CollectionHelper:
         return _deserialise_question_type(question, serialised_data) if serialised_data else None
 
     def submit_answer_for_question(self, question_id: UUID, form: DynamicQuestionForm) -> None:
+        if self.is_completed:
+            raise ValueError(
+                f"Could not submit answer for question_id={question_id} "
+                f"because collection id={self.id} is already submitted."
+            )
+
         question = self.get_question(question_id)
         data = _form_data_to_question_type(question, form)
         interfaces.collections.update_collection_data(self.collection, question, data)
 
     def submit_collection(self, user: "User") -> None:
-        collection_complete = self.status == CollectionStatusEnum.COMPLETED
-        if collection_complete:
+        if self.is_completed:
             return
 
         if self.all_forms_are_completed:

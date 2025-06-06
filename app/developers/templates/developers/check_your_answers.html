@@ -20,8 +20,9 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">{{ schema_form.name }}</span>
-      <h1 class="govuk-heading-l">Check your answers</h1>
+      <span class="govuk-caption-l">{{ schema_form.title }}</span>
+
+      <h1 class="govuk-heading-l">{{ "Your submitted answers" if collection_helper.is_completed else "Check your answers" }}</h1>
 
       {% set rows = [] %}
       {% for question in collection_helper.get_ordered_visible_questions_for_form(schema_form) %}
@@ -31,10 +32,23 @@
             <span data-testid="answer-{{ question.text }}">{{ answer.root }}</span>
           {% endset %}
           {%
+            set actions = (
+            []
+            if collection_helper.is_completed else
+            [
+              {
+                "href": url_for('developers.ask_a_question', collection_id=collection_helper.collection.id, question_id=question.id, source=back_link_source_enum.CHECK_YOUR_ANSWERS.value),
+                "text": "Change",
+                "visuallyHiddenText": question.name
+              }
+            ]
+            )
+          %}
+          {%
             do rows.append({
               "key": {"text": question.text},
               "value": {"html": value_html},
-              "actions": {"items": [{"href": url_for('developers.ask_a_question', collection_id=collection_helper.collection.id, question_id=question.id, source=back_link_source_enum.CHECK_YOUR_ANSWERS.value), "text": "Change", "visuallyHiddenText": question.name}]},
+              "actions": {"items": actions},
             })
           %}
         {% else %}
@@ -59,24 +73,30 @@
         })
       }}
 
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {% set all_questions_answered, _ = collection_helper.get_all_questions_are_answered_for_form(schema_form) %}
-        {% if all_questions_answered %}
-          {{
-            form.section_completed(params={
-              "fieldset": {
-                "legend": {
-                  "text": "Have you completed this section?",
-                  "isPageHeading": false,
-                  "classes": "govuk-fieldset__legend--m"
+      {% if collection_helper.is_completed %}
+        <p class="govuk-body">
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.collection_tasklist", collection_id=collection_helper.id) }}">Return to the task list</a>
+        </p>
+      {% else %}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {% set all_questions_answered, _ = collection_helper.get_all_questions_are_answered_for_form(schema_form) %}
+          {% if all_questions_answered %}
+            {{
+              form.section_completed(params={
+                "fieldset": {
+                  "legend": {
+                    "text": "Have you completed this section?",
+                    "isPageHeading": false,
+                    "classes": "govuk-fieldset__legend--m"
+                  }
                 }
-              }
-            })
-          }}
-        {% endif %}
-        {{ form.submit }}
-      </form>
+              })
+            }}
+          {% endif %}
+          {{ form.submit }}
+        </form>
+      {% endif %}
     </div>
   </div>
 {% endblock content %}
