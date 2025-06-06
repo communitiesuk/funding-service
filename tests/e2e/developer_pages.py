@@ -81,6 +81,7 @@ class SchemaDetailPage(GrantDevelopersBasePage):
     schema_name: str
     add_section_link: Locator
     preview_collection_button: Locator
+    summary_row_collections: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, schema_name: str) -> None:
         super().__init__(
@@ -89,6 +90,15 @@ class SchemaDetailPage(GrantDevelopersBasePage):
         self.schema_name = schema_name
         self.add_section_link = self.page.get_by_role("link", name="add a section")
         self.preview_collection_button = self.page.get_by_role("button", name="Preview this collection")
+        self.summary_row_collections = page.locator("div.govuk-summary-list__row").filter(
+            has=page.get_by_text("Collections")
+        )
+
+    def click_view_collections(self) -> CollectionsListPage:
+        self.summary_row_collections.get_by_role("link", name="View").click()
+        collections_list_page = CollectionsListPage(self.page, self.domain, self.grant_name, self.schema_name)
+        expect(collections_list_page.heading).to_be_visible()
+        return collections_list_page
 
     def check_section_exists(self, section_title: str) -> None:
         expect(self.page.get_by_role("link", name=section_title)).to_be_visible()
@@ -376,6 +386,7 @@ class TasklistPage(GrantDevelopersBasePage):
     schema_name: str
     collection_status_box: Locator
     submit_button: Locator
+    back_link: Locator
 
     def __init__(
         self,
@@ -393,6 +404,7 @@ class TasklistPage(GrantDevelopersBasePage):
         self.schema_name = schema_name
         self.collection_status_box = page.get_by_test_id("collection-status")
         self.submit_button = page.get_by_role("button", name="Submit collection")
+        self.back_link = self.page.get_by_role("link", name="Back")
 
     def click_on_form(self, form_name: str) -> None:
         self.page.get_by_role("link", name=form_name).click()
@@ -400,6 +412,14 @@ class TasklistPage(GrantDevelopersBasePage):
     def click_submit_collection(self) -> None:
         self.submit_button.click()
         expect(self.page.get_by_role("heading", name="Collection submitted")).to_be_visible()
+
+    def click_back(self) -> SchemaDetailPage:
+        self.back_link.click()
+        schema_detail_page = SchemaDetailPage(
+            self.page, self.domain, grant_name=self.grant_name, schema_name=self.schema_name
+        )
+        expect(schema_detail_page.heading).to_be_visible()
+        return schema_detail_page
 
 
 class QuestionPage(GrantDevelopersBasePage):
@@ -458,3 +478,37 @@ class CheckYourAnswersPage(GrantDevelopersBasePage):
         task_list_page = TasklistPage(self.page, self.domain, self.grant_name, schema_name=schema_name)
         expect(task_list_page.heading).to_be_visible()
         return task_list_page
+
+
+class CollectionsListPage(GrantDevelopersBasePage):
+    schema_name: str
+
+    def __init__(self, page: Page, domain: str, grant_name: str, schema_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"{schema_name} Collections"),
+        )
+        self.schema_name = schema_name
+
+    def click_on_collection(self, collection_id: str) -> ViewCollectionResponsesPage:
+        self.page.get_by_role("link", name=collection_id).click()
+        view_collection_page = ViewCollectionResponsesPage(
+            self.page, self.domain, self.grant_name, collection_id=collection_id
+        )
+        expect(view_collection_page.heading).to_be_visible()
+        return view_collection_page
+
+
+class ViewCollectionResponsesPage(GrantDevelopersBasePage):
+    collection_id: str
+
+    def __init__(self, page: Page, domain: str, grant_name: str, collection_id: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"{collection_id} Collection"),
+        )
+        self.collection_id = collection_id

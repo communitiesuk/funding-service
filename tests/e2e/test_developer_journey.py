@@ -145,3 +145,16 @@ def test_create_and_preview_schema(
     ).to_be_visible()
     expect(tasklist_page.submit_button).to_be_enabled()
     tasklist_page.click_submit_collection()
+
+    # View the collection
+    schema_detail_page = tasklist_page.click_back()
+    expect(schema_detail_page.summary_row_collections.get_by_text("1 preview collection")).to_be_visible()
+    collections_list_page = schema_detail_page.click_view_collections()
+
+    # TODO use collection reference to find link
+    #  Expect this to eventually find by the reference we assign a collection, but at the moment the link text
+    #  is the collection guid so using a testid for now as users don't know that guid, and we will only have
+    #  one collection
+    # collections_list_page.page.pause()
+    collection_id = collections_list_page.page.get_by_test_id("collection-link").inner_text()
+    view_collection_page = collections_list_page.click_on_collection(collection_id=collection_id)

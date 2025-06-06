@@ -31,7 +31,7 @@
   {# collections is probably a list of collection helpers? to be decided #}
   {% for collection in collections %}
     {% set link_to_collection %}
-      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_collection', collection_id=collection.id) }}">{{ collection.reference }}</a>
+      <a class="govuk-link govuk-link--no-visited-state" data-testid="collection-link" href="{{ url_for('developers.manage_collection', collection_id=collection.id) }}">{{ collection.reference }}</a>
     {% endset %}
     {%
       do rows.append([
