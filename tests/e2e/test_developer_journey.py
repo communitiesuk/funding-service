@@ -110,6 +110,10 @@ def test_create_and_preview_schema(
 
     # Check the tasklist has loaded
     expect(tasklist_page.page.get_by_role("heading", name=new_section_name)).to_be_visible()
+    expect(
+        tasklist_page.collection_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
+    ).to_be_visible()
+    expect(tasklist_page.submit_button).to_be_disabled()
     expect(tasklist_page.page.get_by_role("link", name=form_name)).to_be_visible()
 
     # Complete the first form
@@ -133,4 +137,15 @@ def test_create_and_preview_schema(
     expect(check_your_answers.page.get_by_text("Have you completed this section?", exact=True)).to_be_visible()
 
     check_your_answers.click_mark_as_complete_yes()
-    task_list_page = check_your_answers.click_save_and_continue(schema_name=new_schema_name)
+    tasklist_page = check_your_answers.click_save_and_continue(schema_name=new_schema_name)
+
+    # Submit the collection
+    expect(
+        tasklist_page.collection_status_box.filter(has=tasklist_page.page.get_by_text("In progress"))
+    ).to_be_visible()
+    expect(tasklist_page.submit_button).to_be_enabled()
+    tasklist_page = tasklist_page.click_submit_collection()
+
+    # Check the collection status is now completed
+    expect(tasklist_page.collection_status_box.filter(has=tasklist_page.page.get_by_text("Completed"))).to_be_visible()
+    expect(tasklist_page.submit_button).not_to_be_visible()
