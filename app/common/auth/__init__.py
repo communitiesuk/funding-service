@@ -101,7 +101,7 @@ def sso_get_token() -> ResponseReturnValue:
 
     user = get_or_create_user(email_address=sso_user["preferred_username"])
 
-    if "FSD_ADMIN" in sso_user["roles"]:
+    if "FSD_ADMIN" in sso_user.get("roles", []):
         add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
     else:  # TODO: also allow to log in if they're a member of a grant.
         return render_template(

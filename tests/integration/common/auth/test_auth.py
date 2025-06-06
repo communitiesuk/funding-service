@@ -187,6 +187,18 @@ class TestSSOGetTokenView:
         assert response.status_code == 403
         assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5" in response.text
 
+    def test_get_without_any_roles_should_403(self, app, anonymous_client):
+        with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
+            # Partially mock the expected return value; just enough for the test.
+            mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {"preferred_username": "test@test.communities.gov.uk"}
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"))
+
+        assert response.status_code == 403
+        assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5" in response.text
+
 
 class TestAuthenticatedUserRedirect:
     def test_magic_link_get(self, authenticated_client):
