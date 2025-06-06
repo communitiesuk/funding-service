@@ -696,7 +696,9 @@ def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValu
     schema_form = collection_helper.get_form(form_id)
 
     form = CheckYourAnswersForm(
-        section_completed="yes" if collection_helper.status == CollectionStatusEnum.COMPLETED else None
+        section_completed=(
+            "yes" if collection_helper.get_status_for_form(schema_form) == CollectionStatusEnum.COMPLETED else None
+        )
     )
     previous_question = collection_helper.get_last_question_for_form(schema_form)
     assert previous_question
