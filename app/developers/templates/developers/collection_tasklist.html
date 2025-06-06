@@ -30,7 +30,7 @@
       {# NOTE: Should we have this as a custom component or macro-ize it? #}
       <dl class="app-metadata govuk-!-margin-bottom-7">
         <dt class="app-metadata__key">Status:</dt>
-        <dd class="app-metadata__value">{{ status(collection_helper.status, statuses) }}</dd>
+        <dd class="app-metadata__value" data-testid="collection-status">{{ status(collection_helper.status, statuses) }}</dd>
       </dl>
 
       {% for section in collection_helper.get_ordered_visible_sections() %}

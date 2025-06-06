@@ -27,10 +27,13 @@
       {% for question in collection_helper.get_ordered_visible_questions_for_form(schema_form) %}
         {% set answer = collection_helper.get_answer_for_question(question.id) %}
         {% if answer is not none %}
+          {% set value_html %}
+            <span data-testid="answer-{{ question.text }}">{{ answer.root }}</span>
+          {% endset %}
           {%
             do rows.append({
               "key": {"text": question.text},
-              "value": {"text": answer.root},
+              "value": {"html": value_html},
               "actions": {"items": [{"href": url_for('developers.ask_a_question', collection_id=collection_helper.collection.id, question_id=question.id, source=back_link_source_enum.CHECK_YOUR_ANSWERS.value), "text": "Change", "visuallyHiddenText": question.name}]},
             })
           %}
