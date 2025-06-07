@@ -1,14 +1,15 @@
 import dataclasses
 import datetime
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 from flask import Flask, current_app, url_for
 from notifications_python_client import NotificationsAPIClient  # type: ignore[attr-defined]
 from notifications_python_client.errors import APIError, TokenError
 
-from app.common.data.models import Collection
+if TYPE_CHECKING:
+    from app.common.data.models import Collection
 
 
 class NotificationError(Exception):

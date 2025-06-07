@@ -126,9 +126,6 @@ source_modules = [
 forbidden_modules = [
     "app.common.data.models",
 ]
-ignore_imports = [
-    "app.services.notify -> app.common.data.models"
-]
 # Lots of things import interfaces (correctly); interfaces import models; indirect imports therefore must be allowed
 allow_indirect_imports = true
 
