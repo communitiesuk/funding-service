@@ -46,3 +46,33 @@ class TestNotificationService:
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_collection_submission(self, app, factories):
+        collection_schema = factories.collection_schema.build(name="Submission collection")
+        collection = factories.collection.build(
+            id=uuid.UUID("10000000-0000-0000-0000-000000000000"),
+            collection_schema=collection_schema,
+        )
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": collection.created_by.email,
+                        "template_id": "74a674b2-d14e-4452-bdcd-c3e4f0a8f002",
+                        "personalisation": {
+                            "collection name": "Submission collection",
+                            "collection reference": "10000000",
+                            "collection url": "http://funding.communities.gov.localhost:8080/developers/collections/10000000-0000-0000-0000-000000000000",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},  # partial GOV.UK Notify response
+        )
+
+        resp = notification_service.send_collection_submission(collection)
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
