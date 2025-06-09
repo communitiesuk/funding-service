@@ -6,7 +6,7 @@ from playwright.sync_api import Page, expect
 from app.common.data.types import QuestionDataType
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
-from tests.e2e.developer_pages import CheckYourAnswersPage, ManageFormPage, QuestionPage
+from tests.e2e.developer_pages import CheckYourAnswersPage, ManageFormPage, QuestionPage, SchemaDetailPage
 from tests.e2e.pages import AllGrantsPage
 
 question_response_data_by_type = {
@@ -38,6 +38,16 @@ def create_question(
     created_questions_to_test.append(
         {"question_text": question_text, "question_response": question_response_data_by_type[question_type.value]}
     )
+
+
+def navigate_to_schema_detail_page(page: Page, domain: str, grant_name: str, schema_name: str) -> SchemaDetailPage:
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
+    grant_dashboard_page = all_grants_page.click_grant(grant_name)
+    developers_page = grant_dashboard_page.click_developers(grant_name)
+    list_schemas_page = developers_page.click_manage_schemas(grant_name=grant_name)
+    schema_detail_page = list_schemas_page.click_on_schema(grant_name=grant_name, schema_name=schema_name)
+    return schema_detail_page
 
 
 @pytest.mark.skip_in_environments(["dev", "test", "prod"])
@@ -100,12 +110,7 @@ def test_create_and_preview_schema(
     create_question(QuestionDataType.INTEGER, manage_form_page)
 
     # Preview the form
-    all_grants_page = AllGrantsPage(page, domain)
-    all_grants_page.navigate()
-    grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
-    developers_page = grant_dashboard_page.click_developers(new_grant_name)
-    list_schemas_page = developers_page.click_manage_schemas(grant_name=new_grant_name)
-    schema_detail_page = list_schemas_page.click_on_schema(grant_name=new_grant_name, schema_name=new_schema_name)
+    schema_detail_page = navigate_to_schema_detail_page(page, domain, new_grant_name, new_schema_name)
     tasklist_page = schema_detail_page.click_preview_collection()
 
     # Check the tasklist has loaded
@@ -148,12 +153,7 @@ def test_create_and_preview_schema(
     collection_reference = confirmation_page.collection_reference.inner_text()
 
     # Go back to schema detail page
-    all_grants_page = AllGrantsPage(page, domain)
-    all_grants_page.navigate()
-    grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
-    developers_page = grant_dashboard_page.click_developers(new_grant_name)
-    list_schemas_page = developers_page.click_manage_schemas(grant_name=new_grant_name)
-    schema_detail_page = list_schemas_page.click_on_schema(grant_name=new_grant_name, schema_name=new_schema_name)
+    schema_detail_page = navigate_to_schema_detail_page(page, domain, new_grant_name, new_schema_name)
 
     # View the collection
     expect(schema_detail_page.summary_row_collections.get_by_text("1 preview collection")).to_be_visible()
