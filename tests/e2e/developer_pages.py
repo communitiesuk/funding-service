@@ -82,7 +82,7 @@ class AddCollectionPage(GrantDevelopersBasePage):
 class CollectionDetailPage(GrantDevelopersBasePage):
     collection_name: str
     add_section_link: Locator
-    preview_submission_button: Locator
+    preview_collection_button: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, collection_name: str) -> None:
         super().__init__(
@@ -93,7 +93,7 @@ class CollectionDetailPage(GrantDevelopersBasePage):
         )
         self.collection_name = collection_name
         self.add_section_link = self.page.get_by_role("link", name="add a section")
-        self.preview_submission_button = self.page.get_by_role("button", name="Preview a submission")
+        self.preview_collection_button = self.page.get_by_role("button", name="Preview this collection")
 
     def check_section_exists(self, section_title: str) -> None:
         expect(self.page.get_by_role("link", name=section_title)).to_be_visible()
@@ -105,7 +105,7 @@ class CollectionDetailPage(GrantDevelopersBasePage):
         return add_section_page
 
     def click_preview_submission(self) -> TasklistPage:
-        self.preview_submission_button.click()
+        self.preview_collection_button.click()
         tasklist_page = TasklistPage(
             self.page, self.domain, grant_name=self.grant_name, collection_name=self.collection_name
         )
