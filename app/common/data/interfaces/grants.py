@@ -71,8 +71,8 @@ NOT_PROVIDED = _NotProvided.token
 
 
 def update_grant(
-    *,
     grant: Grant,
+    *,
     name: str | _NotProvided = NOT_PROVIDED,
     description: str | _NotProvided = NOT_PROVIDED,
     primary_contact_name: str | _NotProvided = NOT_PROVIDED,
