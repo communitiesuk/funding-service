@@ -4,7 +4,7 @@
 {% extends "deliver_grant_funding/base.html" %}
 
 {% block pageTitle %}
-  Schemas - {{ grant.name }} - MHCLG Funding Service
+  Collections - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "developers" %}
@@ -14,28 +14,28 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
-        Schemas
+        Collections
       </h1>
-      <p class="govuk-body">Use preview schemas to try out the tools to set up, collect and review information from users.</p>
+      <p class="govuk-body">Use preview collections to try out the tools to set up, collect and review information from users.</p>
     </div>
   </div>
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      <h2 class="govuk-heading-m">Schemas</h2>
+      <h2 class="govuk-heading-m">Collections</h2>
 
       {% set rows=[] %}
-      {% for schema in grant.collection_schemas %}
+      {% for collection in grant.collections %}
         {%
           do rows.append([{
-          "html": "<a class='govuk-link govuk-link--no-visited-state' href='" + url_for("developers.manage_schema", grant_id = grant.id, schema_id=schema.id) + "'>" + schema.name + "</a>",
-          }, {"text": schema.created_by.email}, {"text": format_date(schema.created_at_utc)}])
+          "html": "<a class='govuk-link govuk-link--no-visited-state' href='" + url_for("developers.manage_collection", grant_id = grant.id, collection_id=collection.id) + "'>" + collection.name + "</a>",
+          }, {"text": collection.created_by.email}, {"text": format_date(collection.created_at_utc)}])
         %}
       {% endfor %}
-      {% if not grant.collection_schemas %}
+      {% if not grant.collections %}
         <p class="govuk-body">
-          This grant has no schemas, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.setup_schema', grant_id = grant.id) }}">add a schema</a>
+          This grant has no collections, you can
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.setup_collection', grant_id = grant.id) }}">add a collection</a>
           .
         </p>
       {% else %}
@@ -58,9 +58,9 @@
         }}
         {{
           govukButton({
-          "text": "Add schema",
+          "text": "Add collection",
           "classes": "govuk-button--secondary",
-          "href": url_for("developers.setup_schema", grant_id = grant.id)
+          "href": url_for("developers.setup_collection", grant_id = grant.id)
           })
         }}
       {% endif %}

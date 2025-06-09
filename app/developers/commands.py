@@ -19,7 +19,7 @@ def _seed_chessboards_in_parks(grants: Sequence["Grant"]) -> None:
         delete_grant(grant.id)
 
     from tests.models import (
-        _CollectionSchemaFactory,
+        _CollectionFactory,
         _FormFactory,
         _GrantFactory,
         _QuestionFactory,
@@ -28,11 +28,11 @@ def _seed_chessboards_in_parks(grants: Sequence["Grant"]) -> None:
 
     grant = _GrantFactory.create(name=grant_name)
 
-    schema = _CollectionSchemaFactory.create(
+    collection = _CollectionFactory.create(
         grant=grant, name="Report on chessboards in parks", slug="report-on-chessboards-in-parks"
     )
 
-    s = _SectionFactory.create(collection_schema=schema, title="About the park", slug="about-the-park")
+    s = _SectionFactory.create(collection=collection, title="About the park", slug="about-the-park")
 
     f = _FormFactory.create(section=s, title="Park information")
 
@@ -43,7 +43,7 @@ def _seed_chessboards_in_parks(grants: Sequence["Grant"]) -> None:
         form=f, text="How many visitors were there in the last reporting period?", data_type=QuestionDataType.INTEGER
     )
 
-    s = _SectionFactory.create(collection_schema=schema, title="About the chess", slug="about-the-chess")
+    s = _SectionFactory.create(collection=collection, title="About the chess", slug="about-the-chess")
     f = _FormFactory.create(section=s, title="Information about the chess games played")
     _QuestionFactory.create(
         form=f,

@@ -7,7 +7,7 @@
 
 {% block pageTitle %}
   {{ section.title }}
-  - {{ schema.name }} - MHCLG Funding Service
+  - {{ collection.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "developers" %}
@@ -15,7 +15,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_schema", grant_id = grant.id, schema_id=schema.id)
+        "href": url_for("developers.manage_collection", grant_id = grant.id, collection_id=collection.id)
     })
   }}
 {% endblock beforeContent %}
@@ -34,7 +34,7 @@
   {% endif %}
 
   <h1 class="govuk-heading-l">
-    <span class="govuk-caption-l">{{ schema.name }}</span>
+    <span class="govuk-caption-l">{{ collection.name }}</span>
     {{ section.title }}
   </h1>
   <div class="govuk-grid-row">
@@ -47,7 +47,7 @@
         "actions": {
         "items": [
         {
-        "href": url_for("developers.edit_section", grant_id = grant.id, schema_id = schema.id, section_id = section.id),
+        "href": url_for("developers.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
         "text": "Change",
         "classes": "govuk-link--no-visited-state"
         }
@@ -69,7 +69,7 @@
       {% if not section.forms %}
         <p class="govuk-body">
           This section has no forms, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_form', grant_id = grant.id, schema_id=schema.id, section_id=section.id) }}">add a form</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_form', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">add a form</a>
           .
         </p>
       {% else %}
@@ -83,12 +83,12 @@
           "text": form.title,
           "actions":[
           {"text":"Move up",
-              "href":url_for('developers.move_form', grant_id = grant.id, schema_id=schema.id,
+              "href":url_for('developers.move_form', grant_id = grant.id, collection_id=collection.id,
                      section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
-                     {"href":url_for('developers.move_form', grant_id = grant.id, schema_id=schema.id,
+                     {"href":url_for('developers.move_form', grant_id = grant.id, collection_id=collection.id,
                      section_id = section.id, form_id=form.id, direction = 'down') ,"post":true,
                   "text": "Move down","disabled":(loop.index >= section.forms | length)},
-                  {"href":url_for('developers.manage_form', grant_id = grant.id, schema_id=schema.id,
+                  {"href":url_for('developers.manage_form', grant_id = grant.id, collection_id=collection.id,
                      section_id = section.id, form_id=form.id, back_link="manage_section"),
                   "text": "Manage","post":false}
           ]
@@ -102,7 +102,7 @@
           govukButton({
           "text": "Add a form",
           "classes": "govuk-button--secondary",
-          "href": url_for("developers.add_form", grant_id = grant.id, schema_id=schema.id, section_id=section.id)
+          "href": url_for("developers.add_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id)
           })
         }}
       {% endif %}
@@ -110,7 +110,7 @@
   </div>
   <div class="govuk-grid-row govuk-!-margin-top-7">
     <div class="govuk-grid-column-two-thirds">
-      <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_section', grant_id=grant.id, schema_id=schema.id, section_id=section.id, delete='') }}">Delete this section</a></p>
+      <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_section', grant_id=grant.id, collection_id=collection.id, section_id=section.id, delete='') }}">Delete this section</a></p>
     </div>
   </div>
 {% endblock content %}

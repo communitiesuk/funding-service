@@ -8,12 +8,12 @@ from pydantic import RootModel, TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import get_collection
+from app.common.data.interfaces.collections import get_submission
 from app.common.data.models_user import User
-from app.common.data.types import CollectionStatusEnum, MetadataEventKey, QuestionDataType
+from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Form, Grant, Question, Section
+    from app.common.data.models import Form, Grant, Question, Section, Submission
 
 
 TextSingleLine = RootModel[str]
@@ -21,110 +21,115 @@ TextMultiLine = RootModel[str]
 Integer = RootModel[int]
 
 
-class CollectionHelper:
+class SubmissionHelper:
     """
-    This offensively-named class is a helper for the `app.common.data.models.Collection` and associated sub-models.
+    This offensively-named class is a helper for the `app.common.data.models.Submission` and associated sub-models.
 
-    It wraps a Collection instance from the DB and encapsulates the business logic that will make it easy to deal with
+    It wraps a Submission instance from the DB and encapsulates the business logic that will make it easy to deal with
     conditionals, routing, storing+retrieving data, etc in one place, consistently.
     """
 
-    def __init__(self, collection: "Collection"):
+    def __init__(self, submission: "Submission"):
         """
-        Initialise the CollectionHelper; the `collection` instance passed in should have been retrieved from the DB
-        with the schema and related tables (eg section, form, question) eagerly loaded to prevent this helper from
-        making any further DB queries. Use `get_collection` with the `with_full_schema=True` option.
-        :param collection:
+        Initialise the SubmissionHelper; the `submission` instance passed in should have been retrieved from the DB
+        with the collection and related tables (eg section, form, question) eagerly loaded to prevent this helper from
+        making any further DB queries. Use `get_submission` with the `with_full_schema=True` option.
+        :param submission:
         """
-        self.collection = collection
-        self.schema = self.collection.collection_schema
+        self.submission = submission
+        self.collection = self.submission.collection
 
     @classmethod
-    def load(cls, collection_id: uuid.UUID) -> "CollectionHelper":
-        return cls(get_collection(collection_id, with_full_schema=True))
+    def load(cls, submission_id: uuid.UUID) -> "SubmissionHelper":
+        return cls(get_submission(submission_id, with_full_schema=True))
 
     @property
     def grant(self) -> "Grant":
-        return self.schema.grant
+        return self.collection.grant
 
     @property
     def sections(self) -> list["Section"]:
-        return self.schema.sections
+        return self.collection.sections
 
     @property
     def name(self) -> str:
-        return self.schema.name
+        return self.collection.name
 
     @property
     def reference(self) -> str:
-        return self.collection.reference
+        return self.submission.reference
 
     @property
     def status(self) -> str:
-        submitted = MetadataEventKey.COLLECTION_SUBMITTED in [x.event_key for x in self.collection.collection_metadata]
+        submitted = SubmissionEventKey.SUBMISSION_SUBMITTED in [x.key for x in self.submission.events]
 
         form_statuses = set(
             [
                 self.get_status_for_form(form)
-                for form in chain.from_iterable(section.forms for section in self.schema.sections)
+                for form in chain.from_iterable(section.forms for section in self.collection.sections)
             ]
         )
-        if {CollectionStatusEnum.COMPLETED} == form_statuses and submitted:
-            return CollectionStatusEnum.COMPLETED
-        elif {CollectionStatusEnum.NOT_STARTED} == form_statuses:
-            return CollectionStatusEnum.NOT_STARTED
+        if {SubmissionStatusEnum.COMPLETED} == form_statuses and submitted:
+            return SubmissionStatusEnum.COMPLETED
+        elif {SubmissionStatusEnum.NOT_STARTED} == form_statuses:
+            return SubmissionStatusEnum.NOT_STARTED
         else:
-            return CollectionStatusEnum.IN_PROGRESS
+            return SubmissionStatusEnum.IN_PROGRESS
 
     @property
     def is_completed(self) -> bool:
-        return self.status == CollectionStatusEnum.COMPLETED
+        return self.status == SubmissionStatusEnum.COMPLETED
 
     @property
     def created_by_email(self) -> str:
-        return self.collection.created_by.email
+        return self.submission.created_by.email
 
     @property
     def created_at_utc(self) -> datetime:
-        return self.collection.created_at_utc
+        return self.submission.created_at_utc
 
     @property
     def id(self) -> UUID:
-        return self.collection.id
+        return self.submission.id
 
     @property
-    def schema_id(self) -> UUID:
-        return self.schema.id
+    def collection_id(self) -> UUID:
+        return self.collection.id
 
     def get_section(self, section_id: uuid.UUID) -> "Section":
         try:
-            return next(filter(lambda s: s.id == section_id, self.schema.sections))
+            return next(filter(lambda s: s.id == section_id, self.collection.sections))
         except StopIteration as e:
-            raise ValueError(f"Could not find a section with id={section_id} in schema={self.schema.id}") from e
+            raise ValueError(f"Could not find a section with id={section_id} in collection={self.collection.id}") from e
 
     def get_form(self, form_id: uuid.UUID) -> "Form":
         try:
             return next(
                 filter(
-                    lambda f: f.id == form_id, chain.from_iterable(section.forms for section in self.schema.sections)
+                    lambda f: f.id == form_id,
+                    chain.from_iterable(section.forms for section in self.collection.sections),
                 )
             )
         except StopIteration as e:
-            raise ValueError(f"Could not find a form with id={form_id} in schema={self.schema.id}") from e
+            raise ValueError(f"Could not find a form with id={form_id} in collection={self.collection.id}") from e
 
     def get_question(self, question_id: uuid.UUID) -> "Question":
         try:
             return next(
                 filter(
                     lambda q: q.id == question_id,
-                    chain.from_iterable(form.questions for section in self.schema.sections for form in section.forms),
+                    chain.from_iterable(
+                        form.questions for section in self.collection.sections for form in section.forms
+                    ),
                 )
             )
         except StopIteration as e:
-            raise ValueError(f"Could not find a question with id={question_id} in schema={self.schema.id}") from e
+            raise ValueError(
+                f"Could not find a question with id={question_id} in collection={self.collection.id}"
+            ) from e
 
     def get_ordered_visible_sections(self) -> list["Section"]:
-        """Returns the visible, ordered sections based upon the current state of this collection."""
+        """Returns the visible, ordered sections based upon the current state of this submission."""
         return sorted(self.sections, key=lambda s: s.order)
 
     def get_all_questions_are_answered_for_form(
@@ -139,22 +144,22 @@ class CollectionHelper:
         form_statuses = set(
             [
                 self.get_status_for_form(form)
-                for form in chain.from_iterable(section.forms for section in self.schema.sections)
+                for form in chain.from_iterable(section.forms for section in self.collection.sections)
             ]
         )
-        return {CollectionStatusEnum.COMPLETED} == form_statuses
+        return {SubmissionStatusEnum.COMPLETED} == form_statuses
 
     def get_status_for_form(self, form: "Form") -> str:
         all_questions_answered, answers = self.get_all_questions_are_answered_for_form(form)
-        marked_as_complete = MetadataEventKey.FORM_RUNNER_FORM_COMPLETED in [
-            x.event_key for x in self.collection.collection_metadata if x.form and x.form.id == form.id
+        marked_as_complete = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED in [
+            x.key for x in self.submission.events if x.form and x.form.id == form.id
         ]
         if form.questions and all_questions_answered and marked_as_complete:
-            return CollectionStatusEnum.COMPLETED
+            return SubmissionStatusEnum.COMPLETED
         elif answers:
-            return CollectionStatusEnum.IN_PROGRESS
+            return SubmissionStatusEnum.IN_PROGRESS
         else:
-            return CollectionStatusEnum.NOT_STARTED
+            return SubmissionStatusEnum.NOT_STARTED
 
     def get_ordered_visible_forms_for_section(self, section: "Section") -> list["Form"]:
         """Returns the visible, ordered forms for a given section based upon the current state of this collection."""
@@ -177,40 +182,40 @@ class CollectionHelper:
         return None
 
     def get_form_for_question(self, question_id: UUID) -> "Form":
-        for section in self.schema.sections:
+        for section in self.collection.sections:
             for form in section.forms:
                 if any(q.id == question_id for q in form.questions):
                     return form
 
-        raise ValueError(f"Could not find form for question_id={question_id} in collection_schema={self.schema.id}")
+        raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
     def get_answer_for_question(self, question_id: UUID) -> TextSingleLine | TextMultiLine | Integer | None:
         question = self.get_question(question_id)
-        serialised_data = self.collection.data.get(str(question_id))
+        serialised_data = self.submission.data.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data else None
 
     def submit_answer_for_question(self, question_id: UUID, form: DynamicQuestionForm) -> None:
         if self.is_completed:
             raise ValueError(
                 f"Could not submit answer for question_id={question_id} "
-                f"because collection id={self.id} is already submitted."
+                f"because submission id={self.id} is already submitted."
             )
 
         question = self.get_question(question_id)
         data = _form_data_to_question_type(question, form)
-        interfaces.collections.update_collection_data(self.collection, question, data)
+        interfaces.collections.update_submission_data(self.submission, question, data)
 
-    def submit_collection(self, user: "User") -> None:
+    def submit(self, user: "User") -> None:
         if self.is_completed:
             return
 
         if self.all_forms_are_completed:
-            interfaces.collections.add_collection_metadata(self.collection, MetadataEventKey.COLLECTION_SUBMITTED, user)
+            interfaces.collections.add_submission_event(self.submission, SubmissionEventKey.SUBMISSION_SUBMITTED, user)
         else:
-            raise ValueError(f"Could not submit collection id={self.id} because not all forms are complete.")
+            raise ValueError(f"Could not submit submission id={self.id} because not all forms are complete.")
 
     def toggle_form_completed(self, form: "Form", user: "User", is_complete: bool) -> None:
-        form_complete = self.get_status_for_form(form) == CollectionStatusEnum.COMPLETED
+        form_complete = self.get_status_for_form(form) == SubmissionStatusEnum.COMPLETED
         if is_complete == form_complete:
             return
 
@@ -221,12 +226,12 @@ class CollectionHelper:
                     f"Could not mark form id={form.id} as complete because not all questions have been answered."
                 )
 
-            interfaces.collections.add_collection_metadata(
-                self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, user, form
+            interfaces.collections.add_submission_event(
+                self.submission, SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED, user, form
             )
         else:
-            interfaces.collections.clear_form_metadata(
-                self.collection, MetadataEventKey.FORM_RUNNER_FORM_COMPLETED, form
+            interfaces.collections.clear_submission_events(
+                self.submission, SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED, form
             )
 
     def get_next_question(self, current_question_id: UUID) -> Optional["Question"]:
@@ -241,7 +246,7 @@ class CollectionHelper:
             if question.id == current_question_id:
                 return next(question_iterator, None)
 
-        raise ValueError(f"Could not find a question with id={current_question_id} in schema={self.schema}")
+        raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
 
     def get_previous_question(self, current_question_id: UUID) -> Optional["Question"]:
         """
@@ -256,7 +261,7 @@ class CollectionHelper:
             if question.id == current_question_id:
                 return next(question_iterator, None)
 
-        raise ValueError(f"Could not find a question with id={current_question_id} in schema={self.schema}")
+        raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
 
 
 def _form_data_to_question_type(

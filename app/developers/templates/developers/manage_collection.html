@@ -6,7 +6,7 @@
 {% extends "deliver_grant_funding/base.html" %}
 
 {% block pageTitle %}
-  Collection - {{ schema.name }} - MHCLG Funding Service
+  Collection - {{ collection.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "developers" %}
@@ -23,18 +23,18 @@
 {% block content %}
   <div class="app-aligned-header-tag">
     <h1 class="govuk-heading-l">
-      <span class="govuk-caption-l">{{ collection_helper.reference }}</span>
+      <span class="govuk-caption-l">{{ submission_helper.reference }}</span>
       Collection
     </h1>
-    {{ status(collection_helper.status, statuses) }}
+    {{ status(submission_helper.status, statuses) }}
   </div>
 
-  {% for section in collection_helper.get_ordered_visible_sections() %}
+  {% for section in submission_helper.get_ordered_visible_sections() %}
     <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ section.title }}</h2>
-    {% for form in collection_helper.get_ordered_visible_forms_for_section(section) %}
+    {% for form in submission_helper.get_ordered_visible_forms_for_section(section) %}
       <h3 class="govuk-heading-s govuk-!-margin-top-4">{{ form.title }}</h3>
       {% set rows = [] %}
-      {% for question in collection_helper.get_ordered_visible_questions_for_form(form) %}
+      {% for question in submission_helper.get_ordered_visible_questions_for_form(form) %}
 
         {# the answer is a well formed, validated pydantic thing we could access any of the properties #}
         {# of for the templates use - we'll probably generally just want the interface of that model to tell #}
@@ -45,7 +45,7 @@
               "text": question.text
             },
             "value": {
-              "text": collection_helper.get_answer_for_question(question.id).root or "(Not answered)"
+              "text": submission_helper.get_answer_for_question(question.id).root or "(Not answered)"
             }
           })
         %}

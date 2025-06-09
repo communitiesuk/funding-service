@@ -41,7 +41,7 @@ def create_question(
 
 
 @pytest.mark.skip_in_environments(["dev", "test", "prod"])
-def test_create_and_preview_schema(
+def test_create_and_preview_collection(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser
 ):
     new_grant_name = f"E2E developer_grant {uuid.uuid4()}"
@@ -66,21 +66,23 @@ def test_create_and_preview_schema(
 
     # Go to developers tab
     developers_page = grant_dashboard_page.click_developers(new_grant_name)
-    manage_schemas_page = developers_page.click_manage_schemas(grant_name=new_grant_name)
+    manage_collections_page = developers_page.click_manage_collections(grant_name=new_grant_name)
 
-    # Add a new schema
-    add_schema_page = manage_schemas_page.click_add_schema()
-    new_schema_name = f"E2E schema {uuid.uuid4()}"
-    add_schema_page.fill_in_schema_name(new_schema_name)
-    manage_schemas_page = add_schema_page.click_submit(new_grant_name)
-    manage_schemas_page.check_schema_exists(new_schema_name)
+    # Add a new collection
+    add_collection_page = manage_collections_page.click_add_collection()
+    new_collection_name = f"E2E collection {uuid.uuid4()}"
+    add_collection_page.fill_in_collection_name(new_collection_name)
+    manage_collections_page = add_collection_page.click_submit(new_grant_name)
+    manage_collections_page.check_collection_exists(new_collection_name)
 
     # Add a new section
-    schema_detail_page = manage_schemas_page.click_on_schema(schema_name=new_schema_name, grant_name=new_grant_name)
-    add_section_page = schema_detail_page.click_add_section()
+    collection_detail_page = manage_collections_page.click_on_collection(
+        collection_name=new_collection_name, grant_name=new_grant_name
+    )
+    add_section_page = collection_detail_page.click_add_section()
     new_section_name = f"E2E section {uuid.uuid4()}"
     add_section_page.fill_in_section_title(new_section_name)
-    sections_list_page = add_section_page.click_submit(schema_name=new_schema_name)
+    sections_list_page = add_section_page.click_submit(collection_name=new_collection_name)
     sections_list_page.check_section_exists(new_section_name)
 
     # Add a new form
@@ -104,9 +106,11 @@ def test_create_and_preview_schema(
     all_grants_page.navigate()
     grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
     developers_page = grant_dashboard_page.click_developers(new_grant_name)
-    list_schemas_page = developers_page.click_manage_schemas(grant_name=new_grant_name)
-    schema_detail_page = list_schemas_page.click_on_schema(grant_name=new_grant_name, schema_name=new_schema_name)
-    tasklist_page = schema_detail_page.click_preview_collection()
+    list_collections_page = developers_page.click_manage_collections(grant_name=new_grant_name)
+    collection_detail_page = list_collections_page.click_on_collection(
+        grant_name=new_grant_name, collection_name=new_collection_name
+    )
+    tasklist_page = collection_detail_page.click_preview_submission()
 
     # Check the tasklist has loaded
     expect(tasklist_page.page.get_by_role("heading", name=new_section_name)).to_be_visible()
@@ -137,11 +141,11 @@ def test_create_and_preview_schema(
     expect(check_your_answers.page.get_by_text("Have you completed this section?", exact=True)).to_be_visible()
 
     check_your_answers.click_mark_as_complete_yes()
-    tasklist_page = check_your_answers.click_save_and_continue(schema_name=new_schema_name)
+    tasklist_page = check_your_answers.click_save_and_continue(collection_name=new_collection_name)
 
     # Submit the collection
     expect(
         tasklist_page.collection_status_box.filter(has=tasklist_page.page.get_by_text("In progress"))
     ).to_be_visible()
     expect(tasklist_page.submit_button).to_be_enabled()
-    tasklist_page.click_submit_collection()
+    tasklist_page.click_submit()

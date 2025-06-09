@@ -9,35 +9,33 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
-    CollectionMetadata,
-    CollectionSchema,
     Form,
     Grant,
     Question,
     Section,
+    Submission,
+    SubmissionEvent,
 )
 from app.common.data.models_user import User
-from app.common.data.types import CollectionStatusEnum, MetadataEventKey, QuestionDataType
+from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum
 from app.common.utils import slugify
 from app.extensions import db
 
 
-def create_collection_schema(*, name: str, user: User, grant: Grant, version: int = 1) -> CollectionSchema:
-    schema = CollectionSchema(name=name, created_by=user, grant=grant, version=version, slug=slugify(name))
-    db.session.add(schema)
+def create_collection(*, name: str, user: User, grant: Grant, version: int = 1) -> Collection:
+    collection = Collection(name=name, created_by=user, grant=grant, version=version, slug=slugify(name))
+    db.session.add(collection)
 
     try:
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
-    return schema
+    return collection
 
 
-def get_collection_schema(
-    schema_id: UUID, version: int | None = None, with_full_schema: bool = False
-) -> CollectionSchema:
-    """Get a collection schema by ID and optionally version.
+def get_collection(collection_id: UUID, version: int | None = None, with_full_schema: bool = False) -> Collection:
+    """Get a collection by ID and optionally version.
 
     If you do not pass a version, it will retrieve the latest version (ie highest version number).
 
@@ -45,77 +43,77 @@ def get_collection_schema(
     """
     options = []
     if with_full_schema:
-        options.append(selectinload(CollectionSchema.sections).selectinload(Section.forms).selectinload(Form.questions))
+        options.append(selectinload(Collection.sections).selectinload(Section.forms).selectinload(Form.questions))
     if version is None:
         return db.session.scalars(
-            select(CollectionSchema)
-            .where(CollectionSchema.id == schema_id)
-            .order_by(CollectionSchema.version.desc())
+            select(Collection)
+            .where(Collection.id == collection_id)
+            .order_by(Collection.version.desc())
             .options(*options)
             .limit(1)
         ).one()
 
-    return db.session.get_one(CollectionSchema, [schema_id, version], options=options)
+    return db.session.get_one(Collection, [collection_id, version], options=options)
 
 
-def update_collection_schema(schema: CollectionSchema, *, name: str) -> CollectionSchema:
-    schema.name = name
-    schema.slug = slugify(name)
+def update_collection(collection: Collection, *, name: str) -> Collection:
+    collection.name = name
+    collection.slug = slugify(name)
     try:
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
-    return schema
-
-
-def update_collection_data(collection: Collection, question: Question, data: BaseModel) -> Collection:
-    collection.data[str(question.id)] = data.model_dump()
-    db.session.flush()
     return collection
 
 
-def get_collection(collection_id: UUID, with_full_schema: bool = False) -> Collection:
+def update_submission_data(submission: Submission, question: Question, data: BaseModel) -> Submission:
+    submission.data[str(question.id)] = data.model_dump()
+    db.session.flush()
+    return submission
+
+
+def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submission:
     options = []
     if with_full_schema:
         options.extend(
             [
-                joinedload(Collection.collection_schema)
-                .selectinload(CollectionSchema.sections)
+                joinedload(Submission.collection)
+                .selectinload(Collection.sections)
                 .selectinload(Section.forms)
                 .selectinload(Form.questions),
-                joinedload(Collection.collection_metadata),
+                joinedload(Submission.events),
             ]
         )
 
     # We set `populate_existing` here to force a new query to be emitted to the database. The mechanics of `get_one`
     # relies on the session cache and does a lookup in the session memory based on the PK we're trying to retrieve.
     # If the object exists, no query is emitted and the options won't take effect - we would fall back to lazy loading,
-    # which is n+1 select. If we don't care about fetching the full nested schema then it's fine to grab whatever is
+    # which is n+1 select. If we don't care about fetching the full nested collection then it's fine to grab whatever is
     # cached in the session alright, but if we do specifically want all of the related objects, we want to force the
     # loading options above. This does mean that if you call this function twice with `with_full_schema=True`, it will
     # do redundant DB trips. We should try to avoid that. =]
     # If we took the principle that all relationships should be declared on the model as `lazy='raiseload'`, and we
     # specify lazy loading explicitly at all points of use, we could potentially remove the `populate_existing`
     # override below.
-    return db.session.get_one(Collection, collection_id, options=options, populate_existing=bool(options))
+    return db.session.get_one(Submission, submission_id, options=options, populate_existing=bool(options))
 
 
-def create_collection(*, schema: CollectionSchema, created_by: User) -> Collection:
-    collection = Collection(
-        collection_schema=schema,
+def create_submission(*, collection: Collection, created_by: User) -> Submission:
+    submission = Submission(
+        collection=collection,
         created_by=created_by,
         data={},
-        status=CollectionStatusEnum.NOT_STARTED,
+        status=SubmissionStatusEnum.NOT_STARTED,
     )
-    db.session.add(collection)
+    db.session.add(submission)
     db.session.flush()
-    return collection
+    return submission
 
 
-def create_section(*, title: str, schema: CollectionSchema) -> Section:
-    section = Section(title=title, collection_schema_id=schema.id, slug=slugify(title))
-    schema.sections.append(section)
+def create_section(*, title: str, collection: Collection) -> Section:
+    section = Section(title=title, collection_id=collection.id, slug=slugify(title))
+    collection.sections.append(section)
     db.session.add(section)
     try:
         db.session.flush()
@@ -156,9 +154,7 @@ def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, in
     if 0 <= index_a < len(containing_list) and 0 <= index_b < len(containing_list):
         containing_list[index_a], containing_list[index_b] = containing_list[index_b], containing_list[index_a]
     db.session.execute(
-        text(
-            "SET CONSTRAINTS uq_section_order_collection_schema, uq_form_order_section, uq_question_order_form DEFERRED"
-        )
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )
     db.session.flush()
     return containing_list
@@ -166,14 +162,14 @@ def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, in
 
 def move_section_up(section: Section) -> Section:
     """Move a section up in the order, which means move it lower in the list."""
-    swap_elements_in_list_and_flush(section.collection_schema.sections, section.order, section.order - 1)
+    swap_elements_in_list_and_flush(section.collection.sections, section.order, section.order - 1)
 
     return section
 
 
 def move_section_down(section: Section) -> Section:
     """Move a section down in the order, which means move it higher in the list."""
-    swap_elements_in_list_and_flush(section.collection_schema.sections, section.order, section.order + 1)
+    swap_elements_in_list_and_flush(section.collection.sections, section.order, section.order + 1)
     return section
 
 
@@ -257,19 +253,15 @@ def update_question(question: Question, *, text: str, hint: str | None, name: st
     return question
 
 
-def add_collection_metadata(
-    collection: Collection, event_key: MetadataEventKey, user: User, form: Form | None = None
-) -> Collection:
-    collection.collection_metadata.append(CollectionMetadata(event_key=event_key, created_by=user, form=form))
+def add_submission_event(
+    submission: Submission, key: SubmissionEventKey, user: User, form: Form | None = None
+) -> Submission:
+    submission.events.append(SubmissionEvent(key=key, created_by=user, form=form))
     db.session.flush()
-    return collection
+    return submission
 
 
-def clear_form_metadata(collection: Collection, event_key: MetadataEventKey, form: Form | None = None) -> Collection:
-    collection.collection_metadata = [
-        x
-        for x in collection.collection_metadata
-        if not (x.event_key == event_key and (x.form == form if form else True))
-    ]
+def clear_submission_events(submission: Submission, key: SubmissionEventKey, form: Form | None = None) -> Submission:
+    submission.events = [x for x in submission.events if not (x.key == key and (x.form == form if form else True))]
     db.session.flush()
-    return collection
+    return submission
