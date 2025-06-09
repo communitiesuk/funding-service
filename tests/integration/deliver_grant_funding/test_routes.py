@@ -1,8 +1,10 @@
 from uuid import UUID
 
 import pytest
+import responses
 from bs4 import BeautifulSoup
 from flask import url_for
+from responses import matchers
 from sqlalchemy import select
 
 from app.common.data.interfaces.user import get_current_user
@@ -858,6 +860,7 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     assert grant_from_db.ggis_number == "GGIS123"
 
 
+@responses.activate
 def test_list_users_for_grant_with_platform_admin(authenticated_platform_admin_client, track_sql_queries, factories):
     # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
     grant = factories.grant.create()
@@ -870,11 +873,29 @@ def test_list_users_for_grant_with_platform_admin(authenticated_platform_admin_c
     soup = BeautifulSoup(result.data, "html.parser")
     button = soup.find("a", string=lambda text: text and "Add grant team member" in text)
     assert button is not None, "'Add grant team member' button not found"
+    email_address = "test1@communities.gov.uk"
 
     # add new grant member and test
+    responses.post(
+        url="https://api.notifications.service.gov.uk/v2/notifications/email",
+        status=201,
+        match=[
+            matchers.json_params_matcher(
+                {
+                    "email_address": email_address,
+                    "template_id": "49ba98c5-0573-4c77-8cb0-3baebe70ee86",
+                    "personalisation": {
+                        "grant_name": grant.name,
+                        "sign_in_url": "http://funding.communities.gov.localhost:8080/sso/sign-in",
+                    },
+                }
+            )
+        ],
+        json={"id": "00000000-0000-0000-0000-000000000000"},
+    )
     result = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
-        json={"user_email": "test1@communities.gov.uk"},
+        json={"user_email": email_address},
         follow_redirects=True,
     )
     soup = BeautifulSoup(result.data, "html.parser")
