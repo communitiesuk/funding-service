@@ -8,9 +8,10 @@ from unittest.mock import _Call, patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from flask import Flask, template_rendered
+from flask import Flask, abort, template_rendered
 from flask.sessions import SessionMixin
 from flask.testing import FlaskClient
+from flask.typing import ResponseReturnValue
 from flask_login import login_user
 from flask_migrate import upgrade
 from flask_sqlalchemy_lite import SQLAlchemy
@@ -19,6 +20,7 @@ from jinja2 import Template
 from pytest_mock import MockerFixture
 from sqlalchemy import event
 from sqlalchemy.engine import Connection
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import SessionTransaction
 from sqlalchemy_utils import create_database, database_exists
@@ -26,6 +28,7 @@ from testcontainers.postgres import PostgresContainer
 from werkzeug.test import TestResponse
 
 from app import create_app
+from app.common.data.models_user import User
 from app.common.data.types import RoleEnum
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from app.services.notify import Notification
@@ -81,6 +84,21 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
         build_db_config(setup_db_container),
     ):
         app = create_app()
+
+    @app.route("/_testing/403")
+    def raise_403() -> ResponseReturnValue:
+        abort(403)
+
+    @app.route("/_testing/sqlalchemy-not-found")
+    def raise_sqlalchemy_not_found() -> ResponseReturnValue:
+        # get a thing that doesn't exist
+        try:
+            app.extensions["sqlalchemy"].session.query(User).where(User.id == uuid.uuid4()).one()
+        except Exception as e:
+            if not isinstance(e, NoResultFound):
+                abort(500)
+            raise e
+        raise RuntimeError("query expected no results and an error, but didn't")
 
     app.config.update({"TESTING": True})
     _precompile_templates(app)
