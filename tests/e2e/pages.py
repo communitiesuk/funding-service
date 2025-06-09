@@ -339,7 +339,7 @@ class ChangeGrantNamePage(GrantDashboardBasePage):
         self.page.get_by_role("textbox", name="What is the name of this grant?").fill(name)
 
     def click_submit(self, grant_name: str) -> GrantSettingsPage:
-        self.page.get_by_role("button", name="Save").click()
+        self.page.get_by_role("button", name="Change grant name").click()
         grant_settings_page = GrantSettingsPage(self.page, self.domain)
         expect(grant_settings_page.page.get_by_role("heading", name=f"{grant_name} Grant details")).to_be_visible()
         return grant_settings_page
