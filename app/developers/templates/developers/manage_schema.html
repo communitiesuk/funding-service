@@ -2,7 +2,6 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% extends "deliver_grant_funding/base.html" %}
 
 {% block pageTitle %}
@@ -119,8 +118,8 @@
         {% if not section.forms %}
           <p class="govuk-body">
             This section has no forms, you can
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_form', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">add a form</a>
-            .
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_section', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">manage this section</a>
+            to add a form.
           </p>
         {% endif %}
 
@@ -134,23 +133,27 @@
               questions
             {% endtrans %}
           {% endset %}
+          {% set form_link %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_form', grant_id = grant.id, schema_id=schema.id, section_id = section.id, form_id=form.id, back_link='manage_schema') }}">
+              {{ form.title }}
+            </a>
+          {% endset %}
           {%
             do rows.append({
-                  "title": {
-                    "text": form.title,
-                  },
-                "status": {
+                "key": {
+                  "html": form_link,
+                },
+                "value": {
                   "text": question_text
                 },
-              "href": url_for("developers.manage_form", grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, back_link="manage_collection")
             })
           %}
         {% endfor %}
 
         {{
-          govukTaskList({
-            "idPrefix": section.slug,
-            "items": rows
+          govukSummaryList({
+            "rows": rows,
+            "classes": "app-tasklist-builder"
           })
         }}
       {% endfor %}

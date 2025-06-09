@@ -15,51 +15,53 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_collection", grant_id = grant.id, collection_id=collection.id)
+        "href": url_for("developers.list_sections", grant_id = grant.id, collection_id=collection.id)
     })
   }}
 {% endblock beforeContent %}
 
 {% block content %}
-  {% if confirm_deletion_form %}
-    {% set banner_html %}
-      <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this section?</p>
-      <form method="post" novalidate>
-        {{ confirm_deletion_form.csrf_token }}
-        {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
-      </form>
-    {% endset %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% if confirm_deletion_form %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this section?</p>
+          <form method="post" novalidate>
+            {{ confirm_deletion_form.csrf_token }}
+            {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+          </form>
+        {% endset %}
 
-    {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
-  {% endif %}
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+      {% endif %}
 
-  <h1 class="govuk-heading-l">
-    <span class="govuk-caption-l">{{ collection.name }}</span>
-    {{ section.title }}
-  </h1>
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ collection.name }}</span>
+        {{ section.title }}
+      </h1>
+    </div>
+  </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
       {{
         govukSummaryList({
-        "rows": [{
-        "key": {"text": "Title"},
-        "value":{"text": section.title},
-        "actions": {
-        "items": [
-        {
-        "href": url_for("developers.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
-        "text": "Change",
-        "classes": "govuk-link--no-visited-state"
-        }
-        ]
-        }
-        }]
+          "rows": [{
+            "key": {"text": "Title"},
+            "value":{"text": section.title},
+            "actions": {
+              "items": [{
+                "href": url_for("developers.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
+                "text": "Change",
+                "classes": "govuk-link--no-visited-state"
+              }]
+            }
+          }]
         })
       }}
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
+    <div class="govuk-grid-column-two-thirds">
       <h2 class="govuk-heading-m">Forms</h2>
       {% set forms_text %}{% trans count=section.forms | length %}
         {{ count }}
@@ -67,11 +69,7 @@
       {% endtrans %}{% endset %}
 
       {% if not section.forms %}
-        <p class="govuk-body">
-          This section has no forms, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_form', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">add a form</a>
-          .
-        </p>
+        <p class="govuk-body">This section has no forms.</p>
       {% else %}
         <p class="govuk-body">This section has {{ forms_text }}.</p>
       {% endif %}
@@ -87,10 +85,7 @@
                      section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
                      {"href":url_for('developers.move_form', grant_id = grant.id, collection_id=collection.id,
                      section_id = section.id, form_id=form.id, direction = 'down') ,"post":true,
-                  "text": "Move down","disabled":(loop.index >= section.forms | length)},
-                  {"href":url_for('developers.manage_form', grant_id = grant.id, collection_id=collection.id,
-                     section_id = section.id, form_id=form.id, back_link="manage_section"),
-                  "text": "Manage","post":false}
+                  "text": "Move down","disabled":(loop.index >= section.forms | length)}
           ]
                   })
         %}
@@ -98,14 +93,15 @@
 
       {% if section.forms %}
         {{ moveUpDownTable(table_rows) }}
-        {{
-          govukButton({
-          "text": "Add a form",
-          "classes": "govuk-button--secondary",
-          "href": url_for("developers.add_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id)
-          })
-        }}
       {% endif %}
+
+      {{
+        govukButton({
+        "text": "Add a form",
+        "classes": "govuk-button--secondary",
+        "href": url_for("developers.add_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id)
+        })
+      }}
     </div>
   </div>
   <div class="govuk-grid-row govuk-!-margin-top-7">

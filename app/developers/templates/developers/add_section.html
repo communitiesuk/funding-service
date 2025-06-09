@@ -11,7 +11,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_collection", grant_id = grant.id, collection_id=collection.id)
+        "href": url_for("developers.list_sections", grant_id = grant.id, collection_id=collection.id)
     })
   }}
 {% endblock beforeContent %}

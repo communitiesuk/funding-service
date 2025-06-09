@@ -142,3 +142,11 @@ $app-destructive-link-active-colour: $govuk-text-colour;
     margin-left: auto;
   }
 }
+
+.app-tasklist-builder {
+    // extends the existing - want to think this through more
+    .govuk-summary-list__key {
+        font-weight: normal;
+        width: 50%;
+    }
+}

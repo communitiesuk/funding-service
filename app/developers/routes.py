@@ -334,6 +334,7 @@ def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> Respo
     )
 
 
+# TODO: having this method do both selecting the type and adding the form feels like too much
 @developers_blueprint.route(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/add",
     methods=["GET", "POST"],

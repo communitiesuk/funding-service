@@ -19,58 +19,59 @@
 {% endblock beforeContent %}
 
 {% block content %}
-  <h1 class="govuk-heading-l">
-    <span class="govuk-caption-l">{{ collection.name }}</span>
-    Sections
-  </h1>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ collection.name }}</span>
+        Sections
+      </h1>
 
-  {% set sections_text %}
-    {% trans count=collection.sections | length %}
-      {{ count }}
-      section {% pluralize %}
-      {{ count }}
-      sections
-    {% endtrans %}
-  {% endset %}
-  {% if not collection.sections %}
-    <p class="govuk-body">
-      This collection has no sections, you can
-      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_section', grant_id = grant.id, collection_id=collection.id) }}">add a section</a>
-      .
-    </p>
-  {% else %}
-    <p class="govuk-body">This collection has {{ sections_text }}</p>
+      {% set sections_text %}
+        {% trans count=collection.sections | length %}
+          {{ count }}
+          section {% pluralize %}
+          {{ count }}
+          sections
+        {% endtrans %}
+      {% endset %}
+      {% if not collection.sections %}
+        <p class="govuk-body">This collection has no sections.</p>
+      {% else %}
+        <p class="govuk-body">This collection has {{ sections_text }}</p>
 
-    {% set section_rows = [] %}
-    {% set table_rows = [] %}
-    {% for section in collection.sections %}
-      {%
-        do table_rows.append({
-        "text": section.title,
-        "actions":[
-        {"text":"Move up",
-            "href":url_for('developers.move_section', grant_id = grant.id, collection_id=collection.id,
-                   section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
-                   {"href":url_for('developers.move_section', grant_id = grant.id, collection_id=collection.id,
-                   section_id = section.id, direction = 'down') ,
-                "text": "Move down","disabled":(loop.index >= collection.sections | length), "post":true},
-                {"href":url_for('developers.manage_section', grant_id = grant.id, collection_id=collection.id,
-                   section_id = section.id),
-                "text": "Manage","post":false}
-        ]
-                })
-      %}
-    {% endfor %}
+        {% set section_rows = [] %}
+        {% set table_rows = [] %}
+        {% for section in collection.sections %}
+          {%
+            do table_rows.append({
+            "text": section.title,
+            "actions":[
+            {"text":"Move up",
+                "href":url_for('developers.move_section', grant_id = grant.id, collection_id=collection.id,
+                      section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
+                      {"href":url_for('developers.move_section', grant_id = grant.id, collection_id=collection.id,
+                      section_id = section.id, direction = 'down') ,
+                    "text": "Move down","disabled":(loop.index >= collection.sections | length), "post":true},
+                    {"href":url_for('developers.manage_section', grant_id = grant.id, collection_id=collection.id,
+                      section_id = section.id),
+                    "text": "Manage","post":false}
+            ]
+                    })
+          %}
+        {% endfor %}
 
-    {% if collection.sections %}
-      {{ moveUpDownTable(table_rows) }}
-    {% endif %}
-    {{
-      govukButton({
-      "text": "Add a section",
-      "classes": "govuk-button--secondary",
-      "href": url_for("developers.add_section", grant_id = grant.id, collection_id=collection.id)
-      })
-    }}
-  {% endif %}
+        {% if collection.sections %}
+          {{ moveUpDownTable(table_rows) }}
+        {% endif %}
+      {% endif %}
+
+      {{
+        govukButton({
+        "text": "Add a section",
+        "classes": "govuk-button--secondary",
+        "href": url_for("developers.add_section", grant_id = grant.id, collection_id=collection.id)
+        })
+      }}
+    </div>
+  </div>
 {% endblock content %}
