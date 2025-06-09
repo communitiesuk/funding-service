@@ -49,7 +49,7 @@ from app.deliver_grant_funding.forms import (
 )
 from app.developers import developers_blueprint
 from app.developers.forms import CheckYourAnswersForm, ConfirmDeletionForm, PreviewCollectionForm, SubmitCollectionForm
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, notification_service
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Form, Question
@@ -617,6 +617,7 @@ def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
     if form.validate_on_submit():
         try:
             collection_helper.submit_collection(interfaces.user.get_current_user())
+            notification_service.send_collection_submission(collection_helper.collection)
             return redirect(url_for("developers.collection_confirmation", collection_id=collection_helper.id))
         except ValueError:
             form.submit.errors.append("You must complete all forms before submitting the collection")  # type:ignore[attr-defined]
