@@ -9,7 +9,7 @@ from app.common.data.base import BaseModel, CIStr
 from app.common.data.types import RoleEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Grant, MagicLink, Organisation
+    from app.common.data.models import Grant, MagicLink, Organisation, Submission
 
 
 class User(BaseModel):
@@ -20,7 +20,7 @@ class User(BaseModel):
     magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
 
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
-    collections: Mapped[list["Collection"]] = relationship("Collection", back_populates="created_by")
+    submissions: Mapped[list["Submission"]] = relationship("Submission", back_populates="created_by")
 
     # Required by Flask-Login; should be provided by UserMixin, except that breaks our type hinting
     # when using this class in SQLAlchemy queries. So we've just lifted the key attributes here directly.

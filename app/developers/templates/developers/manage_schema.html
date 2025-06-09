@@ -6,7 +6,7 @@
 {% extends "deliver_grant_funding/base.html" %}
 
 {% block pageTitle %}
-  {{ schema.name }}
+  {{ collection.name }}
   - {{ grant.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
@@ -15,7 +15,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.grant_developers_schemas", grant_id = grant.id),
+        "href": url_for("developers.grant_developers_collections", grant_id = grant.id),
     })
   }}
 {% endblock beforeContent %}
@@ -37,22 +37,22 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
-        {{ schema.name }}
+        {{ collection.name }}
       </h1>
       {% set sections_text %}
-        {% trans count=schema.sections | length %}
+        {% trans count=collection.sections | length %}
           {{ count }}
           section {% pluralize %}
           {{ count }}
           sections
         {% endtrans %}
       {% endset %}
-      {% set collections_text %}
-        {% trans count=schema.collections | length %}
+      {% set submissions_text %}
+        {% trans count=collection.submissions | length %}
           {{ count }}
-          preview collection {% pluralize %}
+          preview submission {% pluralize %}
           {{ count }}
-          preview collections
+          preview submissions
         {% endtrans %}
       {% endset %}
 
@@ -60,11 +60,11 @@
         govukSummaryList({
           "rows": [{
               "key": {"text": "Name"},
-              "value":{"text": schema.name},
+              "value":{"text": collection.name},
               "actions": {
                   "items": [
                       {
-                        "href": url_for("developers.edit_schema", grant_id = grant.id, schema_id=schema.id),
+                        "href": url_for("developers.edit_collection", grant_id = grant.id, collection_id=collection.id),
                         "text": "Change",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -76,19 +76,19 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("developers.list_sections", grant_id = grant.id, schema_id=schema.id),
+                        "href": url_for("developers.list_sections", grant_id = grant.id, collection_id=collection.id),
                         "text": "Manage",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
                   ]
               }
         }, {
-              "key": {"text": "Collections"},
-              "value":{"text": collections_text },
+              "key": {"text": "Submissions"},
+              "value":{"text": submissions_text },
               "actions": {
                   "items": [
                       {
-                        "href": url_for("developers.list_collections_for_schema", schema_id=schema.id),
+                        "href": url_for("developers.list_submissions_for_collection", collection_id=collection.id),
                         "text": "View",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -98,10 +98,10 @@
         })
       }}
 
-      {% if not schema.sections %}
+      {% if not collection.sections %}
         <p class="govuk-body">
-          This schema has no sections, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_section', grant_id = grant.id, schema_id=schema.id) }}">add a section</a>
+          This collection has no sections, you can
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_section', grant_id = grant.id, collection_id=collection.id) }}">add a section</a>
           .
         </p>
       {% endif %}
@@ -114,13 +114,13 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full govuk-!-margin-top-5">
-      {% for section in schema.sections %}
+      {% for section in collection.sections %}
         <h2 class="govuk-heading-m">{{ section.title }}</h2>
 
         {% if not section.forms %}
           <p class="govuk-body">
             This section has no forms, you can
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_form', grant_id = grant.id, schema_id=schema.id, section_id=section.id) }}">add a form</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_form', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">add a form</a>
             .
           </p>
         {% endif %}
@@ -143,7 +143,7 @@
                 "status": {
                   "text": question_text
                 },
-              "href": url_for("developers.manage_form", grant_id = grant.id, schema_id=schema.id, section_id = section.id, form_id=form.id, back_link="manage_schema")
+              "href": url_for("developers.manage_form", grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, back_link="manage_collection")
             })
           %}
         {% endfor %}
@@ -158,7 +158,7 @@
 
       <div class="govuk-grid-row govuk-!-margin-top-7">
         <div class="govuk-grid-column-two-thirds">
-          <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_schema', grant_id=grant.id, schema_id=schema.id, delete='') }}">Delete this collection</a></p>
+          <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_collection', grant_id=grant.id, collection_id=collection.id, delete='') }}">Delete this collection</a></p>
         </div>
       </div>
     </div>

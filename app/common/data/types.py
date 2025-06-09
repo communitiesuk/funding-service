@@ -32,12 +32,12 @@ class QuestionDataType(enum.StrEnum):
         raise ValueError(f"Cannot coerce {value} to QuestionDataType")
 
 
-class CollectionStatusEnum(enum.StrEnum):
+class SubmissionStatusEnum(enum.StrEnum):
     NOT_STARTED = "Not started"
     IN_PROGRESS = "In progress"
     COMPLETED = "Completed"
 
 
-class MetadataEventKey(enum.StrEnum):
+class SubmissionEventKey(enum.StrEnum):
     FORM_RUNNER_FORM_COMPLETED = "Form completed"
-    COLLECTION_SUBMITTED = "Collection submitted"
+    SUBMISSION_SUBMITTED = "Submission submitted"

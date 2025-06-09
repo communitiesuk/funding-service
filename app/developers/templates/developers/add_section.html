@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% block pageTitle %}
-  Add a section - {{ schema.name }} - MHCLG Funding Service
+  Add a section - {{ collection.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "developers" %}
@@ -11,7 +11,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_schema", grant_id = grant.id, schema_id=schema.id)
+        "href": url_for("developers.manage_collection", grant_id = grant.id, collection_id=collection.id)
     })
   }}
 {% endblock beforeContent %}

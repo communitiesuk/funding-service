@@ -31,5 +31,5 @@ class ConfirmDeletionForm(FlaskForm):
     confirm_deletion = SubmitField("Confirm deletion", widget=GovSubmitInput())
 
 
-class SubmitCollectionForm(FlaskForm):
-    submit = SubmitField("Submit collection", widget=GovSubmitInput())
+class SubmitSubmissionForm(FlaskForm):
+    submit = SubmitField("Submit", widget=GovSubmitInput())

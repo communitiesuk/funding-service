@@ -49,10 +49,9 @@ class TestNotificationService:
 
     @responses.activate
     def test_send_collection_submission(self, app, factories):
-        collection_schema = factories.collection_schema.build(name="Submission collection")
-        collection = factories.collection.build(
+        submission = factories.submission.build(
             id=uuid.UUID("10000000-0000-0000-0000-000000000000"),
-            collection_schema=collection_schema,
+            collection__name="My test collection",
         )
         request_matcher = responses.post(
             url="https://api.notifications.service.gov.uk/v2/notifications/email",
@@ -60,12 +59,12 @@ class TestNotificationService:
             match=[
                 matchers.json_params_matcher(
                     {
-                        "email_address": collection.created_by.email,
-                        "template_id": "74a674b2-d14e-4452-bdcd-c3e4f0a8f002",
+                        "email_address": submission.created_by.email,
+                        "template_id": "2ff34065-0a75-4cc3-a782-1c00016e526e",
                         "personalisation": {
-                            "collection name": "Submission collection",
-                            "collection reference": "10000000",
-                            "collection url": "http://funding.communities.gov.localhost:8080/developers/collections/10000000-0000-0000-0000-000000000000",
+                            "submission name": "My test collection",
+                            "submission reference": "10000000",
+                            "submission url": "http://funding.communities.gov.localhost:8080/developers/submissions/10000000-0000-0000-0000-000000000000",
                         },
                     }
                 )
@@ -73,6 +72,6 @@ class TestNotificationService:
             json={"id": "00000000-0000-0000-0000-000000000000"},  # partial GOV.UK Notify response
         )
 
-        resp = notification_service.send_collection_submission(collection)
+        resp = notification_service.send_collection_submission(submission)
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1

@@ -2,21 +2,20 @@
 {% extends "developers/access_grant_funding_base.html" %}
 
 {% block pageTitle %}
-  Collection submitted {{ collection_helper.name }} - MHCLG Funding Service
+  Submission submitted {{ submission_helper.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% set reference = collection_helper.id | string | truncate(8, True, "") %}
       {% set reference_html %}
         Your reference number
         <br />
-        <strong>{{ collection_helper.collection.reference }}</strong>
+        <strong>{{ submission_helper.reference }}</strong>
       {% endset %}
       {{
         govukPanel({
-          "titleText": "Collection submitted",
+          "titleText": "Submission submitted",
           "html": reference_html
         })
       }}
@@ -25,11 +24,11 @@
 
       <h2 class="govuk-heading-m">What happens next</h2>
 
-      <p class="govuk-body">We will review your collection and ask if we need more information.</p>
+      <p class="govuk-body">We will review your submission and ask if we need more information.</p>
 
       <p class="govuk-body">
         You can
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.collection_tasklist', collection_id=collection_helper.id) }}">view your submission</a>
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.submission_tasklist', submission_id=submission_helper.id) }}">view your submission</a>
         at any time.
       </p>
     </div>

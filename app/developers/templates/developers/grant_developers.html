@@ -27,12 +27,12 @@
             "rows": [
             {
                 "key": {
-                    "text": "Schemas",
+                    "text": "Collections",
                     "classes": "govuk-!-padding-top-4 govuk-!-padding-bottom-4"
                 },
-                "value": { "text": ( grant.collection_schemas | length | string ) + " preview schemas" },
+                "value": { "text": ( grant.collections | length | string ) + " preview collections" },
                 "actions": {
-                    "items": [{ "text": "Manage", "href": url_for('developers.grant_developers_schemas', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
+                    "items": [{ "text": "Manage", "href": url_for('developers.grant_developers_collections', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
                 },
             }]
         })

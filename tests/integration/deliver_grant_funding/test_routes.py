@@ -6,9 +6,10 @@ from flask import url_for
 from sqlalchemy import select
 
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.models import CollectionSchema, Form, Grant, Question, Section
+from app.common.data.models import Collection, Form, Grant, Question, Section
 from app.common.data.types import QuestionDataType, RoleEnum
 from app.deliver_grant_funding.forms import (
+    CollectionForm,
     FormForm,
     GrantCheckYourAnswersForm,
     GrantContactForm,
@@ -19,7 +20,6 @@ from app.deliver_grant_funding.forms import (
     GrantSetupIntroForm,
     QuestionForm,
     QuestionTypeForm,
-    SchemaForm,
     SectionForm,
 )
 
@@ -160,34 +160,34 @@ def test_grant_change_name_post_with_errors(authenticated_client, factories, tem
 def test_create_collection_get(authenticated_platform_admin_client, factories, templates_rendered):
     grant = factories.grant.create()
     result = authenticated_platform_admin_client.get(
-        url_for("developers.setup_schema", grant_id=grant.id),
+        url_for("developers.setup_collection", grant_id=grant.id),
     )
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the name of the schema?"
+    assert soup.h1.text.strip() == "What is the name of the collection?"
 
 
 def test_create_collection_post(authenticated_platform_admin_client, factories, db_session):
     grant = factories.grant.create()
-    collection_form = SchemaForm(name="My test collection")
+    collection_form = CollectionForm(name="My test collection")
     result = authenticated_platform_admin_client.post(
-        url_for("developers.setup_schema", grant_id=grant.id),
+        url_for("developers.setup_collection", grant_id=grant.id),
         data=collection_form.data,
     )
     assert result.status_code == 302
-    assert result.location == url_for("developers.grant_developers_schemas", grant_id=grant.id)
+    assert result.location == url_for("developers.grant_developers_collections", grant_id=grant.id)
 
     grant_from_db = db_session.scalars(select(Grant).where(Grant.id == grant.id)).one()
-    assert len(grant_from_db.collection_schemas) == 1
+    assert len(grant_from_db.collections) == 1
 
 
 def test_create_collection_post_duplicate_name(authenticated_platform_admin_client, factories, db_session):
     grant = factories.grant.create()
-    factories.collection_schema.create(name="My test collection", grant=grant)
-    collection_form = SchemaForm(name="My test collection")
+    factories.collection.create(name="My test collection", grant=grant)
+    collection_form = CollectionForm(name="My test collection")
     result = authenticated_platform_admin_client.post(
-        url_for("developers.setup_schema", grant_id=grant.id),
+        url_for("developers.setup_collection", grant_id=grant.id),
         data=collection_form.data,
     )
     assert result.status_code == 200
@@ -199,9 +199,9 @@ def test_create_collection_post_duplicate_name(authenticated_platform_admin_clie
 
 
 def test_create_section_get(authenticated_platform_admin_client, factories, templates_rendered):
-    schema = factories.collection_schema.create()
+    collection = factories.collection.create()
     result = authenticated_platform_admin_client.get(
-        url_for("developers.add_section", grant_id=schema.grant.id, schema_id=schema.id),
+        url_for("developers.add_section", grant_id=collection.grant.id, collection_id=collection.id),
     )
     assert result.status_code == 200
 
@@ -210,25 +210,27 @@ def test_create_section_get(authenticated_platform_admin_client, factories, temp
 
 
 def test_create_section_post(authenticated_platform_admin_client, factories, db_session):
-    schema = factories.collection_schema.create()
+    collection = factories.collection.create()
     section_form = SectionForm(title="My test section")
     result = authenticated_platform_admin_client.post(
-        url_for("developers.add_section", grant_id=schema.grant.id, schema_id=schema.id),
+        url_for("developers.add_section", grant_id=collection.grant.id, collection_id=collection.id),
         data=section_form.data,
     )
     assert result.status_code == 302
-    assert result.location == url_for("developers.list_sections", grant_id=schema.grant.id, schema_id=schema.id)
+    assert result.location == url_for(
+        "developers.list_sections", grant_id=collection.grant.id, collection_id=collection.id
+    )
 
-    collection_from_db = db_session.scalars(select(CollectionSchema).where(CollectionSchema.id == schema.id)).one()
+    collection_from_db = db_session.scalars(select(Collection).where(Collection.id == collection.id)).one()
     assert len(collection_from_db.sections) == 1
 
 
 def test_create_section_post_duplicate_name(authenticated_platform_admin_client, factories, db_session):
-    schema = factories.collection_schema.create()
-    factories.section.create(title="My test section", collection_schema=schema)
+    collection = factories.collection.create()
+    factories.section.create(title="My test section", collection=collection)
     section_form = SectionForm(title="My test section")
     result = authenticated_platform_admin_client.post(
-        url_for("developers.add_section", grant_id=schema.grant.id, schema_id=schema.id),
+        url_for("developers.add_section", grant_id=collection.grant.id, collection_id=collection.id),
         data=section_form.data,
     )
 
@@ -243,8 +245,8 @@ def test_create_form_get(authenticated_platform_admin_client, factories, templat
     result = authenticated_platform_admin_client.get(
         url_for(
             "developers.add_form",
-            grant_id=section.collection_schema.grant.id,
-            schema_id=section.collection_schema.id,
+            grant_id=section.collection.grant.id,
+            collection_id=section.collection.id,
             section_id=section.id,
         ),
     )
@@ -256,8 +258,8 @@ def test_create_form_get(authenticated_platform_admin_client, factories, templat
     result = authenticated_platform_admin_client.get(
         url_for(
             "developers.add_form",
-            grant_id=section.collection_schema.grant.id,
-            schema_id=section.collection_schema.id,
+            grant_id=section.collection.grant.id,
+            collection_id=section.collection.id,
             section_id=section.id,
             form_type="text",
         ),
@@ -274,8 +276,8 @@ def test_create_form_post(authenticated_platform_admin_client, factories, db_ses
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.add_form",
-            grant_id=section.collection_schema.grant.id,
-            schema_id=section.collection_schema.id,
+            grant_id=section.collection.grant.id,
+            collection_id=section.collection.id,
             section_id=section.id,
             form_type="text",
         ),
@@ -284,8 +286,8 @@ def test_create_form_post(authenticated_platform_admin_client, factories, db_ses
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.manage_section",
-        grant_id=section.collection_schema.grant.id,
-        schema_id=section.collection_schema.id,
+        grant_id=section.collection.grant.id,
+        collection_id=section.collection.id,
         section_id=section.id,
     )
 
@@ -300,8 +302,8 @@ def test_create_form_post_duplicate_name(authenticated_platform_admin_client, fa
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.add_form",
-            grant_id=section.collection_schema.grant.id,
-            schema_id=section.collection_schema.id,
+            grant_id=section.collection.grant.id,
+            collection_id=section.collection.id,
             section_id=section.id,
             form_type="text",
         ),
@@ -315,15 +317,15 @@ def test_create_form_post_duplicate_name(authenticated_platform_admin_client, fa
 
 
 def test_move_section(authenticated_platform_admin_client, factories, db_session):
-    schema = factories.collection_schema.create()
-    section1 = factories.section.create(collection_schema=schema, order=0)
-    section2 = factories.section.create(collection_schema=schema, order=1)
+    collection = factories.collection.create()
+    section1 = factories.section.create(collection=collection, order=0)
+    section2 = factories.section.create(collection=collection, order=1)
 
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_section",
-            grant_id=schema.grant.id,
-            schema_id=schema.id,
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
             section_id=section1.id,
             direction="down",
         ),
@@ -331,8 +333,8 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.list_sections",
-        grant_id=schema.grant.id,
-        schema_id=schema.id,
+        grant_id=collection.grant.id,
+        collection_id=collection.id,
     )
 
     # Check the order has been updated in the database
@@ -344,8 +346,8 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_section",
-            grant_id=schema.grant.id,
-            schema_id=schema.id,
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
             section_id=section1.id,
             direction="up",
         ),
@@ -353,8 +355,8 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.list_sections",
-        grant_id=schema.grant.id,
-        schema_id=schema.id,
+        grant_id=collection.grant.id,
+        collection_id=collection.id,
     )
 
     # Check the order has been updated in the database
@@ -366,8 +368,8 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_section",
-            grant_id=schema.grant.id,
-            schema_id=schema.id,
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
             section_id=section1.id,
             direction="bad_direction",
         ),
@@ -382,8 +384,8 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_form",
-            grant_id=section.collection_schema.grant.id,
-            schema_id=section.collection_schema.id,
+            grant_id=section.collection.grant.id,
+            collection_id=section.collection.id,
             section_id=section.id,
             form_id=form1.id,
             direction="down",
@@ -392,8 +394,8 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.manage_section",
-        grant_id=section.collection_schema.grant.id,
-        schema_id=section.collection_schema.id,
+        grant_id=section.collection.grant.id,
+        collection_id=section.collection.id,
         section_id=section.id,
     )
 
@@ -404,8 +406,8 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_form",
-            grant_id=section.collection_schema.grant.id,
-            schema_id=section.collection_schema.id,
+            grant_id=section.collection.grant.id,
+            collection_id=section.collection.id,
             section_id=section.id,
             form_id=form1.id,
             direction="up",
@@ -414,8 +416,8 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.manage_section",
-        grant_id=section.collection_schema.grant.id,
-        schema_id=section.collection_schema.id,
+        grant_id=section.collection.grant.id,
+        collection_id=section.collection.id,
         section_id=section.id,
     )
 
@@ -427,8 +429,8 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_form",
-            grant_id=section.collection_schema.grant.id,
-            schema_id=section.collection_schema.id,
+            grant_id=section.collection.grant.id,
+            collection_id=section.collection.id,
             section_id=section.id,
             form_id=form1.id,
             direction="bad_direction",
@@ -444,8 +446,8 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_question",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question1.id,
@@ -455,8 +457,8 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.manage_form",
-        grant_id=form.section.collection_schema.grant.id,
-        schema_id=form.section.collection_schema.id,
+        grant_id=form.section.collection.grant.id,
+        collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
         back_link="manage_section",
@@ -470,8 +472,8 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_question",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question1.id,
@@ -481,8 +483,8 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.manage_form",
-        grant_id=form.section.collection_schema.grant.id,
-        schema_id=form.section.collection_schema.id,
+        grant_id=form.section.collection.grant.id,
+        collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
         back_link="manage_section",
@@ -496,8 +498,8 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.move_question",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question1.id,
@@ -512,8 +514,8 @@ def test_create_question_choose_type_get(authenticated_platform_admin_client, fa
     result = authenticated_platform_admin_client.get(
         url_for(
             "developers.choose_question_type",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
         ),
@@ -530,8 +532,8 @@ def test_create_question_choose_type_post(authenticated_platform_admin_client, f
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.choose_question_type",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
             question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -541,8 +543,8 @@ def test_create_question_choose_type_post(authenticated_platform_admin_client, f
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.add_question",
-        grant_id=form.section.collection_schema.grant.id,
-        schema_id=form.section.collection_schema.id,
+        grant_id=form.section.collection.grant.id,
+        collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
         question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -555,8 +557,8 @@ def test_create_question_choose_type_post_error(authenticated_platform_admin_cli
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.choose_question_type",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
         ),
@@ -574,8 +576,8 @@ def test_add_text_question_get(authenticated_platform_admin_client, factories):
     result = authenticated_platform_admin_client.get(
         url_for(
             "developers.add_question",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
             question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -598,8 +600,8 @@ def test_add_text_question_post(authenticated_platform_admin_client, factories, 
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.add_question",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
             question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -609,8 +611,8 @@ def test_add_text_question_post(authenticated_platform_admin_client, factories, 
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.manage_form",
-        grant_id=form.section.collection_schema.grant.id,
-        schema_id=form.section.collection_schema.id,
+        grant_id=form.section.collection.grant.id,
+        collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
         back_link="manage_section",
@@ -628,8 +630,8 @@ def test_add_text_question_post_duplicate_text(authenticated_platform_admin_clie
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.add_question",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
             question_data_type=QuestionDataType.TEXT_SINGLE_LINE.name,
@@ -650,8 +652,8 @@ def test_edit_question_get(authenticated_platform_admin_client, factories):
     result = authenticated_platform_admin_client.get(
         url_for(
             "developers.edit_question",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question.id,
@@ -670,8 +672,8 @@ def test_edit_question_post(authenticated_platform_admin_client, factories, db_s
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.edit_question",
-            grant_id=form.section.collection_schema.grant.id,
-            schema_id=form.section.collection_schema.id,
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
             section_id=form.section.id,
             form_id=form.id,
             question_id=question.id,
@@ -681,8 +683,8 @@ def test_edit_question_post(authenticated_platform_admin_client, factories, db_s
     assert result.status_code == 302
     assert result.location == url_for(
         "developers.manage_form",
-        grant_id=form.section.collection_schema.grant.id,
-        schema_id=form.section.collection_schema.id,
+        grant_id=form.section.collection.grant.id,
+        collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
         back_link="manage_section",

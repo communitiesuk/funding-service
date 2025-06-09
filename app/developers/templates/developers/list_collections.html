@@ -6,7 +6,7 @@
 {% extends "deliver_grant_funding/base.html" %}
 
 {% block pageTitle %}
-  Collections - {{ schema.name }} - MHCLG Funding Service
+  Submissions - {{ collection.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "developers" %}
@@ -22,33 +22,32 @@
 
 {% block content %}
   <h1 class="govuk-heading-l">
-    <span class="govuk-caption-l">{{ schema.name }}</span>
-    Collections
+    <span class="govuk-caption-l">{{ collection.name }}</span>
+    Submissions
   </h1>
-  <p class="govuk-body">View the information that has been provided by users for a schema.</p>
+  <p class="govuk-body">View the information that has been provided by users for a submission.</p>
 
   {% set rows=[] %}
-  {# collections is probably a list of collection helpers? to be decided #}
-  {% for collection in collections %}
-    {% set link_to_collection %}
-      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_collection', collection_id=collection.id) }}">{{ collection.reference }}</a>
+  {% for submission in submissions %}
+    {% set link_to_submission %}
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_submission', submission_id=submission.id) }}">{{ submission.reference }}</a>
     {% endset %}
     {%
       do rows.append([
         {
-          "html": link_to_collection,
+          "html": link_to_submission,
         }, {
-          "html": status(collection.status, statuses)
+          "html": status(submission.status, statuses)
         }, {
-          "text": collection.created_by_email
+          "text": submission.created_by_email
         }, {
-          "text": format_date_short(collection.created_at_utc)
+          "text": format_date_short(submission.created_at_utc)
         }
       ])
     %}
   {% else %}
     {% set no_collections_text %}
-      <span><i>No collections found for this schema</i></span>
+      <span><i>No submissions found for this collection</i></span>
     {% endset %}
     {%
       do rows.append([
@@ -64,7 +63,7 @@
     govukTable({
       "captionClasses": "govuk-table__caption--m",
       "head": [
-        { "text": "Collection" },
+        { "text": "Submission" },
         { "text": "" },
         { "text": "Started by" },
         { "text": "Created" }
