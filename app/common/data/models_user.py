@@ -46,6 +46,10 @@ class User(BaseModel):
         )
         return is_platform_admin
 
+    @property
+    def is_logged_in(self) -> bool:
+        return bool(self.name)
+
     def get_id(self) -> str:
         return str(self.id)
 

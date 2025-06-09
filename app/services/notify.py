@@ -108,13 +108,12 @@ class NotificationService:
         email_address: str,
         *,
         grant_name: str,
-        sign_in_url: str,
     ) -> Notification:
         return self._send_email(
             email_address,
             current_app.config["GOVUK_NOTIFY_MEMBER_CONFIRMATION_TEMPLATE_ID"],
             personalisation={
                 "grant_name": grant_name,
-                "sign_in_url": sign_in_url,
+                "sign_in_url": url_for("auth.sso_sign_in", _external=True),
             },
         )

@@ -1,7 +1,7 @@
 """adding name column into user table
 
-Revision ID: 007_adding_name_column
-Revises: 006_metadata_enum
+Revision ID: 002_adding_name_column
+Revises: 001_bootstrap
 Create Date: 2025-06-06 10:15:36.813472
 
 """
@@ -9,7 +9,7 @@ Create Date: 2025-06-06 10:15:36.813472
 import sqlalchemy as sa
 from alembic import op
 
-revision = "007_adding_name_column"
+revision = "002_adding_name_column"
 down_revision = "001_bootstrap"
 branch_labels = None
 depends_on = None

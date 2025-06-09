@@ -28,7 +28,7 @@ from stubs.sso.forms import SSOSignInForm
 
 dummy_nonce = ""  # noqa: F841
 email_address = ""  # noqa: F841
-is_member = False  # noqa: F841
+is_platform_admin = False  # noqa: F841
 
 dummy_client_info = {"uid": str(uuid.uuid4()), "utid": str(uuid.uuid4())}
 json_dummy_client_info = json.dumps(dummy_client_info)
@@ -60,7 +60,7 @@ def create_sso_stub_app() -> Flask:
 
     @app.route("/<tenant>/oauth2/v2.0/authorize", methods=["GET", "POST"])
     def oauth_redirect(tenant):
-        global dummy_nonce, base_64_str_client_info, email_address, is_member
+        global dummy_nonce, base_64_str_client_info, email_address, is_platform_admin
 
         form = SSOSignInForm()
         if form.validate_on_submit():
@@ -74,7 +74,7 @@ def create_sso_stub_app() -> Flask:
                     "session_state": uuid.uuid4(),
                 }
             )
-            is_member = form.is_member.data
+            is_platform_admin = form.is_platform_admin.data
             return redirect(request.args["redirect_uri"] + "?" + data)
         return render_template("sso/sso_login.html", form=form)
 
@@ -132,7 +132,7 @@ def create_sso_stub_app() -> Flask:
 
     @app.route("/<tenant>/oauth2/v2.0/token", methods=["GET", "POST"])
     def token_endpoint(tenant):
-        global dummy_nonce, base_64_str_client_info, email_address, is_member
+        global dummy_nonce, base_64_str_client_info, email_address, is_platform_admin
 
         # We've replaced a lot of the values in this dictionary with empty strings
         # as they won't be referenced anywhere else
@@ -158,7 +158,7 @@ def create_sso_stub_app() -> Flask:
                 "oid": "",
                 "preferred_username": email_address,
                 "rh": "",
-                "roles": [] if is_member else ["FSD_ADMIN"],
+                "roles": ["FSD_ADMIN"] if is_platform_admin else [],
                 "sid": "",
                 "sub": "",
                 "tid": "",

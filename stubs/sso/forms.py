@@ -17,8 +17,8 @@ class SSOSignInForm(FlaskForm):
         widget=GovTextInput(),
         filters=[lambda x: x.strip() if x else x],
     )
-    is_member = BooleanField(
-        "Member type login",
+    is_platform_admin = BooleanField(
+        "Platform admin type login",
         widget=GovCheckboxInput(),
     )
     submit = SubmitField("Sign in", widget=GovSubmitInput())

@@ -1,7 +1,7 @@
 import datetime
 import secrets
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from pytz import utc
 from sqlalchemy import Enum as SqlEnum
@@ -13,7 +13,7 @@ from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import User
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum, json_scalars
+from app.common.data.types import QuestionDataType, RoleEnum, SubmissionEventKey, SubmissionStatusEnum, json_scalars
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
@@ -30,6 +30,14 @@ class Grant(BaseModel):
 
     collections: Mapped[list["Collection"]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="grant", cascade="all, delete-orphan")
+
+    @property
+    def members(self) -> List[User]:
+        return [role.user for role in self.roles if role.role == RoleEnum.MEMBER and not role.user.is_platform_admin]
+
+    @property
+    def users(self) -> List[User]:
+        return [role.user for role in self.roles]
 
 
 class Organisation(BaseModel):
