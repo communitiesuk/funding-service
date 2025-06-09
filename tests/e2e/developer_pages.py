@@ -409,9 +409,11 @@ class TasklistPage(GrantDevelopersBasePage):
     def click_on_form(self, form_name: str) -> None:
         self.page.get_by_role("link", name=form_name).click()
 
-    def click_submit_collection(self) -> None:
+    def click_submit_collection(self) -> SubmitCollectionConfirmationPage:
         self.submit_button.click()
-        expect(self.page.get_by_role("heading", name="Collection submitted")).to_be_visible()
+        confirmation_page = SubmitCollectionConfirmationPage(self.page, self.domain, self.grant_name)
+        expect(confirmation_page.heading).to_be_visible()
+        return confirmation_page
 
     def click_back(self) -> SchemaDetailPage:
         self.back_link.click()
@@ -492,10 +494,10 @@ class CollectionsListPage(GrantDevelopersBasePage):
         )
         self.schema_name = schema_name
 
-    def click_on_collection(self, collection_id: str) -> ViewCollectionResponsesPage:
-        self.page.get_by_role("link", name=collection_id).click()
+    def click_on_collection(self, collection_reference: str) -> ViewCollectionResponsesPage:
+        self.page.get_by_role("link", name=collection_reference).click()
         view_collection_page = ViewCollectionResponsesPage(
-            self.page, self.domain, self.grant_name, collection_id=collection_id
+            self.page, self.domain, self.grant_name, collection_id=collection_reference
         )
         expect(view_collection_page.heading).to_be_visible()
         return view_collection_page
@@ -513,5 +515,18 @@ class ViewCollectionResponsesPage(GrantDevelopersBasePage):
         )
         self.collection_id = collection_id
 
-    def get_questions_list_for_form(self, form_name:str) -> Locator:
+    def get_questions_list_for_form(self, form_name: str) -> Locator:
         return self.page.get_by_test_id(form_name)
+
+
+class SubmitCollectionConfirmationPage(GrantDevelopersBasePage):
+    collection_reference: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Collection submitted"),
+        )
+        self.collection_reference = page.get_by_test_id("collection-reference")

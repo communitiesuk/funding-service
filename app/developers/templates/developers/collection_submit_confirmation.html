@@ -12,7 +12,7 @@
       {% set reference_html %}
         Your reference number
         <br />
-        <strong>{{ collection_helper.collection.reference }}</strong>
+        <strong data-testid="collection-reference">{{ collection_helper.collection.reference }}</strong>
       {% endset %}
       {{
         govukPanel({

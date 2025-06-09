@@ -144,19 +144,22 @@ def test_create_and_preview_schema(
         tasklist_page.collection_status_box.filter(has=tasklist_page.page.get_by_text("In progress"))
     ).to_be_visible()
     expect(tasklist_page.submit_button).to_be_enabled()
-    tasklist_page.click_submit_collection()
+    confirmation_page = tasklist_page.click_submit_collection()
+    collection_reference = confirmation_page.collection_reference.inner_text()
+
+    # Go back to schema detail page
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
+    grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
+    developers_page = grant_dashboard_page.click_developers(new_grant_name)
+    list_schemas_page = developers_page.click_manage_schemas(grant_name=new_grant_name)
+    schema_detail_page = list_schemas_page.click_on_schema(grant_name=new_grant_name, schema_name=new_schema_name)
 
     # View the collection
-    schema_detail_page = tasklist_page.click_back()
     expect(schema_detail_page.summary_row_collections.get_by_text("1 preview collection")).to_be_visible()
     collections_list_page = schema_detail_page.click_view_collections()
 
-    # TODO use collection reference to find link
-    #  Expect this to eventually find by the reference we assign a collection, but at the moment the link text
-    #  is the collection guid so using a testid for now as users don't know that guid, and we will only have
-    #  one collection
-    collection_id = collections_list_page.page.get_by_test_id("collection-link").inner_text()
-    view_collection_page = collections_list_page.click_on_collection(collection_id=collection_id)
+    view_collection_page = collections_list_page.click_on_collection(collection_reference=collection_reference)
 
     answers_list = view_collection_page.get_questions_list_for_form(form_name)
     expect(answers_list).to_be_visible()
