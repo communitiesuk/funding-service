@@ -28,6 +28,7 @@ from stubs.sso.forms import SSOSignInForm
 
 dummy_nonce = ""  # noqa: F841
 email_address = ""  # noqa: F841
+is_member = False  # noqa: F841
 
 dummy_client_info = {"uid": str(uuid.uuid4()), "utid": str(uuid.uuid4())}
 json_dummy_client_info = json.dumps(dummy_client_info)
@@ -59,7 +60,7 @@ def create_sso_stub_app() -> Flask:
 
     @app.route("/<tenant>/oauth2/v2.0/authorize", methods=["GET", "POST"])
     def oauth_redirect(tenant):
-        global dummy_nonce, base_64_str_client_info, email_address
+        global dummy_nonce, base_64_str_client_info, email_address, is_member
 
         form = SSOSignInForm()
         if form.validate_on_submit():
@@ -73,6 +74,7 @@ def create_sso_stub_app() -> Flask:
                     "session_state": uuid.uuid4(),
                 }
             )
+            is_member = form.is_member.data
             return redirect(request.args["redirect_uri"] + "?" + data)
         return render_template("sso/sso_login.html", form=form)
 
@@ -130,7 +132,7 @@ def create_sso_stub_app() -> Flask:
 
     @app.route("/<tenant>/oauth2/v2.0/token", methods=["GET", "POST"])
     def token_endpoint(tenant):
-        global dummy_nonce, base_64_str_client_info, email_address
+        global dummy_nonce, base_64_str_client_info, email_address, is_member
 
         # We've replaced a lot of the values in this dictionary with empty strings
         # as they won't be referenced anywhere else
@@ -151,12 +153,12 @@ def create_sso_stub_app() -> Flask:
                 "nbf": int(time.time()),
                 "exp": int(time.time() + 60 * 60),
                 "idp": "",
-                "name": "Dev Developer",
+                "name": _name_from_email(email_address),
                 "nonce": dummy_nonce,
                 "oid": "",
                 "preferred_username": email_address,
                 "rh": "",
-                "roles": ["FSD_ADMIN"],
+                "roles": [] if is_member else ["FSD_ADMIN"],
                 "sid": "",
                 "sub": "",
                 "tid": "",
@@ -169,5 +171,10 @@ def create_sso_stub_app() -> Flask:
     @app.route("/health", methods=["GET"])
     def health_endpoint():
         return jsonify(status="ok", message="Stub server running"), 200
+
+    def _name_from_email(email: str) -> str:
+        username = email.split("@")[0]
+        username = username.replace(".", " ")
+        return username.capitalize()
 
     return app
