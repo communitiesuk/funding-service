@@ -1,8 +1,8 @@
-"""Condense migrations to allow change of primary key on collection_schema
+"""bootstrap the database
 
 Revision ID: 001_bootstrap
 Revises:
-Create Date: 2025-05-22 11:37:45.951870
+Create Date: 2025-06-09 15:57:45.818064
 
 """
 
@@ -16,20 +16,28 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
+
 question_data_type_enum = sa.Enum("TEXT_SINGLE_LINE", "TEXT_MULTI_LINE", "INTEGER", name="question_data_type_enum")
 role_enum = sa.Enum("ADMIN", "MEMBER", "EDITOR", "ASSESSOR", "S151_OFFICER", name="role_enum")
+submission_status_enum = sa.Enum("NOT_STARTED", "IN_PROGRESS", "COMPLETED", name="submission_status_enum")
+submission_event_key_enum = sa.Enum(
+    "FORM_RUNNER_FORM_COMPLETED", "SUBMISSION_SUBMITTED", name="submission_event_key_enum"
+)
 
 
 def upgrade() -> None:
     public_citext = PGExtension(schema="public", signature="citext")
     op.create_entity(public_citext)
-
     op.create_table(
         "grant",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("created_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("name", postgresql.CITEXT(), nullable=False),
+        sa.Column("ggis_number", sa.String(), nullable=True),
+        sa.Column("description", sa.String(), nullable=False),
+        sa.Column("primary_contact_name", sa.String(), nullable=False),
+        sa.Column("primary_contact_email", sa.String(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_grant")),
         sa.UniqueConstraint("name", name=op.f("uq_grant_name")),
     )
@@ -52,7 +60,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("email", name=op.f("uq_user_email")),
     )
     op.create_table(
-        "collection_schema",
+        "collection",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("created_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
@@ -61,10 +69,10 @@ def upgrade() -> None:
         sa.Column("slug", sa.String(), nullable=False),
         sa.Column("grant_id", sa.Uuid(), nullable=False),
         sa.Column("created_by_id", sa.Uuid(), nullable=False),
-        sa.ForeignKeyConstraint(["created_by_id"], ["user.id"], name=op.f("fk_collection_schema_created_by_id_user")),
-        sa.ForeignKeyConstraint(["grant_id"], ["grant.id"], name=op.f("fk_collection_schema_grant_id_grant")),
-        sa.PrimaryKeyConstraint("id", "version", name=op.f("pk_collection_schema")),
-        sa.UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),
+        sa.ForeignKeyConstraint(["created_by_id"], ["user.id"], name=op.f("fk_collection_created_by_id_user")),
+        sa.ForeignKeyConstraint(["grant_id"], ["grant.id"], name=op.f("fk_collection_grant_id_grant")),
+        sa.PrimaryKeyConstraint("id", "version", name=op.f("pk_collection")),
+        sa.UniqueConstraint("name", "grant_id", "version", name="uq_collection_name_version_grant_id"),
     )
     op.create_table(
         "magic_link",
@@ -117,7 +125,14 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["user_id"], ["user.id"], name=op.f("fk_user_role_user_id_user"), ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_user_role")),
-        sa.UniqueConstraint("user_id", "organisation_id", "grant_id", "role", name="uq_user_org_grant_role"),
+        sa.UniqueConstraint(
+            "user_id",
+            "organisation_id",
+            "grant_id",
+            "role",
+            name="uq_user_org_grant_role",
+            postgresql_nulls_not_distinct=True,
+        ),
     )
     with op.batch_alter_table("user_role", schema=None) as batch_op:
         batch_op.create_index("ix_user_roles_grant_id", ["grant_id"], unique=False)
@@ -137,27 +152,37 @@ def upgrade() -> None:
         sa.Column("title", sa.String(), nullable=False),
         sa.Column("order", sa.Integer(), nullable=False),
         sa.Column("slug", sa.String(), nullable=False),
-        sa.Column("collection_schema_id", sa.Uuid(), nullable=False),
-        sa.Column("collection_schema_version", sa.Integer(), nullable=False),
+        sa.Column("collection_id", sa.Uuid(), nullable=False),
+        sa.Column("collection_version", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(
-            ["collection_schema_id", "collection_schema_version"],
-            ["collection_schema.id", "collection_schema.version"],
-            name=op.f("fk_section_collection_schema_id_collection_schema"),
+            ["collection_id", "collection_version"],
+            ["collection.id", "collection.version"],
+            name=op.f("fk_section_collection_id_collection"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_section")),
         sa.UniqueConstraint(
-            "collection_schema_id",
-            "collection_schema_version",
-            "order",
-            deferrable=True,
-            name="uq_section_order_collection_schema",
+            "collection_id", "collection_version", "order", deferrable=True, name="uq_section_order_collection"
         ),
-        sa.UniqueConstraint(
-            "collection_schema_id", "collection_schema_version", "slug", name="uq_section_slug_collection_schema"
+        sa.UniqueConstraint("collection_id", "collection_version", "slug", name="uq_section_slug_collection"),
+        sa.UniqueConstraint("collection_id", "collection_version", "title", name="uq_section_title_collection"),
+    )
+    op.create_table(
+        "submission",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("created_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column("data", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("status", submission_status_enum, nullable=False),
+        sa.Column("created_by_id", sa.Uuid(), nullable=False),
+        sa.Column("collection_id", sa.Uuid(), nullable=False),
+        sa.Column("collection_version", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["collection_id", "collection_version"],
+            ["collection.id", "collection.version"],
+            name=op.f("fk_submission_collection_id_collection"),
         ),
-        sa.UniqueConstraint(
-            "collection_schema_id", "collection_schema_version", "title", name="uq_section_title_collection_schema"
-        ),
+        sa.ForeignKeyConstraint(["created_by_id"], ["user.id"], name=op.f("fk_submission_created_by_id_user")),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_submission")),
     )
     op.create_table(
         "form",
@@ -197,11 +222,33 @@ def upgrade() -> None:
         sa.UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
         sa.UniqueConstraint("text", "form_id", name="uq_question_text_form"),
     )
+    op.create_table(
+        "submission_event",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("created_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "key",
+            submission_event_key_enum,
+            nullable=False,
+        ),
+        sa.Column("submission_id", sa.Uuid(), nullable=False),
+        sa.Column("form_id", sa.Uuid(), nullable=True),
+        sa.Column("created_by_id", sa.Uuid(), nullable=False),
+        sa.ForeignKeyConstraint(["created_by_id"], ["user.id"], name=op.f("fk_submission_event_created_by_id_user")),
+        sa.ForeignKeyConstraint(["form_id"], ["form.id"], name=op.f("fk_submission_event_form_id_form")),
+        sa.ForeignKeyConstraint(
+            ["submission_id"], ["submission.id"], name=op.f("fk_submission_event_submission_id_submission")
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_submission_event")),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("submission_event")
     op.drop_table("question")
     op.drop_table("form")
+    op.drop_table("submission")
     op.drop_table("section")
     with op.batch_alter_table("user_role", schema=None) as batch_op:
         batch_op.drop_index("ix_user_roles_user_id_organisation_id")
@@ -216,13 +263,15 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f("ix_magic_link_code"), postgresql_where="claimed_at_utc IS NOT NULL")
 
     op.drop_table("magic_link")
-    op.drop_table("collection_schema")
+    op.drop_table("collection")
     op.drop_table("user")
     op.drop_table("organisation")
     op.drop_table("grant")
 
     question_data_type_enum.drop(op.get_bind())
     role_enum.drop(op.get_bind())
+    submission_status_enum.drop(op.get_bind())
+    submission_event_key_enum.drop(op.get_bind())
 
     public_citext = PGExtension(schema="public", signature="citext")
     op.drop_entity(public_citext)

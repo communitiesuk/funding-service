@@ -13,28 +13,28 @@ from uuid import UUID
 
 from app.common.data.models import (
     Collection,
-    CollectionSchema,
     Form,
     Grant,
     Question,
     Section,
+    Submission,
 )
 from app.extensions import db
 
 
-def delete_collections_created_by_user(*, grant_id: UUID, created_by_id: UUID) -> None:
-    collections = (
-        db.session.query(Collection)
-        .join(CollectionSchema)
+def delete_submissions_created_by_user(*, grant_id: UUID, created_by_id: UUID) -> None:
+    submissions = (
+        db.session.query(Submission)
+        .join(Collection)
         .where(
-            CollectionSchema.grant_id == grant_id,
-            Collection.created_by_id == created_by_id,
+            Collection.grant_id == grant_id,
+            Submission.created_by_id == created_by_id,
         )
         .all()
     )
 
-    for collection in collections:
-        db.session.delete(collection)
+    for submission in submissions:
+        db.session.delete(submission)
     db.session.flush()
 
 
@@ -45,9 +45,9 @@ def delete_grant(grant_id: UUID) -> None:
     db.session.flush()
 
 
-def delete_collection_schema(schema_id: UUID) -> None:
-    schema = db.session.query(CollectionSchema).where(CollectionSchema.id == schema_id).one()
-    db.session.delete(schema)
+def delete_collection(collection_id: UUID) -> None:
+    collection = db.session.query(Collection).where(Collection.id == collection_id).one()
+    db.session.delete(collection)
     db.session.flush()
 
 

@@ -2,50 +2,50 @@ import uuid
 
 import pytest
 
-from app.common.data.types import MetadataEventKey
-from app.common.helpers.collections import CollectionHelper
+from app.common.data.types import SubmissionEventKey
+from app.common.helpers.collections import SubmissionHelper
 from tests.utils import AnyStringMatching
 
 
-class TestCollectionHelper:
+class TestSubmissionHelper:
     class TestGetOrderedVisibleSections:
         def test_ordering(self, db_session, factories):
-            collection = factories.collection.build()
-            _section_2 = factories.section.build(order=2, collection_schema=collection.collection_schema)
-            _section_0 = factories.section.build(order=0, collection_schema=collection.collection_schema)
-            _section_1 = factories.section.build(order=1, collection_schema=collection.collection_schema)
-            _section_4 = factories.section.build(order=4, collection_schema=collection.collection_schema)
-            _section_3 = factories.section.build(order=3, collection_schema=collection.collection_schema)
+            submission = factories.submission.build()
+            _section_2 = factories.section.build(order=2, collection=submission.collection)
+            _section_0 = factories.section.build(order=0, collection=submission.collection)
+            _section_1 = factories.section.build(order=1, collection=submission.collection)
+            _section_4 = factories.section.build(order=4, collection=submission.collection)
+            _section_3 = factories.section.build(order=3, collection=submission.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             helper_sections = helper.get_ordered_visible_sections()
             assert len(helper_sections) == 5
             assert [s.order for s in helper_sections] == [0, 1, 2, 3, 4]
 
     class TestGetOrderedVisibleForms:
         def test_ordering(self, db_session, factories):
-            collection = factories.collection.build()
-            section = factories.section.build(collection_schema=collection.collection_schema)
+            submission = factories.submission.build()
+            section = factories.section.build(collection=submission.collection)
             _form_0 = factories.form.build(order=0, section=section)
             _form_2 = factories.form.build(order=2, section=section)
             _form_3 = factories.form.build(order=3, section=section)
             _form_1 = factories.form.build(order=1, section=section)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             helper_forms = helper.get_ordered_visible_forms_for_section(section)
             assert len(helper_forms) == 4
             assert [s.order for s in helper_forms] == [0, 1, 2, 3]
 
     class TestGetOrderedVisibleQuestions:
         def test_ordering(self, db_session, factories):
-            collection = factories.collection.build()
-            section = factories.section.build(collection_schema=collection.collection_schema)
+            submission = factories.submission.build()
+            section = factories.section.build(collection=submission.collection)
             form = factories.form.build(order=0, section=section)
             _question_2 = factories.question.build(order=2, form=form)
             _question_0 = factories.question.build(order=0, form=form)
             _question_1 = factories.question.build(order=1, form=form)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             helper_questions = helper.get_ordered_visible_questions_for_form(form)
             assert len(helper_questions) == 3
             assert [s.order for s in helper_questions] == [0, 1, 2]
@@ -53,59 +53,61 @@ class TestCollectionHelper:
     class TestGetSection:
         def test_exists(self, db_session, factories):
             section = factories.section.build()
-            collection = factories.collection.build(collection_schema=section.collection_schema)
+            submission = factories.submission.build(collection=section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             assert helper.get_section(section.id) == section
 
         def test_does_not_exist(self, db_session, factories):
             section = factories.section.build()
-            collection = factories.collection.build(collection_schema=section.collection_schema)
+            submission = factories.submission.build(collection=section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             with pytest.raises(ValueError) as e:
                 assert helper.get_section(uuid.uuid4())
 
             assert str(e.value) == AnyStringMatching(
-                r"Could not find a section with id=[a-z0-9-]+ in schema=[a-z0-9-]+"
+                r"Could not find a section with id=[a-z0-9-]+ in collection=[a-z0-9-]+"
             )
 
     class TestGetForm:
         def test_exists(self, db_session, factories):
             form = factories.form.build()
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             assert helper.get_form(form.id) == form
 
         def test_does_not_exist(self, db_session, factories):
             form = factories.form.build()
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             with pytest.raises(ValueError) as e:
                 assert helper.get_form(uuid.uuid4())
 
-            assert str(e.value) == AnyStringMatching(r"Could not find a form with id=[a-z0-9-]+ in schema=[a-z0-9-]+")
+            assert str(e.value) == AnyStringMatching(
+                r"Could not find a form with id=[a-z0-9-]+ in collection=[a-z0-9-]+"
+            )
 
     class TestGetQuestion:
         def test_exists(self, db_session, factories):
             question = factories.question.build()
-            collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
+            submission = factories.submission.build(collection=question.form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             assert helper.get_question(question.id) == question
 
         def test_does_not_exist(self, db_session, factories):
             question = factories.question.build()
-            collection = factories.collection.build(collection_schema=question.form.section.collection_schema)
+            submission = factories.submission.build(collection=question.form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             with pytest.raises(ValueError) as e:
                 assert helper.get_question(uuid.uuid4())
 
             assert str(e.value) == AnyStringMatching(
-                r"Could not find a question with id=[a-z0-9-]+ in schema=[a-z0-9-]+"
+                r"Could not find a question with id=[a-z0-9-]+ in collection=[a-z0-9-]+"
             )
 
     class TestGetFirstQuestionForForm:
@@ -117,18 +119,18 @@ class TestCollectionHelper:
             for x in reversed(range(5)):
                 factories.question.build(form=form, id=uuid.UUID(int=x), order=x)
 
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             question = helper.get_first_question_for_form(form)
             assert question.id == uuid.UUID("00000000-0000-0000-0000-000000000000")
 
         def test_no_visible_questions_in_form(self, db_session, factories):
             form = factories.form.build()
 
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             assert helper.get_first_question_for_form(form) is None
 
     class TestGetLastQuestionForForm:
@@ -140,48 +142,48 @@ class TestCollectionHelper:
             for x in reversed(range(5)):
                 factories.question.build(form=form, id=uuid.UUID(int=x), order=x)
 
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             question = helper.get_last_question_for_form(form)
             assert question.id == uuid.UUID("00000000-0000-0000-0000-000000000004")
 
         def test_no_visible_questions_in_form(self, db_session, factories):
             form = factories.form.build()
 
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
             assert helper.get_last_question_for_form(form) is None
 
     class TestGetFormForQuestion:
-        def test_question_exists_in_schema_forms(self, db_session, factories):
+        def test_question_exists_in_collection_forms(self, db_session, factories):
             section = factories.section.build()
             form = factories.form.build(section=section)
 
             for x in reversed(range(5)):
                 factories.question.build(form=form, id=uuid.UUID(int=x), order=x)
 
-            collection = factories.collection.build(collection_schema=section.collection_schema)
+            submission = factories.submission.build(collection=section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
 
             for question in form.questions:
                 assert helper.get_form_for_question(question.id) == form
 
-        def test_question_does_not_exist_in_schema_forms(self, db_session, factories):
+        def test_question_does_not_exist_in_collection_forms(self, db_session, factories):
             form = factories.form.build()
             factories.question.build(form=form, id=uuid.UUID(int=0), order=0)
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
 
             with pytest.raises(ValueError) as e:
                 helper.get_form_for_question(uuid.UUID(int=1))
 
             assert str(e.value) == AnyStringMatching(
                 r"Could not find form for question_id=00000000-0000-0000-0000-000000000001 "
-                r"in collection_schema=[a-z0-9-]+"
+                r"in collection=[a-z0-9-]+"
             )
 
     class TestGetNextQuestion:
@@ -191,9 +193,9 @@ class TestCollectionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
 
             assert helper.get_next_question(uuid.UUID(int=0)).id == uuid.UUID(int=1)
             assert helper.get_next_question(uuid.UUID(int=1)).id == uuid.UUID(int=2)
@@ -204,9 +206,9 @@ class TestCollectionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
 
             assert helper.get_next_question(uuid.UUID(int=4)) is None
 
@@ -214,16 +216,16 @@ class TestCollectionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
 
             with pytest.raises(ValueError) as e:
                 helper.get_next_question(uuid.UUID(int=9))
 
             assert str(e.value) == AnyStringMatching(
                 r"Could not find form for question_id=00000000-0000-0000-0000-000000000009 "
-                r"in collection_schema=[a-z0-9-]+"
+                r"in collection=[a-z0-9-]+"
             )
 
     class TestGetPreviousQuestion:
@@ -233,9 +235,9 @@ class TestCollectionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
 
             assert helper.get_previous_question(uuid.UUID(int=1)).id == uuid.UUID(int=0)
             assert helper.get_previous_question(uuid.UUID(int=2)).id == uuid.UUID(int=1)
@@ -246,9 +248,9 @@ class TestCollectionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
 
             assert helper.get_previous_question(uuid.UUID(int=0)) is None
 
@@ -256,16 +258,16 @@ class TestCollectionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            collection = factories.collection.build(collection_schema=form.section.collection_schema)
+            submission = factories.submission.build(collection=form.section.collection)
 
-            helper = CollectionHelper(collection)
+            helper = SubmissionHelper(submission)
 
             with pytest.raises(ValueError) as e:
                 helper.get_previous_question(uuid.UUID(int=9))
 
             assert str(e.value) == AnyStringMatching(
                 r"Could not find form for question_id=00000000-0000-0000-0000-000000000009 "
-                r"in collection_schema=[a-z0-9-]+"
+                r"in collection=[a-z0-9-]+"
             )
 
     class TestStatuses:
@@ -275,30 +277,30 @@ class TestCollectionHelper:
             question_one = factories.question.build(form=form_one)
             question_two = factories.question.build(form=form_two)
 
-            collection = factories.collection.build(collection_schema=form_one.section.collection_schema)
-            helper = CollectionHelper(collection)
+            submission = factories.submission.build(collection=form_one.section.collection)
+            helper = SubmissionHelper(submission)
 
             # empty collections are not completed
             assert helper.all_forms_are_completed is False
 
-            collection.data[str(question_one.id)] = "User submitted data"
-            collection.collection_metadata = [
-                factories.collection_metadata.build(
-                    collection=collection, form=form_one, event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED
+            submission.data[str(question_one.id)] = "User submitted data"
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission, form=form_one, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
                 )
             ]
 
             # one complete form and one incomplete is still not completed
             assert helper.all_forms_are_completed is False
 
-            collection.data[str(question_two.id)] = "User submitted data"
+            submission.data[str(question_two.id)] = "User submitted data"
 
             # all questions complete but a form not marked as completed is still not completed
             assert helper.all_forms_are_completed is False
 
-            collection.collection_metadata.append(
-                factories.collection_metadata.build(
-                    collection=collection, form=form_two, event_key=MetadataEventKey.FORM_RUNNER_FORM_COMPLETED
+            submission.events.append(
+                factories.submission_event.build(
+                    submission=submission, form=form_two, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
                 )
             )
 

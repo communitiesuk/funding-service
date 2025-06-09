@@ -61,3 +61,17 @@ class TestBasicAuth:
         with app_with_basic_auth.test_client() as client:
             response = client.get(url_for("healthcheck.healthcheck"), follow_redirects=False)
             assert response.status_code == 200
+
+
+class TestAppErrorHandlers:
+    def test_app_404_on_unknown_url(self, app, client):
+        response = client.get("/route/to/nowhere")
+        assert response.status_code == 404
+        assert "Page not found" in response.text
+        assert app.config["SERVICE_DESK_URL"] in response.text
+
+    def test_app_404_on_sqlalchemy_not_found(self, app, client):
+        response = client.get("/_testing/sqlalchemy-not-found")
+        assert response.status_code == 404
+        assert "Page not found" in response.text
+        assert app.config["SERVICE_DESK_URL"] in response.text

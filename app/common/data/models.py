@@ -13,7 +13,7 @@ from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import User
-from app.common.data.types import CollectionStatusEnum, MetadataEventKey, QuestionDataType, json_scalars
+from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum, json_scalars
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
@@ -28,9 +28,7 @@ class Grant(BaseModel):
     primary_contact_name: Mapped[str]
     primary_contact_email: Mapped[str]
 
-    collection_schemas: Mapped[list["CollectionSchema"]] = relationship(
-        "CollectionSchema", lazy=True, cascade="all, delete-orphan"
-    )
+    collections: Mapped[list["Collection"]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="grant", cascade="all, delete-orphan")
 
 
@@ -61,29 +59,29 @@ class MagicLink(BaseModel):
         return self.claimed_at_utc is None and self.expires_at_utc > datetime.datetime.now(utc).replace(tzinfo=None)
 
 
-class CollectionSchema(BaseModel):
-    __tablename__ = "collection_schema"
+class Collection(BaseModel):
+    __tablename__ = "collection"
 
     # NOTE: The ID provided by the BaseModel should *NOT CHANGE* when incrementing the version. That part is a stable
-    #       identifier for linked collection schemas/versioning.
+    #       identifier for linked collection/versioning.
     version: Mapped[int] = mapped_column(default=1, primary_key=True)
 
     # Name will be superseded by domain specific application contexts but allows us to
-    # try out different schemas and scenarios
+    # try out different collections and scenarios
     name: Mapped[str]
     slug: Mapped[str]
 
     grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
-    grant: Mapped[Grant] = relationship("Grant", back_populates="collection_schemas")
+    grant: Mapped[Grant] = relationship("Grant", back_populates="collections")
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
-    collections: Mapped[list["Collection"]] = relationship(
-        "Collection",
+    submissions: Mapped[list["Submission"]] = relationship(
+        "Submission",
         lazy=True,
-        order_by="Collection.created_at_utc",
-        back_populates="collection_schema",
+        order_by="Submission.created_at_utc",
+        back_populates="collection",
         cascade="all, delete-orphan",
     )
 
@@ -97,15 +95,15 @@ class CollectionSchema(BaseModel):
         cascade="all",
     )
 
-    __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_schema_name_version_grant_id"),)
+    __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_collection_name_version_grant_id"),)
 
 
-class Collection(BaseModel):
-    __tablename__ = "collection"
+class Submission(BaseModel):
+    __tablename__ = "submission"
 
     data: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
-    status: Mapped[CollectionStatusEnum] = mapped_column(
-        SqlEnum(CollectionStatusEnum, name="collection_status_enum", validate_strings=True)
+    status: Mapped[SubmissionStatusEnum] = mapped_column(
+        SqlEnum(SubmissionStatusEnum, name="submission_status_enum", validate_strings=True)
     )
 
     # TODO: generated and persisted human readable references for submissions
@@ -115,20 +113,18 @@ class Collection(BaseModel):
         return str(self.id)[:8]
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
-    created_by: Mapped[User] = relationship("User", back_populates="collections")
+    created_by: Mapped[User] = relationship("User", back_populates="submissions")
 
-    collection_schema_id: Mapped[uuid.UUID]
-    collection_schema_version: Mapped[int]
-    collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema")
+    collection_id: Mapped[uuid.UUID]
+    collection_version: Mapped[int]
+    collection: Mapped[Collection] = relationship("Collection")
 
-    collection_metadata: Mapped[list["CollectionMetadata"]] = relationship(
-        "CollectionMetadata", back_populates="collection", cascade="all, delete-orphan"
+    events: Mapped[list["SubmissionEvent"]] = relationship(
+        "SubmissionEvent", back_populates="submission", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["collection_schema_id", "collection_schema_version"], ["collection_schema.id", "collection_schema.version"]
-        ),
+        ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
     )
 
 
@@ -139,9 +135,9 @@ class Section(BaseModel):
     order: Mapped[int]
     slug: Mapped[str]
 
-    collection_schema_id: Mapped[uuid.UUID]
-    collection_schema_version: Mapped[int]
-    collection_schema: Mapped[CollectionSchema] = relationship("CollectionSchema", back_populates="sections")
+    collection_id: Mapped[uuid.UUID]
+    collection_version: Mapped[int]
+    collection: Mapped[Collection] = relationship("Collection", back_populates="sections")
 
     forms: Mapped[list["Form"]] = relationship(
         "Form",
@@ -155,21 +151,15 @@ class Section(BaseModel):
 
     __table_args__ = (
         UniqueConstraint(
-            "collection_schema_id",
-            "collection_schema_version",
+            "collection_id",
+            "collection_version",
             "order",
-            name="uq_section_order_collection_schema",
+            name="uq_section_order_collection",
             deferrable=True,
         ),
-        UniqueConstraint(
-            "collection_schema_id", "collection_schema_version", "title", name="uq_section_title_collection_schema"
-        ),
-        UniqueConstraint(
-            "collection_schema_id", "collection_schema_version", "slug", name="uq_section_slug_collection_schema"
-        ),
-        ForeignKeyConstraint(
-            ["collection_schema_id", "collection_schema_version"], ["collection_schema.id", "collection_schema.version"]
-        ),
+        UniqueConstraint("collection_id", "collection_version", "title", name="uq_section_title_collection"),
+        UniqueConstraint("collection_id", "collection_version", "slug", name="uq_section_slug_collection"),
+        ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
     )
 
 
@@ -185,7 +175,7 @@ class Form(BaseModel):
 
     __table_args__ = (
         UniqueConstraint("order", "section_id", name="uq_form_order_section", deferrable=True),
-        # TODO how can we make this unique per collection schema?
+        # TODO how can we make this unique per collection?
         UniqueConstraint("title", "section_id", name="uq_form_title_section"),
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
     )
@@ -228,15 +218,15 @@ class Question(BaseModel):
     )
 
 
-class CollectionMetadata(BaseModel):
-    __tablename__ = "collection_metadata"
+class SubmissionEvent(BaseModel):
+    __tablename__ = "submission_event"
 
-    event_key: Mapped[MetadataEventKey] = mapped_column(
-        SqlEnum(MetadataEventKey, name="metadata_event_key_enum", validate_strings=True)
+    key: Mapped[SubmissionEventKey] = mapped_column(
+        SqlEnum(SubmissionEventKey, name="submission_event_key_enum", validate_strings=True)
     )
 
-    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id"))
-    collection: Mapped[Collection] = relationship("Collection", back_populates="collection_metadata")
+    submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("submission.id"))
+    submission: Mapped[Submission] = relationship("Submission", back_populates="events")
 
     form_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("form.id"))
     form: Mapped[Optional[Form]] = relationship("Form")

@@ -11,11 +11,11 @@ from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     create_collection,
-    create_collection_schema,
     create_form,
     create_question,
     create_section,
-    get_collection_schema,
+    create_submission,
+    get_collection,
     get_form_by_id,
     get_question_by_id,
     get_section_by_id,
@@ -25,34 +25,34 @@ from app.common.data.interfaces.collections import (
     move_question_up,
     move_section_down,
     move_section_up,
-    update_collection_schema,
+    update_collection,
     update_form,
     update_question,
     update_section,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.temporary import (
-    delete_collection_schema,
-    delete_collections_created_by_user,
+    delete_collection,
     delete_form,
     delete_question,
     delete_section,
+    delete_submissions_created_by_user,
 )
-from app.common.data.types import CollectionStatusEnum, QuestionDataType
-from app.common.helpers.collections import CollectionHelper
+from app.common.data.types import QuestionDataType, SubmissionStatusEnum
+from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
+    CollectionForm,
     FormForm,
     QuestionForm,
     QuestionTypeForm,
-    SchemaForm,
     SectionForm,
 )
 from app.developers import developers_blueprint
-from app.developers.forms import CheckYourAnswersForm, ConfirmDeletionForm, PreviewCollectionForm, SubmitCollectionForm
+from app.developers.forms import CheckYourAnswersForm, ConfirmDeletionForm, PreviewCollectionForm, SubmitSubmissionForm
 from app.extensions import auto_commit_after_request, notification_service
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Form, Question
+    from app.common.data.models import Form, Question, Submission
 
 
 @developers_blueprint.context_processor
@@ -67,36 +67,36 @@ def grant_developers(grant_id: UUID) -> str:
     return render_template("developers/grant_developers.html", grant=grant)
 
 
-@developers_blueprint.route("/grants/<uuid:grant_id>/schemas", methods=["GET"])
+@developers_blueprint.route("/grants/<uuid:grant_id>/collections", methods=["GET"])
 @platform_admin_role_required
-def grant_developers_schemas(grant_id: UUID) -> str:
+def grant_developers_collections(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("developers/list_schemas.html", grant=grant)
+    return render_template("developers/list_schemas.html", grant=grant)  # todo: rename
 
 
-@developers_blueprint.route("/grants/<uuid:grant_id>/schemas/set-up", methods=["GET", "POST"])
+@developers_blueprint.route("/grants/<uuid:grant_id>/collections/set-up", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
-def setup_schema(grant_id: UUID) -> ResponseReturnValue:
+def setup_collection(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
-    form = SchemaForm()
+    form = CollectionForm()
     if form.validate_on_submit():
         try:
             assert form.name.data is not None
             user = interfaces.user.get_current_user()
-            create_collection_schema(name=form.name.data, user=user, grant=grant)
-            return redirect(url_for("developers.grant_developers_schemas", grant_id=grant_id))
+            create_collection(name=form.name.data, user=user, grant=grant)
+            return redirect(url_for("developers.grant_developers_collections", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-    return render_template("developers/add_schema.html", grant=grant, form=form)
+    return render_template("developers/add_schema.html", grant=grant, form=form)  # todo: rename
 
 
-@developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>", methods=["GET", "POST"])
+@developers_blueprint.route("/grants/<uuid:grant_id>/collections/<uuid:collection_id>", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
-def manage_schema(grant_id: UUID, schema_id: UUID) -> ResponseReturnValue:
-    schema = get_collection_schema(schema_id)  # TODO: handle collection versioning; this just grabs latest.
+def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
+    collection = get_collection(collection_id)  # TODO: handle collection versioning; this just grabs latest.
 
     form = PreviewCollectionForm()
     confirm_deletion_form = ConfirmDeletionForm()
@@ -105,89 +105,91 @@ def manage_schema(grant_id: UUID, schema_id: UUID) -> ResponseReturnValue:
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        delete_collection_schema(schema_id=schema_id)
+        delete_collection(collection_id=collection.id)
         # TODO: Flash message for deletion?
-        return redirect(url_for("developers.grant_developers_schemas", grant_id=grant_id))
+        return redirect(url_for("developers.grant_developers_collections", grant_id=grant_id))
 
     if form.validate_on_submit() and form.submit.data:
         user = interfaces.user.get_current_user()
-        delete_collections_created_by_user(grant_id=schema.grant_id, created_by_id=user.id)
-        collection = create_collection(schema=schema, created_by=user)
-        return redirect(url_for("developers.collection_tasklist", collection_id=collection.id))
+        delete_submissions_created_by_user(grant_id=collection.grant_id, created_by_id=user.id)
+        submission = create_submission(collection=collection, created_by=user)
+        return redirect(url_for("developers.submission_tasklist", submission_id=submission.id))
 
     return render_template(
-        "developers/manage_schema.html",
-        grant=schema.grant,
-        schema=schema,
+        "developers/manage_schema.html",  # todo: rename
+        grant=collection.grant,
+        collection=collection,
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
 
-@developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/edit", methods=["GET", "POST"])
+@developers_blueprint.route("/grants/<uuid:grant_id>/collections/<uuid:collection_id>/edit", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
-def edit_schema(grant_id: UUID, schema_id: UUID) -> ResponseReturnValue:
-    schema = get_collection_schema(schema_id)  # TODO: handle collection versioning; this just grabs latest.
-    form = SchemaForm(obj=schema)
+def edit_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
+    collection = get_collection(collection_id)  # TODO: handle collection versioning; this just grabs latest.
+    form = CollectionForm(obj=collection)
     if form.validate_on_submit():
         try:
             assert form.name.data is not None
-            update_collection_schema(name=form.name.data, schema=schema)
-            return redirect(url_for("developers.manage_schema", grant_id=grant_id, schema_id=schema_id))
+            update_collection(name=form.name.data, collection=collection)
+            return redirect(url_for("developers.manage_collection", grant_id=grant_id, collection_id=collection_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "developers/edit_schema.html",
-        grant=schema.grant,
-        schema=schema,
+        "developers/edit_schema.html",  # todo: rename me
+        grant=collection.grant,
+        collection=collection,
         form=form,
     )
 
 
-@developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/add", methods=["GET", "POST"])
+@developers_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/add", methods=["GET", "POST"]
+)
 @platform_admin_role_required
 @auto_commit_after_request
-def add_section(grant_id: UUID, schema_id: UUID) -> ResponseReturnValue:
-    collection = get_collection_schema(schema_id)  # TODO: handle collection versioning; this just grabs latest.
+def add_section(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
+    collection = get_collection(collection_id)  # TODO: handle collection versioning; this just grabs latest.
     form = SectionForm()
     if form.validate_on_submit():
         try:
             assert form.title.data is not None
             create_section(
                 title=form.title.data,
-                schema=collection,
+                collection=collection,
             )
-            return redirect(url_for("developers.list_sections", grant_id=grant_id, schema_id=schema_id))
+            return redirect(url_for("developers.list_sections", grant_id=grant_id, collection_id=collection_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-    return render_template("developers/add_section.html", grant=collection.grant, schema=collection, form=form)
+    return render_template("developers/add_section.html", grant=collection.grant, collection=collection, form=form)
 
 
-@developers_blueprint.route("/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/", methods=["GET"])
+@developers_blueprint.route("/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/", methods=["GET"])
 @platform_admin_role_required
 def list_sections(
     grant_id: UUID,
-    schema_id: UUID,
+    collection_id: UUID,
 ) -> ResponseReturnValue:
-    collection_schema = get_collection_schema(schema_id)
+    collection = get_collection(collection_id)
     return render_template(
         "developers/list_sections.html",
-        grant=collection_schema.grant,
-        schema=collection_schema,
+        grant=collection.grant,
+        collection=collection,
     )
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/move/<string:direction>",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/move/<string:direction>",
     methods=["POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
-def move_section(grant_id: UUID, schema_id: UUID, section_id: UUID, direction: str) -> ResponseReturnValue:
+def move_section(grant_id: UUID, collection_id: UUID, section_id: UUID, direction: str) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
 
     if direction == "up":
@@ -197,18 +199,18 @@ def move_section(grant_id: UUID, schema_id: UUID, section_id: UUID, direction: s
     else:
         abort(400)
 
-    return redirect(url_for("developers.list_sections", grant_id=grant_id, schema_id=schema_id))
+    return redirect(url_for("developers.list_sections", grant_id=grant_id, collection_id=collection_id))
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/manage",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/manage",
     methods=["GET", "POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
 def manage_section(
     grant_id: UUID,
-    schema_id: UUID,
+    collection_id: UUID,
     section_id: UUID,
 ) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
@@ -221,24 +223,26 @@ def manage_section(
     ):
         delete_section(section_id=section_id)
         # TODO: Flash message for deletion?
-        return redirect(url_for("developers.manage_schema", grant_id=grant_id, schema_id=schema_id))
+        return redirect(url_for("developers.manage_collection", grant_id=grant_id, collection_id=collection_id))
 
     return render_template(
         "developers/manage_section.html",
-        grant=section.collection_schema.grant,
-        schema=section.collection_schema,
+        grant=section.collection.grant,
+        collection=section.collection,
         section=section,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/move/<string:direction>",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/move/<string:direction>",
     methods=["POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
-def move_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID, direction: str) -> ResponseReturnValue:
+def move_form(
+    grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, direction: str
+) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
 
     if direction == "up":
@@ -252,24 +256,24 @@ def move_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID, 
         url_for(
             "developers.manage_section",
             grant_id=grant_id,
-            schema_id=schema_id,
+            collection_id=collection_id,
             section_id=section_id,
         )
     )
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/manage",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/manage",
     methods=["GET", "POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
-def manage_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
     back_link = url_for(
         f"developers.{request.args.get('back_link')}",
         grant_id=grant_id,
-        schema_id=schema_id,
+        collection_id=collection_id,
         section_id=section_id,
     )
 
@@ -282,14 +286,14 @@ def manage_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID
         delete_form(form_id=form_id)
         # TODO: Flash message for deletion?
         return redirect(
-            url_for("developers.manage_section", grant_id=grant_id, schema_id=schema_id, section_id=section_id)
+            url_for("developers.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id)
         )
 
     return render_template(
         "developers/manage_form.html",
-        grant=form.section.collection_schema.grant,
+        grant=form.section.collection.grant,
         section=form.section,
-        schema=form.section.collection_schema,
+        collection=form.section.collection,
         form=form,
         back_link_href=back_link,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
@@ -297,12 +301,12 @@ def manage_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/edit",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/edit",
     methods=["GET", "POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
-def edit_section(grant_id: UUID, schema_id: UUID, section_id: UUID) -> ResponseReturnValue:
+def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
     form = SectionForm(obj=section)
     if form.validate_on_submit():
@@ -313,7 +317,7 @@ def edit_section(grant_id: UUID, schema_id: UUID, section_id: UUID) -> ResponseR
                 url_for(
                     "developers.manage_section",
                     grant_id=grant_id,
-                    schema_id=schema_id,
+                    collection_id=collection_id,
                     section_id=section_id,
                 )
             )
@@ -323,27 +327,27 @@ def edit_section(grant_id: UUID, schema_id: UUID, section_id: UUID) -> ResponseR
 
     return render_template(
         "developers/edit_section.html",
-        grant=section.collection_schema.grant,
-        schema=section.collection_schema,
+        grant=section.collection.grant,
+        collection=section.collection,
         section=section,
         form=form,
     )
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/forms/add",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/add",
     methods=["GET", "POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
-def add_form(grant_id: UUID, schema_id: UUID, section_id: UUID) -> ResponseReturnValue:
+def add_form(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
     form_type = request.args.get("form_type", None)
     if not form_type:
         return render_template(
             "developers/select_form_type.html",
-            grant=section.collection_schema.grant,
-            schema=section.collection_schema,
+            grant=section.collection.grant,
+            collection=section.collection,
             section=section,
         )
 
@@ -356,7 +360,7 @@ def add_form(grant_id: UUID, schema_id: UUID, section_id: UUID) -> ResponseRetur
                 url_for(
                     "developers.manage_section",
                     grant_id=grant_id,
-                    schema_id=schema_id,
+                    collection_id=collection_id,
                     section_id=section_id,
                 )
             )
@@ -365,8 +369,8 @@ def add_form(grant_id: UUID, schema_id: UUID, section_id: UUID) -> ResponseRetur
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
     return render_template(
         "developers/add_form.html",
-        grant=section.collection_schema.grant,
-        schema=section.collection_schema,
+        grant=section.collection.grant,
+        collection=section.collection,
         section=section,
         form_type=form_type,
         form=form,
@@ -374,12 +378,12 @@ def add_form(grant_id: UUID, schema_id: UUID, section_id: UUID) -> ResponseRetur
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/edit",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/edit",
     methods=["GET", "POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
-def edit_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = FormForm(obj=db_form)
     if wt_form.validate_on_submit():
@@ -390,7 +394,7 @@ def edit_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) 
                 url_for(
                     "developers.manage_form",
                     grant_id=grant_id,
-                    schema_id=schema_id,
+                    collection_id=collection_id,
                     section_id=section_id,
                     form_id=form_id,
                     back_link="manage_section",
@@ -402,8 +406,8 @@ def edit_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) 
 
     return render_template(
         "developers/edit_form.html",
-        grant=db_form.section.collection_schema.grant,
-        schema=db_form.section.collection_schema,
+        grant=db_form.section.collection.grant,
+        collection=db_form.section.collection,
         section=db_form.section,
         db_form=db_form,
         form=wt_form,
@@ -411,11 +415,11 @@ def edit_form(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) 
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add/choose-type",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add/choose-type",
     methods=["GET", "POST"],
 )
 @platform_admin_role_required
-def choose_question_type(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
     if wt_form.validate_on_submit():
@@ -424,7 +428,7 @@ def choose_question_type(grant_id: UUID, schema_id: UUID, section_id: UUID, form
             url_for(
                 "developers.add_question",
                 grant_id=grant_id,
-                schema_id=schema_id,
+                collection_id=collection_id,
                 section_id=section_id,
                 form_id=form_id,
                 question_data_type=question_data_type,
@@ -432,8 +436,8 @@ def choose_question_type(grant_id: UUID, schema_id: UUID, section_id: UUID, form
         )
     return render_template(
         "developers/choose_question_type.html",
-        grant=db_form.section.collection_schema.grant,
-        schema=db_form.section.collection_schema,
+        grant=db_form.section.collection.grant,
+        collection=db_form.section.collection,
         section=db_form.section,
         db_form=db_form,
         form=wt_form,
@@ -441,12 +445,12 @@ def choose_question_type(grant_id: UUID, schema_id: UUID, section_id: UUID, form
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add",
     methods=["GET", "POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
-def add_question(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
@@ -468,7 +472,7 @@ def add_question(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUI
                 url_for(
                     "developers.manage_form",
                     grant_id=grant_id,
-                    schema_id=schema_id,
+                    collection_id=collection_id,
                     section_id=section_id,
                     form_id=form_id,
                     back_link="manage_section",
@@ -480,8 +484,8 @@ def add_question(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUI
 
     return render_template(
         "developers/add_question.html",
-        grant=form.section.collection_schema.grant,
-        schema=form.section.collection_schema,
+        grant=form.section.collection.grant,
+        collection=form.section.collection,
         section=form.section,
         db_form=form,
         chosen_question_data_type=question_data_type_enum,
@@ -490,13 +494,13 @@ def add_question(grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUI
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/move/<string:direction>",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/move/<string:direction>",
     methods=["POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
 def move_question(
-    grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID, direction: str
+    grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID, direction: str
 ) -> ResponseReturnValue:
     question = get_question_by_id(question_id=question_id)
 
@@ -511,7 +515,7 @@ def move_question(
         url_for(
             "developers.manage_form",
             grant_id=grant_id,
-            schema_id=schema_id,
+            collection_id=collection_id,
             section_id=section_id,
             form_id=form_id,
             back_link="manage_section",
@@ -520,13 +524,13 @@ def move_question(
 
 
 @developers_blueprint.route(
-    "/grants/<uuid:grant_id>/schemas/<uuid:schema_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/edit",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/edit",
     methods=["GET", "POST"],
 )
 @platform_admin_role_required
 @auto_commit_after_request
 def edit_question(
-    grant_id: UUID, schema_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID
+    grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID
 ) -> ResponseReturnValue:
     question = get_question_by_id(question_id=question_id)
     wt_form = QuestionForm(obj=question)
@@ -543,7 +547,7 @@ def edit_question(
             url_for(
                 "developers.manage_form",
                 grant_id=grant_id,
-                schema_id=schema_id,
+                collection_id=collection_id,
                 section_id=section_id,
                 form_id=form_id,
                 back_link="manage_section",
@@ -560,7 +564,7 @@ def edit_question(
                 url_for(
                     "developers.manage_form",
                     grant_id=grant_id,
-                    schema_id=schema_id,
+                    collection_id=collection_id,
                     section_id=section_id,
                     form_id=form_id,
                     back_link="manage_section",
@@ -572,8 +576,8 @@ def edit_question(
 
     return render_template(
         "developers/edit_question.html",
-        grant=question.form.section.collection_schema.grant,
-        schema=question.form.section.collection_schema,
+        grant=question.form.section.collection.grant,
+        collection=question.form.section.collection,
         section=question.form.section,
         db_form=question.form,
         question=question,
@@ -590,103 +594,103 @@ class FormRunnerSourceEnum(StrEnum):
 
 def _get_form_runner_link_from_source(
     source: str | None,
-    collection: Optional["Collection"] = None,
+    submission: Optional["Submission"] = None,
     form: Optional["Form"] = None,
     question: Optional["Question"] = None,
 ) -> str | None:
     if not source:
         return None
 
-    if source == FormRunnerSourceEnum.QUESTION and collection and question:
-        return url_for("developers.ask_a_question", collection_id=collection.id, question_id=question.id)
-    elif source == FormRunnerSourceEnum.TASKLIST and collection:
-        return url_for("developers.collection_tasklist", collection_id=collection.id)
-    elif source == FormRunnerSourceEnum.CHECK_YOUR_ANSWERS and collection and form:
-        return url_for("developers.check_your_answers", collection_id=collection.id, form_id=form.id)
+    if source == FormRunnerSourceEnum.QUESTION and submission and question:
+        return url_for("developers.ask_a_question", submission_id=submission.id, question_id=question.id)
+    elif source == FormRunnerSourceEnum.TASKLIST and submission:
+        return url_for("developers.submission_tasklist", submission_id=submission.id)
+    elif source == FormRunnerSourceEnum.CHECK_YOUR_ANSWERS and submission and form:
+        return url_for("developers.check_your_answers", submission_id=submission.id, form_id=form.id)
 
     return None
 
 
-@developers_blueprint.route("/collections/<uuid:collection_id>", methods=["GET", "POST"])
+@developers_blueprint.route("/submissions/<uuid:submission_id>", methods=["GET", "POST"])
 @auto_commit_after_request
 @platform_admin_role_required
-def collection_tasklist(collection_id: UUID) -> ResponseReturnValue:
-    collection_helper = CollectionHelper.load(collection_id)
-    form = SubmitCollectionForm()
+def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+    form = SubmitSubmissionForm()
 
     if form.validate_on_submit():
         try:
-            collection_helper.submit_collection(interfaces.user.get_current_user())
-            notification_service.send_collection_submission(collection_helper.collection)
-            return redirect(url_for("developers.collection_confirmation", collection_id=collection_helper.id))
+            submission_helper.submit(interfaces.user.get_current_user())
+            notification_service.send_collection_submission(submission_helper.submission)
+            return redirect(url_for("developers.collection_confirmation", submission_id=submission_helper.id))
         except ValueError:
             form.submit.errors.append("You must complete all forms before submitting the collection")  # type:ignore[attr-defined]
 
     return render_template(
         "developers/collection_tasklist.html",
-        collection_helper=collection_helper,
-        statuses=CollectionStatusEnum,
+        submission_helper=submission_helper,
+        statuses=SubmissionStatusEnum,
         back_link_source_enum=FormRunnerSourceEnum,
         form=form,
     )
 
 
-@developers_blueprint.route("/collections/<uuid:collection_id>/confirmation", methods=["GET", "POST"])
+@developers_blueprint.route("/submissions/<uuid:submission_id>/confirmation", methods=["GET", "POST"])
 @platform_admin_role_required
-def collection_confirmation(collection_id: UUID) -> ResponseReturnValue:
-    collection_helper = CollectionHelper.load(collection_id)
+def collection_confirmation(submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
 
-    if collection_helper.status != CollectionStatusEnum.COMPLETED:
+    if submission_helper.status != SubmissionStatusEnum.COMPLETED:
         current_app.logger.warning(
-            "Cannot access submission confirmation for non complete collection for collection_id=%(collection_id)s",
-            dict(collection_id=str(collection_helper.id)),
+            "Cannot access submission confirmation for non complete collection for submission_id=%(submission_id)s",
+            dict(submission_id=str(submission_helper.id)),
         )
-        return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
+        return redirect(url_for("developers.submission_tasklist", submission_id=submission_helper.id))
 
     return render_template(
         "developers/collection_submit_confirmation.html",
-        collection_helper=collection_helper,
+        submission_helper=submission_helper,
     )
 
 
-@developers_blueprint.route("/collections/<uuid:collection_id>/<uuid:question_id>", methods=["GET", "POST"])
+@developers_blueprint.route("/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
-def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    collection_helper = CollectionHelper.load(collection_id)
-    question = collection_helper.get_question(question_id)
-    answer = collection_helper.get_answer_for_question(question.id)
+def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+    question = submission_helper.get_question(question_id)
+    answer = submission_helper.get_answer_for_question(question.id)
 
     # this method should work as long as data types are a single field and may
     # need to be revised if we have compound data types
     form = build_question_form(question)(question=answer.root if answer else None)
 
-    if collection_helper.is_completed:
+    if submission_helper.is_completed:
         if form.is_submitted():
             # TODO: Add an error flash message?
             pass
-        return redirect(url_for("developers.check_your_answers", collection_id=collection_id, form_id=question.form_id))
+        return redirect(url_for("developers.check_your_answers", submission_id=submission_id, form_id=question.form_id))
 
     if form.validate_on_submit():
-        collection_helper.submit_answer_for_question(question.id, form)
+        submission_helper.submit_answer_for_question(question.id, form)
 
         if request.args.get("source") == FormRunnerSourceEnum.CHECK_YOUR_ANSWERS:
             return redirect(
-                url_for("developers.check_your_answers", collection_id=collection_id, form_id=question.form_id)
+                url_for("developers.check_your_answers", submission_id=submission_id, form_id=question.form_id)
             )
 
-        next_question = collection_helper.get_next_question(current_question_id=question_id)
+        next_question = submission_helper.get_next_question(current_question_id=question_id)
         if next_question:
             return redirect(
-                url_for("developers.ask_a_question", collection_id=collection_id, question_id=next_question.id)
+                url_for("developers.ask_a_question", submission_id=submission_id, question_id=next_question.id)
             )
 
-        return redirect(url_for("developers.check_your_answers", collection_id=collection_id, form_id=question.form_id))
+        return redirect(url_for("developers.check_your_answers", submission_id=submission_id, form_id=question.form_id))
 
-    previous_question = collection_helper.get_previous_question(current_question_id=question_id)
+    previous_question = submission_helper.get_previous_question(current_question_id=question_id)
     back_link_from_context = _get_form_runner_link_from_source(
         source=request.args.get("source"),
-        collection=collection_helper.collection,
+        submission=submission_helper.submission,
         form=question.form,
         question=question,
     )
@@ -694,15 +698,15 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
         back_link_from_context
         if back_link_from_context
         else url_for(
-            "developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=previous_question.id
+            "developers.ask_a_question", submission_id=submission_helper.submission.id, question_id=previous_question.id
         )
         if previous_question
-        else url_for("developers.collection_tasklist", collection_id=collection_helper.collection.id)
+        else url_for("developers.submission_tasklist", submission_id=submission_helper.submission.id)
     )
     return render_template(
         "developers/ask_a_question.html",
         back_link=back_link,
-        collection_helper=collection_helper,
+        submission_helper=submission_helper,
         form=form,
         question=question,
         question_types=QuestionDataType,
@@ -711,44 +715,44 @@ def ask_a_question(collection_id: UUID, question_id: UUID) -> ResponseReturnValu
 
 
 @developers_blueprint.route(
-    "/collections/<uuid:collection_id>/check-yours-answers/<uuid:form_id>", methods=["GET", "POST"]
+    "/submissions/<uuid:submission_id>/check-yours-answers/<uuid:form_id>", methods=["GET", "POST"]
 )
 @auto_commit_after_request
 @platform_admin_role_required
-def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValue:
-    collection_helper = CollectionHelper.load(collection_id)
-    schema_form = collection_helper.get_form(form_id)
+def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+    collection_form = submission_helper.get_form(form_id)
 
     form = CheckYourAnswersForm(
         section_completed=(
-            "yes" if collection_helper.get_status_for_form(schema_form) == CollectionStatusEnum.COMPLETED else None
+            "yes" if submission_helper.get_status_for_form(collection_form) == SubmissionStatusEnum.COMPLETED else None
         )
     )
-    previous_question = collection_helper.get_last_question_for_form(schema_form)
+    previous_question = submission_helper.get_last_question_for_form(collection_form)
     assert previous_question
 
     back_link_from_context = _get_form_runner_link_from_source(
-        source=request.args.get("source"), collection=collection_helper.collection, form=schema_form
+        source=request.args.get("source"), submission=submission_helper.submission, form=collection_form
     )
     back_link = (
         back_link_from_context
         if back_link_from_context
         else url_for(
-            "developers.ask_a_question", collection_id=collection_helper.collection.id, question_id=previous_question.id
+            "developers.ask_a_question", submission_id=submission_helper.submission.id, question_id=previous_question.id
         )
     )
 
-    all_questions_answered, _ = collection_helper.get_all_questions_are_answered_for_form(schema_form)
+    all_questions_answered, _ = submission_helper.get_all_questions_are_answered_for_form(collection_form)
     form.set_is_required(all_questions_answered)
 
     if form.validate_on_submit():
         try:
-            collection_helper.toggle_form_completed(
-                form=schema_form,
+            submission_helper.toggle_form_completed(
+                form=collection_form,
                 user=interfaces.user.get_current_user(),
                 is_complete=form.section_completed.data == "yes",
             )
-            return redirect(url_for("developers.collection_tasklist", collection_id=collection_helper.id))
+            return redirect(url_for("developers.submission_tasklist", submission_id=submission_helper.id))
         except ValueError:
             form.section_completed.errors.append(  # type:ignore[attr-defined]
                 "You must complete all questions before marking this section as complete"
@@ -757,40 +761,40 @@ def check_your_answers(collection_id: UUID, form_id: UUID) -> ResponseReturnValu
     return render_template(
         "developers/check_your_answers.html",
         back_link=back_link,
-        collection_helper=collection_helper,
-        schema_form=schema_form,
+        submission_helper=submission_helper,
+        collection_form=collection_form,
         form=form,
         back_link_source_enum=FormRunnerSourceEnum,
     )
 
 
-@developers_blueprint.route("/schemas/<uuid:schema_id>/collections", methods=["GET"])
+@developers_blueprint.route("/collections/<uuid:collection_id>/submissions", methods=["GET"])
 @platform_admin_role_required
-def list_collections_for_schema(schema_id: UUID) -> ResponseReturnValue:
-    schema = interfaces.collections.get_collection_schema(schema_id, with_full_schema=True)
+def list_submissions_for_collection(collection_id: UUID) -> ResponseReturnValue:
+    collection = interfaces.collections.get_collection(collection_id, with_full_schema=True)
 
-    collections = [CollectionHelper(collection) for collection in schema.collections]
+    submissions = [SubmissionHelper(submission) for submission in collection.submissions]
 
     return render_template(
         "developers/list_collections.html",
-        back_link=url_for("developers.manage_schema", schema_id=schema.id, grant_id=schema.grant.id),
-        grant=schema.grant,
-        schema=schema,
-        collections=collections,
-        statuses=CollectionStatusEnum,
+        back_link=url_for("developers.manage_collection", collection_id=collection.id, grant_id=collection.grant.id),
+        grant=collection.grant,
+        collection=collection,
+        submissions=submissions,
+        statuses=SubmissionStatusEnum,
     )
 
 
-@developers_blueprint.route("/collection/<uuid:collection_id>", methods=["GET"])
+@developers_blueprint.route("/submission/<uuid:submission_id>", methods=["GET"])
 @platform_admin_role_required
-def manage_collection(collection_id: UUID) -> ResponseReturnValue:
-    collection_helper = CollectionHelper.load(collection_id)
+def manage_submission(submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
 
     return render_template(
-        "developers/manage_collection.html",
-        back_link=url_for("developers.list_collections_for_schema", schema_id=collection_helper.schema.id),
-        collection_helper=collection_helper,
-        grant=collection_helper.schema.grant,
-        schema=collection_helper.schema,
-        statuses=CollectionStatusEnum,
+        "developers/manage_collection.html",  # todo: manage_submission
+        back_link=url_for("developers.list_submissions_for_collection", collection_id=submission_helper.collection.id),
+        submission_helper=submission_helper,
+        grant=submission_helper.collection.grant,
+        collection=submission_helper.collection,
+        statuses=SubmissionStatusEnum,
     )

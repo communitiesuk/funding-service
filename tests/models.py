@@ -16,17 +16,17 @@ from flask import url_for
 
 from app.common.data.models import (
     Collection,
-    CollectionMetadata,
-    CollectionSchema,
     Form,
     Grant,
     MagicLink,
     Organisation,
     Question,
     Section,
+    Submission,
+    SubmissionEvent,
 )
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import CollectionStatusEnum, MetadataEventKey, QuestionDataType
+from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum
 from app.extensions import db
 
 
@@ -104,9 +104,9 @@ class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
     claimed_at_utc = None
 
 
-class _CollectionSchemaFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _CollectionFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
-        model = CollectionSchema
+        model = Collection
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
 
@@ -121,22 +121,22 @@ class _CollectionSchemaFactory(factory.alchemy.SQLAlchemyModelFactory):
     grant = factory.SubFactory(_GrantFactory)
 
 
-class _CollectionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _SubmissionFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
-        model = Collection
+        model = Submission
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
     data = factory.LazyFunction(dict)
-    status = CollectionStatusEnum.NOT_STARTED
+    status = SubmissionStatusEnum.NOT_STARTED
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)
 
-    collection_schema = factory.SubFactory(_CollectionSchemaFactory)
-    collection_schema_id = factory.LazyAttribute(lambda o: o.collection_schema.id)
-    collection_schema_version = factory.LazyAttribute(lambda o: o.collection_schema.version)
+    collection = factory.SubFactory(_CollectionFactory)
+    collection_id = factory.LazyAttribute(lambda o: o.collection.id)
+    collection_version = factory.LazyAttribute(lambda o: o.collection.version)
 
 
 class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -147,11 +147,11 @@ class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     title = factory.Sequence(lambda n: "Section %d" % n)
-    order = factory.LazyAttribute(lambda o: len(o.collection_schema.sections))
+    order = factory.LazyAttribute(lambda o: len(o.collection.sections))
     slug = factory.Sequence(lambda n: "section-%d" % n)
 
-    collection_schema = factory.SubFactory(_CollectionSchemaFactory)
-    collection_schema_id = factory.LazyAttribute(lambda o: o.collection_schema.id)
+    collection = factory.SubFactory(_CollectionFactory)
+    collection_id = factory.LazyAttribute(lambda o: o.collection.id)
 
 
 class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -186,13 +186,13 @@ class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
     form_id = factory.LazyAttribute(lambda o: o.form.id)
 
 
-class _CollectionMetadataFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _SubmissionEventFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
-        model = CollectionMetadata
+        model = SubmissionEvent
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
-    event_key = MetadataEventKey.FORM_RUNNER_FORM_COMPLETED
-    collection = factory.SubFactory(_CollectionFactory)
+    key = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
+    submission = factory.SubFactory(_SubmissionFactory)
     created_by = factory.SubFactory(_UserFactory)
