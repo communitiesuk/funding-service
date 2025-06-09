@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 class User(BaseModel):
     __tablename__ = "user"
 
+    name: Mapped[str] = mapped_column(nullable=True)
+
     email: Mapped[CIStr] = mapped_column(unique=True)
 
     magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
