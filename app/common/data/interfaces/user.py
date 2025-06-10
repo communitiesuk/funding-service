@@ -1,9 +1,10 @@
 import uuid
-from typing import cast
+from typing import Optional, Sequence, cast
 
 from flask_login import current_user
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql.expression import select
 
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
 from app.common.data.models_user import User, UserRole
@@ -20,14 +21,22 @@ def get_current_user() -> User:
     return user
 
 
-def get_or_create_user(email_address: str) -> User:
+def get_platform_admin_users() -> Sequence[User]:
+    return db.session.scalars(
+        select(User)
+        .join(User.roles)
+        .where(UserRole.role == RoleEnum.ADMIN, UserRole.grant_id.is_(None), UserRole.organisation_id.is_(None))
+    ).all()
+
+
+def get_or_create_user(email_address: str, name: Optional[str] = None) -> User:
     # This feels like it should be a `on_conflict_do_nothing`, except in that case the DB won't return any rows
     # So we use `on_conflict_do_update` with a noop change, so that this upsert will always return the User regardless
     # of if its doing an insert or an 'update'.
     user = db.session.scalars(
         postgresql_upsert(User)
-        .values(email=email_address)
-        .on_conflict_do_update(index_elements=["email"], set_={"email": email_address})
+        .values(email=email_address, name=name)
+        .on_conflict_do_update(index_elements=["email"], set_={"email": email_address, "name": name})
         .returning(User),
         execution_options={"populate_existing": True},
     ).one()

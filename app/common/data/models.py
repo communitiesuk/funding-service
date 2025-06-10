@@ -29,7 +29,14 @@ class Grant(BaseModel):
     primary_contact_email: Mapped[str]
 
     collections: Mapped[list["Collection"]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
-    roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="grant", cascade="all, delete-orphan")
+
+    users: Mapped[list["User"]] = relationship(
+        "User",
+        secondary="user_role",
+        primaryjoin="Grant.id==UserRole.grant_id",
+        secondaryjoin="User.id==UserRole.user_id",
+        viewonly=True,
+    )
 
 
 class Organisation(BaseModel):

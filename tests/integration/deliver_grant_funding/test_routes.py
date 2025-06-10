@@ -858,7 +858,9 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     assert grant_from_db.ggis_number == "GGIS123"
 
 
-def test_list_users_for_grant_with_platform_admin(authenticated_platform_admin_client, track_sql_queries, factories):
+def test_list_users_for_grant_with_platform_admin(
+    authenticated_platform_admin_client, track_sql_queries, factories, mock_notification_service_calls
+):
     # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
     grant = factories.grant.create()
     result = authenticated_platform_admin_client.get(
@@ -870,11 +872,10 @@ def test_list_users_for_grant_with_platform_admin(authenticated_platform_admin_c
     soup = BeautifulSoup(result.data, "html.parser")
     button = soup.find("a", string=lambda text: text and "Add grant team member" in text)
     assert button is not None, "'Add grant team member' button not found"
-
-    # add new grant member and test
+    email_address = "test1@communities.gov.uk"
     result = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
-        json={"user_email": "test1@communities.gov.uk"},
+        json={"user_email": email_address},
         follow_redirects=True,
     )
     soup = BeautifulSoup(result.data, "html.parser")

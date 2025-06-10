@@ -21,7 +21,7 @@ from app.deliver_grant_funding.forms import (
     GrantSetupIntroForm,
 )
 from app.deliver_grant_funding.session_models import GrantSetupSession
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, notification_service
 
 deliver_grant_funding_blueprint = Blueprint(name="deliver_grant_funding", import_name=__name__)
 
@@ -190,11 +190,9 @@ def list_users_for_grant(grant_id: UUID) -> str:
         grant = interfaces.grants.get_grant(grant_id)
     except NoResultFound:
         abort(404)
-    grant_users = [role.user for role in grant.roles if role.role == RoleEnum.MEMBER]
     return render_template(
         "deliver_grant_funding/grant_team/grant_user_list.html",
         grant=grant,
-        users=grant_users,
         service_desk_url=current_app.config["SERVICE_DESK_URL"],
     )
 
@@ -203,14 +201,20 @@ def list_users_for_grant(grant_id: UUID) -> str:
 @platform_admin_role_required
 @auto_commit_after_request
 def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
-    form = GrantAddUserForm()
+    admin_users = interfaces.user.get_platform_admin_users()
     grant = interfaces.grants.get_grant(grant_id)
+    form = GrantAddUserForm(admin_users=admin_users, grant=grant)
     if form.validate_on_submit():
         if form.user_email.data:
-            created_user = interfaces.user.get_or_create_user(email_address=form.user_email.data)
-            interfaces.user.add_user_role(user_id=created_user.id, grant_id=grant_id, role=RoleEnum.MEMBER)
-            # TODO send gov notify email
-            flash("We’ve emailed the grant team member a link to sign in.")
+            user = next((user for user in grant.users if user.email == form.user_email.data), None)
+            if user is None:
+                created_user = interfaces.user.get_or_create_user(email_address=form.user_email.data)
+                interfaces.user.add_user_role(user_id=created_user.id, grant_id=grant_id, role=RoleEnum.MEMBER)
+                notification_service.send_member_confirmation(
+                    grant_name=grant.name,
+                    email_address=form.user_email.data,
+                )
+                flash("We’ve emailed the grant team member a link to sign in")
             return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
     return render_template("deliver_grant_funding/grant_team/grant_user_add.html", form=form, grant=grant)
 

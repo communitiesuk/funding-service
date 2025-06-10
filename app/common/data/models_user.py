@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 class User(BaseModel):
     __tablename__ = "user"
 
+    name: Mapped[str] = mapped_column(nullable=True)
+
     email: Mapped[CIStr] = mapped_column(unique=True)
 
     magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
@@ -44,6 +46,10 @@ class User(BaseModel):
         )
         return is_platform_admin
 
+    @property
+    def is_logged_in(self) -> bool:
+        return bool(self.name)
+
     def get_id(self) -> str:
         return str(self.id)
 
@@ -67,7 +73,7 @@ class UserRole(BaseModel):
 
     user: Mapped[User] = relationship("User", back_populates="roles")
     organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="roles")
-    grant: Mapped["Grant"] = relationship("Grant", back_populates="roles")
+    grant: Mapped["Grant"] = relationship("Grant")
 
     __table_args__ = (
         UniqueConstraint(

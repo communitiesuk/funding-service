@@ -198,6 +198,11 @@ class QuestionForm(FlaskForm):
 
 
 class GrantAddUserForm(FlaskForm):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.admin_users = kwargs["admin_users"] if "admin_users" in kwargs else []
+        self.grant = kwargs["grant"]
+
     user_email = StringField(
         description="This needs to be the user’s personal 'communities.gov.uk' "
         "email address, not a shared email address.",
@@ -209,3 +214,20 @@ class GrantAddUserForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def validate(self, extra_validators: Any = None) -> bool:
+        if not super().validate(extra_validators):
+            return False
+        if [user for user in self.admin_users if user.is_platform_admin and user.email == self.user_email.data]:
+            self.user_email.errors = list(self.user_email.errors) + [
+                "This user already exists as a Funding Service admin user so you cannot add them"
+            ]
+            return False
+
+        if [user for user in self.grant.users if user.email == self.user_email.data]:
+            self.user_email.errors = list(self.user_email.errors) + [
+                f'This user already is a member of "{self.grant.name}" so you cannot add them'
+            ]
+            return False
+
+        return True
