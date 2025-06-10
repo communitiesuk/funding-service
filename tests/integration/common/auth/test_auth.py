@@ -199,6 +199,27 @@ class TestSSOGetTokenView:
         assert response.status_code == 403
         assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5" in response.text
 
+    def test_get_valid_token_with_redirect(self, anonymous_client, factories, db_session):
+        dummy_grant = factories.grant.create()
+        with anonymous_client.session_transaction() as session:
+            session["next"] = f"grants/{dummy_grant.id}"
+
+        with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
+            # Partially mock the expected return value; just enough for the test.
+            mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {"preferred_username": "test@test.communities.gov.uk", "roles": ["FSD_ADMIN"]}
+            }
+            response = anonymous_client.get(
+                url_for("auth.sso_get_token"),
+                follow_redirects=True,
+            )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert dummy_grant.name in soup.h1.text
+
+        with anonymous_client.session_transaction() as session:
+            assert "next" not in session
+
 
 class TestAuthenticatedUserRedirect:
     def test_magic_link_get(self, authenticated_client):
