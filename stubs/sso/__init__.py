@@ -62,7 +62,9 @@ def create_sso_stub_app() -> Flask:
     def oauth_redirect(tenant):
         global dummy_nonce, base_64_str_client_info, email_address, is_platform_admin
 
-        form = SSOSignInForm()
+        form = SSOSignInForm(
+            data={"email_address": os.getenv("SSO_STUB_SERVER_DEFAULT_EMAIL", "john.cheese@communities.gov.uk")}
+        )
         if form.validate_on_submit():
             dummy_nonce = request.args["nonce"]
             email_address = form.email_address.data
