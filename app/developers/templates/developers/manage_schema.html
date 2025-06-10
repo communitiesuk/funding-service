@@ -34,9 +34,7 @@
         {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">
-        {{ collection.name }}
-      </h1>
+      <h1 class="govuk-heading-l">{{ collection.name }}</h1>
       {% set sections_text %}
         {% trans count=collection.sections | length %}
           {{ count }}
@@ -96,14 +94,6 @@
         })
       }}
 
-      {% if not collection.sections %}
-        <p class="govuk-body">
-          This collection has no sections, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_section', grant_id = grant.id, collection_id=collection.id) }}">add a section</a>
-          .
-        </p>
-      {% endif %}
-
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.submit(params={"classes": "govuk-button--secondary"}) }}
@@ -134,7 +124,7 @@
             {% endtrans %}
           {% endset %}
           {% set form_link %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_form', grant_id = grant.id, schema_id=schema.id, section_id = section.id, form_id=form.id, back_link='manage_schema') }}">
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, back_link='manage_schema') }}">
               {{ form.title }}
             </a>
           {% endset %}
@@ -156,6 +146,12 @@
             "classes": "app-tasklist-builder"
           })
         }}
+      {% else %}
+        <p class="govuk-body">
+          This collection has no sections, you can
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.list_sections', grant_id = grant.id, collection_id=collection.id) }}">manage sections</a>
+          to add a section.
+        </p>
       {% endfor %}
 
       <div class="govuk-grid-row govuk-!-margin-top-7">

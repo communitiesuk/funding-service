@@ -71,6 +71,12 @@
       {% if not section.forms %}
         <p class="govuk-body">This section has no forms.</p>
       {% else %}
+        <p class="govuk-body">
+          You can add and re-order forms. Form questions can be managed from the
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_collection', grant_id=grant.id, collection_id=collection.id) }}">collection tasklist</a>
+          .
+        </p>
+
         <p class="govuk-body">This section has {{ forms_text }}.</p>
       {% endif %}
 
