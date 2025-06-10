@@ -166,7 +166,7 @@ def test_create_and_preview_collection(
     expect(collection_detail_page.summary_row_submissions.get_by_text("1 preview submission")).to_be_visible()
     collections_list_page = collection_detail_page.click_view_submissions()
 
-    view_collection_page = collections_list_page.click_on_collection(collection_reference=collection_reference)
+    view_collection_page = collections_list_page.click_on_submission(collection_reference=collection_reference)
 
     answers_list = view_collection_page.get_questions_list_for_form(form_name)
     expect(answers_list).to_be_visible()

@@ -461,7 +461,6 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
         collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
-        back_link="manage_section",
     )
 
     question1_from_db = db_session.scalars(select(Question).where(Question.id == question1.id)).one()
@@ -487,7 +486,6 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
         collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
-        back_link="manage_section",
     )
 
     question1_from_db = db_session.scalars(select(Question).where(Question.id == question1.id)).one()
@@ -615,7 +613,6 @@ def test_add_text_question_post(authenticated_platform_admin_client, factories, 
         collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
-        back_link="manage_section",
     )
 
     form_from_db = db_session.scalars(select(Form).where(Form.id == form.id)).one()
@@ -687,7 +684,6 @@ def test_edit_question_post(authenticated_platform_admin_client, factories, db_s
         collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
-        back_link="manage_section",
     )
 
     question_from_db = db_session.scalars(select(Question).where(Question.id == question.id)).one()
