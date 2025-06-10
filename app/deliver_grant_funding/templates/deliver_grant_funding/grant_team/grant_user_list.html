@@ -42,7 +42,7 @@
 
   {% set table_pending_signin_rows = namespace(items=[]) %}
   {% if users %}
-    {% for user in users if user.name|lower == '' %}
+    {% for user in users if not user.name %}
       {%
         set table_pending_signin_rows.items = table_pending_signin_rows.items + [[
           {"text": user.email},
@@ -72,7 +72,7 @@
   {% set table_rows = namespace(items=[]) %}
 
   {% if users %}
-    {% for user in users if user.name|lower != '' %}
+    {% for user in users if user.name %}
       {%
         set table_rows.items = table_rows.items + [[
           {"text": user.name},
