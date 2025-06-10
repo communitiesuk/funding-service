@@ -81,19 +81,19 @@ class AddCollectionPage(GrantDevelopersBasePage):
 
 class CollectionDetailPage(GrantDevelopersBasePage):
     collection_name: str
-    add_section_link: Locator
     preview_collection_button: Locator
     summary_row_submissions: Locator
+    manage_sections_link: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, collection_name: str) -> None:
         super().__init__(
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"{grant_name} {collection_name}"),
+            heading=page.get_by_role("heading", name=collection_name),
         )
         self.collection_name = collection_name
-        self.add_section_link = self.page.get_by_role("link", name="add a section")
+        self.manage_sections_link = self.page.get_by_role("link", name="manage sections")
         self.preview_collection_button = self.page.get_by_role("button", name="Preview this collection")
         self.summary_row_submissions = page.locator("div.govuk-summary-list__row").filter(
             has=page.get_by_text("Submissions")
@@ -109,9 +109,11 @@ class CollectionDetailPage(GrantDevelopersBasePage):
         expect(self.page.get_by_role("link", name=section_title)).to_be_visible()
 
     def click_add_section(self) -> AddSectionPage:
-        self.add_section_link.click()
-        add_section_page = AddSectionPage(self.page, self.domain, grant_name=self.grant_name)
-        expect(add_section_page.heading).to_be_visible()
+        self.manage_sections_link.click()
+        list_sections_page = SectionsListPage(
+            self.page, self.domain, grant_name=self.grant_name, collection_name=self.collection_name
+        )
+        add_section_page = list_sections_page.click_add_section()
         return add_section_page
 
     def click_preview_collection(self) -> TasklistPage:
@@ -122,15 +124,36 @@ class CollectionDetailPage(GrantDevelopersBasePage):
         expect(tasklist_page.heading).to_be_visible()
         return tasklist_page
 
+    def click_manage_form(self, form_name: str, section_title: str) -> ManageFormPage:
+        self.page.get_by_role("link", name=form_name).click()
+        manage_form_page = ManageFormPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=section_title,
+            form_name=form_name,
+        )
+        expect(manage_form_page.heading).to_be_visible()
+        return manage_form_page
+
 
 class SectionsListPage(GrantDevelopersBasePage):
     collection_name: str
+    add_section_button: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, collection_name: str) -> None:
         super().__init__(
             page, domain, grant_name=grant_name, heading=page.get_by_role("heading", name=f"{collection_name} Sections")
         )
         self.collection_name = collection_name
+        self.add_section_button = self.page.get_by_role("button", name="Add a section")
+
+    def click_add_section(self) -> AddSectionPage:
+        self.add_section_button.click()
+        add_section_page = AddSectionPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(add_section_page.heading).to_be_visible()
+        return add_section_page
 
     def check_section_exists(self, section_title: str) -> None:
         expect(self.page.get_by_role("link", name=section_title)).to_be_visible()
@@ -172,7 +195,7 @@ class AddSectionPage(GrantDevelopersBasePage):
 
 
 class SectionDetailsPage(GrantDevelopersBasePage):
-    add_form_link: Locator
+    add_form_button: Locator
     section_title: str
     collection_name: str
 
@@ -185,10 +208,10 @@ class SectionDetailsPage(GrantDevelopersBasePage):
         )
         self.section_title = section_title
         self.collection_name = collection_name
-        self.add_form_link = self.page.get_by_role("link", name="add a form")
+        self.add_form_button = self.page.get_by_role("button", name="Add a form")
 
     def click_add_form(self) -> SelectFormTypePage:
-        self.add_form_link.click()
+        self.add_form_button.click()
         form_type_page = SelectFormTypePage(
             self.page,
             self.domain,
@@ -203,16 +226,17 @@ class SectionDetailsPage(GrantDevelopersBasePage):
         expect(self.page.get_by_role("term").filter(has_text=form_name)).to_be_visible()
 
     def click_manage_form(self, form_name: str) -> ManageFormPage:
-        self.page.get_by_role("link", name=f"Manage {form_name}").click()
-        manage_form_page = ManageFormPage(
+        self.page.get_by_role("link", name="collection tasklist").click()
+
+        collection_detail_page = CollectionDetailPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
             collection_name=self.collection_name,
-            section_title=self.section_title,
-            form_name=form_name,
         )
-        expect(manage_form_page.heading).to_be_visible()
+        manage_form_page = collection_detail_page.click_manage_form(
+            form_name=form_name, section_title=self.section_title
+        )
         return manage_form_page
 
 
@@ -221,7 +245,6 @@ class ManageFormPage(GrantDevelopersBasePage):
     collection_name: str
     form_name: str
     add_question_button: Locator
-    add_question_link: Locator
 
     def __init__(
         self, page: Page, domain: str, grant_name: str, collection_name: str, section_title: str, form_name: str
@@ -236,13 +259,9 @@ class ManageFormPage(GrantDevelopersBasePage):
         self.collection_name = collection_name
         self.form_name = form_name
         self.add_question_button = self.page.get_by_role("button", name="Add question")
-        self.add_question_link = self.page.get_by_role("link", name="add a question")
 
     def click_add_question(self) -> SelectQuestionTypePage:
-        if self.add_question_button.is_visible(timeout=0.2):
-            self.add_question_button.click()
-        else:
-            self.add_question_link.click()
+        self.add_question_button.click()
         select_question_type_page = SelectQuestionTypePage(
             self.page,
             self.domain,
