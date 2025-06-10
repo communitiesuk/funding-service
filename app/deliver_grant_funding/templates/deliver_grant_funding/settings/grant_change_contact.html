@@ -19,7 +19,10 @@
 {% endblock %}
 
 {% block content %}
-  <h1 class="govuk-heading-l">Change grant contact details</h1>
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">Set up the grant</span>
+    {{ form.GRANT_MAIN_CONTACT_TITLE }}
+  </h1>
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
@@ -38,7 +41,7 @@
 
     {{
       form.submit(params={
-        "text": "Change grant contact details"
+        "text": "Update"
       })
     }}
   </form>

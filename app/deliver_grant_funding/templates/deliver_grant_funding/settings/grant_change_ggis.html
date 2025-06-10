@@ -12,18 +12,28 @@
     govukBackLink({
       "text": "Back",
       "href": url_for("deliver_grant_funding.grant_settings", grant_id=grant.id),
-      "classes": "govuk-!-margin-bottom-6"
     })
   }}
 {% endblock %}
 
 {% block content %}
-  <h1 class="govuk-heading-l">Change grant GGIS</h1>
+  {% set grant_ggis_label_html %}
+    <h1 class="govuk-heading-l">
+      <span class="govuk-caption-l">Set up the grant</span>
+      {{ form.has_ggis.label }}
+    </h1>
+  {% endset %}
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
     {{
       form.has_ggis(params={
+      "fieldset":{
+        "legend":{
+          "html": grant_ggis_label_html,
+          "isPageHeading":True
+        },
+        },
         "items": [
           {
             "value": "yes",
@@ -49,7 +59,7 @@
 
     {{
       form.submit(params={
-        "text": "Change grant GGIS"
+        "text": "Update"
       })
     }}
   </form>
