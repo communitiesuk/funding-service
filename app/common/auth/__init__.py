@@ -100,6 +100,7 @@ def sso_get_token() -> ResponseReturnValue:
     sso_user = result["id_token_claims"]
 
     user = get_or_create_user(email_address=sso_user["preferred_username"])
+    redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
 
     if "FSD_ADMIN" in sso_user.get("roles", []):
         add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
@@ -113,7 +114,7 @@ def sso_get_token() -> ResponseReturnValue:
     if not login_user(user):
         abort(400)
 
-    return redirect(sso_user.get("next", url_for("deliver_grant_funding.list_grants")))
+    return redirect(redirect_to_path)
 
 
 @auth_blueprint.get("/sign-out")
