@@ -67,7 +67,6 @@ def test_grant_ggis_form_fails_when_yes_selected_and_empty(app: Flask):
 
 
 def test_user_already_in_grant_users(app: Flask):
-    app.config["INTERNAL_DOMAINS"] = ("@communities.gov.uk", "@test.communities.gov.uk")
     user_in_grant = User(email="test.user@communities.gov.uk")
     grant = Grant(name="Test Grant", users=[user_in_grant])
     form = GrantAddUserForm(
@@ -80,7 +79,6 @@ def test_user_already_in_grant_users(app: Flask):
 
 
 def test_user_already_platform_admin(app: Flask):
-    app.config["INTERNAL_DOMAINS"] = ("@communities.gov.uk", "@test.communities.gov.uk")
     platform_admin = User(email="test.admin@communities.gov.uk", roles=[UserRole(role=RoleEnum.ADMIN)])
     grant = Grant(name="Test Grant", users=[])
     form = GrantAddUserForm(

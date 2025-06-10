@@ -1,7 +1,6 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
-from flask import current_app
 from wtforms.validators import ValidationError
 
 from app.common.forms.validators import CommunitiesEmail, WordRange
@@ -101,8 +100,7 @@ class TestCommunitiesEmailValidator:
     def test_case_insensitive_domain_match(self):
         self._call_validator("Staff@Communities.Gov.Uk")
 
-    def test_missing_internal_domains_config(self):
-        with pytest.raises(KeyError):
+    def test_missing_internal_domains_config(self, app):
+        with pytest.raises(KeyError), patch.dict(app.config, {}, clear=True):
             self.field.data = "user@anywhere.com"
-            del current_app.config["INTERNAL_DOMAINS"]
             self.validator(self.form, self.field)
