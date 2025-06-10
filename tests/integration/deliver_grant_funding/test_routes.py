@@ -98,7 +98,7 @@ def test_view_grant_dashboard(authenticated_client, factories, templates_rendere
 
 def test_view_grant_settings(authenticated_client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = authenticated_client.get(url_for("deliver_grant_funding.grant_settings", grant_id=grant.id))
+    result = authenticated_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
     assert result.status_code == 200
     assert templates_rendered[0][1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
@@ -117,7 +117,7 @@ def test_grant_change_name_get(authenticated_client, factories, templates_render
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "Change grant name" in soup.h1.text.strip()
+    assert "What is the name of this grant?" in soup.h1.text.strip()
 
 
 def test_grant_change_name_post(authenticated_client, factories, templates_rendered, db_session):
@@ -130,7 +130,7 @@ def test_grant_change_name_post(authenticated_client, factories, templates_rende
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "deliver_grant_funding.grant_settings",
+        "deliver_grant_funding.grant_details",
         grant_id=grant.id,
     )
 
