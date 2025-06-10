@@ -33,37 +33,34 @@
         %}
       {% endfor %}
       {% if not grant.collections %}
-        <p class="govuk-body">
-          This grant has no collections, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.setup_collection', grant_id = grant.id) }}">add a collection</a>
-          .
-        </p>
+        <p class="govuk-body">This grant has no collections.</p>
       {% else %}
         {{
           govukTable({
-          "captionClasses": "govuk-table__caption--m",
-          "head": [
-            {
-              "text": "Description"
-            },
-            {
-              "text": "Added by"
-            },
-            {
-              "text": "Added on"
-            }
-          ],
-                "rows": rows
-                })
-        }}
-        {{
-          govukButton({
-          "text": "Add collection",
-          "classes": "govuk-button--secondary",
-          "href": url_for("developers.setup_collection", grant_id = grant.id)
+            "captionClasses": "govuk-table__caption--m",
+            "head": [
+              {
+                "text": "Description"
+              },
+              {
+                "text": "Added by"
+              },
+              {
+                "text": "Added on"
+              }
+            ],
+            "rows": rows
           })
         }}
       {% endif %}
+
+      {{
+        govukButton({
+        "text": "Add collection",
+        "classes": "govuk-button--secondary",
+        "href": url_for("developers.setup_collection", grant_id = grant.id)
+        })
+      }}
     </div>
   </div>
 {% endblock content %}

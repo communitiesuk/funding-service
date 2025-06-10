@@ -34,16 +34,16 @@ class GrantDevelopersPage(GrantDevelopersBasePage):
 
 
 class ListCollectionsPage(GrantDevelopersBasePage):
-    add_collection_link: Locator
+    add_collection_button: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(
             page, domain, grant_name=grant_name, heading=page.get_by_role("heading", name=f"{grant_name} collections")
         )
-        self.add_collection_link = self.page.get_by_role("link", name="add a collection")
+        self.add_collection_button = self.page.get_by_role("button", name="Add collection")
 
     def click_add_collection(self) -> AddCollectionPage:
-        self.add_collection_link.click()
+        self.add_collection_button.click()
         add_collection_page = AddCollectionPage(self.page, self.domain, grant_name=self.grant_name)
         expect(add_collection_page.heading).to_be_visible()
         return add_collection_page
