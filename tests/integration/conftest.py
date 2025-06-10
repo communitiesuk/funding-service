@@ -190,6 +190,9 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
     # sessionmaker configuration to use a connection with a transaction started, and configure FSL to use savepoints
     # for any flushes/commits that happen within the test. When the test finishes, this fixture will do a full rollback,
     # preventing any data leaking beyond the scope of the test.
+    #
+    # NOTE: this fixture is automatically used by all integration tests, and provides both an app context and a test
+    # request context. So you will not need to manually create these within your integration tests.
 
     with app.app_context():
         connection = db.engine.connect()

@@ -39,6 +39,9 @@ def db_session(app: Flask) -> Generator[None, None, None]:
     # set up the database connection/session with transactional isolation between tests.
     # This blank fixture helps us still provide the ability to use FactoryBoy to build ephemeral instances of our DB
     # models for unit testing.
+    #
+    # NOTE: this fixture is automatically used by all unit tests, and provides both an app context and a test request
+    # context. So you will not need to manually create these within your unit tests.
 
     with app.app_context():
         original_session_property = SQLAlchemy.session

@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from flask import Flask
+from flask import Flask, request
 from wtforms import Form, StringField
 from wtforms.validators import ValidationError
 
@@ -42,38 +42,28 @@ def test_unique_grant_name_fails_when_name_exists():
 
 
 def test_grant_ggis_form_validates_when_no_selected(app: Flask):
-    app.config["SECRET_KEY"] = "test-key"  # pragma: allowlist secret
+    print(request)
+    form = GrantGGISForm(data={"has_ggis": "no", "ggis_number": ""})
 
-    with app.test_request_context():
-        form = GrantGGISForm(data={"has_ggis": "no", "ggis_number": ""})
-
-        # Should return True when "no" is selected and GGIS number can be empty
-        assert form.validate() is True
-        assert len(form.ggis_number.errors) == 0
+    # Should return True when "no" is selected and GGIS number can be empty
+    assert form.validate() is True
+    assert len(form.ggis_number.errors) == 0
 
 
 def test_grant_ggis_form_validates_when_yes_selected_with_ggis_number(app: Flask):
-    app.config["SECRET_KEY"] = "test-key"  # pragma: allowlist secret
+    form = GrantGGISForm(data={"has_ggis": "yes", "ggis_number": "GGIS123456"})
 
-    with app.test_request_context():
-        form = GrantGGISForm(data={"has_ggis": "yes", "ggis_number": "GGIS123456"})
-
-        # Should return True when "yes" is selected and GGIS number is provided
-        assert form.validate() is True
-        assert len(form.ggis_number.errors) == 0
+    # Should return True when "yes" is selected and GGIS number is provided
+    assert form.validate() is True
+    assert len(form.ggis_number.errors) == 0
 
 
 def test_grant_ggis_form_fails_when_yes_selected_and_empty(app: Flask):
-    app = Flask(__name__)
-    app.config["SECRET_KEY"] = "test-key"  # pragma: allowlist secret
-    app.config["WTF_CSRF_ENABLED"] = False  # Disable CSRF for testing
+    form = GrantGGISForm(data={"has_ggis": "yes", "ggis_number": ""})
 
-    with app.test_request_context():
-        form = GrantGGISForm(data={"has_ggis": "yes", "ggis_number": ""})
-
-        # Should return False when "yes" is selected but GGIS number is empty
-        assert form.validate() is False
-        assert "Enter your GGIS reference number" in form.ggis_number.errors
+    # Should return False when "yes" is selected but GGIS number is empty
+    assert form.validate() is False
+    assert "Enter your GGIS reference number" in form.ggis_number.errors
 
 
 def test_user_already_in_grant_users(app: Flask):

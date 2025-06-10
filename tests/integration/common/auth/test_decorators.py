@@ -19,19 +19,17 @@ class TestLoginRequired:
 
         user = factories.user.create(email="test@anything.com")
 
-        with app.test_client(), app.test_request_context("/"):
-            login_user(user)
-            response = test_login_required()
-            assert response == "OK"
+        login_user(user)
+        response = test_login_required()
+        assert response == "OK"
 
     def test_anonymous_user_gets_redirect(self, app):
         @login_required
         def test_login_required():
             return "OK"
 
-        with app.test_client(), app.test_request_context("/"):
-            response = test_login_required()
-            assert response.status_code == 302
+        response = test_login_required()
+        assert response.status_code == 302
 
 
 class TestMHCLGLoginRequired:
@@ -42,10 +40,9 @@ class TestMHCLGLoginRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
 
-        with app.test_client(), app.test_request_context("/"):
-            login_user(user)
-            response = test_login_required()
-            assert response == "OK"
+        login_user(user)
+        response = test_login_required()
+        assert response == "OK"
 
     def test_non_mhclg_user_is_forbidden(self, app, factories):
         @mhclg_login_required
@@ -54,7 +51,7 @@ class TestMHCLGLoginRequired:
 
         user = factories.user.create(email="test@anything.com")
 
-        with app.test_client(), app.test_request_context("/"), pytest.raises(Forbidden):
+        with pytest.raises(Forbidden):
             login_user(user)
             test_login_required()
 
@@ -63,9 +60,8 @@ class TestMHCLGLoginRequired:
         def test_login_required():
             return "OK"
 
-        with app.test_client(), app.test_request_context("/"):
-            response = test_login_required()
-            assert response.status_code == 302
+        response = test_login_required()
+        assert response.status_code == 302
 
 
 class TestPlatformAdminRoleRequired:
@@ -77,10 +73,9 @@ class TestPlatformAdminRoleRequired:
         user = factories.user.create(email="test@communities.gov.uk")
         factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
 
-        with app.test_client(), app.test_request_context("/"):
-            login_user(user)
-            response = test_login_required()
-            assert response == "OK"
+        login_user(user)
+        response = test_login_required()
+        assert response == "OK"
 
     def test_non_platform_admin_is_forbidden(self, app, factories):
         @platform_admin_role_required
@@ -89,7 +84,7 @@ class TestPlatformAdminRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
 
-        with app.test_client(), app.test_request_context("/"), pytest.raises(Forbidden):
+        with pytest.raises(Forbidden):
             login_user(user)
             test_login_required()
 
@@ -98,9 +93,8 @@ class TestPlatformAdminRoleRequired:
         def test_login_required():
             return "OK"
 
-        with app.test_client(), app.test_request_context("/"):
-            response = test_login_required()
-            assert response.status_code == 302
+        response = test_login_required()
+        assert response.status_code == 302
 
 
 class TestRedirectIfAuthenticated:
@@ -111,10 +105,9 @@ class TestRedirectIfAuthenticated:
 
         user = factories.user.create(email="test@communities.gov.uk")
 
-        with app.test_client(), app.test_request_context("/"):
-            login_user(user)
-            response = test_authenticated_redirect()
-            assert response.status_code == 302
+        login_user(user)
+        response = test_authenticated_redirect()
+        assert response.status_code == 302
 
     def test_external_authenticated_user_gets_403(self, app, factories):
         @redirect_if_authenticated
@@ -123,7 +116,7 @@ class TestRedirectIfAuthenticated:
 
         user = factories.user.create(email="test@anything.com")
 
-        with app.test_client(), app.test_request_context("/"), pytest.raises(InternalServerError):
+        with pytest.raises(InternalServerError):
             login_user(user)
             test_authenticated_redirect()
 
@@ -132,6 +125,5 @@ class TestRedirectIfAuthenticated:
         def test_authenticated_redirect():
             return "OK"
 
-        with app.test_client(), app.test_request_context("/"):
-            response = test_authenticated_redirect()
-            assert response == "OK"
+        response = test_authenticated_redirect()
+        assert response == "OK"
