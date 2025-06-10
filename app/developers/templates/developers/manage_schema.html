@@ -2,7 +2,6 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% extends "deliver_grant_funding/base.html" %}
 
 {% block pageTitle %}
@@ -35,10 +34,7 @@
         {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ grant.name }}</span>
-        {{ collection.name }}
-      </h1>
+      <h1 class="govuk-heading-l">{{ collection.name }}</h1>
       {% set sections_text %}
         {% trans count=collection.sections | length %}
           {{ count }}
@@ -98,14 +94,6 @@
         })
       }}
 
-      {% if not collection.sections %}
-        <p class="govuk-body">
-          This collection has no sections, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_section', grant_id = grant.id, collection_id=collection.id) }}">add a section</a>
-          .
-        </p>
-      {% endif %}
-
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.submit(params={"classes": "govuk-button--secondary"}) }}
@@ -120,8 +108,8 @@
         {% if not section.forms %}
           <p class="govuk-body">
             This section has no forms, you can
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_form', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">add a form</a>
-            .
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_section', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">manage this section</a>
+            to add a form.
           </p>
         {% endif %}
 
@@ -135,25 +123,35 @@
               questions
             {% endtrans %}
           {% endset %}
+          {% set form_link %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, back_link='manage_schema') }}">
+              {{ form.title }}
+            </a>
+          {% endset %}
           {%
             do rows.append({
-                  "title": {
-                    "text": form.title,
-                  },
-                "status": {
+                "key": {
+                  "html": form_link,
+                },
+                "value": {
                   "text": question_text
                 },
-              "href": url_for("developers.manage_form", grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, back_link="manage_collection")
             })
           %}
         {% endfor %}
 
         {{
-          govukTaskList({
-            "idPrefix": section.slug,
-            "items": rows
+          govukSummaryList({
+            "rows": rows,
+            "classes": "app-tasklist-builder"
           })
         }}
+      {% else %}
+        <p class="govuk-body">
+          This collection has no sections, you can
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.list_sections', grant_id = grant.id, collection_id=collection.id) }}">manage sections</a>
+          to add a section.
+        </p>
       {% endfor %}
 
       <div class="govuk-grid-row govuk-!-margin-top-7">

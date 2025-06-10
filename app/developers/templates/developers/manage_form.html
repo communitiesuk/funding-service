@@ -16,7 +16,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": back_link_href
+        "href": url_for("developers.manage_collection", grant_id = grant.id, collection_id= collection.id)
     })
   }}
 {% endblock beforeContent %}
@@ -71,49 +71,47 @@
 
       {% set table_rows = [] %}
       {% for question in form.questions %}
+        {% set question_link %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id) }}">
+            {{ question.text }}
+          </a>
+        {% endset %}
         {%
           do table_rows.append({
-          "text": question.text,
-          "actions":[
-          {"text":"Move up",
-              "href":url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id,
-                     section_id = section.id, form_id=form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
-                     {"href":url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id,
-                     section_id = section.id, form_id=form.id, question_id=question.id, direction = 'down') ,"post":true,
-                  "text": "Move down","disabled":(loop.index >= form.questions | length)},
-                  {"href":url_for('developers.edit_question', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, question_id=question.id),
-                  "text": "Manage","post":false}
-          ]
-                  })
+            "html": question_link,
+            "actions":[{
+                "text":"Move up",
+                "href": url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1),
+                "post": True
+              }, {
+                "href": url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id, direction = 'down'),
+                "post": True,
+                "text": "Move down","disabled":(loop.index >= form.questions | length)
+              }
+            ]
+          })
         %}
       {% endfor %}
 
       {% if form.questions %}
-        <p class="govuk-body">This form has {{ question_text }}.</p>
+        <p class="govuk-body">This form has {% trans count=form.questions | length %}{{ count }} question{% pluralize %}{{ count }} questions{% endtrans %}.</p>
         {{ moveUpDownTable(table_rows) }}
-        {{
-          govukButton({
-              "text": "Add question",
-              "classes": "govuk-button--secondary",
-              "href": url_for("developers.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id),
-          })
-        }}
       {% else %}
-        <p class="govuk-body">
-          This form has no questions, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.choose_question_type', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id) }}">add a question</a>
-          .
-        </p>
+        <p class="govuk-body">This form has no questions.</p>
       {% endif %}
+      {{
+        govukButton({
+            "text": "Add question",
+            "classes": "govuk-button--secondary",
+            "href": url_for("developers.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id),
+        })
+      }}
     </div>
   </div>
   <div class="govuk-grid-row govuk-!-margin-top-7">
     <div class="govuk-grid-column-two-thirds">
       <p class="govuk-body">
-        <a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, back_link=request.args.get('back_link'), delete='') }}">
-          Delete this form
-        </a>
+        <a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, delete='') }}">Delete this form</a>
       </p>
     </div>
   </div>

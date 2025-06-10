@@ -270,12 +270,6 @@ def move_form(
 @auto_commit_after_request
 def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
-    back_link = url_for(
-        f"developers.{request.args.get('back_link')}",
-        grant_id=grant_id,
-        collection_id=collection_id,
-        section_id=section_id,
-    )
 
     confirm_deletion_form = ConfirmDeletionForm()
     if (
@@ -295,7 +289,6 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
         section=form.section,
         collection=form.section.collection,
         form=form,
-        back_link_href=back_link,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
@@ -334,6 +327,7 @@ def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> Respo
     )
 
 
+# TODO: having this method do both selecting the type and adding the form feels like too much
 @developers_blueprint.route(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/add",
     methods=["GET", "POST"],
