@@ -25,7 +25,13 @@
 {% endset %}
 
 {% block content %}
-  <h1 class="govuk-heading-l">Change grant description</h1>
+  {% set grant_description_label_html %}
+    <h1 class="govuk-heading-l">
+      <span class="govuk-caption-l">Set up the grant</span>
+      {{ form.description.label }}
+    </h1>
+  {% endset %}
+
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
@@ -35,7 +41,8 @@
     {{
       form.description(params={
         "label": {
-          "classes": "govuk-visually-hidden"
+          "html": grant_description_label_html,
+          "isPageHeading": True
         },
         "fromGroup": true,
         "formGroup": {
@@ -49,7 +56,7 @@
 
     {{
       form.submit(params={
-        "text": "Change grant description"
+        "text": "Update"
       })
     }}
   </form>

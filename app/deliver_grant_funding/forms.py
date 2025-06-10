@@ -106,6 +106,7 @@ class GrantDescriptionForm(FlaskForm):
 
 
 class GrantContactForm(FlaskForm):
+    GRANT_MAIN_CONTACT_TITLE: str = "Who is the main contact for this grant?"
     primary_contact_name = StringField(
         "Full name",
         validators=[DataRequired("Enter the full name")],
