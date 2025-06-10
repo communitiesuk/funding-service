@@ -504,23 +504,23 @@ class SubmissionsListPage(GrantDevelopersBasePage):
     def click_on_collection(self, collection_reference: str) -> ViewCollectionResponsesPage:
         self.page.get_by_role("link", name=collection_reference).click()
         view_collection_page = ViewCollectionResponsesPage(
-            self.page, self.domain, self.grant_name, collection_id=collection_reference
+            self.page, self.domain, self.grant_name, collection_reference=collection_reference
         )
         expect(view_collection_page.heading).to_be_visible()
         return view_collection_page
 
 
 class ViewCollectionResponsesPage(GrantDevelopersBasePage):
-    collection_id: str
+    collection_reference: str
 
-    def __init__(self, page: Page, domain: str, grant_name: str, collection_id: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, collection_reference: str) -> None:
         super().__init__(
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"{collection_id} Collection"),
+            heading=page.get_by_role("heading", name=f"{collection_reference} Collection"),
         )
-        self.collection_id = collection_id
+        self.collection_reference = collection_reference
 
     def get_questions_list_for_form(self, form_name: str) -> Locator:
         return self.page.get_by_test_id(form_name)
