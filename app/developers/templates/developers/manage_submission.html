@@ -1,0 +1,62 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/macros/status.html" import status %}
+{% extends "deliver_grant_funding/base.html" %}
+
+{% block pageTitle %}
+  Collection - {{ collection.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_item_identifier = "developers" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link,
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="app-aligned-header-tag">
+    <h1 class="govuk-heading-l">
+      <span class="govuk-caption-l">{{ submission_helper.reference }}</span>
+      Submission
+    </h1>
+    {{ status(submission_helper.status, statuses) }}
+  </div>
+
+  {% for section in submission_helper.get_ordered_visible_sections() %}
+    <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ section.title }}</h2>
+    {% for form in submission_helper.get_ordered_visible_forms_for_section(section) %}
+      <h3 class="govuk-heading-s govuk-!-margin-top-4">{{ form.title }}</h3>
+      {% set rows = [] %}
+      {% for question in submission_helper.get_ordered_visible_questions_for_form(form) %}
+
+        {# the answer is a well formed, validated pydantic thing we could access any of the properties #}
+        {# of for the templates use - we'll probably generally just want the interface of that model to tell #}
+        {# us what to put when we need a single line text representation #}
+        {%
+          do rows.append({
+            "key": {
+              "text": question.text
+            },
+            "value": {
+              "text": submission_helper.get_answer_for_question(question.id).root or "(Not answered)"
+            }
+          })
+        %}
+      {% endfor %}
+
+      {{
+        govukSummaryList({
+          "rows": rows,
+          "attributes":{"data-testid":form.title}
+        })
+      }}
+    {% endfor %}
+  {% endfor %}
+{% endblock content %}

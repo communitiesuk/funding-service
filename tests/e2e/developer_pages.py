@@ -520,16 +520,16 @@ class SubmissionsListPage(GrantDevelopersBasePage):
         )
         self.collection_name = collection_name
 
-    def click_on_collection(self, collection_reference: str) -> ViewCollectionResponsesPage:
+    def click_on_submission(self, collection_reference: str) -> ViewSubmissionPage:
         self.page.get_by_role("link", name=collection_reference).click()
-        view_collection_page = ViewCollectionResponsesPage(
+        view_collection_page = ViewSubmissionPage(
             self.page, self.domain, self.grant_name, collection_reference=collection_reference
         )
         expect(view_collection_page.heading).to_be_visible()
         return view_collection_page
 
 
-class ViewCollectionResponsesPage(GrantDevelopersBasePage):
+class ViewSubmissionPage(GrantDevelopersBasePage):
     collection_reference: str
 
     def __init__(self, page: Page, domain: str, grant_name: str, collection_reference: str) -> None:
@@ -537,7 +537,7 @@ class ViewCollectionResponsesPage(GrantDevelopersBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"{collection_reference} Collection"),
+            heading=page.get_by_role("heading", name=f"{collection_reference} Submission"),
         )
         self.collection_reference = collection_reference
 

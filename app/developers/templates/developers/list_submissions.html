@@ -1,0 +1,74 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/macros/status.html" import status %}
+{% extends "deliver_grant_funding/base.html" %}
+
+{% block pageTitle %}
+  Submissions - {{ collection.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_item_identifier = "developers" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link,
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <h1 class="govuk-heading-l">
+    <span class="govuk-caption-l">{{ collection.name }}</span>
+    Submissions
+  </h1>
+  <p class="govuk-body">View the information that has been provided by users for a submission.</p>
+
+  {% set rows=[] %}
+  {% for submission in submissions %}
+    {% set link_to_submission %}
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_submission', submission_id=submission.id) }}">{{ submission.reference }}</a>
+    {% endset %}
+    {%
+      do rows.append([
+        {
+          "html": link_to_submission,
+        }, {
+          "html": status(submission.status, statuses)
+        }, {
+          "text": submission.created_by_email
+        }, {
+          "text": format_date_short(submission.created_at_utc)
+        }
+      ])
+    %}
+  {% else %}
+    {% set no_collections_text %}
+      <span><i>No submissions found for this collection</i></span>
+    {% endset %}
+    {%
+      do rows.append([
+        {
+          "html": no_collections_text,
+          "colspan": 4
+        }
+      ])
+    %}
+  {% endfor %}
+
+  {{
+    govukTable({
+      "captionClasses": "govuk-table__caption--m",
+      "head": [
+        { "text": "Submission" },
+        { "text": "" },
+        { "text": "Started by" },
+        { "text": "Created" }
+      ],
+      "rows": rows
+    })
+  }}
+{% endblock content %}

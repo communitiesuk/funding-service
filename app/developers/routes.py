@@ -71,7 +71,7 @@ def grant_developers(grant_id: UUID) -> str:
 @platform_admin_role_required
 def grant_developers_collections(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("developers/list_schemas.html", grant=grant)  # todo: rename
+    return render_template("developers/list_collections.html", grant=grant)
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/collections/set-up", methods=["GET", "POST"])
@@ -89,7 +89,7 @@ def setup_collection(grant_id: UUID) -> ResponseReturnValue:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-    return render_template("developers/add_schema.html", grant=grant, form=form)  # todo: rename
+    return render_template("developers/add_collection.html", grant=grant, form=form)
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/collections/<uuid:collection_id>", methods=["GET", "POST"])
@@ -116,7 +116,7 @@ def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValu
         return redirect(url_for("developers.submission_tasklist", submission_id=submission.id))
 
     return render_template(
-        "developers/manage_schema.html",  # todo: rename
+        "developers/manage_collection.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -140,7 +140,7 @@ def edit_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "developers/edit_schema.html",  # todo: rename me
+        "developers/edit_collection.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -391,7 +391,6 @@ def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UU
                     collection_id=collection_id,
                     section_id=section_id,
                     form_id=form_id,
-                    back_link="manage_section",
                 )
             )
         except DuplicateValueError as e:
@@ -469,7 +468,6 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
                     collection_id=collection_id,
                     section_id=section_id,
                     form_id=form_id,
-                    back_link="manage_section",
                 )
             )
         except DuplicateValueError as e:
@@ -512,7 +510,6 @@ def move_question(
             collection_id=collection_id,
             section_id=section_id,
             form_id=form_id,
-            back_link="manage_section",
         )
     )
 
@@ -544,7 +541,6 @@ def edit_question(
                 collection_id=collection_id,
                 section_id=section_id,
                 form_id=form_id,
-                back_link="manage_section",
             )
         )
 
@@ -561,7 +557,6 @@ def edit_question(
                     collection_id=collection_id,
                     section_id=section_id,
                     form_id=form_id,
-                    back_link="manage_section",
                 )
             )
         except DuplicateValueError as e:
@@ -770,7 +765,7 @@ def list_submissions_for_collection(collection_id: UUID) -> ResponseReturnValue:
     submissions = [SubmissionHelper(submission) for submission in collection.submissions]
 
     return render_template(
-        "developers/list_collections.html",
+        "developers/list_submissions.html",
         back_link=url_for("developers.manage_collection", collection_id=collection.id, grant_id=collection.grant.id),
         grant=collection.grant,
         collection=collection,
@@ -785,7 +780,7 @@ def manage_submission(submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 
     return render_template(
-        "developers/manage_collection.html",  # todo: manage_submission
+        "developers/manage_submission.html",
         back_link=url_for("developers.list_submissions_for_collection", collection_id=submission_helper.collection.id),
         submission_helper=submission_helper,
         grant=submission_helper.collection.grant,
