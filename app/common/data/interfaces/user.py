@@ -1,9 +1,10 @@
 import uuid
-from typing import Optional, cast
+from typing import Optional, Sequence, cast
 
 from flask_login import current_user
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql.expression import select
 
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
 from app.common.data.models_user import User, UserRole
@@ -18,6 +19,14 @@ def get_user(id_: str | uuid.UUID) -> User | None:
 def get_current_user() -> User:
     user = cast(User, current_user)
     return user
+
+
+def get_platform_admin_users() -> Sequence[User]:
+    return db.session.scalars(
+        select(User)
+        .join(User.roles)
+        .where(UserRole.role == RoleEnum.ADMIN, UserRole.grant_id.is_(None), UserRole.organisation_id.is_(None))
+    ).all()
 
 
 def get_or_create_user(email_address: str, name: Optional[str] = None) -> User:

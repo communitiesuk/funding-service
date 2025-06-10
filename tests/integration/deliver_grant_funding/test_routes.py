@@ -1,7 +1,6 @@
 from uuid import UUID
 
 import pytest
-import responses
 from bs4 import BeautifulSoup
 from flask import url_for
 from sqlalchemy import select
@@ -859,7 +858,6 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     assert grant_from_db.ggis_number == "GGIS123"
 
 
-@responses.activate
 def test_list_users_for_grant_with_platform_admin(
     authenticated_platform_admin_client, track_sql_queries, factories, mock_notification_service_calls
 ):

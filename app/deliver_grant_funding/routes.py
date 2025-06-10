@@ -201,8 +201,9 @@ def list_users_for_grant(grant_id: UUID) -> str:
 @platform_admin_role_required
 @auto_commit_after_request
 def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
-    form = GrantAddUserForm()
+    admin_users = interfaces.user.get_platform_admin_users()
     grant = interfaces.grants.get_grant(grant_id)
+    form = GrantAddUserForm(admin_users=admin_users, grant=grant)
     if form.validate_on_submit():
         if form.user_email.data:
             user = next((user for user in grant.users if user.email == form.user_email.data), None)

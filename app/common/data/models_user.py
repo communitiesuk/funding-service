@@ -73,7 +73,7 @@ class UserRole(BaseModel):
 
     user: Mapped[User] = relationship("User", back_populates="roles")
     organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="roles")
-    grant: Mapped["Grant"] = relationship("Grant", back_populates="roles")
+    grant: Mapped["Grant"] = relationship("Grant")
 
     __table_args__ = (
         UniqueConstraint(

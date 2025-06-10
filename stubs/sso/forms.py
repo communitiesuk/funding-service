@@ -20,5 +20,6 @@ class SSOSignInForm(FlaskForm):
     is_platform_admin = BooleanField(
         "Platform admin type login",
         widget=GovCheckboxInput(),
+        default=True,
     )
     submit = SubmitField("Sign in", widget=GovSubmitInput())
