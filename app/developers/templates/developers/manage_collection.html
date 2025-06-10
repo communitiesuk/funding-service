@@ -53,7 +53,8 @@
 
       {{
         govukSummaryList({
-          "rows": rows
+          "rows": rows,
+          "attributes":{"data-testid":form.title}
         })
       }}
     {% endfor %}

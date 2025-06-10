@@ -11,7 +11,7 @@
       {% set reference_html %}
         Your reference number
         <br />
-        <strong>{{ submission_helper.reference }}</strong>
+        <strong data-testid="submission-reference">{{ submission_helper.reference }}</strong>
       {% endset %}
       {{
         govukPanel({

@@ -6,7 +6,7 @@ from playwright.sync_api import Page, expect
 from app.common.data.types import QuestionDataType
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
-from tests.e2e.developer_pages import CheckYourAnswersPage, ManageFormPage, QuestionPage
+from tests.e2e.developer_pages import CheckYourAnswersPage, CollectionDetailPage, ManageFormPage, QuestionPage
 from tests.e2e.pages import AllGrantsPage
 
 question_response_data_by_type = {
@@ -38,6 +38,20 @@ def create_question(
     created_questions_to_test.append(
         {"question_text": question_text, "question_response": question_response_data_by_type[question_type.value]}
     )
+
+
+def navigate_to_collection_detail_page(
+    page: Page, domain: str, grant_name: str, collection_name: str
+) -> CollectionDetailPage:
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
+    grant_dashboard_page = all_grants_page.click_grant(grant_name)
+    developers_page = grant_dashboard_page.click_developers(grant_name)
+    list_collections_page = developers_page.click_manage_collections(grant_name=grant_name)
+    collection_detail_page = list_collections_page.click_on_collection(
+        grant_name=grant_name, collection_name=collection_name
+    )
+    return collection_detail_page
 
 
 @pytest.mark.skip_in_environments(["dev", "test", "prod"])
@@ -102,15 +116,8 @@ def test_create_and_preview_collection(
     create_question(QuestionDataType.INTEGER, manage_form_page)
 
     # Preview the form
-    all_grants_page = AllGrantsPage(page, domain)
-    all_grants_page.navigate()
-    grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
-    developers_page = grant_dashboard_page.click_developers(new_grant_name)
-    list_collections_page = developers_page.click_manage_collections(grant_name=new_grant_name)
-    collection_detail_page = list_collections_page.click_on_collection(
-        grant_name=new_grant_name, collection_name=new_collection_name
-    )
-    tasklist_page = collection_detail_page.click_preview_submission()
+    collection_detail_page = navigate_to_collection_detail_page(page, domain, new_grant_name, new_collection_name)
+    tasklist_page = collection_detail_page.click_preview_collection()
 
     # Check the tasklist has loaded
     expect(tasklist_page.page.get_by_role("heading", name=new_section_name)).to_be_visible()
@@ -148,4 +155,20 @@ def test_create_and_preview_collection(
         tasklist_page.collection_status_box.filter(has=tasklist_page.page.get_by_text("In progress"))
     ).to_be_visible()
     expect(tasklist_page.submit_button).to_be_enabled()
-    tasklist_page.click_submit()
+
+    confirmation_page = tasklist_page.click_submit()
+    collection_reference = confirmation_page.collection_reference.inner_text()
+
+    # Go back to schema detail page
+    collection_detail_page = navigate_to_collection_detail_page(page, domain, new_grant_name, new_collection_name)
+
+    # View the collection
+    expect(collection_detail_page.summary_row_submissions.get_by_text("1 preview submission")).to_be_visible()
+    collections_list_page = collection_detail_page.click_view_submissions()
+
+    view_collection_page = collections_list_page.click_on_collection(collection_reference=collection_reference)
+
+    answers_list = view_collection_page.get_questions_list_for_form(form_name)
+    expect(answers_list).to_be_visible()
+    for question in created_questions_to_test:
+        expect(answers_list.get_by_text(f"{question['question_text']} {question['question_response']}")).to_be_visible()
