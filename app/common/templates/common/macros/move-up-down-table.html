@@ -1,9 +1,17 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{# todo: I think all of this can be accomplished by overriding some design system classes #}
+{#       which would allow us to use the standard summary list macro with a few style changes #}
 {% macro moveUpDownTable(table_rows) %}
   <dl class="govuk-summary-list app-move-up-down-table">
     {% for row in table_rows %}
       <div class="govuk-summary-list__row app-move-up-down-table__row">
-        <dt class="govuk-summary-list__value">{{ row.text }}</dt>
+        <dt class="govuk-summary-list__value">
+          {% if row.text %}
+            {{ row.text }}
+          {% else %}
+            {{ row.html | safe }}
+          {% endif %}
+        </dt>
         <dd class="govuk-summary-list__actions app-move-up-down-table__actions">
           <ul class="govuk-summary-list__actions-list">
             {% for action in row.actions %}

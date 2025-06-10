@@ -71,21 +71,25 @@
 
       {% set table_rows = [] %}
       {% for question in form.questions %}
+        {% set question_link %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id) }}">
+            {{ question.text }}
+          </a>
+        {% endset %}
         {%
           do table_rows.append({
-          "text": question.text,
-          "actions":[
-          {"text":"Move up",
-              "href":url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id,
-                     section_id = section.id, form_id=form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1), "post":true},
-                     {"href":url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id,
-                     section_id = section.id, form_id=form.id, question_id=question.id, direction = 'down') ,"post":true,
-                  "text": "Move down","disabled":(loop.index >= form.questions | length)},
-                  {"href":url_for('developers.edit_question', grant_id = grant.id, collection_id = collection.id,
-                   section_id = section.id, form_id=form.id, question_id=question.id),
-                  "text": "Manage","post":false}
-          ]
-                  })
+            "html": question_link,
+            "actions":[{
+                "text":"Move up",
+                "href": url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1),
+                "post": True
+              }, {
+                "href": url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id, direction = 'down'),
+                "post": True,
+                "text": "Move down","disabled":(loop.index >= form.questions | length)
+              }
+            ]
+          })
         %}
       {% endfor %}
 
