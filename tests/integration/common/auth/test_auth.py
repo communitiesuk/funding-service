@@ -10,7 +10,7 @@ from app.common.data import interfaces
 from app.common.data.models import MagicLink
 from app.common.data.models_user import User
 from app.common.data.types import RoleEnum
-from tests.utils import AnyStringMatching, page_has_error
+from tests.utils import AnyStringMatching, get_h1_text, page_has_error
 
 
 class TestSignInView:
@@ -262,7 +262,7 @@ class TestSSOGetTokenView:
             )
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert dummy_grant.name in soup.h1.text
+        assert dummy_grant.name in get_h1_text(soup)
 
         with anonymous_client.session_transaction() as session:
             assert "next" not in session

@@ -12,6 +12,7 @@ import secrets
 from uuid import uuid4
 
 import factory
+from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 
 from app.common.data.models import (
@@ -35,7 +36,7 @@ def _required() -> None:
     raise ValueError("Value must be set explicitly for tests")
 
 
-class _GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _GrantFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Grant
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -49,7 +50,7 @@ class _GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
     primary_contact_email = factory.Faker("email")
 
 
-class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _UserFactory(SQLAlchemyModelFactory):
     class Meta:
         model = User
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -60,7 +61,7 @@ class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     email = factory.Faker("email")
 
 
-class _OrganisationFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _OrganisationFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Organisation
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -69,7 +70,7 @@ class _OrganisationFactory(factory.alchemy.SQLAlchemyModelFactory):
     name = factory.Sequence(lambda n: "Organisation %d" % n)
 
 
-class _UserRoleFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _UserRoleFactory(SQLAlchemyModelFactory):
     class Meta:
         model = UserRole
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -95,7 +96,7 @@ class _UserRoleFactory(factory.alchemy.SQLAlchemyModelFactory):
         )
 
 
-class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _MagicLinkFactory(SQLAlchemyModelFactory):
     class Meta:
         model = MagicLink
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -110,7 +111,7 @@ class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
     claimed_at_utc = None
 
 
-class _CollectionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _CollectionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Collection
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -127,7 +128,7 @@ class _CollectionFactory(factory.alchemy.SQLAlchemyModelFactory):
     grant = factory.SubFactory(_GrantFactory)
 
 
-class _SubmissionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _SubmissionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Submission
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -146,7 +147,7 @@ class _SubmissionFactory(factory.alchemy.SQLAlchemyModelFactory):
     collection_version = factory.LazyAttribute(lambda o: o.collection.version)
 
 
-class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _SectionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Section
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -161,7 +162,7 @@ class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
     collection_id = factory.LazyAttribute(lambda o: o.collection.id)
 
 
-class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _FormFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Form
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -176,7 +177,7 @@ class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
     section_id = factory.LazyAttribute(lambda o: o.section.id)
 
 
-class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _QuestionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Question
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -193,7 +194,7 @@ class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
     form_id = factory.LazyAttribute(lambda o: o.form.id)
 
 
-class _SubmissionEventFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _SubmissionEventFactory(SQLAlchemyModelFactory):
     class Meta:
         model = SubmissionEvent
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -205,7 +206,7 @@ class _SubmissionEventFactory(factory.alchemy.SQLAlchemyModelFactory):
     created_by = factory.SubFactory(_UserFactory)
 
 
-class _ExpressionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _ExpressionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Expression
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
