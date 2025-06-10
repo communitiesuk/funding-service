@@ -20,6 +20,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SectionForm,
 )
+from tests.utils import get_h1_text, get_h2_text
 
 
 def test_list_grants_as_admin(
@@ -38,7 +39,7 @@ def test_list_grants_as_admin(
     expected_headers = ["Grant", "GGIS number", "Email"]
     for expected in expected_headers:
         assert expected in header_texts, f"Header '{expected}' not found in table"
-    assert soup.h1.text == "Grants"
+    assert get_h1_text(soup) == "Grants"
     assert len(queries) == 3  # 1) select user, 2) select user_role, 3) select grants
 
 
@@ -73,7 +74,7 @@ def test_list_grants_as_member_with_multiple_grants(
     expected_headers = ["Grant", "GGIS number", "Email"]
     for expected in expected_headers:
         assert expected in header_texts, f"Header '{expected}' not found in table"
-    assert soup.h1.text == "Grants"
+    assert get_h1_text(soup) == "Grants"
 
 
 @pytest.mark.authenticate_as("test@google.com")
@@ -91,8 +92,8 @@ class TestViewGrantDetails:
         assert result.status_code == 200
         assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
         soup = BeautifulSoup(result.data, "html.parser")
-        assert grant.name in soup.h1.text.strip()
-        assert "Grant details" in soup.h1.text.strip()
+        assert grant.name in get_h1_text(soup)
+        assert "Grant details" in get_h1_text(soup)
 
         change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
         assert {link.get_text().strip() for link in change_links} == {
@@ -108,8 +109,8 @@ class TestViewGrantDetails:
         assert result.status_code == 200
         assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
         soup = BeautifulSoup(result.data, "html.parser")
-        assert grant.name in soup.h1.text.strip()
-        assert "Grant details" in soup.h1.text.strip()
+        assert grant.name in get_h1_text(soup)
+        assert "Grant details" in get_h1_text(soup)
 
         change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
         assert {link.get_text().strip() for link in change_links} == {
@@ -126,8 +127,8 @@ class TestViewGrantDetails:
         assert result.status_code == 200
         assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
         soup = BeautifulSoup(result.data, "html.parser")
-        assert grant.name in soup.h1.text.strip()
-        assert "Grant details" in soup.h1.text.strip()
+        assert grant.name in get_h1_text(soup)
+        assert "Grant details" in get_h1_text(soup)
 
         change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
         assert {link.get_text().strip() for link in change_links} == set()
@@ -141,7 +142,7 @@ def test_grant_change_ggis_get(authenticated_platform_admin_client, factories, t
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.grant_change_ggis").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "What is the GGIS reference number?" in soup.h1.text.strip()
+    assert "What is the GGIS reference number?" in get_h1_text(soup)
 
 
 def test_grant_change_name_get(authenticated_grant_admin_client, factories, templates_rendered):
@@ -150,7 +151,7 @@ def test_grant_change_name_get(authenticated_grant_admin_client, factories, temp
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.grant_change_name").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "What is the name of this grant?" in soup.h1.text.strip()
+    assert "What is the name of this grant?" in get_h1_text(soup)
 
 
 def test_grant_change_description_get(authenticated_grant_admin_client, factories, templates_rendered):
@@ -161,7 +162,7 @@ def test_grant_change_description_get(authenticated_grant_admin_client, factorie
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.grant_change_description").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "What is the main purpose of this grant?" in soup.h1.text.strip()
+    assert "What is the main purpose of this grant?" in get_h1_text(soup)
 
 
 def test_grant_change_contact_get(authenticated_grant_admin_client, factories, templates_rendered):
@@ -172,7 +173,7 @@ def test_grant_change_contact_get(authenticated_grant_admin_client, factories, t
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.grant_change_contact").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "Who is the main contact for this grant?" in soup.h1.text.strip()
+    assert "Who is the main contact for this grant?" in get_h1_text(soup)
 
 
 def test_grant_change_name_post(authenticated_platform_admin_client, factories, templates_rendered, db_session):
@@ -268,7 +269,7 @@ def test_grant_change_name_post_with_errors(authenticated_platform_admin_client,
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h2.text.strip() == "There is a problem"
+    assert get_h2_text(soup) == "There is a problem"
     assert len(soup.find_all("a", href="#name")) == 1
     assert soup.find_all("a", href="#name")[0].text.strip() == "Grant name already in use"
 
@@ -281,7 +282,7 @@ def test_create_collection_get(authenticated_platform_admin_client, factories, t
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the name of the collection?"
+    assert get_h1_text(soup) == "What is the name of the collection?"
 
 
 def test_create_collection_post(authenticated_platform_admin_client, factories, db_session):
@@ -309,7 +310,7 @@ def test_create_collection_post_duplicate_name(authenticated_platform_admin_clie
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h2.text.strip() == "There is a problem"
+    assert get_h2_text(soup) == "There is a problem"
     assert len(soup.find_all("a", href="#name")) == 1
     assert soup.find_all("a", href="#name")[0].text.strip() == "Name already in use"
 
@@ -322,7 +323,7 @@ def test_create_section_get(authenticated_platform_admin_client, factories, temp
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the name of the section?"
+    assert get_h1_text(soup) == "What is the name of the section?"
 
 
 def test_create_section_post(authenticated_platform_admin_client, factories, db_session):
@@ -351,7 +352,7 @@ def test_create_section_post_duplicate_name(authenticated_platform_admin_client,
     )
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h2.text.strip() == "There is a problem"
+    assert get_h2_text(soup) == "There is a problem"
     assert len(soup.find_all("a", href="#title")) == 1
     assert soup.find_all("a", href="#title")[0].text.strip() == "Title already in use"
 
@@ -369,7 +370,7 @@ def test_create_form_get(authenticated_platform_admin_client, factories, templat
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "Add a form"
+    assert get_h1_text(soup) == "Add a form"
 
     result = authenticated_platform_admin_client.get(
         url_for(
@@ -383,7 +384,7 @@ def test_create_form_get(authenticated_platform_admin_client, factories, templat
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the name of the form?"
+    assert get_h1_text(soup) == "What is the name of the form?"
 
 
 def test_create_form_post(authenticated_platform_admin_client, factories, db_session):
@@ -427,7 +428,7 @@ def test_create_form_post_duplicate_name(authenticated_platform_admin_client, fa
     )
     assert result.status_code == 200
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h2.text.strip() == "There is a problem"
+    assert get_h2_text(soup) == "There is a problem"
     assert len(soup.find_all("a", href="#title")) == 1
     assert soup.find_all("a", href="#title")[0].text.strip() == "Title already in use"
 
@@ -637,7 +638,7 @@ def test_create_question_choose_type_get(authenticated_platform_admin_client, fa
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the type of the question?"
+    assert get_h1_text(soup) == "What is the type of the question?"
 
 
 def test_create_question_choose_type_post(authenticated_platform_admin_client, factories):
@@ -680,7 +681,7 @@ def test_create_question_choose_type_post_error(authenticated_platform_admin_cli
     )
     assert result.status_code == 200
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h2.text.strip() == "There is a problem"
+    assert get_h2_text(soup) == "There is a problem"
     assert len(soup.find_all("a", href="#question type")) == 1
     assert soup.find_all("a", href="#question type")[0].text.strip() == "Select a question type"
 
@@ -700,7 +701,7 @@ def test_add_text_question_get(authenticated_platform_admin_client, factories):
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "Add question"
+    assert get_h1_text(soup) == "Add question"
 
     assert (
         soup.find_all("dd", class_="govuk-summary-list__value")[0].text.strip()
@@ -754,7 +755,7 @@ def test_add_text_question_post_duplicate_text(authenticated_platform_admin_clie
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h2.text.strip() == "There is a problem"
+    assert get_h2_text(soup) == "There is a problem"
     assert len(soup.find_all("a", href="#text")) == 1
     assert soup.find_all("a", href="#text")[0].text.strip() == "Text already in use"
 
@@ -775,7 +776,7 @@ def test_edit_question_get(authenticated_platform_admin_client, factories):
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert soup.h1.text.strip() == "Edit question"
+    assert get_h1_text(soup) == "Edit question"
 
 
 def test_edit_question_post(authenticated_platform_admin_client, factories, db_session):
@@ -812,7 +813,7 @@ def test_grant_setup_intro_get(authenticated_platform_admin_client):
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_intro"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "Tell us about the grant"
+    assert get_h1_text(soup) == "Tell us about the grant"
 
 
 def test_grant_setup_intro_post(authenticated_platform_admin_client):
@@ -832,7 +833,7 @@ def test_grant_setup_ggis_get_with_session(authenticated_platform_admin_client):
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_ggis"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "Do you have a Government Grants Information System (GGIS) reference number?"
+    assert get_h1_text(soup) == "Do you have a Government Grants Information System (GGIS) reference number?"
 
 
 def test_grant_setup_ggis_get_without_session_redirects(authenticated_platform_admin_client):
@@ -871,7 +872,7 @@ def test_grant_setup_ggis_required_info_get(authenticated_platform_admin_client)
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_ggis_required_info"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert "You need to have a GGIS reference number before you can add this grant" in soup.h1.text.strip()
+    assert "You need to have a GGIS reference number before you can add this grant" in get_h1_text(soup)
 
 
 def test_grant_setup_name_get_with_session(authenticated_platform_admin_client):
@@ -881,7 +882,7 @@ def test_grant_setup_name_get_with_session(authenticated_platform_admin_client):
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_name"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the name of this grant?"
+    assert get_h1_text(soup) == "What is the name of this grant?"
 
 
 def test_grant_setup_name_post(authenticated_platform_admin_client):
@@ -903,7 +904,7 @@ def test_grant_setup_description_get_with_session(authenticated_platform_admin_c
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_description"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the main purpose of this grant?"
+    assert get_h1_text(soup) == "What is the main purpose of this grant?"
 
 
 def test_grant_setup_description_post_too_long(authenticated_platform_admin_client):
@@ -917,7 +918,7 @@ def test_grant_setup_description_post_too_long(authenticated_platform_admin_clie
     )
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h2.text.strip() == "There is a problem"
+    assert get_h2_text(soup) == "There is a problem"
     assert len(soup.find_all("a", href="#description")) == 1
     assert "Description must be 200 words or fewer" in soup.find_all("a", href="#description")[0].text.strip()
 
@@ -941,7 +942,7 @@ def test_grant_setup_contact_get_with_session(authenticated_platform_admin_clien
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_contact"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "Who is the main contact for this grant?"
+    assert get_h1_text(soup) == "Who is the main contact for this grant?"
 
 
 def test_grant_setup_contact_post_valid(authenticated_platform_admin_client):

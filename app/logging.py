@@ -7,7 +7,7 @@ from logging import LogRecord
 from logging.config import dictConfig
 from os import getpid
 from threading import get_ident as get_thread_ident
-from typing import Any
+from typing import Any, cast
 
 from flask import Flask, Response, current_app, request
 from flask.ctx import has_request_context
@@ -127,12 +127,12 @@ def attach_request_loggers(app: Flask) -> None:
             log_data = {
                 "status": response.status_code,
                 "duration_real": (
-                    (time.perf_counter() - request.before_request_real_time)
+                    (time.perf_counter() - cast(float, request.before_request_real_time))
                     if hasattr(request, "before_request_real_time")
                     else None
                 ),
                 "duration_process": (
-                    (time.process_time() - request.before_request_process_time)
+                    (time.process_time() - cast(float, request.before_request_process_time))
                     if hasattr(request, "before_request_process_time")
                     else None
                 ),

@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
-from playwright.sync_api import BrowserContext, Page, expect
+from playwright.sync_api import BrowserContext, Page, ViewportSize, expect
 from pytest import FixtureRequest
 from pytest_playwright import CreateContextCallback
 
@@ -21,7 +21,7 @@ from tests.utils import build_db_config
 @pytest.fixture(autouse=True)
 def _viewport(request: FixtureRequest, page: Page) -> None:
     width, height = request.config.getoption("viewport").split("x")
-    page.set_viewport_size({"width": int(width), "height": int(height)})
+    page.set_viewport_size(ViewportSize(width=int(width), height=int(height)))
 
 
 @pytest.fixture
@@ -135,7 +135,9 @@ def login_with_session_cookie(page: Page, domain: str, e2e_test_secrets: EndToEn
         cookies = result.headers.get("Set-Cookie", None)
         cookie_value = cookies.split(";")[0].split("=")[1] if cookies else None
         if not cookie_value:
-            pytest.fail(f"Unable to extract session cookie value from fake-login response headers: {result.headers}")
+            raise pytest.fail(
+                f"Unable to extract session cookie value from fake-login response headers: {result.headers}"
+            )
 
     sso_sign_in_page = SSOSignInPage(page, domain)
     sso_sign_in_page.page.context.add_cookies(

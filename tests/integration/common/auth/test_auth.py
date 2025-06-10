@@ -10,7 +10,7 @@ from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.models_user import MagicLink, User, UserRole
 from app.common.data.types import RoleEnum
-from tests.utils import AnyStringMatching, page_has_error
+from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_error
 
 
 class TestSignInView:
@@ -112,7 +112,7 @@ class TestClaimMagicLinkView:
         )
         soup = BeautifulSoup(response.data, "html.parser")
         assert response.status_code == 200
-        assert "Link expired" in soup.h2.text
+        assert "Link expired" in get_h2_text(soup)
 
     def test_redirect_on_expired_magic_link(self, anonymous_client, factories):
         magic_link = factories.magic_link.create(
@@ -265,7 +265,7 @@ class TestSSOGetTokenView:
             )
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert dummy_grant.name in soup.h1.text
+        assert dummy_grant.name in get_h1_text(soup)
 
         with anonymous_client.session_transaction() as session:
             assert "next" not in session

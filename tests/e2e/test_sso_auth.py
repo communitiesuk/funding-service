@@ -33,7 +33,7 @@ def test_real_sso_journey(page: Page, domain: str):
     sign_in_email = getenv("SERVICE_ACCOUNT_USERNAME", None)
     sign_in_password = getenv("SERVICE_ACCOUNT_PASSWORD", None)
     if not sign_in_email or not sign_in_password:
-        pytest.fail("SERVICE_ACCOUNT_USERNAME and SERVICE_ACCOUNT_PASSWORD must be set for this test")
+        raise pytest.fail("SERVICE_ACCOUNT_USERNAME and SERVICE_ACCOUNT_PASSWORD must be set for this test")
     sso_sign_in_page = SSOSignInPage(page, domain)
     sso_sign_in_page.navigate()
     sso_sign_in_page.click_sign_in()
@@ -46,6 +46,6 @@ def test_real_sso_journey(page: Page, domain: str):
     if not page.url == f"{domain}/grants":
         page.get_by_role("link", name="Click here for more details").click()
         page.screenshot()
-        pytest.fail("SSO login did not redirect to /grants as expected")
+        raise pytest.fail("SSO login did not redirect to /grants as expected")
 
     expect(page).to_have_url(f"{domain}/grants")

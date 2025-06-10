@@ -216,7 +216,7 @@ def list_users_for_grant(grant_id: UUID) -> ResponseReturnValue:
     try:
         grant = interfaces.grants.get_grant(grant_id)
     except NoResultFound:
-        abort(404)
+        return abort(404)
     return render_template(
         "deliver_grant_funding/grant_team/grant_user_list.html",
         grant=grant,

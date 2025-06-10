@@ -11,7 +11,7 @@ from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
 from app.extensions.record_sqlalchemy_queries import RecordSqlalchemyQueriesExtension
 from app.services.notify import NotificationService
 
-db = SQLAlchemy()
+db = SQLAlchemy(engine_options={"echo": False})
 auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
 migrate = Migrate()
 toolbar = DebugToolbarExtension()

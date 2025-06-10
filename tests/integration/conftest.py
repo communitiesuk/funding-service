@@ -1,3 +1,5 @@
+# mypy: disable-error-code="unused-ignore"
+
 import multiprocessing
 import os
 import typing as t
@@ -43,7 +45,7 @@ def setup_db_container() -> Generator[PostgresContainer, None, None]:
 
     # Reduce sleep/wait time from 1 second to 0.1 seconds. We could drop this if it ever causes any problems, but shaves
     # off a little bit of time - why not.
-    testcontainers_config.sleep_time = 0.1
+    testcontainers_config.sleep_time = 0.1  # ty: ignore[invalid-assignment]
 
     test_postgres = PostgresContainer("postgres:17.5")
     test_postgres.start()
@@ -86,7 +88,7 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
 
     @app.route("/_testing/403")
     def raise_403() -> ResponseReturnValue:
-        abort(403)
+        return abort(403)
 
     @app.route("/_testing/sqlalchemy-not-found")
     def raise_sqlalchemy_not_found() -> ResponseReturnValue:
@@ -95,7 +97,7 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
             app.extensions["sqlalchemy"].session.query(User).where(User.id == uuid.uuid4()).one()
         except Exception as e:
             if not isinstance(e, NoResultFound):
-                abort(500)
+                return abort(500)
             raise e
         raise RuntimeError("query expected no results and an error, but didn't")
 
@@ -146,7 +148,7 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Fund
                 method = kwargs.get("method") or (args[0] if args else "GET")
                 path = kwargs.get("path") or (args[0] if args else "/")
 
-                pytest.fail(
+                raise pytest.fail(
                     f"Detected uncommitted changes in the SQLAlchemy session after handling "
                     f"{method} request to {path}. "
                     f"To ensure database consistency, wrap your request handler with @auto_commit_after_request."

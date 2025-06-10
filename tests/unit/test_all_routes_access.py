@@ -100,7 +100,7 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
             assert not any(decorator in all_auth_annotations for decorator in decorators)
 
         else:
-            pytest.fail(f"Unexpected endpoint {rule.endpoint}. Add this to the expected_route_access mapping.")
+            raise pytest.fail(f"Unexpected endpoint {rule.endpoint}. Add this to the expected_route_access mapping.")  # ty: ignore[call-non-callable]
 
 
 def test_routes_list_is_valid(app):

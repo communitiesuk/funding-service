@@ -21,7 +21,7 @@ def upgrade() -> None:
 
     # WARNING: this also deletes the check constraints touching the enum, so we need to regenerate the ones we want
     #           to keep afterwards.
-    op.sync_enum_values(
+    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="role_enum",
         new_values=["ADMIN", "MEMBER"],
@@ -37,7 +37,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.sync_enum_values(
+    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="role_enum",
         new_values=["ADMIN", "MEMBER", "EDITOR", "ASSESSOR", "S151_OFFICER"],

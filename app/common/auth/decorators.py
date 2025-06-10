@@ -39,7 +39,7 @@ def redirect_if_authenticated[**P](
             if user.email.endswith(internal_domains):
                 return redirect(url_for("deliver_grant_funding.list_grants"))
 
-            abort(500)
+            return abort(500)
 
         return func(*args, **kwargs)
 
@@ -56,7 +56,7 @@ def is_mhclg_user[**P](
         # not an anonymous user (ie a user is definitely logged-in) if we get here.
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
         if not user.email.endswith(internal_domains):
-            abort(403)
+            return abort(403)
 
         return func(*args, **kwargs)
 
@@ -71,7 +71,7 @@ def is_platform_admin[**P](
         # This decorator is itself wrapped by `is_mhclg_user`, so we know that `current_user` exists and is
         # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
         if not AuthorisationHelper.is_platform_admin(user=interfaces.user.get_current_user()):
-            abort(403)
+            return abort(403)
 
         return func(*args, **kwargs)
 
@@ -92,7 +92,7 @@ def has_grant_role[**P](
                 raise ValueError("Grant ID required.")
 
             if not AuthorisationHelper.has_grant_role(grant_id=UUID(str(kwargs["grant_id"])), role=role, user=user):
-                abort(403, description="Access denied")
+                return abort(403, description="Access denied")
 
             return func(*args, **kwargs)
 

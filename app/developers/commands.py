@@ -22,13 +22,18 @@ def to_dict(instance: BaseModel) -> dict[str, Any]:
     return {col.name: getattr(instance, col.name) for col in instance.__table__.columns}
 
 
-class GrantExport(TypedDict):
-    grant: dict[str, Any]
-    collections: list[Any]
-    sections: list[Any]
-    forms: list[Any]
-    questions: list[Any]
-    expressions: list[Any]
+GrantExport = TypedDict(
+    "GrantExport",
+    {
+        "grant": dict[str, Any],
+        "collections": list[Any],
+        "sections": list[Any],
+        "forms": list[Any],
+        "questions": list[Any],
+        "expressions": list[Any],
+    },
+)
+ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list[Any]})
 
 
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
@@ -57,7 +62,7 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:
         click.echo(f"Could not find the following grant(s): {','.join(missing_grants)}")
         exit(1)
 
-    export_data: dict[str, list[Any]] = {
+    export_data: ExportData = {
         "grants": [],
         "users": [],
     }
@@ -71,6 +76,7 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:
             "questions": [],
             "expressions": [],
         }
+
         export_data["grants"].append(grant_export)
         users = set()
 

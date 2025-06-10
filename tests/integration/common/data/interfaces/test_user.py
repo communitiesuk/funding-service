@@ -98,7 +98,7 @@ class TestGetUser:
         user_id = factories.user.create(email="test@communities.gov.uk").id
 
         user = interfaces.user.get_user(user_id)
-
+        assert user
         assert user.id == user_id
         assert user.email == "test@communities.gov.uk"
 
@@ -109,18 +109,19 @@ class TestGetUserByEmail:
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
         user = interfaces.user.get_user_by_email(email_address="test@communities.gov.uk")
-
-        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+        assert user
         assert user.email == "Test@communities.gov.uk"
         assert user.name == "My Name"
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
     def test_get_user_where_none_exists(self, db_session):
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
 
         user = interfaces.user.get_user_by_email(email_address="test@communities.gov.uk")
+        assert user is None
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
-        assert user is None
 
 
 class TestGetUserByAzureAdSubjectId:
@@ -129,18 +130,18 @@ class TestGetUserByAzureAdSubjectId:
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
         user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id=user.azure_ad_subject_id)
-
-        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+        assert user
         assert user.email == "Test@communities.gov.uk"
         assert user.name == "My Name"
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
     def test_get_user_where_none_exists(self, db_session):
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
 
         user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id="some_string_value")
-
-        assert db_session.scalar(select(func.count()).select_from(User)) == 0
         assert user is None
+        assert db_session.scalar(select(func.count()).select_from(User)) == 0
 
 
 class TestSetUserLastLoggedInAt:
@@ -155,21 +156,21 @@ class TestUpsertUserByEmail:
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
 
         user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk")
-
-        assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
         assert user.name is None and user.azure_ad_subject_id is None
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
     def test_get_existing_user_with_update(self, db_session, factories):
         factories.user.create(email="test@communities.gov.uk", name="My Name", azure_ad_subject_id=None)
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
         user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk", name="My Name updated")
-
-        assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
         assert user.name == "My Name updated"
         assert user.azure_ad_subject_id is None
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
 
 class TestUpsertUserByAzureAdSubjectId:
@@ -179,11 +180,11 @@ class TestUpsertUserByAzureAdSubjectId:
         user = interfaces.user.upsert_user_by_azure_ad_subject_id(
             azure_ad_subject_id="some_example_string", email_address="test@communities.gov.uk"
         )
-
-        assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
         assert user.azure_ad_subject_id == "some_example_string"
         assert user.name is None
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
     def test_get_existing_user_with_update(self, db_session, factories):
         factory_user = factories.user.create(email="test@communities.gov.uk", name="My Name")
@@ -194,10 +195,10 @@ class TestUpsertUserByAzureAdSubjectId:
             email_address="updated@communities.gov.uk",
             name="My Name updated",
         )
-
-        assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "updated@communities.gov.uk"
         assert user.name == "My Name updated"
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
 
 class TestUpsertUserRole:
@@ -223,8 +224,6 @@ class TestUpsertUserRole:
         user_role = interfaces.user.upsert_user_role(
             user=user, organisation_id=organisation_id_value, grant_id=grant_id_value, role=role
         )
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert user_role.user_id == user.id
         assert (user_role.user_id, user_role.organisation_id, user_role.grant_id, user_role.role) == (
             user.id,
@@ -232,6 +231,8 @@ class TestUpsertUserRole:
             grant_id_value,
             role,
         )
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_multiple_roles_treated_as_distinct_and_dont_overwrite(self, db_session, factories):
         # Make sure that the handling of nulls on the constraint, and the upsert behaviour of `upsert_user_role`
@@ -265,11 +266,11 @@ class TestUpsertUserRole:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         user_role = interfaces.user.upsert_user_role(user=user, role=RoleEnum.ADMIN)
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert user_role.user_id == user.id
         assert (user_role.organisation_id, user_role.grant_id) == (None, None)
         assert user_role.role == RoleEnum.ADMIN
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_upsert_existing_user_role(self, db_session, factories):
         user = factories.user.create(email="test@communities.gov.uk")
@@ -279,11 +280,11 @@ class TestUpsertUserRole:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         user_role = interfaces.user.upsert_user_role(user=user, grant_id=grant.id, role=RoleEnum.ADMIN)
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert user_role.user == user
         assert (user_role.organisation_id, user_role.grant_id) == (None, grant.id)
         assert user_role.role == RoleEnum.ADMIN
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     @pytest.mark.parametrize(
         "organisation, grant, role, message",
@@ -316,9 +317,10 @@ class TestSetUserRoleInterfaces:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
 
         platform_admin_role = interfaces.user.set_platform_admin_role_for_user(user=user)
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert platform_admin_role.user_id == user.id
         assert len(user.roles) == 1
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_set_platform_admin_role_already_exists(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
@@ -326,8 +328,9 @@ class TestSetUserRoleInterfaces:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         platform_admin_role = interfaces.user.set_platform_admin_role_for_user(user=user)
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert platform_admin_role.user_id == user.id
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_set_platform_admin_multiple_roles_already_exists(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
@@ -337,8 +340,9 @@ class TestSetUserRoleInterfaces:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
 
         platform_admin_role = interfaces.user.set_platform_admin_role_for_user(user=user)
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert platform_admin_role.user_id == user.id
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_set_grant_team_role_for_user(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
@@ -348,9 +352,10 @@ class TestSetUserRoleInterfaces:
         grant_team_role = interfaces.user.set_grant_team_role_for_user(
             user=user, grant_id=grant.id, role=RoleEnum.MEMBER
         )
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert grant_team_role.grant_id == grant.id and grant_team_role.user_id == user.id
         assert len(user.roles) == 1
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_set_grant_team_role_already_exists(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
@@ -361,8 +366,9 @@ class TestSetUserRoleInterfaces:
         grant_team_role = interfaces.user.set_grant_team_role_for_user(
             user=user, grant_id=grant.id, role=RoleEnum.MEMBER
         )
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert grant_team_role.user_id == user.id and grant_team_role.grant_id == grant.id
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
 
 class TestRemoveUserRoleInterfaces:
@@ -372,8 +378,9 @@ class TestRemoveUserRoleInterfaces:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         interfaces.user.remove_platform_admin_role_from_user(user)
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
         assert user.roles == []
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
 
     def test_remove_platform_admin_role_when_only_other_roles_exist(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
@@ -382,9 +389,10 @@ class TestRemoveUserRoleInterfaces:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         interfaces.user.remove_platform_admin_role_from_user(user)
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert len(user.roles) == 1
         assert user.roles[0].role == RoleEnum.MEMBER and user.roles[0].grant_id == grant.id
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_remove_grant_team_role_from_user(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
@@ -393,8 +401,9 @@ class TestRemoveUserRoleInterfaces:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         interfaces.user.remove_grant_team_role_from_user(user, grant_id=grant.id)
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
         assert user.roles == []
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
 
     def test_remove_grant_team_role_from_user_with_multiple_roles(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
@@ -404,9 +413,10 @@ class TestRemoveUserRoleInterfaces:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
 
         interfaces.user.remove_grant_team_role_from_user(user, grant_id=grants[0].id)
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert len(user.roles) == 1
         assert user.roles[0].role == RoleEnum.MEMBER and user.roles[0].grant_id == grants[1].id
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_remove_all_roles_from_user(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
@@ -417,8 +427,9 @@ class TestRemoveUserRoleInterfaces:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 3
 
         interfaces.user.remove_all_roles_from_user(user)
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
         assert user.roles == []
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
 
 
 class TestInvitations:

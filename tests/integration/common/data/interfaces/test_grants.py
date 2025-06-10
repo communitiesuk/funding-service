@@ -1,4 +1,5 @@
 import pytest
+from _pytest._code import ExceptionInfo
 
 from app.common.data.interfaces.grants import (
     DuplicateValueError,
@@ -66,6 +67,7 @@ def test_create_duplicate_grant(factories) -> None:
             primary_contact_name="Jane Doe",
             primary_contact_email="janedoe@example.com",
         )
+    assert isinstance(e, ExceptionInfo)
     assert e.value.model_name == "grant"
     assert e.value.field_name == "name"
 
