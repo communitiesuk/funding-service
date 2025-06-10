@@ -18,20 +18,16 @@
 {% endblock %}
 
 {% block content %}
-  {% set grant_name_label_html %}
-    <h1 class="govuk-heading-l">
-      <span class="govuk-caption-l">Set up the grant</span>
-      {{ form.name.label }}
-    </h1>
-  {% endset %}
+  <span class="govuk-caption-l">Set up the grant</span>
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
     {{
       form.name(params={
         "label": {
-          "html": grant_name_label_html,
-          "isPageHeading": True
+          "text": form.name.label,
+          "isPageHeading": True,
+          "classes": "govuk-label--l"
         }
       })
     }}

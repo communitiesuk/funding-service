@@ -17,12 +17,7 @@
 {% endblock %}
 
 {% block content %}
-  {% set grant_ggis_label_html %}
-    <h1 class="govuk-heading-l">
-      <span class="govuk-caption-l">Set up the grant</span>
-      {{ form.has_ggis.label }}
-    </h1>
-  {% endset %}
+  <span class="govuk-caption-l">Set up the grant</span>
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
@@ -30,8 +25,9 @@
       form.has_ggis(params={
       "fieldset":{
         "legend":{
-          "html": grant_ggis_label_html,
-          "isPageHeading":True
+          "text": form.has_ggis.label,
+          "isPageHeading":True,
+      "classes": "govuk-fieldset__legend--l"
         },
         },
         "items": [

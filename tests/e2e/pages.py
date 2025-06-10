@@ -289,9 +289,9 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
         self.dashboard_nav.click()
         return GrantDashboardPage(self.page, self.domain)
 
-    def click_settings(self, grant_name: str) -> GrantSettingsPage:
+    def click_settings(self, grant_name: str) -> GrantDetailsPage:
         self.settings_nav.click()
-        grant_settings_page = GrantSettingsPage(self.page, self.domain)
+        grant_settings_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
         expect(grant_settings_page.page.get_by_role("heading", name=f"{grant_name} Grant details")).to_be_visible()
         return grant_settings_page
 
@@ -309,37 +309,153 @@ class GrantDashboardPage(GrantDashboardBasePage):
     pass
 
 
-class GrantSettingsPage(GrantDashboardBasePage):
-    change_link: Locator
+class GrantDetailsPage(GrantDashboardBasePage):
+    change_name_link: Locator
+    change_ggis_link: Locator
+    change_description_link: Locator
+    change_contact_link: Locator
+    grant_name: str
+    title: Locator
 
-    def __init__(self, page: Page, domain: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(page, domain)
-        self.change_link = self.page.get_by_role("link", name="Change the grant name")
+        self.title = page.get_by_role("heading", name=f"{grant_name} Grant details")
+        self.change_name_link = self.page.get_by_role("link", name="Change the grant name")
+        self.change_ggis_link = self.page.get_by_role("link", name="Change the GGIS number")
+        self.change_description_link = self.page.get_by_role("link", name="Change the main purpose")
+        self.change_contact_link = self.page.get_by_role("link", name="Change the main contact details")
+
+    def click_change_grant_ggis(self, existing_ggis_ref: str | None) -> ChangeGrantGGISPage:
+        self.change_ggis_link.click()
+        change_ggis_page = ChangeGrantGGISPage(self.page, self.domain)
+        expect(change_ggis_page.title).to_be_visible()
+        if existing_ggis_ref:
+            expect(change_ggis_page.ggis_textbox).to_be_visible()
+            expect(change_ggis_page.ggis_textbox).to_have_value(existing_ggis_ref)
+        else:
+            expect(change_ggis_page.ggis_textbox).not_to_be_visible()
+        return change_ggis_page
 
     def click_change_grant_name(self, grant_name: str) -> ChangeGrantNamePage:
-        self.change_link.click()
+        self.change_name_link.click()
         change_grant_name_page = ChangeGrantNamePage(self.page, self.domain)
         expect(change_grant_name_page.title).to_be_visible()
-        expect(
-            change_grant_name_page.page.get_by_role("textbox", name="What is the name of this grant?")
-        ).to_have_value(grant_name)
+        expect(change_grant_name_page.grant_name_textbox).to_have_value(grant_name)
         return change_grant_name_page
+
+    def click_change_grant_contact_details(
+        self, existing_contact_name: str, existing_contact_email: str
+    ) -> ChangeGrantMainContactPage:
+        self.change_contact_link.click()
+        change_grant_main_contact_page = ChangeGrantMainContactPage(self.page, self.domain)
+        expect(change_grant_main_contact_page.title).to_be_visible()
+        expect(change_grant_main_contact_page.contact_name_textbox).to_have_value(existing_contact_name)
+        expect(change_grant_main_contact_page.contact_email_textbox).to_have_value(existing_contact_email)
+
+        return change_grant_main_contact_page
+
+    def click_change_grant_description(self, existing_description: str) -> ChangeGrantDescriptionPage:
+        self.change_description_link.click()
+        change_grant_description_page = ChangeGrantDescriptionPage(self.page, self.domain)
+        expect(change_grant_description_page.title).to_be_visible()
+        expect(change_grant_description_page.grant_description_textbox).to_have_value(existing_description)
+        return change_grant_description_page
 
 
 class ChangeGrantNamePage(GrantDashboardBasePage):
     backlink: Locator
     title: Locator
+    grant_name_textbox: Locator
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.backlink = self.page.get_by_role("link", name="Back")
-        self.title = self.page.get_by_role("heading", name="Grant name")
+        self.title = self.page.get_by_role("heading", name="What is the name of this grant?")
+        self.grant_name_textbox = page.get_by_role("textbox", name="What is the name of this grant?")
 
     def fill_in_grant_name(self, name: str) -> None:
-        self.page.get_by_role("textbox", name="What is the name of this grant?").fill(name)
+        self.grant_name_textbox.fill(name)
 
-    def click_submit(self, grant_name: str) -> GrantSettingsPage:
-        self.page.get_by_role("button", name="Change grant name").click()
-        grant_settings_page = GrantSettingsPage(self.page, self.domain)
-        expect(grant_settings_page.page.get_by_role("heading", name=f"{grant_name} Grant details")).to_be_visible()
+    def click_submit(self, grant_name: str) -> GrantDetailsPage:
+        self.page.get_by_role("button", name="Update").click()
+        grant_settings_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_settings_page.title).to_be_visible()
+        return grant_settings_page
+
+
+class ChangeGrantGGISPage(GrantDashboardBasePage):
+    backlink: Locator
+    title: Locator
+    ggis_textbox: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.backlink = self.page.get_by_role("link", name="Back")
+        self.title = self.page.get_by_role(
+            "heading", name="Do you have a Government Grants Information System (GGIS) reference number?"
+        )
+        self.ggis_textbox = self.page.get_by_role("textbox", name="Enter your GGIS reference number")
+
+    def click_has_grant_ggis_yes(self) -> None:
+        self.page.get_by_role("radio", name="Yes").click()
+        expect(self.ggis_textbox).to_be_visible()
+
+    def click_has_grant_ggis_no(self) -> None:
+        self.page.get_by_role("radio", name="No").click()
+        expect(self.ggis_textbox).not_to_be_visible()
+
+    def fill_ggis_number(self, new_ggis_ref: str) -> None:
+        self.ggis_textbox.fill(new_ggis_ref)
+
+    def click_submit(self, grant_name: str) -> GrantDetailsPage:
+        self.page.get_by_role("button", name="Update").click()
+        grant_settings_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_settings_page.title).to_be_visible()
+        return grant_settings_page
+
+
+class ChangeGrantDescriptionPage(GrantDashboardBasePage):
+    backlink: Locator
+    title: Locator
+    grant_description_textbox: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.backlink = self.page.get_by_role("link", name="Back")
+        self.title = self.page.get_by_role("heading", name="What is the main purpose of this grant?")
+        self.grant_description_textbox = page.get_by_role("textbox", name="What is the main purpose of this grant?")
+
+    def fill_in_grant_description(self, description: str) -> None:
+        self.grant_description_textbox.fill(description)
+
+    def click_submit(self, grant_name: str) -> GrantDetailsPage:
+        self.page.get_by_role("button", name="Update").click()
+        grant_settings_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_settings_page.title).to_be_visible()
+        return grant_settings_page
+
+
+class ChangeGrantMainContactPage(GrantDashboardBasePage):
+    backlink: Locator
+    title: Locator
+    contact_name_textbox: Locator
+    contact_email_textbox: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.backlink = self.page.get_by_role("link", name="Back")
+        self.title = self.page.get_by_role("heading", name="Who is the main contact for this grant?")
+        self.contact_name_textbox = page.get_by_role("textbox", name="Full name")
+        self.contact_email_textbox = page.get_by_role("textbox", name="Email address")
+
+    def fill_contact_name(self, name: str) -> None:
+        self.contact_name_textbox.fill(name)
+
+    def fill_contact_email(self, email: str) -> None:
+        self.contact_email_textbox.fill(email)
+
+    def click_submit(self, grant_name: str) -> GrantDetailsPage:
+        self.page.get_by_role("button", name="Update").click()
+        grant_settings_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_settings_page.title).to_be_visible()
         return grant_settings_page

@@ -25,12 +25,7 @@
 {% endset %}
 
 {% block content %}
-  {% set grant_description_label_html %}
-    <h1 class="govuk-heading-l">
-      <span class="govuk-caption-l">Set up the grant</span>
-      {{ form.description.label }}
-    </h1>
-  {% endset %}
+  <span class="govuk-caption-l">Set up the grant</span>
 
   <form method="post" novalidate>
     {{ form.csrf_token }}
@@ -40,18 +35,19 @@
     <!-- Fix PR here: https://github.com/LandRegistry/govuk-frontend-jinja/pull/96 -->
     {{
       form.description(params={
-        "label": {
-          "html": grant_description_label_html,
-          "isPageHeading": True
-        },
-        "fromGroup": true,
-        "formGroup": {
-          "beforeInput": {
-          "html": before_input_text
-          }
-        },
-        "maxwords": form.DESCRIPTION_MAX_WORDS
-      })
+          "label": {
+            "text": form.description.label,
+            "isPageHeading": True,
+      "classes": "govuk-label--l",
+          },
+          "fromGroup": true,
+          "formGroup": {
+            "beforeInput": {
+            "html": before_input_text
+            }
+          },
+          "maxwords": form.DESCRIPTION_MAX_WORDS
+        })
     }}
 
     {{
