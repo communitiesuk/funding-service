@@ -45,10 +45,13 @@ def create_sso_stub_app() -> Flask:
     app.jinja_loader = ChoiceLoader(
         [
             PackageLoader("stubs.sso"),
+            PackageLoader("app.common"),
             PrefixLoader({"govuk_frontend_jinja": PackageLoader("govuk_frontend_jinja")}),
             PrefixLoader({"govuk_frontend_wtf": PackageLoader("govuk_frontend_wtf")}),
         ]
     )
+
+    app.add_template_global(lambda *a, **k: None, "csp_nonce")
 
     WTFormsHelpers(app)
 
