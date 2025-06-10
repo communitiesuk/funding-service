@@ -1,6 +1,6 @@
 ${PULLPREVIEW_PUBLIC_DNS}:443 {
     basic_auth {
-        fsd $2a$14$8JVuO/ZD8zaplm.59sIVCui50epxyglXYs.HlPpHer9Mz3FhYgCay
+	fsd $2a$14$dYoMQI4n/mhjUSnKr.OYkuTvPkfv6W9zMwK7pc5AUzcal5kK7zmQq
     }
 
     reverse_proxy web:8080
