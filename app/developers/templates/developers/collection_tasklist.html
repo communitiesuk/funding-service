@@ -11,6 +11,14 @@
 {% endblock pageTitle %}
 
 {% block beforeContent %}
+  {% if submission_helper.is_test %}
+    <div class="test-data-banner govuk-body govuk-!-margin-bottom-2">
+      <div class="test-data-banner__tag">
+        <strong>Test submission</strong>
+      </div>
+    </div>
+  {% endif %}
+
   {{
     govukBackLink({
         "text": "Back",

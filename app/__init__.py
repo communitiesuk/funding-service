@@ -1,3 +1,4 @@
+import typing as t
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from flask import Flask, Response, redirect, render_template, url_for
@@ -6,9 +7,11 @@ from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from sqlalchemy.exc import NoResultFound
+from werkzeug.routing import BaseConverter
 
 from app import logging
 from app.common.data import interfaces
+from app.common.data.types import SubmissionModeEnum
 from app.common.filters import format_date, format_date_range, format_date_short, format_datetime, format_datetime_range
 from app.config import get_settings
 from app.extensions import (
@@ -43,6 +46,35 @@ def _register_global_error_handlers(app: Flask) -> None:
     @app.errorhandler(404)
     def handle_404(error: Literal[404]) -> ResponseReturnValue:
         return render_template("common/errors/404.html", service_desk_url=app.config["SERVICE_DESK_URL"]), 404
+
+
+def _register_custom_converters(app: Flask) -> None:
+    """
+    This registers some custom converters for URL routing in Flask.
+
+    We're used to standard converts like uuid, eg:
+
+        @app.route("/grant/<uuid:grant_id")
+        def handler(grant_id: uuid.UUID):
+            ...
+
+    Here we register some Enums to use as converters as well, so that the plaintext representation in a URL
+    is converted automatically to an enum value, eg:
+
+        @app.route("/submissions/<submission_mode:mode>")
+        def handler(submission_mode: SubmissionModeEnum):
+            ...
+    """
+
+    class SubmissionModeConverter(BaseConverter):
+        def to_python(self, value: str) -> t.Any:
+            value = value.lower()
+            return SubmissionModeEnum(value.lower())
+
+        def to_url(self, value: t.Any) -> str:
+            return str(value).lower()
+
+    app.url_map.converters["submission_mode"] = SubmissionModeConverter
 
 
 def create_app() -> Flask:
@@ -111,6 +143,7 @@ def create_app() -> Flask:
             format_datetime=format_datetime,
             format_date_range=format_date_range,
             format_datetime_range=format_datetime_range,
+            submission_mode_enum=SubmissionModeEnum,
         )
 
     # TODO: Remove our basic auth application code when the app is deployed behind CloudFront and the app is not
@@ -141,6 +174,8 @@ def create_app() -> Flask:
             return None
 
     # Attach routes
+    _register_custom_converters(app)
+
     from app.common.auth import auth_blueprint
     from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
     from app.developers import developers_blueprint

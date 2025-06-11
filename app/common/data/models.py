@@ -90,7 +90,8 @@ class Collection(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
-    submissions: Mapped[list["Submission"]] = relationship(
+    # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
+    _submissions: Mapped[list["Submission"]] = relationship(
         "Submission",
         lazy=True,
         order_by="Submission.created_at_utc",
@@ -109,6 +110,14 @@ class Collection(BaseModel):
     )
 
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_collection_name_version_grant_id"),)
+
+    @property
+    def test_submissions(self) -> list["Submission"]:
+        return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.TEST)
+
+    @property
+    def live_submissions(self) -> list["Submission"]:
+        return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
 
 
 class Submission(BaseModel):

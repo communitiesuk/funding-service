@@ -10,7 +10,7 @@ from app.common.collections.forms import DynamicQuestionForm
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_submission
 from app.common.data.models_user import User
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum
+from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
 
 if TYPE_CHECKING:
     from app.common.data.models import Form, Grant, Question, Section, Submission
@@ -79,6 +79,14 @@ class SubmissionHelper:
     @property
     def is_completed(self) -> bool:
         return self.status == SubmissionStatusEnum.COMPLETED
+
+    @property
+    def is_test(self) -> bool:
+        return self.submission.mode == SubmissionModeEnum.TEST
+
+    @property
+    def is_live(self) -> bool:
+        return self.submission.mode == SubmissionModeEnum.LIVE
 
     @property
     def created_by_email(self) -> str:

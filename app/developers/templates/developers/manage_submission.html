@@ -12,6 +12,14 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
+  {% if submission_helper.is_test %}
+    <div class="test-data-banner govuk-body govuk-!-margin-bottom-0">
+      <div class="test-data-banner__tag">
+        <strong>Test submission</strong>
+      </div>
+    </div>
+  {% endif %}
+
   {{
     govukBackLink({
         "text": "Back",
