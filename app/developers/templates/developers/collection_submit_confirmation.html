@@ -1,9 +1,16 @@
 {% from "govuk_frontend_jinja/components/panel/macro.html" import govukPanel %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 {% extends "developers/access_grant_funding_base.html" %}
 
 {% block pageTitle %}
   Submission submitted {{ submission_helper.name }} - MHCLG Funding Service
 {% endblock pageTitle %}
+
+{% block beforeContent %}
+  {% if submission_helper.is_test %}
+    {{ mhclgTestBanner("Test submission") }}
+  {% endif %}
+{% endblock beforeContent %}
 
 {% block content %}
   <div class="govuk-grid-row">
