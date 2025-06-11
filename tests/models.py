@@ -16,6 +16,7 @@ from flask import url_for
 
 from app.common.data.models import (
     Collection,
+    Expression,
     Form,
     Grant,
     MagicLink,
@@ -198,3 +199,22 @@ class _SubmissionEventFactory(factory.alchemy.SQLAlchemyModelFactory):
     key = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
     submission = factory.SubFactory(_SubmissionFactory)
     created_by = factory.SubFactory(_UserFactory)
+
+
+class _ExpressionFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Expression
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+    question_id = factory.LazyAttribute(lambda o: o.question.id)
+    question = factory.SubFactory(_QuestionFactory)
+
+    def _required(self) -> None:
+        raise ValueError("Value must be set explicitly for tests")
+
+    # todo: we could actually set this based on the question sub factory to make sure the default expression
+    #       makes some kind of sense for the question type
+    expression = factory.LazyFunction(_required)
+    type = factory.LazyFunction(_required)

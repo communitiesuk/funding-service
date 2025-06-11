@@ -1,4 +1,4 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
+    Expression,
     Form,
     Grant,
     Question,
@@ -17,9 +18,12 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.models_user import User
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import ExpressionType, QuestionDataType, SubmissionEventKey, SubmissionStatusEnum, SubmissionModeEnum
 from app.common.utils import slugify
 from app.extensions import db
+
+if TYPE_CHECKING:
+    from app.common.helpers.collections import BaseExpression
 
 
 def create_collection(*, name: str, user: User, grant: Grant, version: int = 1) -> Collection:
@@ -266,3 +270,15 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
     submission.events = [x for x in submission.events if not (x.key == key and (x.form == form if form else True))]
     db.session.flush()
     return submission
+
+
+def add_question_condition(question: Question, user: User, managed_expression: "BaseExpression") -> Question:
+    expression = Expression(
+        expression=managed_expression._expression,
+        context=managed_expression.model_dump_json(),
+        created_by=user,
+        type=ExpressionType.CONDITION,
+    )
+    question.expressions.append(expression)
+    db.session.flush()
+    return question

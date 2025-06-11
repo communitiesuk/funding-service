@@ -14,6 +14,7 @@ from werkzeug.test import TestResponse
 from app import create_app
 from tests.models import (
     _CollectionFactory,
+    _ExpressionFactory,
     _FormFactory,
     _GrantFactory,
     _MagicLinkFactory,
@@ -141,6 +142,7 @@ _Factories = namedtuple(
         "organisation",
         "user_role",
         "submission_event",
+        "expression",
     ],
 )
 
@@ -159,4 +161,5 @@ def factories(db_session: Session) -> _Factories:
         organisation=_OrganisationFactory,
         user_role=_UserRoleFactory,
         submission_event=_SubmissionEventFactory,
+        expression=_ExpressionFactory,
     )

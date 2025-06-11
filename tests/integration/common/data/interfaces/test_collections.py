@@ -1,6 +1,7 @@
 import pytest
 
 from app.common.data.interfaces.collections import (
+    add_question_condition,
     add_submission_event,
     clear_submission_events,
     create_collection,
@@ -23,8 +24,8 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Collection
-from app.common.data.types import QuestionDataType, SubmissionEventKey
-from app.common.helpers.collections import TextSingleLine
+from app.common.data.types import ExpressionType, QuestionDataType, SubmissionEventKey
+from app.common.helpers.collections import GreaterThan, TextSingleLine
 
 
 def test_get_collection(db_session, factories):
@@ -409,3 +410,17 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
                     count += 1
 
     assert queries == []
+
+
+def test_add_expression(db_session, factories):
+    question = factories.question.create()
+    user = factories.user.create()
+
+    # configured by the user interface
+    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+
+    add_question_condition(question, user, managed_expression)
+
+    assert len(question.expressions) == 1
+    assert question.expressions[0].type == ExpressionType.CONDITION
+    assert question.expressions[0].expression == f"(( {question.id} )) > 3000"

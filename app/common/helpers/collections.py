@@ -1,10 +1,12 @@
+import abc
+import enum
 import uuid
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from pydantic import RootModel, TypeAdapter
+from pydantic import BaseModel, RootModel, TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.data import interfaces
@@ -19,6 +21,46 @@ if TYPE_CHECKING:
 TextSingleLine = RootModel[str]
 TextMultiLine = RootModel[str]
 Integer = RootModel[int]
+
+
+# todo: think about where this should go
+class ManagedExpressions(enum.Enum):
+    GREATER_THAN = "GREATER_THAN"
+
+
+class BaseExpression(BaseModel):
+    key: ManagedExpressions
+
+    @property
+    @abc.abstractmethod
+    def _expression(self) -> str:
+        raise NotImplementedError
+
+
+class GreaterThan(BaseExpression):
+    key: ManagedExpressions = ManagedExpressions.GREATER_THAN
+    question_id: UUID
+    minimum_value: int
+
+    @property
+    def description(self) -> str:
+        return "Is greater than"
+
+    @property
+    def message(self) -> str:
+        # todo: optionally include the question name in the default message
+        # todo: do you allow the form builder to override this if they need to
+        #       - does that persist in the context (inherited from BaseExpression) or as a separate
+        #         property on the model
+        return f"The answer must be {self.minimum_value} or greater"
+
+    @property
+    def _expression(self) -> str:
+        # todo: how much of these should be calculated from the context and run
+        #       through the eval vs. stored in the expression - this is leaning towards the latter
+        # todo: are UUIDs parsable by the expression language
+        # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
+        return f"(( {self.question_id} )) > {self.minimum_value}"
 
 
 class SubmissionHelper:
