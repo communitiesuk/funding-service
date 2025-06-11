@@ -42,7 +42,7 @@
 
   {% set table_pending_signin_rows = namespace(items=[]) %}
   {% if grant.users %}
-    {% for user in grant.users if not user.is_logged_in %}
+    {% for user in grant.users if not user.has_logged_in %}
       {%
         set table_pending_signin_rows.items = table_pending_signin_rows.items + [[
           {"text": user.email},
@@ -72,7 +72,7 @@
   {% set table_rows = namespace(items=[]) %}
 
   {% if grant.users %}
-    {% for user in grant.users if user.is_logged_in %}
+    {% for user in grant.users if user.has_logged_in %}
       {%
         set table_rows.items = table_rows.items + [[
           {"text": user.name},
