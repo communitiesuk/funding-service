@@ -3,7 +3,7 @@ from typing import Optional, Sequence, cast
 
 from flask_login import current_user
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.sql.expression import select
 
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
@@ -27,6 +27,13 @@ def get_platform_admin_users() -> Sequence[User]:
         .join(User.roles)
         .where(UserRole.role == RoleEnum.ADMIN, UserRole.grant_id.is_(None), UserRole.organisation_id.is_(None))
     ).all()
+
+
+def get_user_by_email(email_address: str) -> Optional[User]:
+    try:
+        return db.session.execute(select(User).where(User.email == email_address)).scalar_one()
+    except NoResultFound:
+        return None
 
 
 def get_or_create_user(email_address: str, name: Optional[str] = None) -> User:
