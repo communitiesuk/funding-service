@@ -275,7 +275,7 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
 def add_question_condition(question: Question, user: User, managed_expression: "BaseExpression") -> Question:
     expression = Expression(
         expression=managed_expression._expression,
-        context=managed_expression.model_dump(),
+        context=managed_expression.model_dump(mode="json"),
         created_by=user,
         type=ExpressionType.CONDITION,
     )

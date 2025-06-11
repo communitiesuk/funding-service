@@ -419,7 +419,7 @@ def test_add_expression(db_session, factories):
     user = factories.user.create()
 
     # configured by the user interface
-    managed_expression = GreaterThan(minimum_value=3000, question_id=str(question.id))
+    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
 
     add_question_condition(question, user, managed_expression)
 
@@ -437,11 +437,11 @@ def test_add_expression(db_session, factories):
 def test_update_expression(db_session, factories):
     question = factories.question.create()
     user = factories.user.create()
-    managed_expression = GreaterThan(minimum_value=3000, question_id=str(question.id))
+    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
 
     add_question_condition(question, user, managed_expression)
 
-    updated_expression = GreaterThan(minimum_value=5000, question_id=str(question.id))
+    updated_expression = GreaterThan(minimum_value=5000, question_id=question.id)
 
     update_question_expression(question.expressions[0], updated_expression)
 
@@ -451,7 +451,7 @@ def test_update_expression(db_session, factories):
 def test_remove_expression(db_session, factories):
     question = factories.question.create()
     user = factories.user.create()
-    managed_expression = GreaterThan(minimum_value=3000, question_id=str(question.id))
+    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
 
     add_question_condition(question, user, managed_expression)
 

@@ -39,9 +39,7 @@ class BaseExpression(BaseModel):
 
 class GreaterThan(BaseExpression):
     key: ManagedExpressions = ManagedExpressions.GREATER_THAN
-    # this should be UUID4 but was running into an issue with serialising it that its not
-    # worth arguing with right now
-    question_id: str
+    question_id: UUID
     minimum_value: int
 
     @property
