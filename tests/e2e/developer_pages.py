@@ -94,7 +94,7 @@ class CollectionDetailPage(GrantDevelopersBasePage):
         )
         self.collection_name = collection_name
         self.manage_sections_link = self.page.get_by_role("link", name="manage sections")
-        self.preview_collection_button = self.page.get_by_role("button", name="Preview this collection")
+        self.preview_collection_button = self.page.get_by_role("button", name="Test this collection")
         self.summary_row_submissions = page.locator("div.govuk-summary-list__row").filter(
             has=page.get_by_text("Submissions")
         )

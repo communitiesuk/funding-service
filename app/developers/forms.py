@@ -8,7 +8,7 @@ from wtforms.validators import DataRequired, Optional
 
 
 class PreviewCollectionForm(FlaskForm):
-    submit = SubmitField("Preview this collection", widget=GovSubmitInput())
+    submit = SubmitField("Test this collection", widget=GovSubmitInput())
 
 
 class CheckYourAnswersForm(FlaskForm):
