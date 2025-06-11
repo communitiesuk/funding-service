@@ -14,10 +14,10 @@ from sqlalchemy_json import mutable_json_type
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import User
 from app.common.data.types import (
-    SubmissionModeEnum,
     ExpressionType,
     QuestionDataType,
     SubmissionEventKey,
+    SubmissionModeEnum,
     SubmissionStatusEnum,
     json_scalars,
 )

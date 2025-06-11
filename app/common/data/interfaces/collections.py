@@ -18,7 +18,13 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.models_user import User
-from app.common.data.types import ExpressionType, QuestionDataType, SubmissionEventKey, SubmissionStatusEnum, SubmissionModeEnum
+from app.common.data.types import (
+    ExpressionType,
+    QuestionDataType,
+    SubmissionEventKey,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
 from app.common.utils import slugify
 from app.extensions import db
 
