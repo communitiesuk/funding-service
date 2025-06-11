@@ -51,6 +51,7 @@ class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
+    name = factory.Faker("name")
     email = factory.Faker("email")
 
 

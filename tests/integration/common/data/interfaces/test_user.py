@@ -39,13 +39,24 @@ class TestGetOrCreateUser:
         assert user.email == "test@communities.gov.uk"
 
     def test_get_existing_user(self, db_session, factories):
-        factories.user.create(email="test@communities.gov.uk")
+        factories.user.create(email="test@communities.gov.uk", name="My Name")
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
         user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
+        assert user.name == "My Name"
+
+    def test_get_existing_user_can_set_name(self, db_session, factories):
+        factories.user.create(email="test@communities.gov.uk", name="My Name")
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+
+        user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk", name="My NewName")
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+        assert user.email == "test@communities.gov.uk"
+        assert user.name == "My NewName"
 
 
 class TestAddUserRole:

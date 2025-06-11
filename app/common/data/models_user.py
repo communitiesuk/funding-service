@@ -24,8 +24,9 @@ class User(BaseModel):
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     submissions: Mapped[list["Submission"]] = relationship("Submission", back_populates="created_by")
 
-    # Required by Flask-Login; should be provided by UserMixin, except that breaks our type hinting
-    # when using this class in SQLAlchemy queries. So we've just lifted the key attributes here directly.
+    # START: Flask-Login attributes
+    # These ideally might be provided by UserMixin, except that breaks our type hinting when using this class in
+    # SQLAlchemy queries. So we've just lifted the key attributes here directly.
     @property
     def is_active(self) -> bool:
         return True
@@ -38,6 +39,19 @@ class User(BaseModel):
     def is_anonymous(self) -> bool:
         return False
 
+    def get_id(self) -> str:
+        return str(self.id)
+
+    # END: Flask-Login attributes
+
+    @property
+    def has_logged_in(self) -> bool:
+        # FIXME: We should have some actual tracking of whether the user has logged in. This could either be a
+        #        field on the model called `last_logged_in_at` or similar, or we could only create entries in the user
+        #        table when the user actually logs in, rather than at invitation-time. Then we could simply trust that
+        #        if a user entry exists, they have definitely logged in.
+        return bool(self.name)
+
     @property
     def is_platform_admin(self) -> bool:
         is_platform_admin = any(
@@ -45,13 +59,6 @@ class User(BaseModel):
             for role in self.roles
         )
         return is_platform_admin
-
-    @property
-    def is_logged_in(self) -> bool:
-        return bool(self.name)
-
-    def get_id(self) -> str:
-        return str(self.id)
 
 
 class UserRole(BaseModel):

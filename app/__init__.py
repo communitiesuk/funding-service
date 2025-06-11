@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from flask import Flask, Response, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
@@ -9,7 +9,6 @@ from sqlalchemy.exc import NoResultFound
 
 from app import logging
 from app.common.data import interfaces
-from app.common.data.models_user import User
 from app.common.filters import format_date, format_date_range, format_date_short, format_datetime, format_datetime_range
 from app.config import get_settings
 from app.extensions import (
@@ -25,6 +24,9 @@ from app.extensions import (
 )
 from app.monkeypatch import patch_sqlalchemy_lite_async
 from app.sentry import init_sentry
+
+if TYPE_CHECKING:
+    from app.common.data.models_user import User
 
 init_sentry()
 
@@ -70,7 +72,7 @@ def create_app() -> Flask:
     record_sqlalchemy_queries.init_app(app, db)
 
     @login_manager.user_loader  # type: ignore[misc]
-    def load_user(user_id: str) -> User | None:
+    def load_user(user_id: str) -> Optional["User"]:
         return interfaces.user.get_user(user_id)
 
     # This section is needed for url_for("foo", _external=True) to

@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.common.data import interfaces
 from app.common.data.models import MagicLink
+from app.common.data.models_user import User
 from tests.utils import AnyStringMatching, page_has_error
 
 
@@ -179,7 +180,11 @@ class TestSSOGetTokenView:
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
-                "id_token_claims": {"preferred_username": "test@test.communities.gov.uk", "roles": []}
+                "id_token_claims": {
+                    "preferred_username": "test@test.communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": [],
+                }
             }
 
             response = anonymous_client.get(url_for("auth.sso_get_token"))
@@ -191,7 +196,7 @@ class TestSSOGetTokenView:
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
-                "id_token_claims": {"preferred_username": "test@test.communities.gov.uk"}
+                "id_token_claims": {"preferred_username": "test@test.communities.gov.uk", "name": "SSO User"}
             }
 
             response = anonymous_client.get(url_for("auth.sso_get_token"))
@@ -207,7 +212,11 @@ class TestSSOGetTokenView:
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
-                "id_token_claims": {"preferred_username": "test@test.communities.gov.uk", "roles": ["FSD_ADMIN"]}
+                "id_token_claims": {
+                    "preferred_username": "test@test.communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": ["FSD_ADMIN"],
+                }
             }
             response = anonymous_client.get(
                 url_for("auth.sso_get_token"),
@@ -219,6 +228,9 @@ class TestSSOGetTokenView:
 
         with anonymous_client.session_transaction() as session:
             assert "next" not in session
+
+        new_user = db_session.scalar(select(User).where(User.email == "test@test.communities.gov.uk"))
+        assert new_user.name == "SSO User"
 
 
 class TestAuthenticatedUserRedirect:
