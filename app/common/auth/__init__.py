@@ -30,6 +30,8 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
         email = cast(str, form.email_address.data)
 
         user = get_or_create_user(email_address=email)
+        if user is None:
+            abort(404)
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
             redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
@@ -98,13 +100,18 @@ def sso_get_token() -> ResponseReturnValue:
         return abort(500, "Azure AD get-token flow failed with: {}".format(result))
 
     sso_user = result["id_token_claims"]
+    is_platform_admin = "FSD_ADMIN" in sso_user.get("roles", [])
 
-    user = get_or_create_user(email_address=sso_user["preferred_username"], name=sso_user["name"])
+    user = get_or_create_user(
+        email_address=sso_user["preferred_username"],
+        name=sso_user["name"],
+        read_only=not is_platform_admin,
+    )
     redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
 
-    if "FSD_ADMIN" in sso_user.get("roles", []):
+    if is_platform_admin and user is not None:
         add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
-    else:  # TODO: also allow to log in if they're a member of a grant.
+    elif not user or not user.roles:  # TODO: also allow to log in if they're a member of a grant.
         return render_template(
             "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]
         ), 403
