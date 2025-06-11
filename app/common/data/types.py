@@ -46,3 +46,8 @@ class SubmissionStatusEnum(enum.StrEnum):
 class SubmissionEventKey(enum.StrEnum):
     FORM_RUNNER_FORM_COMPLETED = "Form completed"
     SUBMISSION_SUBMITTED = "Submission submitted"
+
+
+class ExpressionType(enum.Enum):
+    CONDITION = "CONDITION"
+    VALIDATION = "VALIDATION"
