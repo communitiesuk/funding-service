@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 {% from "common/macros/status.html" import status %}
 {% extends "deliver_grant_funding/base.html" %}
 
@@ -12,6 +13,10 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
+  {% if submission_helper.is_test %}
+    {{ mhclgTestBanner("Test submission") }}
+  {% endif %}
+
   {{
     govukBackLink({
         "text": "Back",

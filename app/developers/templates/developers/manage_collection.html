@@ -44,11 +44,11 @@
         {% endtrans %}
       {% endset %}
       {% set submissions_text %}
-        {% trans count=collection.submissions | length %}
+        {% trans count=collection.test_submissions | length %}
           {{ count }}
-          preview submission {% pluralize %}
+          test submission {% pluralize %}
           {{ count }}
-          preview submissions
+          test submissions
         {% endtrans %}
       {% endset %}
 
@@ -84,7 +84,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("developers.list_submissions_for_collection", collection_id=collection.id),
+                        "href": url_for("developers.list_submissions_for_collection", collection_id=collection.id, submission_mode=submission_mode_enum.TEST),
                         "text": "View",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }

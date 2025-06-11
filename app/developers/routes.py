@@ -38,7 +38,7 @@ from app.common.data.interfaces.temporary import (
     delete_section,
     delete_submissions_created_by_user,
 )
-from app.common.data.types import QuestionDataType, SubmissionStatusEnum
+from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -112,7 +112,7 @@ def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValu
     if form.validate_on_submit() and form.submit.data:
         user = interfaces.user.get_current_user()
         delete_submissions_created_by_user(grant_id=collection.grant_id, created_by_id=user.id)
-        submission = create_submission(collection=collection, created_by=user)
+        submission = create_submission(collection=collection, created_by=user, mode=SubmissionModeEnum.TEST)
         return redirect(url_for("developers.submission_tasklist", submission_id=submission.id))
 
     return render_template(
@@ -757,12 +757,20 @@ def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValu
     )
 
 
-@developers_blueprint.route("/collections/<uuid:collection_id>/submissions", methods=["GET"])
+@developers_blueprint.route(
+    "/collections/<uuid:collection_id>/submissions/<submission_mode:submission_mode>",
+    methods=["GET"],
+)
 @platform_admin_role_required
-def list_submissions_for_collection(collection_id: UUID) -> ResponseReturnValue:
+def list_submissions_for_collection(collection_id: UUID, submission_mode: SubmissionModeEnum) -> ResponseReturnValue:
     collection = interfaces.collections.get_collection(collection_id, with_full_schema=True)
 
-    submissions = [SubmissionHelper(submission) for submission in collection.submissions]
+    # FIXME: optimise this to only _fetch_ the live or test submissions? The relationship will fetch all submissions
+    #        at the moment and filter on the python side.
+    _matching_submissions = (
+        collection.test_submissions if submission_mode == SubmissionModeEnum.TEST else collection.live_submissions
+    )
+    submissions = [SubmissionHelper(submission) for submission in _matching_submissions]
 
     return render_template(
         "developers/list_submissions.html",
@@ -770,6 +778,7 @@ def list_submissions_for_collection(collection_id: UUID) -> ResponseReturnValue:
         grant=collection.grant,
         collection=collection,
         submissions=submissions,
+        is_test_mode=submission_mode == SubmissionModeEnum.TEST,
         statuses=SubmissionStatusEnum,
     )
 
@@ -781,7 +790,11 @@ def manage_submission(submission_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "developers/manage_submission.html",
-        back_link=url_for("developers.list_submissions_for_collection", collection_id=submission_helper.collection.id),
+        back_link=url_for(
+            "developers.list_submissions_for_collection",
+            collection_id=submission_helper.collection.id,
+            submission_mode=submission_helper.submission.mode,
+        ),
         submission_helper=submission_helper,
         grant=submission_helper.collection.grant,
         collection=submission_helper.collection,

@@ -150,3 +150,19 @@ $app-destructive-link-active-colour: $govuk-text-colour;
         width: 50%;
     }
 }
+
+.app-test-data-banner {
+    text-align: center;
+    border-top: 5px solid #f47738;
+    z-index: 10;
+}
+
+.app-test-data-banner__tag {
+    position: relative;
+    display: inline-block;
+    padding: 2px;
+    padding-right: 8px;
+    padding-left: 8px;
+    background-color: #f47738;
+    color: white;
+}

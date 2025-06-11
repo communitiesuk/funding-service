@@ -3,6 +3,7 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 {% extends "developers/access_grant_funding_base.html" %}
 
 {% block pageTitle %}
@@ -11,6 +12,10 @@
 {% endblock pageTitle %}
 
 {% block beforeContent %}
+  {% if submission_helper.is_test %}
+    {{ mhclgTestBanner("Test submission") }}
+  {% endif %}
+
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
 

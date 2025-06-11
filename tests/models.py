@@ -26,7 +26,7 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum
+from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
 from app.extensions import db
 
 
@@ -129,6 +129,7 @@ class _SubmissionFactory(factory.alchemy.SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
+    mode = SubmissionModeEnum.TEST
     data = factory.LazyFunction(dict)
     status = SubmissionStatusEnum.NOT_STARTED
 

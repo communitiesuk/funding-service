@@ -13,7 +13,13 @@ from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import User
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum, json_scalars
+from app.common.data.types import (
+    QuestionDataType,
+    SubmissionEventKey,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+    json_scalars,
+)
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
@@ -84,7 +90,8 @@ class Collection(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
-    submissions: Mapped[list["Submission"]] = relationship(
+    # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
+    _submissions: Mapped[list["Submission"]] = relationship(
         "Submission",
         lazy=True,
         order_by="Submission.created_at_utc",
@@ -104,11 +111,22 @@ class Collection(BaseModel):
 
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_collection_name_version_grant_id"),)
 
+    @property
+    def test_submissions(self) -> list["Submission"]:
+        return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.TEST)
+
+    @property
+    def live_submissions(self) -> list["Submission"]:
+        return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
+
 
 class Submission(BaseModel):
     __tablename__ = "submission"
 
     data: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
+    mode: Mapped[SubmissionModeEnum] = mapped_column(
+        SqlEnum(SubmissionModeEnum, name="submission_mode_enum", validate_strings=True)
+    )
     status: Mapped[SubmissionStatusEnum] = mapped_column(
         SqlEnum(SubmissionStatusEnum, name="submission_status_enum", validate_strings=True)
     )

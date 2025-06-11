@@ -17,7 +17,7 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.models_user import User
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum
+from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.utils import slugify
 from app.extensions import db
 
@@ -99,10 +99,11 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
     return db.session.get_one(Submission, submission_id, options=options, populate_existing=bool(options))
 
 
-def create_submission(*, collection: Collection, created_by: User) -> Submission:
+def create_submission(*, collection: Collection, created_by: User, mode: SubmissionModeEnum) -> Submission:
     submission = Submission(
         collection=collection,
         created_by=created_by,
+        mode=mode,
         data={},
         status=SubmissionStatusEnum.NOT_STARTED,
     )
