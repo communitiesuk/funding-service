@@ -134,10 +134,18 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Flas
             response = super().open(*args, **kwargs)
             _validate_form_argument_to_render_template(response, templates_rendered)
 
+            # WARNING: this check is unreliable if using `follow_redirects=True`. When this is set, the FlaskClient
+            # will seamlessly resolve any redirects and potentially fire off multiple requests. If the first request
+            # doesn't commit properly, then subsequent requests either commit or rollback, the DB session state may
+            # not remain "un-clean", leading to this not triggering.
+            # Addressing this properly requires a bit more depth and finick than I'm interested in us taking here, for
+            # what is supposed to be a "helpful" check rather than a "rock-solid" check.
             session = app.extensions["sqlalchemy"].session
             if not session.info.get("clean", True):
-                method = kwargs["method"]
-                path = kwargs["path"]
+                # args[0] is not always a nicely-readable thing; it might be a dict or EnvironBuilder instance.
+                # But it's sort-of-ok and easy-enough to grab for now to be helpful more often than not.
+                method = kwargs.get("method") or (args[0] if args else "GET")
+                path = kwargs.get("path") or (args[0] if args else "/")
 
                 pytest.fail(
                     f"Detected uncommitted changes in the SQLAlchemy session after handling "
