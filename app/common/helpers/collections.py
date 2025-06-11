@@ -24,7 +24,7 @@ Integer = RootModel[int]
 
 
 # todo: think about where this should go
-class ManagedExpressions(enum.Enum):
+class ManagedExpressions(enum.StrEnum):
     GREATER_THAN = "GREATER_THAN"
 
 
@@ -39,7 +39,9 @@ class BaseExpression(BaseModel):
 
 class GreaterThan(BaseExpression):
     key: ManagedExpressions = ManagedExpressions.GREATER_THAN
-    question_id: UUID
+    # this should be UUID4 but was running into an issue with serialising it that its not
+    # worth arguing with right now
+    question_id: str
     minimum_value: int
 
     @property

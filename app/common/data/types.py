@@ -48,6 +48,6 @@ class SubmissionEventKey(enum.StrEnum):
     SUBMISSION_SUBMITTED = "Submission submitted"
 
 
-class ExpressionType(enum.Enum):
+class ExpressionType(enum.StrEnum):
     CONDITION = "CONDITION"
     VALIDATION = "VALIDATION"

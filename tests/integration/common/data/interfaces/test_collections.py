@@ -19,7 +19,9 @@ from app.common.data.interfaces.collections import (
     move_question_up,
     move_section_down,
     move_section_up,
+    remove_question_expression,
     update_question,
+    update_question_expression,
     update_submission_data,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
@@ -417,10 +419,44 @@ def test_add_expression(db_session, factories):
     user = factories.user.create()
 
     # configured by the user interface
-    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+    managed_expression = GreaterThan(minimum_value=3000, question_id=str(question.id))
+
+    add_question_condition(question, user, managed_expression)
+
+    # check the serialisation and deserialisation is as expected
+    from_db = get_question_by_id(question.id)
+
+    assert len(from_db.expressions) == 1
+    assert from_db.expressions[0].type == ExpressionType.CONDITION
+    assert from_db.expressions[0].expression == f"(( {question.id} )) > 3000"
+
+    # check the serialised context lines up with the values in the managed expression
+    assert from_db.expressions[0].context["key"] == "GREATER_THAN"
+
+
+def test_update_expression(db_session, factories):
+    question = factories.question.create()
+    user = factories.user.create()
+    managed_expression = GreaterThan(minimum_value=3000, question_id=str(question.id))
+
+    add_question_condition(question, user, managed_expression)
+
+    updated_expression = GreaterThan(minimum_value=5000, question_id=str(question.id))
+
+    update_question_expression(question.expressions[0], updated_expression)
+
+    assert question.expressions[0].expression == f"(( {question.id} )) > 5000"
+
+
+def test_remove_expression(db_session, factories):
+    question = factories.question.create()
+    user = factories.user.create()
+    managed_expression = GreaterThan(minimum_value=3000, question_id=str(question.id))
 
     add_question_condition(question, user, managed_expression)
 
     assert len(question.expressions) == 1
-    assert question.expressions[0].type == ExpressionType.CONDITION
-    assert question.expressions[0].expression == f"(( {question.id} )) > 3000"
+
+    remove_question_expression(question, question.expressions[0])
+
+    assert len(question.expressions) == 0

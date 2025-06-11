@@ -210,6 +210,7 @@ class _ExpressionFactory(factory.alchemy.SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     question_id = factory.LazyAttribute(lambda o: o.question.id)
     question = factory.SubFactory(_QuestionFactory)
+    context = factory.LazyFunction(dict)
 
     def _required(self) -> None:
         raise ValueError("Value must be set explicitly for tests")
