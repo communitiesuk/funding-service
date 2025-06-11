@@ -99,7 +99,7 @@ def sso_get_token() -> ResponseReturnValue:
 
     sso_user = result["id_token_claims"]
 
-    user = get_or_create_user(email_address=sso_user["preferred_username"])
+    user = get_or_create_user(email_address=sso_user["preferred_username"], name=sso_user["name"])
     redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
 
     if "FSD_ADMIN" in sso_user.get("roles", []):

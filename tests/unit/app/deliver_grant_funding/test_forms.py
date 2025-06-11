@@ -5,9 +5,8 @@ from flask import Flask, request
 from wtforms import Form, StringField
 from wtforms.validators import ValidationError
 
-from app import User
 from app.common.data.models import Grant
-from app.common.data.models_user import UserRole
+from app.common.data.models_user import User, UserRole
 from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.forms import GrantAddUserForm, GrantGGISForm, UniqueGrantName
 
