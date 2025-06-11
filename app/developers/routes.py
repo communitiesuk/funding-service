@@ -38,7 +38,7 @@ from app.common.data.interfaces.temporary import (
     delete_section,
     delete_submissions_created_by_user,
 )
-from app.common.data.types import QuestionDataType, SubmissionStatusEnum
+from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -112,7 +112,7 @@ def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValu
     if form.validate_on_submit() and form.submit.data:
         user = interfaces.user.get_current_user()
         delete_submissions_created_by_user(grant_id=collection.grant_id, created_by_id=user.id)
-        submission = create_submission(collection=collection, created_by=user)
+        submission = create_submission(collection=collection, created_by=user, mode=SubmissionModeEnum.TEST)
         return redirect(url_for("developers.submission_tasklist", submission_id=submission.id))
 
     return render_template(

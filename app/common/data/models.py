@@ -13,7 +13,13 @@ from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import User
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionStatusEnum, json_scalars
+from app.common.data.types import (
+    QuestionDataType,
+    SubmissionEventKey,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+    json_scalars,
+)
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
@@ -109,6 +115,9 @@ class Submission(BaseModel):
     __tablename__ = "submission"
 
     data: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
+    mode: Mapped[SubmissionModeEnum] = mapped_column(
+        SqlEnum(SubmissionModeEnum, name="submission_mode_enum", validate_strings=True)
+    )
     status: Mapped[SubmissionStatusEnum] = mapped_column(
         SqlEnum(SubmissionStatusEnum, name="submission_status_enum", validate_strings=True)
     )

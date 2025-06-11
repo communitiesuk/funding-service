@@ -32,6 +32,11 @@ class QuestionDataType(enum.StrEnum):
         raise ValueError(f"Cannot coerce {value} to QuestionDataType")
 
 
+class SubmissionModeEnum(enum.StrEnum):
+    TEST = "test"
+    LIVE = "live"
+
+
 class SubmissionStatusEnum(enum.StrEnum):
     NOT_STARTED = "Not started"
     IN_PROGRESS = "In progress"
