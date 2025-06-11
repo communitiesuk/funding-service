@@ -40,6 +40,7 @@ Developers are expected to run the app locally using [docker-compose](https://do
 * `make down` / `docker compose down` will stop the Funding Service.
 * `make build` / `docker compose build` will rebuild the Funding Service image.
 * `make clean-build` / `docker compose build --no-cache` will rebuild the Funding Service image, bypassing caching. This should rarely be needed.
+* `make check-html` / `make format-html` will check or format Jinja HTML templates with Prettier. This is also run as part of the pre-commit checks.
 
 ### SSO
 By default, local development and locally-run end to end tests use a [stub server](./stubs/sso/) to implement the same  interface as Microsoft SSO flow. This is so we can reliably run e2e tests locally without hitting the real SSO endpoints, and so devs don't need test Azure AD credentials to be able to use the app, making initial setup easier.
