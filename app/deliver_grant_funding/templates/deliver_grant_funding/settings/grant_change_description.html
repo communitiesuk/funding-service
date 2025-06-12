@@ -17,39 +17,58 @@
   }}
 {% endblock %}
 
+<!-- Erroneous-looking fromGroup attribute currently required due to typo in library -->
+<!-- See here: https://github.com/LandRegistry/govuk-frontend-jinja/blob/45849744d2bf058937402f291e4a2c7a44eb7e23/govuk_frontend_jinja/templates/components/character-count/macro.html#L107 -->
+<!-- Fix PR here: https://github.com/LandRegistry/govuk-frontend-jinja/pull/96 -->
+{% macro textarea_with_content(html_before, hint_text_before, max_words_text, max_words_hidden_text, form_field) %}
 
-{% set before_input_text %}
+
+  {% set before_input_text %}
+    {{ html_before | safe }}
+    <p class="govuk-hint" id="{{ form_field.name }}-hint-before">Do not include personal information.</p>
+  {% endset %}
+
+  {{
+    form_field(params={
+      "label": {
+        "text": form_field.label,
+        "isPageHeading": True,
+        "classes": "govuk-label--l",
+      },
+      "fromGroup": true,
+      "formGroup": {
+        "beforeInput": {
+        "html": before_input_text
+        }
+      },
+      "maxwords": max_words_text,
+    })
+  }}
+{% endmacro %}
+
+
+{% set content_before %}
   <p class="govuk-body">Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.</p>
-  <p class="govuk-hint">Do not include personal information.</p>
 {% endset %}
 
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Set up the grant</span>
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">Set up the grant</span>
+        {{ form.description.label.text }}
+      </h1>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
-        <!-- Erroneous-looking fromGroup attribute currently required due to typo in library -->
-        <!-- See here: https://github.com/LandRegistry/govuk-frontend-jinja/blob/45849744d2bf058937402f291e4a2c7a44eb7e23/govuk_frontend_jinja/templates/components/character-count/macro.html#L107 -->
-        <!-- Fix PR here: https://github.com/LandRegistry/govuk-frontend-jinja/pull/96 -->
-        {{
-          form.description(params={
-              "label": {
-                "text": form.description.label,
-                "isPageHeading": True,
-          "classes": "govuk-label--l",
-              },
-              "fromGroup": true,
-              "formGroup": {
-                "beforeInput": {
-                "html": before_input_text
-                }
-              },
-              "maxwords": form.DESCRIPTION_MAX_WORDS
-            })
-        }}
+        <div class="govuk-form-group govuk-character-count" data-module="govuk-character-count" data-maxwords="200">
+          <label class="govuk-label govuk-visually-hidden" for="description">Grant main purpose</label>
+          <p class="govuk-body">Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.</p>
+          <div id="description-hint" class="govuk-hint">Do not include personal information</div>
+          <textarea class="govuk-textarea govuk-js-character-count" id="description" name="description" rows="5" aria-describedby="description-info description-hint"></textarea>
+          <div id="description-info" class="govuk-hint govuk-character-count__message">You can enter up to 200 words</div>
+        </div>
 
         {{
           form.submit(params={
