@@ -209,8 +209,6 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
             user = next((user for user in grant.users if user.email == form.user_email.data), None)
             if user is None:
                 created_user = interfaces.user.get_or_create_user(email_address=form.user_email.data)
-                if created_user is None:
-                    abort(404)
                 interfaces.user.add_user_role(user_id=created_user.id, grant_id=grant_id, role=RoleEnum.MEMBER)
                 notification_service.send_member_confirmation(
                     grant_name=grant.name,

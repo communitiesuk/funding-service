@@ -193,7 +193,7 @@ class TestSSOGetTokenView:
         assert response.status_code == 403
         assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5" in response.text
 
-    def test_get_without_fsd_admin_role_and_with_grant_member_role(self, app, anonymous_client, factories):
+    def test_get_without_fsd_admin_role_and_with_grant_member_role(self, anonymous_client, factories):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             user = factories.user.create(email="test.member@communities.gov.uk")
             grant = factories.grant.create()
@@ -209,12 +209,11 @@ class TestSSOGetTokenView:
 
             response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
 
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        nav_items = [li.get_text(strip=True) for li in soup.find("ul", id="navigation").find_all("li")]
-        assert len({"Home", "Grant details", "Grant team"} - set(nav_items)) == 0
+            assert not interfaces.user.get_current_user().is_platform_admin
 
-    def test_get_without_fsd_admin_role_and_with_no_roles(self, app, anonymous_client):
+        assert response.status_code == 200
+
+    def test_get_without_fsd_admin_role_and_with_no_roles(self, anonymous_client):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {

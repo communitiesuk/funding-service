@@ -108,7 +108,7 @@ def sso_get_token() -> ResponseReturnValue:
         )
         add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
 
-    elif not user or not user.roles:  # TODO: also allow to log in if they're a member of a grant.
+    elif not user or not user.roles:
         return render_template(
             "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]
         ), 403
