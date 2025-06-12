@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput
-from wtforms import RadioField, SubmitField
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSelect, GovSubmitInput
+from wtforms import RadioField, SelectField, SubmitField
 from wtforms.validators import DataRequired, Optional
 
 # TODO: move all forms used by developer pages into this module. Add some linting rule that prevents any other parts
@@ -33,3 +33,13 @@ class ConfirmDeletionForm(FlaskForm):
 
 class SubmitSubmissionForm(FlaskForm):
     submit = SubmitField("Submit", widget=GovSubmitInput())
+
+
+class ConditionSelectQuestionForm(FlaskForm):
+    question = SelectField(
+        "Question",
+        choices=[],
+        validators=[DataRequired("Select a question")],
+        widget=GovSelect(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
