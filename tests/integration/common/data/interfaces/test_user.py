@@ -48,13 +48,11 @@ class TestGetOrCreateUser:
         assert user.email == "test@communities.gov.uk"
         assert user.name == "My Name updated"
 
-    def test_get_existing_user_without_update(self, db_session, factories):
+    def test_get_existing_user(self, db_session, factories):
         factories.user.create(email="test@communities.gov.uk", name="My Name")
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
-        user = interfaces.user.get_or_create_user(
-            email_address="test@communities.gov.uk", name="My Name updated", read_only=True
-        )
+        user = interfaces.user.get_user_by_email(email_address="test@communities.gov.uk")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
