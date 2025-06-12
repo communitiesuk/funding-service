@@ -18,24 +18,28 @@
 {% endblock %}
 
 {% block content %}
-  <span class="govuk-caption-l">Set up the grant</span>
-  <form method="post" novalidate>
-    {{ form.csrf_token }}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Set up the grant</span>
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
 
-    {{
-      form.name(params={
-        "label": {
-          "text": form.name.label,
-          "isPageHeading": True,
-          "classes": "govuk-label--l"
-        }
-      })
-    }}
+        {{
+          form.name(params={
+            "label": {
+              "text": form.name.label,
+              "isPageHeading": True,
+              "classes": "govuk-label--l"
+            }
+          })
+        }}
 
-    {{
-      form.submit(params={
-          "text": "Update"
-      })
-    }}
-  </form>
+        {{
+          form.submit(params={
+              "text": "Update"
+          })
+        }}
+      </form>
+    </div>
+  </div>
 {% endblock %}

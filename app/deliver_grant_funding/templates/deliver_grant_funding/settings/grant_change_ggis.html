@@ -17,46 +17,49 @@
 {% endblock %}
 
 {% block content %}
-  <span class="govuk-caption-l">Set up the grant</span>
-  <form method="post" novalidate>
-    {{ form.csrf_token }}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Set up the grant</span>
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
 
-    {{
-      form.has_ggis(params={
-      "fieldset":{
-        "legend":{
-          "text": form.has_ggis.label,
-          "isPageHeading":True,
-      "classes": "govuk-fieldset__legend--l"
-        },
-        },
-        "items": [
-          {
-            "value": "yes",
-            "text": "Yes",
-            "conditional": {
-              "html": form.ggis_number(
-                params={
-                  "classes": "govuk-!-width-two-thirds",
-                  "spellcheck": false,
-                  "autocomplete": "off"
+        {{
+          form.has_ggis(params={
+          "fieldset":{
+            "legend":{
+              "text": form.has_ggis.label,
+              "isPageHeading":True,
+          "classes": "govuk-fieldset__legend--l"
+            },
+            },
+            "items": [
+              {
+                "value": "yes",
+                "text": "Yes",
+                "conditional": {
+                  "html": form.ggis_number(
+                    params={
+                      "spellcheck": false,
+                      "autocomplete": "off"
+                    }
+                  )
                 }
-              )
-            }
-          },
-          {
-            "value": "no",
-            "text": "No",
-            "checked": true if form.has_ggis.data == "no" else false
-          }
-        ]
-      })
-    }}
+              },
+              {
+                "value": "no",
+                "text": "No",
+                "checked": true if form.has_ggis.data == "no" else false
+              }
+            ]
+          })
+        }}
 
-    {{
-      form.submit(params={
-        "text": "Update"
-      })
-    }}
-  </form>
+        {{
+          form.submit(params={
+            "text": "Update"
+          })
+        }}
+      </form>
+    </div>
+  </div>
 {% endblock %}
