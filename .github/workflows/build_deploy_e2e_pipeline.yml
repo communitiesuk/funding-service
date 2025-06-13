@@ -45,6 +45,8 @@ jobs:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+      SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
+      SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
 
   deploy_test:
     name: Deploy to test
@@ -66,3 +68,5 @@ jobs:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+      SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
+      SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}

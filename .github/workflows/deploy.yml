@@ -120,7 +120,8 @@ jobs:
       environment: ${{ inputs.environment }}
     secrets:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
-
+      SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
+      SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
   notify_slack:
     needs:
       - deploy
