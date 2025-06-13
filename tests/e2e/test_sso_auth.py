@@ -6,10 +6,6 @@ from playwright.sync_api import Page, expect
 from tests.e2e.pages import MicrosoftLoginPageEmail, SSOSignInPage, StubSSOEmailLoginPage
 
 
-def test_any_website(page: Page):
-    page.goto("https://google.com")
-
-
 @pytest.mark.skip_in_environments(["dev", "test", "prod"])
 def test_stub_sso_journey(page: Page, domain: str):
     sso_sign_in_page = SSOSignInPage(page, domain)

@@ -1,0 +1,98 @@
+name: Run e2e tests in docker compose
+
+permissions:
+  contents: read  # This is required for actions/checkout
+  id-token: write  # This is required for authenticating with aws
+
+on:
+  workflow_call:
+    secrets:
+      PULLPREVIEW_GOVUK_NOTIFY_API_KEY:
+        required: true
+      SLACK_BOT_TOKEN:
+        required: true
+      TEMP_SLACK_CHANNEL_ID:
+        required: true
+
+  workflow_dispatch:
+    secrets:
+      PULLPREVIEW_GOVUK_NOTIFY_API_KEY:
+        required: true
+      SLACK_BOT_TOKEN:
+        required: true
+      TEMP_SLACK_CHANNEL_ID:
+        required: true
+
+jobs:
+
+  e2e_tests_docker_compose:
+    name: Run E2E tests against docker compose
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: 3.13.4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
+
+      - name: Install playwright browsers
+        run: uv run --frozen playwright install --with-deps chromium
+
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v1.2.0
+
+      - name: start chrome
+        run: uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure -k test_start_chrome
+
+      - name: Setup certs
+        run: |
+          sudo apt-get update && sudo apt-get install -y mkcert libnss3-tools
+          mkdir -p certs
+          CAROOT=certs mkcert -install
+          CAROOT=certs mkcert -cert-file certs/cert.pem -key-file certs/key.pem "*.communities.gov.localhost"
+          echo "GOVUK_NOTIFY_API_KEY=$PULLPREVIEW_GOVUK_NOTIFY_API_KEY" >> .env
+          echo "GOVUK_NOTIFY_DISABLE=False" >> .env
+          echo "127.0.0.1       sso.communities.gov.localhost funding.communities.gov.localhost" | sudo tee -a /etc/hosts
+        env:
+          PULLPREVIEW_GOVUK_NOTIFY_API_KEY: ${{ secrets.PULLPREVIEW_GOVUK_NOTIFY_API_KEY }}
+
+      - name: start docker compose
+        run: docker compose -f docker-compose.yml up -d --wait
+
+      - name: run e2e tests
+        run: |
+          uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure
+
+      - name: stop docker compose
+        if: always() # Ensure this runs even if the previous step fails
+        run: docker compose -f docker-compose.yml down
+
+      - name: Save test failure tracing
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ failure() }}
+        with:
+          name: playwright-traces
+          path: test-results/*
+
+  notify_slack:
+    needs:
+      - e2e_tests_docker_compose
+    if: ${{ always() && (needs.e2e_tests_docker_compose.result == 'failure') && github.ref_name == 'main'}}
+    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
+    with:
+      app_name: FS Docker Compose E2E Tests
+      env_name: N/A
+      github_username: ${{ github.actor }}
+      workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
