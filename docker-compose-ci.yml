@@ -43,6 +43,7 @@ services:
       DATABASE_PORT: 5432
       DATABASE_NAME: "postgres"
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
+      AZURE_AD_BASE_URL: http://sso.communities.gov.localhost/
     depends_on:
       - db
     networks:
