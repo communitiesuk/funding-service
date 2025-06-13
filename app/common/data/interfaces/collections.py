@@ -1,4 +1,4 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
+    Expression,
     Form,
     Grant,
     Question,
@@ -17,9 +18,18 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.models_user import User
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import (
+    ExpressionType,
+    QuestionDataType,
+    SubmissionEventKey,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
 from app.common.utils import slugify
 from app.extensions import db
+
+if TYPE_CHECKING:
+    from app.common.expressions.managed import BaseExpression
 
 
 def create_collection(*, name: str, user: User, grant: Grant, version: int = 1) -> Collection:
@@ -266,3 +276,28 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
     submission.events = [x for x in submission.events if not (x.key == key and (x.form == form if form else True))]
     db.session.flush()
     return submission
+
+
+def add_question_condition(question: Question, user: User, managed_expression: "BaseExpression") -> Question:
+    expression = Expression(
+        statement=managed_expression.expression,
+        context=managed_expression.model_dump(mode="json"),
+        created_by=user,
+        type=ExpressionType.CONDITION,
+    )
+    question.expressions.append(expression)
+    db.session.flush()
+    return question
+
+
+def remove_question_expression(question: Question, expression: Expression) -> Question:
+    question.expressions.remove(expression)
+    db.session.flush()
+    return question
+
+
+def update_question_expression(expression: Expression, managed_expression: "BaseExpression") -> Expression:
+    expression.statement = managed_expression.expression
+    expression.context = managed_expression.model_dump(mode="json")
+    db.session.flush()
+    return expression

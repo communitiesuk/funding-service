@@ -14,10 +14,12 @@ from sqlalchemy_json import mutable_json_type
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import User
 from app.common.data.types import (
+    ExpressionType,
     QuestionDataType,
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    json_flat_scalars,
     json_scalars,
 )
 
@@ -235,6 +237,14 @@ class Question(BaseModel):
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
     form: Mapped[Form] = relationship("Form", back_populates="questions")
 
+    # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
+    expressions: Mapped[list["Expression"]] = relationship(
+        "Expression", back_populates="question", cascade="all, delete-orphan"
+    )
+
+    # todo: add properties for pulling out separate conditions and validation types of expressions
+    #       those could come in with some simple interface tests
+
     __table_args__ = (
         UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
@@ -255,6 +265,24 @@ class SubmissionEvent(BaseModel):
 
     form_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("form.id"))
     form: Mapped[Optional[Form]] = relationship("Form")
+
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
+    created_by: Mapped[User] = relationship("User")
+
+
+class Expression(BaseModel):
+    __tablename__ = "expression"
+
+    statement: Mapped[str]
+
+    context: Mapped[json_flat_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
+
+    type: Mapped[ExpressionType] = mapped_column(
+        SqlEnum(ExpressionType, name="expression_type_enum", validate_strings=True)
+    )
+
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    question: Mapped[Question] = relationship("Question", back_populates="expressions")
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")

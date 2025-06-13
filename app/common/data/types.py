@@ -4,6 +4,7 @@ import enum
 from typing import Any, Dict
 
 json_scalars = Dict[str, Any]
+json_flat_scalars = Dict[str, str | int | float | bool]
 
 
 class RoleEnum(str, enum.Enum):
@@ -46,3 +47,8 @@ class SubmissionStatusEnum(enum.StrEnum):
 class SubmissionEventKey(enum.StrEnum):
     FORM_RUNNER_FORM_COMPLETED = "Form completed"
     SUBMISSION_SUBMITTED = "Submission submitted"
+
+
+class ExpressionType(enum.StrEnum):
+    CONDITION = "CONDITION"
+    VALIDATION = "VALIDATION"
