@@ -30,7 +30,6 @@ def domain(request: pytest.FixtureRequest, get_e2e_params: dict[str, str]) -> st
     e2e_env = get_e2e_params["e2e_env"]
 
     if e2e_env == "local":
-        # return "http://localhost:8080"
         return "https://funding.communities.gov.localhost:8080"
     if e2e_env == "dev":
         return "https://funding.dev.communities.gov.uk"

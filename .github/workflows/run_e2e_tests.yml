@@ -70,7 +70,7 @@ jobs:
           CAROOT=certs mkcert -install
           CAROOT=certs mkcert -cert-file certs/cert.pem -key-file certs/key.pem "*.communities.gov.localhost"
           touch .env
-          sudo echo "127.0.0.1       sso.communities.gov.localhost funding.communities.gov.localhost" >> /etc/hosts
+          echo "127.0.0.1       sso.communities.gov.localhost funding.communities.gov.localhost" | sudo tee -a /etc/hosts
 
 
       - name: start docker compose
