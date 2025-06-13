@@ -72,9 +72,11 @@ jobs:
           mkdir -p certs
           CAROOT=certs mkcert -install
           CAROOT=certs mkcert -cert-file certs/cert.pem -key-file certs/key.pem "*.communities.gov.localhost"
-          touch .env
+          echo "GOVUK_NOTIFY_API_KEY=$PULLPREVIEW_GOVUK_NOTIFY_API_KEY" >> .env
+          echo "GOVUK_NOTIFY_DISABLE=False" >> .env
           echo "127.0.0.1       sso.communities.gov.localhost funding.communities.gov.localhost" | sudo tee -a /etc/hosts
-
+        env:
+          PULLPREVIEW_GOVUK_NOTIFY_API_KEY: ${{ secrets.PULLPREVIEW_GOVUK_NOTIFY_API_KEY }}
 
       - name: start docker compose
         run: docker compose -f docker-compose.yml up -d --wait
@@ -95,12 +97,10 @@ jobs:
       - name: run e2e tests
         run: |
           uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure
-        env:
-          SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
-          SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
+
       - name: stop docker compose
         if: always() # Ensure this runs even if the previous step fails
-        run: docker compose -f docker-compose-ci.yml down
+        run: docker compose -f docker-compose.yml down
 
       - name: Save test failure tracing
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

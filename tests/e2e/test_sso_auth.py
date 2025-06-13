@@ -23,6 +23,7 @@ def test_stub_sso_journey(page: Page, domain: str):
     expect(page).to_have_url(f"{domain}/grants")
 
 
+@pytest.mark.skip_in_environments(["local"])
 def test_real_sso_journey(page: Page, domain: str):
     sign_in_email = getenv("SERVICE_ACCOUNT_USERNAME", None)
     sign_in_password = getenv("SERVICE_ACCOUNT_PASSWORD", None)
