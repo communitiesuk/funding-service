@@ -5,7 +5,7 @@ from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSelect, GovSubm
 from wtforms import IntegerField, RadioField, SelectField, SubmitField
 from wtforms.validators import DataRequired, Optional
 
-from app.common.helpers.collections import ManagedExpressions
+from app.common.expressions.managed import ManagedExpressions
 
 # TODO: move all forms used by developer pages into this module. Add some linting rule that prevents any other parts
 #       of the app importing from the developers package.
@@ -50,9 +50,7 @@ class ConditionSelectQuestionForm(FlaskForm):
 
 
 class AddNumberConditionForm(FlaskForm):
-    # todo: should any condition or validation be able to override the human readable message: I think so
-    #       - try and make the design of those serialisers concise if they all share the same fields and just
-    #         have different expressions
+    # todo: should any condition or validation be able to override the human readable message I suspect so
     type = RadioField(
         "Only show the question if the answer is",
         choices=[(ManagedExpressions.GREATER_THAN, ManagedExpressions.GREATER_THAN.value)],
