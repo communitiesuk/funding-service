@@ -78,6 +78,57 @@ class StubSSOEmailLoginPage(BasePage):
         self.email_address.fill(email_address)
 
 
+class MicrosoftLoginBasePage(BasePage):
+    email_address: str
+    password: str
+
+    def __init__(self, page: Page, domain: str, email_address: str, password: str) -> None:
+        super().__init__(page, domain)
+        self.email_address = email_address
+        self.password = password
+
+
+class MicrosoftLoginPageEmail(MicrosoftLoginBasePage):
+    title: Locator
+    email_input: Locator
+    next_button: Locator
+
+    def __init__(self, page: Page, domain: str, email_address: str, password: str) -> None:
+        super().__init__(page, domain, email_address, password)
+        self.title = self.page.get_by_role("heading", name="Sign in to your account")
+        self.email_input = self.page.get_by_role("textbox", name="Email, phone, or Skype")
+        self.next_button = self.page.get_by_role("button", name="Next")
+
+    def fill_email_address(self) -> None:
+        self.email_input.fill(self.email_address)
+
+    def click_next(self) -> MicrosoftLoginPagePassword:
+        self.next_button.click()
+        password_page = MicrosoftLoginPagePassword(self.page, self.domain, self.email_address, self.password)
+        expect(password_page.title).to_be_visible()
+        return password_page
+
+
+class MicrosoftLoginPagePassword(MicrosoftLoginBasePage):
+    title: Locator
+    password_input: Locator
+    sign_in_button: Locator
+
+    def __init__(self, page: Page, domain: str, email_address: str, password: str) -> None:
+        super().__init__(page, domain, email_address, password)
+        self.title = page.get_by_role("heading", name="Enter password")
+        self.password_input = page.get_by_role("textbox", name=f"Enter the password for {self.email_address}")
+        self.sign_in_button = page.get_by_role("button", name="Sign in")
+
+    def fill_password(
+        self,
+    ) -> None:
+        self.password_input.fill(self.password)
+
+    def click_sign_in(self) -> None:
+        self.sign_in_button.click()
+
+
 class AllGrantsPage(TopNavMixin, BasePage):
     title: Locator
 

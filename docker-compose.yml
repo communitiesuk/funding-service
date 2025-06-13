@@ -50,6 +50,13 @@ services:
       - db
     networks:
       - ofs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://funding.communities.gov.localhost:8080/healthcheck"]
+      interval: 60s
+      timeout: 5s
+      retries: 2
+      start_period: 20s
+      start_interval: 1s
 
   sso:
     build: .
