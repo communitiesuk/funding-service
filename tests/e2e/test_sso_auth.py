@@ -20,7 +20,17 @@ def test_stub_sso_journey(page: Page, domain: str):
 
 
 @pytest.mark.skip_in_environments(["local"])
+@pytest.mark.xfail
 def test_real_sso_journey(page: Page, domain: str):
+    """
+    Test the real SSO journey using a service account.
+
+    If you enable real SSO locally (see README) this test will work.
+    However we can't run it on CI - see Jira FSPT-411 for details.
+    :param page:
+    :param domain:
+    :return:
+    """
     sign_in_email = getenv("SERVICE_ACCOUNT_USERNAME", None)
     sign_in_password = getenv("SERVICE_ACCOUNT_PASSWORD", None)
     if not sign_in_email or not sign_in_password:
