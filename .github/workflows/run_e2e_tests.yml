@@ -63,6 +63,9 @@ jobs:
       - name: Set up Docker Compose
         uses: docker/setup-compose-action@v1.2.0
 
+      - name: start chrome
+        run: uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure -k test_any_website
+
       - name: Setup certs
         run: |
           sudo apt-get update && sudo apt-get install -y mkcert libnss3-tools
