@@ -280,7 +280,7 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
 
 def add_question_condition(question: Question, user: User, managed_expression: "BaseExpression") -> Question:
     expression = Expression(
-        expression=managed_expression._expression,
+        expression=managed_expression.expression,
         context=managed_expression.model_dump(mode="json"),
         created_by=user,
         type=ExpressionType.CONDITION,
@@ -297,7 +297,7 @@ def remove_question_expression(question: Question, expression: Expression) -> Qu
 
 
 def update_question_expression(expression: Expression, managed_expression: "BaseExpression") -> Expression:
-    expression.expression = managed_expression._expression
+    expression.statement = managed_expression.expression
     expression.context = managed_expression.model_dump(mode="json")
     db.session.flush()
     return expression

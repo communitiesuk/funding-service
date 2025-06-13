@@ -19,6 +19,7 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    json_flat_scalars,
     json_scalars,
 )
 
@@ -272,11 +273,9 @@ class SubmissionEvent(BaseModel):
 class Expression(BaseModel):
     __tablename__ = "expression"
 
-    # todo: should this re-use the name of the table?
-    expression: Mapped[str]
+    statement: Mapped[str]
 
-    # context: Mapped[json_scalars] = mapped_column(default={})
-    context: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
+    context: Mapped[json_flat_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
 
     type: Mapped[ExpressionType] = mapped_column(
         SqlEnum(ExpressionType, name="expression_type_enum", validate_strings=True)

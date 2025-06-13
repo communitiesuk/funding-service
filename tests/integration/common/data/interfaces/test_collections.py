@@ -428,7 +428,7 @@ def test_add_expression(db_session, factories):
 
     assert len(from_db.expressions) == 1
     assert from_db.expressions[0].type == ExpressionType.CONDITION
-    assert from_db.expressions[0].expression == f"(( {question.id} )) > 3000"
+    assert from_db.expressions[0].statement == f"(( {question.id} )) > 3000"
 
     # check the serialised context lines up with the values in the managed expression
     assert from_db.expressions[0].context["key"] == "GREATER_THAN"

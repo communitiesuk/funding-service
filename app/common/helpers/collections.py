@@ -33,7 +33,7 @@ class BaseExpression(BaseModel):
 
     @property
     @abc.abstractmethod
-    def _expression(self) -> str:
+    def expression(self) -> str:
         raise NotImplementedError
 
 
@@ -52,14 +52,12 @@ class GreaterThan(BaseExpression):
         # todo: do you allow the form builder to override this if they need to
         #       - does that persist in the context (inherited from BaseExpression) or as a separate
         #         property on the model
+        # todo: make this use expression evaluation/interpolation rather than f-strings
         return f"The answer must be {self.minimum_value} or greater"
 
     @property
-    def _expression(self) -> str:
-        # todo: how much of these should be calculated from the context and run
-        #       through the eval vs. stored in the expression - this is leaning towards the latter
-        # todo: are UUIDs parsable by the expression language
-        # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
+    def expression(self) -> str:
+        # todo: are UUIDs parsable by the expression parser/ language
         return f"(( {self.question_id} )) > {self.minimum_value}"
 
 
