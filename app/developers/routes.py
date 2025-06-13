@@ -39,7 +39,8 @@ from app.common.data.interfaces.temporary import (
     delete_submissions_created_by_user,
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.helpers.collections import GreaterThan, ManagedExpressions, SubmissionHelper
+from app.common.expressions.managed import GreaterThan, ManagedExpressions
+from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
     FormForm,
@@ -588,15 +589,13 @@ def edit_question(
 )
 @platform_admin_role_required
 def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    # todo: we should probably use the helper for this
-    #       - do we need to think about the helper in the context of no submission
+    # todo: do we need to think about the helper in the context of no submission
     question = get_question_by_id(question_id)
     form = ConditionSelectQuestionForm()
 
     # todo: this is lazy loading a lot of questions, do better than that
-    # todo: commit in the PR or follow up - this should probably filter for questions that are
-    #       able to be the target of a condition (currently numbers) - the hint text should make
-    #       it clear to the user that only these will show
+    # todo: filter out questions that can't be used as a condition or are this question
+    #       - that should probably be a helper
     # todo: the template should nicely handle if there are no questions which are valid targets
     #       for a condition in this form
     form.question.choices = [
@@ -635,15 +634,14 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
 
     if form.validate_on_submit():
         match form.type.data:
-            # todo: not 100% sure this should be done at this level but don't have a better idea at the moment
+            # todo: this probably shouldn't be done in the HTTP handler but no better ideas right now
             case ManagedExpressions.GREATER_THAN:
                 assert form.value.data
                 expression = GreaterThan(question_id=depends_on_question.id, minimum_value=form.value.data)
 
                 # todo: as we think through these pages flow we need to decide if this will persist a new condition
                 #       or if you should have to click Save/ Edit question to lock it in (that would then work like
-                #       add question but would allow unsaved jk:641
-                # changes - its how govuk forms currently does it)
+                #       add question but would allow unsaved changes - its how govuk forms currently does it)
                 interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
                 return redirect(
                     url_for(
