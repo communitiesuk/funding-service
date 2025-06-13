@@ -94,7 +94,6 @@ jobs:
 
       - name: run e2e tests
         run: |
-          sleep 20 
           uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure
         env:
           SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
