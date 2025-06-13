@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.common.expressions import mangle_question_id_for_context
+
 # Define any "managed" expressions that can be applied to common conditions or validations
 # that are built through the UI. These will be used alongside custom expressions
 
@@ -41,5 +43,6 @@ class GreaterThan(BaseExpression):
 
     @property
     def expression(self) -> str:
-        # todo: are UUIDs parsable by the expression parser/ language
-        return f"(( {self.question_id} )) > {self.minimum_value}"
+        # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
+        qid = mangle_question_id_for_context(self.question_id)
+        return f"{qid} > {self.minimum_value}"
