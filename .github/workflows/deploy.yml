@@ -30,6 +30,10 @@ on:
         required: true
       TEMP_SLACK_CHANNEL_ID:
         required: true
+      SERVICE_ACCOUNT_USERNAME:
+          required: true
+      SERVICE_ACCOUNT_PASSWORD:
+          required: true
 
 jobs:
   deploy:
