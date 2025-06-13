@@ -31,6 +31,10 @@ from app.common.data.types import QuestionDataType, SubmissionEventKey, Submissi
 from app.extensions import db
 
 
+def _required() -> None:
+    raise ValueError("Value must be set explicitly for tests")
+
+
 class _GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
         model = Grant
@@ -211,9 +215,6 @@ class _ExpressionFactory(factory.alchemy.SQLAlchemyModelFactory):
     question_id = factory.LazyAttribute(lambda o: o.question.id)
     question = factory.SubFactory(_QuestionFactory)
     context = factory.LazyFunction(dict)
-
-    def _required(self) -> None:
-        raise ValueError("Value must be set explicitly for tests")
 
     # todo: we could actually set this based on the question sub factory to make sure the default expression
     #       makes some kind of sense for the question type

@@ -1,12 +1,10 @@
-import abc
-import enum
 import uuid
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, RootModel, TypeAdapter
+from pydantic import RootModel, TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.data import interfaces
@@ -21,44 +19,6 @@ if TYPE_CHECKING:
 TextSingleLine = RootModel[str]
 TextMultiLine = RootModel[str]
 Integer = RootModel[int]
-
-
-# todo: think about where this should go
-class ManagedExpressions(enum.StrEnum):
-    GREATER_THAN = "GREATER_THAN"
-
-
-class BaseExpression(BaseModel):
-    key: ManagedExpressions
-
-    @property
-    @abc.abstractmethod
-    def expression(self) -> str:
-        raise NotImplementedError
-
-
-class GreaterThan(BaseExpression):
-    key: ManagedExpressions = ManagedExpressions.GREATER_THAN
-    question_id: UUID
-    minimum_value: int
-
-    @property
-    def description(self) -> str:
-        return "Is greater than"
-
-    @property
-    def message(self) -> str:
-        # todo: optionally include the question name in the default message
-        # todo: do you allow the form builder to override this if they need to
-        #       - does that persist in the context (inherited from BaseExpression) or as a separate
-        #         property on the model
-        # todo: make this use expression evaluation/interpolation rather than f-strings
-        return f"The answer must be {self.minimum_value} or greater"
-
-    @property
-    def expression(self) -> str:
-        # todo: are UUIDs parsable by the expression parser/ language
-        return f"(( {self.question_id} )) > {self.minimum_value}"
 
 
 class SubmissionHelper:

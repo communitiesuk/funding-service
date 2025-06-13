@@ -29,7 +29,7 @@ from app.common.utils import slugify
 from app.extensions import db
 
 if TYPE_CHECKING:
-    from app.common.helpers.collections import BaseExpression
+    from app.common.expressions.managed import BaseExpression
 
 
 def create_collection(*, name: str, user: User, grant: Grant, version: int = 1) -> Collection:
@@ -280,7 +280,7 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
 
 def add_question_condition(question: Question, user: User, managed_expression: "BaseExpression") -> Question:
     expression = Expression(
-        expression=managed_expression.expression,
+        statement=managed_expression.expression,
         context=managed_expression.model_dump(mode="json"),
         created_by=user,
         type=ExpressionType.CONDITION,

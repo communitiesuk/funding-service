@@ -27,7 +27,8 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Collection
 from app.common.data.types import ExpressionType, QuestionDataType, SubmissionEventKey
-from app.common.helpers.collections import GreaterThan, TextSingleLine
+from app.common.expressions.managed import GreaterThan
+from app.common.helpers.collections import TextSingleLine
 
 
 def test_get_collection(db_session, factories):
@@ -431,7 +432,7 @@ def test_add_expression(db_session, factories):
     assert from_db.expressions[0].statement == f"(( {question.id} )) > 3000"
 
     # check the serialised context lines up with the values in the managed expression
-    assert from_db.expressions[0].context["key"] == "GREATER_THAN"
+    assert from_db.expressions[0].context["key"] == "Greater than"
 
 
 def test_update_expression(db_session, factories):
@@ -445,7 +446,7 @@ def test_update_expression(db_session, factories):
 
     update_question_expression(question.expressions[0], updated_expression)
 
-    assert question.expressions[0].expression == f"(( {question.id} )) > 5000"
+    assert question.expressions[0].statement == f"(( {question.id} )) > 5000"
 
 
 def test_remove_expression(db_session, factories):
