@@ -33,4 +33,9 @@ def test_real_sso_journey(page: Page, domain: str):
     ms_password_page.fill_password()
     ms_password_page.click_sign_in()
 
+    if not page.url == f"{domain}/grants":
+        page.get_by_role("link", name="Click here for more details").click()
+        page.screenshot()
+        pytest.fail("SSO login did not redirect to /grants as expected")
+
     expect(page).to_have_url(f"{domain}/grants")
