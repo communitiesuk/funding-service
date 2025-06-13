@@ -1,5 +1,9 @@
 {% extends "deliver_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
+{% from "govuk_frontend_jinja/components/input/macro.html" import govukInput %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
 
 {% block pageTitle %}
   Add a condition - {{ question.name }} - MHCLG Funding Service
@@ -11,7 +15,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.edit_question", grant_id = grant.id, collection_id=question.form.section.collection.id, section_id=question.form.section.id, form_id=question.form.id, question_id=question.id)
+        "href": url_for("developers.edit_question", grant_id = grant.id, collection_id = question.form.section.collection.id, section_id = question.form.section.id, form_id = question.form.id, question_id=question.id)
     })
   }}
 {% endblock beforeContent %}
@@ -19,23 +23,22 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {# show the collection and form which you're able to choose from as fixed values - in the future those will be changable #}
-      {# the actual question you're choosing can then be selected #}
-      {# TODO: should the use the summary list with change links pattern or pretend they're form values - not sure #}
-      <h1 class="govuk-heading-l">Which answer should the condition check?</h1>
-      <dl class="govuk-body govuk-!-margin-bottom-6">
-        <dt class="govuk-body govuk-!-margin-bottom-1">Collection</dt>
-        <dd class="govuk-summary-list__value">{{ question.form.section.collection.name }} (This collection)</dd>
-      </dl>
+      <h1 class="govuk-heading-l">Add a condition</h1>
 
-      <dl class="govuk-body govuk-!-margin-bottom-6">
-        <dt class="govuk-body govuk-!-margin-bottom-1">Form</dt>
-        <dd class="govuk-summary-list__value">{{ question.form.title }} (This form)</dd>
-      </dl>
+      {# todo: this duplication probably wants to be a partial thats brought in #}
+      {% include "developers/_add_question_condition_context.html" %}
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.question }}
+        {{
+          form.question(params={
+            "label": {
+              "text": "What answer should the condition check?",
+              "classes": "govuk-label--m",
+              "isPageHeading": False
+            },
+          })
+        }}
         {{ form.submit }}
       </form>
     </div>
