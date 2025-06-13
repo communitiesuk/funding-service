@@ -39,7 +39,7 @@ from app.common.data.interfaces.temporary import (
     delete_submissions_created_by_user,
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.collections import GreaterThan, ManagedExpressions, SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
     FormForm,
@@ -49,6 +49,7 @@ from app.deliver_grant_funding.forms import (
 )
 from app.developers import developers_blueprint
 from app.developers.forms import (
+    AddNumberConditionForm,
     CheckYourAnswersForm,
     ConditionSelectQuestionForm,
     ConfirmDeletionForm,
@@ -581,17 +582,11 @@ def edit_question(
     )
 
 
-# select which question to depend on for the condition
-# "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition",
-# fill in the properties for that question and then submit to add - this avoids using the session
-# and means that you could deep link to it?
-# "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition/<uuid:depends_on_question_id>",
 @developers_blueprint.route(
     "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition",
     methods=["GET", "POST"],
 )
 @platform_admin_role_required
-@auto_commit_after_request
 def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     # todo: we should probably use the helper for this
     #       - do we need to think about the helper in the context of no submission
@@ -611,7 +606,6 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
     if form.validate_on_submit():
         return redirect(
             url_for(
-                # todo: move this to the page/ handler that lets you configure the condition based on the question
                 "developers.add_question_condition",
                 grant_id=grant_id,
                 question_id=question_id,
@@ -634,16 +628,41 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
 @platform_admin_role_required
 @auto_commit_after_request
 def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
-    # todo: we should probably use the helper for this - do we need to think about
-    #       the helper in the context of no submission
     question = get_question_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
+    form = AddNumberConditionForm()
+
+    if form.validate_on_submit():
+        match form.type.data:
+            # todo: not 100% sure this should be done at this level but don't have a better idea at the moment
+            case ManagedExpressions.GREATER_THAN:
+                assert form.value.data
+                expression = GreaterThan(question_id=depends_on_question.id, minimum_value=form.value.data)
+
+                # todo: as we think through these pages flow we need to decide if this will persist a new condition
+                #       or if you should have to click Save/ Edit question to lock it in (that would then work like
+                #       add question but would allow unsaved jk:641
+                # changes - its how govuk forms currently does it)
+                interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
+                return redirect(
+                    url_for(
+                        "developers.edit_question",
+                        grant_id=grant_id,
+                        collection_id=question.form.section.collection.id,
+                        section_id=question.form.section.id,
+                        form_id=question.form.id,
+                        question_id=question.id,
+                    )
+                )
+            case _:
+                form.type.errors.append("Unknown condition type selected")  # type:ignore[attr-defined]
     return render_template(
-        "developers/add_question_condition.html",
+        "developers/add_question_condition_select_condition_type.html",
         question=question,
         depends_on_question=depends_on_question,
         grant=question.form.section.collection.grant,
+        form=form,
     )
 
 
