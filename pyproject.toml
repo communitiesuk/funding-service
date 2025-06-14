@@ -28,7 +28,7 @@ dependencies = [
     "msal==1.32.3",
     "gunicorn[gevent]==23.0.0",
     "sqlalchemy-json==0.7.0",
-    "simpleeval>=1.0.3",
+    "simpleeval==1.0.3",
 ]
 
 [dependency-groups]
