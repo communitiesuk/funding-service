@@ -1,9 +1,8 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% extends "deliver_grant_funding/base.html" %}
-
 {% block pageTitle %}
-  Change grant name - MHCLG Funding Service
+  Change grant GGIS - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_settings" %}
@@ -25,18 +24,39 @@
         {{ form.csrf_token }}
 
         {{
-          form.name(params={
-            "label": {
-              "text": form.name.label,
-              "isPageHeading": True,
-              "classes": "govuk-label--l"
-            }
+          form.has_ggis(params={
+          "fieldset":{
+            "legend":{
+              "text": form.has_ggis.label,
+              "isPageHeading":True,
+          "classes": "govuk-fieldset__legend--l"
+            },
+            },
+            "items": [
+              {
+                "value": "yes",
+                "text": "Yes",
+                "conditional": {
+                  "html": form.ggis_number(
+                    params={
+                      "spellcheck": false,
+                      "autocomplete": "off"
+                    }
+                  )
+                }
+              },
+              {
+                "value": "no",
+                "text": "No",
+                "checked": true if form.has_ggis.data == "no" else false
+              }
+            ]
           })
         }}
 
         {{
           form.submit(params={
-              "text": "Update"
+            "text": "Update"
           })
         }}
       </form>

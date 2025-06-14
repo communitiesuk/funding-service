@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Sequence
 from uuid import UUID
 
@@ -62,8 +63,32 @@ def create_grant(
     return grant
 
 
-def update_grant(grant: Grant, name: str) -> Grant:
-    grant.name = name
+class _NotProvided(Enum):
+    token = 0
+
+
+NOT_PROVIDED = _NotProvided.token
+
+
+def update_grant(
+    grant: Grant,
+    *,
+    name: str | _NotProvided = NOT_PROVIDED,
+    description: str | _NotProvided = NOT_PROVIDED,
+    primary_contact_name: str | _NotProvided = NOT_PROVIDED,
+    primary_contact_email: str | _NotProvided = NOT_PROVIDED,
+    ggis_number: str | None | _NotProvided = NOT_PROVIDED,
+) -> Grant:
+    if name is not NOT_PROVIDED:
+        grant.name = name
+    if description is not NOT_PROVIDED:
+        grant.description = description
+    if primary_contact_name is not NOT_PROVIDED:
+        grant.primary_contact_name = primary_contact_name
+    if primary_contact_email is not NOT_PROVIDED:
+        grant.primary_contact_email = primary_contact_email
+    if ggis_number is not NOT_PROVIDED:
+        grant.ggis_number = ggis_number
     try:
         db.session.flush()
     except IntegrityError as e:

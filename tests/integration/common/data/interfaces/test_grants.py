@@ -72,13 +72,13 @@ def test_update_grant_name(factories) -> None:
     factories.grant.create(name="test_grant_2")
 
     g = get_grant(grant_1.id)
-    update_grant(g, name="test_grant_updated")
+    update_grant(grant=g, name="test_grant_updated")
 
     g = get_grant(grant_1.id)
     assert g.name == "test_grant_updated"
 
     with pytest.raises(DuplicateValueError) as e:
-        update_grant(g, name="test_grant_2")
+        update_grant(grant=g, name="test_grant_2")
         assert e.value.model_name == "grant"
         assert e.value.field_name == "name"
         assert e.value.new_value == "test_grant_2"

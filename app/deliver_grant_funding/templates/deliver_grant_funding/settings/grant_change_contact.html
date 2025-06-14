@@ -3,7 +3,7 @@
 {% extends "deliver_grant_funding/base.html" %}
 
 {% block pageTitle %}
-  Change grant name - MHCLG Funding Service
+  Change grant contact details - MHCLG Funding Service
 {% endblock pageTitle %}
 
 {% set active_sub_navigation_tab = "grant_settings" %}
@@ -20,23 +20,27 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Set up the grant</span>
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">Set up the grant</span>
+        {{ form.GRANT_MAIN_CONTACT_TITLE }}
+      </h1>
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
         {{
-          form.name(params={
-            "label": {
-              "text": form.name.label,
-              "isPageHeading": True,
-              "classes": "govuk-label--l"
-            }
+          form.primary_contact_name(params={
+          })
+        }}
+
+        {{
+          form.primary_contact_email(params={
+            "type": "email"
           })
         }}
 
         {{
           form.submit(params={
-              "text": "Update"
+            "text": "Update"
           })
         }}
       </form>

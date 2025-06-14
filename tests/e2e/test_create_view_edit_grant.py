@@ -1,7 +1,7 @@
 import uuid
 
 import pytest
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
 
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
@@ -19,15 +19,19 @@ def test_create_view_edit_grant_success(
     grant_intro_page = all_grants_page.click_set_up_a_grant()
     grant_ggis_page = grant_intro_page.click_continue()
     grant_ggis_page.select_yes()
-    grant_ggis_page.fill_ggis_number()
+    ggis_ref = f"GGIS-{uuid.uuid4()}"
+    grant_ggis_page.fill_ggis_number(ggis_ref)
     grant_name_page = grant_ggis_page.click_save_and_continue()
     new_grant_name = f"E2E {uuid.uuid4()}"
     grant_name_page.fill_name(new_grant_name)
     grant_description_page = grant_name_page.click_save_and_continue()
-    grant_description_page.fill_description()
+    new_grant_description = f"Description for {new_grant_name}"
+    grant_description_page.fill_description(new_grant_description)
     grant_contact_page = grant_description_page.click_save_and_continue()
-    grant_contact_page.fill_contact_name()
-    grant_contact_page.fill_contact_email()
+    contact_name = "Test contact name"
+    contact_email = "test@contact.com"
+    grant_contact_page.fill_contact_name(contact_name)
+    grant_contact_page.fill_contact_email(contact_email)
     grant_check_your_answers_page = grant_contact_page.click_save_and_continue()
     grant_confirmation_page = grant_check_your_answers_page.click_add_grant()
     grant_dashboard_page = grant_confirmation_page.click_continue()
@@ -41,6 +45,35 @@ def test_create_view_edit_grant_success(
     edited_grant_name = f"{new_grant_name} - edited"
     change_grant_name_page.fill_in_grant_name(edited_grant_name)
     grant_settings_page = change_grant_name_page.click_submit(edited_grant_name)
+    expect(grant_settings_page.page.get_by_text(f"Name {edited_grant_name}")).to_be_visible()
+
+    # Change GGIS reference
+    change_ggis_page = grant_settings_page.click_change_grant_ggis(existing_ggis_ref=ggis_ref)
+    change_ggis_page.click_has_grant_ggis_no()
+    change_ggis_page.click_has_grant_ggis_yes()
+    expect(change_ggis_page.ggis_textbox).to_have_value(ggis_ref)
+    new_ggis_ref = f"edit-{uuid.uuid4()}"
+    change_ggis_page.fill_ggis_number(new_ggis_ref)
+    grant_settings_page = change_ggis_page.click_submit(grant_name=edited_grant_name)
+    expect(grant_settings_page.page.get_by_text(f"GGIS {new_ggis_ref}")).to_be_visible()
+
+    # Change grant description
+    change_description_page = grant_settings_page.click_change_grant_description(new_grant_description)
+    new_description = f"New grant description {uuid.uuid4()}"
+    change_description_page.fill_in_grant_description(new_description)
+    grant_settings_page = change_description_page.click_submit(edited_grant_name)
+    expect(grant_settings_page.page.get_by_text(f"Main purpose {new_description}")).to_be_visible()
+
+    # Change main contact
+    change_contact_page = grant_settings_page.click_change_grant_contact_details(
+        existing_contact_name=contact_name, existing_contact_email=contact_email
+    )
+    new_contact_name = f"New contact {uuid.uuid4()}"
+    change_contact_page.fill_contact_name(new_contact_name)
+    new_contact_email = f"contact-{uuid.uuid4()}@example.com"
+    change_contact_page.fill_contact_email(new_contact_email)
+    grant_settings_page = change_contact_page.click_submit(edited_grant_name)
+    expect(grant_settings_page.page.get_by_text(f"Main contact {new_contact_name}{new_contact_email}")).to_be_visible()
 
     # Go back to Grants list and check new name appears/old name doesn't appear
     all_grants_page = grant_settings_page.click_grants()
