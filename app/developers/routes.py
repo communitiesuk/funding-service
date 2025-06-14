@@ -39,6 +39,7 @@ from app.common.data.interfaces.temporary import (
     delete_submissions_created_by_user,
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.expressions.managed import GreaterThan, ManagedExpressions
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -48,7 +49,14 @@ from app.deliver_grant_funding.forms import (
     SectionForm,
 )
 from app.developers import developers_blueprint
-from app.developers.forms import CheckYourAnswersForm, ConfirmDeletionForm, PreviewCollectionForm, SubmitSubmissionForm
+from app.developers.forms import (
+    AddNumberConditionForm,
+    CheckYourAnswersForm,
+    ConditionSelectQuestionForm,
+    ConfirmDeletionForm,
+    PreviewCollectionForm,
+    SubmitSubmissionForm,
+)
 from app.extensions import auto_commit_after_request, notification_service
 
 if TYPE_CHECKING:
@@ -572,6 +580,87 @@ def edit_question(
         question=question,
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
+
+
+@developers_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition",
+    methods=["GET", "POST"],
+)
+@platform_admin_role_required
+def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    # todo: do we need to think about the helper in the context of no submission
+    question = get_question_by_id(question_id)
+    form = ConditionSelectQuestionForm()
+
+    # todo: this is lazy loading a lot of questions, do better than that
+    # todo: filter out questions that can't be used as a condition or are this question
+    #       - that should probably be a helper
+    # todo: the template should nicely handle if there are no questions which are valid targets
+    #       for a condition in this form
+    form.question.choices = [
+        (question.id, f"{question.text} ({question.name})") for question in question.form.questions
+    ]
+
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "developers.add_question_condition",
+                grant_id=grant_id,
+                question_id=question_id,
+                depends_on_question_id=form.question.data,
+            )
+        )
+
+    return render_template(
+        "developers/add_question_condition_select_question.html",
+        question=question,
+        grant=question.form.section.collection.grant,
+        form=form,
+    )
+
+
+@developers_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition/<uuid:depends_on_question_id>",
+    methods=["GET", "POST"],
+)
+@platform_admin_role_required
+@auto_commit_after_request
+def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+    depends_on_question = get_question_by_id(depends_on_question_id)
+
+    form = AddNumberConditionForm()
+
+    if form.validate_on_submit():
+        match form.type.data:
+            # todo: this probably shouldn't be done in the HTTP handler but no better ideas right now
+            case ManagedExpressions.GREATER_THAN:
+                assert form.value.data
+                expression = GreaterThan(question_id=depends_on_question.id, minimum_value=form.value.data)
+
+                # todo: as we think through these pages flow we need to decide if this will persist a new condition
+                #       or if you should have to click Save/ Edit question to lock it in (that would then work like
+                #       add question but would allow unsaved changes - its how govuk forms currently does it)
+                interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
+                return redirect(
+                    url_for(
+                        "developers.edit_question",
+                        grant_id=grant_id,
+                        collection_id=question.form.section.collection.id,
+                        section_id=question.form.section.id,
+                        form_id=question.form.id,
+                        question_id=question.id,
+                    )
+                )
+            case _:
+                form.type.errors.append("Unknown condition type selected")  # type:ignore[attr-defined]
+    return render_template(
+        "developers/add_question_condition_select_condition_type.html",
+        question=question,
+        depends_on_question=depends_on_question,
+        grant=question.form.section.collection.grant,
+        form=form,
     )
 
 
