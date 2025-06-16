@@ -47,6 +47,11 @@ class GrantSetupIntroForm(FlaskForm):
 
 
 class GrantGGISForm(FlaskForm):
+    MAIN_HEADING = "Government Grants Information System (GGIS)"
+    MAIN_DESCRIPTION = (
+        "You'll need to provide your GGIS number before you can create forms or assess grant applications."
+    )
+
     has_ggis = RadioField(
         "Do you have a GGIS number?",
         # These choices have no effect on the frontend, but are used for validation. Frontend choices are found in the
@@ -91,6 +96,11 @@ class GrantNameForm(FlaskForm):
 
 class GrantDescriptionForm(FlaskForm):
     DESCRIPTION_MAX_WORDS = 200
+    MAIN_HEADING = "Purpose of this grant"
+    MAIN_DESCRIPTION = (
+        "Provide a brief description of the main purpose of the grant. "
+        "This information will be seen by potential grant recipients."
+    )
 
     description = TextAreaField(
         "What is the main purpose of this grant?",
@@ -106,7 +116,9 @@ class GrantDescriptionForm(FlaskForm):
 
 
 class GrantContactForm(FlaskForm):
-    GRANT_MAIN_CONTACT_TITLE: str = "Who is the main contact for this grant?"
+    MAIN_HEADING = "Who is the main contact for this grant?"
+    MAIN_DESCRIPTION = "This is the person that teams at MHCLG can contact if they have any questions about the grant."
+
     primary_contact_name = StringField(
         "Full name",
         validators=[DataRequired("Enter the full name")],

@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% block pageTitle %}
-  Who is the main contact for this grant?
+  {{ form.MAIN_HEADING }}
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grants" %}
@@ -25,21 +25,26 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Set up the grant</span>
-      <h1 class="govuk-heading-l">{{ form.GRANT_MAIN_CONTACT_TITLE }}</h1>
-
-      <p class="govuk-body">This is the person that teams at MHCLG can contact if they have any questions about the grant.</p>
+      <h1 class="govuk-heading-l">{{ form.MAIN_HEADING }}</h1>
+      <p class="govuk-body">{{ form.MAIN_DESCRIPTION }}</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
         {{
           form.primary_contact_name(params={
+              "label": {
+                "classes": "govuk-label--s",
+              },
           })
         }}
 
         {{
           form.primary_contact_email(params={
-            "type": "email"
+            "type": "email",
+            "label": {
+              "classes": "govuk-label--s",
+            },
           })
         }}
 

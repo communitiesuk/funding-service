@@ -175,9 +175,7 @@ class GrantSetupIntroPage(TopNavMixin, BasePage):
 class GrantSetupGGISPage(TopNavMixin, BasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.title = self.page.get_by_role(
-            "heading", name="Do you have a Government Grants Information System (GGIS) reference number?"
-        )
+        self.title = self.page.get_by_role("heading", name="Government Grants Information System (GGIS)")
         self.yes_radio = self.page.get_by_role("radio", name="Yes")
         self.ggis_number_input = self.page.get_by_role("textbox", name="Enter your GGIS reference number")
         self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
@@ -215,7 +213,7 @@ class GrantSetupNamePage(TopNavMixin, BasePage):
 class GrantSetupDescriptionPage(TopNavMixin, BasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.title = self.page.get_by_role("heading", name="What is the main purpose of this grant?")
+        self.title = self.page.get_by_role("heading", name="Purpose of this grant")
         self.description_textarea = self.page.get_by_role("textbox", name="What is the main purpose of this grant?")
         self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
 
@@ -391,9 +389,7 @@ class ChangeGrantGGISPage(GrantDashboardBasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.backlink = self.page.get_by_role("link", name="Back")
-        self.title = self.page.get_by_role(
-            "heading", name="Do you have a Government Grants Information System (GGIS) reference number?"
-        )
+        self.title = self.page.get_by_role("heading", name="Government Grants Information System (GGIS)")
         self.ggis_textbox = self.page.get_by_role("textbox", name="Enter your GGIS reference number")
 
     def click_has_grant_ggis_yes(self) -> None:
@@ -422,7 +418,7 @@ class ChangeGrantDescriptionPage(GrantDashboardBasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.backlink = self.page.get_by_role("link", name="Back")
-        self.title = self.page.get_by_role("heading", name="What is the main purpose of this grant?")
+        self.title = self.page.get_by_role("heading", name="Purpose of this grant")
         self.grant_description_textbox = page.get_by_role("textbox", name="What is the main purpose of this grant?")
 
     def fill_in_grant_description(self, description: str) -> None:

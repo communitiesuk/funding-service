@@ -819,7 +819,7 @@ def test_grant_setup_ggis_get_with_session(authenticated_platform_admin_client):
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_ggis"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "Do you have a GGIS number?"
+    assert soup.h1.text.strip() == "Government Grants Information System (GGIS)"
 
 
 def test_grant_setup_ggis_get_without_session_redirects(authenticated_platform_admin_client):
@@ -870,7 +870,7 @@ def test_grant_setup_description_get_with_session(authenticated_platform_admin_c
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_description"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the main purpose of this grant?"
+    assert soup.h1.text.strip() == "Purpose of this grant"
 
 
 def test_grant_setup_description_post_too_long(authenticated_platform_admin_client):

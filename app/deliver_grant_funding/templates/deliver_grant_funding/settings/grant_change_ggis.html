@@ -1,6 +1,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% extends "deliver_grant_funding/base.html" %}
+
 {% block pageTitle %}
   Change grant GGIS - MHCLG Funding Service
 {% endblock pageTitle %}
@@ -20,8 +21,8 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Set up the grant</span>
-      <h1 class="govuk-heading-l">Government Grants Information System (GGIS)</h1>
-      <p class="govuk-body">You'll need to provide your GGIS number before you can create forms or assess grant applications.</p>
+      <h1 class="govuk-heading-l">{{ form.MAIN_HEADING }}</h1>
+      <p class="govuk-body">{{ form.MAIN_DESCRIPTION }}</p>
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
@@ -29,8 +30,8 @@
           form.has_ggis(params={
           "fieldset":{
             "legend":{
-              "text": form.has_ggis.label,
-          "classes": "govuk-fieldset__legend--s"
+              "text": form.has_ggis.label.text,
+              "classes": "govuk-fieldset__legend--s"
             },
             },
             "items": [
@@ -40,6 +41,7 @@
                 "conditional": {
                   "html": form.ggis_number(
                     params={
+                      "classes": "govuk-!-width-two-thirds",
                       "spellcheck": false,
                       "autocomplete": "off"
                     }

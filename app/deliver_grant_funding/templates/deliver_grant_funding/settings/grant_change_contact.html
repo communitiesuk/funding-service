@@ -21,24 +21,26 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Set up the grant</span>
-      <h1 class="govuk-heading-l">{{ form.GRANT_MAIN_CONTACT_TITLE }}</h1>
+      <h1 class="govuk-heading-l">{{ form.MAIN_HEADING }}</h1>
+      <p class="govuk-body">{{ form.MAIN_DESCRIPTION }}</p>
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
         {{
           form.primary_contact_name(params={
-              "label": {
-                "classes": "govuk-label--s",
-              },
+            "label": {
+              "classes": "govuk-label--s",
+            },
           })
         }}
 
         {{
           form.primary_contact_email(params={
             "type": "email",
-              "label": {
-                "classes": "govuk-label--s",
-              },
+            "label": {
+              "classes": "govuk-label--s",
+            },
           })
         }}
 

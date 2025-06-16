@@ -25,8 +25,8 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Set up the grant</span>
-      <h1 class="govuk-heading-l">Government Grants Information System (GGIS)</h1>
-      <p class="govuk-body">You'll need to provide your GGIS number before you can create forms or assess grant applications.</p>
+      <h1 class="govuk-heading-l">{{ form.MAIN_HEADING }}</h1>
+      <p class="govuk-body">{{ form.MAIN_DESCRIPTION }}</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
@@ -36,7 +36,6 @@
             "fieldset": {
               "legend": {
                 "text": form.has_ggis.label.text,
-                "isPageHeading": true,
                 "classes": "govuk-fieldset__legend--s",
               },
             },

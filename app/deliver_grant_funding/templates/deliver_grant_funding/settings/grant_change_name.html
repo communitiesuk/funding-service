@@ -21,14 +21,14 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Set up the grant</span>
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
         {{
           form.name(params={
             "label": {
-              "text": form.name.label,
-              "isPageHeading": True,
+              "isPageHeading": true,
               "classes": "govuk-label--l"
             }
           })
