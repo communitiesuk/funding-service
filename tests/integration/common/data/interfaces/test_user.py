@@ -29,6 +29,18 @@ class TestGetUser:
             assert RoleEnum.ADMIN in [role.role for role in admin.roles]
 
 
+class GetUserByEmail:
+    def test_get_existing_user(self, db_session, factories):
+        factories.user.create(email="test@communities.gov.uk", name="My Name")
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+
+        user = interfaces.user.get_user_by_email(email_address="test@communities.gov.uk")
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+        assert user.email == "test@communities.gov.uk"
+        assert user.name == "My Name"
+
+
 class TestGetOrCreateUser:
     def test_create_new_user(self, db_session):
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
@@ -38,15 +50,15 @@ class TestGetOrCreateUser:
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
 
-    def test_get_existing_user(self, db_session, factories):
+    def test_get_existing_user_with_update(self, db_session, factories):
         factories.user.create(email="test@communities.gov.uk", name="My Name")
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
-        user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk")
+        user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk", name="My Name updated")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
-        assert user.name == "My Name"
+        assert user.name == "My Name updated"
 
     def test_get_existing_user_can_set_name(self, db_session, factories):
         factories.user.create(email="test@communities.gov.uk", name="My Name")

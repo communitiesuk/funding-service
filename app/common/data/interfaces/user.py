@@ -29,6 +29,10 @@ def get_platform_admin_users() -> Sequence[User]:
     ).all()
 
 
+def get_user_by_email(email_address: str) -> Optional[User]:
+    return db.session.execute(select(User).where(User.email == email_address)).scalar_one_or_none()
+
+
 def get_or_create_user(email_address: str, name: Optional[str] = None) -> User:
     # This feels like it should be a `on_conflict_do_nothing`, except in that case the DB won't return any rows
     # So we use `on_conflict_do_update` with a noop change, so that this upsert will always return the User regardless
