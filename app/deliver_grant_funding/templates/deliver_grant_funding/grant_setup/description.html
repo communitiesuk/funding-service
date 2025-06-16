@@ -21,38 +21,22 @@
   }}
 {% endblock beforeContent %}
 
-
-{% set before_input_text %}
-  <p class="govuk-body">Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.</p>
-  <p class="govuk-hint">Do not include personal information.</p>
-{% endset %}
-
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-xl">
-        <span class="govuk-visually-hidden">This section is:</span>
-        Set up the grant
-      </span>
+      <span class="govuk-caption-l">Set up the grant</span>
+      <h1 class="govuk-heading-l">Purpose of this grant</h1>
+      <p class="govuk-body">Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
-        <!-- Erroneous-looking fromGroup attribute currently required due to typo in library -->
-        <!-- See here: https://github.com/LandRegistry/govuk-frontend-jinja/blob/45849744d2bf058937402f291e4a2c7a44eb7e23/govuk_frontend_jinja/templates/components/character-count/macro.html#L107 -->
-        <!-- Fix PR here: https://github.com/LandRegistry/govuk-frontend-jinja/pull/96 -->
         {{
           form.description(params={
             "label": {
-              "isPageHeading": true,
-              "classes": "govuk-fieldset__legend--xl"
+                "classes": "govuk-label--s"
             },
-            "fromGroup": true,
-            "formGroup": {
-              "beforeInput": {
-                "html": before_input_text
-              }
-            },
+
             "maxwords": form.DESCRIPTION_MAX_WORDS
           })
         }}

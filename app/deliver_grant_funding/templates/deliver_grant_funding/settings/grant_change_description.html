@@ -20,26 +20,18 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">Set up the grant</span>
-        Purpose of this grant
-      </h1>
+      <span class="govuk-caption-l">Set up the grant</span>
+      <h1 class="govuk-heading-l">Purpose of this grant</h1>
       <p class="govuk-body">Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.</p>
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
         {{
-          form.description(
-            params={
-              "label": {
-                "text": form.description.label,
-                "isPageHeading": False,
-                "classes": "govuk-label--s",
-              },
-              "maxwords": 200,
-              "rows": 5,
-            }
-          )
+          form.description(params={
+          "label": {
+              "classes": "govuk-label--s"
+          }
+          })
         }}
 
         {{
