@@ -145,7 +145,7 @@ def test_grant_change_description_get(authenticated_client, factories, templates
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "What is the main purpose of this grant?" in soup.h1.text.strip()
+    assert "Grant purpose" in soup.h1.text.strip()
 
 
 def test_grant_change_contact_get(authenticated_client, factories, templates_rendered):
