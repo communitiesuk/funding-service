@@ -205,7 +205,7 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
     form = GrantAddUserForm(admin_users=admin_users, grant=grant)
     if form.validate_on_submit():
         if form.user_email.data:
-            user = next((user for user in grant.users if user.email == form.user_email.data), None)
+            user = next((user for user in grant.users if user.email.lower() == form.user_email.data.lower()), None)
             if user is None:
                 created_user = interfaces.user.get_or_create_user(email_address=form.user_email.data)
                 interfaces.user.add_user_role(user_id=created_user.id, grant_id=grant_id, role=RoleEnum.MEMBER)
