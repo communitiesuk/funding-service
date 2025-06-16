@@ -225,17 +225,17 @@ def view_grant(grant_id: UUID) -> str:
     return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/settings", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details", methods=["GET"])
 @mhclg_login_required
 def grant_details(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_details.html", grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/change-ggis", methods=["GET", "POST"])
-@mhclg_login_required
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-ggis", methods=["GET", "POST"])
+@platform_admin_role_required
 @auto_commit_after_request
-def grant_change_ggis(grant_id: UUID) -> str | Response:
+def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     form = GrantGGISForm(
         has_ggis=("yes" if grant.ggis_number else "no"),
@@ -247,13 +247,13 @@ def grant_change_ggis(grant_id: UUID) -> str | Response:
         interfaces.grants.update_grant(grant=grant, ggis_number=ggis_number)
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
 
-    return render_template("deliver_grant_funding/settings/grant_change_ggis.html", form=form, grant=grant)
+    return render_template("deliver_grant_funding/details/grant_change_ggis.html", form=form, grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/change-name", methods=["GET", "POST"])
-@mhclg_login_required
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-name", methods=["GET", "POST"])
+@platform_admin_role_required
 @auto_commit_after_request
-def grant_change_name(grant_id: UUID) -> str | Response:
+def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     form = GrantNameForm(obj=grant)
 
@@ -265,13 +265,13 @@ def grant_change_name(grant_id: UUID) -> str | Response:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-    return render_template("deliver_grant_funding/settings/grant_change_name.html", form=form, grant=grant)
+    return render_template("deliver_grant_funding/details/grant_change_name.html", form=form, grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/change-description", methods=["GET", "POST"])
-@mhclg_login_required
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-description", methods=["GET", "POST"])
+@platform_admin_role_required
 @auto_commit_after_request
-def grant_change_description(grant_id: UUID) -> str | Response:
+def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     form = GrantDescriptionForm(obj=grant)
 
@@ -280,13 +280,13 @@ def grant_change_description(grant_id: UUID) -> str | Response:
         interfaces.grants.update_grant(grant=grant, description=form.description.data)
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
 
-    return render_template("deliver_grant_funding/settings/grant_change_description.html", form=form, grant=grant)
+    return render_template("deliver_grant_funding/details/grant_change_description.html", form=form, grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/change-contact", methods=["GET", "POST"])
-@mhclg_login_required
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-contact", methods=["GET", "POST"])
+@platform_admin_role_required
 @auto_commit_after_request
-def grant_change_contact(grant_id: UUID) -> str | Response:
+def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     form = GrantContactForm(obj=grant)
 
@@ -300,4 +300,4 @@ def grant_change_contact(grant_id: UUID) -> str | Response:
         )
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
 
-    return render_template("deliver_grant_funding/settings/grant_change_contact.html", form=form, grant=grant)
+    return render_template("deliver_grant_funding/details/grant_change_contact.html", form=form, grant=grant)

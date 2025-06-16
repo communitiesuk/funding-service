@@ -49,7 +49,7 @@ class GrantSetupIntroForm(FlaskForm):
 class GrantGGISForm(FlaskForm):
     MAIN_HEADING = "Government Grants Information System (GGIS)"
     MAIN_DESCRIPTION = (
-        "You'll need to provide your GGIS number before you can create forms or assess grant applications."
+        "You’ll need to provide your GGIS number before you can create forms or assess grant applications."
     )
 
     has_ggis = RadioField(

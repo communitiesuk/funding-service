@@ -67,18 +67,37 @@ def test_create_duplicate_grant(factories) -> None:
     assert e.value.field_name == "name"
 
 
-def test_update_grant_name(factories) -> None:
+def test_update_grant_success(factories) -> None:
+    grant = factories.grant.create(name="test_grant")
+    update_grant(
+        grant=grant,
+        name="test_grant_updated",
+        description="Updated grant description",
+        primary_contact_name="Updated primary contact name",
+        primary_contact_email="Updated primary contact email",
+        ggis_number="GGIS-UPDATED",
+    )
+
+    assert grant.name == "test_grant_updated"
+    assert grant.description == "Updated grant description"
+    assert grant.primary_contact_name == "Updated primary contact name"
+    assert grant.primary_contact_email == "Updated primary contact email"
+    assert grant.ggis_number == "GGIS-UPDATED"
+
+
+def test_update_grant_duplicate_name(factories):
     grant_1 = factories.grant.create(name="test_grant")
     factories.grant.create(name="test_grant_2")
+    with pytest.raises(DuplicateValueError):
+        update_grant(grant=grant_1, name="test_grant_2")
 
-    g = get_grant(grant_1.id)
-    update_grant(grant=g, name="test_grant_updated")
 
-    g = get_grant(grant_1.id)
-    assert g.name == "test_grant_updated"
+def test_updated_grant_nothing_provided(factories) -> None:
+    grant = factories.grant.create(name="test_grant")
+    updated_grant = update_grant(grant=grant)
 
-    with pytest.raises(DuplicateValueError) as e:
-        update_grant(grant=g, name="test_grant_2")
-        assert e.value.model_name == "grant"
-        assert e.value.field_name == "name"
-        assert e.value.new_value == "test_grant_2"
+    assert updated_grant.name == "test_grant"
+    assert updated_grant.description is not None
+    assert updated_grant.primary_contact_name is not None
+    assert updated_grant.primary_contact_email is not None
+    assert updated_grant.ggis_number is not None

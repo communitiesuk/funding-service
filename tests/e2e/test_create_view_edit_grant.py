@@ -38,44 +38,44 @@ def test_create_view_edit_grant_success(
 
     # On grant dashboard
     grant_dashboard_page.check_grant_name(new_grant_name)
-    grant_settings_page = grant_dashboard_page.click_settings(new_grant_name)
+    grant_details_page = grant_dashboard_page.click_settings(new_grant_name)
 
     # Change grant name
-    change_grant_name_page = grant_settings_page.click_change_grant_name(new_grant_name)
+    change_grant_name_page = grant_details_page.click_change_grant_name(new_grant_name)
     edited_grant_name = f"{new_grant_name} - edited"
     change_grant_name_page.fill_in_grant_name(edited_grant_name)
-    grant_settings_page = change_grant_name_page.click_submit(edited_grant_name)
-    expect(grant_settings_page.page.get_by_text(f"Name {edited_grant_name}")).to_be_visible()
+    grant_details_page = change_grant_name_page.click_submit(edited_grant_name)
+    expect(grant_details_page.page.get_by_text(f"Name {edited_grant_name}")).to_be_visible()
 
     # Change GGIS reference
-    change_ggis_page = grant_settings_page.click_change_grant_ggis(existing_ggis_ref=ggis_ref)
+    change_ggis_page = grant_details_page.click_change_grant_ggis(existing_ggis_ref=ggis_ref)
     change_ggis_page.click_has_grant_ggis_no()
     change_ggis_page.click_has_grant_ggis_yes()
     expect(change_ggis_page.ggis_textbox).to_have_value(ggis_ref)
     new_ggis_ref = f"edit-{uuid.uuid4()}"
     change_ggis_page.fill_ggis_number(new_ggis_ref)
-    grant_settings_page = change_ggis_page.click_submit(grant_name=edited_grant_name)
-    expect(grant_settings_page.page.get_by_text(f"GGIS {new_ggis_ref}")).to_be_visible()
+    grant_details_page = change_ggis_page.click_submit(grant_name=edited_grant_name)
+    expect(grant_details_page.page.get_by_text(f"GGIS {new_ggis_ref}")).to_be_visible()
 
     # Change grant description
-    change_description_page = grant_settings_page.click_change_grant_description(new_grant_description)
+    change_description_page = grant_details_page.click_change_grant_description(new_grant_description)
     new_description = f"New grant description {uuid.uuid4()}"
     change_description_page.fill_in_grant_description(new_description)
-    grant_settings_page = change_description_page.click_submit(edited_grant_name)
-    expect(grant_settings_page.page.get_by_text(f"Main purpose {new_description}")).to_be_visible()
+    grant_details_page = change_description_page.click_submit(edited_grant_name)
+    expect(grant_details_page.page.get_by_text(f"Main purpose {new_description}")).to_be_visible()
 
     # Change main contact
-    change_contact_page = grant_settings_page.click_change_grant_contact_details(
+    change_contact_page = grant_details_page.click_change_grant_contact_details(
         existing_contact_name=contact_name, existing_contact_email=contact_email
     )
     new_contact_name = f"New contact {uuid.uuid4()}"
     change_contact_page.fill_contact_name(new_contact_name)
     new_contact_email = f"contact-{uuid.uuid4()}@example.com"
     change_contact_page.fill_contact_email(new_contact_email)
-    grant_settings_page = change_contact_page.click_submit(edited_grant_name)
-    expect(grant_settings_page.page.get_by_text(f"Main contact {new_contact_name}{new_contact_email}")).to_be_visible()
+    grant_details_page = change_contact_page.click_submit(edited_grant_name)
+    expect(grant_details_page.page.get_by_text(f"Main contact {new_contact_name}{new_contact_email}")).to_be_visible()
 
     # Go back to Grants list and check new name appears/old name doesn't appear
-    all_grants_page = grant_settings_page.click_grants()
+    all_grants_page = grant_details_page.click_grants()
     all_grants_page.check_grant_exists(edited_grant_name)
     all_grants_page.check_grant_doesnt_exist(new_grant_name)
