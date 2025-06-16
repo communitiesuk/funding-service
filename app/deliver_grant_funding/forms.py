@@ -48,8 +48,7 @@ class GrantSetupIntroForm(FlaskForm):
 
 class GrantGGISForm(FlaskForm):
     has_ggis = RadioField(
-        "Do you have a Government Grants Information System (GGIS) reference number?",
-        description="You'll need to provide your GGIS number before you can create forms or assess grant applications.",
+        "Do you have a GGIS number?",
         # These choices have no effect on the frontend, but are used for validation. Frontend choices are found in the
         # template, currently at app/deliver_grant_funding/templates/deliver_grant_funding/grant_setup/ggis_number.html.
         # Developers will need to keep these in sync manually.
@@ -59,7 +58,7 @@ class GrantGGISForm(FlaskForm):
     )
     ggis_number = StringField(
         "Enter your GGIS reference number",
-        description="For example, G2-SCH-2025-05-12346.",
+        description="For example, G2-SCH-2025-05-12346",
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
@@ -79,7 +78,7 @@ class GrantGGISForm(FlaskForm):
 class GrantNameForm(FlaskForm):
     name = StringField(
         "What is the name of this grant?",
-        description="This should be the full and official name of the grant. Do not include abbreviations or acronyms.",
+        description="Use the full and official name of the grant - no abbreviations or acronyms",
         validators=[
             DataRequired("Enter the grant name"),
             UniqueGrantName(),
@@ -101,6 +100,7 @@ class GrantDescriptionForm(FlaskForm):
         ],
         filters=[strip_string_if_not_empty],
         widget=GovCharacterCount(),
+        description="Do not include personal information",
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
@@ -115,7 +115,7 @@ class GrantContactForm(FlaskForm):
     )
     primary_contact_email = StringField(
         "Email address",
-        description="Use the shared email address for the grant team.",
+        description="Use the shared email address for the grant team",
         validators=[
             DataRequired("Enter the email address"),
             Email(message="Enter an email address in the correct format, like name@example.com"),

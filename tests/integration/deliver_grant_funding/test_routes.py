@@ -117,7 +117,7 @@ def test_grant_change_ggis_get(authenticated_client, factories, templates_render
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "Do you have a Government Grants Information System (GGIS) reference number?" in soup.h1.text.strip()
+    assert "Government Grants Information System (GGIS)" in soup.h1.text.strip()
 
 
 def test_grant_change_name_get(authenticated_client, factories, templates_rendered):
@@ -145,7 +145,7 @@ def test_grant_change_description_get(authenticated_client, factories, templates
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "Grant purpose" in soup.h1.text.strip()
+    assert "Purpose of this grant" in soup.h1.text.strip()
 
 
 def test_grant_change_contact_get(authenticated_client, factories, templates_rendered):
@@ -819,7 +819,7 @@ def test_grant_setup_ggis_get_with_session(authenticated_platform_admin_client):
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_ggis"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "Do you have a Government Grants Information System (GGIS) reference number?"
+    assert soup.h1.text.strip() == "Do you have a GGIS number?"
 
 
 def test_grant_setup_ggis_get_without_session_redirects(authenticated_platform_admin_client):
