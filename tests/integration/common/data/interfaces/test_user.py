@@ -41,11 +41,11 @@ class GetUserByEmail:
         assert user.name == "My Name"
 
 
-class TestGetOrCreateUser:
+class TestUpsertUserByEmail:
     def test_create_new_user(self, db_session):
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
 
-        user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk")
+        user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
@@ -54,7 +54,7 @@ class TestGetOrCreateUser:
         factories.user.create(email="test@communities.gov.uk", name="My Name")
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
-        user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk", name="My Name updated")
+        user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk", name="My Name updated")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
@@ -64,7 +64,7 @@ class TestGetOrCreateUser:
         factories.user.create(email="test@communities.gov.uk", name="My Name")
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
-        user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk", name="My NewName")
+        user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk", name="My NewName")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"

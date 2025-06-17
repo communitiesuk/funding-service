@@ -9,7 +9,7 @@ from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
-from app.common.data.interfaces.user import add_user_role, get_or_create_user, get_user_by_email
+from app.common.data.interfaces.user import add_user_role, get_user_by_email, upsert_user_by_email
 from app.common.data.types import RoleEnum
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
@@ -29,7 +29,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
 
-        user = get_or_create_user(email_address=email)
+        user = upsert_user_by_email(email_address=email)
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
             redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
@@ -102,13 +102,13 @@ def sso_get_token() -> ResponseReturnValue:
     redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
 
     if "FSD_ADMIN" in sso_user.get("roles", []):
-        user = get_or_create_user(
+        user = upsert_user_by_email(
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
         add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
     elif user and user.roles:
-        user = get_or_create_user(
+        user = upsert_user_by_email(
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
