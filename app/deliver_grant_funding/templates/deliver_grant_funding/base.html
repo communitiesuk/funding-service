@@ -1,62 +1,46 @@
 {% extends "common/base.html" %}
-{% from "common/partials/navigation.html" import deliverGrantFundingServiceNavigation %}
 
 {% set cspNonce = csp_nonce() %}
 
-{% block header %}
-  {{
-    mhclgHeader({
-        "productName": "MHCLG Funding Service",
-        "homepageUrl": url_for("deliver_grant_funding.list_grants"),
-        "classes": "govuk-header--full-width-border app-!-no-wrap",
-        "navigation": [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if current_user.is_authenticated else [],
-        "navigationClasses": "govuk-header__navigation--end",
-        "assetPath": assetPath
-    })
-  }}
+{%
+  set nav_items = [
+      {
+          "text": "Home",
+          "key": "grant_dashboard",
+          "href": url_for("deliver_grant_funding.view_grant", grant_id=grant.id),
+          "current": active_item_identifier == "grants"
+      },
+      {
+          "text": "Grant details",
+          "key": "grant_details",
+          "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
+          "current": active_item_identifier == "details"
+      },
+      {
+          "text": "Grant team",
+          "key": "grant_users",
+          "href": url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id),
+          "current": active_item_identifier == "grant_team"
+      },
+  ]
+%}
 
+{% set right_nav_items = [] %}
+
+{% if current_user.is_platform_admin %}
   {%
-    set nav_items = [
-        {
-            "text": "Home",
-            "key": "grant_dashboard",
-            "href": url_for("deliver_grant_funding.view_grant", grant_id=grant.id),
-            "current": active_item_identifier == "grants"
-        },
-        {
-            "text": "Grant details",
-            "key": "grant_details",
-            "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
-            "current": active_item_identifier == "details"
-        },
-        {
-            "text": "Grant team",
-            "key": "grant_users",
-            "href": url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id),
-            "current": active_item_identifier == "grant_team"
-        },
-    ]
+    do right_nav_items.append({
+        "text": "See all grants",
+        "href": url_for("deliver_grant_funding.list_grants"),
+        "current": false
+    })
   %}
-
-  {% set right_nav_items = [] %}
-
-  {% if current_user.is_platform_admin %}
-    {%
-      do right_nav_items.append({
-          "text": "See all grants",
-          "href": url_for("deliver_grant_funding.list_grants"),
-          "current": false
-      })
-    %}
-    {%
-      do nav_items.append({
-          "text": "Developers",
-          "key": "grant_developers",
-          "href": url_for("developers.grant_developers", grant_id=grant.id),
-          "current": active_item_identifier == "developers"
-      })
-    %}
-  {% endif %}
-
-  {{ deliverGrantFundingServiceNavigation(nav_items, right_nav_items) }}
-{% endblock header %}
+  {%
+    do nav_items.append({
+        "text": "Developers",
+        "key": "grant_developers",
+        "href": url_for("developers.grant_developers", grant_id=grant.id),
+        "current": active_item_identifier == "developers"
+    })
+  %}
+{% endif %}

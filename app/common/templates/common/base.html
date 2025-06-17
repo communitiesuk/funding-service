@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="{{ vite_asset('app/assets/main.scss') }}" type="text/css" />
 {% endblock head %}
 
-{% block header %}
+{% block header scoped %}
   {{
     mhclgHeader({
         "productName": "MHCLG Funding Service",
@@ -27,7 +27,7 @@
     })
   }}
 
-  {{ deliverGrantFundingServiceNavigation([]) }}
+  {{ deliverGrantFundingServiceNavigation(nav_items, right_nav_items) }}
 {% endblock header %}
 
 {% block main %}
