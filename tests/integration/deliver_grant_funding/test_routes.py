@@ -115,7 +115,7 @@ def test_grant_change_ggis_get(authenticated_platform_admin_client, factories, t
     template = next(
         template
         for template in templates_rendered
-        if template[0].name == "deliver_grant_funding/details/grant_change_ggis.html"
+        if template[0].name == "deliver_grant_funding/grant_setup/change/grant_change_ggis.html"
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
@@ -131,7 +131,7 @@ def test_grant_change_name_get(authenticated_platform_admin_client, factories, t
     template = next(
         template
         for template in templates_rendered
-        if template[0].name == "deliver_grant_funding/details/grant_change_name.html"
+        if template[0].name == "deliver_grant_funding/grant_setup/change/grant_change_name.html"
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
@@ -147,7 +147,7 @@ def test_grant_change_description_get(authenticated_platform_admin_client, facto
     template = next(
         template
         for template in templates_rendered
-        if template[0].name == "deliver_grant_funding/details/grant_change_description.html"
+        if template[0].name == "deliver_grant_funding/grant_setup/change/grant_change_description.html"
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
@@ -163,7 +163,7 @@ def test_grant_change_contact_get(authenticated_platform_admin_client, factories
     template = next(
         template
         for template in templates_rendered
-        if template[0].name == "deliver_grant_funding/details/grant_change_contact.html"
+        if template[0].name == "deliver_grant_funding/grant_setup/change/grant_change_contact.html"
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")

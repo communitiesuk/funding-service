@@ -1,23 +1,4 @@
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% extends "deliver_grant_funding/base.html" %}
-
-{% block pageTitle %}
-  Change grant description - MHCLG Funding Service
-{% endblock pageTitle %}
-
-{% set active_sub_navigation_tab = "grant_details" %}
-
-{% block beforeContent %}
-  {{
-    govukBackLink({
-      "text": "Back",
-      "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
-    })
-  }}
-{% endblock %}
-
-{% block content %}
+{% macro render_description_form(form, is_setup_flow=true) %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Set up the grant</span>
@@ -38,10 +19,10 @@
 
         {{
           form.submit(params={
-            "text": "Update"
+            "text": form.SUBMIT_BUTTON_TEXT_CHANGE if not is_setup_flow else form.SUBMIT_BUTTON_TEXT_SETUP
           })
         }}
       </form>
     </div>
   </div>
-{% endblock %}
+{% endmacro %}

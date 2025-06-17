@@ -1,0 +1,26 @@
+{% macro render_name_form(form, is_setup_flow=true) %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Set up the grant</span>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{
+          form.name(params={
+            "label": {
+              "isPageHeading": true,
+              "classes": "govuk-label--l"
+            },
+          })
+        }}
+
+        {{
+          form.submit(params={
+            "text": form.SUBMIT_BUTTON_TEXT_CHANGE if not is_setup_flow else form.SUBMIT_BUTTON_TEXT_SETUP
+          })
+        }}
+      </form>
+    </div>
+  </div>
+{% endmacro %}

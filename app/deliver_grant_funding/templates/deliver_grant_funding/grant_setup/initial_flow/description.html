@@ -1,4 +1,5 @@
 {% extends "common/base.html" %}
+{% from "deliver_grant_funding/grant_setup/macros/description_form_macro.html" import render_description_form %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% block pageTitle %}
@@ -22,26 +23,5 @@
 {% endblock beforeContent %}
 
 {% block content %}
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Set up the grant</span>
-      <h1 class="govuk-heading-l">{{ form.MAIN_HEADING }}</h1>
-      <p class="govuk-body">{{ form.MAIN_DESCRIPTION }}</p>
-
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-
-        {{
-          form.description(params={
-            "label": {
-              "classes": "govuk-label--s"
-            },
-            "maxwords": form.DESCRIPTION_MAX_WORDS
-          })
-        }}
-
-        {{ form.submit }}
-      </form>
-    </div>
-  </div>
+  {{ render_description_form(form, is_setup_flow=true) }}
 {% endblock content %}

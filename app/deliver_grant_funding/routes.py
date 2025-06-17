@@ -35,7 +35,7 @@ def grant_setup_intro() -> ResponseReturnValue:
         grant_session = GrantSetupSession()
         session["grant_setup"] = grant_session.to_session_dict()
         return redirect(url_for("deliver_grant_funding.grant_setup_ggis"))
-    return render_template("deliver_grant_funding/grant_setup/intro.html", form=form)
+    return render_template("deliver_grant_funding/grant_setup/initial_flow/intro.html", form=form)
 
 
 @deliver_grant_funding_blueprint.route("/grants/setup/ggis-number", methods=["GET", "POST"])
@@ -56,7 +56,7 @@ def grant_setup_ggis() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_name"))
 
     return render_template(
-        "deliver_grant_funding/grant_setup/ggis_number.html",
+        "deliver_grant_funding/grant_setup/initial_flow/ggis_number.html",
         form=form,
         check_your_answers_source=CHECK_YOUR_ANSWERS,
     )
@@ -80,7 +80,7 @@ def grant_setup_name() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_description"))
 
     return render_template(
-        "deliver_grant_funding/grant_setup/name.html",
+        "deliver_grant_funding/grant_setup/initial_flow/name.html",
         form=form,
         check_your_answers_source=CHECK_YOUR_ANSWERS,
     )
@@ -104,7 +104,7 @@ def grant_setup_description() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_contact"))
 
     return render_template(
-        "deliver_grant_funding/grant_setup/description.html",
+        "deliver_grant_funding/grant_setup/initial_flow/description.html",
         form=form,
         check_your_answers_source=CHECK_YOUR_ANSWERS,
     )
@@ -128,7 +128,7 @@ def grant_setup_contact() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_check_your_answers"))
 
     return render_template(
-        "deliver_grant_funding/grant_setup/contact.html",
+        "deliver_grant_funding/grant_setup/initial_flow/contact.html",
         form=form,
         check_your_answers_source=CHECK_YOUR_ANSWERS,
     )
@@ -156,7 +156,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_confirmation", grant_id=grant.id))
 
     return render_template(
-        "deliver_grant_funding/grant_setup/check_your_answers.html",
+        "deliver_grant_funding/grant_setup/initial_flow/check_your_answers.html",
         form=form,
         grant_session=grant_session,
         check_your_answers_source=CHECK_YOUR_ANSWERS,
@@ -167,7 +167,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
 @platform_admin_role_required
 def grant_setup_confirmation(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("deliver_grant_funding/grant_setup/confirmation.html", grant=grant)
+    return render_template("deliver_grant_funding/grant_setup/initial_flow/confirmation.html", grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grants", methods=["GET"])
@@ -247,7 +247,7 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
         interfaces.grants.update_grant(grant=grant, ggis_number=ggis_number)
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
 
-    return render_template("deliver_grant_funding/details/grant_change_ggis.html", form=form, grant=grant)
+    return render_template("deliver_grant_funding/grant_setup/change/grant_change_ggis.html", form=form, grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-name", methods=["GET", "POST"])
@@ -265,7 +265,7 @@ def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-    return render_template("deliver_grant_funding/details/grant_change_name.html", form=form, grant=grant)
+    return render_template("deliver_grant_funding/grant_setup/change/grant_change_name.html", form=form, grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-description", methods=["GET", "POST"])
@@ -280,7 +280,9 @@ def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
         interfaces.grants.update_grant(grant=grant, description=form.description.data)
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
 
-    return render_template("deliver_grant_funding/details/grant_change_description.html", form=form, grant=grant)
+    return render_template(
+        "deliver_grant_funding/grant_setup/change/grant_change_description.html", form=form, grant=grant
+    )
 
 
 @deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-contact", methods=["GET", "POST"])
@@ -300,4 +302,4 @@ def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
         )
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
 
-    return render_template("deliver_grant_funding/details/grant_change_contact.html", form=form, grant=grant)
+    return render_template("deliver_grant_funding/grant_setup/change/grant_change_contact.html", form=form, grant=grant)

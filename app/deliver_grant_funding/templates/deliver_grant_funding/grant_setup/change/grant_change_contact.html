@@ -1,0 +1,22 @@
+{% extends "deliver_grant_funding/base.html" %}
+{% from "deliver_grant_funding/grant_setup/macros/contact_form_macro.html" import render_contact_form %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% block pageTitle %}
+  Change grant contact details - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_item_identifier = "details" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  {{ render_contact_form(form, is_setup_flow=false) }}
+{% endblock %}

@@ -1,8 +1,9 @@
 {% extends "common/base.html" %}
+{% from "deliver_grant_funding/grant_setup/macros/contact_form_macro.html" import render_contact_form %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% block pageTitle %}
-  {{ form.name.label.text }}
+  {{ form.MAIN_HEADING }}
 {% endblock pageTitle %}
 
 {% set active_item_identifier = "grants" %}
@@ -11,7 +12,7 @@
   {%
     set back_href = url_for("deliver_grant_funding.grant_setup_check_your_answers")
     if request.args.get("source") == check_your_answers_source
-    else url_for("deliver_grant_funding.grant_setup_ggis")
+    else url_for("deliver_grant_funding.grant_setup_description")
   %}
   {{
     govukBackLink({
@@ -22,24 +23,5 @@
 {% endblock beforeContent %}
 
 {% block content %}
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Set up the grant</span>
-
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-
-        {{
-          form.name(params={
-            "label": {
-              "isPageHeading": true,
-              "classes": "govuk-label--l"
-            },
-          })
-        }}
-
-        {{ form.submit }}
-      </form>
-    </div>
-  </div>
+  {{ render_contact_form(form, is_setup_flow=true) }}
 {% endblock content %}
