@@ -21,17 +21,6 @@ def strip_string_if_not_empty(value: str) -> str | None:
     return value.strip() if value else value
 
 
-class UniqueGrantName:
-    """Validator to ensure grant name is unique."""
-
-    def __init__(self, message: str | None = None):
-        self.message = message or "Grant name already in use"
-
-    def __call__(self, form: FlaskForm, field: StringField) -> None:
-        if field.data and grant_name_exists(field.data):
-            raise ValidationError(self.message)
-
-
 class GrantForm(FlaskForm):
     name = StringField(
         "Change grant name",
@@ -86,12 +75,22 @@ class GrantNameForm(FlaskForm):
         description="Use the full and official name of the grant - no abbreviations or acronyms",
         validators=[
             DataRequired("Enter the grant name"),
-            UniqueGrantName(),
         ],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, existing_grant_name: str | None = None, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.existing_grant_name = existing_grant_name
+
+    def validate_name(self, field: StringField) -> None:
+        if field.data and self.existing_grant_name and field.data.lower() == self.existing_grant_name.lower():
+            # Updating grant name to what it already was
+            return
+        if field.data and grant_name_exists(field.data):
+            raise ValidationError("Grant name already in use")
 
 
 class GrantDescriptionForm(FlaskForm):

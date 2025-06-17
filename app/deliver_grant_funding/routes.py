@@ -255,7 +255,7 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
-    form = GrantNameForm(obj=grant)
+    form = GrantNameForm(obj=grant, existing_grant_name=grant.name)
 
     if form.validate_on_submit():
         try:

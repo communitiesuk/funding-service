@@ -1,43 +1,47 @@
 from unittest.mock import patch
 
-import pytest
 from flask import Flask, request
-from wtforms import Form, StringField
-from wtforms.validators import ValidationError
 
 from app.common.data.models import Grant
 from app.common.data.models_user import User, UserRole
 from app.common.data.types import RoleEnum
-from app.deliver_grant_funding.forms import GrantAddUserForm, GrantGGISForm, UniqueGrantName
+from app.deliver_grant_funding.forms import GrantAddUserForm, GrantGGISForm, GrantNameForm
 
 
-def test_unique_grant_name_passes_when_name_does_not_exist():
-    validator = UniqueGrantName()
-
-    # Create a simple form for testing
-    class TestForm(Form):
-        name = StringField()
-
-    form = TestForm()
-    form.name.data = "New Grant Name"
+def test_grant_name_form_passes_when_name_does_not_exist():
+    form = GrantNameForm()
+    form.name.data = "New Grant"
 
     with patch("app.deliver_grant_funding.forms.grant_name_exists", return_value=False):
-        # Should not raise any exception
-        validator(form, form.name)
+        assert form.validate() is True
+        assert len(form.name.errors) == 0
 
 
-def test_unique_grant_name_fails_when_name_exists():
-    validator = UniqueGrantName()
-
-    class TestForm(Form):
-        name = StringField()
-
-    form = TestForm()
+def test_grant_name_form_fails_when_name_exists():
+    form = GrantNameForm()
     form.name.data = "Existing Grant"
 
     with patch("app.deliver_grant_funding.forms.grant_name_exists", return_value=True):
-        with pytest.raises(ValidationError, match="Grant name already in use"):
-            validator(form, form.name)
+        assert form.validate() is False
+        assert "Grant name already in use" in form.name.errors
+
+
+def test_grant_name_form_passes_when_name_unchanged():
+    form = GrantNameForm(existing_grant_name="Existing Grant")
+    form.name.data = "Existing Grant"
+
+    with patch("app.deliver_grant_funding.forms.grant_name_exists", return_value=True):
+        assert form.validate() is True
+        assert len(form.name.errors) == 0
+
+
+def test_grant_name_form_passes_when_name_unchanged_case_insensitive():
+    form = GrantNameForm(existing_grant_name="existing grant")
+    form.name.data = "EXISTING GRANT"
+
+    with patch("app.deliver_grant_funding.forms.grant_name_exists", return_value=True):
+        assert form.validate() is True
+        assert len(form.name.errors) == 0
 
 
 def test_grant_ggis_form_validates_when_no_selected(app: Flask):
