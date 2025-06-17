@@ -229,7 +229,8 @@ def templates_rendered(app: Flask) -> Generator[TTemplatesRendered]:
         if template.name and "govuk_frontend_wtf" not in template.name and request and request.endpoint:
             endpoint = request.endpoint
             entry = TemplateRenderRecord(template=template, context=context)
-            recorded.setdefault(endpoint, entry)
+            if endpoint not in recorded:
+                recorded[endpoint] = entry
 
     template_rendered.connect(record, app)
     try:
