@@ -14,7 +14,6 @@ from app.deliver_grant_funding.forms import (
     GrantCheckYourAnswersForm,
     GrantContactForm,
     GrantDescriptionForm,
-    GrantForm,
     GrantGGISForm,
     GrantNameForm,
     GrantSetupIntroForm,
@@ -97,9 +96,9 @@ def test_view_grant_dashboard(authenticated_client, factories, templates_rendere
     assert "Home" in soup.h1.text
 
 
-def test_view_grant_settings(authenticated_client, factories, templates_rendered):
+def test_view_grant_details(authenticated_client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = authenticated_client.get(url_for("deliver_grant_funding.grant_settings", grant_id=grant.id))
+    result = authenticated_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
     assert result.status_code == 200
     assert templates_rendered[0][1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
@@ -107,31 +106,81 @@ def test_view_grant_settings(authenticated_client, factories, templates_rendered
     assert "Grant details" in soup.h1.text.strip()
 
 
-def test_grant_change_name_get(authenticated_client, factories, templates_rendered):
+def test_grant_change_ggis_get(authenticated_platform_admin_client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = authenticated_client.get(url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id))
+    result = authenticated_platform_admin_client.get(
+        url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant.id)
+    )
     assert result.status_code == 200
     template = next(
         template
         for template in templates_rendered
-        if template[0].name == "deliver_grant_funding/settings/grant_change_name.html"
+        if template[0].name == "deliver_grant_funding/details/grant_change_ggis.html"
     )
     assert template[1]["grant"] == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "Change grant name" in soup.h1.text.strip()
+    assert "Government Grants Information System (GGIS)" in soup.h1.text.strip()
 
 
-def test_grant_change_name_post(authenticated_client, factories, templates_rendered, db_session):
+def test_grant_change_name_get(authenticated_platform_admin_client, factories, templates_rendered):
+    grant = factories.grant.create()
+    result = authenticated_platform_admin_client.get(
+        url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id)
+    )
+    assert result.status_code == 200
+    template = next(
+        template
+        for template in templates_rendered
+        if template[0].name == "deliver_grant_funding/details/grant_change_name.html"
+    )
+    assert template[1]["grant"] == grant
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert "What is the name of this grant?" in soup.h1.text.strip()
+
+
+def test_grant_change_description_get(authenticated_platform_admin_client, factories, templates_rendered):
+    grant = factories.grant.create()
+    result = authenticated_platform_admin_client.get(
+        url_for("deliver_grant_funding.grant_change_description", grant_id=grant.id)
+    )
+    assert result.status_code == 200
+    template = next(
+        template
+        for template in templates_rendered
+        if template[0].name == "deliver_grant_funding/details/grant_change_description.html"
+    )
+    assert template[1]["grant"] == grant
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert "Purpose of this grant" in soup.h1.text.strip()
+
+
+def test_grant_change_contact_get(authenticated_platform_admin_client, factories, templates_rendered):
+    grant = factories.grant.create()
+    result = authenticated_platform_admin_client.get(
+        url_for("deliver_grant_funding.grant_change_contact", grant_id=grant.id)
+    )
+    assert result.status_code == 200
+    template = next(
+        template
+        for template in templates_rendered
+        if template[0].name == "deliver_grant_funding/details/grant_change_contact.html"
+    )
+    assert template[1]["grant"] == grant
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert "Who is the main contact for this grant?" in soup.h1.text.strip()
+
+
+def test_grant_change_name_post(authenticated_platform_admin_client, factories, templates_rendered, db_session):
     grant = factories.grant.create()
     # Update the name
-    form = GrantForm()
+    form = GrantNameForm()
     form.name.data = "New name"
-    result = authenticated_client.post(
+    result = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id), data=form.data, follow_redirects=False
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "deliver_grant_funding.grant_settings",
+        "deliver_grant_funding.grant_details",
         grant_id=grant.id,
     )
 
@@ -140,11 +189,73 @@ def test_grant_change_name_post(authenticated_client, factories, templates_rende
     assert grant_from_db.name == "New name"
 
 
-def test_grant_change_name_post_with_errors(authenticated_client, factories, templates_rendered):
+def test_grant_change_contact_post(authenticated_platform_admin_client, factories, templates_rendered, db_session):
+    grant = factories.grant.create()
+    # Update the name
+    form = GrantContactForm()
+    form.primary_contact_name.data = "New name"
+    form.primary_contact_email.data = "new@email.com"
+    result = authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.grant_change_contact", grant_id=grant.id), data=form.data, follow_redirects=False
+    )
+    assert result.status_code == 302
+    assert result.location == url_for(
+        "deliver_grant_funding.grant_details",
+        grant_id=grant.id,
+    )
+
+    # Check the update is in the database
+    grant_from_db = db_session.get(Grant, grant.id)
+    assert grant_from_db.primary_contact_name == "New name"
+    assert grant_from_db.primary_contact_email == "new@email.com"
+
+
+def test_grant_change_ggis_post(authenticated_platform_admin_client, factories, templates_rendered, db_session):
+    grant = factories.grant.create()
+    # Update the name
+    form = GrantGGISForm()
+    form.has_ggis.data = "yes"
+    form.ggis_number.data = "New number"
+    result = authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant.id), data=form.data, follow_redirects=False
+    )
+    assert result.status_code == 302
+    assert result.location == url_for(
+        "deliver_grant_funding.grant_details",
+        grant_id=grant.id,
+    )
+
+    # Check the update is in the database
+    grant_from_db = db_session.get(Grant, grant.id)
+    assert grant_from_db.ggis_number == "New number"
+
+
+def test_grant_change_description_post(authenticated_platform_admin_client, factories, templates_rendered, db_session):
+    grant = factories.grant.create()
+    # Update the name
+    form = GrantDescriptionForm()
+    form.description.data = "New description"
+    result = authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.grant_change_description", grant_id=grant.id),
+        data=form.data,
+        follow_redirects=False,
+    )
+    assert result.status_code == 302
+    assert result.location == url_for(
+        "deliver_grant_funding.grant_details",
+        grant_id=grant.id,
+    )
+
+    # Check the update is in the database
+    grant_from_db = db_session.get(Grant, grant.id)
+    assert grant_from_db.description == "New description"
+
+
+def test_grant_change_name_post_with_errors(authenticated_platform_admin_client, factories, templates_rendered):
     grants = factories.grant.create_batch(2)
     # Test error handling on an update
-    form = GrantForm(data={"name": grants[1].name})
-    result = authenticated_client.post(
+    form = GrantNameForm(data={"name": grants[1].name})
+    result = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.grant_change_name", grant_id=grants[0].id),
         data=form.data,
         follow_redirects=False,
@@ -154,7 +265,7 @@ def test_grant_change_name_post_with_errors(authenticated_client, factories, tem
     soup = BeautifulSoup(result.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#name")) == 1
-    assert soup.find_all("a", href="#name")[0].text.strip() == "Name already in use"
+    assert soup.find_all("a", href="#name")[0].text.strip() == "Grant name already in use"
 
 
 def test_create_collection_get(authenticated_platform_admin_client, factories, templates_rendered):
@@ -716,7 +827,7 @@ def test_grant_setup_ggis_get_with_session(authenticated_platform_admin_client):
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_ggis"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "Do you have a Government Grants Information System (GGIS) reference number?"
+    assert soup.h1.text.strip() == "Government Grants Information System (GGIS)"
 
 
 def test_grant_setup_ggis_get_without_session_redirects(authenticated_platform_admin_client):
@@ -767,7 +878,7 @@ def test_grant_setup_description_get_with_session(authenticated_platform_admin_c
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_description"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "What is the main purpose of this grant?"
+    assert soup.h1.text.strip() == "Purpose of this grant"
 
 
 def test_grant_setup_description_post_too_long(authenticated_platform_admin_client):

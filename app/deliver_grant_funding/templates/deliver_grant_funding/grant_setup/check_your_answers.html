@@ -7,18 +7,15 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <span class="govuk-caption-xl">
-      <span class="govuk-visually-hidden">This section is:</span>
-      Set up the grant
-    </span>
-    <h1 class="govuk-heading-xl">Check your answers</h1>
+    <span class="govuk-caption-l">Set up the grant</span>
+    <h1 class="govuk-heading-l">Check your answers</h1>
 
     {{
       govukSummaryList({
         "rows": [
           {
             "key": {"text": "GGIS"},
-            "value": {"text": grant_session.ggis_number or ""},
+            "value": {"text": grant_session.ggis_number or "Not known"},
             "actions": {
               "items": [{
                 "href": url_for("deliver_grant_funding.grant_setup_ggis", source=check_your_answers_source),

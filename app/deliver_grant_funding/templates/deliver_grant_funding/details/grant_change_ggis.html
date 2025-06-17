@@ -1,25 +1,21 @@
-{% extends "common/base.html" %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "deliver_grant_funding/base.html" %}
 
 {% block pageTitle %}
-  {{ form.has_ggis.label.text }}
+  Change grant GGIS - MHCLG Funding Service
 {% endblock pageTitle %}
 
-{% set active_item_identifier = "grants" %}
+{% set active_sub_navigation_tab = "grant_details" %}
 
 {% block beforeContent %}
-  {%
-    set back_href = url_for("deliver_grant_funding.grant_setup_check_your_answers")
-    if request.args.get("source") == check_your_answers_source
-    else url_for("deliver_grant_funding.grant_setup_intro")
-  %}
   {{
     govukBackLink({
-        "text": "Back",
-        "href": back_href
+      "text": "Back",
+      "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
     })
   }}
-{% endblock beforeContent %}
+{% endblock %}
 
 {% block content %}
   <div class="govuk-grid-row">
@@ -27,17 +23,16 @@
       <span class="govuk-caption-l">Set up the grant</span>
       <h1 class="govuk-heading-l">{{ form.MAIN_HEADING }}</h1>
       <p class="govuk-body">{{ form.MAIN_DESCRIPTION }}</p>
-
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
         {{
           form.has_ggis(params={
-            "fieldset": {
-              "legend": {
-                "text": form.has_ggis.label.text,
-                "classes": "govuk-fieldset__legend--s",
-              },
+          "fieldset":{
+            "legend":{
+              "text": form.has_ggis.label.text,
+              "classes": "govuk-fieldset__legend--s"
+            },
             },
             "items": [
               {
@@ -62,8 +57,12 @@
           })
         }}
 
-        {{ form.submit }}
+        {{
+          form.submit(params={
+            "text": "Update"
+          })
+        }}
       </form>
     </div>
   </div>
-{% endblock content %}
+{% endblock %}

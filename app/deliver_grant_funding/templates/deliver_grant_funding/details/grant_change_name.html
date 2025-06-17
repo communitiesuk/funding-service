@@ -6,13 +6,13 @@
   Change grant name - MHCLG Funding Service
 {% endblock pageTitle %}
 
-{% set active_item_identifier = "settings" %}
+{% set active_sub_navigation_tab = "grant_details" %}
 
 {% block beforeContent %}
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for("deliver_grant_funding.grant_settings", grant_id=grant.id),
+      "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
     })
   }}
 {% endblock %}
@@ -20,10 +20,25 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Set up the grant</span>
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l" }})
-        }} {{ form.submit }}
+
+        {{
+          form.name(params={
+            "label": {
+              "isPageHeading": true,
+              "classes": "govuk-label--l"
+            }
+          })
+        }}
+
+        {{
+          form.submit(params={
+              "text": "Update"
+          })
+        }}
       </form>
     </div>
   </div>

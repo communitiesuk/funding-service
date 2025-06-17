@@ -21,17 +21,6 @@ def strip_string_if_not_empty(value: str) -> str | None:
     return value.strip() if value else value
 
 
-class UniqueGrantName:
-    """Validator to ensure grant name is unique."""
-
-    def __init__(self, message: str | None = None):
-        self.message = message or "Grant name already in use"
-
-    def __call__(self, form: FlaskForm, field: StringField) -> None:
-        if field.data and grant_name_exists(field.data):
-            raise ValidationError(self.message)
-
-
 class GrantForm(FlaskForm):
     name = StringField(
         "Change grant name",
@@ -47,9 +36,13 @@ class GrantSetupIntroForm(FlaskForm):
 
 
 class GrantGGISForm(FlaskForm):
+    MAIN_HEADING = "Government Grants Information System (GGIS)"
+    MAIN_DESCRIPTION = (
+        "You’ll need to provide your GGIS number before you can create forms or assess grant applications."
+    )
+
     has_ggis = RadioField(
-        "Do you have a Government Grants Information System (GGIS) reference number?",
-        description="You'll need to provide your GGIS number before you can create forms or assess grant applications.",
+        "Do you have a GGIS number?",
         # These choices have no effect on the frontend, but are used for validation. Frontend choices are found in the
         # template, currently at app/deliver_grant_funding/templates/deliver_grant_funding/grant_setup/ggis_number.html.
         # Developers will need to keep these in sync manually.
@@ -59,7 +52,7 @@ class GrantGGISForm(FlaskForm):
     )
     ggis_number = StringField(
         "Enter your GGIS reference number",
-        description="For example, G2-SCH-2025-05-12346.",
+        description="For example, G2-SCH-2025-05-12346",
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
@@ -79,19 +72,34 @@ class GrantGGISForm(FlaskForm):
 class GrantNameForm(FlaskForm):
     name = StringField(
         "What is the name of this grant?",
-        description="This should be the full and official name of the grant. Do not include abbreviations or acronyms.",
+        description="Use the full and official name of the grant - no abbreviations or acronyms",
         validators=[
             DataRequired("Enter the grant name"),
-            UniqueGrantName(),
         ],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
+    def __init__(self, *args: Any, existing_grant_name: str | None = None, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.existing_grant_name = existing_grant_name
+
+    def validate_name(self, field: StringField) -> None:
+        if field.data and self.existing_grant_name and field.data.lower() == self.existing_grant_name.lower():
+            # Updating grant name to what it already was
+            return
+        if field.data and grant_name_exists(field.data):
+            raise ValidationError("Grant name already in use")
+
 
 class GrantDescriptionForm(FlaskForm):
     DESCRIPTION_MAX_WORDS = 200
+    MAIN_HEADING = "Purpose of this grant"
+    MAIN_DESCRIPTION = (
+        "Provide a brief description of the main purpose of the grant. "
+        "This information will be seen by potential grant recipients."
+    )
 
     description = TextAreaField(
         "What is the main purpose of this grant?",
@@ -101,11 +109,15 @@ class GrantDescriptionForm(FlaskForm):
         ],
         filters=[strip_string_if_not_empty],
         widget=GovCharacterCount(),
+        description="Do not include personal information",
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
 
 class GrantContactForm(FlaskForm):
+    MAIN_HEADING = "Who is the main contact for this grant?"
+    MAIN_DESCRIPTION = "This is the person that teams at MHCLG can contact if they have any questions about the grant."
+
     primary_contact_name = StringField(
         "Full name",
         validators=[DataRequired("Enter the full name")],
@@ -114,7 +126,7 @@ class GrantContactForm(FlaskForm):
     )
     primary_contact_email = StringField(
         "Email address",
-        description="Use the shared email address for the grant team.",
+        description="Use the shared email address for the grant team",
         validators=[
             DataRequired("Enter the email address"),
             Email(message="Enter an email address in the correct format, like name@example.com"),

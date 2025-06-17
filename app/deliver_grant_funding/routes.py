@@ -15,7 +15,6 @@ from app.deliver_grant_funding.forms import (
     GrantCheckYourAnswersForm,
     GrantContactForm,
     GrantDescriptionForm,
-    GrantForm,
     GrantGGISForm,
     GrantNameForm,
     GrantSetupIntroForm,
@@ -226,25 +225,79 @@ def view_grant(grant_id: UUID) -> str:
     return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/settings", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details", methods=["GET"])
 @mhclg_login_required
-def grant_settings(grant_id: UUID) -> str:
+def grant_details(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_details.html", grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/change-name", methods=["GET", "POST"])
-@mhclg_login_required
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-ggis", methods=["GET", "POST"])
+@platform_admin_role_required
 @auto_commit_after_request
-def grant_change_name(grant_id: UUID) -> str | Response:
+def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
-    form = GrantForm(obj=grant)
+    form = GrantGGISForm(
+        has_ggis=("yes" if grant.ggis_number else "no"),
+        ggis_number=grant.ggis_number,
+    )
+
+    if form.validate_on_submit():
+        ggis_number = form.ggis_number.data if form.has_ggis.data == "yes" else None
+        interfaces.grants.update_grant(grant=grant, ggis_number=ggis_number)
+        return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
+
+    return render_template("deliver_grant_funding/details/grant_change_ggis.html", form=form, grant=grant)
+
+
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-name", methods=["GET", "POST"])
+@platform_admin_role_required
+@auto_commit_after_request
+def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
+    grant = interfaces.grants.get_grant(grant_id)
+    form = GrantNameForm(obj=grant, existing_grant_name=grant.name)
+
     if form.validate_on_submit():
         try:
-            assert form.name.data is not None
+            assert form.name.data is not None, "Grant name must be provided"
             interfaces.grants.update_grant(grant=grant, name=form.name.data)
-            return redirect(url_for("deliver_grant_funding.grant_settings", grant_id=grant_id))
+            return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-    return render_template("deliver_grant_funding/settings/grant_change_name.html", form=form, grant=grant)
+    return render_template("deliver_grant_funding/details/grant_change_name.html", form=form, grant=grant)
+
+
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-description", methods=["GET", "POST"])
+@platform_admin_role_required
+@auto_commit_after_request
+def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
+    grant = interfaces.grants.get_grant(grant_id)
+    form = GrantDescriptionForm(obj=grant)
+
+    if form.validate_on_submit():
+        assert form.description.data is not None, "Grant description must be provided"
+        interfaces.grants.update_grant(grant=grant, description=form.description.data)
+        return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
+
+    return render_template("deliver_grant_funding/details/grant_change_description.html", form=form, grant=grant)
+
+
+@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-contact", methods=["GET", "POST"])
+@platform_admin_role_required
+@auto_commit_after_request
+def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
+    grant = interfaces.grants.get_grant(grant_id)
+    form = GrantContactForm(obj=grant)
+
+    if form.validate_on_submit():
+        assert form.primary_contact_name.data, "Primary contact name must be provided"
+        assert form.primary_contact_email.data, "Primary contact email must be provided"
+        interfaces.grants.update_grant(
+            grant=grant,
+            primary_contact_name=form.primary_contact_name.data,
+            primary_contact_email=form.primary_contact_email.data,
+        )
+        return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
+
+    return render_template("deliver_grant_funding/details/grant_change_contact.html", form=form, grant=grant)
