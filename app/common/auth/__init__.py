@@ -9,7 +9,7 @@ from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
-from app.common.data.interfaces.user import add_user_role, get_user_by_email, upsert_user_by_email
+from app.common.data.interfaces.user import get_user_by_email, upsert_user_by_email, upsert_user_role
 from app.common.data.types import RoleEnum
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
@@ -106,7 +106,7 @@ def sso_get_token() -> ResponseReturnValue:
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
-        add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
+        upsert_user_role(user_id=user.id, role=RoleEnum.ADMIN)
     elif user and user.roles:
         user = upsert_user_by_email(
             email_address=sso_user["preferred_username"],

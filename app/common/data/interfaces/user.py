@@ -52,7 +52,7 @@ def upsert_user_by_email(email_address: str, name: Optional[str] = None) -> User
     return user
 
 
-def add_user_role(
+def upsert_user_role(
     user_id: uuid.UUID, role: RoleEnum, organisation_id: uuid.UUID | None = None, grant_id: uuid.UUID | None = None
 ) -> UserRole:
     # As with the `get_or_create_user` function, this feels like it should be a `on_conflict_do_nothing`,

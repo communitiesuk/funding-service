@@ -71,7 +71,7 @@ class TestUpsertUserByEmail:
         assert user.name == "My NewName"
 
 
-class TestAddUserRole:
+class TestUpsertUserRole:
     @pytest.mark.parametrize(
         "organisation, grant, role",
         [
@@ -93,7 +93,7 @@ class TestAddUserRole:
         organisation_id_value = organisation_id if organisation else None
         grant_id_value = grant_id if grant else None
 
-        user_role = interfaces.user.add_user_role(
+        user_role = interfaces.user.upsert_user_role(
             user_id=user_id, organisation_id=organisation_id_value, grant_id=grant_id_value, role=role
         )
 
@@ -108,15 +108,29 @@ class TestAddUserRole:
 
     def test_add_existing_user_role(self, db_session, factories):
         user_id = factories.user.create(email="test@communities.gov.uk").id
-        interfaces.user.add_user_role(user_id=user_id, role=RoleEnum.ADMIN)
+        interfaces.user.upsert_user_role(user_id=user_id, role=RoleEnum.ADMIN)
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
-        user_role = interfaces.user.add_user_role(user_id=user_id, role=RoleEnum.ADMIN)
+        user_role = interfaces.user.upsert_user_role(user_id=user_id, role=RoleEnum.ADMIN)
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert user_role.user_id == user_id
         assert (user_role.organisation_id, user_role.grant_id) == (None, None)
+        assert user_role.role == RoleEnum.ADMIN
+
+    def test_upsert_existing_user_role(self, db_session, factories):
+        user_id = factories.user.create(email="test@communities.gov.uk").id
+        grant = factories.grant.create()
+        interfaces.user.upsert_user_role(user_id=user_id, grant_id=grant.id, role=RoleEnum.MEMBER)
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+
+        user_role = interfaces.user.upsert_user_role(user_id=user_id, grant_id=grant.id, role=RoleEnum.ADMIN)
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+        assert user_role.user_id == user_id
+        assert (user_role.organisation_id, user_role.grant_id) == (None, grant.id)
         assert user_role.role == RoleEnum.ADMIN
 
     @pytest.mark.parametrize(
@@ -136,7 +150,7 @@ class TestAddUserRole:
         grant_id_value = grant_id if grant else None
 
         with pytest.raises(InvalidUserRoleError) as error:
-            interfaces.user.add_user_role(
+            interfaces.user.upsert_user_role(
                 user_id=user_id,
                 organisation_id=organisation_id_value,
                 grant_id=grant_id_value,
