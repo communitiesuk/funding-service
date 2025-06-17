@@ -965,71 +965,92 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     assert grant_from_db.ggis_number == "GGIS123"
 
 
-def test_list_users_for_grant_with_platform_admin(
-    authenticated_platform_admin_client, track_sql_queries, factories, mock_notification_service_calls
+def test_list_users_for_grant_with_platform_admin_and_no_member(
+    authenticated_platform_admin_client, templates_rendered, factories, mock_notification_service_calls
 ):
-    # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
     grant = factories.grant.create()
-    result = authenticated_platform_admin_client.get(
-        url_for(
-            "deliver_grant_funding.list_users_for_grant",
-            grant_id=grant.id,
-        ),
+    authenticated_platform_admin_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
+    users = templates_rendered[0][1].get("grant").users
+    assert not users
+
+
+def test_list_users_for_grant_with_platform_admin_check_add_member_button(
+    authenticated_platform_admin_client, factories
+):
+    grant = factories.grant.create()
+    response = authenticated_platform_admin_client.get(
+        url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
     )
-    soup = BeautifulSoup(result.data, "html.parser")
-    button = soup.find("a", string=lambda text: text and "Add grant team member" in text)
-    assert button is not None, "'Add grant team member' button not found"
-    email_address = "test1@communities.gov.uk"
-    result = authenticated_platform_admin_client.post(
+    soup = BeautifulSoup(response.data, "html.parser")
+    assert soup.find("a", string=lambda text: text and "Add grant team member" in text), (
+        "'Add grant team member' button not found"
+    )
+
+
+def test_list_users_for_grant_with_platform_admin_add_another_platform_admin(
+    authenticated_platform_admin_client, templates_rendered, factories, mock_notification_service_calls
+):
+    grant = factories.grant.create()
+    current_user = get_current_user()
+    authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
-        json={"user_email": email_address},
+        json={"user_email": current_user.email.upper()},
         follow_redirects=True,
     )
-    soup = BeautifulSoup(result.data, "html.parser")
+    form_errors = templates_rendered[2][1].get("form").errors
+    assert form_errors
+    assert "user_email" in form_errors
+    assert (
+        form_errors["user_email"][0]
+        == "This user already exists as a Funding Service admin user so you cannot add them"
+    )
 
-    headers = soup.find_all("th")
-    header_texts = [th.get_text(strip=True) for th in headers]
-    expected_headers = ["Email", "Role"]
-    for expected in expected_headers:
-        assert expected in header_texts, f"Header '{expected}' not found in table"
-    assert "Grant team" in soup.h1.text
+
+def test_list_users_for_grant_with_platform_admin_add_member(
+    authenticated_platform_admin_client, templates_rendered, factories, mock_notification_service_calls
+):
+    grant = factories.grant.create()
+    authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
+        json={"user_email": "test1@communities.gov.uk"},
+        follow_redirects=True,
+    )
+    users = templates_rendered[0][1].get("grant").users
+    assert users
+    assert len(users) == 1
 
 
-def test_list_users_for_grant_with_member(authenticated_member_client, factories):
-    # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
+def test_list_users_for_grant_with_platform_admin_add_same_member_again(
+    authenticated_platform_admin_client, templates_rendered, factories, mock_notification_service_calls
+):
+    grant = factories.grant.create()
+    user = factories.user.create(email="test1.member@communities.gov.uk")
+    factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
+    authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
+        json={"user_email": "Test1.Member@Communities.gov.uk"},
+        follow_redirects=True,
+    )
+    form_errors = templates_rendered[2][1].get("form").errors
+    assert form_errors
+    assert "user_email" in form_errors
+    assert form_errors["user_email"][0] == f'This user already is a member of "{grant.name}" so you cannot add them'
+
+
+def test_list_users_for_grant_with_member_no_add_member_button(authenticated_member_client, factories):
     grant = factories.grant.create()
     user = get_current_user()
     factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
-    result = authenticated_member_client.get(
-        url_for(
-            "deliver_grant_funding.list_users_for_grant",
-            grant_id=grant.id,
-        ),
-    )
-    soup = BeautifulSoup(result.data, "html.parser")
-    button = soup.find("a", string=lambda text: text and "Add grant team member" in text)
-    assert button is None, "'Add grant team member' button is available"
-    headers = soup.find_all("th")
-    header_texts = [th.get_text(strip=True) for th in headers]
-    expected_headers = ["Email", "Role"]
-    for expected in expected_headers:
-        assert expected in header_texts, f"Header '{expected}' not found in table"
-    assert "Grant team" in soup.h1.text
+    response = authenticated_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
+    soup = BeautifulSoup(response.data, "html.parser")
+    assert soup.find("a", string=lambda text: text and "Add grant team member" in text) is None
 
 
-def test_add_user_to_grant_with_platform_admin(authenticated_platform_admin_client, factories):
-    # TODO this PR only consists the UI/UX changes & separate PR FSPT-528 will do the backend work
+def test_list_users_for_grant_with_member(authenticated_member_client, templates_rendered, factories):
     grant = factories.grant.create()
-    result = authenticated_platform_admin_client.get(
-        url_for(
-            "deliver_grant_funding.add_user_to_grant",
-            grant_id=grant.id,
-        ),
-    )
-    soup = BeautifulSoup(result.data, "html.parser")
-    assert "Add grant team member" in soup.h1.text
-    assert "What’s their email address?" in soup.h1.text
-    button = soup.find("button", string=lambda text: text and "Continue" in text)
-    assert button is not None, "'Continue' button not found"
-    button = soup.find("a", string=lambda text: text and "Back" in text)
-    assert button is not None, "'Back' button not found"
+    user = get_current_user()
+    factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+    authenticated_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
+    users = templates_rendered[0][1].get("grant").users
+    assert users
+    assert len(users) == 1
