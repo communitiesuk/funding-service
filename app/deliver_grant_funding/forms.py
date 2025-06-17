@@ -230,13 +230,19 @@ class GrantAddUserForm(FlaskForm):
     def validate(self, extra_validators: Any = None) -> bool:
         if not super().validate(extra_validators):
             return False
-        if [user for user in self.admin_users if user.is_platform_admin and user.email == self.user_email.data]:
+
+        email_to_check = self.user_email.data.lower() if self.user_email.data else None
+        is_platform_admin = any(
+            user.is_platform_admin and user.email and user.email.lower() == email_to_check for user in self.admin_users
+        )
+        if is_platform_admin:
             self.user_email.errors = list(self.user_email.errors) + [
                 "This user already exists as a Funding Service admin user so you cannot add them"
             ]
             return False
 
-        if [user for user in self.grant.users if user.email == self.user_email.data]:
+        is_grant_member = any(user.email and user.email.lower() == email_to_check for user in self.grant.users)
+        if is_grant_member:
             self.user_email.errors = list(self.user_email.errors) + [
                 f'This user already is a member of "{self.grant.name}" so you cannot add them'
             ]

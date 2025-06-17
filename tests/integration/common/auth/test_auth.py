@@ -201,15 +201,17 @@ class TestSSOGetTokenView:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
                 "id_token_claims": {
-                    "preferred_username": "test.member@communities.gov.uk",
+                    "preferred_username": "Test.Member@communities.gov.uk",
                     "name": "SSO User",
                     "roles": [],
                 }
             }
 
             response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
-
-            assert not interfaces.user.get_current_user().is_platform_admin
+            current_user = interfaces.user.get_current_user()
+            assert not current_user.is_platform_admin
+            assert current_user.name == "SSO User"
+            assert current_user.email == "Test.Member@communities.gov.uk"
 
         assert response.status_code == 200
 

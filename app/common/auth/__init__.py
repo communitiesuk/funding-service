@@ -107,8 +107,12 @@ def sso_get_token() -> ResponseReturnValue:
             name=sso_user["name"],
         )
         add_user_role(user_id=user.id, role=RoleEnum.ADMIN)
-
-    elif not user or not user.roles:
+    elif user and user.roles:
+        user = get_or_create_user(
+            email_address=sso_user["preferred_username"],
+            name=sso_user["name"],
+        )
+    else:
         return render_template(
             "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]
         ), 403

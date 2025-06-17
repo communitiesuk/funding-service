@@ -31,13 +31,13 @@ class TestGetUser:
 
 class GetUserByEmail:
     def test_get_existing_user(self, db_session, factories):
-        factories.user.create(email="test@communities.gov.uk", name="My Name")
+        factories.user.create(email="Test@communities.gov.uk", name="My Name")
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
         user = interfaces.user.get_user_by_email(email_address="test@communities.gov.uk")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
-        assert user.email == "test@communities.gov.uk"
+        assert user.email == "Test@communities.gov.uk"
         assert user.name == "My Name"
 
 
