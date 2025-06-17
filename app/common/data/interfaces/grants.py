@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Sequence
 from uuid import UUID
 
@@ -9,6 +8,7 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Grant
 from app.common.data.models_user import User
 from app.extensions import db
+from app.types import NOT_PROVIDED, TNotProvided
 
 
 def get_grant(grant_id: UUID) -> Grant:
@@ -63,21 +63,14 @@ def create_grant(
     return grant
 
 
-class _NotProvided(Enum):
-    token = 0
-
-
-NOT_PROVIDED = _NotProvided.token
-
-
 def update_grant(
     grant: Grant,
     *,
-    name: str | _NotProvided = NOT_PROVIDED,
-    description: str | _NotProvided = NOT_PROVIDED,
-    primary_contact_name: str | _NotProvided = NOT_PROVIDED,
-    primary_contact_email: str | _NotProvided = NOT_PROVIDED,
-    ggis_number: str | None | _NotProvided = NOT_PROVIDED,
+    name: str | TNotProvided = NOT_PROVIDED,
+    description: str | TNotProvided = NOT_PROVIDED,
+    primary_contact_name: str | TNotProvided = NOT_PROVIDED,
+    primary_contact_email: str | TNotProvided = NOT_PROVIDED,
+    ggis_number: str | None | TNotProvided = NOT_PROVIDED,
 ) -> Grant:
     if name is not NOT_PROVIDED:
         grant.name = name
