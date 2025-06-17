@@ -64,7 +64,6 @@ def grant_setup_ggis() -> ResponseReturnValue:
         "deliver_grant_funding/grant_setup/grant_ggis.html",
         form=form,
         back_link_href=back_href,
-        active_item_identifier="grants",
     )
 
 
@@ -96,7 +95,6 @@ def grant_setup_name() -> ResponseReturnValue:
         "deliver_grant_funding/grant_setup/grant_name.html",
         form=form,
         back_link_href=back_href,
-        active_item_identifier="grants",
     )
 
 
@@ -126,7 +124,6 @@ def grant_setup_description() -> ResponseReturnValue:
         "deliver_grant_funding/grant_setup/grant_description.html",
         form=form,
         back_link_href=back_href,
-        active_item_identifier="grants",
     )
 
 
@@ -156,7 +153,6 @@ def grant_setup_contact() -> ResponseReturnValue:
         "deliver_grant_funding/grant_setup/grant_main_contact.html",
         form=form,
         back_link_href=back_href,
-        active_item_identifier="grants",
     )
 
 
@@ -274,7 +270,6 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/grant_setup/grant_ggis.html",
         form=form,
         back_link_href=url_for("deliver_grant_funding.grant_details", grant_id=grant_id),
-        active_item_identifier="details",
         grant=grant,
     )
 
@@ -299,7 +294,6 @@ def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/grant_setup/grant_name.html",
         form=form,
         back_link_href=url_for("deliver_grant_funding.grant_details", grant_id=grant_id),
-        active_item_identifier="details",
         grant=grant,
     )
 
@@ -320,7 +314,6 @@ def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/grant_setup/grant_description.html",
         form=form,
         back_link_href=url_for("deliver_grant_funding.grant_details", grant_id=grant_id),
-        active_item_identifier="details",
         grant=grant,
     )
 
@@ -346,6 +339,5 @@ def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/grant_setup/grant_main_contact.html",
         form=form,
         back_link_href=url_for("deliver_grant_funding.grant_details", grant_id=grant_id),
-        active_item_identifier="details",
         grant=grant,
     )

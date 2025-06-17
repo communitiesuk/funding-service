@@ -1,7 +1,9 @@
-{% if active_item_identifier == "grants" %}
-  {% extends "deliver_grant_funding/base.html" %}
-{% else %}
+{% if grant %}
   {% extends "deliver_grant_funding/grant_base.html" %}
+  {% set active_item_identifier = "details" %}
+{% else %}
+  {% extends "deliver_grant_funding/base.html" %}
+  {% set active_item_identifier = "grants" %}
 {% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
