@@ -93,11 +93,17 @@ def test_update_grant_duplicate_name(factories):
 
 
 def test_updated_grant_nothing_provided(factories) -> None:
-    grant = factories.grant.create(name="test_grant")
+    grant = factories.grant.create(
+        name="test_grant",
+        description="Initial description",
+        primary_contact_name="Initial Contact",
+        primary_contact_email="Initial Email",
+        ggis_number="GGIS-123456",
+    )
     updated_grant = update_grant(grant=grant)
 
     assert updated_grant.name == "test_grant"
-    assert updated_grant.description is not None
-    assert updated_grant.primary_contact_name is not None
-    assert updated_grant.primary_contact_email is not None
-    assert updated_grant.ggis_number is not None
+    assert updated_grant.description == "Initial description"
+    assert updated_grant.primary_contact_name == "Initial Contact"
+    assert updated_grant.primary_contact_email == "Initial Email"
+    assert updated_grant.ggis_number == "GGIS-123456"
