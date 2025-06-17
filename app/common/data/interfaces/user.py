@@ -69,11 +69,8 @@ def upsert_user_role(
                 role=role,
             )
             .on_conflict_do_update(
-                index_elements=["user_id", "organisation_id", "grant_id", "role"],
+                index_elements=["user_id", "organisation_id", "grant_id"],
                 set_={
-                    "user_id": user_id,
-                    "organisation_id": organisation_id,
-                    "grant_id": grant_id,
                     "role": role,
                 },
             )

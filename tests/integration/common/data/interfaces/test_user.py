@@ -106,6 +106,31 @@ class TestUpsertUserRole:
             role,
         )
 
+    def test_multiple_roles_treated_as_distinct_and_dont_overwrite(self, db_session, factories):
+        # Make sure that the handling of nulls on the constraint, and the upsert behaviour of `upsert_user_role`
+        # will definitely create new roles on any mismatch between user_id/organisation_id/grant_id.
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
+        user = factories.user.create(email="test@communities.gov.uk")
+        organisation = factories.organisation.create()
+        grant = factories.grant.create()
+
+        interfaces.user.upsert_user_role(
+            user_id=user.id, organisation_id=organisation.id, grant_id=grant.id, role=RoleEnum.MEMBER
+        )
+        interfaces.user.upsert_user_role(
+            user_id=user.id, organisation_id=organisation.id, grant_id=None, role=RoleEnum.MEMBER
+        )
+        interfaces.user.upsert_user_role(user_id=user.id, organisation_id=None, grant_id=grant.id, role=RoleEnum.ADMIN)
+        interfaces.user.upsert_user_role(user_id=user.id, organisation_id=None, grant_id=None, role=RoleEnum.ADMIN)
+
+        user_roles = db_session.query(UserRole).all()
+        assert {(ur.user_id, ur.organisation_id, ur.grant_id, ur.role) for ur in user_roles} == {
+            (user.id, organisation.id, grant.id, RoleEnum.MEMBER),
+            (user.id, organisation.id, None, RoleEnum.MEMBER),
+            (user.id, None, grant.id, RoleEnum.ADMIN),
+            (user.id, None, None, RoleEnum.ADMIN),
+        }
+
     def test_add_existing_user_role(self, db_session, factories):
         user_id = factories.user.create(email="test@communities.gov.uk").id
         interfaces.user.upsert_user_role(user_id=user_id, role=RoleEnum.ADMIN)
