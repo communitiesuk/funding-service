@@ -12,14 +12,13 @@ This is only OK because we're in the `developers` package and nothing here shoul
 #}
 {% block header %}
   {{
-    mhclgHeader({
-        "productName": "MHCLG Funding Service",
+    mhclgHeader(
+      params={
         "homepageUrl": "#",
-        "classes": "govuk-header--full-width-border app-!-no-wrap",
-        "navigation": [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if current_user.is_authenticated else [],
-        "navigationClasses": "govuk-header__navigation--end",
         "assetPath": assetPath
-    })
+      },
+      currentUser=current_user,
+    )
   }}
 {% endblock header %}
 

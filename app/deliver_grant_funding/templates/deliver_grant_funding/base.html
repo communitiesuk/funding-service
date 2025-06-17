@@ -1,38 +1,27 @@
+{% extends "common/base.html" %}
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
 {% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "common/partials/navigation.html" import deliverGrantFundingServiceNavigation %}
 
-{% set assetPath = vite_asset('assets') %}
-{% set cspNonce = csp_nonce() %}
-{% extends "govuk_frontend_jinja/template.html" %}
+{% set nav_items = nav_items or [] %}
+{% set right_nav_items = right_nav_items or [] %}
 
 {% block pageTitle %}
   {{ page_title }}
   - MHCLG Funding Service
 {% endblock pageTitle %}
 
-{% block head %}
-  {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
-    <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
-  {% endif %}
-  <link rel="stylesheet" href="{{ vite_asset('app/assets/main.scss') }}" type="text/css" />
-{% endblock head %}
-
-{% set nav_items = nav_items or [] %}
-{% set right_nav_items = right_nav_items or [] %}
-
 {% block header %}
   {{
-    mhclgHeader({
-        "productName": "MHCLG Funding Service",
+    mhclgHeader(
+      params={
         "homepageUrl": url_for("deliver_grant_funding.list_grants"),
-        "classes": "govuk-header--full-width-border app-!-no-wrap",
-        "navigation": [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if current_user.is_authenticated else [],
-        "navigationClasses": "govuk-header__navigation--end",
         "assetPath": assetPath
-    })
+      },
+      currentUser=current_user,
+    )
   }}
   {{ deliverGrantFundingServiceNavigation(nav_items, right_nav_items) }}
 {% endblock header %}
@@ -62,20 +51,3 @@
     </div>
   </div>
 {% endblock %}
-
-{% block bodyEnd %}
-  <script type="module" src="{{ vite_asset('app/assets/main.js') }}"></script>
-{% endblock %}
-
-{% block footer %}
-  {{
-    govukFooter({
-        "meta": {
-            "items": [
-                { "href": "#", "text": ("Cookies") },
-                { "href": "#", "text": ("Accessibility statement") }
-            ]
-        }
-    })
-  }}
-{% endblock footer %}
