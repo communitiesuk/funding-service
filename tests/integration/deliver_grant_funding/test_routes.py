@@ -30,7 +30,7 @@ def test_list_grants_as_admin(
     with track_sql_queries() as queries:
         result = authenticated_platform_admin_client.get("/grants")
     assert result.status_code == 200
-    assert len(templates_rendered[0][1]["grants"]) == 5
+    assert len(templates_rendered.get("deliver_grant_funding.list_grants").context.get("grants")) == 5
     soup = BeautifulSoup(result.data, "html.parser")
     button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
     assert button is not None, "'Set up a grant' button not found"
@@ -90,7 +90,7 @@ def test_view_grant_dashboard(authenticated_client, factories, templates_rendere
     grant = factories.grant.create()
     result = authenticated_client.get(url_for("deliver_grant_funding.view_grant", grant_id=grant.id))
     assert result.status_code == 200
-    assert templates_rendered[0][1]["grant"] == grant
+    assert templates_rendered.get("deliver_grant_funding.view_grant").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert grant.name in soup.h1.text
     assert "Home" in soup.h1.text
@@ -100,7 +100,7 @@ def test_view_grant_details(authenticated_client, factories, templates_rendered)
     grant = factories.grant.create()
     result = authenticated_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
     assert result.status_code == 200
-    assert templates_rendered[0][1]["grant"] == grant
+    assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert grant.name in soup.h1.text.strip()
     assert "Grant details" in soup.h1.text.strip()
@@ -112,12 +112,7 @@ def test_grant_change_ggis_get(authenticated_platform_admin_client, factories, t
         url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant.id)
     )
     assert result.status_code == 200
-    template = next(
-        template
-        for template in templates_rendered
-        if template[0].name == "deliver_grant_funding/grant_setup/grant_ggis.html"
-    )
-    assert template[1]["grant"] == grant
+    assert templates_rendered.get("deliver_grant_funding.grant_change_ggis").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert "Government Grants Information System (GGIS)" in soup.h1.text.strip()
 
@@ -128,12 +123,7 @@ def test_grant_change_name_get(authenticated_platform_admin_client, factories, t
         url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id)
     )
     assert result.status_code == 200
-    template = next(
-        template
-        for template in templates_rendered
-        if template[0].name == "deliver_grant_funding/grant_setup/grant_name.html"
-    )
-    assert template[1]["grant"] == grant
+    assert templates_rendered.get("deliver_grant_funding.grant_change_name").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert "What is the name of this grant?" in soup.h1.text.strip()
 
@@ -144,12 +134,7 @@ def test_grant_change_description_get(authenticated_platform_admin_client, facto
         url_for("deliver_grant_funding.grant_change_description", grant_id=grant.id)
     )
     assert result.status_code == 200
-    template = next(
-        template
-        for template in templates_rendered
-        if template[0].name == "deliver_grant_funding/grant_setup/grant_description.html"
-    )
-    assert template[1]["grant"] == grant
+    assert templates_rendered.get("deliver_grant_funding.grant_change_description").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert "Purpose of this grant" in soup.h1.text.strip()
 
@@ -160,12 +145,7 @@ def test_grant_change_contact_get(authenticated_platform_admin_client, factories
         url_for("deliver_grant_funding.grant_change_contact", grant_id=grant.id)
     )
     assert result.status_code == 200
-    template = next(
-        template
-        for template in templates_rendered
-        if template[0].name == "deliver_grant_funding/grant_setup/grant_main_contact.html"
-    )
-    assert template[1]["grant"] == grant
+    assert templates_rendered.get("deliver_grant_funding.grant_change_contact").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert "Who is the main contact for this grant?" in soup.h1.text.strip()
 
@@ -970,7 +950,7 @@ def test_list_users_for_grant_with_platform_admin_and_no_member(
 ):
     grant = factories.grant.create()
     authenticated_platform_admin_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
-    users = templates_rendered[0][1].get("grant").users
+    users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
     assert not users
 
 
@@ -997,7 +977,7 @@ def test_list_users_for_grant_with_platform_admin_add_another_platform_admin(
         json={"user_email": current_user.email.upper()},
         follow_redirects=True,
     )
-    form_errors = templates_rendered[2][1].get("form").errors
+    form_errors = templates_rendered.get("deliver_grant_funding.add_user_to_grant").context.get("form").errors
     assert form_errors
     assert "user_email" in form_errors
     assert (
@@ -1015,7 +995,7 @@ def test_list_users_for_grant_with_platform_admin_add_member(
         json={"user_email": "test1@communities.gov.uk"},
         follow_redirects=True,
     )
-    users = templates_rendered[0][1].get("grant").users
+    users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
     assert users
     assert len(users) == 1
 
@@ -1031,7 +1011,7 @@ def test_list_users_for_grant_with_platform_admin_add_same_member_again(
         json={"user_email": "Test1.Member@Communities.gov.uk"},
         follow_redirects=True,
     )
-    form_errors = templates_rendered[2][1].get("form").errors
+    form_errors = templates_rendered.get("deliver_grant_funding.add_user_to_grant").context.get("form").errors
     assert form_errors
     assert "user_email" in form_errors
     assert form_errors["user_email"][0] == f'This user already is a member of "{grant.name}" so you cannot add them'
@@ -1051,6 +1031,6 @@ def test_list_users_for_grant_with_member(authenticated_member_client, templates
     user = get_current_user()
     factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
     authenticated_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
-    users = templates_rendered[0][1].get("grant").users
+    users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
     assert users
     assert len(users) == 1

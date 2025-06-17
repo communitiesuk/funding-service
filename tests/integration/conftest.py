@@ -34,7 +34,7 @@ from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_que
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
 from tests.integration.utils import TimeFreezer
-from tests.types import TTemplatesRendered
+from tests.types import TemplateRenderRecord, TTemplatesRendered
 from tests.utils import build_db_config
 
 
@@ -107,9 +107,9 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
 
 def _validate_form_argument_to_render_template(response: TestResponse, templates_rendered: TTemplatesRendered) -> None:
     if response.headers["content-type"].startswith("text/html"):
-        for _template, kwargs in templates_rendered:
-            if "form" in kwargs:
-                assert isinstance(kwargs["form"], FlaskForm), (
+        for _endpoint, render_template in templates_rendered.items():
+            if "form" in render_template.context:
+                assert isinstance(render_template.context["form"], FlaskForm), (
                     "The `form` argument passed to `render_template` is expected to be a FlaskForm instance. "
                     "This powers 'magic' handling of error summary rendering."
                 )
@@ -222,10 +222,14 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
 
 @pytest.fixture(scope="function")
 def templates_rendered(app: Flask) -> Generator[TTemplatesRendered]:
-    recorded = []
+    recorded: TTemplatesRendered = {}
 
     def record(sender: Flask, template: Template, context: dict[str, Any], **extra: dict[str, Any]) -> None:
-        recorded.append((template, context))
+        request = context.get("request")
+        if template.name and "govuk_frontend_wtf" not in template.name and request and request.endpoint:
+            endpoint = request.endpoint
+            entry = TemplateRenderRecord(template=template, context=context)
+            recorded.setdefault(endpoint, entry)
 
     template_rendered.connect(record, app)
     try:
