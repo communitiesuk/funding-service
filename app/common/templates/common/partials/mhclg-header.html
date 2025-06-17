@@ -1,14 +1,18 @@
-{% macro mhclgHeader(params) %}
+{% macro mhclgHeader(params, currentUser) %}
   {% from "govuk_frontend_jinja/macros/attributes.html" import govukAttributes %}
 
   {%- set menuButtonText = params.menuButtonText if params.menuButtonText else 'Menu' -%}
+  {%- set _productName = params.productName if params.productName else 'MHCLG Funding Service' -%}
+  {%- set _classes = params.classes if params.classes else 'govuk-header--full-width-border app-!-no-wrap' -%}
+  {%- set _navigation = params.navigation if params.navigation else [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if currentUser and currentUser.is_authenticated else [] -%}
+  {%- set _navigationClasses = params.navigationClasses if params.navigationClasses else 'govuk-header__navigation--end' -%}
 
 
   {%- set _hmgInsignia %}
     <img src="{{ params.assetPath }}/images/mhclg-crest.png" alt="MHCLG Crest" width="32" height="32" style="color: white; filter: brightness(0) invert(1);" nonce="{{ csp_nonce() }}" />
   {% endset -%}
 
-  <header class="govuk-header {% if params.classes %}{{ params.classes }}{% endif %}" data-module="govuk-header" {{- govukAttributes(params.attributes) }}>
+  <header class="govuk-header {% if _classes %}{{ _classes }}{% endif %}" data-module="govuk-header" {{- govukAttributes(params.attributes) }}>
     <div class="govuk-header__container {{ params.containerClasses | default("govuk-width-container", true) }}">
       <div class="govuk-header__logo govuk-!-margin-bottom-1">
         <a href="{{ params.homepageUrl | default("/", true) }}" class="govuk-header__link govuk-header__link--homepage">
@@ -19,12 +23,12 @@
         We use a single compound path for the logo to prevent subpixel rounding
         shifting different elements unevenly relative to one another. #}
           {{ _hmgInsignia | safe | trim | indent(8) }}
-          {% if (params.productName) %}
-            <span class="govuk-header__product-name">{{ params.productName }}</span>
+          {% if (_productName) %}
+            <span class="govuk-header__product-name">{{ _productName }}</span>
           {% endif %}
         </a>
       </div>
-      {% if params.serviceName or params.navigation | length %}
+      {% if params.serviceName or _navigation | length %}
         <div class="govuk-header__content">
           {% if params.serviceName %}
             {% if params.serviceUrl %}
@@ -33,14 +37,14 @@
               <span class="govuk-header__service-name">{{ params.serviceName }}</span>
             {% endif %}
           {% endif %}
-          {% if params.navigation | length %}
-            <nav aria-label="{{ params.navigationLabel | default(menuButtonText, true) }}" class="govuk-header__navigation {% if params.navigationClasses %}{{ params.navigationClasses }}{% endif %}">
+          {% if _navigation | length %}
+            <nav aria-label="{{ params.navigationLabel | default(menuButtonText, true) }}" class="govuk-header__navigation {% if _navigationClasses %}{{ _navigationClasses }}{% endif %}">
               {# <button type="button" class="govuk-header__menu-button govuk-js-header-toggle" aria-controls="navigation" {%- if params.menuButtonLabel and params.menuButtonLabel != menuButtonText %} aria-label="{{ params.menuButtonLabel }}"{% endif %} hidden>
           {{ menuButtonText }}
         </button> #}
 
               <ul class="govuk-header__navigation-list">
-                {% for item in params.navigation %}
+                {% for item in _navigation %}
                   {% if item.text or item.html %}
                     <li class="govuk-header__navigation-item {% if item.active %}govuk-header__navigation-item--active{% endif %}">
                       {% if item.href %}

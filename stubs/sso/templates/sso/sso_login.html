@@ -27,12 +27,13 @@
     </script>
     <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
     {{
-      mhclgHeader({
-          "productName": "MHCLG Funding Service",
+      mhclgHeader(
+        params={
           "homepageUrl": "#",
-          "classes": "govuk-header--full-width-border app-!-no-wrap",
           "assetPath": assetPath
-      })
+        },
+        currentUser=current_user,
+      )
     }}
     <div class="govuk-width-container">
       <main class="govuk-main-wrapper" id="main-content">

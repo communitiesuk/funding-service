@@ -1,3 +1,4 @@
+{% extends "govuk_frontend_jinja/template.html" %}
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
 {% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
@@ -5,7 +6,6 @@
 
 {% set assetPath = vite_asset('assets') %}
 {% set cspNonce = csp_nonce() %}
-{% extends "govuk_frontend_jinja/template.html" %}
 
 {% block head %}
   {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
@@ -16,14 +16,13 @@
 
 {% block header %}
   {{
-    mhclgHeader({
-        "productName": "MHCLG Funding Service",
-        "homepageUrl":  url_for("index") ,
-        "classes": "govuk-header--full-width-border app-!-no-wrap",
-        "navigation": [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if current_user.is_authenticated else [],
-        "navigationClasses": "govuk-header__navigation--end",
+    mhclgHeader(
+      params={
+        "homepageUrl": url_for("index"),
         "assetPath": assetPath
-    })
+      },
+      currentUser=current_user,
+    )
   }}
 {% endblock header %}
 
