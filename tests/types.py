@@ -1,5 +1,13 @@
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Dict
 
 from jinja2 import Template
 
-type TTemplatesRendered = list[tuple[Template, dict[str, Any]]]
+
+@dataclass
+class TemplateRenderRecord:
+    template: Template
+    context: Dict[str, Any]
+
+
+TTemplatesRendered = Dict[str, TemplateRenderRecord]
