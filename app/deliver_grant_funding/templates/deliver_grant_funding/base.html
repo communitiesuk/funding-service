@@ -8,6 +8,11 @@
 {% set cspNonce = csp_nonce() %}
 {% extends "govuk_frontend_jinja/template.html" %}
 
+{% block pageTitle %}
+  {{ page_title }}
+  - MHCLG Funding Service
+{% endblock pageTitle %}
+
 {% block head %}
   {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
     <script type="module" src="{{ vite_asset('@vite/client') }}"></script>

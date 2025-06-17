@@ -1,4 +1,22 @@
-{% macro render_description_form(form, is_setup_flow=true) %}
+{% if active_item_identifier == "grants" %}
+  {% extends "deliver_grant_funding/base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% endif %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = form.description.label.text %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link_href
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Set up the grant</span>
@@ -17,12 +35,8 @@
           })
         }}
 
-        {{
-          form.submit(params={
-            "text": form.SUBMIT_BUTTON_TEXT_CHANGE if not is_setup_flow else form.SUBMIT_BUTTON_TEXT_SETUP
-          })
-        }}
+        {{ form.submit }}
       </form>
     </div>
   </div>
-{% endmacro %}
+{% endblock content %}

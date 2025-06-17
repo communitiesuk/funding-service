@@ -26,6 +26,11 @@ class GrantSetupForm(FlaskForm):
     SUBMIT_BUTTON_TEXT_CHANGE = "Update"
     submit = SubmitField(SUBMIT_BUTTON_TEXT_SETUP, widget=GovSubmitInput())
 
+    def __init__(self, *args: Any, is_update: bool = False, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        if is_update:
+            self.submit.label.text = self.SUBMIT_BUTTON_TEXT_CHANGE
+
 
 class GrantSetupIntroForm(FlaskForm):
     submit = SubmitField("Continue", widget=GovSubmitInput())
