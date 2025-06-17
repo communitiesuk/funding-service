@@ -2,7 +2,6 @@
 {% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
-{% from "common/partials/navigation.html" import deliverGrantFundingServiceNavigation %}
 
 {% set assetPath = vite_asset('assets') %}
 {% set cspNonce = csp_nonce() %}
@@ -19,39 +18,35 @@
   {{
     mhclgHeader({
         "productName": "MHCLG Funding Service",
-        "homepageUrl": url_for("deliver_grant_funding.list_grants"),
+        "homepageUrl":  url_for("index") ,
         "classes": "govuk-header--full-width-border app-!-no-wrap",
         "navigation": [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if current_user.is_authenticated else [],
         "navigationClasses": "govuk-header__navigation--end",
         "assetPath": assetPath
     })
   }}
-
-  {{ deliverGrantFundingServiceNavigation([]) }}
 {% endblock header %}
 
 {% block main %}
-  <div {% if show_watermark %}class="app-watermark-container"{% endif %}>
-    <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
-      {% block beforeContent %}{% endblock %}
-      <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
-        {% block mainWrapper %}
-          <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
-            {% block errorSummary %}
-              <div class="govuk-grid-row">
-                <div class="govuk-grid-column-two-thirds">
-                  {% if form is defined and form.errors %}
-                    {{ govukErrorSummary(wtforms_errors(form)) }}
-                  {% endif %}
-                </div>
+  <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
+    {% block beforeContent %}{% endblock %}
+    <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
+      {% block mainWrapper %}
+        <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
+          {% block errorSummary %}
+            <div class="govuk-grid-row">
+              <div class="govuk-grid-column-two-thirds">
+                {% if form is defined and form.errors %}
+                  {{ govukErrorSummary(wtforms_errors(form)) }}
+                {% endif %}
               </div>
-            {% endblock errorSummary %}
+            </div>
+          {% endblock errorSummary %}
 
-            {% block content %}
-            {% endblock content %}
-          </main>
-        {% endblock mainWrapper %}
-      </div>
+          {% block content %}
+          {% endblock content %}
+        </main>
+      {% endblock mainWrapper %}
     </div>
   </div>
 {% endblock %}

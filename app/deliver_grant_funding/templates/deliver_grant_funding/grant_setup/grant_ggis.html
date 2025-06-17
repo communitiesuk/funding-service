@@ -1,33 +1,29 @@
-{% extends "common/base.html" %}
+{% if grant %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+  {% set active_item_identifier = "details" %}
+{% else %}
+  {% extends "deliver_grant_funding/base.html" %}
+  {% set active_item_identifier = "grants" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
-{% block pageTitle %}
-  {{ form.has_ggis.label.text }}
-{% endblock pageTitle %}
-
-{% set active_item_identifier = "grants" %}
+{% set page_title = "Government Grants Information System (GGIS)" %}
 
 {% block beforeContent %}
-  {%
-    set back_href = url_for("deliver_grant_funding.grant_setup_check_your_answers")
-    if request.args.get("source") == check_your_answers_source
-    else url_for("deliver_grant_funding.grant_setup_intro")
-  %}
   {{
     govukBackLink({
-        "text": "Back",
-        "href": back_href
+      "text": "Back",
+      "href": back_link_href,
     })
   }}
-{% endblock beforeContent %}
+{% endblock %}
 
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Set up the grant</span>
-      <h1 class="govuk-heading-l">{{ form.MAIN_HEADING }}</h1>
-      <p class="govuk-body">{{ form.MAIN_DESCRIPTION }}</p>
-
+      <h1 class="govuk-heading-l">Government Grants Information System (GGIS)</h1>
+      <p class="govuk-body">You’ll need to provide your GGIS number before you can create forms or assess grant applications.</p>
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
@@ -66,4 +62,4 @@
       </form>
     </div>
   </div>
-{% endblock content %}
+{% endblock %}

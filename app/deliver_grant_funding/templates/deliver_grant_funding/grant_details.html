@@ -1,5 +1,5 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% extends "deliver_grant_funding/base.html" %}
+{% extends "deliver_grant_funding/grant_base.html" %}
 
 {% block pageTitle %}
   Grant details - {{ grant.name }} - MHCLG Funding Service
@@ -23,6 +23,7 @@
               "actions": {
                 "items": [{
                   "href": url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant.id),
+                  "classes": "govuk-link--no-visited-state",
                   "text": "Change",
                   "visuallyHiddenText": "the GGIS number"
                 }]
@@ -34,6 +35,7 @@
               "actions": {
                 "items": [{
                   "href": url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id),
+                  "classes": "govuk-link--no-visited-state",
                   "text": "Change",
                   "visuallyHiddenText": "the grant name"
                 }]
@@ -45,6 +47,7 @@
               "actions": {
                 "items": [{
                   "href": url_for("deliver_grant_funding.grant_change_description", grant_id=grant.id),
+                  "classes": "govuk-link--no-visited-state",
                   "text": "Change",
                   "visuallyHiddenText": "the main purpose"
                 }]
@@ -56,6 +59,7 @@
               "actions": {
                 "items": [{
                   "href": url_for("deliver_grant_funding.grant_change_contact", grant_id=grant.id),
+                  "classes": "govuk-link--no-visited-state",
                   "text": "Change",
                   "visuallyHiddenText": "the main contact details"
                 }]

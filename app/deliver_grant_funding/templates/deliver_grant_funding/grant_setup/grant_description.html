@@ -1,22 +1,19 @@
-{% extends "common/base.html" %}
+{% if grant %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+  {% set active_item_identifier = "details" %}
+{% else %}
+  {% extends "deliver_grant_funding/base.html" %}
+  {% set active_item_identifier = "grants" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
-{% block pageTitle %}
-  {{ form.description.label.text }}
-{% endblock pageTitle %}
-
-{% set active_item_identifier = "grants" %}
+{% set page_title = form.description.label.text %}
 
 {% block beforeContent %}
-  {%
-    set back_href = url_for("deliver_grant_funding.grant_setup_check_your_answers")
-    if request.args.get("source") == check_your_answers_source
-    else url_for("deliver_grant_funding.grant_setup_name")
-  %}
   {{
     govukBackLink({
         "text": "Back",
-        "href": back_href
+        "href": back_link_href
     })
   }}
 {% endblock beforeContent %}
@@ -25,8 +22,8 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Set up the grant</span>
-      <h1 class="govuk-heading-l">{{ form.MAIN_HEADING }}</h1>
-      <p class="govuk-body">{{ form.MAIN_DESCRIPTION }}</p>
+      <h1 class="govuk-heading-l">Purpose of this grant</h1>
+      <p class="govuk-body">Provide a brief description of the main purpose of the grant. This information will be seen by potential grant recipients.</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}

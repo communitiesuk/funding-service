@@ -21,26 +21,22 @@ def strip_string_if_not_empty(value: str) -> str | None:
     return value.strip() if value else value
 
 
-class GrantForm(FlaskForm):
-    name = StringField(
-        "Change grant name",
-        validators=[DataRequired("Enter a grant name")],
-        filters=[strip_string_if_not_empty],
-        widget=GovTextInput(),
-    )
-    submit = SubmitField("Save", widget=GovSubmitInput())
+class GrantSetupForm(FlaskForm):
+    SUBMIT_BUTTON_TEXT_SETUP = "Save and continue"
+    SUBMIT_BUTTON_TEXT_CHANGE = "Update"
+    submit = SubmitField(SUBMIT_BUTTON_TEXT_SETUP, widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, is_update: bool = False, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        if is_update:
+            self.submit.label.text = self.SUBMIT_BUTTON_TEXT_CHANGE
 
 
 class GrantSetupIntroForm(FlaskForm):
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
 
-class GrantGGISForm(FlaskForm):
-    MAIN_HEADING = "Government Grants Information System (GGIS)"
-    MAIN_DESCRIPTION = (
-        "You’ll need to provide your GGIS number before you can create forms or assess grant applications."
-    )
-
+class GrantGGISForm(GrantSetupForm):
     has_ggis = RadioField(
         "Do you have a GGIS number?",
         # These choices have no effect on the frontend, but are used for validation. Frontend choices are found in the
@@ -56,7 +52,6 @@ class GrantGGISForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-    submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
     def validate(self, extra_validators: dict[str, list[Any]] | None = None) -> bool:
         if not super().validate(extra_validators):
@@ -69,7 +64,7 @@ class GrantGGISForm(FlaskForm):
         return True
 
 
-class GrantNameForm(FlaskForm):
+class GrantNameForm(GrantSetupForm):
     name = StringField(
         "What is the name of this grant?",
         description="Use the full and official name of the grant - no abbreviations or acronyms",
@@ -79,7 +74,6 @@ class GrantNameForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-    submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
     def __init__(self, *args: Any, existing_grant_name: str | None = None, **kwargs: Any):
         super().__init__(*args, **kwargs)
@@ -93,13 +87,8 @@ class GrantNameForm(FlaskForm):
             raise ValidationError("Grant name already in use")
 
 
-class GrantDescriptionForm(FlaskForm):
+class GrantDescriptionForm(GrantSetupForm):
     DESCRIPTION_MAX_WORDS = 200
-    MAIN_HEADING = "Purpose of this grant"
-    MAIN_DESCRIPTION = (
-        "Provide a brief description of the main purpose of the grant. "
-        "This information will be seen by potential grant recipients."
-    )
 
     description = TextAreaField(
         "What is the main purpose of this grant?",
@@ -111,13 +100,9 @@ class GrantDescriptionForm(FlaskForm):
         widget=GovCharacterCount(),
         description="Do not include personal information",
     )
-    submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
 
-class GrantContactForm(FlaskForm):
-    MAIN_HEADING = "Who is the main contact for this grant?"
-    MAIN_DESCRIPTION = "This is the person that teams at MHCLG can contact if they have any questions about the grant."
-
+class GrantContactForm(GrantSetupForm):
     primary_contact_name = StringField(
         "Full name",
         validators=[DataRequired("Enter the full name")],
@@ -134,21 +119,19 @@ class GrantContactForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-    submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
 
 class GrantCheckYourAnswersForm(FlaskForm):
     submit = SubmitField("Add grant", widget=GovSubmitInput())
 
 
-class CollectionForm(FlaskForm):
+class CollectionForm(GrantSetupForm):
     name = StringField(
         "What is the name of the collection?",
         validators=[DataRequired("Enter a collection name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-    submit = SubmitField(widget=GovSubmitInput())
 
 
 class SectionForm(FlaskForm):

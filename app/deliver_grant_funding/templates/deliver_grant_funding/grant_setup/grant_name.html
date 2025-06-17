@@ -1,22 +1,20 @@
-{% extends "common/base.html" %}
+{% if grant %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+  {% set active_item_identifier = "details" %}
+{% else %}
+  {% extends "deliver_grant_funding/base.html" %}
+  {% set active_item_identifier = "grants" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
-{% block pageTitle %}
-  {{ form.name.label.text }}
-{% endblock pageTitle %}
-
-{% set active_item_identifier = "grants" %}
+{% set page_title = form.name.label.text %}
 
 {% block beforeContent %}
-  {%
-    set back_href = url_for("deliver_grant_funding.grant_setup_check_your_answers")
-    if request.args.get("source") == check_your_answers_source
-    else url_for("deliver_grant_funding.grant_setup_ggis")
-  %}
+
   {{
     govukBackLink({
         "text": "Back",
-        "href": back_href
+        "href": back_link_href
     })
   }}
 {% endblock beforeContent %}

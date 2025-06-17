@@ -1,4 +1,4 @@
-{% extends "common/base.html" %}
+{% extends "deliver_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
 {% block pageTitle %}Check your answers{% endblock %}
@@ -19,6 +19,7 @@
             "actions": {
               "items": [{
                 "href": url_for("deliver_grant_funding.grant_setup_ggis", source=check_your_answers_source),
+                "classes": "govuk-link--no-visited-state",
                 "text": "Change",
                 "visuallyHiddenText": "the GGIS number"
               }]
@@ -30,6 +31,7 @@
             "actions": {
               "items": [{
                 "href": url_for("deliver_grant_funding.grant_setup_name", source=check_your_answers_source),
+                "classes": "govuk-link--no-visited-state",
                 "text": "Change",
                 "visuallyHiddenText": "the grant name"
               }]
@@ -41,6 +43,7 @@
             "actions": {
               "items": [{
                 "href": url_for("deliver_grant_funding.grant_setup_description", source=check_your_answers_source),
+                "classes": "govuk-link--no-visited-state",
                 "text": "Change",
                 "visuallyHiddenText": "the main purpose"
               }]
@@ -52,6 +55,7 @@
             "actions": {
               "items": [{
                 "href": url_for("deliver_grant_funding.grant_setup_contact", source=check_your_answers_source),
+                "classes": "govuk-link--no-visited-state",
                 "text": "Change",
                 "visuallyHiddenText": "the main contact details"
               }]

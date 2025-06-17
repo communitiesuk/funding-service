@@ -1,0 +1,46 @@
+{% extends "deliver_grant_funding/base.html" %}
+
+{% set cspNonce = csp_nonce() %}
+
+{%
+  set nav_items = [
+      {
+          "text": "Home",
+          "key": "grant_dashboard",
+          "href": url_for("deliver_grant_funding.view_grant", grant_id=grant.id),
+          "current": active_item_identifier == "grants"
+      },
+      {
+          "text": "Grant details",
+          "key": "grant_details",
+          "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
+          "current": active_item_identifier == "details"
+      },
+      {
+          "text": "Grant team",
+          "key": "grant_users",
+          "href": url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id),
+          "current": active_item_identifier == "grant_team"
+      },
+  ]
+%}
+
+{% set right_nav_items = [] %}
+
+{% if current_user.is_platform_admin %}
+  {%
+    do right_nav_items.append({
+        "text": "See all grants",
+        "href": url_for("deliver_grant_funding.list_grants"),
+        "current": false
+    })
+  %}
+  {%
+    do nav_items.append({
+        "text": "Developers",
+        "key": "grant_developers",
+        "href": url_for("developers.grant_developers", grant_id=grant.id),
+        "current": active_item_identifier == "developers"
+    })
+  %}
+{% endif %}
