@@ -29,7 +29,7 @@
         {%
           set table_rows.items = table_rows.items + [
               [{"html": grant_detail_link},
-               {"text": grant.ggis_number or ''},
+               {"text": grant.ggis_number or 'Not known'},
                {"text": grant.primary_contact_email}]
           ]
         %}
