@@ -1,9 +1,7 @@
 {% extends "common/base.html" %}
 {% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 
-{% block pageTitle %}
-  Check your email - MHCLG Funding Service
-{% endblock pageTitle %}
+{% block pageTitle %}Check your email - {{ super() }}{% endblock pageTitle %}
 
 {% block content %}
   <div class="govuk-grid-row">

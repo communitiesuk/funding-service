@@ -7,6 +7,8 @@
 {% set assetPath = vite_asset('assets') %}
 {% set cspNonce = csp_nonce() %}
 
+{% block pageTitle %}MHCLG Funding Service{% endblock pageTitle %}
+
 {% block head %}
   {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
     <script type="module" src="{{ vite_asset('@vite/client') }}"></script>

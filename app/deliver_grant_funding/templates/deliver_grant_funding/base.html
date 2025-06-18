@@ -8,10 +8,7 @@
 {% set nav_items = nav_items or [] %}
 {% set right_nav_items = right_nav_items or [] %}
 
-{% block pageTitle %}
-  {{ page_title }}
-  - MHCLG Funding Service
-{% endblock pageTitle %}
+{% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
 
 {% block header %}
   {{

@@ -5,12 +5,9 @@
 {% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
-{% block pageTitle %}
-  {{ section.title }}
-  - {{ collection.name }} - MHCLG Funding Service
-{% endblock pageTitle %}
-
+{% set page_title = section.title ~ " - " ~ collection.name %}
 {% set active_item_identifier = "developers" %}
+
 {% block beforeContent %}
   {{
     govukBackLink({
