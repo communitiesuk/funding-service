@@ -37,4 +37,4 @@ class TestUserRoleConstraints:
         user_role = factories.user_role.create(role=RoleEnum.ADMIN)
         with pytest.raises(IntegrityError) as error:
             factories.user_role.create(user_id=user_role.user_id, user=user_role.user, role=RoleEnum.ADMIN)
-        assert 'duplicate key value violates unique constraint "uq_user_org_grant_role"' in error.value.args[0]
+        assert 'duplicate key value violates unique constraint "uq_user_org_grant"' in error.value.args[0]

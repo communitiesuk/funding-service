@@ -41,11 +41,11 @@ class GetUserByEmail:
         assert user.name == "My Name"
 
 
-class TestGetOrCreateUser:
+class TestUpsertUserByEmail:
     def test_create_new_user(self, db_session):
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
 
-        user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk")
+        user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
@@ -54,7 +54,7 @@ class TestGetOrCreateUser:
         factories.user.create(email="test@communities.gov.uk", name="My Name")
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
-        user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk", name="My Name updated")
+        user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk", name="My Name updated")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
@@ -64,14 +64,14 @@ class TestGetOrCreateUser:
         factories.user.create(email="test@communities.gov.uk", name="My Name")
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
-        user = interfaces.user.get_or_create_user(email_address="test@communities.gov.uk", name="My NewName")
+        user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk", name="My NewName")
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
         assert user.name == "My NewName"
 
 
-class TestAddUserRole:
+class TestUpsertUserRole:
     @pytest.mark.parametrize(
         "organisation, grant, role",
         [
@@ -93,7 +93,7 @@ class TestAddUserRole:
         organisation_id_value = organisation_id if organisation else None
         grant_id_value = grant_id if grant else None
 
-        user_role = interfaces.user.add_user_role(
+        user_role = interfaces.user.upsert_user_role(
             user_id=user_id, organisation_id=organisation_id_value, grant_id=grant_id_value, role=role
         )
 
@@ -106,17 +106,56 @@ class TestAddUserRole:
             role,
         )
 
+    def test_multiple_roles_treated_as_distinct_and_dont_overwrite(self, db_session, factories):
+        # Make sure that the handling of nulls on the constraint, and the upsert behaviour of `upsert_user_role`
+        # will definitely create new roles on any mismatch between user_id/organisation_id/grant_id.
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
+        user = factories.user.create(email="test@communities.gov.uk")
+        organisation = factories.organisation.create()
+        grant = factories.grant.create()
+
+        interfaces.user.upsert_user_role(
+            user_id=user.id, organisation_id=organisation.id, grant_id=grant.id, role=RoleEnum.MEMBER
+        )
+        interfaces.user.upsert_user_role(
+            user_id=user.id, organisation_id=organisation.id, grant_id=None, role=RoleEnum.MEMBER
+        )
+        interfaces.user.upsert_user_role(user_id=user.id, organisation_id=None, grant_id=grant.id, role=RoleEnum.ADMIN)
+        interfaces.user.upsert_user_role(user_id=user.id, organisation_id=None, grant_id=None, role=RoleEnum.ADMIN)
+
+        user_roles = db_session.query(UserRole).all()
+        assert {(ur.user_id, ur.organisation_id, ur.grant_id, ur.role) for ur in user_roles} == {
+            (user.id, organisation.id, grant.id, RoleEnum.MEMBER),
+            (user.id, organisation.id, None, RoleEnum.MEMBER),
+            (user.id, None, grant.id, RoleEnum.ADMIN),
+            (user.id, None, None, RoleEnum.ADMIN),
+        }
+
     def test_add_existing_user_role(self, db_session, factories):
         user_id = factories.user.create(email="test@communities.gov.uk").id
-        interfaces.user.add_user_role(user_id=user_id, role=RoleEnum.ADMIN)
+        interfaces.user.upsert_user_role(user_id=user_id, role=RoleEnum.ADMIN)
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
-        user_role = interfaces.user.add_user_role(user_id=user_id, role=RoleEnum.ADMIN)
+        user_role = interfaces.user.upsert_user_role(user_id=user_id, role=RoleEnum.ADMIN)
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
         assert user_role.user_id == user_id
         assert (user_role.organisation_id, user_role.grant_id) == (None, None)
+        assert user_role.role == RoleEnum.ADMIN
+
+    def test_upsert_existing_user_role(self, db_session, factories):
+        user_id = factories.user.create(email="test@communities.gov.uk").id
+        grant = factories.grant.create()
+        interfaces.user.upsert_user_role(user_id=user_id, grant_id=grant.id, role=RoleEnum.MEMBER)
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+
+        user_role = interfaces.user.upsert_user_role(user_id=user_id, grant_id=grant.id, role=RoleEnum.ADMIN)
+
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+        assert user_role.user_id == user_id
+        assert (user_role.organisation_id, user_role.grant_id) == (None, grant.id)
         assert user_role.role == RoleEnum.ADMIN
 
     @pytest.mark.parametrize(
@@ -136,7 +175,7 @@ class TestAddUserRole:
         grant_id_value = grant_id if grant else None
 
         with pytest.raises(InvalidUserRoleError) as error:
-            interfaces.user.add_user_role(
+            interfaces.user.upsert_user_role(
                 user_id=user_id,
                 organisation_id=organisation_id_value,
                 grant_id=grant_id_value,
