@@ -2,19 +2,27 @@ import abc
 
 # Define any "managed" expressions that can be applied to common conditions or validations
 # that are built through the UI. These will be used alongside custom expressions
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from flask_wtf import FlaskForm
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
-from app.common.data.models import Question
 from app.common.data.types import ManagedExpressions, QuestionDataType
 from app.common.expressions import mangle_question_id_for_context
 from app.common.expressions.forms import AddNumberConditionForm
 
+if TYPE_CHECKING:
+    from app.common.data.models import Expression, Question
+
 
 class BaseExpression(BaseModel):
     key: ManagedExpressions
+
+    @property
+    @abc.abstractmethod
+    def description(self) -> str:
+        raise NotImplementedError
 
     @property
     @abc.abstractmethod
@@ -50,11 +58,21 @@ class GreaterThan(BaseExpression):
 supported_managed_question_types = {QuestionDataType.INTEGER: AddNumberConditionForm}
 
 
-def get_managed_expression_form(question: Question) -> "FlaskForm":
+def get_managed_expression_form(question: "Question") -> "FlaskForm":
     try:
         return supported_managed_question_types[question.data_type]
     except KeyError as e:
         raise ValueError(f"Question type {question.data_type} does not support managed expressions") from e
+
+
+# todo: think through each of the pieces needed here, do they want to be encapsulated somewhere else
+#       for example does this want to happen in the conditions property of the question model
+def get_managed_expression(expression: "Expression") -> BaseExpression:
+    match expression.type:
+        case ManagedExpressions.GREATER_THAN:
+            return TypeAdapter(GreaterThan).validate_python(expression.context)
+        case _:
+            raise ValueError(f"Unsupported managed expression type: {expression.type}")
 
 
 def get_supported_form_questions(question: Question) -> list[Question]:
