@@ -7,14 +7,14 @@ from app.common.data import interfaces
 
 class TestCreateMagicLink:
     def test_create_magic_link(self, db_session, factories):
-        user = factories.user.create()
+        user = factories.user.create(azure_ad_subject_id=None)
 
         magic_link = interfaces.magic_link.create_magic_link(user, redirect_to_path="/")
 
         assert magic_link.user == user
 
     def test_create_magic_link_expiry(self, db_session, factories):
-        user = factories.user.create()
+        user = factories.user.create(azure_ad_subject_id=None)
 
         magic_link = interfaces.magic_link.create_magic_link(user, redirect_to_path="/")
 

@@ -17,7 +17,7 @@ class TestLoginRequired:
         def test_login_required():
             return "OK"
 
-        user = factories.user.create(email="test@anything.com")
+        user = factories.user.create(email="test@anything.com", azure_ad_subject_id=None)
 
         login_user(user)
         response = test_login_required()

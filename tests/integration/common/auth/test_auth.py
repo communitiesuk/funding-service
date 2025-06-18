@@ -185,6 +185,7 @@ class TestSSOGetTokenView:
                     "preferred_username": "test@test.communities.gov.uk",
                     "name": "SSO User",
                     "roles": [],
+                    "sub": "someStringValue",
                 }
             }
 
@@ -204,6 +205,7 @@ class TestSSOGetTokenView:
                     "preferred_username": "Test.Member@communities.gov.uk",
                     "name": "SSO User",
                     "roles": [],
+                    "sub": user.azure_ad_subject_id,
                 }
             }
 
@@ -223,6 +225,7 @@ class TestSSOGetTokenView:
                     "preferred_username": "test.member.nodb@communities.gov.uk",
                     "name": "SSO User",
                     "roles": [],
+                    "sub": "someStringValue",
                 }
             }
 
@@ -234,7 +237,11 @@ class TestSSOGetTokenView:
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
-                "id_token_claims": {"preferred_username": "test@test.communities.gov.uk", "name": "SSO User"}
+                "id_token_claims": {
+                    "preferred_username": "test@test.communities.gov.uk",
+                    "name": "SSO User",
+                    "sub": "someStringValue",
+                }
             }
 
             response = anonymous_client.get(url_for("auth.sso_get_token"))
@@ -254,6 +261,7 @@ class TestSSOGetTokenView:
                     "preferred_username": "test@test.communities.gov.uk",
                     "name": "SSO User",
                     "roles": ["FSD_ADMIN"],
+                    "sub": "someStringValue",
                 }
             }
             response = anonymous_client.get(

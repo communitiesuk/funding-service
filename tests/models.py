@@ -12,6 +12,7 @@ import secrets
 from uuid import uuid4
 
 import factory
+import factory.fuzzy
 from flask import url_for
 
 from app.common.data.models import (
@@ -58,6 +59,7 @@ class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     name = factory.Faker("name")
     email = factory.Faker("email")
+    azure_ad_subject_id = factory.fuzzy.FuzzyText(length=25)
 
 
 class _OrganisationFactory(factory.alchemy.SQLAlchemyModelFactory):

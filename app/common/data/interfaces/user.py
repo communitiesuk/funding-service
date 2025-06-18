@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, cast
+from typing import cast
 
 from flask_login import current_user
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
@@ -22,11 +22,15 @@ def get_current_user() -> User:
     return user
 
 
-def get_user_by_email(email_address: str) -> Optional[User]:
+def get_user_by_email(email_address: str) -> User | None:
     return db.session.execute(select(User).where(User.email == email_address)).scalar_one_or_none()
 
 
-def upsert_user_by_email(email_address: str, name: str | TNotProvided = NOT_PROVIDED) -> User:
+def get_user_by_azure_ad_subject_id(azure_ad_subject_id: str) -> User | None:
+    return db.session.execute(select(User).where(User.azure_ad_subject_id == azure_ad_subject_id)).scalar_one_or_none()
+
+
+def upsert_user_by_email(email_address: str, *, name: str | TNotProvided = NOT_PROVIDED) -> User:
     # This feels like it should be a `on_conflict_do_nothing`, except in that case the DB won't return any rows
     # So we use `on_conflict_do_update` with a noop change, so that this upsert will always return the User regardless
     # of if its doing an insert or an 'update'.
@@ -40,6 +44,35 @@ def upsert_user_by_email(email_address: str, name: str | TNotProvided = NOT_PROV
         postgresql_upsert(User)
         .values(email=email_address, name=name)
         .on_conflict_do_update(index_elements=["email"], set_=on_conflict_set)
+        .returning(User),
+        execution_options={"populate_existing": True},
+    ).one()
+
+    return user
+
+
+def upsert_user_by_azure_ad_subject_id(
+    azure_ad_subject_id: str,
+    *,
+    email_address: str | TNotProvided = NOT_PROVIDED,
+    name: str | TNotProvided = NOT_PROVIDED,
+) -> User:
+    # This feels like it should be a `on_conflict_do_nothing`, except in that case the DB won't return any rows
+    # So we use `on_conflict_do_update` with a noop change, so that this upsert will always return the User regardless
+    # of if its doing an insert or an 'update'.
+    on_conflict_set = {"azure_ad_subject_id": azure_ad_subject_id}
+
+    # doesn't let us remove the name or email, but that doesn't feel like a super valid usecase, so ignoring for now.
+    if email_address is not NOT_PROVIDED:
+        on_conflict_set["email"] = email_address
+
+    if name is not NOT_PROVIDED:
+        on_conflict_set["name"] = name
+
+    user = db.session.scalars(
+        postgresql_upsert(User)
+        .values(azure_ad_subject_id=azure_ad_subject_id, email=email_address, name=name)
+        .on_conflict_do_update(index_elements=["azure_ad_subject_id"], set_=on_conflict_set)
         .returning(User),
         execution_options={"populate_existing": True},
     ).one()
