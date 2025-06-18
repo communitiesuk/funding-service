@@ -57,7 +57,7 @@ def get_managed_expression_form(question: Question) -> "FlaskForm":
         raise ValueError(f"Question type {question.data_type} does not support managed expressions") from e
 
 
-def get_supported_questions(question: Question) -> list[Question]:
+def get_supported_form_questions(question: Question) -> list[Question]:
     questions = question.form.questions
     return [q for q in questions if q.data_type in supported_managed_question_types.keys() and q.id != question.id]
 

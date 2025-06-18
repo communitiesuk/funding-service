@@ -12,9 +12,11 @@ from app.common.expressions import (
     evaluate,
 )
 from app.common.expressions.forms import AddNumberConditionForm
-from app.common.expressions.managed import get_managed_expression_form, get_supported_questions, parse_expression_form
-
-# from app.developers.forms import AddNumberConditionForm
+from app.common.expressions.managed import (
+    get_managed_expression_form,
+    get_supported_form_questions,
+    parse_expression_form,
+)
 
 
 class TestInternalEvaluateExpressionWithContext:
@@ -115,7 +117,7 @@ class TestManagedExpressions:
         only_supported_target = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
         question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
 
-        supported_questions = get_supported_questions(question)
+        supported_questions = get_supported_form_questions(question)
         assert len(supported_questions) == 1
         assert supported_questions[0].id == only_supported_target.id
 

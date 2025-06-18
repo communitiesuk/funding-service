@@ -41,7 +41,7 @@ from app.common.data.interfaces.temporary import (
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions.managed import (
     get_managed_expression_form,
-    get_supported_questions,
+    get_supported_form_questions,
     parse_expression_form,
 )
 from app.common.helpers.collections import SubmissionHelper
@@ -595,7 +595,7 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
     question = get_question_by_id(question_id)
     form = ConditionSelectQuestionForm()
 
-    supported_questions = get_supported_questions(question)
+    supported_questions = get_supported_form_questions(question)
     form.add_question_options(supported_questions)
 
     if form.validate_on_submit():
@@ -653,6 +653,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
         depends_on_question=depends_on_question,
         grant=question.form.section.collection.grant,
         form=form,
+        QuestionDataType=QuestionDataType,
     )
 
 

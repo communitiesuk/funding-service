@@ -13,9 +13,8 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
-  {# _ideally_ pressing back here would remember which question you had selected in case you want to just move one up or down in the list #}
-  {# that would also line up with how the browsers "back" button would work (remembering form options) #}
-  {# probably an actually valid use of an optional query string arg #}
+  {# todo: pressing back here should remember which question you had selected in case you want to just move one up or down in the list #}
+  {#       that would also line up with how the browsers "back" button would work (remembering form options) #}
   {{
     govukBackLink({
         "text": "Back",
@@ -31,36 +30,11 @@
 
       {% include "developers/_add_question_condition_context.html" %}
 
-      {# todo: this form/ flow should now be type specific - whats here will need to be replaced with a match #}
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-
-
-        {% set value_html %}
-          {{
-            form.value(params={
-              "classes": "govuk-input--width-10",
-            })
-          }}
-        {% endset %}
-
-        {{
-          form.type(params={
-            "fieldset": {
-              "legend": {
-                "text": "Only show the question if the answer is",
-                "classes": "govuk-fieldset__legend--m",
-                "isPageHeading": False
-              },
-            },
-            "items": [{
-              "conditional": { "html": value_html },
-            }]
-          })
-        }}
-
-        {{ form.submit }}
-      </form>
+      {% if depends_on_question.data_type == QuestionDataType.INTEGER %}
+        {% include "developers/_number_condition.html" %}
+      {% else %}
+        <p class="govuk-body">This question cannot be used a condition.</p>
+      {% endif %}
     </div>
   </div>
 {% endblock content %}
