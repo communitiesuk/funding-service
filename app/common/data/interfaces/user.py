@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, Sequence, cast
+from typing import Optional, cast
 
 from flask_login import current_user
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
@@ -20,14 +20,6 @@ def get_user(id_: str | uuid.UUID) -> User | None:
 def get_current_user() -> User:
     user = cast(User, current_user)
     return user
-
-
-def get_platform_admin_users() -> Sequence[User]:
-    return db.session.scalars(
-        select(User)
-        .join(User.roles)
-        .where(UserRole.role == RoleEnum.ADMIN, UserRole.grant_id.is_(None), UserRole.organisation_id.is_(None))
-    ).all()
 
 
 def get_user_by_email(email_address: str) -> Optional[User]:

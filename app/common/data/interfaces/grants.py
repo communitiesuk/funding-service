@@ -15,8 +15,10 @@ def get_grant(grant_id: UUID) -> Grant:
     return db.session.get_one(Grant, grant_id)
 
 
-def grant_name_exists(name: str) -> bool:
+def grant_name_exists(name: str, exclude_grant_id: UUID | None = None) -> bool:
     statement = select(Grant).where(Grant.name == name)
+    if exclude_grant_id:
+        statement = statement.where(Grant.id != exclude_grant_id)
     grant = db.session.scalar(statement)
     return grant is not None
 
