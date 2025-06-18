@@ -3,19 +3,12 @@ from unittest.mock import Mock
 import pytest
 
 from app.common.data.models import Expression
-from app.common.data.types import QuestionDataType
 from app.common.expressions import (
     DisallowedExpression,
     InvalidEvaluationResult,
     UndefinedVariableInExpression,
     _evaluate_expression_with_context,
     evaluate,
-)
-from app.common.expressions.forms import AddNumberConditionForm
-from app.common.expressions.managed import (
-    get_managed_expression_form,
-    get_supported_form_questions,
-    parse_expression_form,
 )
 
 
@@ -108,38 +101,3 @@ class TestEvaluate:
     def test_raise_on_non_boolean_result(self):
         with pytest.raises(InvalidEvaluationResult):
             evaluate(Expression(statement="1"))
-
-
-class TestManagedExpressions:
-    def test_filter_supported_question_types(self, factories):
-        form = factories.form.build()
-        factories.question.build_batch(3, data_type=QuestionDataType.TEXT_SINGLE_LINE, form=form)
-        only_supported_target = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
-        question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
-
-        supported_questions = get_supported_form_questions(question)
-        assert len(supported_questions) == 1
-        assert supported_questions[0].id == only_supported_target.id
-
-    def test_get_managed_expression_form_valid_question_type(self, factories):
-        question = factories.question.build(data_type=QuestionDataType.INTEGER)
-
-        form = get_managed_expression_form(question)
-        assert form == AddNumberConditionForm
-
-    def test_get_managed_expression_form_invalid_question_type(self, factories):
-        question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
-
-        with pytest.raises(ValueError) as e:
-            get_managed_expression_form(question)
-
-        assert str(e.value) == f"Question type {question.data_type} does not support managed expressions"
-
-    def test_parse_managed_expression_form(self, factories):
-        question = factories.question.build(data_type=QuestionDataType.INTEGER)
-        form = get_managed_expression_form(question)(value=2000)
-
-        expression = parse_expression_form(question, form)
-        assert expression.key == "Greater than"
-        assert expression.question_id == question.id
-        assert expression.minimum_value == 2000

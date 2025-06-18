@@ -630,12 +630,9 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     form = get_managed_expression_form(depends_on_question)()
 
     if form.validate_on_submit():
-        try:
-            expression = parse_expression_form(depends_on_question, form)
-        except ValueError:
-            form.type.errors.append("Unknown condition type selected")
-
+        expression = parse_expression_form(depends_on_question, form)
         interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
+
         return redirect(
             url_for(
                 "developers.edit_question",
