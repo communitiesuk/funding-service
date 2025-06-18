@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 from sqlalchemy import select
 
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.models import MagicLink
 from app.common.data.models_user import User
@@ -194,11 +195,11 @@ class TestSSOGetTokenView:
         assert response.status_code == 403
         assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5" in response.text
 
-    def test_get_without_fsd_admin_role_and_with_grant_member_role(self, anonymous_client, factories):
+    def test_login_with_grant_member_role(self, anonymous_client, factories):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             user = factories.user.create(email="test.member@communities.gov.uk")
             grant = factories.grant.create()
-            factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
+            factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
                 "id_token_claims": {
@@ -211,11 +212,10 @@ class TestSSOGetTokenView:
 
             response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
             current_user = interfaces.user.get_current_user()
-            assert not current_user.is_platform_admin
+            assert not AuthorisationHelper.is_platform_admin(current_user)
             assert current_user.name == "SSO User"
             assert current_user.email == "Test.Member@communities.gov.uk"
-
-        assert response.status_code == 200
+            assert response.status_code == 200
 
     def test_get_without_any_roles_should_403(self, app, anonymous_client):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
@@ -264,10 +264,10 @@ class TestSSOGetTokenView:
 
 
 class TestAuthenticatedUserRedirect:
-    def test_magic_link_get(self, authenticated_client):
-        response = authenticated_client.get(url_for("auth.request_a_link_to_sign_in"))
+    def test_magic_link_get(self, authenticated_no_role_client):
+        response = authenticated_no_role_client.get(url_for("auth.request_a_link_to_sign_in"))
         assert response.status_code == 302
 
-    def test_sso_get(self, authenticated_client):
-        response = authenticated_client.get(url_for("auth.sso_sign_in"))
+    def test_sso_get(self, authenticated_no_role_client):
+        response = authenticated_no_role_client.get(url_for("auth.sso_sign_in"))
         assert response.status_code == 302

@@ -13,8 +13,9 @@ from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, ValidationError
 
-from app.common.data.interfaces.grants import get_all_grants_by_user, grant_name_exists
-from app.common.data.interfaces.user import get_user_by_email
+from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.data import interfaces
+from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.types import QuestionDataType
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
@@ -211,24 +212,22 @@ class GrantAddUserForm(FlaskForm):
         if not super().validate(extra_validators):
             return False
 
-        if not self.user_email.data:
-            return False
+        if self.user_email.data:
+            user_to_add = interfaces.user.get_user_by_email(self.user_email.data)
+            if not user_to_add:
+                return True
 
-        user = get_user_by_email(self.user_email.data)
-        if not user:
-            return True
-
-        if user.is_platform_admin:
-            self.user_email.errors = list(self.user_email.errors) + [
-                "This user already exists as a Funding Service admin user so you cannot add them"
-            ]
-            return False
-
-        user_grants = get_all_grants_by_user(user)
-        if self.grant in user_grants:
-            self.user_email.errors = list(self.user_email.errors) + [
-                f'This user already is a member of "{self.grant.name}" so you cannot add them'
-            ]
-            return False
+            if AuthorisationHelper.is_platform_admin(user_to_add) or AuthorisationHelper.is_grant_admin(
+                grant_id=self.grant.id, user=user_to_add
+            ):
+                self.user_email.errors = list(self.user_email.errors) + [
+                    "This user already exists as a Funding Service admin user so you cannot add them"
+                ]
+                return False
+            if AuthorisationHelper.is_grant_member(grant_id=self.grant.id, user=user_to_add):
+                self.user_email.errors = list(self.user_email.errors) + [
+                    f'This user already is a member of "{self.grant.name}" so you cannot add them'
+                ]
+                return False
 
         return True

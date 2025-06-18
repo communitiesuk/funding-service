@@ -47,12 +47,9 @@ def test_list_grants_as_member_with_single_grant(
     app, authenticated_member_client, factories, templates_rendered, track_sql_queries
 ):
     with track_sql_queries() as queries:
-        result = authenticated_member_client.get("/grants")
-    assert result.status_code == 302
-    redirect_url = result.headers["Location"]
-    final_response = authenticated_member_client.get(redirect_url)
-    assert final_response.status_code == 200
-    soup = BeautifulSoup(final_response.data, "html.parser")
+        result = authenticated_member_client.get("/grants", follow_redirects=True)
+    assert result.status_code == 200
+    soup = BeautifulSoup(result.data, "html.parser")
 
     nav_items = [item.text.strip() for item in soup.select(".govuk-service-navigation__item")]
     assert nav_items == ["Home", "Grant details", "Grant team"]
@@ -81,14 +78,14 @@ def test_list_grants_as_member_with_multiple_grants(
 
 
 @pytest.mark.authenticate_as("test@google.com")
-def test_list_grant_requires_mhclg_user(authenticated_client, factories, templates_rendered):
-    response = authenticated_client.get("/grants")
+def test_list_grant_requires_mhclg_user(authenticated_no_role_client, factories, templates_rendered):
+    response = authenticated_no_role_client.get("/grants")
     assert response.status_code == 403
 
 
-def test_view_grant_dashboard(authenticated_client, factories, templates_rendered):
+def test_view_grant_dashboard(authenticated_platform_admin_client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = authenticated_client.get(url_for("deliver_grant_funding.view_grant", grant_id=grant.id))
+    result = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.view_grant", grant_id=grant.id))
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.view_grant").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
@@ -96,9 +93,9 @@ def test_view_grant_dashboard(authenticated_client, factories, templates_rendere
     assert "Home" in soup.h1.text
 
 
-def test_view_grant_details(authenticated_client, factories, templates_rendered):
+def test_view_grant_details(authenticated_platform_admin_client, factories, templates_rendered):
     grant = factories.grant.create()
-    result = authenticated_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
+    result = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")

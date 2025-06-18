@@ -256,7 +256,7 @@ def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Ca
 
 
 @pytest.fixture()
-def authenticated_client(
+def authenticated_no_role_client(
     anonymous_client: FlaskClient, factories: _Factories, request: FixtureRequest
 ) -> Generator[FlaskClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
