@@ -90,7 +90,6 @@ def has_grant_role[**P](
             if AuthorisationHelper.is_platform_admin(user=current_user):
                 return func(*args, **kwargs)
 
-            # TODO allow the hierarchy in future
             if "grant_id" in kwargs:
                 if not AuthorisationHelper.has_grant_role(
                     grant_id=str(kwargs["grant_id"]), user=current_user, role=role

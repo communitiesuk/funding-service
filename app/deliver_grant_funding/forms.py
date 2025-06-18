@@ -14,8 +14,8 @@ from wtforms.fields.simple import StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.data import interfaces
 from app.common.data.interfaces.grants import grant_name_exists
+from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import QuestionDataType
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
@@ -213,7 +213,7 @@ class GrantAddUserForm(FlaskForm):
             return False
 
         if self.user_email.data:
-            user_to_add = interfaces.user.get_user_by_email(self.user_email.data)
+            user_to_add = get_user_by_email(self.user_email.data)
             if not user_to_add:
                 return True
 

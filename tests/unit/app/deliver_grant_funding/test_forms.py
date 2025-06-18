@@ -52,13 +52,14 @@ def test_grant_ggis_form_fails_when_yes_selected_and_empty(app: Flask):
 def test_user_already_in_grant_users(app: Flask, factories):
     grant = factories.grant.build(name="Test Grant")
     user = factories.user.build(email="test.user@communities.gov.uk")
+    factories.user_role.build(user=user, role=RoleEnum.MEMBER, grant=grant)
 
     form = GrantAddUserForm(grant=grant)
     form.user_email.data = "test.admin@communities.gov.uk"
 
     with (
         patch("app.deliver_grant_funding.forms.get_user_by_email", return_value=user),
-        patch("app.deliver_grant_funding.forms.get_all_grants_by_user", return_value=[grant]),
+        # patch("app.deliver_grant_funding.forms.get_all_grants_by_user", return_value=[grant]),
     ):
         assert form.validate() is False
         assert "already is a member of" in form.user_email.errors[0]
