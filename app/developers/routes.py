@@ -38,8 +38,8 @@ from app.common.data.interfaces.temporary import (
     delete_section,
     delete_submissions_created_by_user,
 )
-from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.expressions.managed import GreaterThan, ManagedExpressions, supported_managed_question_types
+from app.common.data.types import ManagedExpressions, QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.expressions.managed import GreaterThan, get_managed_expression_form, get_supported_questions
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -50,7 +50,6 @@ from app.deliver_grant_funding.forms import (
 )
 from app.developers import developers_blueprint
 from app.developers.forms import (
-    AddNumberConditionForm,
     CheckYourAnswersForm,
     ConditionSelectQuestionForm,
     ConfirmDeletionForm,
@@ -592,7 +591,7 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
     question = get_question_by_id(question_id)
     form = ConditionSelectQuestionForm()
 
-    supported_questions = supported_managed_question_types(question)
+    supported_questions = get_supported_questions(question)
     form.add_question_options(supported_questions)
 
     if form.validate_on_submit():
@@ -624,7 +623,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     question = get_question_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
-    form = AddNumberConditionForm()
+    form = get_managed_expression_form(depends_on_question)()
 
     if form.validate_on_submit():
         match form.type.data:
@@ -633,9 +632,6 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
                 assert form.value.data
                 expression = GreaterThan(question_id=depends_on_question.id, minimum_value=form.value.data)
 
-                # todo: as we think through these pages flow we need to decide if this will persist a new condition
-                #       or if you should have to click Save/ Edit question to lock it in (that would then work like
-                #       add question but would allow unsaved changes - its how govuk forms currently does it)
                 interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
                 return redirect(
                     url_for(
@@ -648,7 +644,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
                     )
                 )
             case _:
-                form.type.errors.append("Unknown condition type selected")  # type:ignore[attr-defined]
+                form.type.errors.append("Unknown condition type selected")
     return render_template(
         "developers/add_question_condition_select_condition_type.html",
         question=question,

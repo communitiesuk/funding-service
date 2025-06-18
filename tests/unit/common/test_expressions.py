@@ -11,7 +11,10 @@ from app.common.expressions import (
     _evaluate_expression_with_context,
     evaluate,
 )
-from app.common.expressions.managed import supported_managed_question_types
+from app.common.expressions.forms import AddNumberConditionForm
+from app.common.expressions.managed import get_managed_expression_form, get_supported_questions
+
+# from app.developers.forms import AddNumberConditionForm
 
 
 class TestInternalEvaluateExpressionWithContext:
@@ -112,6 +115,20 @@ class TestManagedExpressions:
         only_supported_target = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
         question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
 
-        supported_questions = supported_managed_question_types(question)
+        supported_questions = get_supported_questions(question)
         assert len(supported_questions) == 1
         assert supported_questions[0].id == only_supported_target.id
+
+    def test_get_managed_expression_form_valid_question_type(self, factories):
+        question = factories.question.build(data_type=QuestionDataType.INTEGER)
+
+        form = get_managed_expression_form(question)
+        assert form == AddNumberConditionForm
+
+    def test_get_managed_expression_form_invalid_question_type(self, factories):
+        question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        with pytest.raises(ValueError) as e:
+            get_managed_expression_form(question)
+
+        assert str(e.value) == f"Question type {question.data_type} does not support managed expressions"
