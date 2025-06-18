@@ -237,13 +237,17 @@ class Question(BaseModel):
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
     form: Mapped[Form] = relationship("Form", back_populates="questions")
 
-    # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
     expressions: Mapped[list["Expression"]] = relationship(
         "Expression", back_populates="question", cascade="all, delete-orphan"
     )
 
-    # todo: add properties for pulling out separate conditions and validation types of expressions
-    #       those could come in with some simple interface tests
+    @property
+    def conditions(self) -> list["Expression"]:
+        return [expression for expression in self.expressions if expression.type == ExpressionType.CONDITION]
+
+    @property
+    def validations(self) -> list["Expression"]:
+        return [expression for expression in self.expressions if expression.type == ExpressionType.VALIDATION]
 
     __table_args__ = (
         UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
