@@ -38,8 +38,12 @@ from app.common.data.interfaces.temporary import (
     delete_section,
     delete_submissions_created_by_user,
 )
-from app.common.data.types import ManagedExpressions, QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.expressions.managed import GreaterThan, get_managed_expression_form, get_supported_questions
+from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.expressions.managed import (
+    get_managed_expression_form,
+    get_supported_questions,
+    parse_expression_form,
+)
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -626,25 +630,23 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     form = get_managed_expression_form(depends_on_question)()
 
     if form.validate_on_submit():
-        match form.type.data:
-            # todo: this probably shouldn't be done in the HTTP handler but no better ideas right now
-            case ManagedExpressions.GREATER_THAN:
-                assert form.value.data
-                expression = GreaterThan(question_id=depends_on_question.id, minimum_value=form.value.data)
+        try:
+            expression = parse_expression_form(depends_on_question, form)
+        except ValueError:
+            form.type.errors.append("Unknown condition type selected")
 
-                interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
-                return redirect(
-                    url_for(
-                        "developers.edit_question",
-                        grant_id=grant_id,
-                        collection_id=question.form.section.collection.id,
-                        section_id=question.form.section.id,
-                        form_id=question.form.id,
-                        question_id=question.id,
-                    )
-                )
-            case _:
-                form.type.errors.append("Unknown condition type selected")
+        interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
+        return redirect(
+            url_for(
+                "developers.edit_question",
+                grant_id=grant_id,
+                collection_id=question.form.section.collection.id,
+                section_id=question.form.section.id,
+                form_id=question.form.id,
+                question_id=question.id,
+            )
+        )
+
     return render_template(
         "developers/add_question_condition_select_condition_type.html",
         question=question,

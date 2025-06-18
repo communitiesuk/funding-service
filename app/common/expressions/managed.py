@@ -2,18 +2,15 @@ import abc
 
 # Define any "managed" expressions that can be applied to common conditions or validations
 # that are built through the UI. These will be used alongside custom expressions
-from typing import TYPE_CHECKING
 from uuid import UUID
 
+from flask_wtf import FlaskForm
 from pydantic import BaseModel
 
 from app.common.data.models import Question
 from app.common.data.types import ManagedExpressions, QuestionDataType
 from app.common.expressions import mangle_question_id_for_context
 from app.common.expressions.forms import AddNumberConditionForm
-
-if TYPE_CHECKING:
-    from flask_wtf import FlaskForm
 
 
 class BaseExpression(BaseModel):
@@ -63,3 +60,11 @@ def get_managed_expression_form(question: Question) -> "FlaskForm":
 def get_supported_questions(question: Question) -> list[Question]:
     questions = question.form.questions
     return [q for q in questions if q.data_type in supported_managed_question_types.keys() and q.id != question.id]
+
+
+def parse_expression_form(question: Question, form: FlaskForm) -> BaseExpression:
+    if isinstance(form, AddNumberConditionForm):
+        assert form.value.data
+        return GreaterThan(question_id=question.id, minimum_value=form.value.data)
+    else:
+        raise ValueError("Question type does not support managed expressions.")

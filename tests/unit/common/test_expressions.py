@@ -12,7 +12,7 @@ from app.common.expressions import (
     evaluate,
 )
 from app.common.expressions.forms import AddNumberConditionForm
-from app.common.expressions.managed import get_managed_expression_form, get_supported_questions
+from app.common.expressions.managed import get_managed_expression_form, get_supported_questions, parse_expression_form
 
 # from app.developers.forms import AddNumberConditionForm
 
@@ -132,3 +132,12 @@ class TestManagedExpressions:
             get_managed_expression_form(question)
 
         assert str(e.value) == f"Question type {question.data_type} does not support managed expressions"
+
+    def test_parse_managed_expression_form(self, factories):
+        question = factories.question.build(data_type=QuestionDataType.INTEGER)
+        form = get_managed_expression_form(question)(value=2000)
+
+        expression = parse_expression_form(question, form)
+        assert expression.key == "Greater than"
+        assert expression.question_id == question.id
+        assert expression.minimum_value == 2000
