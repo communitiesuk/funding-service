@@ -222,9 +222,8 @@ def list_users_for_grant(grant_id: UUID) -> str:
 @platform_admin_role_required
 @auto_commit_after_request
 def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
-    admin_users = interfaces.user.get_platform_admin_users()
     grant = interfaces.grants.get_grant(grant_id)
-    form = GrantAddUserForm(admin_users=admin_users, grant=grant)
+    form = GrantAddUserForm(grant=grant)
     if form.validate_on_submit():
         if form.user_email.data:
             user = next((user for user in grant.users if user.email.lower() == form.user_email.data.lower()), None)
@@ -279,7 +278,7 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
-    form = GrantNameForm(obj=grant, existing_grant_name=grant.name, is_update=True)
+    form = GrantNameForm(obj=grant, existing_grant_id=grant_id, is_update=True)
 
     if form.validate_on_submit():
         try:

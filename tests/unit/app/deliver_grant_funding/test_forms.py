@@ -2,8 +2,6 @@ from unittest.mock import patch
 
 from flask import Flask, request
 
-from app.common.data.models import Grant
-from app.common.data.models_user import User, UserRole
 from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.forms import GrantAddUserForm, GrantGGISForm, GrantNameForm
 
@@ -24,24 +22,6 @@ def test_grant_name_form_fails_when_name_exists():
     with patch("app.deliver_grant_funding.forms.grant_name_exists", return_value=True):
         assert form.validate() is False
         assert "Grant name already in use" in form.name.errors
-
-
-def test_grant_name_form_passes_when_name_unchanged():
-    form = GrantNameForm(existing_grant_name="Existing Grant")
-    form.name.data = "Existing Grant"
-
-    with patch("app.deliver_grant_funding.forms.grant_name_exists", return_value=True):
-        assert form.validate() is True
-        assert len(form.name.errors) == 0
-
-
-def test_grant_name_form_passes_when_name_unchanged_case_insensitive():
-    form = GrantNameForm(existing_grant_name="existing grant")
-    form.name.data = "EXISTING GRANT"
-
-    with patch("app.deliver_grant_funding.forms.grant_name_exists", return_value=True):
-        assert form.validate() is True
-        assert len(form.name.errors) == 0
 
 
 def test_grant_ggis_form_validates_when_no_selected(app: Flask):
@@ -69,25 +49,29 @@ def test_grant_ggis_form_fails_when_yes_selected_and_empty(app: Flask):
     assert "Enter your GGIS reference number" in form.ggis_number.errors
 
 
-def test_user_already_in_grant_users(app: Flask):
-    user_in_grant = User(email="test.user@communities.gov.uk")
-    grant = Grant(name="Test Grant", users=[user_in_grant])
-    form = GrantAddUserForm(
-        data={"user_email": "test.user@communities.gov.uk"},
-        admin_users=[],
-        grant=grant,
-    )
-    assert form.validate() is False
-    assert "already is a member of" in form.user_email.errors[0]
+def test_user_already_in_grant_users(app: Flask, factories):
+    grant = factories.grant.build(name="Test Grant")
+    user = factories.user.build(email="test.user@communities.gov.uk")
+
+    form = GrantAddUserForm(grant=grant)
+    form.user_email.data = "test.admin@communities.gov.uk"
+
+    with (
+        patch("app.deliver_grant_funding.forms.get_user_by_email", return_value=user),
+        patch("app.deliver_grant_funding.forms.get_all_grants_by_user", return_value=[grant]),
+    ):
+        assert form.validate() is False
+        assert "already is a member of" in form.user_email.errors[0]
 
 
-def test_user_already_platform_admin(app: Flask):
-    platform_admin = User(email="test.admin@communities.gov.uk", roles=[UserRole(role=RoleEnum.ADMIN)])
-    grant = Grant(name="Test Grant", users=[])
-    form = GrantAddUserForm(
-        data={"user_email": "test.admin@communities.gov.uk"},
-        admin_users=[platform_admin],
-        grant=grant,
-    )
-    assert form.validate() is False
-    assert "already exists as a Funding Service admin user" in form.user_email.errors[0]
+def test_user_already_platform_admin(app: Flask, factories):
+    grant = factories.grant.build(name="Test")
+    user = factories.user.build(email="test.user@communities.gov.uk")
+    factories.user_role.build(user=user, role=RoleEnum.ADMIN)
+
+    form = GrantAddUserForm(grant=grant)
+    form.user_email.data = "test.admin@communities.gov.uk"
+
+    with patch("app.deliver_grant_funding.forms.get_user_by_email", return_value=user):
+        assert form.validate() is False
+        assert "already exists as a Funding Service admin user" in form.user_email.errors[0]

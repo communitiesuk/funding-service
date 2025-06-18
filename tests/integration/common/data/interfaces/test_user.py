@@ -16,18 +16,6 @@ class TestGetUser:
         assert user.id == user_id
         assert user.email == "test@communities.gov.uk"
 
-    def test_get_platform_admin_users(self, db_session, factories):
-        users = factories.user.create_batch(5)
-        for user in users:
-            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
-        user = factories.user.create()
-        grant = factories.grant.create()
-        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
-        admin_users = interfaces.user.get_platform_admin_users()
-        assert len(admin_users) == len(users)
-        for admin in admin_users:
-            assert RoleEnum.ADMIN in [role.role for role in admin.roles]
-
 
 class GetUserByEmail:
     def test_get_existing_user(self, db_session, factories):

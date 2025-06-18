@@ -6,6 +6,7 @@ from app.common.data.interfaces.grants import (
     get_all_grants,
     get_all_grants_by_user,
     get_grant,
+    grant_name_exists,
     update_grant,
 )
 from app.common.data.models import Grant
@@ -107,3 +108,30 @@ def test_updated_grant_nothing_provided(factories) -> None:
     assert updated_grant.primary_contact_name == "Initial Contact"
     assert updated_grant.primary_contact_email == "Initial Email"
     assert updated_grant.ggis_number == "GGIS-123456"
+
+
+class TestGrantNameExists:
+    def test_grant_name_exists_true(self, factories):
+        factories.grant.create(name="Existing Grant")
+
+        result = grant_name_exists("Existing Grant")
+        assert result is True
+
+    def test_grant_name_exists_false(self, factories):
+        result = grant_name_exists("Non-existent Grant")
+        assert result is False
+
+    def test_grant_name_exists_case_insensitive(self, factories):
+        factories.grant.create(name="Existing Grant")
+
+        result = grant_name_exists("existing grant")
+        assert result is True
+
+    def test_grant_name_exists_exclude_current_grant(self, factories):
+        grant = factories.grant.create(name="Test Grant")
+
+        # Should return False when excluding the current grant
+        assert grant_name_exists("Test Grant", exclude_grant_id=grant.id) is False
+
+        # Should return True when not excluding
+        assert grant_name_exists("Test Grant") is True

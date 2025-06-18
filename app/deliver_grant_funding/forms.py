@@ -1,4 +1,5 @@
 from typing import Any
+from uuid import UUID
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
@@ -12,7 +13,8 @@ from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, ValidationError
 
-from app.common.data.interfaces.grants import grant_name_exists
+from app.common.data.interfaces.grants import get_all_grants_by_user, grant_name_exists
+from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import QuestionDataType
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
@@ -75,15 +77,12 @@ class GrantNameForm(GrantSetupForm):
         widget=GovTextInput(),
     )
 
-    def __init__(self, *args: Any, existing_grant_name: str | None = None, **kwargs: Any):
+    def __init__(self, *args: Any, existing_grant_id: UUID | None = None, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.existing_grant_name = existing_grant_name
+        self.existing_grant_id = existing_grant_id
 
     def validate_name(self, field: StringField) -> None:
-        if field.data and self.existing_grant_name and field.data.lower() == self.existing_grant_name.lower():
-            # Updating grant name to what it already was
-            return
-        if field.data and grant_name_exists(field.data):
+        if field.data and grant_name_exists(field.data, exclude_grant_id=self.existing_grant_id):
             raise ValidationError("Grant name already in use")
 
 
@@ -195,7 +194,6 @@ class QuestionForm(FlaskForm):
 class GrantAddUserForm(FlaskForm):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.admin_users = kwargs["admin_users"] if "admin_users" in kwargs else []
         self.grant = kwargs["grant"]
 
     user_email = StringField(
@@ -214,18 +212,21 @@ class GrantAddUserForm(FlaskForm):
         if not super().validate(extra_validators):
             return False
 
-        email_to_check = self.user_email.data.lower() if self.user_email.data else None
-        is_platform_admin = any(
-            user.is_platform_admin and user.email and user.email.lower() == email_to_check for user in self.admin_users
-        )
-        if is_platform_admin:
+        if not self.user_email.data:
+            return False
+
+        user = get_user_by_email(self.user_email.data)
+        if not user:
+            return True
+
+        if user.is_platform_admin:
             self.user_email.errors = list(self.user_email.errors) + [
                 "This user already exists as a Funding Service admin user so you cannot add them"
             ]
             return False
 
-        is_grant_member = any(user.email and user.email.lower() == email_to_check for user in self.grant.users)
-        if is_grant_member:
+        user_grants = get_all_grants_by_user(user)
+        if self.grant in user_grants:
             self.user_email.errors = list(self.user_email.errors) + [
                 f'This user already is a member of "{self.grant.name}" so you cannot add them'
             ]
