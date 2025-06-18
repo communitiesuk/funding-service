@@ -3,6 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from app.common.data.models import Expression
+from app.common.data.types import QuestionDataType
 from app.common.expressions import (
     DisallowedExpression,
     InvalidEvaluationResult,
@@ -10,6 +11,7 @@ from app.common.expressions import (
     _evaluate_expression_with_context,
     evaluate,
 )
+from app.common.expressions.managed import supported_managed_question_types
 
 
 class TestInternalEvaluateExpressionWithContext:
@@ -101,3 +103,15 @@ class TestEvaluate:
     def test_raise_on_non_boolean_result(self):
         with pytest.raises(InvalidEvaluationResult):
             evaluate(Expression(statement="1"))
+
+
+class TestManagedExpressions:
+    def test_filter_supported_question_types(self, factories):
+        form = factories.form.build()
+        factories.question.build_batch(3, data_type=QuestionDataType.TEXT_SINGLE_LINE, form=form)
+        only_supported_target = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
+        question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
+
+        supported_questions = supported_managed_question_types(question)
+        assert len(supported_questions) == 1
+        assert supported_questions[0].id == only_supported_target.id

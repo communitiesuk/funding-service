@@ -1,4 +1,4 @@
-from typing import Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSelect, GovSubmitInput, GovTextInput
@@ -6,6 +6,9 @@ from wtforms import IntegerField, RadioField, SelectField, SubmitField
 from wtforms.validators import DataRequired, Optional
 
 from app.common.expressions.managed import ManagedExpressions
+
+if TYPE_CHECKING:
+    from app.common.data.models import Question
 
 # TODO: move all forms used by developer pages into this module. Add some linting rule that prevents any other parts
 #       of the app importing from the developers package.
@@ -47,6 +50,9 @@ class ConditionSelectQuestionForm(FlaskForm):
         widget=GovSelect(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def add_question_options(self, questions: list["Question"]) -> None:
+        self.question.choices = [(question.id, f"{question.text} ({question.name})") for question in questions]
 
 
 class AddNumberConditionForm(FlaskForm):

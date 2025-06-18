@@ -39,7 +39,7 @@ from app.common.data.interfaces.temporary import (
     delete_submissions_created_by_user,
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.expressions.managed import GreaterThan, ManagedExpressions
+from app.common.expressions.managed import GreaterThan, ManagedExpressions, supported_managed_question_types
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -589,18 +589,11 @@ def edit_question(
 )
 @platform_admin_role_required
 def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    # todo: do we need to think about the helper in the context of no submission
     question = get_question_by_id(question_id)
     form = ConditionSelectQuestionForm()
 
-    # todo: this is lazy loading a lot of questions, do better than that
-    # todo: filter out questions that can't be used as a condition or are this question
-    #       - that should probably be a helper
-    # todo: the template should nicely handle if there are no questions which are valid targets
-    #       for a condition in this form
-    form.question.choices = [
-        (question.id, f"{question.text} ({question.name})") for question in question.form.questions
-    ]
+    supported_questions = supported_managed_question_types(question)
+    form.add_question_options(supported_questions)
 
     if form.validate_on_submit():
         return redirect(
@@ -615,6 +608,7 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
     return render_template(
         "developers/add_question_condition_select_question.html",
         question=question,
+        supported_questions=supported_questions,
         grant=question.form.section.collection.grant,
         form=form,
     )

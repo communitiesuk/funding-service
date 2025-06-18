@@ -27,19 +27,23 @@
 
       {% include "developers/_add_question_condition_context.html" %}
 
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {{
-          form.question(params={
-            "label": {
-              "text": "What answer should the condition check?",
-              "classes": "govuk-label--m",
-              "isPageHeading": False
-            },
-          })
-        }}
-        {{ form.submit }}
-      </form>
+      {% if not supported_questions %}
+        <p class="govuk-body">There are no questions in this form that can be used as a condition.</p>
+      {% else %}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{
+            form.question(params={
+              "label": {
+                "text": "What answer should the condition check?",
+                "classes": "govuk-label--m",
+                "isPageHeading": false
+              },
+            })
+          }}
+          {{ form.submit }}
+        </form>
+      {% endif %}
     </div>
   </div>
 {% endblock content %}

@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.common.data.models import Question
+from app.common.data.types import QuestionDataType
 from app.common.expressions import mangle_question_id_for_context
 
 # Define any "managed" expressions that can be applied to common conditions or validations
@@ -46,3 +48,12 @@ class GreaterThan(BaseExpression):
         # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
         qid = mangle_question_id_for_context(self.question_id)
         return f"{qid} > {self.minimum_value}"
+
+
+# todo: this should probably be derived from the options in ManagedExpressions
+supported_question_types = [QuestionDataType.INTEGER]
+
+
+def supported_managed_question_types(question: Question) -> list[Question]:
+    questions = question.form.questions
+    return [q for q in questions if q.data_type in supported_question_types and q.id != question.id]
