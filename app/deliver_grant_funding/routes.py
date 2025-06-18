@@ -89,7 +89,7 @@ def grant_setup_name() -> ResponseReturnValue:
     back_href = (
         url_for("deliver_grant_funding.grant_setup_check_your_answers")
         if request.args.get("source") == CHECK_YOUR_ANSWERS
-        else url_for("deliver_grant_funding.grant_setup_name")
+        else url_for("deliver_grant_funding.grant_setup_ggis")
     )
     return render_template(
         "deliver_grant_funding/grant_setup/grant_name.html",
