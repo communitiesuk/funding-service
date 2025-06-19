@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 # If updating the version here, also update in project.toml, .python-version, Dockerfile
-requires-python = "==3.13.4"
+requires-python = "==3.13.5"
 dependencies = [
     "alembic-utils==0.8.8",
     "babel==2.17.0",
@@ -60,6 +60,9 @@ dev = [
     "freezegun==1.5.2",
     "import-linter==2.3",
 ]
+
+[tool.uv]
+required-version = ">=0.7.13"
 
 [tool.ruff]
 line-length = 120
