@@ -21,7 +21,6 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SectionForm,
 )
-from tests.utils import AnyStringMatching
 
 
 def test_list_grants_as_admin(
@@ -931,9 +930,6 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     )
     assert response.status_code == 302
 
-    # Verify redirect is to grant setup confirmation page
-    assert response.location == AnyStringMatching(r"^/grant-setup/[A-Za-z0-9-]+$")
-
     # Extract grant ID from redirect URL and verify grant exists
     grant_id_str = response.location.split("/")[-1]
     grant_id = UUID(grant_id_str)
@@ -944,6 +940,9 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     assert grant_from_db.name == "Test Grant"
     assert grant_from_db.description == "Test description"
     assert grant_from_db.ggis_number == "GGIS123"
+
+    # Verify redirect was to grant setup confirmation page
+    assert response.location == url_for("deliver_grant_funding.grant_setup_confirmation", grant_id=grant_id_str)
 
 
 def test_list_users_for_grant_with_platform_admin_and_no_member(
