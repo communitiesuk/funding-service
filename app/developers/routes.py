@@ -39,7 +39,7 @@ from app.common.data.interfaces.temporary import (
     delete_submissions_created_by_user,
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.expressions.managed import (
+from app.common.expressions.helpers import (
     get_managed_condition_form,
     get_managed_validation_form,
     get_supported_form_questions,

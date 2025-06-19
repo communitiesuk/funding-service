@@ -2,7 +2,7 @@ import pytest
 
 from app.common.data.types import QuestionDataType
 from app.common.expressions.forms import AddNumberConditionForm
-from app.common.expressions.managed import (
+from app.common.expressions.helpers import (
     get_managed_condition_form,
     get_supported_form_questions,
     parse_condition_form,
