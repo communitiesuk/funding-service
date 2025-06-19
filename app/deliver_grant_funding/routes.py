@@ -27,7 +27,7 @@ deliver_grant_funding_blueprint = Blueprint(name="deliver_grant_funding", import
 CHECK_YOUR_ANSWERS = "check-your-answers"
 
 
-@deliver_grant_funding_blueprint.route("/grants/setup", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/setup", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_intro() -> ResponseReturnValue:
     form = GrantSetupIntroForm()
@@ -38,7 +38,7 @@ def grant_setup_intro() -> ResponseReturnValue:
     return render_template("deliver_grant_funding/grant_setup/initial_flow/intro.html", form=form)
 
 
-@deliver_grant_funding_blueprint.route("/grants/setup/ggis-number", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/setup/ggis-number", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_ggis() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -67,7 +67,7 @@ def grant_setup_ggis() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grants/setup/name", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/setup/name", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_name() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -98,7 +98,7 @@ def grant_setup_name() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grants/setup/description", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/setup/description", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_description() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -127,7 +127,7 @@ def grant_setup_description() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grants/setup/contact", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/setup/contact", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_contact() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -156,7 +156,7 @@ def grant_setup_contact() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grants/setup/check-your-answers", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/setup/check-your-answers", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
 def grant_setup_check_your_answers() -> ResponseReturnValue:
@@ -185,7 +185,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/setup-confirmation", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grant/setup/<uuid:grant_id>", methods=["GET"])
 @platform_admin_role_required
 def grant_setup_confirmation(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
@@ -204,7 +204,7 @@ def list_grants() -> Response | str:
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
 
 
-@deliver_grant_funding_blueprint.route("/grant/users/<uuid:grant_id>", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/users", methods=["GET"])
 @mhclg_login_required
 def list_users_for_grant(grant_id: UUID) -> str:
     try:
@@ -218,7 +218,7 @@ def list_users_for_grant(grant_id: UUID) -> str:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/share/user/<uuid:grant_id>", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/users/add", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
 def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
@@ -239,21 +239,21 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
     return render_template("deliver_grant_funding/grant_team/grant_user_add.html", form=form, grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>", methods=["GET"])
 @mhclg_login_required
 def view_grant(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details", methods=["GET"])
 @mhclg_login_required
 def grant_details(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_details.html", grant=grant)
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-ggis", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-ggis", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
 def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
@@ -273,7 +273,7 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-name", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-name", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
 def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
@@ -297,7 +297,7 @@ def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-description", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-description", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
 def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
@@ -317,7 +317,7 @@ def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grants/<uuid:grant_id>/details/change-contact", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-contact", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
 def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
