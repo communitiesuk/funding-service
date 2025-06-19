@@ -18,6 +18,10 @@ class BaseExpression(BaseModel):
     def expression(self) -> str:
         raise NotImplementedError
 
+    @property
+    @abc.abstractmethod
+    def description(self) -> str: ...
+
 
 class GreaterThan(BaseExpression):
     key: ManagedExpressions = ManagedExpressions.GREATER_THAN

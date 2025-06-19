@@ -666,19 +666,23 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     if form.validate_on_submit():
         expression = form.get_expression(question)
 
-        # FIXME: what if you add the same kind of managed validation a second time?
-        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
-
-        return redirect(
-            url_for(
-                "developers.edit_question",
-                grant_id=grant_id,
-                collection_id=question.form.section.collection.id,
-                section_id=question.form.section.id,
-                form_id=question.form.id,
-                question_id=question.id,
+        try:
+            interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        except DuplicateValueError:
+            # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
+            #        complain to us about it before we think about a better way of handling it.
+            form.form_errors.append(f"“{expression.description}” validation already exists on the question.")
+        else:
+            return redirect(
+                url_for(
+                    "developers.edit_question",
+                    grant_id=grant_id,
+                    collection_id=question.form.section.collection.id,
+                    section_id=question.form.section.id,
+                    form_id=question.form.id,
+                    question_id=question.id,
+                )
             )
-        )
 
     return render_template(
         "developers/add_question_validation.html",

@@ -298,7 +298,11 @@ def add_question_validation(question: Question, user: User, managed_expression: 
         type=ExpressionType.VALIDATION,
     )
     question.expressions.append(expression)
-    db.session.flush()
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
     return question
 
 
