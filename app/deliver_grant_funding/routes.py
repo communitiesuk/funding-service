@@ -206,14 +206,14 @@ def list_grants() -> Response | str:
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>", methods=["GET"])
 @mhclg_login_required
-def view_grant(grant_id: UUID) -> str:
+def view_grant(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/users", methods=["GET"])
 @mhclg_login_required
-def list_users_for_grant(grant_id: UUID) -> str:
+def list_users_for_grant(grant_id: UUID) -> ResponseReturnValue:
     try:
         grant = interfaces.grants.get_grant(grant_id)
     except NoResultFound:
@@ -248,7 +248,7 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details", methods=["GET"])
 @mhclg_login_required
-def grant_details(grant_id: UUID) -> str:
+def grant_details(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_details.html", grant=grant)
 
