@@ -932,7 +932,7 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     assert response.status_code == 302
 
     # Verify redirect is to grant setup confirmation page
-    assert response.location == AnyStringMatching(r"^/grant/setup/[A-Za-z0-9-]+$")
+    assert response.location == AnyStringMatching(r"^/grant-setup/[A-Za-z0-9-]+$")
 
     # Extract grant ID from redirect URL and verify grant exists
     grant_id_str = response.location.split("/")[-1]

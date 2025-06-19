@@ -27,7 +27,7 @@ deliver_grant_funding_blueprint = Blueprint(name="deliver_grant_funding", import
 CHECK_YOUR_ANSWERS = "check-your-answers"
 
 
-@deliver_grant_funding_blueprint.route("/grant/setup", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant-setup", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_intro() -> ResponseReturnValue:
     form = GrantSetupIntroForm()
@@ -38,7 +38,7 @@ def grant_setup_intro() -> ResponseReturnValue:
     return render_template("deliver_grant_funding/grant_setup/initial_flow/intro.html", form=form)
 
 
-@deliver_grant_funding_blueprint.route("/grant/setup/ggis-number", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant-setup/ggis-number", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_ggis() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -67,7 +67,7 @@ def grant_setup_ggis() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/setup/name", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant-setup/name", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_name() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -98,7 +98,7 @@ def grant_setup_name() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/setup/description", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant-setup/description", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_description() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -127,7 +127,7 @@ def grant_setup_description() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/setup/contact", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant-setup/contact", methods=["GET", "POST"])
 @platform_admin_role_required
 def grant_setup_contact() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -156,7 +156,7 @@ def grant_setup_contact() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/setup/check-your-answers", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route("/grant-setup/check-your-answers", methods=["GET", "POST"])
 @platform_admin_role_required
 @auto_commit_after_request
 def grant_setup_check_your_answers() -> ResponseReturnValue:
@@ -185,7 +185,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/setup/<uuid:grant_id>", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grant-setup/<uuid:grant_id>", methods=["GET"])
 @platform_admin_role_required
 def grant_setup_confirmation(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
