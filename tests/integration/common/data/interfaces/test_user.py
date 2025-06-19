@@ -17,7 +17,7 @@ class TestGetUser:
         assert user.email == "test@communities.gov.uk"
 
 
-class GetUserByEmail:
+class TestGetUserByEmail:
     def test_get_existing_user(self, db_session, factories):
         factories.user.create(email="Test@communities.gov.uk", name="My Name")
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
@@ -27,6 +27,34 @@ class GetUserByEmail:
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "Test@communities.gov.uk"
         assert user.name == "My Name"
+
+    def test_get_user_where_none_exists(self, db_session):
+        assert db_session.scalar(select(func.count()).select_from(User)) == 0
+
+        user = interfaces.user.get_user_by_email(email_address="test@communities.gov.uk")
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 0
+        assert user is None
+
+
+class TestGetUserByAzureAdSubjectId:
+    def test_get_existing_user(self, db_session, factories):
+        user = factories.user.create(email="Test@communities.gov.uk", name="My Name")
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+
+        user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id=user.azure_ad_subject_id)
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+        assert user.email == "Test@communities.gov.uk"
+        assert user.name == "My Name"
+
+    def test_get_user_where_none_exists(self, db_session):
+        assert db_session.scalar(select(func.count()).select_from(User)) == 0
+
+        user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id="some_string_value")
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 0
+        assert user is None
 
 
 class TestUpsertUserByEmail:
@@ -39,7 +67,7 @@ class TestUpsertUserByEmail:
         assert user.email == "test@communities.gov.uk"
 
     def test_get_existing_user_with_update(self, db_session, factories):
-        factories.user.create(email="test@communities.gov.uk", name="My Name")
+        factories.user.create(email="test@communities.gov.uk", name="My Name", azure_ad_subject_id=None)
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
         user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk", name="My Name updated")
@@ -48,15 +76,32 @@ class TestUpsertUserByEmail:
         assert user.email == "test@communities.gov.uk"
         assert user.name == "My Name updated"
 
-    def test_get_existing_user_can_set_name(self, db_session, factories):
-        factories.user.create(email="test@communities.gov.uk", name="My Name")
-        assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
-        user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk", name="My NewName")
+class TestUpsertUserByAzureAdSubjectId:
+    def test_create_new_user(self, db_session):
+        assert db_session.scalar(select(func.count()).select_from(User)) == 0
+
+        user = interfaces.user.upsert_user_by_azure_ad_subject_id(
+            azure_ad_subject_id="some_example_string", email_address="test@communities.gov.uk"
+        )
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
-        assert user.name == "My NewName"
+        assert user.azure_ad_subject_id == "some_example_string"
+
+    def test_get_existing_user_with_update(self, db_session, factories):
+        factory_user = factories.user.create(email="test@communities.gov.uk", name="My Name")
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+
+        user = interfaces.user.upsert_user_by_azure_ad_subject_id(
+            azure_ad_subject_id=factory_user.azure_ad_subject_id,
+            email_address="updated@communities.gov.uk",
+            name="My Name updated",
+        )
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+        assert user.email == "updated@communities.gov.uk"
+        assert user.name == "My Name updated"
 
 
 class TestUpsertUserRole:

@@ -13,6 +13,7 @@ also pass that email through to the `get_or_create_user` method and check behavi
 """
 
 import base64
+import hashlib
 import json
 import os
 import time
@@ -162,7 +163,7 @@ def create_sso_stub_app() -> Flask:
                 "rh": "",
                 "roles": ["FSD_ADMIN"] if is_platform_admin else [],
                 "sid": "",
-                "sub": "",
+                "sub": hashlib.md5(email_address.encode("utf_8")).hexdigest(),
                 "tid": "",
                 "uti": "",
                 "ver": "2.0",

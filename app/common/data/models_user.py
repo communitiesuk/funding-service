@@ -16,11 +16,10 @@ class User(BaseModel):
     __tablename__ = "user"
 
     name: Mapped[str] = mapped_column(nullable=True)
-
     email: Mapped[CIStr] = mapped_column(unique=True)
+    azure_ad_subject_id: Mapped[str] = mapped_column(nullable=True, unique=True)
 
     magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
-
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     submissions: Mapped[list["Submission"]] = relationship("Submission", back_populates="created_by")
 
