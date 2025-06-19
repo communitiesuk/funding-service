@@ -290,6 +290,18 @@ def add_question_condition(question: Question, user: User, managed_expression: "
     return question
 
 
+def add_question_validation(question: Question, user: User, managed_expression: "BaseExpression") -> Question:
+    expression = Expression(
+        statement=managed_expression.expression,
+        context=managed_expression.model_dump(mode="json"),
+        created_by=user,
+        type=ExpressionType.VALIDATION,
+    )
+    question.expressions.append(expression)
+    db.session.flush()
+    return question
+
+
 def remove_question_expression(question: Question, expression: Expression) -> Question:
     question.expressions.remove(expression)
     db.session.flush()

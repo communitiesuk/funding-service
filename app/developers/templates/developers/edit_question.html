@@ -50,9 +50,14 @@
             {{ form.hint }}
 
             <div class="govuk-form-group">
-              <div class="govuk-body">
+              <p class="govuk-body">
                 <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_question_condition_select_question', grant_id=grant.id, question_id=question.id) }}">Add condition</a>
-              </div>
+              </p>
+
+              {# FIXME: Only show if the question can be validated against, ie probably not free text. #}
+              <p class="govuk-body">
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_question_validation', grant_id=grant.id, question_id=question.id) }}">Add validation</a>
+              </p>
             </div>
 
             {{ form.submit }}

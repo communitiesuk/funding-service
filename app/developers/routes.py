@@ -41,8 +41,10 @@ from app.common.data.interfaces.temporary import (
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions.managed import (
     get_managed_condition_form,
+    get_managed_validation_form,
     get_supported_form_questions,
     parse_condition_form,
+    parse_validation_form,
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -644,6 +646,44 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
         "developers/add_question_condition_select_condition_type.html",
         question=question,
         depends_on_question=depends_on_question,
+        grant=question.form.section.collection.grant,
+        form=form,
+        QuestionDataType=QuestionDataType,
+    )
+
+
+@developers_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-validation",
+    methods=["GET", "POST"],
+)
+@platform_admin_role_required
+@auto_commit_after_request
+def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+
+    ValidationForm = get_managed_validation_form(question)
+    form = ValidationForm()
+
+    if form.validate_on_submit():
+        expression = parse_validation_form(question, form)
+
+        # FIXME: what if you add the same kind of managed validation a second time?
+        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+
+        return redirect(
+            url_for(
+                "developers.edit_question",
+                grant_id=grant_id,
+                collection_id=question.form.section.collection.id,
+                section_id=question.form.section.id,
+                form_id=question.form.id,
+                question_id=question.id,
+            )
+        )
+
+    return render_template(
+        "developers/add_question_validation.html",
+        question=question,
         grant=question.form.section.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,

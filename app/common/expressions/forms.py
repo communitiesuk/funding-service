@@ -25,3 +25,23 @@ class AddNumberConditionForm(FlaskForm):
 
         # fixme: IDE realises this is a FlaskForm and bool but mypy is calling it "Any" on pre-commit
         return super().validate(extra_validators=extra_validators)  # type: ignore
+
+
+class AddNumberValidationForm(FlaskForm):
+    type = RadioField(
+        "The answer to this question must be",
+        choices=[(ManagedExpressions.GREATER_THAN, ManagedExpressions.GREATER_THAN.value)],
+        validators=[DataRequired("Select what the answer should be to show this question")],
+        widget=GovRadioInput(),
+    )
+
+    value = IntegerField("Value", widget=GovTextInput(), validators=[Optional()])
+
+    submit = SubmitField("Add validation", widget=GovSubmitInput())
+
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
+        if self.type.data:
+            self.value.validators = [DataRequired("Enter a value")]
+
+        # fixme: IDE realises this is a FlaskForm and bool but mypy is calling it "Any" on pre-commit
+        return super().validate(extra_validators=extra_validators)  # type: ignore
