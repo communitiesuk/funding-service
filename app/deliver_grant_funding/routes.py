@@ -204,6 +204,13 @@ def list_grants() -> Response | str:
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
 
 
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>", methods=["GET"])
+@mhclg_login_required
+def view_grant(grant_id: UUID) -> str:
+    grant = interfaces.grants.get_grant(grant_id)
+    return render_template("deliver_grant_funding/grant_view.html", grant=grant)
+
+
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/users", methods=["GET"])
 @mhclg_login_required
 def list_users_for_grant(grant_id: UUID) -> str:
@@ -237,13 +244,6 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
                 flash("We’ve emailed the grant team member a link to sign in")
             return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
     return render_template("deliver_grant_funding/grant_team/grant_user_add.html", form=form, grant=grant)
-
-
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>", methods=["GET"])
-@mhclg_login_required
-def view_grant(grant_id: UUID) -> str:
-    grant = interfaces.grants.get_grant(grant_id)
-    return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details", methods=["GET"])
