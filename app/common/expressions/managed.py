@@ -14,6 +14,7 @@ from app.common.expressions.forms import AddNumberConditionForm
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
+    # from app.common.data.models import Question
 
 
 class BaseExpression(BaseModel):
@@ -22,6 +23,11 @@ class BaseExpression(BaseModel):
     @property
     @abc.abstractmethod
     def description(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def value(self) -> str:
         raise NotImplementedError
 
     @property
@@ -38,6 +44,10 @@ class GreaterThan(BaseExpression):
     @property
     def description(self) -> str:
         return "Is greater than"
+
+    @property
+    def value(self) -> str:
+        return str(self.minimum_value)
 
     @property
     def message(self) -> str:
@@ -65,22 +75,21 @@ def get_managed_expression_form(question: "Question") -> "FlaskForm":
         raise ValueError(f"Question type {question.data_type} does not support managed expressions") from e
 
 
-# todo: think through each of the pieces needed here, do they want to be encapsulated somewhere else
-#       for example does this want to happen in the conditions property of the question model
 def get_managed_expression(expression: "Expression") -> BaseExpression:
-    match expression.type:
+    # todo: fetching this to know what type is starting to feel strange - maybe this should be a top level property
+    match expression.context.get("key"):
         case ManagedExpressions.GREATER_THAN:
             return TypeAdapter(GreaterThan).validate_python(expression.context)
         case _:
             raise ValueError(f"Unsupported managed expression type: {expression.type}")
 
 
-def get_supported_form_questions(question: Question) -> list[Question]:
+def get_supported_form_questions(question: "Question") -> list["Question"]:
     questions = question.form.questions
     return [q for q in questions if q.data_type in supported_managed_question_types.keys() and q.id != question.id]
 
 
-def parse_expression_form(question: Question, form: FlaskForm) -> BaseExpression:
+def parse_expression_form(question: "Question", form: FlaskForm) -> BaseExpression:
     if isinstance(form, AddNumberConditionForm):
         assert form.value.data
         return GreaterThan(question_id=question.id, minimum_value=form.value.data)

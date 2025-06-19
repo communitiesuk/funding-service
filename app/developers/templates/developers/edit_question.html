@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
 {% set page_title = "Edit question - " ~ db_form.title %}
 {% set active_item_identifier = "developers" %}
@@ -54,11 +55,20 @@
 
               <ul class="govuk-list govuk-list--bullet">
                 {% for condition in question.conditions %}
-                  <li>{{ condition.description }}</li>
+                  {% set managed = condition.managed %}
+                  <li>{{ managed.description }} ({{ managed.value }})</li>
                 {% else %}
                   <li>No conditions</li>
                 {% endfor %}
               </ul>
+
+              {{
+                govukButton({
+                  "text": "Add condition",
+                  "href": url_for("developers.add_question_condition_select_question", grant_id=grant.id, question_id=question.id),
+                  "classes": "govuk-button--secondary"
+                })
+              }}
             </div>
             
             {{ form.submit }}

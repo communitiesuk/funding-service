@@ -1,10 +1,11 @@
 import ast
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import simpleeval
 
-from app.common.data.models import Expression
+if TYPE_CHECKING:
+    from app.common.data.models import Expression
 
 
 class BaseExpressionError(Exception):
@@ -24,7 +25,7 @@ class InvalidEvaluationResult(BaseExpressionError):
 
 
 def _evaluate_expression_with_context(
-    expression: Expression, context: dict[str, str | int | float | bool | None] | None = None
+    expression: "Expression", context: dict[str, str | int | float | bool | None] | None = None
 ) -> Any:
     """
     The base evaluator to use for handling all expressions.
@@ -82,10 +83,10 @@ def _evaluate_expression_with_context(
 
 
 # todo: interpolate an expression (eg for injecting dynamic data into question text, error messages, etc)
-def interpolate(expression: Expression, context: dict[str, str | int | float | bool | None] | None = None) -> Any: ...
+def interpolate(expression: "Expression", context: dict[str, str | int | float | bool | None] | None = None) -> Any: ...
 
 
-def evaluate(expression: Expression, context: dict[str, str | int | float | bool | None] | None = None) -> bool:
+def evaluate(expression: "Expression", context: dict[str, str | int | float | bool | None] | None = None) -> bool:
     result = _evaluate_expression_with_context(expression, context)
 
     # do we want these to evalaute to non-bool types like int/str ever?
