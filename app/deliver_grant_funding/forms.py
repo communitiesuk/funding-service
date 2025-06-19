@@ -97,7 +97,6 @@ class GrantDescriptionForm(GrantSetupForm):
         ],
         filters=[strip_string_if_not_empty],
         widget=GovCharacterCount(),
-        description="Do not include personal information",
     )
 
 
