@@ -1,7 +1,7 @@
 import pytest
 
 from app.common.data.types import QuestionDataType
-from app.common.expressions.forms import AddNumberConditionForm
+from app.common.expressions.forms import AddIntegerConditionForm
 from app.common.expressions.helpers import (
     get_managed_condition_form,
     get_supported_form_questions,
@@ -36,7 +36,7 @@ class TestManagedExpressions:
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
 
         form = get_managed_condition_form(question)
-        assert form == AddNumberConditionForm
+        assert form == AddIntegerConditionForm
 
     def test_get_managed_expression_form_invalid_question_type(self, factories):
         question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)

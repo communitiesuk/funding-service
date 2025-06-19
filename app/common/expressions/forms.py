@@ -20,7 +20,7 @@ class _BaseExpressionForm(FlaskForm):
     def get_expression(self, question: Question) -> "BaseExpression": ...
 
 
-class AddNumberConditionForm(FlaskForm):
+class AddIntegerConditionForm(FlaskForm):
     type = RadioField(
         "Only show the question if the answer is",
         choices=[(ManagedExpressions.GREATER_THAN, ManagedExpressions.GREATER_THAN.value)],
@@ -39,7 +39,7 @@ class AddNumberConditionForm(FlaskForm):
         return super().validate(extra_validators=extra_validators)  # type: ignore
 
 
-class AddNumberValidationForm(_BaseExpressionForm):
+class AddIntegerValidationForm(_BaseExpressionForm):
     type = RadioField(
         choices=[
             (ManagedExpressions.GREATER_THAN, ManagedExpressions.GREATER_THAN.value),
