@@ -41,7 +41,7 @@ class AddNumberValidationForm(FlaskForm):
 
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         if self.type.data:
-            self.value.validators = [DataRequired("Enter a value")]
+            self.value.validators = [DataRequired("Enter the minimum value allowed for this question")]
 
         # fixme: IDE realises this is a FlaskForm and bool but mypy is calling it "Any" on pre-commit
         return super().validate(extra_validators=extra_validators)  # type: ignore
