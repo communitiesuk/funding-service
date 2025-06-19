@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from app.common.data.models_user import User
-from app.common.data.types import RoleEnum
+from app.common.data.types import GRANT_ROLES_MAPPING, RoleEnum
 
 
 class AuthorisationHelper:
@@ -23,6 +23,8 @@ class AuthorisationHelper:
 
     @staticmethod
     def is_grant_admin(grant_id: str, user: User) -> bool:
+        if AuthorisationHelper.is_platform_admin(user=user):
+            return True
         is_grant_admin = any(
             role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id == grant_id
             for role in user.roles
@@ -31,14 +33,29 @@ class AuthorisationHelper:
 
     @staticmethod
     def is_grant_member(grant_id: str | UUID, user: User) -> bool:
-        # TODO account for hierarchical roles
-        # MEMBER_ROLES = [RoleEnum.MEMBER, RoleEnum.ADMIN]
-        # platform admin would have RoleEnum.ADMIN and grant_id would be None so need to change 'any()' call
-        # role.role in MEMBER_ROLES
+        """
+        Determines whether a user has permissions to act as a grant member.
+        Platform admin overrides anything else.
+        Checks
+        :param grant_id:
+        :param user:
+        :return:
+        """
+
+        if AuthorisationHelper.is_platform_admin(user=user):
+            return True
+
         if isinstance(grant_id, str):
             grant_id = UUID(grant_id)
+
         is_grant_member = any(
-            role.role == RoleEnum.MEMBER and role.organisation_id is None and role.grant_id == grant_id
+            # role.organisation_id is None TODO don't think this is needed, as we only check grant_id, but confirm
+            role.grant_id == grant_id
+            and RoleEnum.MEMBER
+            in GRANT_ROLES_MAPPING.get(
+                role.role,
+                role.role,  # Use the list of roles this role implies, otherwise just use this role
+            )
             for role in user.roles
         )
         return is_grant_member
@@ -46,13 +63,15 @@ class AuthorisationHelper:
     @staticmethod
     def has_grant_role(grant_id: str, user: User, role: RoleEnum) -> bool:
         """
-        Will return True if the user has the specified role for the grant, (TODO: or a higher role in the hierarchy).
-        Does not work for platform admin role, as that is not a grant-specific role.
+        Will return True if the user has the specified role for the grant.
+        Platform admin overrides anything else.
         :param grant_id:
         :param user:
         :param role:
         :return:
         """
+        if AuthorisationHelper.is_platform_admin(user=user):
+            return True
         match role:
             case RoleEnum.ADMIN:
                 return AuthorisationHelper.is_grant_admin(grant_id, user)

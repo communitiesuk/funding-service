@@ -17,6 +17,17 @@ class RoleEnum(str, enum.Enum):
     S151_OFFICER = "s151_officer"  # S151 officer sign-off permissions
 
 
+# If a user roles implies they get other (lower) roles as well, list the role here with the roles they should get.
+GRANT_ROLES_MAPPING = {
+    RoleEnum.ADMIN: [
+        # Admin gets all roles except S151 officer
+        role
+        for role in RoleEnum
+        if role != RoleEnum.S151_OFFICER
+    ],
+}
+
+
 class QuestionDataType(enum.StrEnum):
     # If adding values here, also update QuestionTypeForm
     # and manually create a migration to update question_type_enum in the db
