@@ -21,12 +21,12 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% if confirm_deletion_form %}
+      {% if form %}
         {% set banner_html %}
           <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this form?</p>
           <form method="post" novalidate>
-            {{ confirm_deletion_form.csrf_token }}
-            {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+            {{ form.csrf_token }}
+            {{ form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
           </form>
         {% endset %}
 
@@ -35,10 +35,10 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ section.title }}</span>
-        {{ form.title }}
+        {{ db_form.title }}
       </h1>
       {% set question_text %}
-        {% trans count=form.questions | length %}
+        {% trans count=db_form.questions | length %}
           {{ count }}
           question{% pluralize %}{{ count }} questions
         {% endtrans %}
@@ -47,11 +47,11 @@
         govukSummaryList({
           "rows": [{
               "key": {"text": "Title"},
-              "value":{"text": form.title},
+              "value":{"text": db_form.title},
               "actions": {
                   "items": [
                       {
-                        "href": url_for("developers.edit_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id = form.id),
+                        "href": url_for("developers.edit_form", grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id = db_form.id),
                         "text": "Change",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -67,7 +67,7 @@
       <h2 class="govuk-heading-m">Questions</h2>
 
       {% set table_rows = [] %}
-      {% for question in form.questions %}
+      {% for question in db_form.questions %}
         {% set question_link %}
           <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id) }}">
             {{ question.text }}
@@ -78,20 +78,20 @@
             "html": question_link,
             "actions":[{
                 "text":"Move up",
-                "href": url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1),
+                "href": url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1),
                 "post": True
               }, {
-                "href": url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id, direction = 'down'),
+                "href": url_for('developers.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'down'),
                 "post": True,
-                "text": "Move down","disabled":(loop.index >= form.questions | length)
+                "text": "Move down","disabled":(loop.index >= db_form.questions | length)
               }
             ]
           })
         %}
       {% endfor %}
 
-      {% if form.questions %}
-        <p class="govuk-body">This form has {% trans count=form.questions | length %}{{ count }} question{% pluralize %}{{ count }} questions{% endtrans %}.</p>
+      {% if db_form.questions %}
+        <p class="govuk-body">This form has {% trans count=db_form.questions | length %}{{ count }} question{% pluralize %}{{ count }} questions{% endtrans %}.</p>
         {{ moveUpDownTable(table_rows) }}
       {% else %}
         <p class="govuk-body">This form has no questions.</p>
@@ -100,7 +100,7 @@
         govukButton({
             "text": "Add question",
             "classes": "govuk-button--secondary",
-            "href": url_for("developers.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id),
+            "href": url_for("developers.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id),
         })
       }}
     </div>
@@ -108,7 +108,7 @@
   <div class="govuk-grid-row govuk-!-margin-top-7">
     <div class="govuk-grid-column-two-thirds">
       <p class="govuk-body">
-        <a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, delete='') }}">Delete this form</a>
+        <a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, delete='') }}">Delete this form</a>
       </p>
     </div>
   </div>

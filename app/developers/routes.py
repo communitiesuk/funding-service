@@ -280,14 +280,10 @@ def move_form(
 @platform_admin_role_required
 @auto_commit_after_request
 def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
-    form = get_form_by_id(form_id)
+    db_form = get_form_by_id(form_id)
 
-    confirm_deletion_form = ConfirmDeletionForm()
-    if (
-        "delete" in request.args
-        and confirm_deletion_form.validate_on_submit()
-        and confirm_deletion_form.confirm_deletion.data
-    ):
+    form = ConfirmDeletionForm()
+    if "delete" in request.args and form.validate_on_submit() and form.confirm_deletion.data:
         delete_form(form_id=form_id)
         # TODO: Flash message for deletion?
         return redirect(
@@ -296,11 +292,11 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
 
     return render_template(
         "developers/manage_form.html",
-        grant=form.section.collection.grant,
-        section=form.section,
-        collection=form.section.collection,
-        form=form,
-        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+        grant=db_form.section.collection.grant,
+        section=db_form.section,
+        collection=db_form.section.collection,
+        db_form=db_form,
+        form=form if "delete" in request.args else None,
     )
 
 
