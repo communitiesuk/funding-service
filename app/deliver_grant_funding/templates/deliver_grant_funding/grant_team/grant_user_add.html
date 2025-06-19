@@ -2,10 +2,7 @@
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
-{% block pageTitle %}
-  Add grant team member - MHCLG Funding Service
-{% endblock pageTitle %}
-
+{% set page_title = "Add grant team member" %}
 {% set active_item_identifier = "grant_team" %}
 
 {% block beforeContent %}

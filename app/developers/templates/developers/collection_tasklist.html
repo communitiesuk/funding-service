@@ -7,9 +7,7 @@
 {% from "common/macros/status.html" import status %}
 {% extends "developers/access_grant_funding_base.html" %}
 
-{% block pageTitle %}
-  Collection for {{ submission_helper.name }} - MHCLG Funding Service
-{% endblock pageTitle %}
+{% set page_title = "Collection for " ~ submission_helper.name %}
 
 {% block beforeContent %}
   {% if submission_helper.is_test %}

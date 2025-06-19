@@ -6,10 +6,7 @@
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 {% extends "developers/access_grant_funding_base.html" %}
 
-{% block pageTitle %}
-  {{ question.text }}
-  - MHCLG Funding Service
-{% endblock pageTitle %}
+{% set page_title = question.text ~ " - " ~ question.form.title %}
 
 {% block beforeContent %}
   {% if submission_helper.is_test %}

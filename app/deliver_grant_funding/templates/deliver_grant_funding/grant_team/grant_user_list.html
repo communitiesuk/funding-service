@@ -3,10 +3,7 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
-{% block pageTitle %}
-  Grant team - {{ grant.name }} - MHCLG Funding Service
-{% endblock pageTitle %}
-
+{% set page_title = "Grant team - " ~ grant.name %}
 {% set active_item_identifier = "grant_team" %}
 
 {% block content %}

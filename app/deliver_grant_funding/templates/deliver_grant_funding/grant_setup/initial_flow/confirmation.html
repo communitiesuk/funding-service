@@ -1,10 +1,6 @@
 {% extends "deliver_grant_funding/base.html" %}
 
-{% block pageTitle %}
-  {{ grant.name }}
-  added
-{% endblock %}
-
+{% set page_title = grant.name ~ " added" %}
 {% set active_item_identifier = "grants" %}
 
 {% block content %}

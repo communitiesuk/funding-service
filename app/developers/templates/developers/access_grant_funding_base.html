@@ -5,6 +5,8 @@
 {% set active_item_identifier = "grants" %}
 {% set cspNonce = csp_nonce() %}
 
+{% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
+
 {#
 common/base.html embeds "Deliver grant funding" in the service navigation. That doesn't feel right here, so this just removes it.
 

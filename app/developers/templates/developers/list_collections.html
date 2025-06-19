@@ -3,10 +3,7 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
-{% block pageTitle %}
-  Collections - {{ grant.name }} - MHCLG Funding Service
-{% endblock pageTitle %}
-
+{% set page_title = "Collections - " ~ grant.name %}
 {% set active_item_identifier = "developers" %}
 
 {% block content %}

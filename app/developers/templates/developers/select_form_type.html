@@ -3,10 +3,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
 
-{% block pageTitle %}
-  Add a form - {{ section.title }} - MHCLG Funding Service
-{% endblock pageTitle %}
-
+{% set page_title = "Add a form - " ~ section.title %}
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}

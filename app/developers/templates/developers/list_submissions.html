@@ -6,10 +6,7 @@
 {% from "common/macros/status.html" import status %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
-{% block pageTitle %}
-  Submissions - {{ collection.name }} - MHCLG Funding Service
-{% endblock pageTitle %}
-
+{% set page_title = "Submissions - " ~ collection.name %}
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}

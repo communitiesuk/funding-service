@@ -2,10 +2,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
 
-{% block pageTitle %}
-  Developers - {{ grant.name }} - MHCLG Funding Service
-{% endblock pageTitle %}
-
+{% set page_title = "Developers - " ~ grant.name %}
 {% set active_item_identifier = "developers" %}
 
 {% block content %}

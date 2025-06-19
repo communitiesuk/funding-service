@@ -3,10 +3,7 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
-{% block pageTitle %}
-  Edit question - {{ db_form.title }} - MHCLG Funding Service
-{% endblock pageTitle %}
-
+{% set page_title = "Edit question - " ~ db_form.title %}
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}

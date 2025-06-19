@@ -2,9 +2,7 @@
 {% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
-{% block pageTitle %}
-  Deliver grant funding - MHCLG Funding Service
-{% endblock pageTitle %}
+{% block pageTitle %}Deliver grant funding - {{ super() }}{% endblock pageTitle %}
 
 {% block content %}
   <div class="govuk-grid-row">

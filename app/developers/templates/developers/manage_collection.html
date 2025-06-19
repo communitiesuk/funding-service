@@ -4,10 +4,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
-{% block pageTitle %}
-  {{ collection.name }}
-  - {{ grant.name }} - MHCLG Funding Service
-{% endblock pageTitle %}
+{% set page_title = collection.name ~ " - " ~ grant.name %}
 
 {% set active_item_identifier = "developers" %}
 {% block beforeContent %}
