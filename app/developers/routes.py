@@ -40,9 +40,9 @@ from app.common.data.interfaces.temporary import (
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions.managed import (
-    get_managed_expression_form,
+    get_managed_condition_form,
     get_supported_form_questions,
-    parse_expression_form,
+    parse_condition_form,
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -623,10 +623,10 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     question = get_question_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
-    form = get_managed_expression_form(depends_on_question)()
+    form = get_managed_condition_form(depends_on_question)()
 
     if form.validate_on_submit():
-        expression = parse_expression_form(depends_on_question, form)
+        expression = parse_condition_form(depends_on_question, form)
         interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
 
         return redirect(

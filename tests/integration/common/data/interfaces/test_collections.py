@@ -416,7 +416,7 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     assert queries == []
 
 
-def test_add_expression(db_session, factories):
+def test_add_question_condition(db_session, factories):
     question = factories.question.create()
     user = factories.user.create()
 

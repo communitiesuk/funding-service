@@ -3,9 +3,9 @@ import pytest
 from app.common.data.types import QuestionDataType
 from app.common.expressions.forms import AddNumberConditionForm
 from app.common.expressions.managed import (
-    get_managed_expression_form,
+    get_managed_condition_form,
     get_supported_form_questions,
-    parse_expression_form,
+    parse_condition_form,
 )
 
 
@@ -35,22 +35,22 @@ class TestManagedExpressions:
     def test_get_managed_expression_form_valid_question_type(self, factories):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
 
-        form = get_managed_expression_form(question)
+        form = get_managed_condition_form(question)
         assert form == AddNumberConditionForm
 
     def test_get_managed_expression_form_invalid_question_type(self, factories):
         question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
 
         with pytest.raises(ValueError) as e:
-            get_managed_expression_form(question)
+            get_managed_condition_form(question)
 
-        assert str(e.value) == f"Question type {question.data_type} does not support managed expressions"
+        assert str(e.value) == f"Question type {question.data_type} does not support managed conditions"
 
     def test_parse_managed_expression_form(self, factories):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
-        form = get_managed_expression_form(question)(value=2000)
+        form = get_managed_condition_form(question)(value=2000)
 
-        expression = parse_expression_form(question, form)
+        expression = parse_condition_form(question, form)
         assert expression.key == "Greater than"
         assert expression.question_id == question.id
         assert expression.minimum_value == 2000

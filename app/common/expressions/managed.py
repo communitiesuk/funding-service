@@ -47,24 +47,28 @@ class GreaterThan(BaseExpression):
         return f"{qid} > {self.minimum_value}"
 
 
-supported_managed_question_types = {QuestionDataType.INTEGER: AddNumberConditionForm}
+supported_managed_conditions_by_question_type = {QuestionDataType.INTEGER: AddNumberConditionForm}
 
 
-def get_managed_expression_form(question: Question) -> "FlaskForm":
+def get_managed_condition_form(question: Question) -> "FlaskForm":
     try:
-        return supported_managed_question_types[question.data_type]
+        return supported_managed_conditions_by_question_type[question.data_type]
     except KeyError as e:
-        raise ValueError(f"Question type {question.data_type} does not support managed expressions") from e
+        raise ValueError(f"Question type {question.data_type} does not support managed conditions") from e
 
 
 def get_supported_form_questions(question: Question) -> list[Question]:
     questions = question.form.questions
-    return [q for q in questions if q.data_type in supported_managed_question_types.keys() and q.id != question.id]
+    return [
+        q
+        for q in questions
+        if q.data_type in supported_managed_conditions_by_question_type.keys() and q.id != question.id
+    ]
 
 
-def parse_expression_form(question: Question, form: FlaskForm) -> BaseExpression:
+def parse_condition_form(question: Question, form: FlaskForm) -> BaseExpression:
     if isinstance(form, AddNumberConditionForm):
         assert form.value.data
         return GreaterThan(question_id=question.id, minimum_value=form.value.data)
     else:
-        raise ValueError("Question type does not support managed expressions.")
+        raise ValueError("Question type does not support managed conditions.")
