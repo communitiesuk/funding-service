@@ -56,3 +56,5 @@ class ExpressionType(enum.StrEnum):
 
 class ManagedExpressions(enum.StrEnum):
     GREATER_THAN = "Greater than"
+    LESS_THAN = "Less than"
+    BETWEEN = "Between"

@@ -1,22 +1,24 @@
+from typing import Type
+
 from flask_wtf import FlaskForm
 
 from app.common.data.models import Question
 from app.common.data.types import QuestionDataType
-from app.common.expressions.forms import AddNumberConditionForm, AddNumberValidationForm
+from app.common.expressions.forms import AddNumberConditionForm, AddNumberValidationForm, _BaseExpressionForm
 from app.common.expressions.managed import BaseExpression, GreaterThan
 
 supported_managed_conditions_by_question_type = {QuestionDataType.INTEGER: AddNumberConditionForm}
 supported_managed_validation_by_question_type = {QuestionDataType.INTEGER: AddNumberValidationForm}
 
 
-def get_managed_condition_form(question: Question) -> "FlaskForm":
+def get_managed_condition_form(question: Question) -> Type["FlaskForm"]:
     try:
         return supported_managed_conditions_by_question_type[question.data_type]
     except KeyError as e:
         raise ValueError(f"Question type {question.data_type} does not support managed conditions") from e
 
 
-def get_managed_validation_form(question: Question) -> "FlaskForm":
+def get_managed_validation_form(question: Question) -> Type["_BaseExpressionForm"]:
     try:
         return supported_managed_validation_by_question_type[question.data_type]
     except KeyError as e:
@@ -38,11 +40,3 @@ def parse_condition_form(question: Question, form: FlaskForm) -> BaseExpression:
         return GreaterThan(question_id=question.id, minimum_value=form.value.data)
     else:
         raise ValueError("Question type does not support managed conditions.")
-
-
-def parse_validation_form(question: Question, form: FlaskForm) -> BaseExpression:
-    if isinstance(form, AddNumberValidationForm):
-        assert form.value.data
-        return GreaterThan(question_id=question.id, minimum_value=form.value.data)
-    else:
-        raise ValueError("Question type does not support managed validation.")

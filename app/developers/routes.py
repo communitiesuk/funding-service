@@ -44,7 +44,6 @@ from app.common.expressions.helpers import (
     get_managed_validation_form,
     get_supported_form_questions,
     parse_condition_form,
-    parse_validation_form,
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -665,7 +664,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     form = ValidationForm()
 
     if form.validate_on_submit():
-        expression = parse_validation_form(question, form)
+        expression = form.get_expression(question)
 
         # FIXME: what if you add the same kind of managed validation a second time?
         interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)

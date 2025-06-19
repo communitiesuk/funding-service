@@ -42,3 +42,54 @@ class GreaterThan(BaseExpression):
         # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
         qid = mangle_question_id_for_context(self.question_id)
         return f"{qid} > {self.minimum_value}"
+
+
+class LessThan(BaseExpression):
+    key: ManagedExpressions = ManagedExpressions.LESS_THAN
+    question_id: UUID
+    maximum_value: int
+
+    @property
+    def description(self) -> str:
+        return "Is less than"
+
+    @property
+    def message(self) -> str:
+        # todo: optionally include the question name in the default message
+        # todo: do you allow the form builder to override this if they need to
+        #       - does that persist in the context (inherited from BaseExpression) or as a separate
+        #         property on the model
+        # todo: make this use expression evaluation/interpolation rather than f-strings
+        return f"The answer must be {self.maximum_value} or less"
+
+    @property
+    def expression(self) -> str:
+        # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
+        qid = mangle_question_id_for_context(self.question_id)
+        return f"{qid} > {self.maximum_value}"
+
+
+class Between(BaseExpression):
+    key: ManagedExpressions = ManagedExpressions.BETWEEN
+    question_id: UUID
+    minimum_value: int
+    maximum_value: int
+
+    @property
+    def description(self) -> str:
+        return "Is between"
+
+    @property
+    def message(self) -> str:
+        # todo: optionally include the question name in the default message
+        # todo: do you allow the form builder to override this if they need to
+        #       - does that persist in the context (inherited from BaseExpression) or as a separate
+        #         property on the model
+        # todo: make this use expression evaluation/interpolation rather than f-strings
+        return f"The answer must be between {self.minimum_value} and {self.maximum_value}"
+
+    @property
+    def expression(self) -> str:
+        # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
+        qid = mangle_question_id_for_context(self.question_id)
+        return f"{self.minimum_value} < {qid} < {self.maximum_value}"
