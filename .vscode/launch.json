@@ -16,6 +16,22 @@
                 }
             ],
             "justMyCode": true
+        },
+        {
+            "name": "Docker runner - SSO Stub Service",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 4006
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder:funding-service}",
+                    "remoteRoot": "."
+                }
+            ],
+            "justMyCode": true
         }
     ]
 }

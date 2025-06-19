@@ -66,6 +66,7 @@ services:
       - '/app/.venv' # Don't overwrite this directory with local .venv because uv links won't translate in the container
     ports:
       - "4005:4005" # application
+      - "4006:4006" # debugpy
     stdin_open: true
     tty: true
     command: >
@@ -73,7 +74,7 @@ services:
       cp /app/certs/rootCA.pem /usr/local/share/ca-certificates/rootCA.crt && \
       update-ca-certificates
 
-      uv run flask run --host 0.0.0.0 --port 4005 --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
+      uv run python -m debugpy --listen 0.0.0.0:4006 -m flask run --host 0.0.0.0 --port 4005 --reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
     environment:
       FLASK_APP: "stubs.sso:create_sso_stub_app"
