@@ -53,7 +53,7 @@ def grant_setup_ggis() -> ResponseReturnValue:
             return redirect(url_for("deliver_grant_funding.grant_setup_ggis_required_info"))
 
         grant_session.has_ggis = form.has_ggis.data
-        grant_session.ggis_number = form.ggis_number.data if form.has_ggis.data == "yes" else None
+        grant_session.ggis_number = form.ggis_number.data
         session["grant_setup"] = grant_session.to_session_dict()
         if request.args.get("source") == CHECK_YOUR_ANSWERS:
             return redirect(url_for("deliver_grant_funding.grant_setup_check_your_answers"))
