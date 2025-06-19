@@ -76,16 +76,6 @@ class TestUpsertUserByEmail:
         assert user.email == "test@communities.gov.uk"
         assert user.name == "My Name updated"
 
-    def test_get_existing_user_can_set_name(self, db_session, factories):
-        factories.user.create(email="test@communities.gov.uk", name="My Name", azure_ad_subject_id=None)
-        assert db_session.scalar(select(func.count()).select_from(User)) == 1
-
-        user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk", name="My NewName")
-
-        assert db_session.scalar(select(func.count()).select_from(User)) == 1
-        assert user.email == "test@communities.gov.uk"
-        assert user.name == "My NewName"
-
 
 class TestUpsertUserByAzureAdSubjectId:
     def test_create_new_user(self, db_session):

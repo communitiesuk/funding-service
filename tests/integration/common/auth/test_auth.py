@@ -177,7 +177,7 @@ class TestSSOSignInView:
 
 
 class TestSSOGetTokenView:
-    def test_get_without_fsd_admin_role(self, app, anonymous_client):
+    def test_get_without_fsd_admin_role_and_with_no_asigned_roles(self, app, anonymous_client):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
@@ -216,22 +216,6 @@ class TestSSOGetTokenView:
             assert current_user.email == "Test.Member@communities.gov.uk"
 
         assert response.status_code == 200
-
-    def test_get_without_fsd_admin_role_and_with_no_roles(self, anonymous_client):
-        with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
-            # Partially mock the expected return value; just enough for the test.
-            mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
-                "id_token_claims": {
-                    "preferred_username": "test.member.nodb@communities.gov.uk",
-                    "name": "SSO User",
-                    "roles": [],
-                    "sub": "someStringValue",
-                }
-            }
-
-            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
-
-        assert response.status_code == 403
 
     def test_get_without_any_roles_should_403(self, app, anonymous_client):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
