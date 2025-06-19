@@ -49,6 +49,9 @@ def grant_setup_ggis() -> ResponseReturnValue:
     form = GrantGGISForm(obj=grant_session)
 
     if form.validate_on_submit():
+        if form.has_ggis.data == "no":
+            return redirect(url_for("deliver_grant_funding.grant_setup_ggis_required_info"))
+
         grant_session.has_ggis = form.has_ggis.data
         grant_session.ggis_number = form.ggis_number.data if form.has_ggis.data == "yes" else None
         session["grant_setup"] = grant_session.to_session_dict()
@@ -66,6 +69,12 @@ def grant_setup_ggis() -> ResponseReturnValue:
         form=form,
         back_link_href=back_href,
     )
+
+
+@deliver_grant_funding_blueprint.route("/grant-setup/ggis-required-info", methods=["GET"])
+@platform_admin_role_required
+def grant_setup_ggis_required_info() -> ResponseReturnValue:
+    return render_template("deliver_grant_funding/grant_setup/ggis_required_info.html")
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/name", methods=["GET", "POST"])
@@ -262,7 +271,10 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
     form = GrantGGISForm(has_ggis=("yes" if grant.ggis_number else "no"), ggis_number=grant.ggis_number, is_update=True)
 
     if form.validate_on_submit():
-        ggis_number = form.ggis_number.data if form.has_ggis.data == "yes" else None
+        if form.has_ggis.data == "no":
+            return redirect(url_for("deliver_grant_funding.grant_change_ggis_required_info", grant_id=grant_id))
+
+        ggis_number = form.ggis_number.data
         interfaces.grants.update_grant(grant=grant, ggis_number=ggis_number)
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
 
@@ -271,6 +283,17 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
         form=form,
         back_link_href=url_for("deliver_grant_funding.grant_details", grant_id=grant_id),
         grant=grant,
+    )
+
+
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-ggis-required-info", methods=["GET"])
+@platform_admin_role_required
+def grant_change_ggis_required_info(grant_id: UUID) -> ResponseReturnValue:
+    grant = interfaces.grants.get_grant(grant_id)
+    return render_template(
+        "deliver_grant_funding/grant_setup/ggis_required_info.html",
+        grant=grant,
+        back_link_href=url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant_id),
     )
 
 
