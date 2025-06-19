@@ -1,29 +1,31 @@
-<form method="post" novalidate>
-  {{ form.csrf_token }}
+{% macro render_number_condition(form) %}
+  <form method="post" novalidate>
+    {{ form.csrf_token }}
 
 
-  {% set value_html %}
+    {% set value_html %}
+      {{
+        form.value(params={
+            "classes": "govuk-input--width-10",
+        })
+      }}
+    {% endset %}
+
     {{
-      form.value(params={
-          "classes": "govuk-input--width-10",
+      form.type(params={
+      "fieldset": {
+          "legend": {
+          "text": "Only show the question if the answer is",
+          "classes": "govuk-fieldset__legend--m",
+          "isPageHeading": False
+          },
+      },
+      "items": [{
+          "conditional": { "html": value_html },
+      }]
       })
     }}
-  {% endset %}
 
-  {{
-    form.type(params={
-    "fieldset": {
-        "legend": {
-        "text": "Only show the question if the answer is",
-        "classes": "govuk-fieldset__legend--m",
-        "isPageHeading": False
-        },
-    },
-    "items": [{
-        "conditional": { "html": value_html },
-    }]
-    })
-  }}
-
-  {{ form.submit }}
-</form>
+    {{ form.submit }}
+  </form>
+{% endmacro %}

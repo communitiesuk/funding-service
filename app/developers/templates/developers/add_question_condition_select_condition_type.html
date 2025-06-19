@@ -5,6 +5,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "developers/_number_condition.html" import render_number_condition %}
 
 {% block pageTitle %}
   Add a condition - {{ question.name }} - MHCLG Funding Service
@@ -31,7 +32,7 @@
       {% include "developers/_add_question_condition_context.html" %}
 
       {% if depends_on_question.data_type == QuestionDataType.INTEGER %}
-        {% include "developers/_number_condition.html" %}
+        {{ render_number_condition(form) }}
       {% else %}
         <p class="govuk-body">This question cannot be used a condition.</p>
       {% endif %}
