@@ -1,8 +1,11 @@
+from uuid import UUID
+
 import pytest
 from flask_login import login_user
 from werkzeug.exceptions import Forbidden, InternalServerError
 
 from app.common.auth.decorators import (
+    has_grant_role,
     login_required,
     mhclg_login_required,
     platform_admin_role_required,
@@ -127,3 +130,58 @@ class TestRedirectIfAuthenticated:
 
         response = test_authenticated_redirect()
         assert response == "OK"
+
+
+class TestHasGrantRole:
+    def test_user_no_roles(self, factories):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        grant = factories.grant.create()
+
+        @has_grant_role(role=RoleEnum.ADMIN)
+        def view_func(grant_id: UUID):
+            return "OK"
+
+        login_user(user)
+        with pytest.raises(Forbidden) as exc_info:
+            view_func(grant_id=grant.id)
+
+        assert "Access denied" in str(exc_info.value)
+
+    def test_admin_user_has_access(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+
+        @has_grant_role(role=RoleEnum.ADMIN)
+        def view_func(grant_id: UUID):
+            return "OK"
+
+        login_user(user)
+        response = view_func(grant_id="abc")
+        assert response == "OK"
+
+    def test_member_user_has_access(self, factories):
+        user = factories.user.create(email="test.member@communities.gov.uk")
+        grant = factories.grant.create()
+        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+
+        @has_grant_role(role=RoleEnum.MEMBER)
+        def view_func(grant_id: UUID):
+            return "OK"
+
+        login_user(user)
+        response = view_func(grant_id=grant.id)
+        assert response == "OK"
+
+    def test_member_user_denied_for_admin_role(self, factories):
+        user = factories.user.create(email="test.member2@communities.gov.uk")
+        grant = factories.grant.create()
+        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+
+        @has_grant_role(role=RoleEnum.ADMIN)
+        def view_func(grant_id: UUID):
+            return "OK"
+
+        login_user(user)
+        with pytest.raises(Forbidden) as e:
+            view_func(grant_id=grant.id)
+        assert "Access denied" in str(e.value)
