@@ -4,13 +4,17 @@
 
   {% set greater_than_value_html %}
     {{ form.greater_than_value(params={"classes": "govuk-input--width-10"}) }}
+    {{ form.greater_than_inclusive }}
   {% endset %}
   {% set less_than_value_html %}
     {{ form.less_than_value(params={"classes": "govuk-input--width-10"}) }}
+    {{ form.less_than_inclusive }}
   {% endset %}
   {% set between_html %}
     {{ form.bottom_of_range(params={"classes": "govuk-input--width-10"}) }}
+    {{ form.bottom_inclusive }}
     {{ form.top_of_range(params={"classes": "govuk-input--width-10"}) }}
+    {{ form.top_inclusive }}
   {% endset %}
 
   {{
