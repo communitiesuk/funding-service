@@ -51,6 +51,13 @@
             {{ form.text }}
             {{ form.name }}
             {{ form.hint }}
+
+            <div class="govuk-form-group">
+              <div class="govuk-body">
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_question_condition_select_question', grant_id=grant.id, question_id=question.id) }}">Add condition</a>
+              </div>
+            </div>
+
             {{ form.submit }}
           </form>
         </div>

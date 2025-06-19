@@ -1,0 +1,49 @@
+{% extends "deliver_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
+{% from "govuk_frontend_jinja/components/input/macro.html" import govukInput %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
+
+{% block pageTitle %}
+  Add a condition - {{ question.name }} - MHCLG Funding Service
+{% endblock pageTitle %}
+
+{% set active_item_identifier = "developers" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("developers.edit_question", grant_id = grant.id, collection_id = question.form.section.collection.id, section_id = question.form.section.id, form_id = question.form.id, question_id=question.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Add a condition</h1>
+
+      {% include "developers/_add_question_condition_context.html" %}
+
+      {% if not supported_questions %}
+        <p class="govuk-body">There are no questions in this form that can be used as a condition.</p>
+      {% else %}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{
+            form.question(params={
+              "label": {
+                "text": "What answer should the condition check?",
+                "classes": "govuk-label--m",
+                "isPageHeading": false
+              },
+            })
+          }}
+          {{ form.submit }}
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

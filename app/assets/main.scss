@@ -54,6 +54,10 @@ body.govuk-template__body:has(div.app-body__watermark) {
     border-top: 1px solid govuk-colour("mid-grey");
 }
 
+.app-\!-border-top-line {
+    border-top: 1px solid govuk-colour("mid-grey");
+}
+
 .app-link-button {
     @include govuk-font(19);
     color: $govuk-link-colour;

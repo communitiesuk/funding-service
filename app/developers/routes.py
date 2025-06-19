@@ -39,6 +39,11 @@ from app.common.data.interfaces.temporary import (
     delete_submissions_created_by_user,
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.expressions.managed import (
+    get_managed_expression_form,
+    get_supported_form_questions,
+    parse_expression_form,
+)
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -48,7 +53,13 @@ from app.deliver_grant_funding.forms import (
     SectionForm,
 )
 from app.developers import developers_blueprint
-from app.developers.forms import CheckYourAnswersForm, ConfirmDeletionForm, PreviewCollectionForm, SubmitSubmissionForm
+from app.developers.forms import (
+    CheckYourAnswersForm,
+    ConditionSelectQuestionForm,
+    ConfirmDeletionForm,
+    PreviewCollectionForm,
+    SubmitSubmissionForm,
+)
 from app.extensions import auto_commit_after_request, notification_service
 
 if TYPE_CHECKING:
@@ -572,6 +583,74 @@ def edit_question(
         question=question,
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
+
+
+@developers_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition",
+    methods=["GET", "POST"],
+)
+@platform_admin_role_required
+def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+    form = ConditionSelectQuestionForm()
+
+    supported_questions = get_supported_form_questions(question)
+    form.add_question_options(supported_questions)
+
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "developers.add_question_condition",
+                grant_id=grant_id,
+                question_id=question_id,
+                depends_on_question_id=form.question.data,
+            )
+        )
+
+    return render_template(
+        "developers/add_question_condition_select_question.html",
+        question=question,
+        supported_questions=supported_questions,
+        grant=question.form.section.collection.grant,
+        form=form,
+    )
+
+
+@developers_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition/<uuid:depends_on_question_id>",
+    methods=["GET", "POST"],
+)
+@platform_admin_role_required
+@auto_commit_after_request
+def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+    depends_on_question = get_question_by_id(depends_on_question_id)
+
+    form = get_managed_expression_form(depends_on_question)()
+
+    if form.validate_on_submit():
+        expression = parse_expression_form(depends_on_question, form)
+        interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
+
+        return redirect(
+            url_for(
+                "developers.edit_question",
+                grant_id=grant_id,
+                collection_id=question.form.section.collection.id,
+                section_id=question.form.section.id,
+                form_id=question.form.id,
+                question_id=question.id,
+            )
+        )
+
+    return render_template(
+        "developers/add_question_condition_select_condition_type.html",
+        question=question,
+        depends_on_question=depends_on_question,
+        grant=question.form.section.collection.grant,
+        form=form,
+        QuestionDataType=QuestionDataType,
     )
 
 

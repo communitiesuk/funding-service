@@ -52,3 +52,7 @@ class SubmissionEventKey(enum.StrEnum):
 class ExpressionType(enum.StrEnum):
     CONDITION = "CONDITION"
     VALIDATION = "VALIDATION"
+
+
+class ManagedExpressions(enum.StrEnum):
+    GREATER_THAN = "Greater than"
