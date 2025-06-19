@@ -69,7 +69,7 @@
       {% set table_rows = [] %}
       {% for question in db_form.questions %}
         {% set question_link %}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=question.id) }}">
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id) }}">
             {{ question.text }}
           </a>
         {% endset %}
