@@ -663,7 +663,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     ValidationForm = get_managed_validation_form(question)
     form = ValidationForm()
 
-    if form.validate_on_submit():
+    if form and form.validate_on_submit():
         expression = form.get_expression(question)
 
         try:
