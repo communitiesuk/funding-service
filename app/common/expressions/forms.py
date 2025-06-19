@@ -29,9 +29,9 @@ class AddNumberConditionForm(FlaskForm):
 
 class AddNumberValidationForm(FlaskForm):
     type = RadioField(
-        "The answer to this question must be",
+        "",
         choices=[(ManagedExpressions.GREATER_THAN, ManagedExpressions.GREATER_THAN.value)],
-        validators=[DataRequired("Select what the answer should be to show this question")],
+        validators=[DataRequired("Select the kind of validation to apply")],
         widget=GovRadioInput(),
     )
 
