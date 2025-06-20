@@ -8,7 +8,7 @@ from wtforms.fields.simple import BooleanField
 from wtforms.validators import DataRequired, Optional
 
 from app.common.data.models import Question
-from app.common.data.types import ManagedExpressions
+from app.common.data.types import ManagedExpressionsEnum
 from app.common.expressions.managed import Between, GreaterThan, LessThan
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ class _BaseExpressionForm(FlaskForm):
 class AddIntegerConditionForm(_BaseExpressionForm):
     type = RadioField(
         "Only show the question if the answer is",
-        choices=[(ManagedExpressions.GREATER_THAN, ManagedExpressions.GREATER_THAN.value)],
+        choices=[(ManagedExpressionsEnum.GREATER_THAN, ManagedExpressionsEnum.GREATER_THAN.value)],
         validators=[DataRequired("Select what the answer should be to show this question")],
         widget=GovRadioInput(),
     )
@@ -40,7 +40,7 @@ class AddIntegerConditionForm(_BaseExpressionForm):
 
     def get_expression(self, question: Question) -> "BaseExpression":
         match self.type.data:
-            case ManagedExpressions.GREATER_THAN.value:
+            case ManagedExpressionsEnum.GREATER_THAN.value:
                 assert self.value.data
                 return GreaterThan(
                     question_id=question.id,
@@ -53,9 +53,9 @@ class AddIntegerConditionForm(_BaseExpressionForm):
 class AddIntegerValidationForm(_BaseExpressionForm):
     type = RadioField(
         choices=[
-            (ManagedExpressions.GREATER_THAN, ManagedExpressions.GREATER_THAN.value),
-            (ManagedExpressions.LESS_THAN, ManagedExpressions.LESS_THAN.value),
-            (ManagedExpressions.BETWEEN, ManagedExpressions.BETWEEN.value),
+            (ManagedExpressionsEnum.GREATER_THAN, ManagedExpressionsEnum.GREATER_THAN.value),
+            (ManagedExpressionsEnum.LESS_THAN, ManagedExpressionsEnum.LESS_THAN.value),
+            (ManagedExpressionsEnum.BETWEEN, ManagedExpressionsEnum.BETWEEN.value),
         ],
         validators=[DataRequired("Select the kind of validation to apply")],
         widget=GovRadioInput(),
@@ -76,11 +76,11 @@ class AddIntegerValidationForm(_BaseExpressionForm):
 
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         match self.type.data:
-            case ManagedExpressions.GREATER_THAN.value:
+            case ManagedExpressionsEnum.GREATER_THAN.value:
                 self.greater_than_value.validators = [DataRequired("Enter the minimum value allowed for this question")]
-            case ManagedExpressions.LESS_THAN.value:
+            case ManagedExpressionsEnum.LESS_THAN.value:
                 self.less_than_value.validators = [DataRequired("Enter the maximum value allowed for this question")]
-            case ManagedExpressions.BETWEEN.value:
+            case ManagedExpressionsEnum.BETWEEN.value:
                 self.bottom_of_range.validators = [DataRequired("Enter the minimum value allowed for this question")]
                 self.top_of_range.validators = [DataRequired("Enter the maximum value allowed for this question")]
 
@@ -92,21 +92,21 @@ class AddIntegerValidationForm(_BaseExpressionForm):
             raise RuntimeError("Form must be validated before building an expression")
 
         match self.type.data:
-            case ManagedExpressions.GREATER_THAN.value:
+            case ManagedExpressionsEnum.GREATER_THAN.value:
                 assert self.greater_than_value.data
                 return GreaterThan(
                     question_id=question.id,
                     minimum_value=self.greater_than_value.data,
                     inclusive=self.greater_than_inclusive.data,
                 )
-            case ManagedExpressions.LESS_THAN.value:
+            case ManagedExpressionsEnum.LESS_THAN.value:
                 assert self.less_than_value.data
                 return LessThan(
                     question_id=question.id,
                     maximum_value=self.less_than_value.data,
                     inclusive=self.less_than_inclusive.data,
                 )
-            case ManagedExpressions.BETWEEN.value:
+            case ManagedExpressionsEnum.BETWEEN.value:
                 assert self.bottom_of_range.data
                 assert self.top_of_range.data
                 return Between(

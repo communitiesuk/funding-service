@@ -6,12 +6,12 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.common.data.types import ManagedExpressions
+from app.common.data.types import ManagedExpressionsEnum
 from app.common.expressions import mangle_question_id_for_context
 
 
 class BaseExpression(BaseModel):
-    key: ManagedExpressions
+    key: ManagedExpressionsEnum
 
     @property
     @abc.abstractmethod
@@ -24,7 +24,7 @@ class BaseExpression(BaseModel):
 
 
 class GreaterThan(BaseExpression):
-    key: ManagedExpressions = ManagedExpressions.GREATER_THAN
+    key: ManagedExpressionsEnum = ManagedExpressionsEnum.GREATER_THAN
     question_id: UUID
     minimum_value: int
     inclusive: bool = False
@@ -50,7 +50,7 @@ class GreaterThan(BaseExpression):
 
 
 class LessThan(BaseExpression):
-    key: ManagedExpressions = ManagedExpressions.LESS_THAN
+    key: ManagedExpressionsEnum = ManagedExpressionsEnum.LESS_THAN
     question_id: UUID
     maximum_value: int
     inclusive: bool = False
@@ -76,7 +76,7 @@ class LessThan(BaseExpression):
 
 
 class Between(BaseExpression):
-    key: ManagedExpressions = ManagedExpressions.BETWEEN
+    key: ManagedExpressionsEnum = ManagedExpressionsEnum.BETWEEN
     question_id: UUID
     minimum_value: int
     minimum_inclusive: bool = False

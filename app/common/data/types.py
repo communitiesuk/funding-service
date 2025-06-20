@@ -54,7 +54,7 @@ class ExpressionType(enum.StrEnum):
     VALIDATION = "VALIDATION"
 
 
-class ManagedExpressions(enum.StrEnum):
+class ManagedExpressionsEnum(enum.StrEnum):
     GREATER_THAN = "Greater than"
     LESS_THAN = "Less than"
     BETWEEN = "Between"
