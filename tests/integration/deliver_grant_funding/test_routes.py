@@ -1,4 +1,5 @@
 import inspect
+import logging
 import uuid
 from uuid import UUID
 
@@ -25,6 +26,8 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SectionForm,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def test_list_grants_as_admin(
@@ -1093,6 +1096,7 @@ def test_accessibility_for_user_role_to_each_endpoint(app, request, factories, r
         "healthcheck.healthcheck",
         "raise_sqlalchemy_not_found",
     }
+    tested_endpoints = []
     for rule in app.url_map.iter_rules():
         if rule.endpoint in ignored_endpoints:
             continue
@@ -1110,6 +1114,11 @@ def test_accessibility_for_user_role_to_each_endpoint(app, request, factories, r
             response = client.post(url, data={})
         else:
             pytest.fail(f"Unsupported HTTP method(s): {rule.methods}")
+        tested_endpoints.append((rule.endpoint, response.status_code, expected))
         assert response.status_code in expected, (
             f"{role} accessing {rule.endpoint} returned {response.status_code}, expected one of {expected}"
         )
+
+    logger.debug("[%s] Tested %d endpoints:", role, len(tested_endpoints))
+    for endpoint, status, expected in tested_endpoints:
+        logger.debug("  - %s: status=%s, expected=%s", endpoint, status, expected)
