@@ -42,7 +42,7 @@ def upsert_user_by_email(email_address: str, *, name: str | TNotProvided = NOT_P
 
     user = db.session.scalars(
         postgresql_upsert(User)
-        .values(email=email_address, name=name)
+        .values(**on_conflict_set)
         .on_conflict_do_update(index_elements=["email"], set_=on_conflict_set)
         .returning(User),
         execution_options={"populate_existing": True},
@@ -71,7 +71,7 @@ def upsert_user_by_azure_ad_subject_id(
 
     user = db.session.scalars(
         postgresql_upsert(User)
-        .values(azure_ad_subject_id=azure_ad_subject_id, email=email_address, name=name)
+        .values(**on_conflict_set)
         .on_conflict_do_update(index_elements=["azure_ad_subject_id"], set_=on_conflict_set)
         .returning(User),
         execution_options={"populate_existing": True},
