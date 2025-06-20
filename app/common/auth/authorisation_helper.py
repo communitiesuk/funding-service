@@ -1,75 +1,68 @@
 from uuid import UUID
 
+from app.common.data import interfaces
 from app.common.data.models_user import User
 from app.common.data.types import GRANT_ROLES_MAPPING, RoleEnum
 
 
 class AuthorisationHelper:
     @staticmethod
-    def has_logged_in(user: User) -> bool:
+    def has_logged_in(user: User | None = None) -> bool:
         # FIXME: We should have some actual tracking of whether the user has logged in. This could either be a
         #        field on the model called `last_logged_in_at` or similar, or we could only create entries in the user
         #        table when the user actually logs in, rather than at invitation-time. Then we could simply trust that
         #        if a user entry exists, they have definitely logged in.
+        if user is None:
+            user = interfaces.user.get_current_user()
         return bool(user.name)
 
     @staticmethod
-    def is_platform_admin(user: User) -> bool:
-        is_platform_admin = any(
+    def is_platform_admin(user: User | None = None) -> bool:
+        if user is None:
+            user = interfaces.user.get_current_user()
+        return any(
             role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id is None
             for role in user.roles
         )
-        return is_platform_admin
 
     @staticmethod
-    def is_grant_admin(grant_id: str, user: User) -> bool:
+    def is_grant_admin(grant_id: UUID, user: User | None = None) -> bool:
+        if user is None:
+            user = interfaces.user.get_current_user()
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
-        is_grant_admin = any(
+        return any(
             role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id == grant_id
             for role in user.roles
         )
-        return is_grant_admin
 
     @staticmethod
-    def is_grant_member(grant_id: str | UUID, user: User) -> bool:
+    def is_grant_member(grant_id: UUID, user: User | None = None) -> bool:
         """
         Determines whether a user has permissions to act as a grant member.
         Platform admin overrides anything else.
-        Checks
-        :param grant_id:
-        :param user:
-        :return:
         """
-
+        if user is None:
+            user = interfaces.user.get_current_user()
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
 
         if isinstance(grant_id, str):
             grant_id = UUID(grant_id)
 
-        is_grant_member = any(
-            # role.organisation_id is None TODO don't think this is needed, as we only check grant_id, but confirm
-            role.grant_id == grant_id
-            and RoleEnum.MEMBER
-            in GRANT_ROLES_MAPPING.get(
-                role.role,
-                role.role,  # Use the list of roles this role implies, otherwise just use this role
-            )
+        return any(
+            role.grant_id == grant_id and RoleEnum.MEMBER in GRANT_ROLES_MAPPING.get(role.role, role.role)
             for role in user.roles
         )
-        return is_grant_member
 
     @staticmethod
-    def has_grant_role(grant_id: str, user: User, role: RoleEnum) -> bool:
+    def has_grant_role(grant_id: UUID, role: RoleEnum, user: User | None = None) -> bool:
         """
         Will return True if the user has the specified role for the grant.
         Platform admin overrides anything else.
-        :param grant_id:
-        :param user:
-        :param role:
-        :return:
         """
+        if user is None:
+            user = interfaces.user.get_current_user()
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
         match role:
@@ -78,5 +71,4 @@ class AuthorisationHelper:
             case RoleEnum.MEMBER:
                 return AuthorisationHelper.is_grant_member(grant_id, user)
             case _:
-                # If we get to this point, we've put a bad role in the decorator call.
                 raise ValueError(f"Unknown role {role}")

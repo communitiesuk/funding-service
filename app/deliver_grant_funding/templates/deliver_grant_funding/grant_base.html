@@ -27,7 +27,7 @@
 
 {% set right_nav_items = [] %}
 
-{% if authorisation_helper.is_platform_admin(current_user) %}
+{% if authorisation_helper.is_platform_admin() %}
   {%
     do right_nav_items.append({
         "text": "See all grants",

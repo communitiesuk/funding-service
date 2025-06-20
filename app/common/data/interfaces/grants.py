@@ -4,7 +4,6 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Grant
 from app.common.data.models_user import User
@@ -25,6 +24,8 @@ def grant_name_exists(name: str, exclude_grant_id: UUID | None = None) -> bool:
 
 
 def get_all_grants_by_user(user: User) -> Sequence[Grant]:
+    from app.common.auth.authorisation_helper import AuthorisationHelper
+
     if AuthorisationHelper.is_platform_admin(user):
         statement = select(Grant).order_by(Grant.name)
         return db.session.scalars(statement).all()

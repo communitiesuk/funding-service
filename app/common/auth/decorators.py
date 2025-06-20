@@ -1,5 +1,6 @@
 import functools
 from typing import Callable
+from uuid import UUID
 
 from flask import abort, current_app, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
@@ -69,9 +70,7 @@ def platform_admin_role_required[**P](
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
         # This decorator is itself wrapped by `mhclg_login_required`, so we know that `current_user` exists and is
         # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
-        user = interfaces.user.get_current_user()
-
-        if not AuthorisationHelper.is_platform_admin(user):
+        if not AuthorisationHelper.is_platform_admin():
             abort(403)
 
         return func(*args, **kwargs)
@@ -85,16 +84,14 @@ def has_grant_role[**P](
     def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
         @functools.wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
-            current_user = interfaces.user.get_current_user()
-
-            if AuthorisationHelper.is_platform_admin(user=current_user):
+            if AuthorisationHelper.is_platform_admin():
                 return func(*args, **kwargs)
 
-            if "grant_id" in kwargs:
-                if not AuthorisationHelper.has_grant_role(
-                    grant_id=str(kwargs["grant_id"]), user=current_user, role=role
-                ):
-                    abort(403, description="Access denied")
+            if "grant_id" not in kwargs or kwargs["grant_id"] is None:
+                raise ValueError("Grant ID required.")
+
+            if not AuthorisationHelper.has_grant_role(grant_id=UUID(str(kwargs["grant_id"])), role=role):
+                abort(403, description="Access denied")
 
             return func(*args, **kwargs)
 
