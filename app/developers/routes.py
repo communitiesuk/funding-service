@@ -43,6 +43,7 @@ from app.common.expressions.helpers import (
     get_managed_condition_form,
     get_managed_validation_form,
     get_supported_form_questions,
+    get_validation_supported_for_question,
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -579,6 +580,7 @@ def edit_question(
         question=question,
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+        managed_validation_available=get_validation_supported_for_question(question),
     )
 
 

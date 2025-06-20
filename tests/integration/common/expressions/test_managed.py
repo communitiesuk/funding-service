@@ -3,14 +3,14 @@ import uuid
 import pytest
 
 from app.common.data.models import Expression
-from app.common.data.types import QuestionDataType
+from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions import evaluate, mangle_question_id_for_context
 from app.common.expressions.forms import AddIntegerConditionForm
 from app.common.expressions.helpers import (
     get_managed_condition_form,
     get_supported_form_questions,
 )
-from app.common.expressions.managed import Between, GreaterThan, LessThan
+from app.common.expressions.managed import Between, GreaterThan, LessThan, get_managed_expression
 
 
 class TestManagedExpressions:
@@ -46,6 +46,15 @@ class TestManagedExpressions:
         question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
 
         assert get_managed_condition_form(question)() is None
+
+    def test_parse_managed_expression_from_context(self, factories):
+        expression = factories.expression.build(type=ExpressionType.CONDITION, statement="")
+
+        expression.context = {"key": "Greater than", "question_id": str(expression.question.id), "minimum_value": 1000}
+
+        managed_expression = get_managed_expression(expression)
+        assert isinstance(managed_expression, GreaterThan)
+        assert managed_expression.minimum_value == 1000
 
 
 class TestGreaterThanExpression:

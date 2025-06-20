@@ -37,3 +37,7 @@ def get_supported_form_questions(question: Question) -> list[Question]:
         for q in questions
         if q.data_type in supported_managed_conditions_by_question_type.keys() and q.id != question.id
     ]
+
+
+def get_validation_supported_for_question(question: Question) -> bool:
+    return question.data_type in supported_managed_validation_by_question_type
