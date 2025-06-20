@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 class BaseExpression(BaseModel):
     key: ManagedExpressions
+    question_id: UUID
 
     @property
     @abc.abstractmethod

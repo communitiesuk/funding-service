@@ -287,6 +287,11 @@ class Expression(BaseModel):
     def managed(self) -> "BaseExpression":
         return get_managed_expression(self)
 
+    # todo: this is highly suspect and only works while only your forms questions are in scope
+    @property
+    def managed_depends_on(self) -> Question:
+        return next(question for question in self.question.form.questions if question.id == self.managed.question_id)
+
     type: Mapped[ExpressionType] = mapped_column(
         SqlEnum(ExpressionType, name="expression_type_enum", validate_strings=True)
     )
