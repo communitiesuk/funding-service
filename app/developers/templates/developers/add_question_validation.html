@@ -14,8 +14,7 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
-  govukBackLink({ "text": "Back", "href": url_for("developers.edit_question", grant_id=grant.id, collection_id=question.form.section.collection.id, section_id=question.form.section.id, form_id=question.form.id, question_id=question.id) })
-  }}
+  {{ govukBackLink({ "text": "Back", "href": url_for("developers.edit_question", grant_id=grant.id, collection_id=question.form.section.collection.id, section_id=question.form.section.id, form_id=question.form.id, question_id=question.id) }) }}
 {% endblock beforeContent %}
 
 {% block content %}
