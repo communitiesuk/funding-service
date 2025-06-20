@@ -623,8 +623,8 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     question = get_question_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
-    ValidationForm = get_managed_condition_form(depends_on_question)
-    form = ValidationForm()
+    ConditionForm = get_managed_condition_form(depends_on_question)
+    form = ConditionForm()
 
     if form and form.validate_on_submit():
         expression = form.get_expression(depends_on_question)
