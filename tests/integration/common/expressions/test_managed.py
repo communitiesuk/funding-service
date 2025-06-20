@@ -62,7 +62,7 @@ class TestGreaterThanExpression:
         qid = uuid.uuid4()
         expr = GreaterThan(question_id=qid, minimum_value=minimum_value, inclusive=inclusive)
         assert (
-            evaluate(Expression(statement=expr.expression, context={mangle_question_id_for_context(qid): answer}))
+            evaluate(Expression(statement=expr.statement, context={mangle_question_id_for_context(qid): answer}))
             is expected_result
         )
 
@@ -81,7 +81,7 @@ class TestLessThanExpression:
         qid = uuid.uuid4()
         expr = LessThan(question_id=qid, maximum_value=maximum_value, inclusive=inclusive)
         assert (
-            evaluate(Expression(statement=expr.expression, context={mangle_question_id_for_context(qid): answer}))
+            evaluate(Expression(statement=expr.statement, context={mangle_question_id_for_context(qid): answer}))
             is expected_result
         )
 
@@ -110,6 +110,6 @@ class TestBetweenExpression:
             maximum_inclusive=maximum_inclusive,
         )
         assert (
-            evaluate(Expression(statement=expr.expression, context={mangle_question_id_for_context(qid): answer}))
+            evaluate(Expression(statement=expr.statement, context={mangle_question_id_for_context(qid): answer}))
             is expected_result
         )

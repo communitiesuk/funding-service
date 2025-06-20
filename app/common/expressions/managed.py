@@ -15,7 +15,7 @@ class BaseExpression(BaseModel):
 
     @property
     @abc.abstractmethod
-    def expression(self) -> str:
+    def statement(self) -> str:
         raise NotImplementedError
 
     @property
@@ -38,7 +38,7 @@ class GreaterThan(BaseExpression):
         return f"The answer must be greater than {'or equal to ' if self.inclusive else ''}{self.minimum_value}"
 
     @property
-    def expression(self) -> str:
+    def statement(self) -> str:
         qid = mangle_question_id_for_context(self.question_id)
         return f"{qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
 
@@ -58,7 +58,7 @@ class LessThan(BaseExpression):
         return f"The answer must be less than {'or equal to ' if self.inclusive else ''}{self.maximum_value}"
 
     @property
-    def expression(self) -> str:
+    def statement(self) -> str:
         qid = mangle_question_id_for_context(self.question_id)
         return f"{qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
 
@@ -89,7 +89,7 @@ class Between(BaseExpression):
         )
 
     @property
-    def expression(self) -> str:
+    def statement(self) -> str:
         # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
         qid = mangle_question_id_for_context(self.question_id)
         return (
