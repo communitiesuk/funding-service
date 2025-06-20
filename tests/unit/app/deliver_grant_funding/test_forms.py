@@ -59,7 +59,6 @@ def test_user_already_in_grant_users(app: Flask, factories):
 
     with (
         patch("app.deliver_grant_funding.forms.get_user_by_email", return_value=user),
-        # patch("app.deliver_grant_funding.forms.get_all_grants_by_user", return_value=[grant]),
     ):
         assert form.validate() is False
         assert "already is a member of" in form.user_email.errors[0]

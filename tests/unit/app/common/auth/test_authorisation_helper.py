@@ -63,32 +63,31 @@ class TestAuthorisationHelper:
             (RoleEnum.MEMBER, False),
         ],
     )
-    def test_is_grant_admin_no_grant(self, factories, role, expected):
+    def test_is_grant_admin_for_grant_roles(self, factories, role, expected):
         user = factories.user.build()
         grant = factories.grant.build()
         factories.user_role.build(user=user, role=role, grant=grant)
         assert AuthorisationHelper.is_grant_admin(user=user, grant_id=grant.id) is expected
 
     @pytest.mark.parametrize(
-        "role, expected",
+        "role",
         [
-            (RoleEnum.ADMIN, True),
-            (RoleEnum.MEMBER, True),
+            RoleEnum.ADMIN,
+            RoleEnum.MEMBER,
         ],
     )
-    def test_is_grant_member_true(self, factories, role, expected):
+    def test_is_grant_member_true(self, factories, role):
         user = factories.user.build()
         grant = factories.grant.build()
         factories.user_role.build(user=user, role=role, grant=grant)
-        assert AuthorisationHelper.is_grant_member(user=user, grant_id=grant.id) is expected
+        assert AuthorisationHelper.is_grant_member(user=user, grant_id=grant.id)
 
     @pytest.mark.parametrize("role", [RoleEnum.ADMIN, RoleEnum.MEMBER])
     def test_is_grant_member_false_member_of_different_grant(self, factories, role):
         user = factories.user.build()
-        grant1 = factories.grant.build()
-        grant2 = factories.grant.build()
-        factories.user_role.build(user=user, role=role, grant=grant1)
-        assert AuthorisationHelper.is_grant_member(user=user, grant_id=grant2.id) is False
+        grants = factories.grant.build_batch(2)
+        factories.user_role.build(user=user, role=role, grant=grants[0])
+        assert AuthorisationHelper.is_grant_member(user=user, grant_id=grants[1].id) is False
 
     def test_is_grant_member_false_not_got_member_role(self, factories):
         user = factories.user.build()

@@ -1,4 +1,3 @@
-import logging
 from uuid import UUID
 
 import pytest
@@ -22,8 +21,6 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SectionForm,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def test_list_grants_as_admin(
