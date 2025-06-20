@@ -43,6 +43,7 @@ def test_get_all_grants_by_user(factories):
 
 def test_create_grant(db_session) -> None:
     result = create_grant(
+        ggis_number="GGIS-12345",
         name="Test Grant",
         description="This is a test grant.",
         primary_contact_name="John Doe",
@@ -59,6 +60,7 @@ def test_create_duplicate_grant(factories) -> None:
     factories.grant.create(name="Duplicate Grant")
     with pytest.raises(DuplicateValueError) as e:
         create_grant(
+            ggis_number="GGIS-12345",
             name="Duplicate Grant",
             description="This is a duplicate grant.",
             primary_contact_name="Jane Doe",

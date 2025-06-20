@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class GrantSetupSession(BaseModel):
     has_ggis: Literal["yes", "no"] | None = None
-    ggis_number: str | None = None
+    ggis_number: str = ""
     name: str = ""
     description: str = ""
     primary_contact_name: str = ""
