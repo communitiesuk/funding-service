@@ -9,13 +9,6 @@ from app.developers import developers_blueprint
 
 if TYPE_CHECKING:
     from app.common.data.models import Grant
-from tests.models import (
-    _CollectionFactory,
-    _FormFactory,
-    _GrantFactory,
-    _QuestionFactory,
-    _SectionFactory,
-)
 
 
 class QuestionSpec(TypedDict):
@@ -37,6 +30,14 @@ class SectionSpec(TypedDict):
 def _seed_grant(
     grants: Sequence["Grant"], grant_name: str, collection_name: str, collection_slug: str, sections: list[SectionSpec]
 ) -> None:
+    from tests.models import (
+        _CollectionFactory,
+        _FormFactory,
+        _GrantFactory,
+        _QuestionFactory,
+        _SectionFactory,
+    )
+
     if grant := next((grant for grant in grants if grant.name == grant_name), None):
         click.echo(f"Grant '{grant_name}' already exists; recreating it.")
         delete_grant(grant.id)
