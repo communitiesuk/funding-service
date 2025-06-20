@@ -1,3 +1,5 @@
+import hashlib
+import uuid
 from typing import TYPE_CHECKING, Sequence, TypedDict
 
 import click
@@ -27,6 +29,10 @@ class SectionSpec(TypedDict):
     forms: list[FormSpec]
 
 
+def _stable_uuid(seed: str) -> uuid.UUID:
+    return uuid.UUID(hex=hashlib.md5(seed.encode()).hexdigest())
+
+
 def _seed_grant(
     grants: Sequence["Grant"], grant_name: str, collection_name: str, collection_slug: str, sections: list[SectionSpec]
 ) -> None:
@@ -42,15 +48,31 @@ def _seed_grant(
         click.echo(f"Grant '{grant_name}' already exists; recreating it.")
         delete_grant(grant.id)
 
-    grant = _GrantFactory.create(name=grant_name)
-    collection = _CollectionFactory.create(grant=grant, name=collection_name, slug=collection_slug)
+    grant = _GrantFactory.create(id=_stable_uuid(grant_name), name=grant_name)
+    collection = _CollectionFactory.create(
+        id=_stable_uuid(collection_name), grant=grant, name=collection_name, slug=collection_slug
+    )
 
     for section_data in sections:
-        section = _SectionFactory.create(collection=collection, title=section_data["title"], slug=section_data["slug"])
+        section = _SectionFactory.create(
+            id=_stable_uuid(collection_name + section_data["title"]),
+            collection=collection,
+            title=section_data["title"],
+            slug=section_data["slug"],
+        )
         for form_data in section_data["forms"]:
-            form = _FormFactory.create(section=section, title=form_data["title"])
+            form = _FormFactory.create(
+                id=_stable_uuid(collection_name + section_data["title"] + form_data["title"]),
+                section=section,
+                title=form_data["title"],
+            )
             for question in form_data["questions"]:
-                _QuestionFactory.create(form=form, text=question["text"], data_type=question["data_type"])
+                _QuestionFactory.create(
+                    id=_stable_uuid(collection_name + section_data["title"] + form_data["title"] + question["text"]),
+                    form=form,
+                    text=question["text"],
+                    data_type=question["data_type"],
+                )
 
     click.echo(f"Seeded the ‘{grant_name}’ grant.")
 
