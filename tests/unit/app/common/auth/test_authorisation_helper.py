@@ -93,7 +93,6 @@ class TestAuthorisationHelper:
     def test_is_grant_member_false_not_got_member_role(self, factories):
         user = factories.user.build()
         grant = factories.grant.build()
-        factories.user_role.build(user=user, role=RoleEnum.S151_OFFICER, grant=grant)
         assert AuthorisationHelper.is_grant_member(user=user, grant_id=grant.id) is False
 
     def test_is_grant_member_overriden_by_platform_admin(self, factories):
@@ -107,7 +106,7 @@ class TestAuthorisationHelper:
         [
             (RoleEnum.ADMIN, True),
             (RoleEnum.MEMBER, True),
-            (RoleEnum.S151_OFFICER, pytest.raises(ValueError)),
+            ("S151_OFFICER", pytest.raises(ValueError)),
         ],
     )
     def test_has_grant_role(self, factories, role, expected):
