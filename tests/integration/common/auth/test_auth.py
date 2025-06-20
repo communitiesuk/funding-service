@@ -262,6 +262,28 @@ class TestSSOGetTokenView:
         new_user = db_session.scalar(select(User).where(User.email == "test@test.communities.gov.uk"))
         assert new_user.name == "SSO User"
 
+    def test_grant_team_member_without_azure_ad_subject_id_can_log_in(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id=None)
+            grant = factories.grant.create()
+            factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test.member@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": [],
+                    "sub": "someStringValue",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
+            assert updated_user.azure_ad_subject_id == "someStringValue"
+            assert updated_user.name == "SSO User"
+
+        assert response.status_code == 200
+
 
 class TestAuthenticatedUserRedirect:
     def test_magic_link_get(self, authenticated_no_role_client):

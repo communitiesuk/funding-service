@@ -11,6 +11,7 @@ from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
 from app.common.data.interfaces.user import (
     get_user_by_azure_ad_subject_id,
+    get_user_by_email,
     upsert_user_by_azure_ad_subject_id,
     upsert_user_by_email,
     upsert_user_role,
@@ -104,6 +105,19 @@ def sso_get_token() -> ResponseReturnValue:
 
     sso_user = result["id_token_claims"]
     user = get_user_by_azure_ad_subject_id(azure_ad_subject_id=sso_user["sub"])
+    # TODO: FSPT-515 - remove this logic. This additional logic is to cover grant team members who are directly added as
+    # users but don't yet have the azure_ad_subject_id field present as they haven't logged in. Our SSO now uses this as
+    # the unique identifying field so needs it to be present. This should be removed when we move to an invitation
+    # mechanism in FSPT-515 which won't create a User in the database until they sign in for the first time, allowing us
+    # to simplify this flow.
+    if user is None:
+        user = get_user_by_email(email_address=sso_user["preferred_username"])
+        if user and not user.azure_ad_subject_id:
+            user = upsert_user_by_email(
+                email_address=sso_user["preferred_username"],
+                name=sso_user["name"],
+                azure_ad_subject_id=sso_user["sub"],
+            )
     redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
 
     if "FSD_ADMIN" in sso_user.get("roles", []):

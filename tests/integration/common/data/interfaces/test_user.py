@@ -65,6 +65,7 @@ class TestUpsertUserByEmail:
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
+        assert user.name is None and user.azure_ad_subject_id is None
 
     def test_get_existing_user_with_update(self, db_session, factories):
         factories.user.create(email="test@communities.gov.uk", name="My Name", azure_ad_subject_id=None)
@@ -75,6 +76,7 @@ class TestUpsertUserByEmail:
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
         assert user.name == "My Name updated"
+        assert user.azure_ad_subject_id is None
 
 
 class TestUpsertUserByAzureAdSubjectId:
@@ -88,6 +90,7 @@ class TestUpsertUserByAzureAdSubjectId:
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
         assert user.email == "test@communities.gov.uk"
         assert user.azure_ad_subject_id == "some_example_string"
+        assert user.name is None
 
     def test_get_existing_user_with_update(self, db_session, factories):
         factory_user = factories.user.create(email="test@communities.gov.uk", name="My Name")
