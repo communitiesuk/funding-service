@@ -72,7 +72,7 @@ class LessThan(BaseExpression):
     def expression(self) -> str:
         # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
         qid = mangle_question_id_for_context(self.question_id)
-        return f"{qid} >{'=' if self.inclusive else ''} {self.maximum_value}"
+        return f"{qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
 
 
 class Between(BaseExpression):
