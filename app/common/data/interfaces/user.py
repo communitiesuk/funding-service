@@ -30,19 +30,29 @@ def get_user_by_azure_ad_subject_id(azure_ad_subject_id: str) -> User | None:
     return db.session.execute(select(User).where(User.azure_ad_subject_id == azure_ad_subject_id)).scalar_one_or_none()
 
 
-def upsert_user_by_email(email_address: str, *, name: str | TNotProvided = NOT_PROVIDED) -> User:
+def upsert_user_by_email(
+    email_address: str,
+    *,
+    name: str | TNotProvided = NOT_PROVIDED,
+    azure_ad_subject_id: str | TNotProvided = NOT_PROVIDED,
+) -> User:
     # This feels like it should be a `on_conflict_do_nothing`, except in that case the DB won't return any rows
     # So we use `on_conflict_do_update` with a noop change, so that this upsert will always return the User regardless
     # of if its doing an insert or an 'update'.
     on_conflict_set = {"email": email_address}
 
-    # doesn't let us remove the name, but that doesn't feel like a super valid usecase, so ignoring for now.
+    # doesn't let us remove the name or azure_ad_subject_id, but that doesn't feel like a super valid usecase,
+    # so ignoring for now.
     if name is not NOT_PROVIDED:
         on_conflict_set["name"] = name
+    # TODO: FSPT-515 - remove the azure_ad_subject_id field from this upsert, this is only added to cover the current
+    # behaviour of grant team members being added directly to the database but not yet having signed in
+    if azure_ad_subject_id is not NOT_PROVIDED:
+        on_conflict_set["azure_ad_subject_id"] = azure_ad_subject_id
 
     user = db.session.scalars(
         postgresql_upsert(User)
-        .values(email=email_address, name=name)
+        .values(**on_conflict_set)
         .on_conflict_do_update(index_elements=["email"], set_=on_conflict_set)
         .returning(User),
         execution_options={"populate_existing": True},
@@ -71,7 +81,7 @@ def upsert_user_by_azure_ad_subject_id(
 
     user = db.session.scalars(
         postgresql_upsert(User)
-        .values(azure_ad_subject_id=azure_ad_subject_id, email=email_address, name=name)
+        .values(**on_conflict_set)
         .on_conflict_do_update(index_elements=["azure_ad_subject_id"], set_=on_conflict_set)
         .returning(User),
         execution_options={"populate_existing": True},
