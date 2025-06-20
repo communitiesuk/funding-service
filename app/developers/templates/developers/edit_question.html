@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
 {% set page_title = "Edit question - " ~ db_form.title %}
 {% set active_item_identifier = "developers" %}
@@ -50,9 +51,46 @@
             {{ form.hint }}
 
             <div class="govuk-form-group">
-              <div class="govuk-body">
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_question_condition_select_question', grant_id=grant.id, question_id=question.id) }}">Add condition</a>
-              </div>
+              <h2 class="govuk-heading-m">Conditions</h2>
+              <p class="govuk-body">Use answers from other questions to decide if your users should be asked this question.</p>
+              {% set rows = [] %}
+              {% for condition in question.conditions %}
+                {% set managed = condition.managed %}
+                {% set managed_depends_on = condition.managed_depends_on %}
+
+
+                {% set key_html %}
+                  <a
+                    class="govuk-link govuk-link--no-visited-state"
+                    href="{{ url_for('developers.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=managed_depends_on.id) }}">
+                    {{ managed_depends_on.text }}
+                  </a>
+                {% endset %}
+
+                {# todo: the managed expression should probably just set an description including values to allow for more complex scenarios #}
+                {# todo: out of scoping "Change" as validation will tweak a lot of the forms on the page #}
+                {%
+                  do rows.append({
+                    "key": { "html": key_html},
+                    "value": { "text": managed.description + " " + managed.value },
+                  })
+                %}
+              {% endfor %}
+
+              {{
+                govukSummaryList({
+                  "rows": rows,
+                  "classes": "app-tasklist-builder"
+                })
+              }}
+
+              {{
+                govukButton({
+                  "text": "Add condition",
+                  "href": url_for("developers.add_question_condition_select_question", grant_id=grant.id, question_id=question.id),
+                  "classes": "govuk-button--secondary"
+                })
+              }}
             </div>
 
             {{ form.submit }}
