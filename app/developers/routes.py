@@ -43,7 +43,6 @@ from app.common.expressions.helpers import (
     get_managed_condition_form,
     get_managed_validation_form,
     get_supported_form_questions,
-    parse_condition_form,
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -624,10 +623,11 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     question = get_question_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
-    form = get_managed_condition_form(depends_on_question)()
+    ValidationForm = get_managed_condition_form(depends_on_question)
+    form = ValidationForm()
 
-    if form.validate_on_submit():
-        expression = parse_condition_form(depends_on_question, form)
+    if form and form.validate_on_submit():
+        expression = form.get_expression(depends_on_question)
         interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
 
         return redirect(

@@ -20,7 +20,7 @@ class _BaseExpressionForm(FlaskForm):
     def get_expression(self, question: Question) -> "BaseExpression": ...
 
 
-class AddIntegerConditionForm(FlaskForm):
+class AddIntegerConditionForm(_BaseExpressionForm):
     type = RadioField(
         "Only show the question if the answer is",
         choices=[(ManagedExpressions.GREATER_THAN, ManagedExpressions.GREATER_THAN.value)],
@@ -37,6 +37,17 @@ class AddIntegerConditionForm(FlaskForm):
 
         # fixme: IDE realises this is a FlaskForm and bool but mypy is calling it "Any" on pre-commit
         return super().validate(extra_validators=extra_validators)  # type: ignore
+
+    def get_expression(self, question: Question) -> "BaseExpression":
+        match self.type.data:
+            case ManagedExpressions.GREATER_THAN.value:
+                assert self.value.data
+                return GreaterThan(
+                    question_id=question.id,
+                    minimum_value=self.value.data,
+                )
+
+        raise RuntimeError(f"Unknown expression type: {self.type.data}")
 
 
 class AddIntegerValidationForm(_BaseExpressionForm):
