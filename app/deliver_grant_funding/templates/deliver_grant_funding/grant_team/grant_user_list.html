@@ -26,7 +26,7 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Grant team
       </h1>
-      {% if authorisation_helper.is_platform_admin() %}
+      {% if authorisation_helper.is_platform_admin(current_user) %}
         {{
           govukButton({
              "text": "Add grant team member",

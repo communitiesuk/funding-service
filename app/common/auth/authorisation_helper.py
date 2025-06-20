@@ -1,49 +1,38 @@
 from uuid import UUID
 
-from app.common.data import interfaces
 from app.common.data.models_user import User
 from app.common.data.types import GRANT_ROLES_MAPPING, RoleEnum
 
 
 class AuthorisationHelper:
     @staticmethod
-    def has_logged_in(user: User | None = None) -> bool:
+    def has_logged_in(user: User) -> bool:
         # FIXME: We should have some actual tracking of whether the user has logged in. This could either be a
         #        field on the model called `last_logged_in_at` or similar, or we could only create entries in the user
         #        table when the user actually logs in, rather than at invitation-time. Then we could simply trust that
         #        if a user entry exists, they have definitely logged in.
-        if user is None:
-            user = interfaces.user.get_current_user()
         return bool(user.name)
 
     @staticmethod
-    def is_platform_admin(user: User | None = None) -> bool:
-        if user is None:
-            user = interfaces.user.get_current_user()
+    def is_platform_admin(user: User) -> bool:
         return any(
             role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id is None
             for role in user.roles
         )
 
     @staticmethod
-    def is_grant_admin(grant_id: UUID, user: User | None = None) -> bool:
-        if user is None:
-            user = interfaces.user.get_current_user()
-        if AuthorisationHelper.is_platform_admin(user=user):
-            return True
+    def is_grant_admin(grant_id: UUID, user: User) -> bool:
         return any(
             role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id == grant_id
             for role in user.roles
         )
 
     @staticmethod
-    def is_grant_member(grant_id: UUID, user: User | None = None) -> bool:
+    def is_grant_member(grant_id: UUID, user: User) -> bool:
         """
         Determines whether a user has permissions to act as a grant member.
         Platform admin overrides anything else.
         """
-        if user is None:
-            user = interfaces.user.get_current_user()
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
 
@@ -56,13 +45,11 @@ class AuthorisationHelper:
         )
 
     @staticmethod
-    def has_grant_role(grant_id: UUID, role: RoleEnum, user: User | None = None) -> bool:
+    def has_grant_role(grant_id: UUID, role: RoleEnum, user: User) -> bool:
         """
         Will return True if the user has the specified role for the grant.
         Platform admin overrides anything else.
         """
-        if user is None:
-            user = interfaces.user.get_current_user()
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
         match role:

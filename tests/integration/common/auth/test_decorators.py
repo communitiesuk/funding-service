@@ -159,6 +159,19 @@ class TestHasGrantRole:
         response = view_func(grant_id="abc")
         assert response == "OK"
 
+    def test_without_grant_id(self, factories):
+        user = factories.user.create(email="test.member2@communities.gov.uk")
+        grant = factories.grant.create()
+        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+
+        @has_grant_role(role=RoleEnum.ADMIN)
+        def view_func(grant_id: UUID):
+            return "OK"
+
+        login_user(user)
+        with pytest.raises(ValueError, match="Grant ID required"):
+            view_func(grant_id=None)
+
     def test_member_user_has_access(self, factories):
         user = factories.user.create(email="test.member@communities.gov.uk")
         grant = factories.grant.create()

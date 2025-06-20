@@ -66,7 +66,7 @@ class TestAuthorisationHelper:
     def test_is_grant_admin_no_grant(self, factories, role, expected):
         user = factories.user.build()
         grant = factories.grant.build()
-        factories.user_role.build(user=user, role=role, has_grant=False)
+        factories.user_role.build(user=user, role=role, grant=grant)
         assert AuthorisationHelper.is_grant_admin(user=user, grant_id=grant.id) is expected
 
     @pytest.mark.parametrize(
