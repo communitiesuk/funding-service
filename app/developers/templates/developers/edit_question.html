@@ -56,12 +56,14 @@
               {% set rows = [] %}
               {% for condition in question.conditions %}
                 {% set managed = condition.managed %}
-                {% set depends_on = condition.depends_on %}
+                {% set managed_depends_on = condition.managed_depends_on %}
 
 
                 {% set key_html %}
-                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=depends_on.id) }}">
-                    {{ condition.depends_on.text }}
+                  <a
+                    class="govuk-link govuk-link--no-visited-state"
+                    href="{{ url_for('developers.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=managed_depends_on.id) }}">
+                    {{ managed_depends_on.text }}
                   </a>
                 {% endset %}
 
@@ -90,7 +92,7 @@
                 })
               }}
             </div>
-            
+
             {{ form.submit }}
           </form>
         </div>

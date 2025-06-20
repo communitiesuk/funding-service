@@ -14,7 +14,6 @@ from app.common.expressions.forms import AddNumberConditionForm
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
-    # from app.common.data.models import Question
 
 
 class BaseExpression(BaseModel):
