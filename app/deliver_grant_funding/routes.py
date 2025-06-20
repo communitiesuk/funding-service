@@ -213,7 +213,7 @@ def view_grant(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/users", methods=["GET"])
-@mhclg_login_required
+@has_grant_role(RoleEnum.MEMBER)
 def list_users_for_grant(grant_id: UUID) -> ResponseReturnValue:
     try:
         grant = interfaces.grants.get_grant(grant_id)

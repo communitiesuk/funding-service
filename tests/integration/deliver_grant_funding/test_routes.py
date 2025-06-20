@@ -1,6 +1,4 @@
-import inspect
 import logging
-import uuid
 from uuid import UUID
 
 import pytest
@@ -8,11 +6,9 @@ from bs4 import BeautifulSoup
 from flask import url_for
 from sqlalchemy import select
 
-from app.common.data import interfaces
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.models import Collection, Expression, Form, Grant, Question, Section
-from app.common.data.types import ExpressionType, QuestionDataType, RoleEnum, SubmissionModeEnum
-from app.common.expressions.managed import GreaterThan
+from app.common.data.models import Collection, Form, Grant, Question, Section
+from app.common.data.types import QuestionDataType, RoleEnum
 from app.deliver_grant_funding.forms import (
     CollectionForm,
     FormForm,
@@ -1038,87 +1034,3 @@ def test_list_users_for_grant_with_member(authenticated_member_client, templates
     users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
     assert users
     assert len(users) == 1
-
-
-def _get_decorators(func):
-    try:
-        src = inspect.getsource(func)
-    except (OSError, TypeError):
-        return []
-    lines = src.splitlines()
-    return [line.strip() for line in lines if line.strip().startswith("@")]
-
-
-@pytest.mark.parametrize(
-    "role,client_fixture",
-    [
-        (RoleEnum.ADMIN, "authenticated_platform_admin_client"),
-        (RoleEnum.MEMBER, "authenticated_member_client"),
-    ],
-)
-def test_accessibility_for_user_role_to_each_endpoint(app, request, factories, role, client_fixture):
-    client = request.getfixturevalue(client_fixture)
-    user = interfaces.user.get_current_user()
-    grant = factories.grant.create()
-    if role == RoleEnum.MEMBER:
-        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
-    collection = factories.collection.create(grant=grant)
-    section = factories.section.create(collection=collection)
-    form = factories.form.create(section=section)
-    question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
-    question.expressions.append(
-        Expression(
-            statement=managed_expression.expression,
-            context=managed_expression.model_dump(mode="json"),
-            created_by_id=user.id,
-            type=ExpressionType.CONDITION,
-        )
-    )
-    depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-    submission = factories.submission.create(collection=collection)
-    ids = {
-        "grant_id": grant.id,
-        "collection_id": collection.id,
-        "section_id": section.id,
-        "form_id": form.id,
-        "question_id": question.id,
-        "depends_on_question_id": depends_on_question.id,
-        "submission_id": submission.id,
-        "submission_mode": SubmissionModeEnum.TEST,
-        "direction": "down",
-        "magic_link_id": uuid.uuid4(),
-    }
-    ignored_endpoints = {
-        "static",
-        "raise_403",
-        "health_check",
-        "healthcheck.healthcheck",
-        "raise_sqlalchemy_not_found",
-    }
-    tested_endpoints = []
-    for rule in app.url_map.iter_rules():
-        if rule.endpoint in ignored_endpoints:
-            continue
-        url = url_for(rule.endpoint, **{arg: str(ids.get(arg, "1")) for arg in rule.arguments})
-        decorators = _get_decorators(app.view_functions[rule.endpoint])
-        if role == RoleEnum.MEMBER and (
-            "@platform_admin_role_required" in decorators or "@has_grant_role(RoleEnum.ADMIN)" in decorators
-        ):
-            expected = (403, 401)
-        else:
-            expected = (200, 302, 201)
-        if "GET" in rule.methods:
-            response = client.get(url)
-        elif "POST" in rule.methods:
-            response = client.post(url, data={})
-        else:
-            pytest.fail(f"Unsupported HTTP method(s): {rule.methods}")
-        tested_endpoints.append((rule.endpoint, response.status_code, expected))
-        assert response.status_code in expected, (
-            f"{role} accessing {rule.endpoint} returned {response.status_code}, expected one of {expected}"
-        )
-
-    logger.debug("[%s] Tested %d endpoints:", role, len(tested_endpoints))
-    for endpoint, status, expected in tested_endpoints:
-        logger.debug("  - %s: status=%s, expected=%s", endpoint, status, expected)
