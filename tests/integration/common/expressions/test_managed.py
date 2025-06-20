@@ -1,8 +1,10 @@
 import pytest
 
-from app.common.data.types import QuestionDataType
+from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions.forms import AddNumberConditionForm
 from app.common.expressions.managed import (
+    GreaterThan,
+    get_managed_expression,
     get_managed_expression_form,
     get_supported_form_questions,
     parse_expression_form,
@@ -54,3 +56,12 @@ class TestManagedExpressions:
         assert expression.key == "Greater than"
         assert expression.question_id == question.id
         assert expression.minimum_value == 2000
+
+    def test_parse_managed_expression_from_context(self, factories):
+        expression = factories.expression.build(type=ExpressionType.CONDITION)
+
+        expression.context = {"key": "Greater than", "question_id": str(expression.question.id), "minimum_value": 1000}
+
+        managed_expression = get_managed_expression(expression)
+        assert isinstance(managed_expression, GreaterThan)
+        assert managed_expression.minimum_value == 1000
