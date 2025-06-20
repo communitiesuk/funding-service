@@ -19,13 +19,6 @@ all_auth_annotations = [
     "@has_grant_role(RoleEnum.ADMIN)",
     "@platform_admin_role_required",
 ]
-
-
-routes_with_expected_member_only_access = [
-    "deliver_grant_funding.list_users_for_grant",
-    "deliver_grant_funding.view_grant",
-    "deliver_grant_funding.grant_details",
-]
 routes_with_expected_platform_admin_only_access = [
     "developers.grant_developers",
     "developers.grant_developers_collections",
@@ -66,6 +59,13 @@ routes_with_expected_platform_admin_only_access = [
     "deliver_grant_funding.grant_change_description",
     "deliver_grant_funding.grant_change_contact",
 ]
+routes_with_expected_grant_admin_only_access = []
+routes_with_expected_member_only_access = [
+    "deliver_grant_funding.list_users_for_grant",
+    "deliver_grant_funding.view_grant",
+    "deliver_grant_funding.grant_details",
+]
+
 routes_with_expected_mhclg_login_required_access = ["deliver_grant_funding.list_grants"]
 routes_with_no_expected_access_restrictions = [
     "auth.request_a_link_to_sign_in",
@@ -75,9 +75,7 @@ routes_with_no_expected_access_restrictions = [
     "auth.sso_get_token",
     "auth.sign_out",
     "static",
-    "raise_403",
     "healthcheck.healthcheck",
-    "raise_sqlalchemy_not_found",
     "index",
 ]
 
@@ -97,3 +95,16 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
 
         else:
             pytest.fail(f"Unexpected endpoint {rule.endpoint}. Add this to the expected_route_access mapping.")
+
+
+def test_routes_list_is_valid(app):
+    all_declared_routes_in_test = (
+        routes_with_no_expected_access_restrictions
+        + routes_with_expected_mhclg_login_required_access
+        + routes_with_expected_member_only_access
+        + routes_with_expected_grant_admin_only_access
+        + routes_with_expected_platform_admin_only_access
+    )
+
+    all_routes_in_app = [rule.endpoint for rule in app.url_map.iter_rules()]
+    assert set(all_declared_routes_in_test) - set(all_routes_in_app) == set()
