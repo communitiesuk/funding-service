@@ -290,6 +290,22 @@ def add_question_condition(question: Question, user: User, managed_expression: "
     return question
 
 
+def add_question_validation(question: Question, user: User, managed_expression: "BaseExpression") -> Question:
+    expression = Expression(
+        statement=managed_expression.expression,
+        context=managed_expression.model_dump(mode="json"),
+        created_by=user,
+        type=ExpressionType.VALIDATION,
+    )
+    question.expressions.append(expression)
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return question
+
+
 def remove_question_expression(question: Question, expression: Expression) -> Question:
     question.expressions.remove(expression)
     db.session.flush()

@@ -217,8 +217,10 @@ class _ExpressionFactory(factory.alchemy.SQLAlchemyModelFactory):
     question_id = factory.LazyAttribute(lambda o: o.question.id)
     question = factory.SubFactory(_QuestionFactory)
     context = factory.LazyFunction(dict)
+    created_by = factory.SubFactory(_UserFactory)
+    created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
 
     # todo: we could actually set this based on the question sub factory to make sure the default expression
     #       makes some kind of sense for the question type
-    expression = factory.LazyFunction(_required)
+    statement = factory.LazyFunction(_required)
     type = factory.LazyFunction(_required)

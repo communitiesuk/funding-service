@@ -2,6 +2,7 @@ import pytest
 
 from app.common.data.interfaces.collections import (
     add_question_condition,
+    add_question_validation,
     add_submission_event,
     clear_submission_events,
     create_collection,
@@ -416,7 +417,7 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     assert queries == []
 
 
-def test_add_expression(db_session, factories):
+def test_add_question_condition(db_session, factories):
     question = factories.question.create()
     user = factories.user.create()
 
@@ -430,6 +431,28 @@ def test_add_expression(db_session, factories):
 
     assert len(from_db.expressions) == 1
     assert from_db.expressions[0].type == ExpressionType.CONDITION
+
+    qid = mangle_question_id_for_context(question.id)
+    assert from_db.expressions[0].statement == f"{qid} > 3000"
+
+    # check the serialised context lines up with the values in the managed expression
+    assert from_db.expressions[0].context["key"] == "Greater than"
+
+
+def test_add_question_validation(db_session, factories):
+    question = factories.question.create()
+    user = factories.user.create()
+
+    # configured by the user interface
+    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+
+    add_question_validation(question, user, managed_expression)
+
+    # check the serialisation and deserialisation is as expected
+    from_db = get_question_by_id(question.id)
+
+    assert len(from_db.expressions) == 1
+    assert from_db.expressions[0].type == ExpressionType.VALIDATION
 
     qid = mangle_question_id_for_context(question.id)
     assert from_db.expressions[0].statement == f"{qid} > 3000"

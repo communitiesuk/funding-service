@@ -4,32 +4,76 @@ import abc
 # that are built through the UI. These will be used alongside custom expressions
 from uuid import UUID
 
-from flask_wtf import FlaskForm
 from pydantic import BaseModel
 
-from app.common.data.models import Question
-from app.common.data.types import ManagedExpressions, QuestionDataType
+from app.common.data.types import ManagedExpressionsEnum
 from app.common.expressions import mangle_question_id_for_context
-from app.common.expressions.forms import AddNumberConditionForm
 
 
 class BaseExpression(BaseModel):
-    key: ManagedExpressions
+    key: ManagedExpressionsEnum
 
     @property
     @abc.abstractmethod
     def expression(self) -> str:
         raise NotImplementedError
 
+    @property
+    @abc.abstractmethod
+    def description(self) -> str: ...
+
 
 class GreaterThan(BaseExpression):
-    key: ManagedExpressions = ManagedExpressions.GREATER_THAN
+    key: ManagedExpressionsEnum = ManagedExpressionsEnum.GREATER_THAN
     question_id: UUID
     minimum_value: int
+    inclusive: bool = False
 
     @property
     def description(self) -> str:
-        return "Is greater than"
+        return f"Is greater than{' or equal to' if self.inclusive else ''}"
+
+    @property
+    def message(self) -> str:
+        return f"The answer must be greater than {'or equal to ' if self.inclusive else ''}{self.minimum_value}"
+
+    @property
+    def expression(self) -> str:
+        qid = mangle_question_id_for_context(self.question_id)
+        return f"{qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
+
+
+class LessThan(BaseExpression):
+    key: ManagedExpressionsEnum = ManagedExpressionsEnum.LESS_THAN
+    question_id: UUID
+    maximum_value: int
+    inclusive: bool = False
+
+    @property
+    def description(self) -> str:
+        return f"Is less than{' or equal to' if self.inclusive else ''}"
+
+    @property
+    def message(self) -> str:
+        return f"The answer must be less than {'or equal to ' if self.inclusive else ''}{self.maximum_value}"
+
+    @property
+    def expression(self) -> str:
+        qid = mangle_question_id_for_context(self.question_id)
+        return f"{qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
+
+
+class Between(BaseExpression):
+    key: ManagedExpressionsEnum = ManagedExpressionsEnum.BETWEEN
+    question_id: UUID
+    minimum_value: int
+    minimum_inclusive: bool = False
+    maximum_value: int
+    maximum_inclusive: bool = False
+
+    @property
+    def description(self) -> str:
+        return "Is between"
 
     @property
     def message(self) -> str:
@@ -38,33 +82,20 @@ class GreaterThan(BaseExpression):
         #       - does that persist in the context (inherited from BaseExpression) or as a separate
         #         property on the model
         # todo: make this use expression evaluation/interpolation rather than f-strings
-        return f"The answer must be {self.minimum_value} or greater"
+        return (
+            f"The answer must be between "
+            f"{self.minimum_value}{' (inclusive)' if self.minimum_inclusive else ' (exclusive)'} and "
+            f"{self.maximum_value}{' (inclusive)' if self.maximum_inclusive else ' (exclusive)'}"
+        )
 
     @property
     def expression(self) -> str:
         # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
         qid = mangle_question_id_for_context(self.question_id)
-        return f"{qid} > {self.minimum_value}"
-
-
-supported_managed_question_types = {QuestionDataType.INTEGER: AddNumberConditionForm}
-
-
-def get_managed_expression_form(question: Question) -> "FlaskForm":
-    try:
-        return supported_managed_question_types[question.data_type]
-    except KeyError as e:
-        raise ValueError(f"Question type {question.data_type} does not support managed expressions") from e
-
-
-def get_supported_form_questions(question: Question) -> list[Question]:
-    questions = question.form.questions
-    return [q for q in questions if q.data_type in supported_managed_question_types.keys() and q.id != question.id]
-
-
-def parse_expression_form(question: Question, form: FlaskForm) -> BaseExpression:
-    if isinstance(form, AddNumberConditionForm):
-        assert form.value.data
-        return GreaterThan(question_id=question.id, minimum_value=form.value.data)
-    else:
-        raise ValueError("Question type does not support managed expressions.")
+        return (
+            f"{self.minimum_value} "
+            f"<{'=' if self.minimum_inclusive else ''} "
+            f"{qid} "
+            f"<{'=' if self.maximum_inclusive else ''} "
+            f"{self.maximum_value}"
+        )

@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.common.data.types import RoleEnum
+from app.common.data.types import ExpressionType, RoleEnum
 
 
 class TestUserRoleConstraints:
@@ -38,3 +38,17 @@ class TestUserRoleConstraints:
         with pytest.raises(IntegrityError) as error:
             factories.user_role.create(user_id=user_role.user_id, user=user_role.user, role=RoleEnum.ADMIN)
         assert 'duplicate key value violates unique constraint "uq_user_org_grant"' in error.value.args[0]
+
+
+class TestExpressionConstraints:
+    def test_cannot_add_two_of_the_same_kind_of_validation_to_a_question(self, factories):
+        user = factories.user.create()
+        q = factories.question.create()
+        factories.expression.create(
+            question=q, created_by=user, type=ExpressionType.VALIDATION, statement="", context={"key": "unique"}
+        )
+
+        with pytest.raises(IntegrityError):
+            factories.expression.create(
+                question=q, created_by=user, type=ExpressionType.VALIDATION, statement="", context={"key": "unique"}
+            )

@@ -39,10 +39,10 @@ from app.common.data.interfaces.temporary import (
     delete_submissions_created_by_user,
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.expressions.managed import (
-    get_managed_expression_form,
+from app.common.expressions.helpers import (
+    get_managed_condition_form,
+    get_managed_validation_form,
     get_supported_form_questions,
-    parse_expression_form,
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -623,10 +623,11 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     question = get_question_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
-    form = get_managed_expression_form(depends_on_question)()
+    ConditionForm = get_managed_condition_form(depends_on_question)
+    form = ConditionForm()
 
-    if form.validate_on_submit():
-        expression = parse_expression_form(depends_on_question, form)
+    if form and form.validate_on_submit():
+        expression = form.get_expression(depends_on_question)
         interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
 
         return redirect(
@@ -644,6 +645,48 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
         "developers/add_question_condition_select_condition_type.html",
         question=question,
         depends_on_question=depends_on_question,
+        grant=question.form.section.collection.grant,
+        form=form,
+        QuestionDataType=QuestionDataType,
+    )
+
+
+@developers_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-validation",
+    methods=["GET", "POST"],
+)
+@platform_admin_role_required
+@auto_commit_after_request
+def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+
+    ValidationForm = get_managed_validation_form(question)
+    form = ValidationForm()
+
+    if form and form.validate_on_submit():
+        expression = form.get_expression(question)
+
+        try:
+            interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        except DuplicateValueError:
+            # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
+            #        complain to us about it before we think about a better way of handling it.
+            form.form_errors.append(f"“{expression.description}” validation already exists on the question.")
+        else:
+            return redirect(
+                url_for(
+                    "developers.edit_question",
+                    grant_id=grant_id,
+                    collection_id=question.form.section.collection.id,
+                    section_id=question.form.section.id,
+                    form_id=question.form.id,
+                    question_id=question.id,
+                )
+            )
+
+    return render_template(
+        "developers/add_question_validation.html",
+        question=question,
         grant=question.form.section.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,

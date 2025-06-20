@@ -1,12 +1,16 @@
+import uuid
+
 import pytest
 
+from app.common.data.models import Expression
 from app.common.data.types import QuestionDataType
-from app.common.expressions.forms import AddNumberConditionForm
-from app.common.expressions.managed import (
-    get_managed_expression_form,
+from app.common.expressions import evaluate, mangle_question_id_for_context
+from app.common.expressions.forms import AddIntegerConditionForm
+from app.common.expressions.helpers import (
+    get_managed_condition_form,
     get_supported_form_questions,
-    parse_expression_form,
 )
+from app.common.expressions.managed import Between, GreaterThan, LessThan
 
 
 class TestManagedExpressions:
@@ -35,22 +39,77 @@ class TestManagedExpressions:
     def test_get_managed_expression_form_valid_question_type(self, factories):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
 
-        form = get_managed_expression_form(question)
-        assert form == AddNumberConditionForm
+        form = get_managed_condition_form(question)
+        assert form == AddIntegerConditionForm
 
     def test_get_managed_expression_form_invalid_question_type(self, factories):
         question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
 
-        with pytest.raises(ValueError) as e:
-            get_managed_expression_form(question)
+        assert get_managed_condition_form(question)() is None
 
-        assert str(e.value) == f"Question type {question.data_type} does not support managed expressions"
 
-    def test_parse_managed_expression_form(self, factories):
-        question = factories.question.build(data_type=QuestionDataType.INTEGER)
-        form = get_managed_expression_form(question)(value=2000)
+class TestGreaterThanExpression:
+    @pytest.mark.parametrize(
+        "minimum_value, inclusive, answer, expected_result",
+        (
+            (1000, False, 999, False),
+            (1000, False, 1000, False),
+            (1000, True, 1000, True),
+            (1000, False, 1001, True),
+        ),
+    )
+    def test_evaluate(self, minimum_value, inclusive, answer, expected_result):
+        qid = uuid.uuid4()
+        expr = GreaterThan(question_id=qid, minimum_value=minimum_value, inclusive=inclusive)
+        assert (
+            evaluate(Expression(statement=expr.expression, context={mangle_question_id_for_context(qid): answer}))
+            is expected_result
+        )
 
-        expression = parse_expression_form(question, form)
-        assert expression.key == "Greater than"
-        assert expression.question_id == question.id
-        assert expression.minimum_value == 2000
+
+class TestLessThanExpression:
+    @pytest.mark.parametrize(
+        "maximum_value, inclusive, answer, expected_result",
+        (
+            (1000, False, 999, True),
+            (1000, False, 1000, False),
+            (1000, True, 1000, True),
+            (1000, False, 1001, False),
+        ),
+    )
+    def test_evaluate(self, maximum_value, inclusive, answer, expected_result):
+        qid = uuid.uuid4()
+        expr = LessThan(question_id=qid, maximum_value=maximum_value, inclusive=inclusive)
+        assert (
+            evaluate(Expression(statement=expr.expression, context={mangle_question_id_for_context(qid): answer}))
+            is expected_result
+        )
+
+
+class TestBetweenExpression:
+    @pytest.mark.parametrize(
+        "minimum_value, minimum_inclusive, maximum_value, maximum_inclusive, answer, expected_result",
+        (
+            (0, False, 1000, False, 0, False),
+            (0, True, 1000, False, 0, True),
+            (0, False, 1000, False, 1, True),
+            (0, False, 1000, False, 999, True),
+            (0, False, 1000, False, 1000, False),
+            (0, True, 1000, True, 1000, True),
+        ),
+    )
+    def test_evaluate(
+        self, minimum_value, minimum_inclusive, maximum_value, maximum_inclusive, answer, expected_result
+    ):
+        qid = uuid.uuid4()
+        expr = Between(
+            question_id=qid,
+            minimum_value=minimum_value,
+            minimum_inclusive=minimum_inclusive,
+            maximum_value=maximum_value,
+            maximum_inclusive=maximum_inclusive,
+        )
+        assert (
+            evaluate(Expression(statement=expr.expression, context={mangle_question_id_for_context(qid): answer}))
+            is expected_result
+        )

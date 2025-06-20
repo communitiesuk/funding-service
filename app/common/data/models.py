@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 
 from pytz import utc
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -286,3 +286,14 @@ class Expression(BaseModel):
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
+
+    __table_args__ = (
+        Index(
+            "uq_type_validation_unique_key",
+            "type",
+            "question_id",
+            text("(context ->> 'key')"),
+            postgresql_where=f"type = '{ExpressionType.VALIDATION.value}'::expression_type_enum",
+            unique=True,
+        ),
+    )
