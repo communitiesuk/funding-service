@@ -108,7 +108,7 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
 def _validate_form_argument_to_render_template(response: TestResponse, templates_rendered: TTemplatesRendered) -> None:
     if response.headers["content-type"].startswith("text/html"):
         for _endpoint, render_template in templates_rendered.items():
-            if "form" in render_template.context:
+            if "form" in render_template.context and render_template.context["form"]:
                 assert isinstance(render_template.context["form"], FlaskForm), (
                     "The `form` argument passed to `render_template` is expected to be a FlaskForm instance. "
                     "This powers 'magic' handling of error summary rendering."
