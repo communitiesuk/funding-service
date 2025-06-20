@@ -110,8 +110,6 @@ class TestUpsertUserRole:
         [
             (False, False, RoleEnum.ADMIN),
             (True, False, RoleEnum.MEMBER),
-            (False, True, RoleEnum.ASSESSOR),
-            (True, True, RoleEnum.EDITOR),
         ],
     )
     def test_add_user_role(self, db_session, factories, organisation, grant, role):
@@ -195,8 +193,6 @@ class TestUpsertUserRole:
         "organisation, grant, role, message",
         [
             (False, False, RoleEnum.MEMBER, "A 'member' role must be linked to an organisation or grant."),
-            (True, False, RoleEnum.ASSESSOR, "An 'assessor' role can only be linked to a grant."),
-            (False, True, RoleEnum.S151_OFFICER, "A 's151_officer' role can only be linked to an organisation."),
         ],
     )
     def test_add_invalid_user_role(self, factories, organisation, grant, role, message):

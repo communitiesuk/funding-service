@@ -6,7 +6,8 @@ from sqlalchemy.exc import NoResultFound
 from werkzeug import Response
 from wtforms.fields.core import Field
 
-from app.common.auth.decorators import mhclg_login_required, platform_admin_role_required
+from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.auth.decorators import has_grant_role, mhclg_login_required, platform_admin_role_required
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.types import RoleEnum
@@ -199,20 +200,20 @@ def list_grants() -> Response | str:
     grants = interfaces.grants.get_all_grants_by_user(user=user)
     # TODO if the user is a MEMBER and does not have any grant we need to handle that but if you are a
     #  ADMIN then should be able to see grants or empty page with create grant feature
-    if len(grants) == 1 and not user.is_platform_admin:
+    if len(grants) == 1 and not AuthorisationHelper.is_platform_admin(user):
         return redirect(url_for("deliver_grant_funding.view_grant", grant_id=grants[0].id))
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>", methods=["GET"])
-@mhclg_login_required
+@has_grant_role(RoleEnum.MEMBER)
 def view_grant(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/users", methods=["GET"])
-@mhclg_login_required
+@has_grant_role(RoleEnum.MEMBER)
 def list_users_for_grant(grant_id: UUID) -> ResponseReturnValue:
     try:
         grant = interfaces.grants.get_grant(grant_id)
@@ -247,7 +248,7 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details", methods=["GET"])
-@mhclg_login_required
+@has_grant_role(RoleEnum.MEMBER)
 def grant_details(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_details.html", grant=grant)

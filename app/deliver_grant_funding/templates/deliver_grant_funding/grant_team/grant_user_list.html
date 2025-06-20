@@ -26,7 +26,7 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Grant team
       </h1>
-      {% if current_user.is_platform_admin %}
+      {% if authorisation_helper.is_platform_admin(current_user) %}
         {{
           govukButton({
              "text": "Add grant team member",
@@ -39,7 +39,7 @@
 
   {% set table_pending_signin_rows = namespace(items=[]) %}
   {% if grant.users %}
-    {% for user in grant.users if not user.has_logged_in %}
+    {% for user in grant.users if not authorisation_helper.has_logged_in(user) %}
       {%
         set table_pending_signin_rows.items = table_pending_signin_rows.items + [[
           {"text": user.email},
@@ -69,7 +69,7 @@
   {% set table_rows = namespace(items=[]) %}
 
   {% if grant.users %}
-    {% for user in grant.users if user.has_logged_in %}
+    {% for user in grant.users if authorisation_helper.has_logged_in(user) %}
       {%
         set table_rows.items = table_rows.items + [[
           {"text": user.name},

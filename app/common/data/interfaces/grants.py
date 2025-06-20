@@ -24,7 +24,9 @@ def grant_name_exists(name: str, exclude_grant_id: UUID | None = None) -> bool:
 
 
 def get_all_grants_by_user(user: User) -> Sequence[Grant]:
-    if user.is_platform_admin:
+    from app.common.auth.authorisation_helper import AuthorisationHelper
+
+    if AuthorisationHelper.is_platform_admin(user):
         statement = select(Grant).order_by(Grant.name)
         return db.session.scalars(statement).all()
     else:

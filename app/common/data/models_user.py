@@ -41,24 +41,6 @@ class User(BaseModel):
     def get_id(self) -> str:
         return str(self.id)
 
-    # END: Flask-Login attributes
-
-    @property
-    def has_logged_in(self) -> bool:
-        # FIXME: We should have some actual tracking of whether the user has logged in. This could either be a
-        #        field on the model called `last_logged_in_at` or similar, or we could only create entries in the user
-        #        table when the user actually logs in, rather than at invitation-time. Then we could simply trust that
-        #        if a user entry exists, they have definitely logged in.
-        return bool(self.name)
-
-    @property
-    def is_platform_admin(self) -> bool:
-        is_platform_admin = any(
-            role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id is None
-            for role in self.roles
-        )
-        return is_platform_admin
-
 
 class UserRole(BaseModel):
     __tablename__ = "user_role"

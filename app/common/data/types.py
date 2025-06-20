@@ -12,9 +12,12 @@ class RoleEnum(str, enum.Enum):
         "admin"  # Admin level permissions, combines with null columns in UserRole table to denote level of admin access
     )
     MEMBER = "member"  # Basic read level permissions
-    EDITOR = "editor"  # Read/write level permissions
-    ASSESSOR = "assessor"  # Assessor level permissions
-    S151_OFFICER = "s151_officer"  # S151 officer sign-off permissions
+
+
+# If a user roles implies they get other (lower) roles as well, list the role here with the roles they should get.
+GRANT_ROLES_MAPPING = {
+    RoleEnum.ADMIN: [role for role in RoleEnum],
+}
 
 
 class QuestionDataType(enum.StrEnum):

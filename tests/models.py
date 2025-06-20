@@ -82,7 +82,7 @@ class _UserRoleFactory(factory.alchemy.SQLAlchemyModelFactory):
     user = factory.SubFactory(_UserFactory)
     organisation_id = None
     organisation = None
-    grant_id = None
+    grant_id = factory.LazyAttribute(lambda o: o.grant.id if o.grant else None)
     grant = None
     role = None  # This needs to be overridden when initialising the factory
 

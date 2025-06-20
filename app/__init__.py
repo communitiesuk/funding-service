@@ -10,6 +10,7 @@ from sqlalchemy.exc import NoResultFound
 from werkzeug.routing import BaseConverter
 
 from app import logging
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.types import SubmissionModeEnum
 from app.common.filters import format_date, format_date_range, format_date_short, format_datetime, format_datetime_range
@@ -196,5 +197,6 @@ def create_app() -> Flask:
     # otherwise we don't want the server to continually 304 on assets the browser has
     # should make an intentional decision for when to be setting this
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
+    app.add_template_global(AuthorisationHelper, "authorisation_helper")
 
     return app
