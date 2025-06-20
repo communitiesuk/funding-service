@@ -1,4 +1,7 @@
 from datetime import date, datetime
+from typing import cast
+
+from num2words import num2words
 
 
 def format_date(value: date | datetime) -> str:
@@ -57,3 +60,7 @@ def format_datetime_range(start: datetime, end: datetime) -> str:
     """
     from_, to = format_datetime(start), format_datetime(end)
     return f"{from_} to {to}"
+
+
+def to_ordinal(number: int) -> str:
+    return cast(str, num2words(number, to="ordinal"))
