@@ -6,7 +6,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "developers/_number_expression.html" import render_number_expression %}
+{% from "developers/_render_managed_expression_form.html" import render_managed_expression_form %}
 
 {% block pageTitle %}
   Add validation - {{ question.name }} - MHCLG Funding Service
@@ -53,8 +53,8 @@
         })
       }}
 
-      {% if question.data_type == QuestionDataType.INTEGER %}
-        {{ render_number_expression(form, question, submit_label) }}
+      {% if form is not none %}
+        {{ render_managed_expression_form(form, label_html="The answer to the question <span class='govuk-visually-hidden'>“" ~ question.text ~ "”</span> must be") }}
 
         {% if expression %}
           <div class="govuk-grid-row govuk-!-margin-top-7">
