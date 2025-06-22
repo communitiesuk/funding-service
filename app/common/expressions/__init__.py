@@ -10,19 +10,19 @@ if TYPE_CHECKING:
     from app.common.data.models import Expression
 
 
-class BaseExpressionError(Exception):
+class ManagedExpressionError(Exception):
     pass
 
 
-class UndefinedVariableInExpression(BaseExpressionError):
+class UndefinedVariableInExpression(ManagedExpressionError):
     pass
 
 
-class DisallowedExpression(BaseExpressionError):
+class DisallowedExpression(ManagedExpressionError):
     pass
 
 
-class InvalidEvaluationResult(BaseExpressionError):
+class InvalidEvaluationResult(ManagedExpressionError):
     pass
 
 

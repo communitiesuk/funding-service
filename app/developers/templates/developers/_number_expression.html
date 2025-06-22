@@ -12,10 +12,10 @@
       {{ form.less_than_inclusive }}
     {% endset %}
     {% set between_html %}
-      {{ form.bottom_of_range(params={"classes": "govuk-input--width-10"}) }}
-      {{ form.bottom_inclusive }}
-      {{ form.top_of_range(params={"classes": "govuk-input--width-10"}) }}
-      {{ form.top_inclusive }}
+      {{ form.between_bottom_of_range(params={"classes": "govuk-input--width-10"}) }}
+      {{ form.between_bottom_inclusive }}
+      {{ form.between_top_of_range(params={"classes": "govuk-input--width-10"}) }}
+      {{ form.between_top_inclusive }}
     {% endset %}
 
     {{
