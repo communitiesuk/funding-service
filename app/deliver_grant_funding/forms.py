@@ -94,7 +94,7 @@ class GrantDescriptionForm(GrantSetupForm):
         "What is the main purpose of this grant?",
         validators=[
             DataRequired("Enter the main purpose of this grant"),
-            WordRange(max_words=DESCRIPTION_MAX_WORDS, field_display_name="Description"),
+            WordRange(max_words=DESCRIPTION_MAX_WORDS, field_display_name="description"),
         ],
         filters=[strip_string_if_not_empty],
         widget=GovCharacterCount(),
