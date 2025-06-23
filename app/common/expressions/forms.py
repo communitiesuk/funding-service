@@ -7,7 +7,7 @@ from wtforms import IntegerField, RadioField, SubmitField
 from wtforms.fields.simple import BooleanField
 from wtforms.validators import DataRequired, Optional
 
-from app.common.data.models import Question
+from app.common.data.models import Expression, Question
 from app.common.data.types import ManagedExpressionsEnum
 from app.common.expressions.managed import Between, GreaterThan, LessThan
 
@@ -18,6 +18,10 @@ if TYPE_CHECKING:
 class _BaseExpressionForm(FlaskForm):
     @abstractmethod
     def get_expression(self, question: Question) -> "BaseExpression": ...
+
+    @staticmethod
+    @abstractmethod
+    def from_expression(expression: "Expression") -> "_BaseExpressionForm": ...
 
 
 class AddIntegerConditionForm(_BaseExpressionForm):
@@ -118,3 +122,22 @@ class AddIntegerValidationForm(_BaseExpressionForm):
                 )
 
         raise RuntimeError(f"Unknown expression type: {self.type.data}")
+
+    @staticmethod
+    def from_expression(expression: "Expression") -> "AddIntegerValidationForm":
+        data = {"type": expression.context["key"]}
+
+        match data["type"]:
+            case ManagedExpressionsEnum.GREATER_THAN:
+                data["greater_than_value"] = expression.context["minimum_value"]
+                data["greater_than_inclusive"] = expression.context["inclusive"]
+            case ManagedExpressionsEnum.LESS_THAN:
+                data["less_than_value"] = expression.context["maximum_value"]
+                data["less_than_inclusive"] = expression.context["inclusive"]
+            case ManagedExpressionsEnum.BETWEEN:
+                data["bottom_of_range"] = expression.context["minimum_value"]
+                data["bottom_inclusive"] = expression.context["minimum_inclusive"]
+                data["top_of_range"] = expression.context["maximum_value"]
+                data["top_inclusive"] = expression.context["maximum_inclusive"]
+
+        return AddIntegerValidationForm(data=data)

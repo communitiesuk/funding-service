@@ -1,4 +1,7 @@
+import uuid
+
 import pytest
+from sqlalchemy.exc import NoResultFound
 
 from app.common.data.interfaces.collections import (
     add_question_condition,
@@ -10,6 +13,7 @@ from app.common.data.interfaces.collections import (
     create_question,
     create_section,
     get_collection,
+    get_expression,
     get_form_by_id,
     get_question_by_id,
     get_section_by_id,
@@ -29,7 +33,7 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Collection
 from app.common.data.types import ExpressionType, QuestionDataType, SubmissionEventKey
 from app.common.expressions import mangle_question_id_for_context
-from app.common.expressions.managed import GreaterThan
+from app.common.expressions.managed import GreaterThan, LessThan
 from app.common.helpers.collections import TextSingleLine
 
 
@@ -476,6 +480,22 @@ def test_update_expression(db_session, factories):
     assert question.expressions[0].statement == f"{qid} > 5000"
 
 
+def test_update_expression_errors_on_validation_overlap(db_session, factories):
+    question = factories.question.create()
+    user = factories.user.create()
+    gt_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+
+    add_question_validation(question, user, gt_expression)
+
+    lt_expression = LessThan(maximum_value=5000, question_id=question.id)
+
+    add_question_validation(question, user, lt_expression)
+    lt_db_expression = next(db_expr for db_expr in question.expressions if db_expr.context["key"] == lt_expression.key)
+
+    with pytest.raises(DuplicateValueError):
+        update_question_expression(lt_db_expression, gt_expression)
+
+
 def test_remove_expression(db_session, factories):
     question = factories.question.create()
     user = factories.user.create()
@@ -488,3 +508,17 @@ def test_remove_expression(db_session, factories):
     remove_question_expression(question, question.expressions[0])
 
     assert len(question.expressions) == 0
+
+
+def test_get_expression(db_session, factories):
+    expression = factories.expression.create(statement="", type=ExpressionType.VALIDATION)
+
+    db_expr = get_expression(expression.id)
+    assert db_expr is expression
+
+
+def test_get_expression_missing(db_session, factories):
+    factories.expression.create(statement="", type=ExpressionType.VALIDATION)
+
+    with pytest.raises(NoResultFound):
+        get_expression(uuid.uuid4())

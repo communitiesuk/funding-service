@@ -306,6 +306,10 @@ def add_question_validation(question: Question, user: User, managed_expression: 
     return question
 
 
+def get_expression(expression_id: UUID) -> Expression:
+    return db.session.get_one(Expression, expression_id)
+
+
 def remove_question_expression(question: Question, expression: Expression) -> Question:
     question.expressions.remove(expression)
     db.session.flush()
