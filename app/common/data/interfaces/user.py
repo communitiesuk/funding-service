@@ -119,3 +119,9 @@ def upsert_user_role(
         raise InvalidUserRoleError(e) from e
 
     return user_role
+
+
+def remove_user_role(user_role_id: uuid.UUID) -> None:
+    role = db.session.query(UserRole).where(UserRole.id == user_role_id).one_or_none()
+    if role is not None:
+        db.session.delete(role)

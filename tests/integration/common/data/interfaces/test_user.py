@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import func, select
 
@@ -215,3 +217,24 @@ class TestUpsertUserRole:
             )
         assert isinstance(error.value, InvalidUserRoleError)
         assert error.value.message == message
+
+
+class TestRemoveUserRole:
+    def test_remove_user_role(self, db_session, factories):
+        user = factories.user.create(email="test@communities.gov.uk")
+        user_role = factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+
+        interfaces.user.remove_user_role(user_role_id=user_role.id)
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+
+    def test_remove_user_role_when_role_is_none(self, db_session, factories):
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        generic_uuid = uuid4()
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+
+        interfaces.user.remove_user_role(user_role_id=generic_uuid)
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1

@@ -5,6 +5,7 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
@@ -12,6 +13,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.user import (
     get_user_by_azure_ad_subject_id,
     get_user_by_email,
+    remove_user_role,
     upsert_user_by_azure_ad_subject_id,
     upsert_user_by_email,
     upsert_user_role,
@@ -126,13 +128,28 @@ def sso_get_token() -> ResponseReturnValue:
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
-        upsert_user_role(user_id=user.id, role=RoleEnum.ADMIN)
+        platform_admin_role = upsert_user_role(user_id=user.id, role=RoleEnum.ADMIN)
+        for role in user.roles:
+            if role.id != platform_admin_role.id:
+                remove_user_role(role.id)
     elif user and user.roles:
         user = upsert_user_by_azure_ad_subject_id(
             azure_ad_subject_id=sso_user["sub"],
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
+        if AuthorisationHelper.is_platform_admin(user):
+            platform_admin_role = next(
+                role
+                for role in user.roles
+                if role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id is None
+            )
+            remove_user_role(platform_admin_role.id)
+            if len(user.roles) == 1:
+                return render_template(
+                    "common/auth/mhclg-user-not-authorised.html",
+                    service_desk_url=current_app.config["SERVICE_DESK_URL"],
+                ), 403
     else:
         return render_template(
             "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]
