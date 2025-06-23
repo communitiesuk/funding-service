@@ -8,7 +8,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id)
+        "href": url_for("developers_dgf.manage_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id)
     })
   }}
 {% endblock beforeContent %}

@@ -64,7 +64,7 @@ class TestNotificationService:
                         "personalisation": {
                             "submission name": "My test collection",
                             "submission reference": "10000000",
-                            "submission url": "http://funding.communities.gov.localhost:8080/developers/submissions/10000000-0000-0000-0000-000000000000",
+                            "submission url": "http://funding.communities.gov.localhost:8080/developers/deliver/submissions/10000000-0000-0000-0000-000000000000",
                         },
                     }
                 )

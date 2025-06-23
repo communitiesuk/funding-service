@@ -10,7 +10,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
+        "href": url_for("developers_dgf.manage_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
     })
   }}
 {% endblock beforeContent %}
@@ -51,12 +51,12 @@
 
             <div class="govuk-form-group">
               <p class="govuk-body">
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_question_condition_select_question', grant_id=grant.id, question_id=question.id) }}">Add condition</a>
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers_dgf.add_question_condition_select_question', grant_id=grant.id, question_id=question.id) }}">Add condition</a>
               </p>
 
               {# FIXME: Only show if the question can be validated against, ie probably not free text. #}
               <p class="govuk-body">
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_question_validation', grant_id=grant.id, question_id=question.id) }}">Add validation</a>
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers_dgf.add_question_validation', grant_id=grant.id, question_id=question.id) }}">Add validation</a>
               </p>
             </div>
 
@@ -67,7 +67,7 @@
       <div class="govuk-grid-row govuk-!-margin-top-7">
         <div class="govuk-grid-column-two-thirds">
           <p class="govuk-body">
-            <a class="govuk-link app-link--destructive" href="{{ url_for('developers.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=question.id, delete='') }}">
+            <a class="govuk-link app-link--destructive" href="{{ url_for('developers_dgf.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=question.id, delete='') }}">
               Delete this question
             </a>
           </p>

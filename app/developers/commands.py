@@ -7,7 +7,7 @@ import click
 from app.common.data import interfaces
 from app.common.data.interfaces.temporary import delete_grant
 from app.common.data.types import QuestionDataType
-from app.developers import developers_blueprint
+from app.developers import developers_deliver_blueprint
 
 if TYPE_CHECKING:
     from app.common.data.models import Grant
@@ -234,7 +234,7 @@ def _seed_picnic_areas_in_parks(grants: Sequence["Grant"]) -> None:
     )
 
 
-@developers_blueprint.cli.command("seed-grants", help="Seed exemplar grants to aid development and testing.")
+@developers_deliver_blueprint.cli.command("seed-grants", help="Seed exemplar grants to aid development and testing.")
 def seed_grants() -> None:
     grants = interfaces.grants.get_all_grants()
 
