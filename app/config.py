@@ -252,6 +252,9 @@ class _SharedConfig(_BaseConfig):
     # Service Desk
     SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5"
 
+    # GGIS Team
+    GGIS_TEAM_EMAIL: str = "ggis@communities.gov.uk"
+
     @property
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD
