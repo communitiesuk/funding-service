@@ -366,6 +366,44 @@ class Between(ManagedExpression):
         }
 
 
+@register_managed_expression
+class MentionsGrass(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.MENTIONS_GRASS
+    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.TEXT_SINGLE_LINE}
+
+    _key: ManagedExpressionsEnum = name
+    question_id: UUID
+
+    @property
+    def description(self) -> str:
+        return "Mentions grass"
+
+    @property
+    def message(self) -> str:
+        return "The answer must talk about grass"
+
+    @property
+    def statement(self) -> str:
+        qid = mangle_question_id_for_context(self.question_id)
+        return f"'grass' in {qid}"
+
+    @staticmethod
+    def get_form_fields() -> dict[str, "Field"]:
+        return {}
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        pass
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "MentionsGrass":
+        return MentionsGrass(question_id=question.id)
+
+    @staticmethod
+    def form_data_from_expression(expression: "Expression") -> dict[str, Any]:
+        return {}
+
+
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
     if not expression.managed_name:
         raise ValueError(f"Expression {expression.id} is not a managed expression.")
