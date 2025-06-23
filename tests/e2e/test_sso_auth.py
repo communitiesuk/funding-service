@@ -20,7 +20,6 @@ def test_stub_sso_journey(page: Page, domain: str):
 
 
 @pytest.mark.skip_in_environments(["local"])
-@pytest.mark.xfail
 def test_real_sso_journey(page: Page, domain: str):
     """
     Test the real SSO journey using a service account.
