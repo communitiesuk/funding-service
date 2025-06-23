@@ -23,7 +23,7 @@
                 "text": "Change",
                 "visuallyHiddenText": "the GGIS number"
               }]
-            }
+            } if authorisation_helper.is_platform_admin(current_user) else {}
           },
           {
             "key": {"text": "Name"},
