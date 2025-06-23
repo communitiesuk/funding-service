@@ -14,10 +14,10 @@ def _get_decorators(func):
 
 all_auth_annotations = [
     "@login_required",
-    "@mhclg_login_required",
+    "@is_mhclg_user",
     "@has_grant_role(RoleEnum.MEMBER)",
     "@has_grant_role(RoleEnum.ADMIN)",
-    "@platform_admin_role_required",
+    "@is_platform_admin",
 ]
 routes_with_expected_platform_admin_only_access = [
     "developers.grant_developers",
@@ -67,7 +67,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.grant_details",
 ]
 
-routes_with_expected_mhclg_login_required_access = ["deliver_grant_funding.list_grants"]
+routes_with_expected_is_mhclg_user_access = ["deliver_grant_funding.list_grants"]
 routes_with_no_expected_access_restrictions = [
     "auth.request_a_link_to_sign_in",
     "auth.check_email",
@@ -85,11 +85,11 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
     for rule in app.url_map.iter_rules():
         decorators = _get_decorators(app.view_functions[rule.endpoint])
         if rule.endpoint in routes_with_expected_platform_admin_only_access:
-            assert "@platform_admin_role_required" in decorators
+            assert "@is_platform_admin" in decorators
         elif rule.endpoint in routes_with_expected_member_only_access:
             assert "@has_grant_role(RoleEnum.MEMBER)" in decorators
-        elif rule.endpoint in routes_with_expected_mhclg_login_required_access:
-            assert "@mhclg_login_required" in decorators
+        elif rule.endpoint in routes_with_expected_is_mhclg_user_access:
+            assert "@is_mhclg_user" in decorators
         elif rule.endpoint in routes_with_no_expected_access_restrictions:
             # If route is expected to be unauthenticated, check it doesn't have any auth decorators
             assert not any(decorator in all_auth_annotations for decorator in decorators)
@@ -101,7 +101,7 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
 def test_routes_list_is_valid(app):
     all_declared_routes_in_test = (
         routes_with_no_expected_access_restrictions
-        + routes_with_expected_mhclg_login_required_access
+        + routes_with_expected_is_mhclg_user_access
         + routes_with_expected_member_only_access
         + routes_with_expected_grant_admin_only_access
         + routes_with_expected_platform_admin_only_access
