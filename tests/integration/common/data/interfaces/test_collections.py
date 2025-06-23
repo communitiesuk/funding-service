@@ -504,10 +504,14 @@ def test_remove_expression(db_session, factories):
     add_question_condition(question, user, managed_expression)
 
     assert len(question.expressions) == 1
+    expression_id = question.expressions[0].id
 
     remove_question_expression(question, question.expressions[0])
 
     assert len(question.expressions) == 0
+
+    with pytest.raises(NoResultFound, match="No row was found when one was required"):
+        get_expression(expression_id)
 
 
 def test_get_expression(db_session, factories):

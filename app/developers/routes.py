@@ -26,6 +26,7 @@ from app.common.data.interfaces.collections import (
     move_question_up,
     move_section_down,
     move_section_up,
+    remove_question_expression,
     update_collection,
     update_form,
     update_question,
@@ -705,8 +706,27 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
     question = get_question_by_id(question_id)
     db_expression = get_expression(expression_id)
 
+    confirm_deletion_form = ConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        remove_question_expression(question=question, expression=db_expression)
+        return redirect(
+            url_for(
+                "developers.edit_question",
+                grant_id=grant_id,
+                collection_id=question.form.section.collection_id,
+                section_id=question.form.section.id,
+                form_id=question.form.id,
+                question_id=question.id,
+            )
+        )
+
     ValidationForm = get_managed_validation_form(question)
     form = ValidationForm.from_expression(db_expression) if ValidationForm else None
+
     if form and form.validate_on_submit():
         py_expression = form.get_expression(question)
         try:
@@ -732,6 +752,7 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
         question=question,
         grant=question.form.section.collection.grant,
         form=form,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=db_expression,
         QuestionDataType=QuestionDataType,
     )
