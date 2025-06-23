@@ -13,7 +13,14 @@ from app import logging
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.types import SubmissionModeEnum
-from app.common.filters import format_date, format_date_range, format_date_short, format_datetime, format_datetime_range
+from app.common.filters import (
+    format_date,
+    format_date_range,
+    format_date_short,
+    format_datetime,
+    format_datetime_range,
+    to_ordinal,
+)
 from app.config import get_settings
 from app.extensions import (
     auto_commit_after_request,
@@ -144,6 +151,7 @@ def create_app() -> Flask:
             format_datetime=format_datetime,
             format_date_range=format_date_range,
             format_datetime_range=format_datetime_range,
+            to_ordinal=to_ordinal,
             submission_mode_enum=SubmissionModeEnum,
         )
 

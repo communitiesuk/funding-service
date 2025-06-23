@@ -1,13 +1,17 @@
 import abc
+from typing import TYPE_CHECKING
 
 # Define any "managed" expressions that can be applied to common conditions or validations
 # that are built through the UI. These will be used alongside custom expressions
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from app.common.data.types import ManagedExpressionsEnum
 from app.common.expressions import mangle_question_id_for_context
+
+if TYPE_CHECKING:
+    from app.common.data.models import Expression
 
 
 class BaseExpression(BaseModel):
@@ -99,3 +103,16 @@ class Between(BaseExpression):
             f"<{'=' if self.maximum_inclusive else ''} "
             f"{self.maximum_value}"
         )
+
+
+def get_managed_expression(expression: "Expression") -> BaseExpression:
+    # todo: fetching this to know what type is starting to feel strange - maybe this should be a top level property
+    match expression.context.get("key"):
+        case ManagedExpressionsEnum.GREATER_THAN:
+            return TypeAdapter(GreaterThan).validate_python(expression.context)
+        case ManagedExpressionsEnum.LESS_THAN:
+            return TypeAdapter(LessThan).validate_python(expression.context)
+        case ManagedExpressionsEnum.BETWEEN:
+            return TypeAdapter(Between).validate_python(expression.context)
+        case _:
+            raise ValueError(f"Unsupported managed expression type: {expression.type}")

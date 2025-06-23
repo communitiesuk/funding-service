@@ -22,9 +22,11 @@ from app.common.data.types import (
     json_flat_scalars,
     json_scalars,
 )
+from app.common.expressions.managed import get_managed_expression
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
+    from app.common.expressions.managed import BaseExpression
 
 
 class Grant(BaseModel):
@@ -242,8 +244,13 @@ class Question(BaseModel):
         "Expression", back_populates="question", cascade="all, delete-orphan"
     )
 
-    # todo: add properties for pulling out separate conditions and validation types of expressions
-    #       those could come in with some simple interface tests
+    @property
+    def conditions(self) -> list["Expression"]:
+        return [expression for expression in self.expressions if expression.type == ExpressionType.CONDITION]
+
+    @property
+    def validations(self) -> list["Expression"]:
+        return [expression for expression in self.expressions if expression.type == ExpressionType.VALIDATION]
 
     __table_args__ = (
         UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
@@ -297,3 +304,7 @@ class Expression(BaseModel):
             unique=True,
         ),
     )
+
+    @property
+    def managed(self) -> "BaseExpression":
+        return get_managed_expression(self)

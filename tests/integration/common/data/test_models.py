@@ -1,4 +1,4 @@
-from app.common.data.types import SubmissionModeEnum
+from app.common.data.types import ExpressionType, SubmissionModeEnum
 
 
 class TestSubmissionModel:
@@ -10,3 +10,16 @@ class TestSubmissionModel:
 
         assert collection.test_submissions == [test_submission]
         assert collection.live_submissions == [live_submission]
+
+
+class TestQuestionModel:
+    def test_question_property_selects_expressions(self, factories):
+        question = factories.question.create()
+        condition_expression = factories.expression.create(
+            question=question, type=ExpressionType.CONDITION, statement=""
+        )
+        validation_expression = factories.expression.create(
+            question=question, type=ExpressionType.VALIDATION, statement=""
+        )
+        assert question.conditions == [condition_expression]
+        assert question.validations == [validation_expression]
