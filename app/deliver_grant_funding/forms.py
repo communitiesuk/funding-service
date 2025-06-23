@@ -39,7 +39,7 @@ class GrantSetupIntroForm(FlaskForm):
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
 
-class GrantGGISForm(GrantSetupForm):
+class GrantGGISForm(FlaskForm):
     has_ggis = RadioField(
         "Do you have a GGIS number?",
         # These choices have no effect on the frontend, but are used for validation. Frontend choices are found in the
@@ -55,6 +55,7 @@ class GrantGGISForm(GrantSetupForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
     def validate(self, extra_validators: dict[str, list[Any]] | None = None) -> bool:
         if not super().validate(extra_validators):
@@ -65,6 +66,16 @@ class GrantGGISForm(GrantSetupForm):
             return False
 
         return True
+
+
+class GrantChangeGGISForm(FlaskForm):
+    ggis_number = StringField(
+        "Enter your GGIS reference number",
+        description="For example, G2-SCH-2025-05-12346",
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Update", widget=GovSubmitInput())
 
 
 class GrantNameForm(GrantSetupForm):

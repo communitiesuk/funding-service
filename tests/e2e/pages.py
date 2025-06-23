@@ -389,16 +389,8 @@ class ChangeGrantGGISPage(GrantDashboardBasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.backlink = self.page.get_by_role("link", name="Back")
-        self.title = self.page.get_by_role("heading", name="Government Grants Information System (GGIS)")
+        self.title = self.page.get_by_role("heading", name="Enter your GGIS reference number")
         self.ggis_textbox = self.page.get_by_role("textbox", name="Enter your GGIS reference number")
-
-    def click_has_grant_ggis_yes(self) -> None:
-        self.page.get_by_role("radio", name="Yes").click()
-        expect(self.ggis_textbox).to_be_visible()
-
-    def click_has_grant_ggis_no(self) -> None:
-        self.page.get_by_role("radio", name="No").click()
-        expect(self.ggis_textbox).not_to_be_visible()
 
     def fill_ggis_number(self, new_ggis_ref: str) -> None:
         self.ggis_textbox.fill(new_ggis_ref)

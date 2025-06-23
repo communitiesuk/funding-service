@@ -13,6 +13,7 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
+    GrantChangeGGISForm,
     GrantCheckYourAnswersForm,
     GrantContactForm,
     GrantDescriptionForm,
@@ -53,7 +54,7 @@ def grant_setup_ggis() -> ResponseReturnValue:
             return redirect(url_for("deliver_grant_funding.grant_setup_ggis_required_info"))
 
         grant_session.has_ggis = form.has_ggis.data
-        grant_session.ggis_number = form.ggis_number.data
+        grant_session.ggis_number = form.ggis_number.data or ""
         session["grant_setup"] = grant_session.to_session_dict()
         if request.args.get("source") == CHECK_YOUR_ANSWERS:
             return redirect(url_for("deliver_grant_funding.grant_setup_check_your_answers"))
@@ -74,7 +75,10 @@ def grant_setup_ggis() -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route("/grant-setup/ggis-required-info", methods=["GET"])
 @platform_admin_role_required
 def grant_setup_ggis_required_info() -> ResponseReturnValue:
-    return render_template("deliver_grant_funding/grant_setup/ggis_required_info.html")
+    return render_template(
+        "deliver_grant_funding/grant_setup/ggis_required_info.html",
+        back_link_href=url_for("deliver_grant_funding.grant_setup_ggis"),
+    )
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/name", methods=["GET", "POST"])
@@ -268,18 +272,15 @@ def grant_details(grant_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
-    form = GrantGGISForm(has_ggis=("yes" if grant.ggis_number else "no"), ggis_number=grant.ggis_number, is_update=True)
+    form = GrantChangeGGISForm(ggis_number=grant.ggis_number)
 
     if form.validate_on_submit():
-        if form.has_ggis.data == "no":
-            return redirect(url_for("deliver_grant_funding.grant_change_ggis_required_info", grant_id=grant_id))
-
-        ggis_number = form.ggis_number.data
+        ggis_number = form.ggis_number.data or ""
         interfaces.grants.update_grant(grant=grant, ggis_number=ggis_number)
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
 
     return render_template(
-        "deliver_grant_funding/grant_setup/grant_ggis.html",
+        "deliver_grant_funding/grant_setup/grant_change_ggis.html",
         form=form,
         back_link_href=url_for("deliver_grant_funding.grant_details", grant_id=grant_id),
         grant=grant,

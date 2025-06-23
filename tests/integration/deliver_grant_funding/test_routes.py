@@ -111,7 +111,7 @@ def test_grant_change_ggis_get(authenticated_platform_admin_client, factories, t
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.grant_change_ggis").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "Government Grants Information System (GGIS)" in soup.h1.text.strip()
+    assert "Enter your GGIS reference number" in soup.h1.text.strip()
 
 
 def test_grant_change_name_get(authenticated_platform_admin_client, factories, templates_rendered):
