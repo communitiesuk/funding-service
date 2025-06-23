@@ -10,13 +10,14 @@ from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovTextInput
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
-from wtforms import BooleanField, IntegerField
+from wtforms import BooleanField, IntegerField, StringField
 from wtforms.fields.core import Field
-from wtforms.validators import InputRequired, Optional, ValidationError
+from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions import mangle_question_id_for_context
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
+from app.common.forms.validators import WordRange
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
@@ -402,6 +403,57 @@ class MentionsGrass(ManagedExpression):
     @staticmethod
     def form_data_from_expression(expression: "Expression") -> dict[str, Any]:
         return {}
+
+
+@register_managed_expression
+class MentionsSomeWord(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.MENTIONS_SOME_WORD
+    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.TEXT_SINGLE_LINE}
+
+    _key: ManagedExpressionsEnum = name
+    question_id: UUID
+    word: str
+
+    @property
+    def description(self) -> str:
+        return "Mentions grass"
+
+    @property
+    def message(self) -> str:
+        return f"The answer must contain the word “{self.word}”"
+
+    @property
+    def statement(self) -> str:
+        qid = mangle_question_id_for_context(self.question_id)
+        return f"'{self.word}' in {qid}"
+
+    @staticmethod
+    def get_form_fields() -> dict[str, "Field"]:
+        return {
+            "key_word": StringField(
+                "Key word",
+                widget=GovTextInput(),
+                validators=[Optional()],
+                render_kw={"params": {"classes": "govuk-input--width-10"}},
+            )
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        form.key_word.validators = [
+            DataRequired("Enter the word that must be included"),
+            WordRange(
+                min_words=1, max_words=1, field_display_name="The key word"
+            ),  # fixme: error message in this case is bad, just an example tho.
+        ]
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "MentionsSomeWord":
+        return MentionsSomeWord(question_id=question.id, word=form.key_word.data)
+
+    @staticmethod
+    def form_data_from_expression(expression: "Expression") -> dict[str, Any]:
+        return {"key_word": expression.context["word"]}
 
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
