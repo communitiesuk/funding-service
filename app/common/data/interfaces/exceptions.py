@@ -32,7 +32,7 @@ class DuplicateValueError(Exception):
         self.field_name = DuplicateValueError.constraint_name_map[diagnostics.constraint_name]
         if not isinstance(integrity_error.params, dict):
             raise ValueError("IntegrityError params must be a dict")
-        self.new_value = integrity_error.params[self.field_name]
+        self.new_value = integrity_error.params.get(self.field_name, "unknown")
 
 
 class InvalidUserRoleError(Exception):

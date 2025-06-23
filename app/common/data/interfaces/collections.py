@@ -319,5 +319,9 @@ def remove_question_expression(question: Question, expression: Expression) -> Qu
 def update_question_expression(expression: Expression, managed_expression: "BaseExpression") -> Expression:
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
-    db.session.flush()
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
     return expression

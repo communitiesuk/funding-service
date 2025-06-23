@@ -687,7 +687,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
             )
 
     return render_template(
-        "developers/add_question_validation.html",
+        "developers/manage_question_validation.html",
         question=question,
         grant=question.form.section.collection.grant,
         form=form,
@@ -708,23 +708,31 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
     ValidationForm = get_managed_validation_form(question)
     form = ValidationForm.from_expression(db_expression) if ValidationForm else None
     if form and form.validate_on_submit():
-        interfaces.collections.update_question_expression(db_expression, form.get_expression(question))
-        return redirect(
-            url_for(
-                "developers.edit_question",
-                grant_id=grant_id,
-                collection_id=question.form.section.collection.id,
-                section_id=question.form.section.id,
-                form_id=question.form.id,
-                question_id=question.id,
+        py_expression = form.get_expression(question)
+        try:
+            interfaces.collections.update_question_expression(db_expression, py_expression)
+        except DuplicateValueError:
+            # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
+            #        complain to us about it before we think about a better way of handling it.
+            form.form_errors.append(f"“{py_expression.description}” validation already exists on the question.")
+        else:
+            return redirect(
+                url_for(
+                    "developers.edit_question",
+                    grant_id=grant_id,
+                    collection_id=question.form.section.collection.id,
+                    section_id=question.form.section.id,
+                    form_id=question.form.id,
+                    question_id=question.id,
+                )
             )
-        )
 
     return render_template(
-        "developers/edit_question_validation.html",
+        "developers/manage_question_validation.html",
         question=question,
         grant=question.form.section.collection.grant,
         form=form,
+        expression=db_expression,
         QuestionDataType=QuestionDataType,
     )
 

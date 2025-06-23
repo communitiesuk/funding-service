@@ -45,6 +45,7 @@ routes_with_expected_platform_admin_only_access = [
     "developers.ask_a_question",
     "developers.check_your_answers",
     "developers.add_question_validation",
+    "developers.edit_question_validation",
     "developers.list_submissions_for_collection",
     "developers.manage_submission",
     "deliver_grant_funding.grant_setup_intro",

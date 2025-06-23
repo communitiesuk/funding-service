@@ -76,7 +76,7 @@ class AddIntegerValidationForm(_BaseExpressionForm):
     top_of_range = IntegerField("Maximum value", widget=GovTextInput(), validators=[Optional()])
     top_inclusive = BooleanField("An answer of exactly the maximum value is allowed", widget=GovCheckboxInput())
 
-    submit = SubmitField("Add validation", widget=GovSubmitInput())
+    submit = SubmitField(widget=GovSubmitInput())
 
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         match self.type.data:

@@ -18,9 +18,11 @@
 {% endblock beforeContent %}
 
 {% block content %}
+  {% set submit_label = "Edit validation" if expression else "Add validation" %}
+
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-l">Edit validation</h1>
+      <h1 class="govuk-heading-l">{{ submit_label }}</h1>
 
       {{
         govukSummaryList({
@@ -39,7 +41,7 @@
       }}
 
       {% if question.data_type == QuestionDataType.INTEGER %}
-        {{ render_number_validation(form, question) }}
+        {{ render_number_validation(form, question, submit_label) }}
       {% else %}
         <p class="govuk-body">This question cannot be validated.</p>
       {% endif %}
