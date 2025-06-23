@@ -871,7 +871,7 @@ def test_grant_setup_description_post_too_long(authenticated_platform_admin_clie
     soup = BeautifulSoup(response.data, "html.parser")
     assert soup.h2.text.strip() == "There is a problem"
     assert len(soup.find_all("a", href="#description")) == 1
-    assert "Description must be 200 words or less" in soup.find_all("a", href="#description")[0].text.strip()
+    assert "Description must be 200 words or fewer" in soup.find_all("a", href="#description")[0].text.strip()
 
 
 def test_grant_setup_description_post_valid(authenticated_platform_admin_client):

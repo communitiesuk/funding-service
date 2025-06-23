@@ -32,9 +32,17 @@ class WordRange:
         word_count = len(words)
         field_display_name = self.field_display_name or field.name
 
+        # Ensure first character is uppercase since we start all validation messages with it.
+        field_display_name = field_display_name[0].upper() + field_display_name[1:]
+
         if self.min_words is not None and self.max_words is not None:
+            if self.min_words == self.max_words and word_count != self.min_words:
+                raise ValidationError(f"{field_display_name} must contain exactly {self.min_words} words")
+
             if word_count < self.min_words or word_count > self.max_words:
-                raise ValidationError(f"{field_display_name} must be between {self.min_words} and {self.max_words}")
+                raise ValidationError(
+                    f"{field_display_name} must be between {self.min_words} words and {self.max_words} words"
+                )
 
         if self.min_words is not None:
             if word_count < self.min_words:
@@ -42,7 +50,7 @@ class WordRange:
 
         if self.max_words is not None:
             if word_count > self.max_words:
-                raise ValidationError(f"{field_display_name} must be {self.max_words} words or less")
+                raise ValidationError(f"{field_display_name} must be {self.max_words} words or fewer")
 
 
 class CommunitiesEmail(Email):
