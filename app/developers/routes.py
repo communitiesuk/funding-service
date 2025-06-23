@@ -52,7 +52,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SectionForm,
 )
-from app.developers import developers_deliver_blueprint
+from app.developers import developers_access_blueprint, developers_deliver_blueprint
 from app.developers.forms import (
     CheckYourAnswersForm,
     ConditionSelectQuestionForm,
@@ -69,6 +69,16 @@ if TYPE_CHECKING:
 @developers_deliver_blueprint.context_processor
 def inject_variables() -> dict[str, Any]:
     return dict(show_watermark=True)
+
+
+@developers_access_blueprint.context_processor
+def inject_variables_access() -> dict[str, Any]:
+    return dict(show_watermark=True)
+
+
+@developers_access_blueprint.route("/", methods=["GET"])
+def index() -> ResponseReturnValue:
+    return render_template("developers/access/index.html")
 
 
 @developers_deliver_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])

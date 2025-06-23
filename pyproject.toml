@@ -100,7 +100,7 @@ exhaustive = true
 containers = ["app"]
 layers = [
   "developers",
-  "common : deliver_grant_funding : extensions : healthcheck : services : config : logging : monkeypatch : sentry : types"
+  "access_grant_funding : common : deliver_grant_funding : extensions : healthcheck : services : config : logging : monkeypatch : sentry : types"
 ]
 
 [[tool.importlinter.contracts]]
@@ -112,6 +112,7 @@ source_modules = [
     "app.common.security",
     "app.common.filters",
     "app.common.utils",
+    "app.access_grant_funding",
     "app.deliver_grant_funding",
     "app.developers",
     "app.extensions",

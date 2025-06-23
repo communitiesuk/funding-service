@@ -123,6 +123,7 @@ def create_app() -> Flask:
     # Configure templates
     app.jinja_loader = ChoiceLoader(
         [
+            PackageLoader("app.access_grant_funding"),
             PackageLoader("app.common"),
             PackageLoader("app.deliver_grant_funding"),
             PackageLoader("app.developers"),
@@ -179,12 +180,13 @@ def create_app() -> Flask:
 
     from app.common.auth import auth_blueprint
     from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
-    from app.developers import developers_deliver_blueprint
+    from app.developers import developers_access_blueprint, developers_deliver_blueprint
     from app.healthcheck import healthcheck_blueprint
 
     app.register_blueprint(healthcheck_blueprint)
     app.register_blueprint(deliver_grant_funding_blueprint)
     app.register_blueprint(developers_deliver_blueprint)
+    app.register_blueprint(developers_access_blueprint)
     app.register_blueprint(auth_blueprint)
 
     _register_global_error_handlers(app)

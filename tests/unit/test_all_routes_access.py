@@ -78,6 +78,7 @@ routes_with_no_expected_access_restrictions = [
     "static",
     "healthcheck.healthcheck",
     "index",
+    "developers_agf.index",
 ]
 
 
