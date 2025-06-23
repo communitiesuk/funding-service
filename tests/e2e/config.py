@@ -2,6 +2,7 @@ import json
 import re
 import subprocess
 from typing import Literal, Protocol, cast
+from uuid import UUID
 
 import boto3
 from playwright.sync_api import HttpCredentials
@@ -13,6 +14,12 @@ class EndToEndTestSecrets(Protocol):
 
     @property
     def GOVUK_NOTIFY_API_KEY(self) -> str: ...
+
+    @property
+    def SECRET_KEY(self) -> str: ...
+
+    @property
+    def SSO_USER_ID(self) -> UUID: ...
 
 
 class LocalEndToEndSecrets:
@@ -28,6 +35,24 @@ class LocalEndToEndSecrets:
                 raise ValueError("Could not read GOV.UK Notify API key from local .env file")
 
             return notify_key_line.group(1)
+
+    @property
+    def SECRET_KEY(self) -> str:
+        with open(".env") as env_file:
+            secret_key_line = re.search(r"^SECRET_KEY=(.+)$", env_file.read(), flags=re.MULTILINE)
+            if not secret_key_line:
+                raise ValueError("Could not read SECRET KEY from local .env file")
+
+            return secret_key_line.group(1)
+
+    @property
+    def SSO_USER_ID(self) -> UUID:
+        with open(".env") as env_file:
+            sso_user_id_line = re.search(r"^SSO_USER_ID=(.+)$", env_file.read(), flags=re.MULTILINE)
+            if not sso_user_id_line:
+                raise ValueError("Could not read SSO user ID from local .env file")
+
+            return cast(UUID, sso_user_id_line.group(1))
 
 
 class AWSEndToEndSecrets:
@@ -78,3 +103,11 @@ class AWSEndToEndSecrets:
     @property
     def GOVUK_NOTIFY_API_KEY(self) -> str:
         return self._read_aws_parameter_store_value("/apprunner/funding-service/GOVUK_NOTIFY_API_KEY")
+
+    @property
+    def SECRET_KEY(self) -> str:
+        return self._read_aws_parameter_store_value("/apprunner/funding-service/SECRET_KEY")
+
+    @property
+    def SSO_USER_ID(self) -> UUID:
+        return cast(UUID, self._read_aws_parameter_store_value("/apprunner/funding-service/SSO_USER_ID"))

@@ -281,7 +281,8 @@ class LocalConfig(_SharedConfig):
     AZURE_AD_CLIENT_ID: str = "00000000-0000-0000-0000-000000000000"
     AZURE_AD_CLIENT_SECRET: str = "incorrect_value"
     AZURE_AD_TENANT_ID: str = "00000000-0000-0000-0000-000000000000"
-    AZURE_AD_BASE_URL: str = "https://sso.communities.gov.localhost:4005/"
+    # AZURE_AD_BASE_URL: str = "https://sso.communities.gov.localhost:4005/"
+    AZURE_AD_BASE_URL: str = "https://login.microsoftonline.com/"
 
     # Talisman security settings
     TALISMAN_CONTENT_SECURITY_POLICY: dict[str, list[str]] = make_development_csp()
