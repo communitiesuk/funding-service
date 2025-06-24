@@ -15,7 +15,7 @@
         "rows": [
           {
             "key": {"text": "GGIS"},
-            "value": {"text": grant.ggis_number or "Not provided"},
+            "value": {"text": grant.ggis_number},
             "actions": {
               "items": [{
                 "href": url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant.id),
@@ -23,7 +23,7 @@
                 "text": "Change",
                 "visuallyHiddenText": "the GGIS number"
               }]
-            }
+            } if authorisation_helper.is_platform_admin(current_user) else {}
           },
           {
             "key": {"text": "Name"},

@@ -111,7 +111,7 @@ def test_grant_change_ggis_get(authenticated_platform_admin_client, factories, t
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.grant_change_ggis").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "Government Grants Information System (GGIS)" in soup.h1.text.strip()
+    assert "Update your GGIS reference number" in soup.h1.text.strip()
 
 
 def test_grant_change_name_get(authenticated_platform_admin_client, factories, templates_rendered):
@@ -824,6 +824,26 @@ def test_grant_setup_ggis_post_with_ggis(authenticated_platform_admin_client):
     )
     assert response.status_code == 302
     assert response.location == url_for("deliver_grant_funding.grant_setup_name")
+
+
+def test_grant_setup_ggis_post_no_ggis_redirects_to_required_info(authenticated_platform_admin_client):
+    # Set up session state first
+    with authenticated_platform_admin_client.session_transaction() as sess:
+        sess["grant_setup"] = {}
+
+    ggis_form = GrantGGISForm(has_ggis="no")
+    response = authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.grant_setup_ggis"), data=ggis_form.data, follow_redirects=False
+    )
+    assert response.status_code == 302
+    assert response.location == url_for("deliver_grant_funding.grant_setup_ggis_required_info")
+
+
+def test_grant_setup_ggis_required_info_get(authenticated_platform_admin_client):
+    response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_ggis_required_info"))
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.data, "html.parser")
+    assert "You need to have a GGIS reference number before you can add this grant" in soup.h1.text.strip()
 
 
 def test_grant_setup_name_get_with_session(authenticated_platform_admin_client):

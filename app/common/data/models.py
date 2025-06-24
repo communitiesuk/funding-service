@@ -32,8 +32,8 @@ if TYPE_CHECKING:
 class Grant(BaseModel):
     __tablename__ = "grant"
 
+    ggis_number: Mapped[str]
     name: Mapped[CIStr] = mapped_column(unique=True)
-    ggis_number: Mapped[str | None]
     description: Mapped[str]
     primary_contact_name: Mapped[str]
     primary_contact_email: Mapped[str]

@@ -49,8 +49,6 @@ def test_create_view_edit_grant_success(
 
     # Change GGIS reference
     change_ggis_page = grant_details_page.click_change_grant_ggis(existing_ggis_ref=ggis_ref)
-    change_ggis_page.click_has_grant_ggis_no()
-    change_ggis_page.click_has_grant_ggis_yes()
     expect(change_ggis_page.ggis_textbox).to_have_value(ggis_ref)
     new_ggis_ref = f"edit-{uuid.uuid4()}"
     change_ggis_page.fill_ggis_number(new_ggis_ref)

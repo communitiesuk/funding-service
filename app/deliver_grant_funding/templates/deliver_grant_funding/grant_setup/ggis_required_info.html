@@ -1,0 +1,33 @@
+{% extends "deliver_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "You need to have a GGIS reference number before you can add this grant" %}
+{% set active_item_identifier = "grants" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": back_link_href,
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Set up the grant</span>
+      <h1 class="govuk-heading-l">You need to have a GGIS reference number before you can add this grant</h1>
+      <p class="govuk-body">
+        You‘ll need to complete the
+        <a href="{{ config.PIPELINE_GRANTS_SCHEME_FORM_URL }}" target="_blank" class="govuk-link">Pipeline Grants Scheme Form (opens in new tab)</a>
+        and the Finance Process and Data team will issue your grant with a reference number.
+      </p>
+      <p class="govuk-body">
+        If you've lost your GGIS reference number, contact the team at
+        <a href="mailto:{{ config.GGIS_TEAM_EMAIL }}" class="govuk-link">{{ config.GGIS_TEAM_EMAIL }}</a>
+        .
+      </p>
+    </div>
+  </div>
+{% endblock %}

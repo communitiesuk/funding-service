@@ -50,6 +50,7 @@ routes_with_expected_platform_admin_only_access = [
     "developers.manage_submission",
     "deliver_grant_funding.grant_setup_intro",
     "deliver_grant_funding.grant_setup_ggis",
+    "deliver_grant_funding.grant_setup_ggis_required_info",
     "deliver_grant_funding.grant_setup_name",
     "deliver_grant_funding.grant_setup_description",
     "deliver_grant_funding.grant_setup_contact",
