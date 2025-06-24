@@ -306,6 +306,10 @@ def add_question_validation(question: Question, user: User, managed_expression: 
     return question
 
 
+def get_expression(expression_id: UUID) -> Expression:
+    return db.session.get_one(Expression, expression_id)
+
+
 def remove_question_expression(question: Question, expression: Expression) -> Question:
     question.expressions.remove(expression)
     db.session.flush()
@@ -315,5 +319,9 @@ def remove_question_expression(question: Question, expression: Expression) -> Qu
 def update_question_expression(expression: Expression, managed_expression: "BaseExpression") -> Expression:
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
-    db.session.flush()
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
     return expression

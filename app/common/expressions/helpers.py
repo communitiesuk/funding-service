@@ -17,7 +17,7 @@ def get_managed_condition_form(question: Question) -> Type["_BaseExpressionForm"
     return lambda: None
 
 
-def get_managed_validation_form(question: Question) -> Type["_BaseExpressionForm"] | Callable[[], None]:
+def get_managed_validation_form(question: Question) -> Type["_BaseExpressionForm"] | None:
     try:
         return supported_managed_validation_by_question_type[question.data_type]
     except KeyError:
@@ -27,7 +27,7 @@ def get_managed_validation_form(question: Question) -> Type["_BaseExpressionForm
     #        The view should handle this appropriately and tell the user that there is no validation available. We
     #        should handle this in a more user-friendly way in the long-run (ie guide the user away from ever hitting a
     #        page where we would try to show validation for a question where validation is not available.
-    return lambda: None
+    return None
 
 
 def get_supported_form_questions(question: Question) -> list[Question]:

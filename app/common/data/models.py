@@ -241,7 +241,7 @@ class Question(BaseModel):
 
     # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
     expressions: Mapped[list["Expression"]] = relationship(
-        "Expression", back_populates="question", cascade="all, delete-orphan"
+        "Expression", back_populates="question", cascade="all, delete-orphan", order_by="Expression.created_at_utc"
     )
 
     @property

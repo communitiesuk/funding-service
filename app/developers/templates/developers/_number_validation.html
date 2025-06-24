@@ -1,4 +1,4 @@
-{% macro render_number_validation(form, question) %}
+{% macro render_number_validation(form, question, submit_label) %}
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
@@ -37,6 +37,6 @@
       })
     }}
 
-    {{ form.submit }}
+    {{ form.submit(params={"text": submit_label}) }}
   </form>
 {% endmacro %}
