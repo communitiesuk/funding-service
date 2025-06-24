@@ -17,7 +17,7 @@ dependencies = [
     "govuk-frontend-wtf==3.2.0",
     "psycopg==3.2.9",
     "pydantic==2.11.7",
-    "pydantic-settings==2.9.1",
+    "pydantic-settings==2.10.0",
     "python-json-logger==3.3.0",
     "sqlalchemy==2.0.41",
     "wtforms[email]==3.2.1",
