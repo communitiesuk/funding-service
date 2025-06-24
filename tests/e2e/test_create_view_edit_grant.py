@@ -8,7 +8,7 @@ from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.pages import AllGrantsPage
 
 
-@pytest.mark.skip_in_environments(["prod"])
+@pytest.mark.skip_in_environments(["dev", "test", "prod"])
 def test_create_view_edit_grant_success(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser
 ):

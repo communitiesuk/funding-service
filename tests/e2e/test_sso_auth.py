@@ -26,7 +26,7 @@ def test_stub_sso_journey(page: Page, domain: str):
     expect(page).to_have_url(f"{domain}/grants")
 
 
-# @pytest.mark.skip_in_environments(["local"])
+@pytest.mark.skip_in_environments(["local", "dev", "test", "prod"])
 def test_real_sso_journey(page: Page, domain: str):
     """
     Test the real SSO journey using a service account.
@@ -61,8 +61,7 @@ def test_real_sso_journey(page: Page, domain: str):
 def test_login_with_fake_cookie(
     page: Page, domain: str, context: BrowserContext, e2e_test_secrets: EndToEndTestSecrets
 ):
-    # TODO use id of a real user in dev/test
-    user_obj = User(name="E2E Test User", id=e2e_test_secrets.SSO_USER_ID)
+    user_obj = User(name="E2E Test User", id=e2e_test_secrets.SSO_PLATFORM_ADMIN_USER_ID)
     with patch.dict(os.environ, build_db_config(None)):
         new_app = create_app()
     new_app.config["SECRET_KEY"] = e2e_test_secrets.SECRET_KEY

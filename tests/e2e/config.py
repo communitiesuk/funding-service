@@ -19,7 +19,7 @@ class EndToEndTestSecrets(Protocol):
     def SECRET_KEY(self) -> str: ...
 
     @property
-    def SSO_USER_ID(self) -> UUID: ...
+    def SSO_PLATFORM_ADMIN_USER_ID(self) -> UUID: ...
 
 
 class LocalEndToEndSecrets:
@@ -46,9 +46,9 @@ class LocalEndToEndSecrets:
             return secret_key_line.group(1)
 
     @property
-    def SSO_USER_ID(self) -> UUID:
+    def SSO_PLATFORM_ADMIN_USER_ID(self) -> UUID:
         with open(".env") as env_file:
-            sso_user_id_line = re.search(r"^SSO_USER_ID=(.+)$", env_file.read(), flags=re.MULTILINE)
+            sso_user_id_line = re.search(r"^SSO_PLATFORM_ADMIN_USER_ID=(.+)$", env_file.read(), flags=re.MULTILINE)
             if not sso_user_id_line:
                 raise ValueError("Could not read SSO user ID from local .env file")
 
@@ -109,5 +109,7 @@ class AWSEndToEndSecrets:
         return self._read_aws_parameter_store_value("/apprunner/funding-service/SECRET_KEY")
 
     @property
-    def SSO_USER_ID(self) -> UUID:
-        return cast(UUID, self._read_aws_parameter_store_value("/apprunner/funding-service/SSO_USER_ID"))
+    def SSO_PLATFORM_ADMIN_USER_ID(self) -> UUID:
+        return cast(
+            UUID, self._read_aws_parameter_store_value("/apprunner/funding-service/E2E_SSO_PLATFORM_ADMIN_USER_ID")
+        )
