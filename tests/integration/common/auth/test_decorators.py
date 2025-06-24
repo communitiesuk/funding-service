@@ -6,9 +6,9 @@ from werkzeug.exceptions import Forbidden, InternalServerError
 
 from app.common.auth.decorators import (
     has_grant_role,
+    is_mhclg_user,
+    is_platform_admin,
     login_required,
-    mhclg_login_required,
-    platform_admin_role_required,
     redirect_if_authenticated,
 )
 from app.common.data.types import RoleEnum
@@ -37,7 +37,7 @@ class TestLoginRequired:
 
 class TestMHCLGLoginRequired:
     def test_logged_in_mhclg_user_gets_response(self, app, factories):
-        @mhclg_login_required
+        @is_mhclg_user
         def test_login_required():
             return "OK"
 
@@ -48,7 +48,7 @@ class TestMHCLGLoginRequired:
         assert response == "OK"
 
     def test_non_mhclg_user_is_forbidden(self, app, factories):
-        @mhclg_login_required
+        @is_mhclg_user
         def test_login_required():
             return "OK"
 
@@ -59,7 +59,7 @@ class TestMHCLGLoginRequired:
             test_login_required()
 
     def test_anonymous_user_gets_redirect(self, app):
-        @mhclg_login_required
+        @is_mhclg_user
         def test_login_required():
             return "OK"
 
@@ -69,7 +69,7 @@ class TestMHCLGLoginRequired:
 
 class TestPlatformAdminRoleRequired:
     def test_logged_in_platform_admin_gets_response(self, app, factories):
-        @platform_admin_role_required
+        @is_platform_admin
         def test_login_required():
             return "OK"
 
@@ -81,7 +81,7 @@ class TestPlatformAdminRoleRequired:
         assert response == "OK"
 
     def test_non_platform_admin_is_forbidden(self, app, factories):
-        @platform_admin_role_required
+        @is_platform_admin
         def test_login_required():
             return "OK"
 
@@ -92,7 +92,7 @@ class TestPlatformAdminRoleRequired:
             test_login_required()
 
     def test_anonymous_user_gets_redirect(self, app):
-        @platform_admin_role_required
+        @is_platform_admin
         def test_login_required():
             return "OK"
 

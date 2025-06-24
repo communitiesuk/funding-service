@@ -6,7 +6,7 @@ from flask import abort, current_app, redirect, render_template, request, url_fo
 from flask.typing import ResponseReturnValue
 from wtforms import Field
 
-from app.common.auth.decorators import platform_admin_role_required
+from app.common.auth.decorators import is_platform_admin
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
@@ -73,21 +73,21 @@ def inject_variables() -> dict[str, Any]:
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
-@platform_admin_role_required
+@is_platform_admin
 def grant_developers(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("developers/grant_developers.html", grant=grant)
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/collections", methods=["GET"])
-@platform_admin_role_required
+@is_platform_admin
 def grant_developers_collections(grant_id: UUID) -> str:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("developers/list_collections.html", grant=grant)
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/collections/set-up", methods=["GET", "POST"])
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def setup_collection(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
@@ -105,7 +105,7 @@ def setup_collection(grant_id: UUID) -> ResponseReturnValue:
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/collections/<uuid:collection_id>", methods=["GET", "POST"])
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id)  # TODO: handle collection versioning; this just grabs latest.
@@ -137,7 +137,7 @@ def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValu
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/collections/<uuid:collection_id>/edit", methods=["GET", "POST"])
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def edit_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id)  # TODO: handle collection versioning; this just grabs latest.
@@ -162,7 +162,7 @@ def edit_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
 @developers_blueprint.route(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/add", methods=["GET", "POST"]
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def add_section(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id)  # TODO: handle collection versioning; this just grabs latest.
@@ -182,7 +182,7 @@ def add_section(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/", methods=["GET"])
-@platform_admin_role_required
+@is_platform_admin
 def list_sections(
     grant_id: UUID,
     collection_id: UUID,
@@ -199,7 +199,7 @@ def list_sections(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/move/<string:direction>",
     methods=["POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def move_section(grant_id: UUID, collection_id: UUID, section_id: UUID, direction: str) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
@@ -218,7 +218,7 @@ def move_section(grant_id: UUID, collection_id: UUID, section_id: UUID, directio
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/manage",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def manage_section(
     grant_id: UUID,
@@ -250,7 +250,7 @@ def manage_section(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/move/<string:direction>",
     methods=["POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def move_form(
     grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, direction: str
@@ -278,7 +278,7 @@ def move_form(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/manage",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
@@ -305,7 +305,7 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/edit",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
@@ -340,7 +340,7 @@ def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> Respo
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/add",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def add_form(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
@@ -383,7 +383,7 @@ def add_form(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseR
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/edit",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
@@ -419,7 +419,7 @@ def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UU
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add/choose-type",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
@@ -449,7 +449,7 @@ def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, 
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -497,7 +497,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/move/<string:direction>",
     methods=["POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def move_question(
     grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID, direction: str
@@ -526,7 +526,7 @@ def move_question(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/edit",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def edit_question(
     grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID
@@ -588,7 +588,7 @@ def edit_question(
     "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
     form = ConditionSelectQuestionForm()
@@ -619,7 +619,7 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
     "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition/<uuid:depends_on_question_id>",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
@@ -657,7 +657,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-validation",
     methods=["GET", "POST"],
 )
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
@@ -722,7 +722,7 @@ def _get_form_runner_link_from_source(
 
 @developers_blueprint.route("/submissions/<uuid:submission_id>", methods=["GET", "POST"])
 @auto_commit_after_request
-@platform_admin_role_required
+@is_platform_admin
 def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
     form = SubmitSubmissionForm()
@@ -745,7 +745,7 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
 
 
 @developers_blueprint.route("/submissions/<uuid:submission_id>/confirmation", methods=["GET", "POST"])
-@platform_admin_role_required
+@is_platform_admin
 def collection_confirmation(submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 
@@ -763,7 +763,7 @@ def collection_confirmation(submission_id: UUID) -> ResponseReturnValue:
 
 
 @developers_blueprint.route("/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"])
-@platform_admin_role_required
+@is_platform_admin
 @auto_commit_after_request
 def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
@@ -827,7 +827,7 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
     "/submissions/<uuid:submission_id>/check-yours-answers/<uuid:form_id>", methods=["GET", "POST"]
 )
 @auto_commit_after_request
-@platform_admin_role_required
+@is_platform_admin
 def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
     collection_form = submission_helper.get_form(form_id)
@@ -881,7 +881,7 @@ def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValu
     "/collections/<uuid:collection_id>/submissions/<submission_mode:submission_mode>",
     methods=["GET"],
 )
-@platform_admin_role_required
+@is_platform_admin
 def list_submissions_for_collection(collection_id: UUID, submission_mode: SubmissionModeEnum) -> ResponseReturnValue:
     collection = interfaces.collections.get_collection(collection_id, with_full_schema=True)
 
@@ -904,7 +904,7 @@ def list_submissions_for_collection(collection_id: UUID, submission_mode: Submis
 
 
 @developers_blueprint.route("/submission/<uuid:submission_id>", methods=["GET"])
-@platform_admin_role_required
+@is_platform_admin
 def manage_submission(submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 

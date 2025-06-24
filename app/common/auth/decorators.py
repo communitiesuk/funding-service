@@ -46,7 +46,7 @@ def redirect_if_authenticated[**P](
     return wrapper
 
 
-def mhclg_login_required[**P](
+def is_mhclg_user[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
@@ -63,19 +63,19 @@ def mhclg_login_required[**P](
     return login_required(wrapper)
 
 
-def platform_admin_role_required[**P](
+def is_platform_admin[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
-        # This decorator is itself wrapped by `mhclg_login_required`, so we know that `current_user` exists and is
+        # This decorator is itself wrapped by `is_mhclg_user`, so we know that `current_user` exists and is
         # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
         if not AuthorisationHelper.is_platform_admin(user=interfaces.user.get_current_user()):
             abort(403)
 
         return func(*args, **kwargs)
 
-    return mhclg_login_required(wrapper)
+    return is_mhclg_user(wrapper)
 
 
 def has_grant_role[**P](
@@ -96,6 +96,6 @@ def has_grant_role[**P](
 
             return func(*args, **kwargs)
 
-        return mhclg_login_required(wrapped)
+        return is_mhclg_user(wrapped)
 
     return decorator
