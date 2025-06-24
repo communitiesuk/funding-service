@@ -20,6 +20,14 @@ jobs:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+    
+  paketo_build_ecr:
+    name: Build
+    uses: ./.github/workflows/package_push_ci.yml
+    secrets:
+      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
 
   run_e2e_tests_docker_compose:
     name: Run E2E tests against docker compose
