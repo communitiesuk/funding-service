@@ -10,6 +10,9 @@ from playwright.sync_api import HttpCredentials
 
 class EndToEndTestSecrets(Protocol):
     @property
+    def E2E_ENV(self) -> Literal["local", "dev", "test"]: ...
+
+    @property
     def HTTP_BASIC_AUTH(self) -> HttpCredentials | None: ...
 
     @property
@@ -23,6 +26,10 @@ class EndToEndTestSecrets(Protocol):
 
 
 class LocalEndToEndSecrets:
+    @property
+    def E2E_ENV(self) -> Literal["local"]:
+        return "local"
+
     @property
     def HTTP_BASIC_AUTH(self) -> None:
         return None
@@ -56,6 +63,13 @@ class LocalEndToEndSecrets:
 
 
 class AWSEndToEndSecrets:
+    e2e_env: Literal["dev", "test"]
+    e2e_aws_vault_profile: str | None
+
+    @property
+    def E2E_ENV(self) -> Literal["dev", "test"]:
+        return self.e2e_env
+
     def __init__(self, e2e_env: Literal["dev", "test"], e2e_aws_vault_profile: str | None):
         self.e2e_env = e2e_env
         self.e2e_aws_vault_profile = e2e_aws_vault_profile

@@ -54,7 +54,7 @@ def navigate_to_collection_detail_page(
     return collection_detail_page
 
 
-@pytest.mark.skip_in_environments(["dev", "test", "prod"])
+@pytest.mark.skip_in_environments(["prod"])
 def test_create_and_preview_collection(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser
 ):
