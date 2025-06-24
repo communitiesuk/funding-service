@@ -389,8 +389,8 @@ class ChangeGrantGGISPage(GrantDashboardBasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.backlink = self.page.get_by_role("link", name="Back")
-        self.title = self.page.get_by_role("heading", name="Enter your GGIS reference number")
-        self.ggis_textbox = self.page.get_by_role("textbox", name="Enter your GGIS reference number")
+        self.title = self.page.get_by_role("heading", name="Update your GGIS reference number")
+        self.ggis_textbox = self.page.get_by_role("textbox", name="Update your GGIS reference number")
 
     def fill_ggis_number(self, new_ggis_ref: str) -> None:
         self.ggis_textbox.fill(new_ggis_ref)

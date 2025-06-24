@@ -70,9 +70,10 @@ class GrantGGISForm(FlaskForm):
 
 class GrantChangeGGISForm(FlaskForm):
     ggis_number = StringField(
-        "Enter your GGIS reference number",
+        "Update your GGIS reference number",
         description="For example, G2-SCH-2025-05-12346",
         filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter your GGIS reference number")],
         widget=GovTextInput(),
     )
     submit = SubmitField("Update", widget=GovSubmitInput())

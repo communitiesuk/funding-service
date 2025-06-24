@@ -58,7 +58,6 @@ routes_with_expected_platform_admin_only_access = [
     "deliver_grant_funding.grant_setup_confirmation",
     "deliver_grant_funding.add_user_to_grant",
     "deliver_grant_funding.grant_change_ggis",
-    "deliver_grant_funding.grant_change_ggis_required_info",
     "deliver_grant_funding.grant_change_name",
     "deliver_grant_funding.grant_change_description",
     "deliver_grant_funding.grant_change_contact",

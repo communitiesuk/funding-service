@@ -73,7 +73,7 @@ def grant_setup_ggis() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/ggis-required-info", methods=["GET"])
-@platform_admin_role_required
+@is_platform_admin
 def grant_setup_ggis_required_info() -> ResponseReturnValue:
     return render_template(
         "deliver_grant_funding/grant_setup/ggis_required_info.html",
@@ -284,17 +284,6 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
         form=form,
         back_link_href=url_for("deliver_grant_funding.grant_details", grant_id=grant_id),
         grant=grant,
-    )
-
-
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-ggis-required-info", methods=["GET"])
-@platform_admin_role_required
-def grant_change_ggis_required_info(grant_id: UUID) -> ResponseReturnValue:
-    grant = interfaces.grants.get_grant(grant_id)
-    return render_template(
-        "deliver_grant_funding/grant_setup/ggis_required_info.html",
-        grant=grant,
-        back_link_href=url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant_id),
     )
 
 
