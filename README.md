@@ -71,3 +71,12 @@ Additional flags must be passed to the `pytest` command:
 
 * dev: `--e2e-env dev --e2e-aws-vault-profile <your_dev_aws_profile_name>`
 * test: `--e2e-env test --e2e-aws-vault-profile <your_test_aws_profile_name>`
+
+### Run E2E tests against a local environment with SSO
+By default the e2e test config assumes that locally you are running with the stub SSO server, and this is the default for docker compose.
+
+However, if you have enabled SSO locally as per [the instructions above](#sso), you can still run the e2e tests against your local environment as follows:
+- PreRequisites:
+    - Login locally using the SSO stub server with the email address `svc-Preaward-Funds@test.communities.gov.uk`, and tick the "Platform admin type login" option.
+- Update your local `.env` file with the UUID that matches the user `svc-Preaward-Funds@test.communities.gov.uk` in your local database: `SELECT id from "user" where email='svc-Preaward-Funds@test.communities.gov.uk';`
+- Edit [authenticated_browser_sso()](./tests/e2e/conftest.py) to use 'login_with_session_cookie()' for the local env.
