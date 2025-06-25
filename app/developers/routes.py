@@ -631,19 +631,20 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     if form and form.validate_on_submit():
         expression = form.get_expression(depends_on_question)
 
-        # todo: add validation that a managed expression is unique for type condition and question_id
-        interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
-
-        return redirect(
-            url_for(
-                "developers.edit_question",
-                grant_id=grant_id,
-                collection_id=question.form.section.collection.id,
-                section_id=question.form.section.id,
-                form_id=question.form.id,
-                question_id=question.id,
+        try:
+            interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
+            return redirect(
+                url_for(
+                    "developers.edit_question",
+                    grant_id=grant_id,
+                    collection_id=question.form.section.collection.id,
+                    section_id=question.form.section.id,
+                    form_id=question.form.id,
+                    question_id=question.id,
+                )
             )
-        )
+        except DuplicateValueError:
+            form.form_errors.append(f"“{expression.description}” condition based on this question already exists.")
 
     return render_template(
         "developers/manage_question_condition_select_condition_type.html",
@@ -689,17 +690,23 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
 
     if form and form.validate_on_submit():
         updated_managed_expression = form.get_expression(depends_on_question)
-        interfaces.collections.update_question_expression(expression, updated_managed_expression)
-        return redirect(
-            url_for(
-                "developers.edit_question",
-                grant_id=grant_id,
-                collection_id=question.form.section.collection.id,
-                section_id=question.form.section.id,
-                form_id=question.form.id,
-                question_id=question.id,
+
+        try:
+            interfaces.collections.update_question_expression(expression, updated_managed_expression)
+            return redirect(
+                url_for(
+                    "developers.edit_question",
+                    grant_id=grant_id,
+                    collection_id=question.form.section.collection.id,
+                    section_id=question.form.section.id,
+                    form_id=question.form.id,
+                    question_id=question.id,
+                )
             )
-        )
+        except DuplicateValueError:
+            form.form_errors.append(
+                f"“{updated_managed_expression.description}” condition based on this question already exists."
+            )
 
     return render_template(
         "developers/manage_question_condition_select_condition_type.html",
