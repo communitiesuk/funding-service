@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovRadioInput, GovSubmitInput, GovTextInput
-from wtforms import IntegerField, RadioField, SubmitField
+from wtforms import IntegerField, RadioField, SubmitField, ValidationError
 from wtforms.fields.simple import BooleanField
 from wtforms.validators import DataRequired, Optional
 
@@ -12,6 +12,8 @@ from app.common.data.types import ManagedExpressionsEnum
 from app.common.expressions.managed import Between, GreaterThan, LessThan
 
 if TYPE_CHECKING:
+    from wtforms import Field
+
     from app.common.expressions.managed import ManagedExpression
 
 
@@ -22,6 +24,20 @@ class _BaseExpressionForm(FlaskForm):
     @staticmethod
     @abstractmethod
     def from_expression(expression: "Expression") -> "_BaseExpressionForm": ...
+
+
+class BottomOfRangeIsLower:
+    def __init__(self, message: str | None = None):
+        if not message:
+            message = "The minimum value must be lower than the maximum value"
+        self.message = message
+
+    def __call__(self, form: "AddIntegerExpressionForm", field: "Field") -> None:
+        bottom_of_range = form.bottom_of_range and form.bottom_of_range.data
+        top_of_range = form.top_of_range and form.top_of_range.data
+        if bottom_of_range and top_of_range:
+            if bottom_of_range >= top_of_range:
+                raise ValidationError(self.message)
 
 
 class AddIntegerExpressionForm(_BaseExpressionForm):
@@ -55,7 +71,10 @@ class AddIntegerExpressionForm(_BaseExpressionForm):
             case ManagedExpressionsEnum.LESS_THAN.value:
                 self.less_than_value.validators = [DataRequired("Enter the maximum value allowed for this question")]
             case ManagedExpressionsEnum.BETWEEN.value:
-                self.bottom_of_range.validators = [DataRequired("Enter the minimum value allowed for this question")]
+                self.bottom_of_range.validators = [
+                    DataRequired("Enter the minimum value allowed for this question"),
+                    BottomOfRangeIsLower(),
+                ]
                 self.top_of_range.validators = [DataRequired("Enter the maximum value allowed for this question")]
 
         # fixme: IDE realises this is a FlaskForm and bool but mypy is calling it "Any" on pre-commit
