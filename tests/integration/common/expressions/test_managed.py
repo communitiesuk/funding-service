@@ -4,7 +4,7 @@ import pytest
 
 from app.common.data.interfaces.collections import add_question_condition, get_question_by_id
 from app.common.data.models import Expression
-from app.common.data.types import ExpressionType, QuestionDataType
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions import evaluate, mangle_question_id_for_context
 from app.common.expressions.forms import AddIntegerExpressionForm
 from app.common.expressions.helpers import (
@@ -44,9 +44,11 @@ class TestManagedExpressions:
         assert form == AddIntegerExpressionForm
 
     def test_parse_managed_expression_from_context(self, factories):
-        expression = factories.expression.build(type=ExpressionType.CONDITION, statement="")
+        expression = factories.expression.build(
+            type=ExpressionType.CONDITION, statement="", managed_type=ManagedExpressionsEnum.GREATER_THAN
+        )
 
-        expression.context = {"key": "Greater than", "question_id": str(expression.question.id), "minimum_value": 1000}
+        expression.context = {"question_id": str(expression.question.id), "minimum_value": 1000}
 
         managed_expression = get_managed_expression(expression)
         assert isinstance(managed_expression, GreaterThan)
