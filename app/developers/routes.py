@@ -647,7 +647,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
         )
 
     return render_template(
-        "developers/add_question_condition_select_condition_type.html",
+        "developers/manage_question_condition_select_condition_type.html",
         question=question,
         depends_on_question=depends_on_question,
         grant=question.form.section.collection.grant,
@@ -703,7 +703,7 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
         )
 
     return render_template(
-        "developers/add_question_condition_select_condition_type.html",
+        "developers/manage_question_condition_select_condition_type.html",
         question=question,
         grant=question.form.section.collection.grant,
         form=form,
