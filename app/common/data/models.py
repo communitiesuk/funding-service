@@ -308,3 +308,6 @@ class Expression(BaseModel):
     @property
     def managed(self) -> "BaseExpression":
         return get_managed_expression(self)
+
+    def as_validator(self):
+        pass

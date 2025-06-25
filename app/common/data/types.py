@@ -4,7 +4,7 @@ import enum
 from typing import Any, Dict
 
 json_scalars = Dict[str, Any]
-json_flat_scalars = Dict[str, str | int | float | bool]
+json_flat_scalars = Dict[str, str | int | float | bool | None]
 
 
 class RoleEnum(str, enum.Enum):

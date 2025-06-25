@@ -835,7 +835,21 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
 
     # this method should work as long as data types are a single field and may
     # need to be revised if we have compound data types
-    form = build_question_form(question)(question=answer.root if answer else None)
+    # ----
+    # note: building the question form needs to attach the validators
+    # note: building the validators means they need access to the submission context (for evaluating expressions)
+    # note: the expression context is the combination of the answers to all other questions in the form and the answer
+    #       that has just been submitted for this question(s).
+    # note: while we only support managed validation, which only targets the current question, and we only support a
+    #       single question per page, the relevant answer is always the only answer submitted to this view.
+    # note: if we support multiple questions per page, then using a generic reference like `answer` in the submission
+    #       context may be more confusing that using the question ID. But we'd need to very clearly+reliably override
+    #       the answer to that question from the submission-as-a-whole with the answer that's just being submitted here.
+    # note: if we support custom validation, or managed validation that can reference other questions, then we will
+    #       probably find it much clearer to use `q_<id>` references rather than generic `answer` references in the
+    #       context.
+    QuestionForm = build_question_form(question, submission_helper.submission)
+    form = QuestionForm(question=answer.root if answer else None)
 
     if submission_helper.is_completed:
         if form.is_submitted():

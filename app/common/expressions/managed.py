@@ -26,6 +26,10 @@ class BaseExpression(BaseModel):
     @abc.abstractmethod
     def description(self) -> str: ...
 
+    @property
+    @abc.abstractmethod
+    def message(self) -> str: ...
+
 
 class GreaterThan(BaseExpression):
     key: ManagedExpressionsEnum = ManagedExpressionsEnum.GREATER_THAN

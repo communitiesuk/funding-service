@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any
 
 import simpleeval
 
+from app.common.data.types import json_flat_scalars
+
 if TYPE_CHECKING:
     from app.common.data.models import Expression
 
@@ -46,6 +48,8 @@ def _evaluate_expression_with_context(
             f"The following keys exist in both the expression.context and additional context: {context_overlap}."
         )
 
+    # note: can we avoid unpacking here? having to copy the contents of both context dicts for every evaluation feels
+    #       wasteful in terms of time/memory.
     merged_context = {**expr_context, **context}
 
     # May want EvalWithCompoundTypes at some point, but for now simple+very limited is OK.
@@ -86,7 +90,10 @@ def _evaluate_expression_with_context(
 def interpolate(expression: "Expression", context: dict[str, str | int | float | bool | None] | None = None) -> Any: ...
 
 
-def evaluate(expression: "Expression", context: dict[str, str | int | float | bool | None] | None = None) -> bool:
+def evaluate(
+    expression: "Expression",
+    context: json_flat_scalars | None = None,
+) -> bool:
     result = _evaluate_expression_with_context(expression, context)
 
     # do we want these to evalaute to non-bool types like int/str ever?
