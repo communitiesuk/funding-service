@@ -53,17 +53,55 @@
           </form>
 
           <div class="govuk-form-group">
-            <p class="govuk-body">
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.add_question_condition_select_question', grant_id=grant.id, question_id=question.id) }}">Add condition</a>
-            </p>
+            <h2 class="govuk-heading-m">Conditions</h2>
+            <p class="govuk-body">Use answers from other questions to decide if your users should be asked this question.</p>
+            {% set rows = [] %}
+            {% for condition in question.conditions %}
+              {% set managed = condition.managed %}
+              {% set depends_on = managed.referenced_question %}
 
+
+              {% set key_html %}
+                {# todo: would users find it useful to be able to link to the question being depended on from here? #}
+                <span>{{ depends_on.text }}</span>
+              {% endset %}
+
+
+              {% set value_html %}
+                {# todo: a link when conditions are editable in the next PR #}
+                <span class="govuk-visually-hidden">Change condition for</span>
+                {{ condition.managed.message }}
+              {% endset %}
+              {%
+                do rows.append({
+                  "key": { "html": key_html },
+                  "value": { "html": value_html },
+                })
+              %}
+            {% endfor %}
+
+            {{
+              govukSummaryList({
+                "rows": rows,
+                "classes": "app-tasklist-builder"
+              })
+            }}
+
+            {{
+              govukButton({
+                "text": "Add condition",
+                "href": url_for('developers.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
+                "classes": "govuk-button--secondary"
+              })
+            }}
+          </div>
+          <div class="govuk-form-group">
             <h2 class="govuk-heading-m">Validations</h2>
             {% if managed_validation_available %}
               <p class="govuk-body">Add validation to help users provide the correct answer to the question. The answer will be validated in the order listed.</p>
               {% set rows = [] %}
               {% for validation in question.validations %}
                 {% set managed = validation.managed %}
-                {% set managed_depends_on = validation.managed_depends_on %}
 
                 {# TODO: think more about what info to include in this summary list and how to lay it out #}
                 {% set key_html %}
@@ -71,14 +109,11 @@
                   <span class="govuk-visually-hidden">validation</span>
                 {% endset %}
                 {% set value_html %}
-                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.edit_question_validation", grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}">
+                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}">
                     <span class="govuk-visually-hidden">Change validation for</span>
                     {{ validation.managed.message }}
                   </a>
                 {% endset %}
-
-                {# todo: the managed expression should probably just set an description including values to allow for more complex scenarios #}
-                {# todo: out of scoping "Change" as validation will tweak a lot of the forms on the page #}
                 {%
                   do rows.append({
                     "key": { "html": key_html, "classes": "govuk-!-width-one-quarter" },
