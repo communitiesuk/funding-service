@@ -6,63 +6,65 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <h1 class="govuk-heading-l">
-      <span class="govuk-caption-l">{{ grant.name }}</span>
-      Grant details
-    </h1>
-    {{
-      govukSummaryList({
-        "rows": [
-          {
-            "key": {"text": "GGIS"},
-            "value": {"text": grant.ggis_number},
-            "actions": {
-              "items": [{
-                "href": url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant.id),
-                "classes": "govuk-link--no-visited-state",
-                "text": "Change",
-                "visuallyHiddenText": "the GGIS number"
-              }]
-            } if authorisation_helper.is_platform_admin(current_user) else {}
-          },
-          {
-            "key": {"text": "Name"},
-            "value": {"text": grant.name},
-            "actions": {
-              "items": [{
-                "href": url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id),
-                "classes": "govuk-link--no-visited-state",
-                "text": "Change",
-                "visuallyHiddenText": "the grant name"
-              }]
+    <div class="govuk-grid-column-full">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Grant details
+      </h1>
+      {{
+        govukSummaryList({
+          "rows": [
+            {
+              "key": {"text": "GGIS"},
+              "value": {"text": grant.ggis_number},
+              "actions": {
+                "items": [{
+                  "href": url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant.id),
+                  "classes": "govuk-link--no-visited-state",
+                  "text": "Change",
+                  "visuallyHiddenText": "the GGIS number"
+                }]
+              } if authorisation_helper.is_platform_admin(current_user) else {}
+            },
+            {
+              "key": {"text": "Name"},
+              "value": {"text": grant.name},
+              "actions": {
+                "items": [{
+                  "href": url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id),
+                  "classes": "govuk-link--no-visited-state",
+                  "text": "Change",
+                  "visuallyHiddenText": "the grant name"
+                }]
+              }
+            },
+            {
+              "key": {"text": "Main purpose"},
+              "value": {"text": grant.description},
+              "actions": {
+                "items": [{
+                  "href": url_for("deliver_grant_funding.grant_change_description", grant_id=grant.id),
+                  "classes": "govuk-link--no-visited-state",
+                  "text": "Change",
+                  "visuallyHiddenText": "the main purpose"
+                }]
+              }
+            },
+            {
+              "key": {"text": "Main contact"},
+              "value": {"html": grant.primary_contact_name + "<br>" + grant.primary_contact_email},
+              "actions": {
+                "items": [{
+                  "href": url_for("deliver_grant_funding.grant_change_contact", grant_id=grant.id),
+                  "classes": "govuk-link--no-visited-state",
+                  "text": "Change",
+                  "visuallyHiddenText": "the main contact details"
+                }]
+              }
             }
-          },
-          {
-            "key": {"text": "Main purpose"},
-            "value": {"text": grant.description},
-            "actions": {
-              "items": [{
-                "href": url_for("deliver_grant_funding.grant_change_description", grant_id=grant.id),
-                "classes": "govuk-link--no-visited-state",
-                "text": "Change",
-                "visuallyHiddenText": "the main purpose"
-              }]
-            }
-          },
-          {
-            "key": {"text": "Main contact"},
-            "value": {"html": grant.primary_contact_name + "<br>" + grant.primary_contact_email},
-            "actions": {
-              "items": [{
-                "href": url_for("deliver_grant_funding.grant_change_contact", grant_id=grant.id),
-                "classes": "govuk-link--no-visited-state",
-                "text": "Change",
-                "visuallyHiddenText": "the main contact details"
-              }]
-            }
-          }
-        ]
-      })
-    }}
+          ]
+        })
+      }}
+    </div>
   </div>
 {% endblock content %}
