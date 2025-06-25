@@ -5,9 +5,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-
-{# todo: rename this to number_expression in another commit to keep the git history #}
-{% from "developers/_number_validation.html" import render_number_validation %}
+{% from "developers/_number_expression.html" import render_number_expression %}
 
 {% block pageTitle %}
   Add a condition - {{ question.name }} - MHCLG Funding Service
@@ -34,7 +32,7 @@
       {% include "developers/_add_question_condition_context.html" %}
 
       {% if depends_on_question.data_type == QuestionDataType.INTEGER %}
-        {{ render_number_validation(form, depends_on_question, "Add condition") }}
+        {{ render_number_expression(form, depends_on_question, "Add condition") }}
       {% else %}
         <p class="govuk-body">This question cannot be used a condition.</p>
       {% endif %}
