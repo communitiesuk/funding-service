@@ -286,7 +286,11 @@ def add_question_condition(question: Question, user: User, managed_expression: "
         type=ExpressionType.CONDITION,
     )
     question.expressions.append(expression)
-    db.session.flush()
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
     return question
 
 

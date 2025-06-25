@@ -442,6 +442,9 @@ def test_add_question_condition(db_session, factories):
     # check the serialised context lines up with the values in the managed expression
     assert from_db.expressions[0].context["key"] == "Greater than"
 
+    with pytest.raises(DuplicateValueError):
+        add_question_condition(question, user, managed_expression)
+
 
 def test_add_question_validation(db_session, factories):
     question = factories.question.create()
