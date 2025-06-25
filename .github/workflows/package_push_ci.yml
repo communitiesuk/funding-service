@@ -12,6 +12,8 @@ on:
         required: true
       TEMP_SLACK_CHANNEL_ID:
         required: true
+      CI_AWS_ACCOUNT:
+        required: true
     outputs:
       ecr_image_location:
         description: "A URI pointing to the paketo-built image in ECR"
