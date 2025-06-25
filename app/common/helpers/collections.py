@@ -1,16 +1,23 @@
 import uuid
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional, Type
 from uuid import UUID
 
 from pydantic import RootModel, TypeAdapter
+from sqlalchemy.util import immutabledict
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_submission
 from app.common.data.models_user import User
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import (
+    QuestionDataType,
+    SubmissionEventKey,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
+from app.common.expressions import mangle_question_id_for_context
 
 if TYPE_CHECKING:
     from app.common.data.models import Form, Grant, Question, Section, Submission
@@ -103,6 +110,10 @@ class SubmissionHelper:
     @property
     def collection_id(self) -> UUID:
         return self.collection.id
+
+    @property
+    def expression_context(self) -> immutabledict[str, Any]:
+        return immutabledict({mangle_question_id_for_context(uuid.UUID(k)): v for k, v in self.submission.data.items()})
 
     def get_section(self, section_id: uuid.UUID) -> "Section":
         try:
@@ -275,18 +286,18 @@ class SubmissionHelper:
 def _form_data_to_question_type(
     question: "Question", form: DynamicQuestionForm
 ) -> TextSingleLine | TextMultiLine | Integer:
+    _QuestionModel: Type[RootModel]  # type: ignore[type-arg]
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
-            assert isinstance(form.question.data, str)
-            return TextSingleLine(form.question.data)
+            _QuestionModel = TextSingleLine
         case QuestionDataType.TEXT_MULTI_LINE:
-            assert isinstance(form.question.data, str)
-            return TextMultiLine(form.question.data)
+            _QuestionModel = TextMultiLine
         case QuestionDataType.INTEGER:
-            assert isinstance(form.question.data, int)
-            return Integer(form.question.data)
+            _QuestionModel = Integer
         case _:
             raise ValueError(f"Could not parse data for question type={question.data_type}")
+
+    return _QuestionModel(form.get_answer_to_question(question))
 
 
 def _deserialise_question_type(

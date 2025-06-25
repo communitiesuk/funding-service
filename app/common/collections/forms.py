@@ -1,10 +1,14 @@
+from typing import Any, cast
+
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea, GovTextInput
+from wtforms import Field
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import StringField, SubmitField
 
 from app.common.data.models import Question
 from app.common.data.types import QuestionDataType
+from app.common.expressions import mangle_question_id_for_context
 
 _accepted_fields = StringField | IntegerField
 
@@ -16,14 +20,25 @@ _accepted_fields = StringField | IntegerField
 # by `build_question_form`. This gives us nicer intellisense/etc. The downside is that this class needs to be kept
 # in sync manually with the one inside `build_question_form`.
 class DynamicQuestionForm(FlaskForm):
-    question: _accepted_fields
     submit: SubmitField
+
+    @classmethod
+    def attach_field(cls, question: Question, field: Field) -> None:
+        setattr(cls, mangle_question_id_for_context(question.id), cast(_accepted_fields, field))
+
+    def render_question(self, question: Question, params: dict[str, Any] | None = None) -> str:
+        return cast(str, getattr(self, mangle_question_id_for_context(question.id))(params=params))
+
+    def get_question_field(self, question: Question) -> Field:
+        return cast(Field, getattr(self, mangle_question_id_for_context(question.id)))
+
+    def get_answer_to_question(self, question: Question) -> Any:
+        return getattr(self, mangle_question_id_for_context(question.id)).data
 
 
 def build_question_form(question: Question) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
-    class _DynamicQuestionForm(FlaskForm):  # noqa
-        question: _accepted_fields
+    class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
     field: _accepted_fields
@@ -45,6 +60,6 @@ def build_question_form(question: Question) -> type[DynamicQuestionForm]:
         case _:
             raise Exception("Unable to generate dynamic form for question type {_}")
 
-    _DynamicQuestionForm.question = field
+    _DynamicQuestionForm.attach_field(question, field)
 
     return _DynamicQuestionForm

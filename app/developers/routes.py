@@ -898,11 +898,11 @@ def collection_confirmation(submission_id: UUID) -> ResponseReturnValue:
 def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
     question = submission_helper.get_question(question_id)
-    answer = submission_helper.get_answer_for_question(question.id)
 
     # this method should work as long as data types are a single field and may
     # need to be revised if we have compound data types
-    form = build_question_form(question)(question=answer.root if answer else None)
+    submission_context = submission_helper.expression_context
+    form = build_question_form(question)(data=submission_context)
 
     if submission_helper.is_completed:
         if form.is_submitted():
