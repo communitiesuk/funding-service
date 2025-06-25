@@ -1,25 +1,15 @@
-from typing import Callable, Type
+from typing import Type
 
 from app.common.data.models import Question
 from app.common.data.types import QuestionDataType
-from app.common.expressions.forms import AddIntegerConditionForm, AddIntegerValidationForm, _BaseExpressionForm
+from app.common.expressions.forms import AddIntegerExpressionForm, _BaseExpressionForm
 
-supported_managed_conditions_by_question_type = {QuestionDataType.INTEGER: AddIntegerConditionForm}
-supported_managed_validation_by_question_type = {QuestionDataType.INTEGER: AddIntegerValidationForm}
+supported_managed_expression_by_question_type = {QuestionDataType.INTEGER: AddIntegerExpressionForm}
 
 
-def get_managed_condition_form(question: Question) -> Type["_BaseExpressionForm"] | Callable[[], None]:
+def get_managed_expression_form(question: Question) -> Type["_BaseExpressionForm"] | None:
     try:
-        return supported_managed_conditions_by_question_type[question.data_type]
-    except KeyError:
-        pass
-
-    return lambda: None
-
-
-def get_managed_validation_form(question: Question) -> Type["_BaseExpressionForm"] | None:
-    try:
-        return supported_managed_validation_by_question_type[question.data_type]
+        return supported_managed_expression_by_question_type[question.data_type]
     except KeyError:
         pass
 
@@ -35,9 +25,9 @@ def get_supported_form_questions(question: Question) -> list[Question]:
     return [
         q
         for q in questions
-        if q.data_type in supported_managed_conditions_by_question_type.keys() and q.id != question.id
+        if q.data_type in supported_managed_expression_by_question_type.keys() and q.id != question.id
     ]
 
 
 def get_validation_supported_for_question(question: Question) -> bool:
-    return question.data_type in supported_managed_validation_by_question_type
+    return question.data_type in supported_managed_expression_by_question_type

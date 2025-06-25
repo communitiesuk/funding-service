@@ -42,8 +42,7 @@ from app.common.data.interfaces.temporary import (
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions.helpers import (
-    get_managed_condition_form,
-    get_managed_validation_form,
+    get_managed_expression_form,
     get_supported_form_questions,
     get_validation_supported_for_question,
 )
@@ -627,8 +626,8 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     question = get_question_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
-    ConditionForm = get_managed_condition_form(depends_on_question)
-    form = ConditionForm()
+    ConditionForm = get_managed_expression_form(depends_on_question)
+    form = ConditionForm() if ConditionForm else None
 
     if form and form.validate_on_submit():
         expression = form.get_expression(depends_on_question)
@@ -664,7 +663,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
 def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
 
-    ValidationForm = get_managed_validation_form(question)
+    ValidationForm = get_managed_expression_form(question)
     form = ValidationForm() if ValidationForm else None
     if form and form.validate_on_submit():
         expression = form.get_expression(question)
@@ -724,7 +723,7 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
             )
         )
 
-    ValidationForm = get_managed_validation_form(question)
+    ValidationForm = get_managed_expression_form(question)
     form = ValidationForm.from_expression(db_expression) if ValidationForm else None
 
     if form and form.validate_on_submit():
