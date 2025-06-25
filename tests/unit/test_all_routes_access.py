@@ -66,7 +66,6 @@ routes_with_expected_platform_admin_only_access = [
 routes_with_expected_grant_admin_only_access = []
 routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_users_for_grant",
-    "deliver_grant_funding.view_grant",
     "deliver_grant_funding.grant_details",
 ]
 

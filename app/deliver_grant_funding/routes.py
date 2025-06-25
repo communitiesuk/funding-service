@@ -214,15 +214,8 @@ def list_grants() -> Response | str:
     # TODO if the user is a MEMBER and does not have any grant we need to handle that but if you are a
     #  ADMIN then should be able to see grants or empty page with create grant feature
     if len(grants) == 1 and not AuthorisationHelper.is_platform_admin(user):
-        return redirect(url_for("deliver_grant_funding.view_grant", grant_id=grants[0].id))
+        return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grants[0].id))
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
-
-
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>", methods=["GET"])
-@has_grant_role(RoleEnum.MEMBER)
-def view_grant(grant_id: UUID) -> ResponseReturnValue:
-    grant = interfaces.grants.get_grant(grant_id)
-    return render_template("deliver_grant_funding/grant_view.html", grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/users", methods=["GET"])

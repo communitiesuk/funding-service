@@ -15,7 +15,7 @@
         <li>create forms</li>
       </ul>
 
-      <a href="{{ url_for('deliver_grant_funding.view_grant', grant_id=grant.id) }}" class="govuk-button">Continue to grant home</a>
+      <a href="{{ url_for('deliver_grant_funding.grant_details', grant_id=grant.id) }}" class="govuk-button">Continue to grant home</a>
     </div>
   </div>
 {% endblock %}

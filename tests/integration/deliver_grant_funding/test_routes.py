@@ -52,7 +52,7 @@ def test_list_grants_as_member_with_single_grant(
     soup = BeautifulSoup(result.data, "html.parser")
 
     nav_items = [item.text.strip() for item in soup.select(".govuk-service-navigation__item")]
-    assert nav_items == ["Home", "Grant details", "Grant team"]
+    assert nav_items == ["Grant details", "Grant team"]
     assert len(queries) == 2
 
 
@@ -81,16 +81,6 @@ def test_list_grants_as_member_with_multiple_grants(
 def test_list_grant_requires_mhclg_user(authenticated_no_role_client, factories, templates_rendered):
     response = authenticated_no_role_client.get("/grants")
     assert response.status_code == 403
-
-
-def test_view_grant_dashboard(authenticated_platform_admin_client, factories, templates_rendered):
-    grant = factories.grant.create()
-    result = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.view_grant", grant_id=grant.id))
-    assert result.status_code == 200
-    assert templates_rendered.get("deliver_grant_funding.view_grant").context.get("grant") == grant
-    soup = BeautifulSoup(result.data, "html.parser")
-    assert grant.name in soup.h1.text
-    assert "Home" in soup.h1.text
 
 
 def test_view_grant_details(authenticated_platform_admin_client, factories, templates_rendered):
