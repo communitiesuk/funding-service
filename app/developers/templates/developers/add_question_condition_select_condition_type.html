@@ -5,6 +5,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "developers/_number_expression.html" import render_number_expression %}
 
 {% block pageTitle %}
@@ -13,13 +14,21 @@
 
 {% set active_item_identifier = "developers" %}
 
+{% set is_editing = expression %}
+{% set heading = "Manage condition" if is_editing else "Add a condition" %}
+{% set submit_label = "Update condition" if is_editing else "Add condition" %}
+
+{% set back_to_select_question_for_condition = url_for("developers.add_question_condition_select_question", grant_id = grant.id, question_id=question.id) %}
+{% set back_to_edit_question = url_for("developers.edit_question", grant_id=grant.id, collection_id=question.form.section.collection.id, section_id=question.form.section.id, form_id=question.form.id, question_id=question.id) %}
+{% set back_link = back_to_edit_question if is_editing else back_to_select_question_for_condition %}
+
 {% block beforeContent %}
   {# todo: pressing back here should remember which question you had selected in case you want to just move one up or down in the list #}
   {#       that would also line up with how the browsers "back" button would work (remembering form options) #}
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.add_question_condition_select_question", grant_id = grant.id, question_id=question.id)
+        "href": back_link
     })
   }}
 {% endblock beforeContent %}
@@ -27,14 +36,36 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-l">Add a condition</h1>
+      {% if confirm_deletion_form %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this condition?</p>
+          <form method="post" novalidate>
+            {{ confirm_deletion_form.csrf_token }}
+            {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">{{ heading }}</h1>
 
       {% include "developers/_add_question_condition_context.html" %}
 
       {% if depends_on_question.data_type == QuestionDataType.INTEGER %}
-        {{ render_number_expression(form, depends_on_question, "Add condition") }}
+        {{ render_number_expression(form, depends_on_question, submit_label) }}
       {% else %}
         <p class="govuk-body">This question cannot be used a condition.</p>
+      {% endif %}
+
+      {% if expression %}
+        <div class="govuk-grid-row govuk-!-margin-top-7">
+          <div class="govuk-grid-column-two-thirds">
+            <p class="govuk-body">
+              <a class="govuk-link app-link--destructive" href="{{ url_for('developers.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=expression.id, delete='') }}">Delete condition</a>
+            </p>
+          </div>
+        </div>
       {% endif %}
     </div>
   </div>

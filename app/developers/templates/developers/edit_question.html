@@ -68,9 +68,10 @@
 
 
               {% set value_html %}
-                {# todo: a link when conditions are editable in the next PR #}
-                <span class="govuk-visually-hidden">Change condition for</span>
-                {{ condition.managed.message }}
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
+                  <span class="govuk-visually-hidden">Change condition for</span>
+                  {{ condition.managed.message }}
+                </a>
               {% endset %}
               {%
                 do rows.append({
