@@ -15,7 +15,7 @@
 {% set active_item_identifier = "developers" %}
 
 {% set is_editing = expression %}
-{% set heading = "Manage condition" if is_editing else "Add a condition" %}
+{% set heading = "Edit condition" if is_editing else "Add a condition" %}
 {% set submit_label = "Update condition" if is_editing else "Add condition" %}
 
 {% set back_to_select_question_for_condition = url_for("developers.add_question_condition_select_question", grant_id = grant.id, question_id=question.id) %}
