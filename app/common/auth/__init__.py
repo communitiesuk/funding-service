@@ -5,18 +5,11 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
-from app.common.data.interfaces.user import (
-    get_user_by_azure_ad_subject_id,
-    get_user_by_email,
-    upsert_user_by_azure_ad_subject_id,
-    upsert_user_by_email,
-    upsert_user_role,
-)
-from app.common.data.types import RoleEnum
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
 
@@ -35,7 +28,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
 
-        user = upsert_user_by_email(email_address=email)
+        user = interfaces.user.upsert_user_by_email(email_address=email)
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
             redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
@@ -104,16 +97,16 @@ def sso_get_token() -> ResponseReturnValue:
         return abort(500, "Azure AD get-token flow failed with: {}".format(result))
 
     sso_user = result["id_token_claims"]
-    user = get_user_by_azure_ad_subject_id(azure_ad_subject_id=sso_user["sub"])
+    user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id=sso_user["sub"])
     # TODO: FSPT-515 - remove this logic. This additional logic is to cover grant team members who are directly added as
     # users but don't yet have the azure_ad_subject_id field present as they haven't logged in. Our SSO now uses this as
     # the unique identifying field so needs it to be present. This should be removed when we move to an invitation
     # mechanism in FSPT-515 which won't create a User in the database until they sign in for the first time, allowing us
     # to simplify this flow.
     if user is None:
-        user = get_user_by_email(email_address=sso_user["preferred_username"])
+        user = interfaces.user.get_user_by_email(email_address=sso_user["preferred_username"])
         if user and not user.azure_ad_subject_id:
-            user = upsert_user_by_email(
+            user = interfaces.user.upsert_user_by_email(
                 email_address=sso_user["preferred_username"],
                 name=sso_user["name"],
                 azure_ad_subject_id=sso_user["sub"],
@@ -121,18 +114,25 @@ def sso_get_token() -> ResponseReturnValue:
     redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
 
     if "FSD_ADMIN" in sso_user.get("roles", []):
-        user = upsert_user_by_azure_ad_subject_id(
+        user = interfaces.user.upsert_user_by_azure_ad_subject_id(
             azure_ad_subject_id=sso_user["sub"],
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
-        upsert_user_role(user_id=user.id, role=RoleEnum.ADMIN)
+        interfaces.user.set_platform_admin_role_for_user(user)
     elif user and user.roles:
-        user = upsert_user_by_azure_ad_subject_id(
+        user = interfaces.user.upsert_user_by_azure_ad_subject_id(
             azure_ad_subject_id=sso_user["sub"],
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
+        if AuthorisationHelper.is_platform_admin(user):
+            interfaces.user.remove_platform_admin_role_from_user(user)
+            if not user.roles:
+                return render_template(
+                    "common/auth/mhclg-user-not-authorised.html",
+                    service_desk_url=current_app.config["SERVICE_DESK_URL"],
+                ), 403
     else:
         return render_template(
             "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]

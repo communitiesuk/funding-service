@@ -4,12 +4,12 @@ from unittest.mock import patch
 import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.models import MagicLink
-from app.common.data.models_user import User
+from app.common.data.models_user import User, UserRole
 from app.common.data.types import RoleEnum
 from tests.utils import AnyStringMatching, page_has_error
 
@@ -281,6 +281,80 @@ class TestSSOGetTokenView:
             updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
             assert updated_user.azure_ad_subject_id == "someStringValue"
             assert updated_user.name == "SSO User"
+
+        assert response.status_code == 200
+
+    def test_platform_admin_with_fsd_admin_role_removed(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id=None)
+            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test.member@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": [],
+                    "sub": "someStringValue",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
+
+            assert AuthorisationHelper.is_platform_admin(updated_user) is False
+
+        assert response.status_code == 403
+
+    def test_platform_admin_with_grant_member_role_fsd_admin_role_removed(
+        self, anonymous_client, factories, db_session
+    ):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id=None)
+            grant = factories.grant.create()
+            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+            factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test.member@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": [],
+                    "sub": "someStringValue",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
+
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+            assert AuthorisationHelper.is_grant_member(grant_id=grant.id, user=updated_user) is True
+            assert AuthorisationHelper.is_platform_admin(updated_user) is False
+
+        assert response.status_code == 200
+
+    def test_platform_admin_remove_all_other_roles(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id=None)
+            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+            grants = factories.grant.create_batch(2)
+            for grant in grants:
+                factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 3
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test.member@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": ["FSD_ADMIN"],
+                    "sub": "someStringValue",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
+            assert AuthorisationHelper.is_platform_admin(updated_user) is True
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         assert response.status_code == 200
 
