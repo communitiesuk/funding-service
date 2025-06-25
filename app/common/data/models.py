@@ -309,6 +309,15 @@ class Expression(BaseModel):
             postgresql_where=f"type = '{ExpressionType.VALIDATION.value}'::expression_type_enum",
             unique=True,
         ),
+        Index(
+            "uq_type_condition_unique_question",
+            "type",
+            "question_id",
+            text("(context ->> 'key')"),
+            text("(context ->> 'question_id')"),
+            postgresql_where=f"type = '{ExpressionType.CONDITION.value}'::expression_type_enum",
+            unique=True,
+        ),
     )
 
     @property
