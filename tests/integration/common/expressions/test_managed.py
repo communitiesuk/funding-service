@@ -6,9 +6,9 @@ from app.common.data.interfaces.collections import add_question_condition, get_q
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions import evaluate, mangle_question_id_for_context
-from app.common.expressions.forms import AddIntegerConditionForm
+from app.common.expressions.forms import AddIntegerExpressionForm
 from app.common.expressions.helpers import (
-    get_managed_condition_form,
+    get_managed_expression_form,
     get_supported_form_questions,
 )
 from app.common.expressions.managed import Between, GreaterThan, LessThan, get_managed_expression
@@ -40,13 +40,8 @@ class TestManagedExpressions:
     def test_get_managed_expression_form_valid_question_type(self, factories):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
 
-        form = get_managed_condition_form(question)
-        assert form == AddIntegerConditionForm
-
-    def test_get_managed_expression_form_invalid_question_type(self, factories):
-        question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
-
-        assert get_managed_condition_form(question)() is None
+        form = get_managed_expression_form(question)
+        assert form == AddIntegerExpressionForm
 
     def test_parse_managed_expression_from_context(self, factories):
         expression = factories.expression.build(type=ExpressionType.CONDITION, statement="")

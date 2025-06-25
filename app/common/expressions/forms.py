@@ -24,44 +24,14 @@ class _BaseExpressionForm(FlaskForm):
     def from_expression(expression: "Expression") -> "_BaseExpressionForm": ...
 
 
-class AddIntegerConditionForm(_BaseExpressionForm):
-    type = RadioField(
-        "Only show the question if the answer is",
-        choices=[(ManagedExpressionsEnum.GREATER_THAN, ManagedExpressionsEnum.GREATER_THAN.value)],
-        validators=[DataRequired("Select what the answer should be to show this question")],
-        widget=GovRadioInput(),
-    )
-    value = IntegerField("Value", widget=GovTextInput(), validators=[Optional()])
-
-    submit = SubmitField("Add condition", widget=GovSubmitInput())
-
-    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
-        if self.type.data:
-            self.value.validators = [DataRequired("Enter a value")]
-
-        # fixme: IDE realises this is a FlaskForm and bool but mypy is calling it "Any" on pre-commit
-        return super().validate(extra_validators=extra_validators)  # type: ignore
-
-    def get_expression(self, question: Question) -> "ManagedExpression":
-        match self.type.data:
-            case ManagedExpressionsEnum.GREATER_THAN.value:
-                assert self.value.data
-                return GreaterThan(
-                    question_id=question.id,
-                    minimum_value=self.value.data,
-                )
-
-        raise RuntimeError(f"Unknown expression type: {self.type.data}")
-
-
-class AddIntegerValidationForm(_BaseExpressionForm):
+class AddIntegerExpressionForm(_BaseExpressionForm):
     type = RadioField(
         choices=[
             (ManagedExpressionsEnum.GREATER_THAN, ManagedExpressionsEnum.GREATER_THAN.value),
             (ManagedExpressionsEnum.LESS_THAN, ManagedExpressionsEnum.LESS_THAN.value),
             (ManagedExpressionsEnum.BETWEEN, ManagedExpressionsEnum.BETWEEN.value),
         ],
-        validators=[DataRequired("Select the kind of validation to apply")],
+        validators=[DataRequired("Select the kind of comparison to apply")],
         widget=GovRadioInput(),
     )
 
@@ -124,7 +94,7 @@ class AddIntegerValidationForm(_BaseExpressionForm):
         raise RuntimeError(f"Unknown expression type: {self.type.data}")
 
     @staticmethod
-    def from_expression(expression: "Expression") -> "AddIntegerValidationForm":
+    def from_expression(expression: "Expression") -> "AddIntegerExpressionForm":
         data = {"type": expression.context["key"]}
 
         match data["type"]:
@@ -140,4 +110,4 @@ class AddIntegerValidationForm(_BaseExpressionForm):
                 data["top_of_range"] = expression.context["maximum_value"]
                 data["top_inclusive"] = expression.context["maximum_inclusive"]
 
-        return AddIntegerValidationForm(data=data)
+        return AddIntegerExpressionForm(data=data)
