@@ -6,6 +6,8 @@
 {% set page_title = "Grant team - " ~ grant.name %}
 {% set active_item_identifier = "grant_team" %}
 
+{% set can_add_users = authorisation_helper.is_platform_admin(current_user) %}
+
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
@@ -26,7 +28,12 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Grant team
       </h1>
-      {% if authorisation_helper.is_platform_admin(current_user) %}
+
+      {% if not grant.users %}
+        <p class="govuk-body">No grant team members have been added to this grant yet.</p>
+      {% endif %}
+
+      {% if can_add_users %}
         {{
           govukButton({
              "text": "Add grant team member",
@@ -38,18 +45,16 @@
   </div>
 
   {% set table_pending_signin_rows = namespace(items=[]) %}
-  {% if grant.users %}
-    {% for user in grant.users if not authorisation_helper.has_logged_in(user) %}
-      {%
-        set table_pending_signin_rows.items = table_pending_signin_rows.items + [[
-          {"text": user.email},
-          {"text": "Grant team member"}
-        ]]
-      %}
-    {% endfor %}
-  {% endif %}
+  {% for user in grant.users if not authorisation_helper.has_logged_in(user) %}
+    {%
+      set table_pending_signin_rows.items = table_pending_signin_rows.items + [[
+        {"text": user.email},
+        {"text": "Grant team member"}
+      ]]
+    %}
+  {% endfor %}
 
-  {% if table_pending_signin_rows.items|length > 0 %}
+  {% if table_pending_signin_rows.items %}
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-full">
         <h2 class="govuk-heading-m govuk-!-margin-bottom-1 govuk-!-margin-top-9">Not yet signed in</h2>
@@ -68,18 +73,17 @@
 
   {% set table_rows = namespace(items=[]) %}
 
-  {% if grant.users %}
-    {% for user in grant.users if authorisation_helper.has_logged_in(user) %}
-      {%
-        set table_rows.items = table_rows.items + [[
-          {"text": user.name},
-          {"text": user.email},
-          {"text": "Grant team member"}
-        ]]
-      %}
-    {% endfor %}
-  {% endif %}
-  {% if table_rows.items|length > 0 %}
+  {% for user in grant.users if authorisation_helper.has_logged_in(user) %}
+    {%
+      set table_rows.items = table_rows.items + [[
+        {"text": user.name},
+        {"text": user.email},
+        {"text": "Grant team member"}
+      ]]
+    %}
+  {% endfor %}
+
+  {% if table_rows.items %}
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-full">
         <h2 class="govuk-heading-m govuk-!-margin-bottom-1 govuk-!-margin-top-9">Grant team members</h2>
@@ -94,15 +98,17 @@
       </div>
     </div>
   {% endif %}
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
-      <h2 class="govuk-heading-m govuk-!-margin-top-5">If you need to add other grant team members</h2>
-      <p class="govuk-body">
-        Contact us through our
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a>
-        .
-      </p>
-      <p class="govuk-body">Monday to Friday, 9am to 5pm (except public holidays).</p>
+  {% if not can_add_users %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-full">
+        <h2 class="govuk-heading-m govuk-!-margin-top-5">If you need to add other grant team members</h2>
+        <p class="govuk-body">
+          Contact us through our
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a>
+          .
+        </p>
+        <p class="govuk-body">Monday to Friday, 9am to 5pm (except public holidays).</p>
+      </div>
     </div>
-  </div>
+  {% endif %}
 {% endblock content %}
