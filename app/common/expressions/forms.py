@@ -12,12 +12,12 @@ from app.common.data.types import ManagedExpressionsEnum
 from app.common.expressions.managed import Between, GreaterThan, LessThan
 
 if TYPE_CHECKING:
-    from app.common.expressions.managed import BaseExpression
+    from app.common.expressions.managed import ManagedExpression
 
 
 class _BaseExpressionForm(FlaskForm):
     @abstractmethod
-    def get_expression(self, question: Question) -> "BaseExpression": ...
+    def get_expression(self, question: Question) -> "ManagedExpression": ...
 
     @staticmethod
     @abstractmethod
@@ -42,7 +42,7 @@ class AddIntegerConditionForm(_BaseExpressionForm):
         # fixme: IDE realises this is a FlaskForm and bool but mypy is calling it "Any" on pre-commit
         return super().validate(extra_validators=extra_validators)  # type: ignore
 
-    def get_expression(self, question: Question) -> "BaseExpression":
+    def get_expression(self, question: Question) -> "ManagedExpression":
         match self.type.data:
             case ManagedExpressionsEnum.GREATER_THAN.value:
                 assert self.value.data
@@ -91,7 +91,7 @@ class AddIntegerValidationForm(_BaseExpressionForm):
         # fixme: IDE realises this is a FlaskForm and bool but mypy is calling it "Any" on pre-commit
         return super().validate(extra_validators=extra_validators)  # type: ignore
 
-    def get_expression(self, question: Question) -> "BaseExpression":
+    def get_expression(self, question: Question) -> "ManagedExpression":
         if not self.validate():
             raise RuntimeError("Form must be validated before building an expression")
 

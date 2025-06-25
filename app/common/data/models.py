@@ -26,7 +26,7 @@ from app.common.expressions.managed import get_managed_expression
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
-    from app.common.expressions.managed import BaseExpression
+    from app.common.expressions.managed import ManagedExpression
 
 
 class Grant(BaseModel):
@@ -306,5 +306,5 @@ class Expression(BaseModel):
     )
 
     @property
-    def managed(self) -> "BaseExpression":
+    def managed(self) -> "ManagedExpression":
         return get_managed_expression(self)

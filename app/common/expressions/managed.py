@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from app.common.data.models import Expression
 
 
-class BaseExpression(BaseModel):
+class ManagedExpression(BaseModel):
     key: ManagedExpressionsEnum
 
     @property
@@ -27,7 +27,7 @@ class BaseExpression(BaseModel):
     def description(self) -> str: ...
 
 
-class GreaterThan(BaseExpression):
+class GreaterThan(ManagedExpression):
     key: ManagedExpressionsEnum = ManagedExpressionsEnum.GREATER_THAN
     question_id: UUID
     minimum_value: int
@@ -47,7 +47,7 @@ class GreaterThan(BaseExpression):
         return f"{qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
 
 
-class LessThan(BaseExpression):
+class LessThan(ManagedExpression):
     key: ManagedExpressionsEnum = ManagedExpressionsEnum.LESS_THAN
     question_id: UUID
     maximum_value: int
@@ -67,7 +67,7 @@ class LessThan(BaseExpression):
         return f"{qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
 
 
-class Between(BaseExpression):
+class Between(ManagedExpression):
     key: ManagedExpressionsEnum = ManagedExpressionsEnum.BETWEEN
     question_id: UUID
     minimum_value: int
@@ -105,7 +105,7 @@ class Between(BaseExpression):
         )
 
 
-def get_managed_expression(expression: "Expression") -> BaseExpression:
+def get_managed_expression(expression: "Expression") -> ManagedExpression:
     # todo: fetching this to know what type is starting to feel strange - maybe this should be a top level property
     match expression.context.get("key"):
         case ManagedExpressionsEnum.GREATER_THAN:
