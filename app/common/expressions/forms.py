@@ -117,10 +117,10 @@ class AddIntegerExpressionForm(_BaseExpressionForm):
 
     @staticmethod
     def from_expression(expression: "Expression") -> "AddIntegerExpressionForm":
-        data: json_flat_scalars = {"type": expression.managed_type.value} if expression.managed_type else {}
+        data: json_flat_scalars = {"type": expression.managed_name.value} if expression.managed_name else {}
         managed = expression.managed
 
-        match expression.managed_type:
+        match expression.managed_name:
             case ManagedExpressionsEnum.GREATER_THAN:
                 assert isinstance(managed, GreaterThan)
                 data["greater_than_value"] = managed.minimum_value

@@ -29,7 +29,7 @@ class TestExpressionConstraints:
             created_by=user,
             type=ExpressionType.VALIDATION,
             statement="",
-            managed_type=ManagedExpressionsEnum.GREATER_THAN,
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
         )
 
         with pytest.raises(IntegrityError):
@@ -38,5 +38,5 @@ class TestExpressionConstraints:
                 created_by=user,
                 type=ExpressionType.VALIDATION,
                 statement="",
-                managed_type=ManagedExpressionsEnum.GREATER_THAN,
+                managed_name=ManagedExpressionsEnum.GREATER_THAN,
             )

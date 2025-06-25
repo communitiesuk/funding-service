@@ -295,7 +295,7 @@ class Expression(BaseModel):
         SqlEnum(ExpressionType, name="expression_type_enum", validate_strings=True)
     )
 
-    managed_type: Mapped[Optional[ManagedExpressionsEnum]] = mapped_column(
+    managed_name: Mapped[Optional[ManagedExpressionsEnum]] = mapped_column(
         SqlEnum(ManagedExpressionsEnum, name="managed_expression_enum", validate_strings=True, nullable=True)
     )
 
@@ -310,7 +310,7 @@ class Expression(BaseModel):
             "uq_type_validation_unique_key",
             "type",
             "question_id",
-            "managed_type",
+            "managed_name",
             postgresql_where=f"type = '{ExpressionType.VALIDATION.value}'::expression_type_enum",
             unique=True,
         ),
@@ -318,7 +318,7 @@ class Expression(BaseModel):
             "uq_type_condition_unique_question",
             "type",
             "question_id",
-            "managed_type",
+            "managed_name",
             text("(context ->> 'question_id')"),
             postgresql_where=f"type = '{ExpressionType.CONDITION.value}'::expression_type_enum",
             unique=True,
