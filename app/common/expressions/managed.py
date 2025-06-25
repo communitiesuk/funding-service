@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class ManagedExpression(BaseModel):
-    key: ManagedExpressionsEnum
+    _key: ManagedExpressionsEnum
     question_id: UUID
 
     @property
@@ -43,7 +43,7 @@ class ManagedExpression(BaseModel):
 
 
 class GreaterThan(ManagedExpression):
-    key: ManagedExpressionsEnum = ManagedExpressionsEnum.GREATER_THAN
+    _key: ManagedExpressionsEnum = ManagedExpressionsEnum.GREATER_THAN
     question_id: UUID
     minimum_value: int
     inclusive: bool = False
@@ -63,7 +63,7 @@ class GreaterThan(ManagedExpression):
 
 
 class LessThan(ManagedExpression):
-    key: ManagedExpressionsEnum = ManagedExpressionsEnum.LESS_THAN
+    _key: ManagedExpressionsEnum = ManagedExpressionsEnum.LESS_THAN
     question_id: UUID
     maximum_value: int
     inclusive: bool = False
@@ -83,7 +83,7 @@ class LessThan(ManagedExpression):
 
 
 class Between(ManagedExpression):
-    key: ManagedExpressionsEnum = ManagedExpressionsEnum.BETWEEN
+    _key: ManagedExpressionsEnum = ManagedExpressionsEnum.BETWEEN
     question_id: UUID
     minimum_value: int
     minimum_inclusive: bool = False
@@ -122,7 +122,7 @@ class Between(ManagedExpression):
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
     # todo: fetching this to know what type is starting to feel strange - maybe this should be a top level property
-    match expression.managed_type:
+    match expression.managed_name:
         case ManagedExpressionsEnum.GREATER_THAN:
             return TypeAdapter(GreaterThan).validate_python(expression.context)
         case ManagedExpressionsEnum.LESS_THAN:

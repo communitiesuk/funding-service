@@ -45,7 +45,7 @@ class TestManagedExpressions:
 
     def test_parse_managed_expression_from_context(self, factories):
         expression = factories.expression.build(
-            type=ExpressionType.CONDITION, statement="", managed_type=ManagedExpressionsEnum.GREATER_THAN
+            type=ExpressionType.CONDITION, statement="", managed_name=ManagedExpressionsEnum.GREATER_THAN
         )
 
         expression.context = {"question_id": str(expression.question.id), "minimum_value": 1000}

@@ -12,7 +12,7 @@ class TestAddIntegerValidationForm:
         )
 
         expression = form.get_expression(question)
-        assert expression.key == "Greater than"
+        assert expression._key == "Greater than"
         assert expression.question_id == question.id
         assert expression.minimum_value == 2000
 
@@ -23,7 +23,7 @@ class TestAddIntegerValidationForm:
         )
 
         expression = form.get_expression(question)
-        assert expression.key == "Less than"
+        assert expression._key == "Less than"
         assert expression.question_id == question.id
         assert expression.maximum_value == 2000
 
@@ -38,7 +38,7 @@ class TestAddIntegerValidationForm:
         )
 
         expression = form.get_expression(question)
-        assert expression.key == "Between"
+        assert expression._key == "Between"
         assert expression.question_id == question.id
         assert expression.minimum_value == 10
         assert expression.minimum_inclusive is False

@@ -284,7 +284,7 @@ def add_question_condition(question: Question, user: User, managed_expression: "
         context=managed_expression.model_dump(mode="json"),
         created_by=user,
         type=ExpressionType.CONDITION,
-        managed_type=managed_expression.key,
+        managed_name=managed_expression._key,
     )
     question.expressions.append(expression)
     try:
@@ -301,7 +301,7 @@ def add_question_validation(question: Question, user: User, managed_expression: 
         context=managed_expression.model_dump(mode="json"),
         created_by=user,
         type=ExpressionType.VALIDATION,
-        managed_type=managed_expression.key,
+        managed_name=managed_expression._key,
     )
     question.expressions.append(expression)
     try:
@@ -325,7 +325,7 @@ def remove_question_expression(question: Question, expression: Expression) -> Qu
 def update_question_expression(expression: Expression, managed_expression: "ManagedExpression") -> Expression:
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
-    expression.managed_type = managed_expression.key
+    expression.managed_name = managed_expression._key
     try:
         db.session.flush()
     except IntegrityError as e:
