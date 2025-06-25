@@ -28,9 +28,9 @@
         {# So we just manually add the caption here. #}
         <span class="govuk-caption-l">{{ question.form.title }}</span>
         {% if question.data_type == question_types.TEXT_SINGLE_LINE or question.data_type == question_types.TEXT_MULTI_LINE %}
-          {{ form.question(params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
+          {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
         {% elif question.data_type == question_types.INTEGER %}
-          {{ form.question(params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
+          {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
         {% endif %}
 
         {{ form.submit }}
