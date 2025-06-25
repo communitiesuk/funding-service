@@ -11,11 +11,12 @@ from app.common.data.types import ManagedExpressionsEnum
 from app.common.expressions import mangle_question_id_for_context
 
 if TYPE_CHECKING:
-    from app.common.data.models import Expression
+    from app.common.data.models import Expression, Question
 
 
 class ManagedExpression(BaseModel):
     key: ManagedExpressionsEnum
+    question_id: UUID
 
     @property
     @abc.abstractmethod
@@ -25,6 +26,20 @@ class ManagedExpression(BaseModel):
     @property
     @abc.abstractmethod
     def description(self) -> str: ...
+
+    @property
+    @abc.abstractmethod
+    def message(self) -> str: ...
+
+    @property
+    def referenced_question(self) -> "Question":
+        # todo: split up the collections interface to let us sensibly reason about whats importing what
+        from app.common.data.interfaces.collections import get_question_by_id
+
+        # todo: this will do a database query per expression on the question - for now we'd anticipate
+        #       questions only have one or two managed expressions but in the future we should probably
+        #       optimise this to fetch the full schema once and then re-use that throughout these helpers
+        return get_question_by_id(self.question_id)
 
 
 class GreaterThan(ManagedExpression):
