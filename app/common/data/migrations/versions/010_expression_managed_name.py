@@ -46,6 +46,17 @@ def upgrade() -> None:
             postgresql_where="type = 'VALIDATION'::expression_type_enum",
         )
 
+    op.execute(
+        sa.text(
+            """
+                update expression set
+                    managed_name = upper(replace((context->>'key'), ' ', '_'))::managed_expression_enum,
+                    context = context - 'key'
+                where managed_name is null and context ? 'key'
+            """
+        )
+    )
+
 
 def downgrade() -> None:
     with op.batch_alter_table("expression", schema=None) as batch_op:
