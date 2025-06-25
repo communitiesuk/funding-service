@@ -40,6 +40,7 @@ routes_with_expected_platform_admin_only_access = [
     "developers.edit_question",
     "developers.add_question_condition_select_question",
     "developers.add_question_condition",
+    "developers.edit_question_condition",
     "developers.submission_tasklist",
     "developers.collection_confirmation",
     "developers.ask_a_question",
