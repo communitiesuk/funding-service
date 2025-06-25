@@ -122,7 +122,7 @@ class Between(ManagedExpression):
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
     # todo: fetching this to know what type is starting to feel strange - maybe this should be a top level property
-    match expression.context.get("key"):
+    match expression.managed_type:
         case ManagedExpressionsEnum.GREATER_THAN:
             return TypeAdapter(GreaterThan).validate_python(expression.context)
         case ManagedExpressionsEnum.LESS_THAN:
