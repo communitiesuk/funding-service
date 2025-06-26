@@ -1,5 +1,5 @@
 import abc
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 # Define any "managed" expressions that can be applied to common conditions or validations
 # that are built through the UI. These will be used alongside custom expressions
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class ManagedExpression(BaseModel):
-    _key: ManagedExpressionsEnum
+    name: ClassVar[ManagedExpressionsEnum]
     question_id: UUID
 
     @property
@@ -43,7 +43,7 @@ class ManagedExpression(BaseModel):
 
 
 class GreaterThan(ManagedExpression):
-    _key: ManagedExpressionsEnum = ManagedExpressionsEnum.GREATER_THAN
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.GREATER_THAN
     question_id: UUID
     minimum_value: int
     inclusive: bool = False
@@ -63,7 +63,7 @@ class GreaterThan(ManagedExpression):
 
 
 class LessThan(ManagedExpression):
-    _key: ManagedExpressionsEnum = ManagedExpressionsEnum.LESS_THAN
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.LESS_THAN
     question_id: UUID
     maximum_value: int
     inclusive: bool = False
@@ -83,7 +83,7 @@ class LessThan(ManagedExpression):
 
 
 class Between(ManagedExpression):
-    _key: ManagedExpressionsEnum = ManagedExpressionsEnum.BETWEEN
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.BETWEEN
     question_id: UUID
     minimum_value: int
     minimum_inclusive: bool = False

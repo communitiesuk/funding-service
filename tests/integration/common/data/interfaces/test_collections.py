@@ -493,7 +493,7 @@ def test_update_expression_errors_on_validation_overlap(db_session, factories):
     lt_expression = LessThan(maximum_value=5000, question_id=question.id)
 
     add_question_validation(question, user, lt_expression)
-    lt_db_expression = next(db_expr for db_expr in question.expressions if db_expr.managed_name == lt_expression._key)
+    lt_db_expression = next(db_expr for db_expr in question.expressions if db_expr.managed_name == lt_expression.name)
 
     with pytest.raises(DuplicateValueError):
         update_question_expression(lt_db_expression, gt_expression)
