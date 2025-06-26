@@ -20,14 +20,13 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
-    MagicLink,
     Organisation,
     Question,
     Section,
     Submission,
     SubmissionEvent,
 )
-from app.common.data.models_user import User, UserRole
+from app.common.data.models_user import MagicLink, User, UserRole
 from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
 from app.extensions import db
 
