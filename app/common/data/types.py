@@ -3,8 +3,9 @@ from __future__ import annotations
 import enum
 from typing import Any, Dict
 
+scalars = str | int | float | bool | None
 json_scalars = Dict[str, Any]
-json_flat_scalars = Dict[str, str | int | float | bool]
+json_flat_scalars = Dict[str, None]
 
 
 class RoleEnum(str, enum.Enum):
