@@ -254,7 +254,7 @@ class Question(BaseModel):
 
     def get_expression(self, id: uuid.UUID) -> "Expression":
         try:
-            return next((expression for expression in self.expressions if expression.id == id))
+            return next(expression for expression in self.expressions if expression.id == id)
         except StopIteration as e:
             raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
 
