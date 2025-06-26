@@ -16,7 +16,6 @@ from app.common.data.interfaces.collections import (
     create_section,
     create_submission,
     get_collection,
-    get_expression,
     get_form_by_id,
     get_question_by_id,
     get_section_by_id,
@@ -664,7 +663,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
 @auto_commit_after_request
 def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
-    expression = next(expression for expression in question.conditions if expression.id == expression_id)
+    expression = question.get_expression(expression_id)
     depends_on_question = expression.managed.referenced_question
 
     confirm_deletion_form = ConfirmDeletionForm()
@@ -763,7 +762,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
 @auto_commit_after_request
 def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
-    db_expression = get_expression(expression_id)
+    expression = question.get_expression(expression_id)
 
     confirm_deletion_form = ConfirmDeletionForm()
     if (
@@ -771,7 +770,7 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        remove_question_expression(question=question, expression=db_expression)
+        remove_question_expression(question=question, expression=expression)
         return redirect(
             url_for(
                 "developers.edit_question",
@@ -784,16 +783,18 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
         )
 
     ValidationForm = get_managed_expression_form(question)
-    form = ValidationForm.from_expression(db_expression) if ValidationForm else None
+    form = ValidationForm.from_expression(expression) if ValidationForm else None
 
     if form and form.validate_on_submit():
-        py_expression = form.get_expression(question)
+        updated_managed_expression = form.get_expression(question)
         try:
-            interfaces.collections.update_question_expression(db_expression, py_expression)
+            interfaces.collections.update_question_expression(expression, updated_managed_expression)
         except DuplicateValueError:
             # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
             #        complain to us about it before we think about a better way of handling it.
-            form.form_errors.append(f"“{py_expression.description}” validation already exists on the question.")
+            form.form_errors.append(
+                f"“{updated_managed_expression.description}” validation already exists on the question."
+            )
         else:
             return redirect(
                 url_for(
@@ -812,7 +813,7 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
         grant=question.form.section.collection.grant,
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
-        expression=db_expression,
+        expression=expression,
         QuestionDataType=QuestionDataType,
     )
 

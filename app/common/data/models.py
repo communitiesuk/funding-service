@@ -252,6 +252,12 @@ class Question(BaseModel):
     def validations(self) -> list["Expression"]:
         return [expression for expression in self.expressions if expression.type == ExpressionType.VALIDATION]
 
+    def get_expression(self, id: uuid.UUID) -> "Expression":
+        try:
+            return next(expression for expression in self.expressions if expression.id == id)
+        except StopIteration as e:
+            raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
+
     __table_args__ = (
         UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
