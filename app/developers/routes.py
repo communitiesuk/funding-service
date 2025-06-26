@@ -664,7 +664,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
 @auto_commit_after_request
 def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
-    expression = next(expression for expression in question.conditions if expression.id == expression_id)
+    expression = question.get_expression(expression_id)
     depends_on_question = expression.managed.referenced_question
 
     confirm_deletion_form = ConfirmDeletionForm()
