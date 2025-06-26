@@ -40,7 +40,8 @@
         }}
 
         <div class="govuk-button-group">
-          {{ form.submit(params={"text": "Update grant name"}) }}
+          {% set submit_label = 'Update grant name' if grant else 'Save and continue' %}
+          {{ form.submit(params={"text": submit_label}) }}
 
           {% if grant %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link_href }}">Cancel</a>

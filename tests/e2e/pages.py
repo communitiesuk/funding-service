@@ -198,7 +198,7 @@ class GrantSetupNamePage(TopNavMixin, BasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.title = self.page.get_by_role("heading", name="What is the name of this grant?")
-        self.name_input = self.page.get_by_role("textbox", name="What is the name of this grant?")
+        self.name_input = self.page.get_by_role("textbox", name="Enter the grant name")
         self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
 
     def fill_name(self, name: str) -> None:
@@ -215,7 +215,7 @@ class GrantSetupDescriptionPage(TopNavMixin, BasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.title = self.page.get_by_role("heading", name="Purpose of this grant")
-        self.description_textarea = self.page.get_by_role("textbox", name="What is the main purpose of this grant?")
+        self.description_textarea = self.page.get_by_role("textbox", name="Enter the main purpose of this grant")
         self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
 
     def fill_description(self, description: str = "Test grant description for E2E testing purposes.") -> None:
@@ -319,10 +319,10 @@ class GrantDetailsPage(GrantDashboardBasePage):
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(page, domain)
         self.title = page.get_by_role("heading", name=f"{grant_name} Grant details")
-        self.change_name_link = self.page.get_by_role("link", name="Change the grant name")
-        self.change_ggis_link = self.page.get_by_role("link", name="Change the GGIS number")
-        self.change_description_link = self.page.get_by_role("link", name="Change the main purpose")
-        self.change_contact_link = self.page.get_by_role("link", name="Change the main contact details")
+        self.change_name_link = self.page.get_by_role("link", name="Change grant name")
+        self.change_ggis_link = self.page.get_by_role("link", name="Change GGIS reference number")
+        self.change_description_link = self.page.get_by_role("link", name="Change main purpose")
+        self.change_contact_link = self.page.get_by_role("link", name="Change main contact")
 
     def click_change_grant_ggis(self, existing_ggis_ref: str | None) -> ChangeGrantGGISPage:
         self.change_ggis_link.click()
@@ -368,15 +368,14 @@ class ChangeGrantNamePage(GrantDashboardBasePage):
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.backlink = self.page.get_by_role("link", name="Back")
         self.title = self.page.get_by_role("heading", name="What is the name of this grant?")
-        self.grant_name_textbox = page.get_by_role("textbox", name="What is the name of this grant?")
+        self.grant_name_textbox = page.get_by_role("textbox", name="Enter the grant name")
 
     def fill_in_grant_name(self, name: str) -> None:
         self.grant_name_textbox.fill(name)
 
     def click_submit(self, grant_name: str) -> GrantDetailsPage:
-        self.page.get_by_role("button", name="Update").click()
+        self.page.get_by_role("button", name="Update grant name").click()
         grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
         expect(grant_details_page.title).to_be_visible()
         return grant_details_page
@@ -389,15 +388,14 @@ class ChangeGrantGGISPage(GrantDashboardBasePage):
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.backlink = self.page.get_by_role("link", name="Back")
-        self.title = self.page.get_by_role("heading", name="Update your GGIS reference number")
-        self.ggis_textbox = self.page.get_by_role("textbox", name="Update your GGIS reference number")
+        self.title = self.page.get_by_role("heading", name="What is the GGIS reference number?")
+        self.ggis_textbox = self.page.get_by_role("textbox", name="Enter your GGIS reference number")
 
     def fill_ggis_number(self, new_ggis_ref: str) -> None:
         self.ggis_textbox.fill(new_ggis_ref)
 
     def click_submit(self, grant_name: str) -> GrantDetailsPage:
-        self.page.get_by_role("button", name="Update").click()
+        self.page.get_by_role("button", name="Update GGIS reference number").click()
         grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
         expect(grant_details_page.title).to_be_visible()
         return grant_details_page
@@ -410,15 +408,14 @@ class ChangeGrantDescriptionPage(GrantDashboardBasePage):
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.backlink = self.page.get_by_role("link", name="Back")
         self.title = self.page.get_by_role("heading", name="Purpose of this grant")
-        self.grant_description_textbox = page.get_by_role("textbox", name="What is the main purpose of this grant?")
+        self.grant_description_textbox = page.get_by_role("textbox", name="Enter the main purpose of this grant")
 
     def fill_in_grant_description(self, description: str) -> None:
         self.grant_description_textbox.fill(description)
 
     def click_submit(self, grant_name: str) -> GrantDetailsPage:
-        self.page.get_by_role("button", name="Update").click()
+        self.page.get_by_role("button", name="Update main purpose").click()
         grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
         expect(grant_details_page.title).to_be_visible()
         return grant_details_page
@@ -432,7 +429,6 @@ class ChangeGrantMainContactPage(GrantDashboardBasePage):
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.backlink = self.page.get_by_role("link", name="Back")
         self.title = self.page.get_by_role("heading", name="Who is the main contact for this grant?")
         self.contact_name_textbox = page.get_by_role("textbox", name="Full name")
         self.contact_email_textbox = page.get_by_role("textbox", name="Email address")
@@ -444,7 +440,7 @@ class ChangeGrantMainContactPage(GrantDashboardBasePage):
         self.contact_email_textbox.fill(email)
 
     def click_submit(self, grant_name: str) -> GrantDetailsPage:
-        self.page.get_by_role("button", name="Update").click()
+        self.page.get_by_role("button", name="Update main contact").click()
         grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
         expect(grant_details_page.title).to_be_visible()
         return grant_details_page

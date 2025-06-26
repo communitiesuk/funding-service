@@ -34,7 +34,8 @@
         {{ form.primary_contact_email(params={"type": "email", "classes": "govuk-!-width-two-thirds"}) }}
 
         <div class="govuk-button-group">
-          {{ form.submit(params={"text": "Update main contact"}) }}
+          {% set submit_label = 'Update main contact' if grant else 'Save and continue' %}
+          {{ form.submit(params={"text": submit_label}) }}
 
           {% if grant %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link_href }}">Cancel</a>
