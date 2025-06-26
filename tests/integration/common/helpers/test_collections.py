@@ -1,9 +1,11 @@
 import uuid
 
 import pytest
+from immutabledict import immutabledict
 
 from app.common.collections.forms import build_question_form
 from app.common.data.types import QuestionDataType, SubmissionStatusEnum
+from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import Integer, SubmissionHelper, TextSingleLine
 from tests.utils import AnyStringMatching
 
@@ -50,6 +52,35 @@ class TestSubmissionHelper:
             assert str(e.value) == AnyStringMatching(
                 "Could not submit answer for question_id=[a-z0-9-]+ "
                 "because submission id=[a-z0-9-]+ is already submitted."
+            )
+
+    class TestExpressionContext:
+        def test_no_submission_data(self, factories):
+            form = factories.form.build()
+            form_two = factories.form.build(section=form.section)
+            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
+            factories.question.build(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"))
+
+            submission = factories.submission.build(collection=form.section.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.expression_context == ExpressionContext()
+
+        def test_with_submission_data(self, factories):
+            form = factories.form.build()
+            form_two = factories.form.build(section=form.section)
+            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
+            factories.question.build(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"))
+
+            submission = factories.submission.build(
+                collection=form.section.collection, data={"d696aebc-49d2-4170-a92f-b6ef42994294": "answer"}
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.expression_context == ExpressionContext(
+                from_submission=immutabledict({"q_d696aebc49d24170a92fb6ef42994294": "answer"})
             )
 
     class TestStatuses:

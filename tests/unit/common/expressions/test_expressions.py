@@ -5,6 +5,7 @@ import pytest
 from app.common.data.models import Expression
 from app.common.expressions import (
     DisallowedExpression,
+    ExpressionContext,
     InvalidEvaluationResult,
     UndefinedVariableInExpression,
     _evaluate_expression_with_context,
@@ -39,11 +40,14 @@ class TestInternalEvaluateExpressionWithContext:
             # ast.Subscript
             (Expression(statement="variable[0]", context={"variable": [1, 2, 3]}), 1),
             # ast.Attribute
-            (Expression(statement="variable.value", context={"variable": Mock(value="potato")}), "potato"),
+            (
+                Expression(statement="variable.value", context={"variable": Mock(value="potato")}),
+                "potato",
+            ),
         ),
     )
     def test_allowed_expressions(self, expression, expected_result):
-        assert _evaluate_expression_with_context(expression, {}) == expected_result
+        assert _evaluate_expression_with_context(expression) == expected_result
 
     @pytest.mark.parametrize(
         "expression",
@@ -76,28 +80,21 @@ class TestInternalEvaluateExpressionWithContext:
     )
     def test_disallowed_expressions(self, expression):
         with pytest.raises(DisallowedExpression):
-            _evaluate_expression_with_context(expression, {})
+            _evaluate_expression_with_context(expression, ExpressionContext())
 
     def test_unknown_variable(self):
         with pytest.raises(UndefinedVariableInExpression):
             expression = Expression(statement="blah")
-            _evaluate_expression_with_context(expression, {})
-
-    def test_overlapping_contexts(self):
-        expression = Expression(statement="answer == 1", context={"answer": 1})
-        with pytest.raises(ValueError) as e:
-            _evaluate_expression_with_context(expression, {"answer": 2})
-
-        assert "Cannot safely evaluate with overlapping contexts" in str(e.value)
+            _evaluate_expression_with_context(expression, ExpressionContext())
 
 
 class TestEvaluate:
     def test_ok_with_boolean_result(self):
-        assert evaluate(Expression(statement="True is False")) is False
+        assert evaluate(Expression(statement="True is False"), ExpressionContext()) is False
 
     def test_additional_context(self):
-        assert evaluate(Expression(statement="answer == 1"), context={"answer": 1}) is True
+        assert evaluate(Expression(statement="answer == 1"), context=ExpressionContext({"answer": 1})) is True
 
     def test_raise_on_non_boolean_result(self):
         with pytest.raises(InvalidEvaluationResult):
-            evaluate(Expression(statement="1"))
+            evaluate(Expression(statement="1"), context=ExpressionContext())

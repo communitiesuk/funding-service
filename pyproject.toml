@@ -30,6 +30,7 @@ dependencies = [
     "sqlalchemy-json==0.7.0",
     "simpleeval==1.0.3",
     "num2words==0.5.14",
+    "immutabledict>=4.2.1",
 ]
 
 [dependency-groups]

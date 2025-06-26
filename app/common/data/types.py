@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 scalars = str | int | float | bool | None
 json_scalars = Dict[str, Any]
-json_flat_scalars = Dict[str, None]
+json_flat_scalars = Dict[str, scalars]
 
 
 class RoleEnum(str, enum.Enum):

@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Optional, Type
+from typing import TYPE_CHECKING, Optional, Type
 from uuid import UUID
 
+from immutabledict import immutabledict
 from pydantic import RootModel, TypeAdapter
-from sqlalchemy.util import immutabledict
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.data import interfaces
@@ -17,7 +17,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
-from app.common.expressions import mangle_question_id_for_context
+from app.common.expressions import ExpressionContext, mangle_question_id_for_context
 
 if TYPE_CHECKING:
     from app.common.data.models import Form, Grant, Question, Section, Submission
@@ -67,6 +67,14 @@ class SubmissionHelper:
         return self.submission.reference
 
     @property
+    def expression_context(self) -> ExpressionContext:
+        return ExpressionContext(
+            from_submission=immutabledict(
+                {mangle_question_id_for_context(uuid.UUID(k)): v for k, v in self.submission.data.items()}
+            )
+        )
+
+    @property
     def status(self) -> str:
         submitted = SubmissionEventKey.SUBMISSION_SUBMITTED in [x.key for x in self.submission.events]
 
@@ -110,10 +118,6 @@ class SubmissionHelper:
     @property
     def collection_id(self) -> UUID:
         return self.collection.id
-
-    @property
-    def expression_context(self) -> immutabledict[str, Any]:
-        return immutabledict({mangle_question_id_for_context(uuid.UUID(k)): v for k, v in self.submission.data.items()})
 
     def get_section(self, section_id: uuid.UUID) -> "Section":
         try:
