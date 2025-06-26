@@ -631,6 +631,8 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
 
     if form and form.validate_on_submit():
         expression = form.get_expression(depends_on_question)
+
+        # todo: add validation that a managed expression is unique for type condition and question_id
         interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
 
         return redirect(
@@ -645,12 +647,70 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
         )
 
     return render_template(
-        "developers/add_question_condition_select_condition_type.html",
+        "developers/manage_question_condition_select_condition_type.html",
         question=question,
         depends_on_question=depends_on_question,
         grant=question.form.section.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
+    )
+
+
+@developers_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/condition/<uuid:expression_id>",
+    methods=["GET", "POST"],
+)
+@is_platform_admin
+@auto_commit_after_request
+def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+    expression = next(expression for expression in question.conditions if expression.id == expression_id)
+    depends_on_question = expression.managed.referenced_question
+
+    confirm_deletion_form = ConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        remove_question_expression(question=question, expression=expression)
+        return redirect(
+            url_for(
+                "developers.edit_question",
+                grant_id=grant_id,
+                collection_id=question.form.section.collection_id,
+                section_id=question.form.section.id,
+                form_id=question.form.id,
+                question_id=question.id,
+            )
+        )
+
+    ConditionForm = get_managed_expression_form(depends_on_question)
+    form = ConditionForm.from_expression(expression) if ConditionForm else None
+
+    if form and form.validate_on_submit():
+        updated_managed_expression = form.get_expression(depends_on_question)
+        interfaces.collections.update_question_expression(expression, updated_managed_expression)
+        return redirect(
+            url_for(
+                "developers.edit_question",
+                grant_id=grant_id,
+                collection_id=question.form.section.collection.id,
+                section_id=question.form.section.id,
+                form_id=question.form.id,
+                question_id=question.id,
+            )
+        )
+
+    return render_template(
+        "developers/manage_question_condition_select_condition_type.html",
+        question=question,
+        grant=question.form.section.collection.grant,
+        form=form,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+        expression=expression,
+        QuestionDataType=QuestionDataType,
+        depends_on_question=depends_on_question,
     )
 
 

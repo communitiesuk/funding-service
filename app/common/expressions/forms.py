@@ -97,6 +97,9 @@ class AddIntegerExpressionForm(_BaseExpressionForm):
     def from_expression(expression: "Expression") -> "AddIntegerExpressionForm":
         data = {"type": expression.context["key"]}
 
+        # todo: when we surface the expression "key" to be top level db attribute we should take the
+        #       typed "managed" property of the expression here (probably needing to cast it) and use
+        #       the properties directly rather than using the context
         match data["type"]:
             case ManagedExpressionsEnum.GREATER_THAN:
                 data["greater_than_value"] = expression.context["minimum_value"]
