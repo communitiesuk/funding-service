@@ -70,7 +70,7 @@ class GrantGGISForm(FlaskForm):
 
 class GrantChangeGGISForm(FlaskForm):
     ggis_number = StringField(
-        "Update your GGIS reference number",
+        "What is the GGIS reference number?",
         description="For example, G2-SCH-2025-05-12346",
         filters=[strip_string_if_not_empty],
         validators=[DataRequired("Enter your GGIS reference number")],
@@ -81,7 +81,7 @@ class GrantChangeGGISForm(FlaskForm):
 
 class GrantNameForm(GrantSetupForm):
     name = StringField(
-        "What is the name of this grant?",
+        "Enter the grant name",
         description="Use the full and official name of the grant - no abbreviations or acronyms",
         validators=[
             DataRequired("Enter the grant name"),
@@ -103,7 +103,7 @@ class GrantDescriptionForm(GrantSetupForm):
     DESCRIPTION_MAX_WORDS = 200
 
     description = TextAreaField(
-        "What is the main purpose of this grant?",
+        "Enter the main purpose of this grant",
         validators=[
             DataRequired("Enter the main purpose of this grant"),
             WordRange(max_words=DESCRIPTION_MAX_WORDS, field_display_name="description"),

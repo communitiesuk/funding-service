@@ -15,26 +15,26 @@
         govukSummaryList({
           "rows": [
             {
-              "key": {"text": "GGIS"},
+              "key": {"text": "GGIS reference number"},
               "value": {"text": grant.ggis_number},
               "actions": {
                 "items": [{
                   "href": url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant.id),
                   "classes": "govuk-link--no-visited-state",
                   "text": "Change",
-                  "visuallyHiddenText": "the GGIS number"
+                  "visuallyHiddenText": "GGIS reference number"
                 }]
               } if authorisation_helper.is_platform_admin(current_user) else {}
             },
             {
-              "key": {"text": "Name"},
+              "key": {"text": "Grant name"},
               "value": {"text": grant.name},
               "actions": {
                 "items": [{
                   "href": url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id),
                   "classes": "govuk-link--no-visited-state",
                   "text": "Change",
-                  "visuallyHiddenText": "the grant name"
+                  "visuallyHiddenText": "grant name"
                 }]
               }
             },
@@ -46,7 +46,7 @@
                   "href": url_for("deliver_grant_funding.grant_change_description", grant_id=grant.id),
                   "classes": "govuk-link--no-visited-state",
                   "text": "Change",
-                  "visuallyHiddenText": "the main purpose"
+                  "visuallyHiddenText": "main purpose"
                 }]
               }
             },
@@ -58,7 +58,7 @@
                   "href": url_for("deliver_grant_funding.grant_change_contact", grant_id=grant.id),
                   "classes": "govuk-link--no-visited-state",
                   "text": "Change",
-                  "visuallyHiddenText": "the main contact details"
+                  "visuallyHiddenText": "main contact"
                 }]
               }
             }

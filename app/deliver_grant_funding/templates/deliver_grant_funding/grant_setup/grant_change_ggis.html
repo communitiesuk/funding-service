@@ -5,18 +5,21 @@
 {% set active_item_identifier = "details" %}
 
 {% block beforeContent %}
-  {{
-    govukBackLink({
-      "text": "Back",
-      "href": back_link_href,
-    })
-  }}
+  {% if not grant %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": back_link_href
+      })
+    }}
+  {% endif %}
 {% endblock %}
 
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Set up the grant</span>
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l">What is the GGIS reference number?</h1>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
@@ -24,8 +27,9 @@
         {{
           form.ggis_number(params={
             "label": {
-              "isPageHeading": true,
-              "classes": "govuk-label--l"
+              "text": "Enter your GGIS reference number",
+              "isPageHeading": false,
+              "classes": "govuk-visually-hidden",
             },
             "classes": "govuk-!-width-two-thirds",
             "spellcheck": false,
@@ -33,7 +37,13 @@
           })
         }}
 
-        {{ form.submit }}
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Update GGIS reference number"}) }}
+
+          {% if grant %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link_href }}">Cancel</a>
+          {% endif %}
+        </div>
       </form>
     </div>
   </div>

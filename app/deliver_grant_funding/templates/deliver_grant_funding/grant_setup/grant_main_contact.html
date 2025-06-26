@@ -10,42 +10,36 @@
 {% set page_title = "Who is the main contact for this grant?" %}
 
 {% block beforeContent %}
-  {{
-    govukBackLink({
-        "text": "Back",
-        "href": back_link_href
-    })
-  }}
+  {% if not grant %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": back_link_href
+      })
+    }}
+  {% endif %}
 {% endblock beforeContent %}
 
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Set up the grant</span>
+      <span class="govuk-caption-l">{% if grant %}{{ grant.name }}{% else %}Set up the grant{% endif %}</span>
       <h1 class="govuk-heading-l">Who is the main contact for this grant?</h1>
       <p class="govuk-body">This is the person that teams at MHCLG can contact if they have any questions about the grant.</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
-        {{
-          form.primary_contact_name(params={
-              "label": {
-                "classes": "govuk-label--s",
-              },
-          })
-        }}
+        {{ form.primary_contact_name(params={"classes": "govuk-!-width-two-thirds"}) }}
+        {{ form.primary_contact_email(params={"type": "email", "classes": "govuk-!-width-two-thirds"}) }}
 
-        {{
-          form.primary_contact_email(params={
-            "type": "email",
-            "label": {
-              "classes": "govuk-label--s",
-            },
-          })
-        }}
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Update main contact"}) }}
 
-        {{ form.submit }}
+          {% if grant %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link_href }}">Cancel</a>
+          {% endif %}
+        </div>
       </form>
     </div>
   </div>
