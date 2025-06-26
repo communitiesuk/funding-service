@@ -73,9 +73,12 @@ class AddIntegerExpressionForm(_BaseExpressionForm):
             case ManagedExpressionsEnum.BETWEEN.value:
                 self.bottom_of_range.validators = [
                     DataRequired("Enter the minimum value allowed for this question"),
-                    BottomOfRangeIsLower(),
+                    BottomOfRangeIsLower("The minimum value must be lower than the maximum value"),
                 ]
-                self.top_of_range.validators = [DataRequired("Enter the maximum value allowed for this question")]
+                self.top_of_range.validators = [
+                    DataRequired("Enter the maximum value allowed for this question"),
+                    BottomOfRangeIsLower("The maximum value must be higher than the minimum value"),
+                ]
 
         # fixme: IDE realises this is a FlaskForm and bool but mypy is calling it "Any" on pre-commit
         return super().validate(extra_validators=extra_validators)  # type: ignore
