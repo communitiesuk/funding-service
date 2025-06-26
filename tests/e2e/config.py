@@ -59,7 +59,7 @@ class LocalEndToEndSecrets:
             if not sso_user_id_line:
                 raise ValueError("Could not read SSO user ID from local .env file")
 
-            return cast(UUID, sso_user_id_line.group(1))
+            return UUID(sso_user_id_line.group(1))
 
 
 class AWSEndToEndSecrets:
@@ -124,6 +124,4 @@ class AWSEndToEndSecrets:
 
     @property
     def SSO_PLATFORM_ADMIN_USER_ID(self) -> UUID:
-        return cast(
-            UUID, self._read_aws_parameter_store_value("/apprunner/funding-service/E2E_SSO_PLATFORM_ADMIN_USER_ID")
-        )
+        return UUID(self._read_aws_parameter_store_value("/apprunner/funding-service/E2E_SSO_PLATFORM_ADMIN_USER_ID"))
