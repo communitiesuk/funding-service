@@ -39,7 +39,13 @@
           })
         }}
 
-        {{ form.submit(params={"text": "Update main purpose"}) }}
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Update main purpose"}) }}
+
+          {% if grant %}
+            <a class="govuk-link" href="{{ back_link_href }}">Cancel</a>
+          {% endif %}
+        </div>
       </form>
     </div>
   </div>

@@ -33,7 +33,13 @@
         {{ form.primary_contact_name(params={"classes": "govuk-!-width-two-thirds"}) }}
         {{ form.primary_contact_email(params={"type": "email", "classes": "govuk-!-width-two-thirds"}) }}
 
-        {{ form.submit(params={"text": "Update main contact"}) }}
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Update main contact"}) }}
+
+          {% if grant %}
+            <a class="govuk-link" href="{{ back_link_href }}">Cancel</a>
+          {% endif %}
+        </div>
       </form>
     </div>
   </div>
