@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea, GovTextInput
 from wtforms.fields.numeric import IntegerField
@@ -10,9 +12,13 @@ from app.common.data.types import QuestionDataType
 
 class TestBuildQuestionForm:
     def test_expected_fields_exist(self, app):
-        q = Question(text="Question text", data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        q = Question(
+            id=uuid.UUID("31673d51-95b0-4589-b254-33b866dfd94f"),
+            text="Question text",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
         form = build_question_form(q)
-        assert hasattr(form, "question")
+        assert hasattr(form, "q_31673d5195b04589b25433b866dfd94f")
         assert hasattr(form, "submit")
 
     def test_the_next_test_exhausts_QuestionDataType(self):
@@ -30,10 +36,11 @@ class TestBuildQuestionForm:
     )
     def test_expected_field_types(self, app, data_type, expected_field_type, expected_widget):
         """Feels like a bit of a redundant test that's just reimplementing the function, but ... :shrug:"""
-        q = Question(text="Question text", hint="Question hint", data_type=data_type)
+        q = Question(id=uuid.uuid4(), text="Question text", hint="Question hint", data_type=data_type)
         form = build_question_form(q)()
 
-        assert isinstance(form.question, expected_field_type)
-        assert isinstance(form.question.widget, expected_widget)
-        assert form.question.label.text == "Question text"
-        assert form.question.description == "Question hint"
+        question_field = form.get_question_field(q)
+        assert isinstance(question_field, expected_field_type)
+        assert isinstance(question_field.widget, expected_widget)
+        assert question_field.label.text == "Question text"
+        assert question_field.description == "Question hint"
