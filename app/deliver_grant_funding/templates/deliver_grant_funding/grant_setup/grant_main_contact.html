@@ -30,22 +30,8 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
-        {{
-          form.primary_contact_name(params={
-              "label": {
-                "classes": "govuk-label--s",
-              },
-          })
-        }}
-
-        {{
-          form.primary_contact_email(params={
-            "type": "email",
-            "label": {
-              "classes": "govuk-label--s",
-            },
-          })
-        }}
+        {{ form.primary_contact_name }}
+        {{ form.primary_contact_email(params={"type": "email"}) }}
 
         {{ form.submit(params={"text": "Update main contact"}) }}
       </form>
