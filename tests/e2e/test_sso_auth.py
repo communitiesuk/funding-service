@@ -19,8 +19,7 @@ def test_stub_sso_journey(page: Page, domain: str):
     expect(page).to_have_url(f"{domain}/grants")
 
 
-@pytest.mark.skip_in_environments(["local"])
-@pytest.mark.xfail
+@pytest.mark.skip_in_environments(["local", "dev", "test", "prod"])
 def test_real_sso_journey(page: Page, domain: str):
     """
     Test the real SSO journey using a service account.

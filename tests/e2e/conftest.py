@@ -1,14 +1,21 @@
+import os
 from typing import Generator, cast
+from unittest.mock import patch
 
 import pytest
-from playwright.sync_api import BrowserContext, Page
+from flask.typing import ResponseReturnValue
+from flask_login import login_user
+from playwright.sync_api import BrowserContext, Page, expect
 from pytest import FixtureRequest
 from pytest_playwright import CreateContextCallback
 
+from app import create_app
+from app.common.data.models_user import User
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
 from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.helpers import retrieve_magic_link
 from tests.e2e.pages import RequestALinkToSignInPage, SSOSignInPage, StubSSOEmailLoginPage
+from tests.utils import build_db_config
 
 
 @pytest.fixture(autouse=True)
@@ -89,10 +96,10 @@ def authenticated_browser_magic_link(
     return E2ETestUser(email_address=email)
 
 
-@pytest.fixture()
-def authenticated_browser_sso(
-    domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str
-) -> E2ETestUser:
+def login_with_stub_sso(domain: str, page: Page, email: str) -> E2ETestUser:
+    """
+    Logs in using the stub SSO flow, used for local development and running tests against docker compose in github
+    """
     sso_sign_in_page = SSOSignInPage(page, domain)
     sso_sign_in_page.navigate()
     sso_sign_in_page.click_sign_in()
@@ -102,3 +109,60 @@ def authenticated_browser_sso(
     sso_email_login_page.click_sign_in()
 
     return E2ETestUser(email_address=email)
+
+
+def login_with_session_cookie(page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets) -> E2ETestUser:
+    """
+    Creates an instance of the app with an additional route that uses flask_login to log in the test user. Retrieves the
+    session cookie from the response headers and adds it to the browser context cookies. Then that browser behaves as if
+    it is logged in with a valid session cookie. This bypasses the need to use the real SSO flow.
+
+    """
+    user_obj = User(name="E2E Test User", id=e2e_test_secrets.SSO_PLATFORM_ADMIN_USER_ID)
+    with patch.dict(os.environ, build_db_config(None)):
+        new_app = create_app()
+    new_app.config["SECRET_KEY"] = e2e_test_secrets.SECRET_KEY
+
+    @new_app.route("/fake_login")
+    def fake_login() -> ResponseReturnValue:
+        login_user(user=user_obj, fresh=True)
+        return "OK"
+
+    with new_app.test_request_context():
+        test_client = new_app.test_client()
+        result = test_client.get("/fake_login")
+        assert result.status_code == 200, "Fake login did not return 200 OK"
+        cookies = result.headers.get("Set-Cookie", None)
+        cookie_value = cookies.split(";")[0].split("=")[1] if cookies else None
+        if not cookie_value:
+            pytest.fail(f"Unable to extract session cookie value from fake-login response headers: {result.headers}")
+
+    sso_sign_in_page = SSOSignInPage(page, domain)
+    sso_sign_in_page.page.context.add_cookies(
+        [
+            {
+                "name": "session",
+                "value": cookie_value,
+                "domain": domain.split("https://")[1].split(":8080")[0],
+                "path": "/",
+                "httpOnly": True,
+                "secure": True,
+            }
+        ]
+    )
+    sso_sign_in_page.navigate()
+    # If the browser contains a valid cookie, it should redirect to the grants page
+    expect(page).to_have_url(f"{domain}/grants")
+    return E2ETestUser(email_address="svc-Preaward-Funds@test.communities.gov.uk")
+
+
+@pytest.fixture()
+def authenticated_browser_sso(
+    domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str
+) -> E2ETestUser:
+    if e2e_test_secrets.E2E_ENV == "local":
+        return login_with_stub_sso(domain, page, email)
+    elif e2e_test_secrets.E2E_ENV in {"dev", "test"}:
+        return login_with_session_cookie(page, domain, e2e_test_secrets)
+    else:
+        raise ValueError(f"Unknown e2e_env: {e2e_test_secrets.E2E_ENV}. Cannot authenticate browser with SSO.")

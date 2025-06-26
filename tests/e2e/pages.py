@@ -58,7 +58,8 @@ class SSOSignInPage(BasePage):
 
     def navigate(self) -> None:
         self.page.goto(f"{self.domain}/sso/sign-in")
-        expect(self.title).to_be_visible()
+        # If already logged in, this will redirect to /grants
+        expect(self.title.or_(self.page.get_by_role("heading", name="Grants"))).to_be_visible()
 
     def click_sign_in(self) -> None:
         self.sign_in.click()
