@@ -21,7 +21,7 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Set up the grant</span>
+      <span class="govuk-caption-l">{% if grant %}{{ grant.name }}{% else %}Set up the grant{% endif %}</span>
       <h1 class="govuk-heading-l">Who is the main contact for this grant?</h1>
       <p class="govuk-body">This is the person that teams at MHCLG can contact if they have any questions about the grant.</p>
 

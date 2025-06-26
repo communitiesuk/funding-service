@@ -16,7 +16,7 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Set up the grant</span>
+      <span class="govuk-caption-l">{{ grant.name }}</span>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
