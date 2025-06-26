@@ -53,7 +53,7 @@ def test_create_view_edit_grant_success(
     new_ggis_ref = f"edit-{uuid.uuid4()}"
     change_ggis_page.fill_ggis_number(new_ggis_ref)
     grant_details_page = change_ggis_page.click_submit(grant_name=edited_grant_name)
-    expect(grant_details_page.page.get_by_text(f"GGIS {new_ggis_ref}")).to_be_visible()
+    expect(grant_details_page.page.get_by_text(new_ggis_ref)).to_be_visible()
 
     # Change grant description
     change_description_page = grant_details_page.click_change_grant_description(new_grant_description)
