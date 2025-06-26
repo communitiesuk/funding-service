@@ -6,7 +6,7 @@ import simpleeval
 from flask import current_app
 from immutabledict import immutabledict
 
-from app.common.data.types import json_flat_scalars, scalars
+from app.common.data.types import immutable_json_flat_scalars, json_flat_scalars, scalars
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression
@@ -28,7 +28,7 @@ class InvalidEvaluationResult(BaseExpressionError):
     pass
 
 
-class ExpressionContext(json_flat_scalars):
+class ExpressionContext(immutable_json_flat_scalars):
     """
     A thin wrapper around three immutable dicts, where access to keys is done in priority order:
     - Keys from the `form` come first (data just submitted by the user answering some questions)
@@ -44,9 +44,9 @@ class ExpressionContext(json_flat_scalars):
 
     def __init__(
         self,
-        from_form: immutabledict[str, scalars] | None = None,
-        from_submission: immutabledict[str, scalars] | None = None,
-        from_expression: immutabledict[str, scalars] | None = None,
+        from_form: immutable_json_flat_scalars | None = None,
+        from_submission: immutable_json_flat_scalars | None = None,
+        from_expression: immutable_json_flat_scalars | None = None,
         *args: Any,
         **kwargs: Any,
     ):
@@ -55,54 +55,48 @@ class ExpressionContext(json_flat_scalars):
         super().__init__(*args, **kwargs)
 
         if from_form is None:
-            from_form = immutabledict()
+            from_form = cast(immutable_json_flat_scalars, immutabledict())
         if from_submission is None:
-            from_submission = immutabledict()
+            from_submission = cast(immutable_json_flat_scalars, immutabledict())
         if from_expression is None:
-            from_expression = immutabledict()
+            from_expression = cast(immutable_json_flat_scalars, immutabledict())
 
-        self._form_context: immutabledict[str, scalars] = from_form
-        self._submission_context: immutabledict[str, scalars] = from_submission
-        self._expression_context: immutabledict[str, scalars] = from_expression
+        self._form_context: immutable_json_flat_scalars = from_form
+        self._submission_context: immutable_json_flat_scalars = from_submission
+        self._expression_context: immutable_json_flat_scalars = from_expression
         self._update_keys()
 
     @property
-    def form_context(self) -> immutabledict[str, scalars]:
+    def form_context(self) -> immutable_json_flat_scalars:
         return self._form_context
 
     @form_context.setter
-    def form_context(self, value: immutabledict[str, scalars]) -> None:
+    def form_context(self, value: immutable_json_flat_scalars) -> None:
         self._form_context = value
         self._update_keys()
 
     @property
-    def submission_context(self) -> immutabledict[str, scalars]:
+    def submission_context(self) -> immutable_json_flat_scalars:
         return self._submission_context
 
     @submission_context.setter
-    def submission_context(self, value: immutabledict[str, scalars]) -> None:
+    def submission_context(self, value: immutable_json_flat_scalars) -> None:
         self._submission_context = value
         self._update_keys()
 
     @property
-    def expression_context(self) -> immutabledict[str, scalars]:
+    def expression_context(self) -> immutable_json_flat_scalars:
         return self._expression_context
 
     @expression_context.setter
-    def expression_context(self, value: immutabledict[str, scalars]) -> None:
+    def expression_context(self, value: immutable_json_flat_scalars) -> None:
         self._expression_context = value
         self._update_keys()
 
     def _update_keys(self) -> None:
-        _form_context: json_flat_scalars | immutabledict[str, scalars] = self.form_context or cast(
-            json_flat_scalars, {}
-        )
-        _submission_context: json_flat_scalars | immutabledict[str, scalars] = self.submission_context or cast(
-            json_flat_scalars, {}
-        )
-        _expression_context: json_flat_scalars | immutabledict[str, scalars] = self.expression_context or cast(
-            json_flat_scalars, {}
-        )
+        _form_context: json_flat_scalars = cast(json_flat_scalars, self.form_context or {})
+        _submission_context: json_flat_scalars = cast(json_flat_scalars, self.submission_context or {})
+        _expression_context: json_flat_scalars = cast(json_flat_scalars, self.expression_context or {})
 
         _keys: dict[str, None] = dict()
 
