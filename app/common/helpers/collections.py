@@ -17,7 +17,12 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
-from app.common.expressions import ExpressionContext, mangle_question_id_for_context
+from app.common.expressions import (
+    ExpressionContext,
+    UndefinedVariableInExpression,
+    evaluate,
+    mangle_question_id_for_context,
+)
 
 if TYPE_CHECKING:
     from app.common.data.models import Form, Grant, Question, Section, Submission
@@ -188,9 +193,18 @@ class SubmissionHelper:
         """Returns the visible, ordered forms for a given section based upon the current state of this collection."""
         return sorted(section.forms, key=lambda f: f.order)
 
+    def is_question_visible(self, question: "Question", context: "ExpressionContext") -> bool:
+        try:
+            return all(evaluate(condition, context) for condition in question.conditions)
+        except UndefinedVariableInExpression:
+            return False  # fail open for now, checking individual question visibility while routing should error though
+
     def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
-        return sorted(form.questions, key=lambda q: q.order)
+        ordered_questions = sorted(form.questions, key=lambda q: q.order)
+        return [
+            question for question in ordered_questions if self.is_question_visible(question, self.expression_context)
+        ]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
         questions = self.get_ordered_visible_questions_for_form(form)
