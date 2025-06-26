@@ -20,14 +20,13 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
-    MagicLink,
     Organisation,
     Question,
     Section,
     Submission,
     SubmissionEvent,
 )
-from app.common.data.models_user import User, UserRole
+from app.common.data.models_user import MagicLink, User, UserRole
 from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
 from app.extensions import db
 
@@ -60,6 +59,7 @@ class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     name = factory.Faker("name")
     email = factory.Faker("email")
     azure_ad_subject_id = factory.fuzzy.FuzzyText(length=25)
+    last_logged_in_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
 
 
 class _OrganisationFactory(factory.alchemy.SQLAlchemyModelFactory):

@@ -8,8 +8,7 @@ from sqlalchemy import func, select
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
-from app.common.data.models import MagicLink
-from app.common.data.models_user import User, UserRole
+from app.common.data.models_user import MagicLink, User, UserRole
 from app.common.data.types import RoleEnum
 from tests.utils import AnyStringMatching, page_has_error
 

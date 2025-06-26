@@ -1,14 +1,16 @@
+import datetime
 import uuid
 from typing import cast
 
 from flask_login import current_user
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
-from app.common.data.models_user import User, UserRole
+from app.common.data.models import Grant, Organisation
+from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
@@ -167,3 +169,21 @@ def remove_all_roles_from_user(user: User) -> None:
     db.session.execute(statement)
     db.session.flush()
     db.session.expire(user)
+
+
+def create_invitation(
+    email: str,
+    organisation: Organisation | None = None,
+    grant: Grant | None = None,
+    role: RoleEnum | None = None,
+) -> Invitation:
+    invitation = Invitation(
+        email=email,
+        organisation_id=organisation.id if organisation else None,
+        grant_id=grant.id if grant else None,
+        role=role,
+        expires_at_utc=func.now() + datetime.timedelta(days=7),
+    )
+    db.session.add(invitation)
+    db.session.flush()
+    return invitation

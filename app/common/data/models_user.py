@@ -1,6 +1,9 @@
+import secrets
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
+from pytz import utc
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,7 +12,7 @@ from app.common.data.base import BaseModel, CIStr
 from app.common.data.types import RoleEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import Grant, MagicLink, Organisation, Submission
+    from app.common.data.models import Grant, Organisation, Submission
 
 
 class User(BaseModel):
@@ -20,8 +23,13 @@ class User(BaseModel):
     azure_ad_subject_id: Mapped[str] = mapped_column(nullable=True, unique=True)
 
     magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
+    invitations: Mapped[list["Invitation"]] = relationship(
+        "Invitation", back_populates="user", cascade="all, delete-orphan"
+    )
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     submissions: Mapped[list["Submission"]] = relationship("Submission", back_populates="created_by")
+
+    last_logged_in_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
 
     # START: Flask-Login attributes
     # These ideally might be provided by UserMixin, except that breaks our type hinting when using this class in
@@ -82,3 +90,54 @@ class UserRole(BaseModel):
             name="member_role_not_platform",
         ),
     )
+
+
+class MagicLink(BaseModel):
+    __tablename__ = "magic_link"
+
+    code: Mapped[str] = mapped_column(unique=True, default=lambda: secrets.token_urlsafe(12))
+    email: Mapped[CIStr] = mapped_column(nullable=True)
+
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    redirect_to_path: Mapped[str]
+    expires_at_utc: Mapped[datetime]
+    claimed_at_utc: Mapped[datetime | None]
+
+    user: Mapped[User] = relationship("User", back_populates="magic_links")
+
+    __table_args__ = (Index(None, code, unique=True, postgresql_where="claimed_at_utc IS NOT NULL"),)
+
+    @property
+    def usable(self) -> bool:
+        return self.claimed_at_utc is None and self.expires_at_utc > datetime.now(utc).replace(tzinfo=None)
+
+
+class Invitation(BaseModel):
+    __tablename__ = "invitation"
+
+    email: Mapped[CIStr]
+
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    organisation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organisation.id", ondelete="CASCADE"), nullable=True
+    )
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
+    role: Mapped["RoleEnum"] = mapped_column(
+        SqlEnum(
+            RoleEnum,
+            name="role_enum",
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship("User", back_populates="invitations")
+    organisation: Mapped["Organisation"] = relationship("Organisation")
+    grant: Mapped["Grant"] = relationship("Grant")
+
+    expires_at_utc: Mapped[datetime] = mapped_column(nullable=False)
+    claimed_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    @property
+    def usable(self) -> bool:
+        return self.claimed_at_utc is None and self.expires_at_utc > datetime.now(utc).replace(tzinfo=None)

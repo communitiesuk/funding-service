@@ -1,9 +1,11 @@
+from datetime import datetime
+
 import pytest
 from sqlalchemy import func, select
 
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
-from app.common.data.models_user import User, UserRole
+from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
 
 
@@ -326,3 +328,17 @@ class TestRemoveUserRoleInterfaces:
         interfaces.user.remove_all_roles_from_user(user)
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
         assert user.roles == []
+
+
+class TestInvitations:
+    @pytest.mark.freeze_time("2023-10-01 12:00:00")
+    def test_create_invitation(self, db_session, factories):
+        invitation = interfaces.user.create_invitation(email="test@email.com", role=RoleEnum.MEMBER)
+        invite_from_db = db_session.get(Invitation, invitation.id)
+        assert invite_from_db is not None
+        assert invite_from_db.email == "test@email.com"
+        assert invite_from_db.role == RoleEnum.MEMBER
+        assert invite_from_db.expires_at_utc == datetime(2023, 10, 8, 12, 0, 0)
+        assert invite_from_db.claimed_at_utc is None
+        assert invite_from_db.grant_id is None
+        assert invite_from_db.organisation_id is None
