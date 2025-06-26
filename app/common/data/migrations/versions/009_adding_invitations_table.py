@@ -1,8 +1,8 @@
-"""Adding invitations table and relationships, adding last_login_utc
+"""Adding invitations table, and last_login_utc to user
 
 Revision ID: 009_adding_invitations_table
 Revises: 008_make_ggis_number_required
-Create Date: 2025-06-26 11:45:22.081976
+Create Date: 2025-06-26 13:37:11.014236
 
 """
 
@@ -23,12 +23,12 @@ def upgrade() -> None:
         sa.Column("created_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at_utc", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("email", postgresql.CITEXT(), nullable=False),
+        sa.Column("user_id", sa.Uuid(), nullable=True),
         sa.Column("organisation_id", sa.Uuid(), nullable=True),
         sa.Column("grant_id", sa.Uuid(), nullable=True),
-        sa.Column("role", postgresql.ENUM(name="role_enum", create_type=False), nullable=True),
+        sa.Column("role", postgresql.ENUM(name="role_enum", create_type=False), nullable=False),
         sa.Column("expires_at_utc", sa.DateTime(), nullable=False),
         sa.Column("claimed_at_utc", sa.DateTime(), nullable=True),
-        sa.Column("user_id", sa.Uuid(), nullable=True),
         sa.ForeignKeyConstraint(
             ["grant_id"], ["grant.id"], name=op.f("fk_invitation_grant_id_grant"), ondelete="CASCADE"
         ),
@@ -42,15 +42,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_invitation")),
     )
     with op.batch_alter_table("magic_link", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("invitation_id", sa.Uuid(), nullable=True))
-        batch_op.alter_column("user_id", existing_type=sa.UUID(), nullable=True)
-        batch_op.create_foreign_key(
-            batch_op.f("fk_magic_link_invitation_id_invitation"),
-            "invitation",
-            ["invitation_id"],
-            ["id"],
-            ondelete="CASCADE",
-        )
+        batch_op.add_column(sa.Column("email", postgresql.CITEXT(), nullable=True))
 
     with op.batch_alter_table("user", schema=None) as batch_op:
         batch_op.add_column(sa.Column("last_login_utc", sa.DateTime(), nullable=True))
@@ -61,8 +53,6 @@ def downgrade() -> None:
         batch_op.drop_column("last_login_utc")
 
     with op.batch_alter_table("magic_link", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("fk_magic_link_invitation_id_invitation"), type_="foreignkey")
-        batch_op.alter_column("user_id", existing_type=sa.UUID(), nullable=False)
-        batch_op.drop_column("invitation_id")
+        batch_op.drop_column("email")
 
     op.drop_table("invitation")

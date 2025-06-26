@@ -105,16 +105,14 @@ class MagicLink(BaseModel):
     __tablename__ = "magic_link"
 
     code: Mapped[str] = mapped_column(unique=True, default=lambda: secrets.token_urlsafe(12))
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"), nullable=True)
-    invitation_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("invitation.id", ondelete="CASCADE"), nullable=True
-    )
+    email: Mapped[CIStr] = mapped_column(nullable=True)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     redirect_to_path: Mapped[str]
     expires_at_utc: Mapped[datetime]
     claimed_at_utc: Mapped[datetime | None]
 
-    user: Mapped[User | None] = relationship("User", back_populates="magic_links")
-    invitation: Mapped["Invitation | None"] = relationship("Invitation", back_populates="magic_links")
+    user: Mapped[User] = relationship("User", back_populates="magic_links")
 
     __table_args__ = (Index(None, code, unique=True, postgresql_where="claimed_at_utc IS NOT NULL"),)
 
@@ -127,19 +125,27 @@ class Invitation(BaseModel):
     __tablename__ = "invitation"
 
     email: Mapped[CIStr] = mapped_column(nullable=False)
-    organisation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organisation.id", ondelete="CASCADE"), nullable=True)
-    grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
-    role: Mapped["RoleEnum"] = mapped_column(nullable=True)
+
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    organisation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organisation.id", ondelete="CASCADE"), nullable=True
+    )
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
+    role: Mapped["RoleEnum"] = mapped_column(
+        SqlEnum(
+            RoleEnum,
+            name="role_enum",
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship("User", back_populates="invitations")
+    organisation: Mapped["Organisation"] = relationship("Organisation")
+    grant: Mapped["Grant"] = relationship("Grant")
 
     expires_at_utc: Mapped[datetime] = mapped_column(nullable=False)
     claimed_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
-
-    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
-    user: Mapped[User | None] = relationship("User", back_populates="invitations")
-
-    magic_links: Mapped[list[MagicLink]] = relationship(
-        "MagicLink", back_populates="invitation", cascade="all, delete-orphan"
-    )
 
     @property
     def usable(self) -> bool:
