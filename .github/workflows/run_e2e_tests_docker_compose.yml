@@ -5,6 +5,9 @@ permissions:
   id-token: write  # This is required for authenticating with aws
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
   workflow_call:
     secrets:
       PULLPREVIEW_GOVUK_NOTIFY_API_KEY:
