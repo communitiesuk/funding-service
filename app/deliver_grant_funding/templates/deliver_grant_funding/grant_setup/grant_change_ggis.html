@@ -5,12 +5,14 @@
 {% set active_item_identifier = "details" %}
 
 {% block beforeContent %}
-  {{
-    govukBackLink({
-      "text": "Back",
-      "href": back_link_href,
-    })
-  }}
+  {% if not grant %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": back_link_href
+      })
+    }}
+  {% endif %}
 {% endblock %}
 
 {% block content %}

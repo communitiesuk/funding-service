@@ -10,12 +10,14 @@
 {% set page_title = "Who is the main contact for this grant?" %}
 
 {% block beforeContent %}
-  {{
-    govukBackLink({
-        "text": "Back",
-        "href": back_link_href
-    })
-  }}
+  {% if not grant %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": back_link_href
+      })
+    }}
+  {% endif %}
 {% endblock beforeContent %}
 
 {% block content %}
