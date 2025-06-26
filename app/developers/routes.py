@@ -41,6 +41,7 @@ from app.common.data.interfaces.temporary import (
     delete_submissions_created_by_user,
 )
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.expressions import ExpressionContext
 from app.common.expressions.helpers import (
     get_managed_expression_form,
     get_supported_form_questions,
@@ -833,8 +834,9 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
 
     # this method should work as long as data types are a single field and may
     # need to be revised if we have compound data types
-    submission_context = submission_helper.expression_context
-    form = build_question_form(question)(data=submission_context)
+    submission_context = submission_helper.submission_context
+    expression_context = ExpressionContext(from_submission=submission_context)
+    form = build_question_form(question, context=expression_context)(data=submission_context)
 
     if submission_helper.is_completed:
         if form.is_submitted():

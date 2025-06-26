@@ -199,7 +199,7 @@ class _SharedConfig(_BaseConfig):
     RECORD_SQLALCHEMY_QUERIES: bool = False
 
     # Logging
-    LOG_LEVEL: LogLevels = "INFO"
+    LOG_LEVEL: LogLevels = "DEBUG"
     LOG_FORMATTER: LogFormats = "json"
 
     # Flask-DebugToolbar

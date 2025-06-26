@@ -4,8 +4,8 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Optional, Type
 from uuid import UUID
 
+from immutabledict import immutabledict
 from pydantic import RootModel, TypeAdapter
-from sqlalchemy.util import immutabledict
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.data import interfaces
@@ -112,7 +112,7 @@ class SubmissionHelper:
         return self.collection.id
 
     @property
-    def expression_context(self) -> immutabledict[str, Any]:
+    def submission_context(self) -> immutabledict[str, Any]:
         return immutabledict({mangle_question_id_for_context(uuid.UUID(k)): v for k, v in self.submission.data.items()})
 
     def get_section(self, section_id: uuid.UUID) -> "Section":
