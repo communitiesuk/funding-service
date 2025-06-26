@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Any, cast
 
 from flask_wtf import FlaskForm
@@ -8,11 +7,11 @@ from pydantic.v1.class_validators import Validator
 from wtforms import Field
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import StringField, SubmitField
-from wtforms.validators import ValidationError
 
-from app.common.data.models import Expression, Question
+from app.common.data.models import Question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext, evaluate, mangle_question_id_for_context
+from app.common.helpers.collections import _form_data_to_question_type
 
 _accepted_fields = StringField | IntegerField
 
@@ -40,20 +39,16 @@ class DynamicQuestionForm(FlaskForm):
         return getattr(self, mangle_question_id_for_context(question.id)).data
 
 
-def build_validators(question: Question, context: ExpressionContext) -> list[Validator]:
+def build_integrity_validators(question: Question) -> list[Validator]:
     validators = []
 
-    for validation in question.validations:
-        # todo: support non-managed validation
-        if not validation.managed:
-            raise RuntimeError("Support for custom validation not yet implemented.")
+    # todo: some question types will likely have validators that are not additional expressions
+    #       for example if we have a URL question type it should make sure the URL is well formed
+    #       these would likely be added before going through the validation expressions
 
-        def run_validation(form, field, _validation: Expression):
-            if not evaluate(_validation, context):
-                raise ValidationError(_validation.managed.message)
-
-        validators.append(partial(run_validation, _validation=validation))
-
+    # 1. optional or mandatory validator
+    # 2. data type validators
+    # -> integrity passed
     return validators
 
 
@@ -62,6 +57,9 @@ def build_question_form(question: Question, context: ExpressionContext) -> type[
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
+        # note: one little thought while doing this is we probably want to be able to run validations across all
+        #       questions before submission so we'll want checking a questions valid to be able to be run independently
+        #       of the form too
         def validate(self, extra_validators=None):
             cleaned_data = self.data.copy()
             cleaned_data.pop("csrf_token")
@@ -78,11 +76,29 @@ def build_question_form(question: Question, context: ExpressionContext) -> type[
             #       feels like it needs to happen at a high level (the endpoint, where we have the submission/helper,
             #       which has access to all of the info) but then pass that down into the very low level areas where
             #       expressions actually get evaluated. And there's a lot of internals in between there.
-            context.form_context = immutabledict(cleaned_data)
 
-            return super().validate(extra_validators)
+            # the form context should be calculated after the integrity checks so we can be confident we can serialise the
+            # question type fully
+            if not super().validate(extra_validators):
+                return False
 
-    validators = build_validators(question, context)
+            # todo: each question type probably wants to tell us what shape it should take, for all of our "primitive" types this
+            #       will be OK
+            serialised = _form_data_to_question_type(question, self)
+            context.form_context = immutabledict({[mangle_question_id_for_context(question.id)]: serialised.root})
+
+            # todo: if there can more questions this is another thing to loop over
+            for validation in question.validations:
+                if not evaluate(validation, context):
+                    # todo: question types that involve more than one field will want to have a say here
+                    self.errors[mangle_question_id_for_context(question.id)] = [validation.managed.message]
+                    return False
+
+            return True
+
+    # todo: when we're accepting multiple questions for a single form this will need validators for all of them
+    #       and they'll need to be appropriately assigned based on the question id
+    validators = build_integrity_validators(question)
 
     field: _accepted_fields
     match question.data_type:
