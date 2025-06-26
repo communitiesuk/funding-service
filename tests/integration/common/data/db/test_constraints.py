@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.common.data.types import ExpressionType, RoleEnum
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, RoleEnum
 
 
 class TestUserRoleConstraints:
@@ -25,10 +25,18 @@ class TestExpressionConstraints:
         user = factories.user.create()
         q = factories.question.create()
         factories.expression.create(
-            question=q, created_by=user, type=ExpressionType.VALIDATION, statement="", context={"key": "unique"}
+            question=q,
+            created_by=user,
+            type=ExpressionType.VALIDATION,
+            statement="",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
         )
 
         with pytest.raises(IntegrityError):
             factories.expression.create(
-                question=q, created_by=user, type=ExpressionType.VALIDATION, statement="", context={"key": "unique"}
+                question=q,
+                created_by=user,
+                type=ExpressionType.VALIDATION,
+                statement="",
+                managed_name=ManagedExpressionsEnum.GREATER_THAN,
             )

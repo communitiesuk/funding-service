@@ -31,7 +31,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Collection
-from app.common.data.types import ExpressionType, QuestionDataType, SubmissionEventKey
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType, SubmissionEventKey
 from app.common.expressions import mangle_question_id_for_context
 from app.common.expressions.managed import GreaterThan, LessThan
 from app.common.helpers.collections import TextSingleLine
@@ -440,7 +440,7 @@ def test_add_question_condition(db_session, factories):
     assert from_db.expressions[0].statement == f"{qid} > 3000"
 
     # check the serialised context lines up with the values in the managed expression
-    assert from_db.expressions[0].context["key"] == "Greater than"
+    assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
     with pytest.raises(DuplicateValueError):
         add_question_condition(question, user, managed_expression)
@@ -465,7 +465,7 @@ def test_add_question_validation(db_session, factories):
     assert from_db.expressions[0].statement == f"{qid} > 3000"
 
     # check the serialised context lines up with the values in the managed expression
-    assert from_db.expressions[0].context["key"] == "Greater than"
+    assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
 
 def test_update_expression(db_session, factories):
@@ -493,7 +493,7 @@ def test_update_expression_errors_on_validation_overlap(db_session, factories):
     lt_expression = LessThan(maximum_value=5000, question_id=question.id)
 
     add_question_validation(question, user, lt_expression)
-    lt_db_expression = next(db_expr for db_expr in question.expressions if db_expr.context["key"] == lt_expression.key)
+    lt_db_expression = next(db_expr for db_expr in question.expressions if db_expr.managed_name == lt_expression._key)
 
     with pytest.raises(DuplicateValueError):
         update_question_expression(lt_db_expression, gt_expression)

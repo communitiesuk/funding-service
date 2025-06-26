@@ -8,7 +8,7 @@ from wtforms.fields.simple import BooleanField
 from wtforms.validators import DataRequired, Optional
 
 from app.common.data.models import Expression, Question
-from app.common.data.types import ManagedExpressionsEnum
+from app.common.data.types import ManagedExpressionsEnum, json_flat_scalars
 from app.common.expressions.managed import Between, GreaterThan, LessThan
 
 if TYPE_CHECKING:
@@ -117,22 +117,23 @@ class AddIntegerExpressionForm(_BaseExpressionForm):
 
     @staticmethod
     def from_expression(expression: "Expression") -> "AddIntegerExpressionForm":
-        data = {"type": expression.context["key"]}
+        data: json_flat_scalars = {"type": expression.managed_name.value} if expression.managed_name else {}
+        managed = expression.managed
 
-        # todo: when we surface the expression "key" to be top level db attribute we should take the
-        #       typed "managed" property of the expression here (probably needing to cast it) and use
-        #       the properties directly rather than using the context
-        match data["type"]:
+        match expression.managed_name:
             case ManagedExpressionsEnum.GREATER_THAN:
-                data["greater_than_value"] = expression.context["minimum_value"]
-                data["greater_than_inclusive"] = expression.context["inclusive"]
+                assert isinstance(managed, GreaterThan)
+                data["greater_than_value"] = managed.minimum_value
+                data["greater_than_inclusive"] = managed.inclusive
             case ManagedExpressionsEnum.LESS_THAN:
-                data["less_than_value"] = expression.context["maximum_value"]
-                data["less_than_inclusive"] = expression.context["inclusive"]
+                assert isinstance(managed, LessThan)
+                data["less_than_value"] = managed.maximum_value
+                data["less_than_inclusive"] = managed.inclusive
             case ManagedExpressionsEnum.BETWEEN:
-                data["bottom_of_range"] = expression.context["minimum_value"]
-                data["bottom_inclusive"] = expression.context["minimum_inclusive"]
-                data["top_of_range"] = expression.context["maximum_value"]
-                data["top_inclusive"] = expression.context["maximum_inclusive"]
+                assert isinstance(managed, Between)
+                data["bottom_of_range"] = managed.minimum_value
+                data["bottom_inclusive"] = managed.minimum_inclusive
+                data["top_of_range"] = managed.maximum_value
+                data["top_inclusive"] = managed.maximum_inclusive
 
         return AddIntegerExpressionForm(data=data)
