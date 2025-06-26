@@ -281,7 +281,7 @@ def move_form(
 @is_platform_admin
 @auto_commit_after_request
 def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
-    db_form = get_form_by_id(form_id)
+    db_form = get_form_by_id(form_id, with_all_questions=True)
 
     form = ConfirmDeletionForm()
     if "delete" in request.args and form.validate_on_submit() and form.confirm_deletion.data:

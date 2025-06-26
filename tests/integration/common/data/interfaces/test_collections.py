@@ -201,10 +201,29 @@ def test_move_section_up_down(db_session, factories):
     assert section2.order == 1
 
 
-def test_get_form(db_session, factories):
-    f = factories.form.create()
-    from_db = get_form_by_id(form_id=f.id)
+def test_get_form(db_session, factories, track_sql_queries):
+    form = factories.form.create()
+    question_one = factories.question.create(form=form)
+    question_two = factories.question.create(form=form)
+    factories.expression.create_batch(5, question=question_one, type=ExpressionType.CONDITION, statement="")
+    factories.expression.create_batch(5, question=question_two, type=ExpressionType.CONDITION, statement="")
+
+    # fetching the form directly
+    from_db = get_form_by_id(form_id=form.id)
     assert from_db is not None
+
+    # fetching the form and eagerly loading all questions and their expressions
+    from_db = get_form_by_id(form_id=form.id, with_all_questions=True)
+
+    # check we're not sending off more round trips to the database when interacting with the ORM
+    count = 0
+    with track_sql_queries() as queries:
+        for q in from_db.questions:
+            for _e in q.expressions:
+                count += 1
+
+    assert count == 10
+    assert queries == []
 
 
 def test_create_form(db_session, factories):

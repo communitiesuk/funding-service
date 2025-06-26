@@ -184,8 +184,12 @@ def move_section_down(section: Section) -> Section:
     return section
 
 
-def get_form_by_id(form_id: UUID) -> Form:
-    return db.session.get_one(Form, form_id)
+def get_form_by_id(form_id: UUID, with_all_questions: bool = False) -> Form:
+    options = []
+    if with_all_questions:
+        # todo: this will need refining again when we have different levels of grouped questions
+        options.append(selectinload(Form.questions).joinedload(Question.expressions))
+    return db.session.query(Form).options(*options).where(Form.id == form_id).one()
 
 
 def create_form(*, title: str, section: Section) -> Form:
