@@ -27,8 +27,8 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
     form = SignInForm()
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
-
-        user = interfaces.user.upsert_user_by_email(email_address=email)
+        user = interfaces.user.get_user_by_email(email_address=email)
+        # user = interfaces.user.upsert_user_by_email(email_address=email)
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
             redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
@@ -68,6 +68,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
 
     form = ClaimMagicLinkForm()
     if form.validate_on_submit():
+        user = interfaces.user.upsert_user_by_email(email_address=str(magic_link.email))
         interfaces.magic_link.claim_magic_link(magic_link=magic_link)
         if not login_user(magic_link.user):
             abort(400)
