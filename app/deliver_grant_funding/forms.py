@@ -133,7 +133,7 @@ class GrantContactForm(GrantSetupForm):
 
 
 class GrantCheckYourAnswersForm(FlaskForm):
-    submit = SubmitField("Add grant", widget=GovSubmitInput())
+    submit = SubmitField("Confirm and set up grant", widget=GovSubmitInput())
 
 
 class CollectionForm(GrantSetupForm):

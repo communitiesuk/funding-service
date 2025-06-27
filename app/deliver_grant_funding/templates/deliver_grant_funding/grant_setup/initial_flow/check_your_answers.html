@@ -13,26 +13,26 @@
       govukSummaryList({
         "rows": [
           {
-            "key": {"text": "GGIS"},
+            "key": {"text": "GGIS reference number"},
             "value": {"text": grant_session.ggis_number},
             "actions": {
               "items": [{
                 "href": url_for("deliver_grant_funding.grant_setup_ggis", source=check_your_answers_source),
                 "classes": "govuk-link--no-visited-state",
                 "text": "Change",
-                "visuallyHiddenText": "the GGIS number"
+                "visuallyHiddenText": "GGIS reference number"
               }]
             }
           },
           {
-            "key": {"text": "Name"},
+            "key": {"text": "Grant name"},
             "value": {"text": grant_session.name},
             "actions": {
               "items": [{
                 "href": url_for("deliver_grant_funding.grant_setup_name", source=check_your_answers_source),
                 "classes": "govuk-link--no-visited-state",
                 "text": "Change",
-                "visuallyHiddenText": "the grant name"
+                "visuallyHiddenText": "grant name"
               }]
             }
           },
@@ -44,7 +44,7 @@
                 "href": url_for("deliver_grant_funding.grant_setup_description", source=check_your_answers_source),
                 "classes": "govuk-link--no-visited-state",
                 "text": "Change",
-                "visuallyHiddenText": "the main purpose"
+                "visuallyHiddenText": "main purpose"
               }]
             }
           },
@@ -56,15 +56,13 @@
                 "href": url_for("deliver_grant_funding.grant_setup_contact", source=check_your_answers_source),
                 "classes": "govuk-link--no-visited-state",
                 "text": "Change",
-                "visuallyHiddenText": "the main contact details"
+                "visuallyHiddenText": "main contact"
               }]
             }
           }
         ]
       })
     }}
-
-    <p class="govuk-body">You can edit, update and add more information about this grant at any time.</p>
 
     <form method="post" novalidate>
       {{ form.csrf_token }}

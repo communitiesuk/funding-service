@@ -103,8 +103,7 @@ def test_create_and_preview_collection(
     grant_contact_page.fill_contact_name()
     grant_contact_page.fill_contact_email()
     grant_check_your_answers_page = grant_contact_page.click_save_and_continue()
-    grant_confirmation_page = grant_check_your_answers_page.click_add_grant()
-    grant_dashboard_page = grant_confirmation_page.click_continue()
+    grant_dashboard_page = grant_check_your_answers_page.click_add_grant()
 
     # Go to developers tab
     developers_page = grant_dashboard_page.click_developers(new_grant_name)

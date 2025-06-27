@@ -214,7 +214,7 @@ class GrantSetupNamePage(TopNavMixin, BasePage):
 class GrantSetupDescriptionPage(TopNavMixin, BasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.title = self.page.get_by_role("heading", name="Purpose of this grant")
+        self.title = self.page.get_by_role("heading", name="What is the main purpose of this grant?")
         self.description_textarea = self.page.get_by_role("textbox", name="Enter the main purpose of this grant")
         self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
 
@@ -253,13 +253,12 @@ class GrantSetupCheckYourAnswersPage(TopNavMixin, BasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.title = self.page.get_by_role("heading", name="Check your answers")
-        self.add_grant_button = self.page.get_by_role("button", name="Add grant")
+        self.add_grant_button = self.page.get_by_role("button", name="Confirm and set up grant")
 
-    def click_add_grant(self) -> GrantSetupConfirmationPage:
+    def click_add_grant(self) -> GrantDashboardPage:
         self.add_grant_button.click()
-        grant_setup_confirmation_page = GrantSetupConfirmationPage(self.page, self.domain)
-        expect(grant_setup_confirmation_page.title).to_be_visible()
-        return grant_setup_confirmation_page
+        grant_dashboard_page = GrantDashboardPage(self.page, self.domain)
+        return grant_dashboard_page
 
 
 class GrantSetupConfirmationPage(TopNavMixin, BasePage):
@@ -408,7 +407,7 @@ class ChangeGrantDescriptionPage(GrantDashboardBasePage):
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.title = self.page.get_by_role("heading", name="Purpose of this grant")
+        self.title = self.page.get_by_role("heading", name="What is the main purpose of this grant?")
         self.grant_description_textbox = page.get_by_role("textbox", name="Enter the main purpose of this grant")
 
     def fill_in_grant_description(self, description: str) -> None:
