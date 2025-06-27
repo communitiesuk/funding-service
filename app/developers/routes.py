@@ -905,6 +905,18 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
     # todo: questions with multiple inputs will need to think this through a bit more
     form = build_question_form(question, expression_context=expression_context)(data=expression_context)
 
+    if not submission_helper.is_question_visible(question, submission_helper.expression_context):
+        current_app.logger.warning(
+            "Routed to a question that is not visible for submission_id=%(submission_id)s, "
+            "question_id=%(question_id)s, is_submitted=%(is_submitted)s",
+            dict(
+                submission_id=str(submission_helper.id),
+                question_id=str(question.id),
+                is_submitted=form.is_submitted(),
+            ),
+        )
+        return redirect(url_for("developers.check_your_answers", submission_id=submission_id, form_id=question.form_id))
+
     if submission_helper.is_completed:
         if form.is_submitted():
             # TODO: Add an error flash message?

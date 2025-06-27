@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import Collection, Form, Grant, Question, Section
-from app.common.data.types import QuestionDataType, RoleEnum
+from app.common.data.types import ExpressionType, QuestionDataType, RoleEnum
 from app.deliver_grant_funding.forms import (
     CollectionForm,
     FormForm,
@@ -1041,3 +1041,26 @@ def test_list_users_for_grant_with_member(authenticated_member_client, templates
     users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
     assert users
     assert len(users) == 1
+
+
+def test_accessing_question_page_with_failing_condition_redirects(
+    authenticated_platform_admin_client, factories, templates_rendered
+):
+    question = factories.question.create()
+    submission = factories.submission.create(collection=question.form.section.collection)
+
+    response = authenticated_platform_admin_client.get(
+        url_for("developers.ask_a_question", submission_id=submission.id, question_id=question.id),
+    )
+    assert response.status_code == 200
+
+    # the question should no longer be accessible
+    factories.expression.create(question=question, type=ExpressionType.CONDITION, statement="False")
+
+    response = authenticated_platform_admin_client.get(
+        url_for("developers.ask_a_question", submission_id=submission.id, question_id=question.id),
+    )
+    assert response.status_code == 302
+    assert response.location == url_for(
+        "developers.check_your_answers", submission_id=submission.id, form_id=question.form.id
+    )
