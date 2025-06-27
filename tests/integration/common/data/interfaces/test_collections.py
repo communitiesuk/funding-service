@@ -203,14 +203,18 @@ def test_move_section_up_down(db_session, factories):
 
 def test_get_form(db_session, factories, track_sql_queries):
     form = factories.form.create()
+
+    # fetching the form directly
+    from_db = get_form_by_id(form_id=form.id)
+    assert from_db.id == form.id
+
+
+def test_get_form_with_all_questions(db_session, factories, track_sql_queries):
+    form = factories.form.create()
     question_one = factories.question.create(form=form)
     question_two = factories.question.create(form=form)
     factories.expression.create_batch(5, question=question_one, type=ExpressionType.CONDITION, statement="")
     factories.expression.create_batch(5, question=question_two, type=ExpressionType.CONDITION, statement="")
-
-    # fetching the form directly
-    from_db = get_form_by_id(form_id=form.id)
-    assert from_db is not None
 
     # fetching the form and eagerly loading all questions and their expressions
     from_db = get_form_by_id(form_id=form.id, with_all_questions=True)
@@ -222,8 +226,7 @@ def test_get_form(db_session, factories, track_sql_queries):
             for _e in q.expressions:
                 count += 1
 
-    assert count == 10
-    assert queries == []
+    assert count == 10 and queries == []
 
 
 def test_create_form(db_session, factories):
