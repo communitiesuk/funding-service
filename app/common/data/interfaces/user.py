@@ -185,3 +185,7 @@ def create_invitation(
     db.session.add(invitation)
     db.session.flush()
     return invitation
+
+
+def get_invitation(invitation_id: uuid.UUID) -> Invitation | None:
+    return db.session.get(Invitation, invitation_id)

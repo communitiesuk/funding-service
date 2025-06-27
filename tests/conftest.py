@@ -17,6 +17,7 @@ from tests.models import (
     _ExpressionFactory,
     _FormFactory,
     _GrantFactory,
+    _InvitationFactory,
     _MagicLinkFactory,
     _OrganisationFactory,
     _QuestionFactory,
@@ -143,6 +144,7 @@ _Factories = namedtuple(
         "user_role",
         "submission_event",
         "expression",
+        "invitation",
     ],
 )
 
@@ -162,4 +164,5 @@ def factories(db_session: Session) -> _Factories:
         user_role=_UserRoleFactory,
         submission_event=_SubmissionEventFactory,
         expression=_ExpressionFactory,
+        invitation=_InvitationFactory,
     )
