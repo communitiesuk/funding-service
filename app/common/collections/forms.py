@@ -1,14 +1,17 @@
-from typing import Any, cast
+from functools import partial
+from typing import Any, Callable, Mapping, Sequence, cast
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea, GovTextInput
-from wtforms import Field
+from immutabledict import immutabledict
+from wtforms import Field, Form
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import StringField, SubmitField
+from wtforms.validators import ValidationError
 
-from app.common.data.models import Question
-from app.common.data.types import QuestionDataType
-from app.common.expressions import mangle_question_id_for_context
+from app.common.data.models import Expression, Question
+from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
+from app.common.expressions import ExpressionContext, evaluate, mangle_question_id_for_context
 
 _accepted_fields = StringField | IntegerField
 
@@ -36,25 +39,81 @@ class DynamicQuestionForm(FlaskForm):
         return getattr(self, mangle_question_id_for_context(question.id)).data
 
 
-def build_question_form(question: Question) -> type[DynamicQuestionForm]:
+def build_validators(question: Question, expression_context: ExpressionContext) -> list[Callable[[Form, Field], None]]:
+    validators = []
+
+    for _validation in question.validations:
+
+        def run_validation(form: Form, field: Field, validation: Expression) -> None:
+            if not validation.managed:
+                raise RuntimeError("Support for un-managed validation has not been implemented yet.")
+
+            if not evaluate(expression=validation, context=expression_context):
+                raise ValidationError(validation.managed.message)
+
+        validators.append(cast(Callable[[Form, Field], None], partial(run_validation, validation=_validation)))
+
+    return validators
+
+
+def build_question_form(question: Question, expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
+        def _build_form_context(self) -> immutable_json_flat_scalars:
+            """
+            Extract all of the data from the form and return an immutabledict suitable for setting on an expression
+            context (ExpressionContext.form_context). This data will override any data from the existing submission
+            to allow for evaluations against the most up-to-date data (ie from the submission as a whole, plus the data
+            the user has just submitted as part of this form.
+            """
+            # fixme: when adding multi-field/complex question support, we'll need to think more carefully about
+            #        transforming the data here to a format that matches our serialised submission format (which passes
+            #        through pydantic models. Otherwise we risk exposing different views of the data to the expressions
+            #        system (fully serialised+normalised in the submission context, and more raw in the form context).
+            data = {k: v for k, v in self.data.items() if k not in {"csrf_token", "submit"}}
+            return immutabledict(data)
+
+        def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> Any:
+            """
+            Run the form's validation chain. This works in two steps, currently intermingled:
+            - WTForm's built-in field-level validation (eg for IntegerField, that data has been provided, and that it
+              can be coerced to an integer value.
+            - Our own validation based on the expression framework. As of 27/06/2025, this supports only "managed"
+              validation, but we expect to support fully-custom user-provided validation using expressions as well.
+            """
+            # todo: this combines wtform-field validation with our own validation and runs them in a single phase.
+            #       we might want to run the super/wtform validation first, and then only if that passes, do a second
+            #       pass with all of our custom validation. This should mean that our own validators have to think less
+            #       about 'what if data is missing / in the incorrect format', and so reduce the edge cases we have to
+            #       think about.
+            expression_context.form_context = self._build_form_context()
+            return super().validate(extra_validators)
+
+    validators = build_validators(question, expression_context)
+
     field: _accepted_fields
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
-            field = StringField(label=question.text, description=question.hint or "", widget=GovTextInput())
+            field = StringField(
+                label=question.text,
+                description=question.hint or "",
+                validators=validators,
+                widget=GovTextInput(),
+            )
         case QuestionDataType.TEXT_MULTI_LINE:
             field = StringField(
                 label=question.text,
                 description=question.hint or "",
+                validators=validators,
                 widget=GovTextArea(),
             )
         case QuestionDataType.INTEGER:
             field = IntegerField(
                 label=question.text,
                 description=question.hint or "",
+                validators=validators,
                 widget=GovTextInput(),
             )
         case _:
