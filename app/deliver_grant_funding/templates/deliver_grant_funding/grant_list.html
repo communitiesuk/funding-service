@@ -24,7 +24,7 @@
       {% set table_rows = namespace(items=[]) %}
       {% for grant in grants %}
         {% set grant_detail_link %}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.view_grant", grant_id=grant.id) }}">{{ grant.name }}</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=grant.id) }}">{{ grant.name }}</a>
         {% endset %}
         {%
           set table_rows.items = table_rows.items + [

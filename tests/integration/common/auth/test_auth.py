@@ -236,7 +236,7 @@ class TestSSOGetTokenView:
     def test_get_valid_token_with_redirect(self, anonymous_client, factories, db_session):
         dummy_grant = factories.grant.create()
         with anonymous_client.session_transaction() as session:
-            session["next"] = url_for("deliver_grant_funding.view_grant", grant_id=dummy_grant.id)
+            session["next"] = url_for("deliver_grant_funding.grant_details", grant_id=dummy_grant.id)
 
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
