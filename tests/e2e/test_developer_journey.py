@@ -5,6 +5,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from app.common.data.types import QuestionDataType
+from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.developer_pages import CheckYourAnswersPage, CollectionDetailPage, ManageFormPage, QuestionPage
@@ -24,10 +25,14 @@ question_text_by_type: dict[QuestionDataType, str] = {
 }
 
 
-question_response_data_by_type: dict[QuestionDataType, _QuestionResponse] = {
-    QuestionDataType.TEXT_SINGLE_LINE: _QuestionResponse("E2E question text single line"),
-    QuestionDataType.TEXT_MULTI_LINE: _QuestionResponse("E2E question text multi line\nwith a second line"),
-    QuestionDataType.INTEGER: _QuestionResponse("234"),
+question_response_data_by_type: dict[QuestionDataType, list[_QuestionResponse]] = {
+    QuestionDataType.TEXT_SINGLE_LINE: [_QuestionResponse("E2E question text single line")],
+    QuestionDataType.TEXT_MULTI_LINE: [_QuestionResponse("E2E question text multi line\nwith a second line")],
+    QuestionDataType.INTEGER: [
+        _QuestionResponse("0", "The answer must be greater than 1"),
+        _QuestionResponse("101", "The answer must be less than or equal to 100"),
+        _QuestionResponse("100"),
+    ],
 }
 
 created_questions_to_test = []
@@ -51,8 +56,16 @@ def create_question(
     manage_form_page.check_question_exists(question_text)
 
     created_questions_to_test.append(
-        {"question_text": question_text, "question_response": question_response_data_by_type[question_type]}
+        {"question_text": question_text, "question_responses": question_response_data_by_type[question_type]}
     )
+
+
+def add_validation(manage_form_page: ManageFormPage, question_text: str, validation: ManagedExpression) -> None:
+    edit_question_page = manage_form_page.click_edit_question(question_text)
+    add_validation_page = edit_question_page.click_add_validation()
+    add_validation_page.configure_managed_validation(validation)
+    edit_question_page = add_validation_page.click_add_validation()
+    edit_question_page.click_back()
 
 
 def navigate_to_collection_detail_page(
@@ -130,6 +143,18 @@ def test_create_and_preview_collection(
     create_question(QuestionDataType.TEXT_MULTI_LINE, manage_form_page)
     create_question(QuestionDataType.INTEGER, manage_form_page)
 
+    add_validation(
+        manage_form_page,
+        question_text_by_type[QuestionDataType.INTEGER],
+        GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),  # question_id does not matter here
+    )
+
+    add_validation(
+        manage_form_page,
+        question_text_by_type[QuestionDataType.INTEGER],
+        LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),  # question_id does not matter here
+    )
+
     # Preview the form
     collection_detail_page = navigate_to_collection_detail_page(page, domain, new_grant_name, new_collection_name)
     tasklist_page = collection_detail_page.click_preview_collection()
@@ -147,8 +172,13 @@ def test_create_and_preview_collection(
     for question in created_questions_to_test:
         question_page = QuestionPage(page, domain, new_grant_name, question["question_text"])
         expect(question_page.heading).to_be_visible()
-        question_page.respond_to_question(answer=question["question_response"].answer)
-        question_page.click_continue()
+
+        for question_response in question["question_responses"]:
+            question_page.respond_to_question(answer=question_response.answer)
+            question_page.click_continue()
+
+            if question_response.error_message:
+                expect(question_page.page.get_by_role("link", name=question_response.error_message)).to_be_visible()
 
     # Check the answers page
     check_your_answers = CheckYourAnswersPage(page, domain, new_grant_name)
@@ -157,7 +187,7 @@ def test_create_and_preview_collection(
         question_heading = check_your_answers.page.get_by_text(question["question_text"], exact=True)
         expect(question_heading).to_be_visible()
         expect(check_your_answers.page.get_by_test_id(f"answer-{question['question_text']}")).to_have_text(
-            question["question_response"].answer
+            question["question_responses"][-1].answer
         )
 
     expect(check_your_answers.page.get_by_text("Have you completed this section?", exact=True)).to_be_visible()
@@ -187,5 +217,5 @@ def test_create_and_preview_collection(
     expect(answers_list).to_be_visible()
     for question in created_questions_to_test:
         expect(
-            answers_list.get_by_text(f"{question['question_text']} {question['question_response'].answer}")
+            answers_list.get_by_text(f"{question['question_text']} {question['question_responses'][-1].answer}")
         ).to_be_visible()

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from typing import cast
+
 from playwright.sync_api import Locator, Page, expect
+
+from app.common.data.types import ManagedExpressionsEnum
+from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
 
 
 class GrantDevelopersBasePage:
@@ -275,6 +280,119 @@ class ManageFormPage(GrantDevelopersBasePage):
 
     def check_question_exists(self, question_name: str) -> None:
         expect(self.page.get_by_role("term").filter(has_text=question_name)).to_be_visible()
+
+    def click_edit_question(self, question_name: str) -> "EditQuestionPage":
+        self.page.get_by_role("link", name=question_name).click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
+
+
+class EditQuestionPage(GrantDevelopersBasePage):
+    add_validation_button: Locator
+    back_link: Locator
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, collection_name: str, section_title: str, form_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Edit question"),
+        )
+        self.section_title = section_title
+        self.collection_name = collection_name
+        self.form_name = form_name
+        self.add_validation_button = self.page.get_by_role("button", name="Add validation").or_(
+            self.page.get_by_role("button", name="Add more validation")
+        )
+        self.back_link = self.page.get_by_role("link", name="Back")
+
+    def click_add_validation(self) -> "AddValidationPage":
+        self.add_validation_button.click()
+        add_validation_page = AddValidationPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(add_validation_page.heading).to_be_visible()
+        return add_validation_page
+
+    def click_back(self) -> "ManageFormPage":
+        self.back_link.click()
+        manage_form_page = ManageFormPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(manage_form_page.heading).to_be_visible()
+        return manage_form_page
+
+
+class AddValidationPage(GrantDevelopersBasePage):
+    add_validation_button: Locator
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, collection_name: str, section_title: str, form_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Add validation"),
+        )
+        self.section_title = section_title
+        self.collection_name = collection_name
+        self.form_name = form_name
+        self.add_validation_button = self.page.get_by_role("button", name="Add validation")
+
+    def configure_managed_validation(self, managed_validation: ManagedExpression) -> None:
+        self.click_managed_validation_type(managed_validation)
+
+        match managed_validation._key:
+            case ManagedExpressionsEnum.GREATER_THAN:
+                managed_validation = cast(GreaterThan, managed_validation)
+                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_validation.minimum_value))
+
+                if managed_validation.inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
+
+            case ManagedExpressionsEnum.LESS_THAN:
+                managed_validation = cast(LessThan, managed_validation)
+                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_validation.maximum_value))
+
+                if managed_validation.inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+
+    def click_managed_validation_type(self, managed_validation: ManagedExpression) -> None:
+        self.page.get_by_role("radio", name=managed_validation._key.value).click()
+
+    def click_add_validation(self) -> "EditQuestionPage":
+        self.add_validation_button.click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
 
 
 class SelectQuestionTypePage(GrantDevelopersBasePage):
