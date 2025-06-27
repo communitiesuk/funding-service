@@ -189,3 +189,11 @@ def create_invitation(
 
 def get_invitation(invitation_id: uuid.UUID) -> Invitation | None:
     return db.session.get(Invitation, invitation_id)
+
+
+def claim_invitation(invitation: Invitation, user: User) -> Invitation:
+    invitation.claimed_at_utc = func.now()
+    invitation.user = user
+    db.session.add(invitation)
+    db.session.flush()
+    return invitation
