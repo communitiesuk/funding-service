@@ -3,7 +3,6 @@ import uuid
 from typing import TYPE_CHECKING, Any, Iterator, cast
 
 import simpleeval
-from flask import current_app
 from immutabledict import immutabledict
 
 from app.common.data.types import immutable_json_flat_scalars, json_flat_scalars, scalars
@@ -98,6 +97,13 @@ class ExpressionContext(immutable_json_flat_scalars):
         _submission_context: json_flat_scalars = cast(json_flat_scalars, self.submission_context or {})
         _expression_context: json_flat_scalars = cast(json_flat_scalars, self.expression_context or {})
 
+        # note: This feels like it could just be a set, or that a set is a more appropriate data structure. However I've
+        # chosen a dict on purpose because: sets in python are unordered; dicts in python are ordered by insertion
+        # time. ExpressionContext is meant to look and feel like a plain old dict, so maintaining the ordering has been
+        # done semi-intentionally. Of course, there is a slight quirk - ordering is based on both insertion time _and_
+        # the layering. All keys from form context will come first, then any new keys from submission context, then any
+        # new keys from expression context. It may or may not be useful to try to 'maintain' ordering given this, but
+        # maybe it's still "better" than fully-random set ordering.
         _keys: dict[str, None] = dict()
 
         for _dict in [_form_context, _submission_context, _expression_context]:
@@ -163,10 +169,6 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     if context is None:
         context = ExpressionContext()
     context.expression_context = immutabledict(expression.context or {})
-
-    current_app.logger.debug(
-        "Evaluating %(statement)s with %(context)s", dict(statement=expression.statement, context=str(context))
-    )
 
     # May want EvalWithCompoundTypes at some point, but for now simple+very limited is OK.
     evaluator = simpleeval.SimpleEval(names=context)  # type: ignore[no-untyped-call]
