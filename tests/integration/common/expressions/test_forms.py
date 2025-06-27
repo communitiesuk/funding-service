@@ -1,3 +1,5 @@
+from werkzeug.datastructures import MultiDict
+
 from app.common.data.interfaces.collections import add_question_validation
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.forms import AddIntegerExpressionForm
@@ -8,7 +10,11 @@ class TestAddIntegerValidationForm:
     def test_get_greater_than_expression(self, factories):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
         form = AddIntegerExpressionForm(
-            type=ManagedExpressionsEnum.GREATER_THAN.value, greater_than_value=2000, greater_than_inclusive=False
+            formdata=MultiDict(
+                dict(
+                    type=ManagedExpressionsEnum.GREATER_THAN.value, greater_than_value="2000", greater_than_inclusive=""
+                )
+            )
         )
 
         expression = form.get_expression(question)
@@ -19,7 +25,9 @@ class TestAddIntegerValidationForm:
     def test_get_less_than_expression(self, factories):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
         form = AddIntegerExpressionForm(
-            type=ManagedExpressionsEnum.LESS_THAN.value, less_than_value=2000, less_than_inclusive=False
+            formdata=MultiDict(
+                dict(type=ManagedExpressionsEnum.LESS_THAN.value, less_than_value="2000", less_than_inclusive="")
+            )
         )
 
         expression = form.get_expression(question)
@@ -30,11 +38,15 @@ class TestAddIntegerValidationForm:
     def test_get_between_expression(self, factories):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
         form = AddIntegerExpressionForm(
-            type=ManagedExpressionsEnum.BETWEEN.value,
-            bottom_of_range=10,
-            bottom_inclusive=False,
-            top_of_range=20,
-            top_inclusive=False,
+            formdata=MultiDict(
+                dict(
+                    type=ManagedExpressionsEnum.BETWEEN.value,
+                    bottom_of_range="10",
+                    bottom_inclusive="",
+                    top_of_range="20",
+                    top_inclusive="",
+                )
+            )
         )
 
         expression = form.get_expression(question)

@@ -5,7 +5,7 @@ from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovRadioInput, GovSubmitInput, GovTextInput
 from wtforms import IntegerField, RadioField, SubmitField, ValidationError
 from wtforms.fields.simple import BooleanField
-from wtforms.validators import DataRequired, Optional
+from wtforms.validators import DataRequired, InputRequired, Optional
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import ManagedExpressionsEnum, json_flat_scalars
@@ -67,16 +67,20 @@ class AddIntegerExpressionForm(_BaseExpressionForm):
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         match self.type.data:
             case ManagedExpressionsEnum.GREATER_THAN.value:
-                self.greater_than_value.validators = [DataRequired("Enter the minimum value allowed for this question")]
+                self.greater_than_value.validators = [
+                    InputRequired("Enter the minimum value allowed for this question"),
+                ]
             case ManagedExpressionsEnum.LESS_THAN.value:
-                self.less_than_value.validators = [DataRequired("Enter the maximum value allowed for this question")]
+                self.less_than_value.validators = [
+                    InputRequired("Enter the maximum value allowed for this question"),
+                ]
             case ManagedExpressionsEnum.BETWEEN.value:
                 self.bottom_of_range.validators = [
-                    DataRequired("Enter the minimum value allowed for this question"),
+                    InputRequired("Enter the minimum value allowed for this question"),
                     BottomOfRangeIsLower("The minimum value must be lower than the maximum value"),
                 ]
                 self.top_of_range.validators = [
-                    DataRequired("Enter the maximum value allowed for this question"),
+                    InputRequired("Enter the maximum value allowed for this question"),
                     BottomOfRangeIsLower("The maximum value must be higher than the minimum value"),
                 ]
 
