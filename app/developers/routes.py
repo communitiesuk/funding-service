@@ -901,9 +901,9 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
 
     # this method should work as long as data types are a single field and may
     # need to be revised if we have compound data types
-    submission_context = submission_helper.expression_context
+    expression_context = submission_helper.expression_context
     # todo: questions with multiple inputs will need to think this through a bit more
-    form = build_question_form(question)(data=submission_context)
+    form = build_question_form(question, expression_context=expression_context)(data=expression_context)
 
     if submission_helper.is_completed:
         if form.is_submitted():

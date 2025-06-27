@@ -9,6 +9,8 @@ from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import Integer, SubmissionHelper, TextSingleLine
 from tests.utils import AnyStringMatching
 
+EC = ExpressionContext
+
 
 class TestSubmissionHelper:
     class TestGetAndSubmitAnswerForQuestion:
@@ -19,7 +21,9 @@ class TestSubmissionHelper:
 
             assert helper.get_answer_for_question(question.id) is None
 
-            form = build_question_form(question)(q_d696aebc49d24170a92fb6ef42994294="User submitted data")
+            form = build_question_form(question, expression_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+            )
             helper.submit_answer_for_question(question.id, form)
 
             assert helper.get_answer_for_question(question.id) == TextSingleLine("User submitted data")
@@ -31,7 +35,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=question.form.section.collection)
             helper = SubmissionHelper(submission)
 
-            form = build_question_form(question)(q_d696aebc49d24170a92fb6ef42994294=5)
+            form = build_question_form(question, expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=5)
             helper.submit_answer_for_question(question.id, form)
 
             assert helper.get_answer_for_question(question.id) == Integer(5)
@@ -41,7 +45,9 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=question.form.section.collection)
             helper = SubmissionHelper(submission)
 
-            form = build_question_form(question)(q_d696aebc49d24170a92fb6ef42994294="User submitted data")
+            form = build_question_form(question, expression_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+            )
             helper.submit_answer_for_question(question.id, form)
             helper.toggle_form_completed(question.form, submission.created_by, True)
             helper.submit(submission.created_by)
@@ -100,14 +106,18 @@ class TestSubmissionHelper:
 
             helper.submit_answer_for_question(
                 question_one.id,
-                build_question_form(question_one)(q_d696aebc49d24170a92fb6ef42994294="User submitted data"),
+                build_question_form(question_one, expression_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+                ),
             )
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.IN_PROGRESS
 
             helper.submit_answer_for_question(
                 question_two.id,
-                build_question_form(question_two)(q_d696aebc49d24170a92fb6ef42994295="User submitted data"),
+                build_question_form(question_two, expression_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994295="User submitted data"
+                ),
             )
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.IN_PROGRESS
@@ -119,7 +129,9 @@ class TestSubmissionHelper:
             # make sure the second form is unaffected by the first forms status
             helper.submit_answer_for_question(
                 question_three.id,
-                build_question_form(question_three)(q_d696aebc49d24170a92fb6ef42994296="User submitted data"),
+                build_question_form(question_three, expression_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994296="User submitted data"
+                ),
             )
             assert helper.get_status_for_form(form_two) == SubmissionStatusEnum.IN_PROGRESS
 
@@ -140,7 +152,10 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.NOT_STARTED
 
             helper.submit_answer_for_question(
-                question.id, build_question_form(question)(q_d696aebc49d24170a92fb6ef42994294="User submitted data")
+                question.id,
+                build_question_form(question, expression_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+                ),
             )
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
@@ -149,7 +164,9 @@ class TestSubmissionHelper:
 
             helper.submit_answer_for_question(
                 question_two.id,
-                build_question_form(question_two)(q_d696aebc49d24170a92fb6ef42994295="User submitted data"),
+                build_question_form(question_two, expression_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994295="User submitted data"
+                ),
             )
             helper.toggle_form_completed(question_two.form, submission.created_by, True)
 
@@ -175,7 +192,10 @@ class TestSubmissionHelper:
             )
 
             helper.submit_answer_for_question(
-                question.id, build_question_form(question)(q_d696aebc49d24170a92fb6ef42994294="User submitted data")
+                question.id,
+                build_question_form(question, expression_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+                ),
             )
             helper.toggle_form_completed(form, submission.created_by, True)
 
@@ -195,7 +215,10 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             helper.submit_answer_for_question(
-                question.id, build_question_form(question)(q_d696aebc49d24170a92fb6ef42994294="User submitted data")
+                question.id,
+                build_question_form(question, expression_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+                ),
             )
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
@@ -211,7 +234,10 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             helper.submit_answer_for_question(
-                question.id, build_question_form(question)(q_d696aebc49d24170a92fb6ef42994294="User submitted data")
+                question.id,
+                build_question_form(question, expression_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+                ),
             )
 
             with pytest.raises(ValueError) as e:
