@@ -197,7 +197,11 @@ class SubmissionHelper:
         try:
             return all(evaluate(condition, context) for condition in question.conditions)
         except UndefinedVariableInExpression:
-            return False  # fail open for now, checking individual question visibility while routing should error though
+            # todo: fail open for now - this method should accept an optional bool that allows this condition to fail
+            #       or not- checking visibility on the question page itself should never fail - the summary page could
+            # todo: check dependency chain for conditions when undefined variables are encountered to avoid
+            #       always suppressing errors and not surfacing issues on misconfigured forms
+            return False
 
     def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
