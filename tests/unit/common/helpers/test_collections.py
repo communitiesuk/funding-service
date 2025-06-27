@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from app.common.data.types import SubmissionEventKey
+from app.common.data.types import ExpressionType, SubmissionEventKey
 from app.common.helpers.collections import SubmissionHelper
 from tests.utils import AnyStringMatching
 
@@ -49,6 +49,19 @@ class TestSubmissionHelper:
             helper_questions = helper.get_ordered_visible_questions_for_form(form)
             assert len(helper_questions) == 3
             assert [s.order for s in helper_questions] == [0, 1, 2]
+
+        def test_visible_questions_filtered(self, factories):
+            form = factories.form.build()
+            submission = factories.submission.build(collection=form.section.collection)
+            visible_question = factories.question.build(form=form)
+
+            invisible_question = factories.question.build(form=form)
+            factories.expression.build(question=invisible_question, type=ExpressionType.CONDITION, statement="False")
+
+            helper = SubmissionHelper(submission)
+            helper_questions = helper.get_ordered_visible_questions_for_form(form)
+            assert len(helper_questions) == 1
+            assert helper_questions[0].id == visible_question.id
 
     class TestGetSection:
         def test_exists(self, db_session, factories):
@@ -111,8 +124,6 @@ class TestSubmissionHelper:
             )
 
     class TestGetFirstQuestionForForm:
-        # TODO: Extend this test suite when we add the business logic that make questions conditional
-
         def test_at_least_one_question_in_form(self, db_session, factories):
             form = factories.form.build()
 
@@ -134,8 +145,6 @@ class TestSubmissionHelper:
             assert helper.get_first_question_for_form(form) is None
 
     class TestGetLastQuestionForForm:
-        # TODO: Extend this test suite when we add the business logic that make questions conditional
-
         def test_at_least_one_question_in_form(self, db_session, factories):
             form = factories.form.build()
 
@@ -187,8 +196,6 @@ class TestSubmissionHelper:
             )
 
     class TestGetNextQuestion:
-        # TODO: Extend this test suite when we add the business logic that make questions conditional
-
         def test_current_question_exists_and_is_not_last_question(self, db_session, factories):
             form = factories.form.build()
             for x in range(5):
@@ -228,9 +235,20 @@ class TestSubmissionHelper:
                 r"in collection=[a-z0-9-]+"
             )
 
-    class TestGetPreviousQuestion:
-        # TODO: Extend this test suite when we add the business logic that make questions conditional
+        def test_next_question_ignores_not_visible_questions(self, factories):
+            form = factories.form.build()
+            submission = factories.submission.build(collection=form.section.collection)
+            question_one = factories.question.build(form=form, id=uuid.UUID(int=0), order=0)
+            question_two = factories.question.build(form=form, id=uuid.UUID(int=1), order=1)
+            question_three = factories.question.build(form=form, id=uuid.UUID(int=2), order=2)
 
+            factories.expression.build(question=question_two, type=ExpressionType.CONDITION, statement="False")
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.get_next_question(question_one.id).id == question_three.id
+
+    class TestGetPreviousQuestion:
         def test_current_question_exists_and_is_not_first_question(self, db_session, factories):
             form = factories.form.build()
             for x in range(5):
@@ -270,6 +288,19 @@ class TestSubmissionHelper:
                 r"in collection=[a-z0-9-]+"
             )
 
+        def test_previous_question_ignores_not_visible_questions(self, factories):
+            form = factories.form.build()
+            submission = factories.submission.build(collection=form.section.collection)
+            question_one = factories.question.build(form=form, id=uuid.UUID(int=0), order=0)
+            question_two = factories.question.build(form=form, id=uuid.UUID(int=1), order=1)
+            question_three = factories.question.build(form=form, id=uuid.UUID(int=2), order=2)
+
+            factories.expression.build(question=question_two, type=ExpressionType.CONDITION, statement="False")
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.get_previous_question(question_three.id).id == question_one.id
+
     class TestStatuses:
         def test_all_forms_are_completed(self, db_session, factories):
             form_one = factories.form.build()
@@ -306,3 +337,26 @@ class TestSubmissionHelper:
 
             # all questions answered and all marked as complete is complete
             assert helper.all_forms_are_completed is True
+
+    class TestVisibleQuestion:
+        def test_is_question_always_visible_with_no_conditions(self, factories):
+            question = factories.question.build()
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+
+            assert helper.is_question_visible(question, helper.expression_context) is True
+
+        def test_is_question_visible_not_visible_with_failing_condition(self, factories):
+            question = factories.question.build()
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+
+            factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="False")
+
+            assert helper.is_question_visible(question, helper.expression_context) is False
+
+        def test_is_question_visible_visible_with_passing_condition(self, factories):
+            question = factories.question.build()
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+
+            factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="True")
+
+            assert helper.is_question_visible(question, helper.expression_context) is True
