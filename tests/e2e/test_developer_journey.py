@@ -1,3 +1,4 @@
+import dataclasses
 import uuid
 
 import pytest
@@ -9,10 +10,24 @@ from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.developer_pages import CheckYourAnswersPage, CollectionDetailPage, ManageFormPage, QuestionPage
 from tests.e2e.pages import AllGrantsPage
 
-question_response_data_by_type = {
-    QuestionDataType.TEXT_SINGLE_LINE.value: "E2E question text single line",
-    QuestionDataType.TEXT_MULTI_LINE.value: "E2E question text multi line\nwith a second line",
-    QuestionDataType.INTEGER.value: "234",
+
+@dataclasses.dataclass
+class _QuestionResponse:
+    answer: str
+    error_message: str | None = None
+
+
+question_text_by_type: dict[QuestionDataType, str] = {
+    QuestionDataType.TEXT_SINGLE_LINE: "Enter a single line of text",
+    QuestionDataType.TEXT_MULTI_LINE: "Enter a few lines of text",
+    QuestionDataType.INTEGER: "Enter a number",
+}
+
+
+question_response_data_by_type: dict[QuestionDataType, _QuestionResponse] = {
+    QuestionDataType.TEXT_SINGLE_LINE: _QuestionResponse("E2E question text single line"),
+    QuestionDataType.TEXT_MULTI_LINE: _QuestionResponse("E2E question text multi line\nwith a second line"),
+    QuestionDataType.INTEGER: _QuestionResponse("234"),
 }
 
 created_questions_to_test = []
@@ -28,7 +43,7 @@ def create_question(
 
     expect(question_details_page.page.get_by_text(question_type.value, exact=True)).to_be_visible()
     question_uuid = uuid.uuid4()
-    question_text = f"E2E question {question_uuid}"
+    question_text = f"{question_text_by_type[question_type]} - {question_uuid}"
     question_details_page.fill_question_text(question_text)
     question_details_page.fill_question_name(f"e2e_question_{question_uuid}")
     question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
@@ -36,7 +51,7 @@ def create_question(
     manage_form_page.check_question_exists(question_text)
 
     created_questions_to_test.append(
-        {"question_text": question_text, "question_response": question_response_data_by_type[question_type.value]}
+        {"question_text": question_text, "question_response": question_response_data_by_type[question_type]}
     )
 
 
@@ -132,7 +147,7 @@ def test_create_and_preview_collection(
     for question in created_questions_to_test:
         question_page = QuestionPage(page, domain, new_grant_name, question["question_text"])
         expect(question_page.heading).to_be_visible()
-        question_page.respond_to_question(answer=question["question_response"])
+        question_page.respond_to_question(answer=question["question_response"].answer)
         question_page.click_continue()
 
     # Check the answers page
@@ -142,7 +157,7 @@ def test_create_and_preview_collection(
         question_heading = check_your_answers.page.get_by_text(question["question_text"], exact=True)
         expect(question_heading).to_be_visible()
         expect(check_your_answers.page.get_by_test_id(f"answer-{question['question_text']}")).to_have_text(
-            question["question_response"]
+            question["question_response"].answer
         )
 
     expect(check_your_answers.page.get_by_text("Have you completed this section?", exact=True)).to_be_visible()
@@ -171,4 +186,6 @@ def test_create_and_preview_collection(
     answers_list = view_collection_page.get_questions_list_for_form(form_name)
     expect(answers_list).to_be_visible()
     for question in created_questions_to_test:
-        expect(answers_list.get_by_text(f"{question['question_text']} {question['question_response']}")).to_be_visible()
+        expect(
+            answers_list.get_by_text(f"{question['question_text']} {question['question_response'].answer}")
+        ).to_be_visible()
