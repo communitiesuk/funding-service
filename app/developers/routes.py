@@ -72,11 +72,25 @@ def inject_variables() -> dict[str, Any]:
     return dict(show_watermark=True)
 
 
-@developers_blueprint.route("/grants/<uuid:grant_id>", methods=["GET"])
+@developers_blueprint.route("/grants/<uuid:grant_id>", methods=["GET", "POST"])
 @is_platform_admin
-def grant_developers(grant_id: UUID) -> str:
+@auto_commit_after_request
+def grant_developers(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("developers/grant_developers.html", grant=grant)
+    confirm_deletion_form = ConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        interfaces.temporary.delete_grant(grant_id=grant.id)
+        return redirect(url_for("deliver_grant_funding.list_grants"))
+
+    return render_template(
+        "developers/grant_developers.html",
+        grant=grant,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
 
 
 @developers_blueprint.route("/grants/<uuid:grant_id>/collections", methods=["GET"])
