@@ -51,7 +51,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 @redirect_if_authenticated
 def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(id_=magic_link_id)
-    if not magic_link or not magic_link.usable:
+    if not magic_link or not magic_link.is_usable:
         abort(404)
 
     notification_id = session.pop("magic_link_email_notification_id", None)
@@ -63,7 +63,7 @@ def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(code=magic_link_code)
-    if not magic_link or not magic_link.usable:
+    if not magic_link or not magic_link.is_usable:
         return redirect(url_for("auth.request_a_link_to_sign_in"))
 
     form = ClaimMagicLinkForm()
