@@ -40,6 +40,18 @@ class TestSubmissionHelper:
 
             assert helper.get_answer_for_question(question.id) == Integer(5)
 
+        def test_can_get_falsey_answers(self, db_session, factories):
+            question = factories.question.build(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.INTEGER
+            )
+            submission = factories.submission.build(collection=question.form.section.collection)
+            helper = SubmissionHelper(submission)
+
+            form = build_question_form(question, expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=0)
+            helper.submit_answer_for_question(question.id, form)
+
+            assert helper.get_answer_for_question(question.id) == Integer(0)
+
         def test_cannot_submit_answer_on_submitted_submission(self, db_session, factories):
             question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
             submission = factories.submission.build(collection=question.form.section.collection)

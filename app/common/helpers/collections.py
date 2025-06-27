@@ -233,7 +233,7 @@ class SubmissionHelper:
     def get_answer_for_question(self, question_id: UUID) -> TextSingleLine | TextMultiLine | Integer | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
-        return _deserialise_question_type(question, serialised_data) if serialised_data else None
+        return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
 
     def submit_answer_for_question(self, question_id: UUID, form: DynamicQuestionForm) -> None:
         if self.is_completed:
