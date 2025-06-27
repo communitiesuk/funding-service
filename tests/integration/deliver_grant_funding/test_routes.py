@@ -123,7 +123,7 @@ def test_grant_change_description_get(authenticated_platform_admin_client, facto
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.grant_change_description").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
-    assert "Purpose of this grant" in soup.h1.text.strip()
+    assert "What is the main purpose of this grant?" in soup.h1.text.strip()
 
 
 def test_grant_change_contact_get(authenticated_platform_admin_client, factories, templates_rendered):
@@ -865,7 +865,7 @@ def test_grant_setup_description_get_with_session(authenticated_platform_admin_c
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_description"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "Purpose of this grant"
+    assert soup.h1.text.strip() == "What is the main purpose of this grant?"
 
 
 def test_grant_setup_description_post_too_long(authenticated_platform_admin_client):
@@ -938,7 +938,7 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     assert response.status_code == 302
 
     # Extract grant ID from redirect URL and verify grant exists
-    grant_id_str = response.location.split("/")[-1]
+    grant_id_str = response.location.split("/")[-2]
     grant_id = UUID(grant_id_str)
     grant_from_db = db_session.get(Grant, grant_id)
     assert grant_from_db is not None
@@ -949,7 +949,7 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
     assert grant_from_db.ggis_number == "GGIS123"
 
     # Verify redirect was to grant setup confirmation page
-    assert response.location == url_for("deliver_grant_funding.grant_setup_confirmation", grant_id=grant_id_str)
+    assert response.location == url_for("deliver_grant_funding.grant_details", grant_id=grant_id_str)
 
 
 def test_list_users_for_grant_with_platform_admin_and_no_member(

@@ -189,7 +189,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
             ggis_number=grant_session.ggis_number,
         )
         session.pop("grant_setup", None)
-        return redirect(url_for("deliver_grant_funding.grant_setup_confirmation", grant_id=grant.id))
+        return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
 
     return render_template(
         "deliver_grant_funding/grant_setup/initial_flow/check_your_answers.html",
@@ -197,13 +197,6 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
         grant_session=grant_session,
         check_your_answers_source=CHECK_YOUR_ANSWERS,
     )
-
-
-@deliver_grant_funding_blueprint.route("/grant-setup/<uuid:grant_id>", methods=["GET"])
-@is_platform_admin
-def grant_setup_confirmation(grant_id: UUID) -> ResponseReturnValue:
-    grant = interfaces.grants.get_grant(grant_id)
-    return render_template("deliver_grant_funding/grant_setup/initial_flow/confirmation.html", grant=grant)
 
 
 @deliver_grant_funding_blueprint.route("/grants", methods=["GET"])
