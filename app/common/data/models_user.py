@@ -4,8 +4,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pytz import utc
-from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import CheckConstraint, ColumnElement, ForeignKey, Index, UniqueConstraint, func
 from sqlalchemy import Enum as SqlEnum
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
@@ -107,9 +108,14 @@ class MagicLink(BaseModel):
 
     __table_args__ = (Index(None, code, unique=True, postgresql_where="claimed_at_utc IS NOT NULL"),)
 
-    @property
-    def usable(self) -> bool:
+    @hybrid_property
+    def is_usable(self) -> bool:
         return self.claimed_at_utc is None and self.expires_at_utc > datetime.now(utc).replace(tzinfo=None)
+
+    @is_usable.inplace.expression
+    @classmethod
+    def _is_usable_expression(cls) -> ColumnElement[bool]:
+        return cls.claimed_at_utc.is_(None) & (cls.expires_at_utc > func.now())
 
 
 class Invitation(BaseModel):
@@ -138,6 +144,11 @@ class Invitation(BaseModel):
     expires_at_utc: Mapped[datetime] = mapped_column(nullable=False)
     claimed_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
 
-    @property
-    def usable(self) -> bool:
+    @hybrid_property
+    def is_usable(self) -> bool:
         return self.claimed_at_utc is None and self.expires_at_utc > datetime.now(utc).replace(tzinfo=None)
+
+    @is_usable.inplace.expression
+    @classmethod
+    def _is_usable_expression(cls) -> ColumnElement[bool]:
+        return cls.claimed_at_utc.is_(None) & (cls.expires_at_utc > func.now())

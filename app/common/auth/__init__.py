@@ -28,10 +28,10 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
     form = SignInForm()
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
-
-        user = interfaces.user.upsert_user_by_email(email_address=email)
+        user = interfaces.user.get_user_by_email(email_address=email)
         magic_link = interfaces.magic_link.create_magic_link(
-            user=user,
+            user=user if user else None,
+            email=email,
             redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
         )
 
@@ -52,7 +52,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 @redirect_if_authenticated
 def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(id_=magic_link_id)
-    if not magic_link or not magic_link.usable:
+    if not magic_link or not magic_link.is_usable:
         abort(404)
 
     notification_id = session.pop("magic_link_email_notification_id", None)
@@ -64,12 +64,13 @@ def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(code=magic_link_code)
-    if not magic_link or not magic_link.usable:
+    if not magic_link or not magic_link.is_usable:
         return redirect(url_for("auth.request_a_link_to_sign_in"))
 
     form = GenericSubmitForm()
     if form.validate_on_submit():
-        interfaces.magic_link.claim_magic_link(magic_link=magic_link)
+        user = interfaces.user.upsert_user_by_email(email_address=str(magic_link.email))
+        interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
         if not login_user(magic_link.user):
             abort(400)
 
