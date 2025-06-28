@@ -5,7 +5,7 @@ import pytest
 from app.common.data.interfaces.collections import add_question_condition, get_question_by_id
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
-from app.common.expressions import evaluate, mangle_question_id_for_context
+from app.common.expressions import evaluate
 from app.common.expressions.forms import AddIntegerExpressionForm
 from app.common.expressions.helpers import (
     get_managed_expression_form,
@@ -78,12 +78,8 @@ class TestGreaterThanExpression:
         ),
     )
     def test_evaluate(self, minimum_value, inclusive, answer, expected_result):
-        qid = uuid.uuid4()
-        expr = GreaterThan(question_id=qid, minimum_value=minimum_value, inclusive=inclusive)
-        assert (
-            evaluate(Expression(statement=expr.statement, context={mangle_question_id_for_context(qid): answer}))
-            is expected_result
-        )
+        expr = GreaterThan(question_id=uuid.uuid4(), minimum_value=minimum_value, inclusive=inclusive)
+        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
 
 
 class TestLessThanExpression:
@@ -97,12 +93,8 @@ class TestLessThanExpression:
         ),
     )
     def test_evaluate(self, maximum_value, inclusive, answer, expected_result):
-        qid = uuid.uuid4()
-        expr = LessThan(question_id=qid, maximum_value=maximum_value, inclusive=inclusive)
-        assert (
-            evaluate(Expression(statement=expr.statement, context={mangle_question_id_for_context(qid): answer}))
-            is expected_result
-        )
+        expr = LessThan(question_id=uuid.uuid4(), maximum_value=maximum_value, inclusive=inclusive)
+        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
 
 
 class TestBetweenExpression:
@@ -120,15 +112,11 @@ class TestBetweenExpression:
     def test_evaluate(
         self, minimum_value, minimum_inclusive, maximum_value, maximum_inclusive, answer, expected_result
     ):
-        qid = uuid.uuid4()
         expr = Between(
-            question_id=qid,
+            question_id=uuid.uuid4(),
             minimum_value=minimum_value,
             minimum_inclusive=minimum_inclusive,
             maximum_value=maximum_value,
             maximum_inclusive=maximum_inclusive,
         )
-        assert (
-            evaluate(Expression(statement=expr.statement, context={mangle_question_id_for_context(qid): answer}))
-            is expected_result
-        )
+        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result

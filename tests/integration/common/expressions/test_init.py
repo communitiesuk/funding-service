@@ -2,7 +2,7 @@ import pytest
 from immutabledict import immutabledict
 
 from app.common.data.interfaces.collections import add_question_condition
-from app.common.expressions import ExpressionContext, evaluate, mangle_question_id_for_context
+from app.common.expressions import ExpressionContext, evaluate
 from app.common.expressions.managed import GreaterThan
 
 
@@ -98,8 +98,6 @@ class TestEvaluatingManagedExpressions:
 
         expr = question.expressions[0]
 
-        # todo: find a smooth way of doing this
-        question_id_for_context = mangle_question_id_for_context(question.id)
-        assert evaluate(expr, ExpressionContext(immutabledict({question_id_for_context: 500}))) is False
-        assert evaluate(expr, ExpressionContext(immutabledict({question_id_for_context: 3000}))) is False
-        assert evaluate(expr, ExpressionContext(immutabledict({question_id_for_context: 3001}))) is True
+        assert evaluate(expr, ExpressionContext(immutabledict({question.safe_qid: 500}))) is False
+        assert evaluate(expr, ExpressionContext(immutabledict({question.safe_qid: 3000}))) is False
+        assert evaluate(expr, ExpressionContext(immutabledict({question.safe_qid: 3001}))) is True

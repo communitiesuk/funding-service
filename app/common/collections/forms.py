@@ -12,7 +12,7 @@ from wtforms.validators import ValidationError
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
-from app.common.expressions import ExpressionContext, evaluate, mangle_question_id_for_context
+from app.common.expressions import ExpressionContext, evaluate
 
 _accepted_fields = StringField | IntegerField
 
@@ -62,7 +62,7 @@ class DynamicQuestionForm(FlaskForm):
         # Inject the latest data from this form submission into the context for validators to use.
         self._expression_context.form_context = self._build_form_context()
         for q in self._questions:
-            extra_validators[mangle_question_id_for_context(q.id)].extend(build_validators(q, self._expression_context))
+            extra_validators[q.safe_qid].extend(build_validators(q, self._expression_context))
 
         # Do a second validation pass that includes all of our managed/custom validation. This has a small bit of
         # redundancy because it will run the data validation checks again, but it means that all of our own
@@ -71,16 +71,16 @@ class DynamicQuestionForm(FlaskForm):
 
     @classmethod
     def attach_field(cls, question: Question, field: Field) -> None:
-        setattr(cls, mangle_question_id_for_context(question.id), cast(_accepted_fields, field))
+        setattr(cls, question.safe_qid, cast(_accepted_fields, field))
 
     def render_question(self, question: Question, params: dict[str, Any] | None = None) -> str:
-        return cast(str, getattr(self, mangle_question_id_for_context(question.id))(params=params))
+        return cast(str, getattr(self, question.safe_qid)(params=params))
 
     def get_question_field(self, question: Question) -> Field:
-        return cast(Field, getattr(self, mangle_question_id_for_context(question.id)))
+        return cast(Field, getattr(self, question.safe_qid))
 
     def get_answer_to_question(self, question: Question) -> Any:
-        return getattr(self, mangle_question_id_for_context(question.id)).data
+        return getattr(self, question.safe_qid).data
 
 
 def build_validators(question: Question, expression_context: ExpressionContext) -> list[Callable[[Form, Field], None]]:

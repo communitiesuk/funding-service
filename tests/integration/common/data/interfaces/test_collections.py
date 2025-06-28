@@ -32,7 +32,6 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Collection
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType, SubmissionEventKey
-from app.common.expressions import mangle_question_id_for_context
 from app.common.expressions.managed import GreaterThan, LessThan
 from app.common.helpers.collections import TextSingleLine
 
@@ -457,9 +456,7 @@ def test_add_question_condition(db_session, factories):
 
     assert len(from_db.expressions) == 1
     assert from_db.expressions[0].type == ExpressionType.CONDITION
-
-    qid = mangle_question_id_for_context(question.id)
-    assert from_db.expressions[0].statement == f"{qid} > 3000"
+    assert from_db.expressions[0].statement == f"{question.safe_qid} > 3000"
 
     # check the serialised context lines up with the values in the managed expression
     assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
@@ -482,9 +479,7 @@ def test_add_question_validation(db_session, factories):
 
     assert len(from_db.expressions) == 1
     assert from_db.expressions[0].type == ExpressionType.VALIDATION
-
-    qid = mangle_question_id_for_context(question.id)
-    assert from_db.expressions[0].statement == f"{qid} > 3000"
+    assert from_db.expressions[0].statement == f"{question.safe_qid} > 3000"
 
     # check the serialised context lines up with the values in the managed expression
     assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
@@ -501,8 +496,7 @@ def test_update_expression(db_session, factories):
 
     update_question_expression(question.expressions[0], updated_expression)
 
-    qid = mangle_question_id_for_context(question.id)
-    assert question.expressions[0].statement == f"{qid} > 5000"
+    assert question.expressions[0].statement == f"{question.safe_qid} > 5000"
 
 
 def test_update_expression_errors_on_validation_overlap(db_session, factories):
