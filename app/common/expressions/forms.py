@@ -1,5 +1,3 @@
-import abc
-from abc import abstractmethod
 from typing import TYPE_CHECKING, Type
 
 from flask_wtf import FlaskForm
@@ -19,27 +17,39 @@ if TYPE_CHECKING:
 
 
 class _ManagedExpressionForm(FlaskForm):
-    @property
-    @abstractmethod
-    def _question_type(self) -> QuestionDataType:
-        """The question data type that this form lists conditions/validation for."""
-        ...
+    _question_data_type: QuestionDataType
+    _managed_expressions: list[Type["ManagedExpression"]]
+    type: RadioField
 
-    @property
-    @abstractmethod
-    def type(self) -> RadioField:
-        """A RadioField that lists the available managed expressions for the question type."""
-        ...
+    def get_conditional_field_htmls(self) -> list[dict[str, dict[str, Markup]]]:
+        html = []
+        for _managed_expression in self._managed_expressions:
+            html.append({"conditional": {"html": _managed_expression.render_conditional_fields(self)}})
+        return html
 
-    @abc.abstractmethod
-    def get_conditional_field_htmls(self) -> list[dict[str, dict[str, Markup]]]: ...
+    def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
+        for _managed_expression in self._managed_expressions:
+            if _managed_expression.name == self.type.data:
+                _managed_expression.update_validators(self)
 
-    @abstractmethod
-    def get_expression(self, question: Question) -> "ManagedExpression": ...
+        return super().validate(extra_validators=extra_validators)
 
-    @staticmethod
-    @abstractmethod
-    def from_expression(expression: "Expression") -> "_ManagedExpressionForm": ...
+    def get_expression(self, question: Question) -> "ManagedExpression":
+        for _managed_expression in self._managed_expressions:
+            if _managed_expression.name == self.type.data:
+                return _managed_expression.build_from_form(self, question)
+
+        raise RuntimeError(f"Unknown expression type: {self.type.data}")
+
+    @classmethod
+    def from_expression(cls, expression: "Expression") -> "_ManagedExpressionForm":
+        data = {"type": expression.managed_name}
+
+        for _managed_expression in cls._managed_expressions:
+            if _managed_expression.name == expression.managed_name:
+                data.update(_managed_expression.form_data_from_expression(expression))
+
+        return cls(data=data)
 
 
 def build_managed_expression_form(  # noqa: C901
@@ -67,6 +77,9 @@ def build_managed_expression_form(  # noqa: C901
             raise RuntimeError("unknown expression type")
 
     class ManagedExpressionForm(_ManagedExpressionForm):
+        _question_data_type = question_type
+        _managed_expressions = managed_expressions
+
         type = RadioField(
             choices=[(managed_expression.name, managed_expression.name) for managed_expression in managed_expressions],
             validators=[DataRequired(type_validation_message)],
@@ -74,37 +87,6 @@ def build_managed_expression_form(  # noqa: C901
         )
 
         submit = SubmitField("Add validation", widget=GovSubmitInput())
-
-        # FIXME: feels like a crime rendering the HTML this way
-        def get_conditional_field_htmls(self) -> list[dict[str, dict[str, Markup]]]:
-            html = []
-            for _managed_expression in managed_expressions:
-                html.append({"conditional": {"html": _managed_expression.render_conditional_fields(self)}})
-            return html
-
-        def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
-            for _managed_expression in managed_expressions:
-                if _managed_expression.name == self.type.data:
-                    _managed_expression.update_validators(self)
-
-            return super().validate(extra_validators=extra_validators)
-
-        def get_expression(self, question: Question) -> "ManagedExpression":
-            for _managed_expression in managed_expressions:
-                if _managed_expression.name == self.type.data:
-                    return _managed_expression.build_from_form(self, question)
-
-            raise RuntimeError(f"Unknown expression type: {self.type.data}")
-
-        @classmethod
-        def from_expression(cls, expression: "Expression") -> "_ManagedExpressionForm":
-            data = {"type": expression.managed_name}
-
-            for _managed_expression in managed_expressions:
-                if _managed_expression.name == expression.managed_name:
-                    data.update(_managed_expression.form_data_from_expression(expression))
-
-            return cls(data=data)
 
     for managed_expression in managed_expressions:
         for field_name, field in managed_expression.get_form_fields().items():
