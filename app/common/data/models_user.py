@@ -81,12 +81,4 @@ class UserRole(BaseModel):
             "role != 'MEMBER' OR NOT (organisation_id IS NULL AND grant_id IS NULL)",
             name="member_role_not_platform",
         ),
-        CheckConstraint(
-            "role != 'S151_OFFICER' OR (organisation_id IS NOT NULL AND grant_id IS NULL)",
-            name="s151_officer_role_org_only",
-        ),
-        CheckConstraint(
-            "role != 'ASSESSOR' OR (organisation_id IS NULL AND grant_id IS NOT NULL)",
-            name="assessor_role_grant_only",
-        ),
     )
