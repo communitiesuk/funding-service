@@ -29,7 +29,7 @@ def test_validation_attached_to_field_and_runs(factories, value, error_message):
         question, user, LessThan(question_id=question.id, maximum_value=100, inclusive=False)
     )
 
-    _FormClass = build_question_form(question, expression_context=ExpressionContext())
+    _FormClass = build_question_form([question], expression_context=ExpressionContext())
     form = _FormClass(data={"q_e4bd98ab41ef4d23b1e59c0404891e7a": value})
 
     valid = form.validate()

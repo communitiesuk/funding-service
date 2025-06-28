@@ -25,7 +25,7 @@ _accepted_fields = StringField | IntegerField
 # in sync manually with the one inside `build_question_form`.
 class DynamicQuestionForm(FlaskForm):
     _expression_context: ExpressionContext
-    _question: Question
+    questions: list[Question]
 
     submit: SubmitField
 
@@ -61,9 +61,8 @@ class DynamicQuestionForm(FlaskForm):
 
         # Inject the latest data from this form submission into the context for validators to use.
         self._expression_context.form_context = self._build_form_context()
-        extra_validators[mangle_question_id_for_context(self._question.id)].extend(
-            build_validators(self._question, self._expression_context)
-        )
+        for q in self.questions:
+            extra_validators[mangle_question_id_for_context(q.id)].extend(build_validators(q, self._expression_context))
 
         # Do a second validation pass that includes all of our managed/custom validation. This has a small bit of
         # redundancy because it will run the data validation checks again, but it means that all of our own
@@ -104,37 +103,42 @@ def build_validators(question: Question, expression_context: ExpressionContext) 
     return validators
 
 
-def build_question_form(question: Question, expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
+def build_question_form(questions: list[Question], expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
+    # re-bind so that we can still work with the `questions` attribute on _DynamicQuestionForm, while still having a
+    # clean name of the function parameter
+    questions_ = questions
+
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
         _expression_context = expression_context
-        _question = question
+        questions = questions_.copy()
 
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
     field: _accepted_fields
-    match question.data_type:
-        case QuestionDataType.TEXT_SINGLE_LINE:
-            field = StringField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovTextInput(),
-            )
-        case QuestionDataType.TEXT_MULTI_LINE:
-            field = StringField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovTextArea(),
-            )
-        case QuestionDataType.INTEGER:
-            field = IntegerField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovTextInput(),
-            )
-        case _:
-            raise Exception("Unable to generate dynamic form for question type {_}")
+    for question in questions_:
+        match question.data_type:
+            case QuestionDataType.TEXT_SINGLE_LINE:
+                field = StringField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=GovTextInput(),
+                )
+            case QuestionDataType.TEXT_MULTI_LINE:
+                field = StringField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=GovTextArea(),
+                )
+            case QuestionDataType.INTEGER:
+                field = IntegerField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=GovTextInput(),
+                )
+            case _:
+                raise Exception("Unable to generate dynamic form for question type {_}")
 
-    _DynamicQuestionForm.attach_field(question, field)
+        _DynamicQuestionForm.attach_field(question, field)
 
     return _DynamicQuestionForm

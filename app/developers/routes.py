@@ -894,8 +894,9 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
     # this method should work as long as data types are a single field and may
     # need to be revised if we have compound data types
     expression_context = submission_helper.expression_context
+
     # todo: questions with multiple inputs will need to think this through a bit more
-    form = build_question_form(question, expression_context=expression_context)(data=expression_context)
+    form = build_question_form([question], expression_context=expression_context)(data=expression_context)
 
     if not submission_helper.is_question_visible(question, submission_helper.expression_context):
         current_app.logger.warning(
@@ -916,7 +917,8 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
         return redirect(url_for("developers.check_your_answers", submission_id=submission_id, form_id=question.form_id))
 
     if form.validate_on_submit():
-        submission_helper.submit_answer_for_question(question.id, form)
+        for q in form.questions:
+            submission_helper.submit_answer_for_question(q.id, form)
 
         if request.args.get("source") == FormRunnerSourceEnum.CHECK_YOUR_ANSWERS:
             return redirect(
