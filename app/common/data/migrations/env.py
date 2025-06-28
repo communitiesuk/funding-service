@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from pathlib import Path
 from typing import Iterable, cast
 
+import alembic_postgresql_enum  # noqa
 from alembic import context
 from alembic.operations import MigrationScript
 from alembic.runtime.migration import MigrationContext
