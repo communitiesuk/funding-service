@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Optional, Type
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from immutabledict import immutabledict
@@ -308,7 +308,7 @@ class SubmissionHelper:
 def _form_data_to_question_type(
     question: "Question", form: DynamicQuestionForm
 ) -> TextSingleLine | TextMultiLine | Integer:
-    _QuestionModel: Type[RootModel]  # type: ignore[type-arg]
+    _QuestionModel: type[RootModel]  # type: ignore[type-arg]
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
             _QuestionModel = TextSingleLine

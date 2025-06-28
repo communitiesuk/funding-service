@@ -2,7 +2,7 @@ import copy
 import os
 import urllib.parse
 from enum import Enum
-from typing import Any, Self, Tuple, Type
+from typing import Any, Self, Tuple
 
 from flask_talisman.talisman import ONE_YEAR_IN_SECS
 from pydantic import BaseModel, PostgresDsn, model_validator
@@ -78,7 +78,7 @@ class _BaseConfig(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Type[BaseSettings],
+        settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,
         dotenv_settings: PydanticBaseSettingsSource,

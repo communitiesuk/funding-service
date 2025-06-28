@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 class _ManagedExpressionForm(FlaskForm):
     _question_data_type: QuestionDataType
-    _managed_expressions: list[Type["ManagedExpression"]]
+    _managed_expressions: list[type["ManagedExpression"]]
     type: RadioField
 
     def get_conditional_field_htmls(self) -> list[dict[str, dict[str, Markup]]]:
@@ -54,7 +54,7 @@ class _ManagedExpressionForm(FlaskForm):
 
 def build_managed_expression_form(  # noqa: C901
     type_: ExpressionType, question_type: QuestionDataType
-) -> Type["_ManagedExpressionForm"] | None:
+) -> type["_ManagedExpressionForm"] | None:
     """
     For a given question type, generate a FlaskForm that will allow a user to select one of its managed expressions.
 

@@ -6,7 +6,7 @@ registry. The registry is probed by the managed expression form builder to autom
 """
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 
@@ -15,8 +15,8 @@ if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
 
 
-_registry_by_expression_enum: dict[ManagedExpressionsEnum, Type["ManagedExpression"]] = {}
-_registry_by_data_type: dict[QuestionDataType, list[Type["ManagedExpression"]]] = defaultdict(list)
+_registry_by_expression_enum: dict[ManagedExpressionsEnum, type["ManagedExpression"]] = {}
+_registry_by_data_type: dict[QuestionDataType, list[type["ManagedExpression"]]] = defaultdict(list)
 
 
 def get_registered_data_types() -> set[QuestionDataType]:
@@ -24,16 +24,16 @@ def get_registered_data_types() -> set[QuestionDataType]:
     return set(_registry_by_data_type.keys())
 
 
-def get_managed_expressions_for_question_type(question_type: QuestionDataType) -> list[Type["ManagedExpression"]]:
+def get_managed_expressions_for_question_type(question_type: QuestionDataType) -> list[type["ManagedExpression"]]:
     """Returns the list of managed expressions supported for a particular question type."""
     return _registry_by_data_type[question_type]
 
 
-def lookup_managed_expression(expression_enum: ManagedExpressionsEnum) -> Type["ManagedExpression"]:
+def lookup_managed_expression(expression_enum: ManagedExpressionsEnum) -> type["ManagedExpression"]:
     return _registry_by_expression_enum[expression_enum]
 
 
-def register_managed_expression(cls: Type["ManagedExpression"]) -> Type["ManagedExpression"]:
+def register_managed_expression(cls: type["ManagedExpression"]) -> type["ManagedExpression"]:
     """
     A decorator that can be used to include a managed expression definition (subclass of
     app.common.expressions.managed.ManagedExpression) in this registry, which should allow it to automatically show up
