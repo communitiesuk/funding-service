@@ -6,7 +6,12 @@
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 {% extends "developers/access_grant_funding_base.html" %}
 
-{% set page_title = question.text ~ " - " ~ question.form.title %}
+{% if form.questions | length == 1 %}
+  {% set page_title = question.text ~ " - " ~ question.form.title %}
+{% else %}
+  {# fixme: assuming this means we're rendering a question group, read this from the question group text? #}
+  {% set page_title = "A bunch of questions" %}
+{% endif %}
 
 {% block beforeContent %}
   {% if submission_helper.is_test %}
@@ -26,6 +31,9 @@
         {# GOV.UK Frontend macros don't let you add captions to label/legend-headings that are outside of the <h> element #}
         {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
         {# So we just manually add the caption here. #}
+
+        {# todo: de-duplicate this; need to render differently based on if it's a single question or multiple questions #}
+
         {% if form.questions | length == 1 %}
           <span class="govuk-caption-l">{{ question.form.title }}</span>
           {% if question.data_type == question_types.TEXT_SINGLE_LINE or question.data_type == question_types.TEXT_MULTI_LINE %}

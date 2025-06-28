@@ -896,6 +896,9 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
     expression_context = submission_helper.expression_context
 
     # todo: questions with multiple inputs will need to think this through a bit more
+    # todo: actually think through how multiple questions would work here; would need to be sure that they are all
+    #       visible and sensible - question grouping work should think this through and make it impossible to end up
+    #       here with a pointer to multiple questions that are a logically-invalid combination.
     form = build_question_form([question], expression_context=expression_context)(data=expression_context)
 
     if not submission_helper.is_question_visible(question, submission_helper.expression_context):
@@ -917,6 +920,7 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
         return redirect(url_for("developers.check_your_answers", submission_id=submission_id, form_id=question.form_id))
 
     if form.validate_on_submit():
+        # todo: probably a single submit call with data for all of the questions?
         for q in form.questions:
             submission_helper.submit_answer_for_question(q.id, form)
 
@@ -925,6 +929,10 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
                 url_for("developers.check_your_answers", submission_id=submission_id, form_id=question.form_id)
             )
 
+        # todo: if we're using question groups, this might still "just work" (assuming that the question ID for this
+        #       page view is the question group ID, and we render all questions within that group on the page),
+        #       and that the "next question" after the group would be either another standalone question or another
+        #       group?
         next_question = submission_helper.get_next_question(current_question_id=question_id)
         if next_question:
             return redirect(
@@ -933,6 +941,7 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
 
         return redirect(url_for("developers.check_your_answers", submission_id=submission_id, form_id=question.form_id))
 
+    # todo: same thinking here - previous question/question group?
     previous_question = submission_helper.get_previous_question(current_question_id=question_id)
     back_link_from_context = _get_form_runner_link_from_source(
         source=request.args.get("source"),
