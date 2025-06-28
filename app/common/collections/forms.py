@@ -1,5 +1,6 @@
+from collections import defaultdict
 from functools import partial
-from typing import Any, Callable, Mapping, Sequence, cast
+from typing import Any, Callable, Mapping, cast
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea, GovTextInput
@@ -59,6 +60,8 @@ def build_validators(question: Question, expression_context: ExpressionContext) 
 def build_question_form(question: Question, expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
+        _questions = [question]
+
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
         def _build_form_context(self) -> immutable_json_flat_scalars:
@@ -75,7 +78,7 @@ def build_question_form(question: Question, expression_context: ExpressionContex
             data = {k: v for k, v in self.data.items() if k not in {"csrf_token", "submit"}}
             return immutabledict(data)
 
-        def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> Any:
+        def validate(self, extra_validators: Mapping[str, list[Any]] | None = None) -> Any:
             """
             Run the form's validation chain. This works in two steps, currently intermingled:
             - WTForm's built-in field-level validation (eg for IntegerField, that data has been provided, and that it
@@ -83,15 +86,27 @@ def build_question_form(question: Question, expression_context: ExpressionContex
             - Our own validation based on the expression framework. As of 27/06/2025, this supports only "managed"
               validation, but we expect to support fully-custom user-provided validation using expressions as well.
             """
-            # todo: this combines wtform-field validation with our own validation and runs them in a single phase.
-            #       we might want to run the super/wtform validation first, and then only if that passes, do a second
-            #       pass with all of our custom validation. This should mean that our own validators have to think less
-            #       about 'what if data is missing / in the incorrect format', and so reduce the edge cases we have to
-            #       think about.
+            # Run the native WTForm field validation, which will do things like check data types are correct (eg for
+            # IntegerFields.
+            valid = super().validate(extra_validators)
+            if not valid:
+                # If initial validation fails, don't run any of our custom validation chains.
+                return valid
+
+            extra_validators = defaultdict(list, extra_validators or {})
+
+            # Inject the latest data from this form submission into the context for validators to use.
             expression_context.form_context = self._build_form_context()
+            for q in self._questions:
+                extra_validators[mangle_question_id_for_context(q.id)].extend(build_validators(q, expression_context))
+
+            # Do a second validation pass that includes all of our managed/custom validation. This has a small bit of
+            # redundancy because it will run the data validation checks again, but it means that all of our own
+            # validators can rely on the data being, at the least, the right shape.
             return super().validate(extra_validators)
 
-    validators = build_validators(question, expression_context)
+        def validate_on_submit(self, extra_validators: Mapping[str, list[Any]] | None = None) -> Any:
+            return super().validate_on_submit(extra_validators)
 
     field: _accepted_fields
     match question.data_type:
@@ -99,21 +114,18 @@ def build_question_form(question: Question, expression_context: ExpressionContex
             field = StringField(
                 label=question.text,
                 description=question.hint or "",
-                validators=validators,
                 widget=GovTextInput(),
             )
         case QuestionDataType.TEXT_MULTI_LINE:
             field = StringField(
                 label=question.text,
                 description=question.hint or "",
-                validators=validators,
                 widget=GovTextArea(),
             )
         case QuestionDataType.INTEGER:
             field = IntegerField(
                 label=question.text,
                 description=question.hint or "",
-                validators=validators,
                 widget=GovTextInput(),
             )
         case _:
