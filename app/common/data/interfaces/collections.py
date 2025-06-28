@@ -283,13 +283,7 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
 
 
 def add_question_condition(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
-    expression = Expression(
-        statement=managed_expression.statement,
-        context=managed_expression.model_dump(mode="json"),
-        created_by=user,
-        type=ExpressionType.CONDITION,
-        managed_name=managed_expression._key,
-    )
+    expression = Expression.from_managed(managed_expression, user)
     question.expressions.append(expression)
     try:
         db.session.flush()

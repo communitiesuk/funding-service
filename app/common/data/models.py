@@ -328,3 +328,17 @@ class Expression(BaseModel):
     @property
     def managed(self) -> "ManagedExpression":
         return get_managed_expression(self)
+
+    @classmethod
+    def from_managed(
+        cls,
+        managed_expression: "ManagedExpression",
+        user: Optional["User"] = None,
+    ) -> "Expression":
+        return Expression(
+            statement=managed_expression.statement,
+            context=managed_expression.model_dump(mode="json"),
+            created_by=user,
+            type=ExpressionType.CONDITION,
+            managed_name=managed_expression._key,
+        )
