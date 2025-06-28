@@ -24,6 +24,7 @@ from app.common.data.types import (
     json_scalars,
 )
 from app.common.expressions.managed import get_managed_expression
+from app.common.qid import SafeQidMixin
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
@@ -221,7 +222,7 @@ class Form(BaseModel):
     )
 
 
-class Question(BaseModel):
+class Question(BaseModel, SafeQidMixin):
     __tablename__ = "question"
 
     text: Mapped[str]
@@ -252,6 +253,11 @@ class Question(BaseModel):
     @property
     def validations(self) -> list["Expression"]:
         return [expression for expression in self.expressions if expression.type == ExpressionType.VALIDATION]
+
+    @property
+    def question_id(self) -> uuid.UUID:
+        """A small proxy to support SafeQidMixin so that logic can be centralised."""
+        return self.id
 
     def get_expression(self, id: uuid.UUID) -> "Expression":
         try:

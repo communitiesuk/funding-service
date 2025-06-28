@@ -21,8 +21,8 @@ from app.common.expressions import (
     ExpressionContext,
     UndefinedVariableInExpression,
     evaluate,
-    mangle_question_id_for_context,
 )
+from app.common.qid import transform_uuid_to_qid
 
 if TYPE_CHECKING:
     from app.common.data.models import Form, Grant, Question, Section, Submission
@@ -75,7 +75,7 @@ class SubmissionHelper:
     def expression_context(self) -> ExpressionContext:
         return ExpressionContext(
             from_submission=immutabledict(
-                {mangle_question_id_for_context(uuid.UUID(k)): v for k, v in self.submission.data.items()}
+                {transform_uuid_to_qid(uuid.UUID(k)): v for k, v in self.submission.data.items()}
             )
         )
 
