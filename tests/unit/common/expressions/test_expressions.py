@@ -15,86 +15,90 @@ from app.common.expressions import (
 
 class TestInternalEvaluateExpressionWithContext:
     @pytest.mark.parametrize(
-        "expression, expected_result",
+        "statement, context, expected_result",
         (
             # ast.UnaryOp
-            (Expression(statement="not 1"), False),
+            ("not 1", {}, False),
             # ast.Expr / ast.Constant
-            (Expression(statement="1"), 1),
+            ("1", {}, 1),
             # ast.Name
-            (Expression(statement="variable", context={"variable": True}), True),
+            ("variable", {"variable": True}, True),
             # ast.BinOp
-            (Expression(statement="1 + 1"), 2),
-            (Expression(statement="1 - 1"), 0),
-            (Expression(statement="1 * 2"), 2),
-            (Expression(statement="10 / 2"), 5),
+            ("1 + 1", {}, 2),
+            ("1 - 1", {}, 0),
+            ("1 * 2", {}, 2),
+            ("10 / 2", {}, 5),
             # ast.BoolOp
-            (Expression(statement="0 or 1"), True),
-            (Expression(statement="0 and 1"), False),
+            ("0 or 1", {}, True),
+            ("0 and 1", {}, False),
             # ast.Compare
-            (Expression(statement="10 > 1"), True),
-            (Expression(statement="10 == 1"), False),
-            (Expression(statement="10 <= 1"), False),
-            (Expression(statement="True"), True),
-            (Expression(statement="False"), False),
+            ("10 > 1", {}, True),
+            ("10 == 1", {}, False),
+            ("10 <= 1", {}, False),
+            ("True", {}, True),
+            ("False", {}, False),
             # ast.Subscript
-            (Expression(statement="variable[0]", context={"variable": [1, 2, 3]}), 1),
+            ("variable[0]", {"variable": [1, 2, 3]}, 1),
             # ast.Attribute
-            (
-                Expression(statement="variable.value", context={"variable": Mock(value="potato")}),
-                "potato",
-            ),
+            ("variable.value", {"variable": Mock(value="potato")}, "potato"),
         ),
     )
-    def test_allowed_expressions(self, expression, expected_result):
-        assert _evaluate_expression_with_context(expression) == expected_result
+    def test_allowed_expressions(self, statement, context, expected_result):
+        assert _evaluate_expression_with_context(statement, context) == expected_result
 
     @pytest.mark.parametrize(
-        "expression",
+        "statement, context",
         (
-            (Expression(statement="import os")),
-            (Expression(statement="raise Exception")),  # ast.Keyword
-            (Expression(statement="eval('1')")),
-            (Expression(statement="input('hi')")),
-            (Expression(statement="print('hi')")),
-            (Expression(statement="exec('1')")),
-            (Expression(statement="compile('1')")),
-            (Expression(statement="__import__('os')")),
-            (Expression(statement="getattr()")),
-            (Expression(statement="setattr()")),
-            (Expression(statement="delattr()")),
-            (Expression(statement="hasattr()")),
-            (Expression(statement="memoryview()")),
-            (Expression(statement="bytearray()")),
-            (Expression(statement="open()")),
-            (Expression(statement="vars()")),
-            (Expression(statement="dir()")),
-            (Expression(statement="globals()")),
-            (Expression(statement="locals()")),
-            (Expression(statement="a = 1")),  # ast.Assign
-            (Expression(statement="a += 1", context={"a": 1})),  # ast.AugAssign
-            (Expression(statement="1 if True else 2")),  # ast.IfExp
-            (Expression(statement="f'hi'")),  # ast.JoinedStr
-            (Expression(statement="f'{var}'", context={"var": 1})),  # ast.JoinedStr
+            ("import os", {}),
+            ("raise Exception", {}),  # ast.Keyword
+            ("eval('1')", {}),
+            ("input('hi')", {}),
+            ("print('hi')", {}),
+            ("exec('1')", {}),
+            ("compile('1')", {}),
+            ("__import__('os')", {}),
+            ("getattr()", {}),
+            ("setattr()", {}),
+            ("delattr()", {}),
+            ("hasattr()", {}),
+            ("memoryview()", {}),
+            ("bytearray()", {}),
+            ("open()", {}),
+            ("vars()", {}),
+            ("dir()", {}),
+            ("globals()", {}),
+            ("locals()", {}),
+            ("a = 1", {}),  # ast.Assign
+            ("a += 1", {"a": 1}),  # ast.AugAssign
+            ("1 if True else 2", {}),  # ast.IfExp
+            ("f'hi'", {}),  # ast.JoinedStr
+            ("f'{var}'", {"var": 1}),  # ast.JoinedStr
         ),
     )
-    def test_disallowed_expressions(self, expression):
+    def test_disallowed_expressions(self, statement, context):
         with pytest.raises(DisallowedExpression):
-            _evaluate_expression_with_context(expression, {})
+            _evaluate_expression_with_context(statement, context)
 
     def test_unknown_variable(self):
         with pytest.raises(UndefinedVariableInExpression):
-            expression = Expression(statement="blah")
-            _evaluate_expression_with_context(expression, ExpressionContext())
+            _evaluate_expression_with_context("blah", {})
+
+    def test_works_with_plain_dicts(self):
+        assert _evaluate_expression_with_context("a + 1", {"a": 1}) == 2
+
+    def test_works_with_expression_context(self):
+        assert _evaluate_expression_with_context("a + 1", ExpressionContext({"a": 1})) == 2
+        assert _evaluate_expression_with_context("a + 1", ExpressionContext({}, {"a": 1})) == 2
+        assert _evaluate_expression_with_context("a + 1", ExpressionContext({}, {}, {"a": 1})) == 2
 
 
 class TestEvaluate:
     def test_ok_with_boolean_result(self):
-        assert evaluate(Expression(statement="True is False"), ExpressionContext()) is False
+        assert evaluate(Expression(statement="True is False"), {}) is False
 
     def test_additional_context(self):
         assert evaluate(Expression(statement="answer == 1"), context=ExpressionContext({"answer": 1})) is True
 
     def test_raise_on_non_boolean_result(self):
         with pytest.raises(InvalidEvaluationResult):
-            evaluate(Expression(statement="1"), context=ExpressionContext())
+            evaluate(Expression(statement="1"), context={})

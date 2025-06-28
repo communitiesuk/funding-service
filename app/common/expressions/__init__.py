@@ -27,7 +27,7 @@ class InvalidEvaluationResult(ManagedExpressionError):
     pass
 
 
-class ExpressionContext(immutable_json_flat_scalars):
+class ExpressionContext(json_flat_scalars):
     """
     A thin wrapper around three immutable dicts, where access to keys is done in priority order:
     - Keys from the `form` come first (data just submitted by the user answering some questions)
@@ -43,16 +43,12 @@ class ExpressionContext(immutable_json_flat_scalars):
 
     def __init__(
         self,
-        from_form: json_flat_scalars | immutable_json_flat_scalars | None = None,
-        from_submission: json_flat_scalars | immutable_json_flat_scalars | None = None,
-        from_expression: json_flat_scalars | immutable_json_flat_scalars | None = None,
-        *args: Any,
-        **kwargs: Any,
+        from_form: json_flat_scalars | None = None,
+        from_submission: json_flat_scalars | None = None,
+        from_expression: json_flat_scalars | None = None,
     ):
         # TODO: we will probably end up with some of these dicts having nested data (eg for complex questions like
         #       address; so `scalars` likely won't last forever.
-        super().__init__(*args, **kwargs)
-
         if from_form is None:
             from_form = {}
         if from_submission is None:
@@ -77,7 +73,7 @@ class ExpressionContext(immutable_json_flat_scalars):
         return self._form_context
 
     @form_context.setter
-    def form_context(self, value: json_flat_scalars | immutable_json_flat_scalars) -> None:
+    def form_context(self, value: json_flat_scalars) -> None:
         if not isinstance(value, immutabledict):
             value = cast(immutable_json_flat_scalars, immutabledict(value))
 
@@ -89,7 +85,7 @@ class ExpressionContext(immutable_json_flat_scalars):
         return self._submission_context
 
     @submission_context.setter
-    def submission_context(self, value: json_flat_scalars | immutable_json_flat_scalars) -> None:
+    def submission_context(self, value: json_flat_scalars) -> None:
         if not isinstance(value, immutabledict):
             value = cast(immutable_json_flat_scalars, immutabledict(value))
 
@@ -101,7 +97,7 @@ class ExpressionContext(immutable_json_flat_scalars):
         return self._expression_context
 
     @expression_context.setter
-    def expression_context(self, value: json_flat_scalars | immutable_json_flat_scalars) -> None:
+    def expression_context(self, value: json_flat_scalars) -> None:
         if not isinstance(value, immutabledict):
             value = cast(immutable_json_flat_scalars, immutabledict(value))
 
@@ -171,7 +167,7 @@ class ExpressionContext(immutable_json_flat_scalars):
         return [(key, self[key]) for key in self._keys]
 
 
-def _evaluate_expression_with_context(expression: "Expression", context: json_flat_scalars | None = None) -> Any:
+def _evaluate_expression_with_context(statement: str, context: json_flat_scalars | None = None) -> Any:
     """
     The base evaluator to use for handling all expressions.
 
@@ -182,9 +178,8 @@ def _evaluate_expression_with_context(expression: "Expression", context: json_fl
     The addition of any new AST nodes should be well-tested and intentional consideration should be given to any
     ways of exploit or misuse.
     """
-    if not isinstance(context, ExpressionContext):
-        context = ExpressionContext(context if context else {})
-    context.expression_context = expression.context or {}
+    if context is None:
+        context = {}
 
     # May want EvalWithCompoundTypes at some point, but for now simple+very limited is OK.
     evaluator = simpleeval.SimpleEval(names=context)  # type: ignore[no-untyped-call]
@@ -211,7 +206,7 @@ def _evaluate_expression_with_context(expression: "Expression", context: json_fl
     }
 
     try:
-        result = evaluator.eval(expression.statement)  # type: ignore[no-untyped-call]
+        result = evaluator.eval(statement)  # type: ignore[no-untyped-call]
     except simpleeval.NameNotDefined as e:
         raise UndefinedVariableInExpression(e.message) from e
     except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined) as e:
@@ -220,12 +215,19 @@ def _evaluate_expression_with_context(expression: "Expression", context: json_fl
     return result
 
 
+def _prepare_expression_context(expression: "Expression", context: json_flat_scalars | None) -> "ExpressionContext":
+    if not isinstance(context, ExpressionContext):
+        context = ExpressionContext(context if context else {})
+    context.expression_context = expression.context or {}
+    return context
+
+
 # todo: interpolate an expression (eg for injecting dynamic data into question text, error messages, etc)
 def interpolate(expression: "Expression", context: json_flat_scalars | None) -> Any: ...
 
 
 def evaluate(expression: "Expression", context: json_flat_scalars | None = None) -> bool:
-    result = _evaluate_expression_with_context(expression, context)
+    result = _evaluate_expression_with_context(expression.statement, _prepare_expression_context(expression, context))
 
     # do we want these to evalaute to non-bool types like int/str ever?
     if not isinstance(result, bool):
