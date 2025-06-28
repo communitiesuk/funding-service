@@ -72,8 +72,7 @@ def build_question_form(question: Question, expression_context: ExpressionContex
             #        transforming the data here to a format that matches our serialised submission format (which passes
             #        through pydantic models. Otherwise we risk exposing different views of the data to the expressions
             #        system (fully serialised+normalised in the submission context, and more raw in the form context).
-            data = {k: v for k, v in self.data.items() if k not in {"csrf_token", "submit"}}
-            return immutabledict(data)
+            return immutabledict((k, v) for k, v in self.data.items() if k not in {"csrf_token", "submit"})
 
         def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> Any:
             """

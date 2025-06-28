@@ -4,7 +4,6 @@ from itertools import chain
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from immutabledict import immutabledict
 from pydantic import RootModel, TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
@@ -74,9 +73,7 @@ class SubmissionHelper:
     @property
     def expression_context(self) -> ExpressionContext:
         return ExpressionContext(
-            from_submission=immutabledict(
-                {mangle_question_id_for_context(uuid.UUID(k)): v for k, v in self.submission.data.items()}
-            )
+            from_submission={mangle_question_id_for_context(uuid.UUID(k)): v for k, v in self.submission.data.items()}
         )
 
     @property

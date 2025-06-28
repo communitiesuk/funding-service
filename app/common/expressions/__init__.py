@@ -43,9 +43,9 @@ class ExpressionContext(immutable_json_flat_scalars):
 
     def __init__(
         self,
-        from_form: immutable_json_flat_scalars | None = None,
-        from_submission: immutable_json_flat_scalars | None = None,
-        from_expression: immutable_json_flat_scalars | None = None,
+        from_form: json_flat_scalars | immutable_json_flat_scalars | None = None,
+        from_submission: json_flat_scalars | immutable_json_flat_scalars | None = None,
+        from_expression: json_flat_scalars | immutable_json_flat_scalars | None = None,
         *args: Any,
         **kwargs: Any,
     ):
@@ -54,11 +54,18 @@ class ExpressionContext(immutable_json_flat_scalars):
         super().__init__(*args, **kwargs)
 
         if from_form is None:
-            from_form = cast(immutable_json_flat_scalars, immutabledict())
+            from_form = {}
         if from_submission is None:
-            from_submission = cast(immutable_json_flat_scalars, immutabledict())
+            from_submission = {}
         if from_expression is None:
-            from_expression = cast(immutable_json_flat_scalars, immutabledict())
+            from_expression = {}
+
+        if not isinstance(from_form, immutabledict):
+            from_form = immutabledict(from_form)
+        if not isinstance(from_submission, immutabledict):
+            from_submission = immutabledict(from_submission)
+        if not isinstance(from_expression, immutabledict):
+            from_expression = immutabledict(from_expression)
 
         self._form_context: immutable_json_flat_scalars = from_form
         self._submission_context: immutable_json_flat_scalars = from_submission
@@ -70,7 +77,10 @@ class ExpressionContext(immutable_json_flat_scalars):
         return self._form_context
 
     @form_context.setter
-    def form_context(self, value: immutable_json_flat_scalars) -> None:
+    def form_context(self, value: json_flat_scalars | immutable_json_flat_scalars) -> None:
+        if not isinstance(value, immutabledict):
+            value = cast(immutable_json_flat_scalars, immutabledict(value))
+
         self._form_context = value
         self._update_keys()
 
@@ -79,7 +89,10 @@ class ExpressionContext(immutable_json_flat_scalars):
         return self._submission_context
 
     @submission_context.setter
-    def submission_context(self, value: immutable_json_flat_scalars) -> None:
+    def submission_context(self, value: json_flat_scalars | immutable_json_flat_scalars) -> None:
+        if not isinstance(value, immutabledict):
+            value = cast(immutable_json_flat_scalars, immutabledict(value))
+
         self._submission_context = value
         self._update_keys()
 
@@ -88,7 +101,10 @@ class ExpressionContext(immutable_json_flat_scalars):
         return self._expression_context
 
     @expression_context.setter
-    def expression_context(self, value: immutable_json_flat_scalars) -> None:
+    def expression_context(self, value: json_flat_scalars | immutable_json_flat_scalars) -> None:
+        if not isinstance(value, immutabledict):
+            value = cast(immutable_json_flat_scalars, immutabledict(value))
+
         self._expression_context = value
         self._update_keys()
 
@@ -155,7 +171,7 @@ class ExpressionContext(immutable_json_flat_scalars):
         return [(key, self[key]) for key in self._keys]
 
 
-def _evaluate_expression_with_context(expression: "Expression", context: ExpressionContext | None = None) -> Any:
+def _evaluate_expression_with_context(expression: "Expression", context: json_flat_scalars | None = None) -> Any:
     """
     The base evaluator to use for handling all expressions.
 
@@ -166,9 +182,9 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     The addition of any new AST nodes should be well-tested and intentional consideration should be given to any
     ways of exploit or misuse.
     """
-    if context is None:
-        context = ExpressionContext()
-    context.expression_context = immutabledict(expression.context or {})
+    if not isinstance(context, ExpressionContext):
+        context = ExpressionContext(context if context else {})
+    context.expression_context = expression.context or {}
 
     # May want EvalWithCompoundTypes at some point, but for now simple+very limited is OK.
     evaluator = simpleeval.SimpleEval(names=context)  # type: ignore[no-untyped-call]
@@ -205,10 +221,10 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
 
 
 # todo: interpolate an expression (eg for injecting dynamic data into question text, error messages, etc)
-def interpolate(expression: "Expression", context: ExpressionContext | None) -> Any: ...
+def interpolate(expression: "Expression", context: json_flat_scalars | None) -> Any: ...
 
 
-def evaluate(expression: "Expression", context: ExpressionContext | None = None) -> bool:
+def evaluate(expression: "Expression", context: json_flat_scalars | None = None) -> bool:
     result = _evaluate_expression_with_context(expression, context)
 
     # do we want these to evalaute to non-bool types like int/str ever?

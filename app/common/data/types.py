@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import enum
-from typing import Any, Dict
+from typing import Any, Dict, Mapping
 
 from immutabledict import immutabledict
 
 scalars = str | int | float | bool | None
 json_scalars = Dict[str, Any]
-json_flat_scalars = Dict[str, scalars]
+json_flat_scalars = Mapping[str, scalars]
 immutable_json_flat_scalars = immutabledict[str, scalars]
 
 
