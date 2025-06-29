@@ -1,5 +1,4 @@
 import ast
-import uuid
 from typing import TYPE_CHECKING, Any, Iterator, cast
 
 import simpleeval
@@ -216,9 +215,3 @@ def evaluate(expression: "Expression", context: ExpressionContext | None = None)
         raise InvalidEvaluationResult(f"Result of evaluating {expression=} was {result=}; expected a boolean.")
 
     return result
-
-
-def mangle_question_id_for_context(question_id: uuid.UUID) -> str:
-    # todo: work out how to refer to questions in an expressions-compatible way without doing this mangling
-    #       in all of the places. It's not nice.
-    return "q_" + question_id.hex

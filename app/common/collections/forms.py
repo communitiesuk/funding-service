@@ -11,7 +11,7 @@ from wtforms.validators import ValidationError
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
-from app.common.expressions import ExpressionContext, evaluate, mangle_question_id_for_context
+from app.common.expressions import ExpressionContext, evaluate
 
 _accepted_fields = StringField | IntegerField
 
@@ -27,16 +27,16 @@ class DynamicQuestionForm(FlaskForm):
 
     @classmethod
     def attach_field(cls, question: Question, field: Field) -> None:
-        setattr(cls, mangle_question_id_for_context(question.id), cast(_accepted_fields, field))
+        setattr(cls, question.safe_qid, cast(_accepted_fields, field))
 
     def render_question(self, question: Question, params: dict[str, Any] | None = None) -> str:
-        return cast(str, getattr(self, mangle_question_id_for_context(question.id))(params=params))
+        return cast(str, getattr(self, question.safe_qid)(params=params))
 
     def get_question_field(self, question: Question) -> Field:
-        return cast(Field, getattr(self, mangle_question_id_for_context(question.id)))
+        return cast(Field, getattr(self, question.safe_qid))
 
     def get_answer_to_question(self, question: Question) -> Any:
-        return getattr(self, mangle_question_id_for_context(question.id)).data
+        return getattr(self, question.safe_qid).data
 
 
 def build_validators(question: Question, expression_context: ExpressionContext) -> list[Callable[[Form, Field], None]]:
