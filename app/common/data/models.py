@@ -255,7 +255,7 @@ class Question(BaseModel, SafeQidMixin):
         return [expression for expression in self.expressions if expression.type == ExpressionType.VALIDATION]
 
     @property
-    def question_id(self) -> uuid.UUID:
+    def question_id(self) -> uuid.UUID:  # type: ignore[override]
         """A small proxy to support SafeQidMixin so that logic can be centralised."""
         return self.id
 
