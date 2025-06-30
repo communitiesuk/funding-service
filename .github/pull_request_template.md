@@ -15,7 +15,7 @@
 <!-- Screenshot or description of new state -->
 
 ## 🧪 Testing
-<!-- Describe how this change was tested -->
+<!-- Describe how you've tested this change, and how a reviewer can test it -->
 
 ## 📋 Developer Checklist
 <!-- Check all applicable items before requesting review -->
@@ -26,9 +26,11 @@
 
 ### Performance and security
 - [ ] No N+1 query problems introduced
+- [ ] Any new DB queries include appropriate where clauses based on the user's permissions
 
 ### Testing
 - [ ] I have tested this change and it meets the acceptance criteria for the ticket
+- [ ] I need the reviewer(s) to pull and run this change locally
 - [ ] New (non-developer) functionality has appropriate unit and integration tests
 - [ ] End-to-end tests have been updated (if applicable)
 - [ ] Edge cases and error conditions are tested
