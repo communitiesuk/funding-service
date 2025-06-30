@@ -21,11 +21,12 @@ class _ManagedExpressionForm(FlaskForm):
     _managed_expressions: list[type["ManagedExpression"]]
     type: RadioField
 
-    def get_conditional_field_htmls(self) -> list[dict[str, dict[str, Markup]]]:
-        html = []
+    def get_managed_expression_radio_conditional_items(self) -> list[dict[str, dict[str, Markup]]]:
+        items = []
         for _managed_expression in self._managed_expressions:
-            html.append({"conditional": {"html": _managed_expression.render_conditional_fields(self)}})
-        return html
+            # format the radio items for `govuk-frontend-wtf` macro syntax
+            items.append({"conditional": {"html": _managed_expression.concatenate_all_wtf_fields_html(self)}})
+        return items
 
     def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
         for _managed_expression in self._managed_expressions:
