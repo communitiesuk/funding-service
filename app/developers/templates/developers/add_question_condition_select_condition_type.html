@@ -32,7 +32,12 @@
       {% include "developers/_add_question_condition_context.html" %}
 
       {% if form is not none %}
-        {{ render_managed_expression_form(form, label_html="Only show the question if the answer <span class='govuk-visually-hidden'>to “" ~ depends_on_question.text ~ "”</span> is") }}
+        {% set label_html %}
+          Only show the question if the answer
+          <span class="govuk-visually-hidden">to {{ depends_on_question.text }}</span>
+          is
+        {% endset %}
+        {{ render_managed_expression_form(form, label_html=label_html) }}
       {% else %}
         <p class="govuk-body">This question cannot be used a condition.</p>
       {% endif %}
