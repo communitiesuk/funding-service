@@ -691,8 +691,8 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
             )
         )
 
-    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question.data_type)
-    form = ConditionForm.from_expression(expression) if ConditionForm else None
+    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question.data_type, expression)
+    form = ConditionForm() if ConditionForm else None
 
     if form and form.validate_on_submit():
         updated_managed_expression = form.get_expression(depends_on_question)
@@ -795,8 +795,8 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
             )
         )
 
-    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question.data_type)
-    form = ValidationForm.from_expression(expression) if ValidationForm else None
+    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question.data_type, expression)
+    form = ValidationForm() if ValidationForm else None
 
     if form and form.validate_on_submit():
         updated_managed_expression = form.get_expression(question)

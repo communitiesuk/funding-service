@@ -41,19 +41,9 @@ class _ManagedExpressionForm(FlaskForm):
 
         raise RuntimeError(f"Unknown expression type: {self.type.data}")
 
-    @classmethod
-    def from_expression(cls, expression: "Expression") -> "_ManagedExpressionForm":
-        data = {"type": expression.managed_name}
-
-        for _managed_expression in cls._managed_expressions:
-            if _managed_expression.name == expression.managed_name:
-                data.update(_managed_expression.form_data_from_expression(expression))
-
-        return cls(data=data)
-
 
 def build_managed_expression_form(  # noqa: C901
-    type_: ExpressionType, question_type: QuestionDataType
+    type_: ExpressionType, question_type: QuestionDataType, expression: Expression | None = None
 ) -> type["_ManagedExpressionForm"] | None:
     """
     For a given question type, generate a FlaskForm that will allow a user to select one of its managed expressions.
@@ -82,6 +72,7 @@ def build_managed_expression_form(  # noqa: C901
 
         type = RadioField(
             choices=[(managed_expression.name, managed_expression.name) for managed_expression in managed_expressions],
+            default=expression.managed_name if expression else None,
             validators=[DataRequired(type_validation_message)],
             widget=GovRadioInput(),
         )
@@ -89,7 +80,10 @@ def build_managed_expression_form(  # noqa: C901
         submit = SubmitField("Add validation", widget=GovSubmitInput())
 
     for managed_expression in managed_expressions:
-        for field_name, field in managed_expression.get_form_fields().items():
+        pass_expression = expression and expression.managed_name == managed_expression.name
+        for field_name, field in managed_expression.get_form_fields(
+            expression=expression if pass_expression else None
+        ).items():
             setattr(ManagedExpressionForm, field_name, field)
 
     return ManagedExpressionForm

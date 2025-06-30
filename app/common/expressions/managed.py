@@ -1,5 +1,6 @@
 import abc
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar, cast
+from typing import Optional as TOptional
 
 # Define any "managed" expressions that can be applied to common conditions or validations
 # that are built through the UI. These will be used alongside custom expressions
@@ -53,11 +54,11 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         #       optimise this to fetch the full schema once and then re-use that throughout these helpers
         return get_question_by_id(self.question_id)
 
-    # implementing these three fields will update the "add/edit condition/validation" pages for any question types
+    # implementing these two fields will update the "add/edit condition/validation" pages for any question types
     # that are defined in `question_data_types`.
     @staticmethod
     @abc.abstractmethod
-    def get_form_fields() -> dict[str, "Field"]:
+    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
         """
         A hook used by `build_managed_expression_form`. It should return the set of form fields which need to be
         added to the managed expression form. The fields returned should collect the data needed to define an instance
@@ -128,10 +129,6 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         """
         ...
 
-    @staticmethod
-    @abc.abstractmethod
-    def form_data_from_expression(expression: "Expression") -> dict[str, Any]: ...
-
 
 class BottomOfRangeIsLower:
     def __init__(self, message: str | None = None):
@@ -171,16 +168,19 @@ class GreaterThan(ManagedExpression):
         return f"{self.safe_qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
 
     @staticmethod
-    def get_form_fields() -> dict[str, "Field"]:
+    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
         return {
             "greater_than_value": IntegerField(
                 "Minimum value",
+                default=cast(int, expression.context["minimum_value"]) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
             "greater_than_inclusive": BooleanField(
-                "An answer of exactly the minimum value is allowed", widget=GovCheckboxInput()
+                "An answer of exactly the minimum value is allowed",
+                default=cast(bool, expression.context["inclusive"]) if expression else None,
+                widget=GovCheckboxInput(),
             ),
         }
 
@@ -195,13 +195,6 @@ class GreaterThan(ManagedExpression):
             minimum_value=form.greater_than_value.data,
             inclusive=form.greater_than_inclusive.data,
         )
-
-    @staticmethod
-    def form_data_from_expression(expression: "Expression") -> dict[str, Any]:
-        return {
-            "greater_than_value": expression.context["minimum_value"],
-            "greater_than_inclusive": expression.context["inclusive"],
-        }
 
 
 @register_managed_expression
@@ -228,16 +221,19 @@ class LessThan(ManagedExpression):
         return f"{self.safe_qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
 
     @staticmethod
-    def get_form_fields() -> dict[str, "Field"]:
+    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
         return {
             "less_than_value": IntegerField(
                 "Maximum value",
+                default=cast(int, expression.context["maximum_value"]) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
             "less_than_inclusive": BooleanField(
-                "An answer of exactly the maximum value is allowed", widget=GovCheckboxInput()
+                "An answer of exactly the maximum value is allowed",
+                default=cast(bool, expression.context["inclusive"]) if expression else None,
+                widget=GovCheckboxInput(),
             ),
         }
 
@@ -252,13 +248,6 @@ class LessThan(ManagedExpression):
             maximum_value=form.less_than_value.data,
             inclusive=form.less_than_inclusive.data,
         )
-
-    @staticmethod
-    def form_data_from_expression(expression: "Expression") -> dict[str, Any]:
-        return {
-            "less_than_value": expression.context["maximum_value"],
-            "less_than_inclusive": expression.context["inclusive"],
-        }
 
 
 @register_managed_expression
@@ -303,25 +292,31 @@ class Between(ManagedExpression):
         )
 
     @staticmethod
-    def get_form_fields() -> dict[str, "Field"]:
+    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
         return {
             "between_bottom_of_range": IntegerField(
                 "Minimum value",
+                default=cast(int, expression.context["minimum_value"]) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
             "between_bottom_inclusive": BooleanField(
-                "An answer of exactly the minimum value is allowed", widget=GovCheckboxInput()
+                "An answer of exactly the minimum value is allowed",
+                default=cast(bool, expression.context["minimum_inclusive"]) if expression else None,
+                widget=GovCheckboxInput(),
             ),
             "between_top_of_range": IntegerField(
                 "Maximum value",
+                default=cast(int, expression.context["maximum_value"]) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
             "between_top_inclusive": BooleanField(
-                "An answer of exactly the maximum value is allowed", widget=GovCheckboxInput()
+                "An answer of exactly the maximum value is allowed",
+                default=cast(bool, expression.context["maximum_inclusive"]) if expression else None,
+                widget=GovCheckboxInput(),
             ),
         }
 
@@ -345,15 +340,6 @@ class Between(ManagedExpression):
             maximum_value=form.between_top_of_range.data,
             maximum_inclusive=form.between_top_inclusive.data,
         )
-
-    @staticmethod
-    def form_data_from_expression(expression: "Expression") -> dict[str, Any]:
-        return {
-            "between_bottom_of_range": expression.context["minimum_value"],
-            "between_bottom_inclusive": expression.context["minimum_inclusive"],
-            "between_top_of_range": expression.context["maximum_value"],
-            "between_top_inclusive": expression.context["maximum_inclusive"],
-        }
 
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
