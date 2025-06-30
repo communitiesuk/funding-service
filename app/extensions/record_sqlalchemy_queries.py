@@ -34,6 +34,9 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+# TODO: Remove this module if/when https://github.com/pallets-eco/flask-sqlalchemy-lite/pull/21 is merged and
+#       a matching update has been made to Flask-DebugToolbar to use that functiomnality natively.
+
 import dataclasses
 import inspect
 import typing as t
@@ -86,8 +89,8 @@ class RecordSqlalchemyQueriesExtension:
         if not has_app_context():
             return
 
-        if "_recorded_sqlalchemy_queries" not in g:
-            g._recorded_sqlalchemy_queries = []
+        if "_sqlalchemy_queries" not in g:
+            g._sqlalchemy_queries = []
 
         import_top = current_app.import_name.partition(".")[0]
         import_dot = f"{import_top}."
@@ -110,7 +113,7 @@ class RecordSqlalchemyQueriesExtension:
         if "SAVEPOINT" in statement:
             return
 
-        g._recorded_sqlalchemy_queries.append(
+        g._sqlalchemy_queries.append(
             QueryInfo(
                 statement=context.statement,
                 parameters=context.parameters,
@@ -122,4 +125,4 @@ class RecordSqlalchemyQueriesExtension:
 
 
 def get_recorded_queries() -> list[QueryInfo]:
-    return t.cast(list[QueryInfo], g.get("_recorded_sqlalchemy_queries", []))
+    return t.cast(list[QueryInfo], g.get("_sqlalchemy_queries", []))
