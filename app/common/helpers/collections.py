@@ -21,7 +21,6 @@ from app.common.expressions import (
     ExpressionContext,
     UndefinedVariableInExpression,
     evaluate,
-    mangle_question_id_for_context,
 )
 
 if TYPE_CHECKING:
@@ -73,11 +72,14 @@ class SubmissionHelper:
 
     @property
     def expression_context(self) -> ExpressionContext:
-        return ExpressionContext(
-            from_submission=immutabledict(
-                {mangle_question_id_for_context(uuid.UUID(k)): v for k, v in self.submission.data.items()}
-            )
-        )
+        submission_data = {
+            question.safe_qid: answer.model_dump()
+            for section in self.submission.collection.sections
+            for form in section.forms
+            for question in form.questions
+            if (answer := self.get_answer_for_question(question.id)) is not None
+        }
+        return ExpressionContext(from_submission=immutabledict(submission_data))
 
     @property
     def status(self) -> str:

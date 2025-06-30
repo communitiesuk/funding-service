@@ -8,13 +8,13 @@ from uuid import UUID
 from pydantic import BaseModel, TypeAdapter
 
 from app.common.data.types import ManagedExpressionsEnum
-from app.common.expressions import mangle_question_id_for_context
+from app.common.qid import SafeQidMixin
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
 
 
-class ManagedExpression(BaseModel):
+class ManagedExpression(BaseModel, SafeQidMixin):
     _key: ManagedExpressionsEnum
     question_id: UUID
 
@@ -58,8 +58,7 @@ class GreaterThan(ManagedExpression):
 
     @property
     def statement(self) -> str:
-        qid = mangle_question_id_for_context(self.question_id)
-        return f"{qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
+        return f"{self.safe_qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
 
 
 class LessThan(ManagedExpression):
@@ -78,8 +77,7 @@ class LessThan(ManagedExpression):
 
     @property
     def statement(self) -> str:
-        qid = mangle_question_id_for_context(self.question_id)
-        return f"{qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
+        return f"{self.safe_qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
 
 
 class Between(ManagedExpression):
@@ -110,11 +108,10 @@ class Between(ManagedExpression):
     @property
     def statement(self) -> str:
         # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
-        qid = mangle_question_id_for_context(self.question_id)
         return (
             f"{self.minimum_value} "
             f"<{'=' if self.minimum_inclusive else ''} "
-            f"{qid} "
+            f"{self.safe_qid} "
             f"<{'=' if self.maximum_inclusive else ''} "
             f"{self.maximum_value}"
         )
