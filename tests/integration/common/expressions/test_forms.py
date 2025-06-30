@@ -1,3 +1,4 @@
+import pytest
 from werkzeug.datastructures import MultiDict
 
 from app.common.data.interfaces.collections import add_question_validation
@@ -7,12 +8,15 @@ from app.common.expressions.managed import GreaterThan
 
 
 class TestAddIntegerValidationForm:
-    def test_get_greater_than_expression(self, factories):
+    @pytest.mark.parametrize("greater_than", (-100, 0, 100))
+    def test_get_greater_than_expression(self, factories, greater_than):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
         form = AddIntegerExpressionForm(
             formdata=MultiDict(
                 dict(
-                    type=ManagedExpressionsEnum.GREATER_THAN.value, greater_than_value="2000", greater_than_inclusive=""
+                    type=ManagedExpressionsEnum.GREATER_THAN.value,
+                    greater_than_value=str(greater_than),
+                    greater_than_inclusive="",
                 )
             )
         )
@@ -20,30 +24,41 @@ class TestAddIntegerValidationForm:
         expression = form.get_expression(question)
         assert expression._key == "Greater than"
         assert expression.question_id == question.id
-        assert expression.minimum_value == 2000
+        assert expression.minimum_value == greater_than
 
-    def test_get_less_than_expression(self, factories):
+    @pytest.mark.parametrize("less_than", (-100, 0, 100))
+    def test_get_less_than_expression(self, factories, less_than):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
         form = AddIntegerExpressionForm(
             formdata=MultiDict(
-                dict(type=ManagedExpressionsEnum.LESS_THAN.value, less_than_value="2000", less_than_inclusive="")
+                dict(
+                    type=ManagedExpressionsEnum.LESS_THAN.value, less_than_value=str(less_than), less_than_inclusive=""
+                )
             )
         )
 
         expression = form.get_expression(question)
         assert expression._key == "Less than"
         assert expression.question_id == question.id
-        assert expression.maximum_value == 2000
+        assert expression.maximum_value == less_than
 
-    def test_get_between_expression(self, factories):
+    @pytest.mark.parametrize(
+        "minimum_value, maximum_value",
+        (
+            (0, 100),  # Make sure 0 is accepted for minimum value
+            (10, 20),
+            (-100, 0),  # Make sure 0 is accepted for maximum value
+        ),
+    )
+    def test_get_between_expression(self, factories, minimum_value, maximum_value):
         question = factories.question.build(data_type=QuestionDataType.INTEGER)
         form = AddIntegerExpressionForm(
             formdata=MultiDict(
                 dict(
                     type=ManagedExpressionsEnum.BETWEEN.value,
-                    bottom_of_range="10",
+                    bottom_of_range=str(minimum_value),
                     bottom_inclusive="",
-                    top_of_range="20",
+                    top_of_range=str(maximum_value),
                     top_inclusive="",
                 )
             )
@@ -52,9 +67,9 @@ class TestAddIntegerValidationForm:
         expression = form.get_expression(question)
         assert expression._key == "Between"
         assert expression.question_id == question.id
-        assert expression.minimum_value == 10
+        assert expression.minimum_value == minimum_value
         assert expression.minimum_inclusive is False
-        assert expression.maximum_value == 20
+        assert expression.maximum_value == maximum_value
         assert expression.maximum_inclusive is False
 
     def test_from_expression(self, factories):
