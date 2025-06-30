@@ -54,7 +54,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         return get_question_by_id(self.question_id)
 
     # implementing these three fields will update the "add/edit condition/validation" pages for any question types
-    # that support are defined in `question_data_types`.
+    # that are defined in `question_data_types`.
     @staticmethod
     @abc.abstractmethod
     def get_form_fields() -> dict[str, "Field"]:
