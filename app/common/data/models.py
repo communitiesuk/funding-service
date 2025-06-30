@@ -7,7 +7,7 @@ from pytz import utc
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.orderinglist import ordering_list
+from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_json import mutable_json_type
 
@@ -105,7 +105,7 @@ class Collection(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    sections: Mapped[list["Section"]] = relationship(
+    sections: Mapped[OrderingList["Section"]] = relationship(
         "Section",
         lazy=True,
         order_by="Section.order",
@@ -170,7 +170,7 @@ class Section(BaseModel):
     collection_version: Mapped[int]
     collection: Mapped[Collection] = relationship("Collection", back_populates="sections")
 
-    forms: Mapped[list["Form"]] = relationship(
+    forms: Mapped[OrderingList["Form"]] = relationship(
         "Form",
         lazy=True,
         order_by="Form.order",
@@ -211,7 +211,7 @@ class Form(BaseModel):
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
     )
 
-    questions: Mapped[list["Question"]] = relationship(
+    questions: Mapped[OrderingList["Question"]] = relationship(
         "Question",
         lazy=True,
         order_by="Question.order",

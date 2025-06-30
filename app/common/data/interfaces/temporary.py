@@ -11,6 +11,8 @@ The only place that should import from here is the `app.developers` package.
 
 from uuid import UUID
 
+from sqlalchemy import text
+
 from app.common.data.models import (
     Collection,
     Form,
@@ -51,19 +53,28 @@ def delete_collection(collection_id: UUID) -> None:
     db.session.flush()
 
 
-def delete_section(section_id: UUID) -> None:
-    section = db.session.query(Section).where(Section.id == section_id).one()
+def delete_section(section: Section) -> None:
     db.session.delete(section)
+    section.collection.sections.reorder()
+    db.session.execute(
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+    )
     db.session.flush()
 
 
-def delete_form(form_id: UUID) -> None:
-    form = db.session.query(Form).where(Form.id == form_id).one()
+def delete_form(form: Form) -> None:
     db.session.delete(form)
+    form.section.forms.reorder()
+    db.session.execute(
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+    )
     db.session.flush()
 
 
-def delete_question(question_id: UUID) -> None:
-    question = db.session.query(Question).where(Question.id == question_id).one()
+def delete_question(question: Question) -> None:
     db.session.delete(question)
+    question.form.questions.reorder()
+    db.session.execute(
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+    )
     db.session.flush()
