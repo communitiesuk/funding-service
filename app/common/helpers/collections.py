@@ -73,11 +73,11 @@ class SubmissionHelper:
     @property
     def expression_context(self) -> ExpressionContext:
         submission_data = {
-            question.safe_qid: answer
+            question.safe_qid: answer.model_dump()
             for section in self.submission.collection.sections
             for form in section.forms
             for question in form.questions
-            if (answer := self.submission.data.get(str(question.id))) is not None
+            if (answer := self.get_answer_for_question(question.id)) is not None
         }
         return ExpressionContext(from_submission=immutabledict(submission_data))
 
