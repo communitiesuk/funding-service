@@ -61,6 +61,7 @@ dev = [
     "types-boto3==1.38.42",
     "freezegun==1.5.2",
     "import-linter==2.3",
+    "alembic-postgresql-enum>=1.7.0",
 ]
 
 [tool.uv]
