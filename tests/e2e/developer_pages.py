@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from playwright.sync_api import Locator, Page, expect
 
 from app.common.data.types import ManagedExpressionsEnum
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
+
+if TYPE_CHECKING:
+    from tests.e2e.pages import AllGrantsPage
 
 
 class GrantDevelopersBasePage:
@@ -24,6 +27,8 @@ class GrantDevelopersBasePage:
 
 class GrantDevelopersPage(GrantDevelopersBasePage):
     manage_collections_link: Locator
+    delete_link: Locator
+    confirm_delete: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(
@@ -31,11 +36,23 @@ class GrantDevelopersPage(GrantDevelopersBasePage):
         )
         self.manage_collections_link = self.page.get_by_role("link", name="Manage")
 
+        self.delete_link = page.get_by_role("link", name="Delete this grant")
+        self.confirm_delete = page.get_by_role("button", name="Confirm deletion")
+
     def click_manage_collections(self, grant_name: str) -> ListCollectionsPage:
         self.manage_collections_link.click()
         list_collections_page = ListCollectionsPage(self.page, self.domain, self.grant_name)
         expect(list_collections_page.heading).to_be_visible()
         return list_collections_page
+
+    def delete_grant(self) -> "AllGrantsPage":
+        from tests.e2e.pages import AllGrantsPage
+
+        self.delete_link.click()
+        self.confirm_delete.click()
+        all_grants_page = AllGrantsPage(self.page, self.domain)
+        expect(all_grants_page.title).to_be_visible()
+        return all_grants_page
 
 
 class ListCollectionsPage(GrantDevelopersBasePage):
