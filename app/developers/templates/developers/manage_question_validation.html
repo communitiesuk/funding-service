@@ -54,7 +54,12 @@
       }}
 
       {% if form is not none %}
-        {{ render_managed_expression_form(form, label_html="The answer to the question <span class='govuk-visually-hidden'>“" ~ question.text ~ "”</span> must be") }}
+        {% set label_html %}
+          The answer to the question
+          <span class="govuk-visually-hidden">“{{ question.text }}”</span>
+          must be
+        {% endset %}
+        {{ render_managed_expression_form(form, label_html=label_html) }}
 
         {% if expression %}
           <div class="govuk-grid-row govuk-!-margin-top-7">

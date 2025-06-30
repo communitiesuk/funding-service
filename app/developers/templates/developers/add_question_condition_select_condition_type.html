@@ -33,9 +33,9 @@
 
       {% if form is not none %}
         {% set label_html %}
-          "Only show the question if the answer
+          Only show the question if the answer
           <span class="govuk-visually-hidden">to {{ depends_on_question.text }}</span>
-          is"
+          is
         {% endset %}
         {{ render_managed_expression_form(form, label_html=label_html) }}
       {% else %}
