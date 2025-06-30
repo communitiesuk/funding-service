@@ -99,7 +99,7 @@ class RecordSqlalchemyQueriesExtension:
         while frame:
             name = frame.f_globals.get("__name__")
 
-            if name and (name == import_top or name.startswith(import_dot)):
+            if name and (name == import_top or name.startswith(import_dot)) and "record_sqlalchemy_queries" not in name:
                 code = frame.f_code
                 location = f"{code.co_filename}:{frame.f_lineno} ({code.co_name})"
                 break
