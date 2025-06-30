@@ -44,7 +44,7 @@ class DynamicQuestionForm(FlaskForm):
 
     def validate(self, extra_validators: Mapping[str, list[Any]] | None = None) -> Any:
         """
-        Run the form's validation chain. This works in two steps, currently intermingled:
+        Run the form's validation chain. This works in two steps:
         - WTForm's built-in field-level validation (eg for IntegerField, that data has been provided, and that it
           can be coerced to an integer value.
         - Our own validation based on the expression framework. As of 27/06/2025, this supports only "managed"
@@ -68,9 +68,6 @@ class DynamicQuestionForm(FlaskForm):
         # redundancy because it will run the data validation checks again, but it means that all of our own
         # validators can rely on the data being, at the least, the right shape.
         return super().validate(extra_validators)
-
-    def validate_on_submit(self, extra_validators: Mapping[str, list[Any]] | None = None) -> Any:
-        return super().validate_on_submit(extra_validators)
 
     @classmethod
     def attach_field(cls, question: Question, field: Field) -> None:
