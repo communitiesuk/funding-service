@@ -244,7 +244,7 @@ def manage_section(
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        delete_section(section_id=section_id, collection_id=collection_id)
+        delete_section(section)
         # TODO: Flash message for deletion?
         return redirect(url_for("developers.manage_collection", grant_id=grant_id, collection_id=collection_id))
 
@@ -296,7 +296,7 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
 
     form = ConfirmDeletionForm()
     if "delete" in request.args and form.validate_on_submit() and form.confirm_deletion.data:
-        delete_form(form_id=form_id, section_id=section_id)
+        delete_form(db_form)
         # TODO: Flash message for deletion?
         return redirect(
             url_for("developers.manage_section", grant_id=grant_id, collection_id=collection_id, section_id=section_id)
@@ -551,7 +551,7 @@ def edit_question(
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        delete_question(question_id=question_id, form_id=form_id)
+        delete_question(question)
         # TODO: Flash message for deletion?
         return redirect(
             url_for(

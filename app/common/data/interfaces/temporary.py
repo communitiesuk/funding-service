@@ -17,6 +17,7 @@ from app.common.data.models import (
     Collection,
     Form,
     Grant,
+    Question,
     Section,
     Submission,
 )
@@ -52,38 +53,27 @@ def delete_collection(collection_id: UUID) -> None:
     db.session.flush()
 
 
-def delete_section(section_id: UUID, collection_id: UUID) -> None:
-    collection = db.session.query(Collection).where(Collection.id == collection_id).one()
-    section = next(section for section in collection.sections if section.id == section_id)
-
+def delete_section(section: Section) -> None:
     db.session.delete(section)
-    collection.sections.remove(section)
-
+    section.collection.sections.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )
     db.session.flush()
 
 
-def delete_form(form_id: UUID, section_id: UUID) -> None:
-    section = db.session.query(Section).where(Section.id == section_id).one()
-    form = next(form for form in section.forms if form.id == form_id)
-
+def delete_form(form: Form) -> None:
     db.session.delete(form)
-    section.forms.remove(form)
-
+    form.section.forms.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )
     db.session.flush()
 
 
-def delete_question(question_id: UUID, form_id: UUID) -> None:
-    form = db.session.query(Form).where(Form.id == form_id).one()
-    question = next(question for question in form.questions if question.id == question_id)
-
+def delete_question(question: Question) -> None:
     db.session.delete(question)
-    form.questions.remove(question)
+    question.form.questions.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )
