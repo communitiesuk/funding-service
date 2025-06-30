@@ -93,22 +93,22 @@ class AddIntegerExpressionForm(_BaseExpressionForm):
 
         match self.type.data:
             case ManagedExpressionsEnum.GREATER_THAN.value:
-                assert self.greater_than_value.data
+                assert self.greater_than_value.data is not None
                 return GreaterThan(
                     question_id=question.id,
                     minimum_value=self.greater_than_value.data,
                     inclusive=self.greater_than_inclusive.data,
                 )
             case ManagedExpressionsEnum.LESS_THAN.value:
-                assert self.less_than_value.data
+                assert self.less_than_value.data is not None
                 return LessThan(
                     question_id=question.id,
                     maximum_value=self.less_than_value.data,
                     inclusive=self.less_than_inclusive.data,
                 )
             case ManagedExpressionsEnum.BETWEEN.value:
-                assert self.bottom_of_range.data
-                assert self.top_of_range.data
+                assert self.bottom_of_range.data is not None
+                assert self.top_of_range.data is not None
                 return Between(
                     question_id=question.id,
                     minimum_value=self.bottom_of_range.data,
