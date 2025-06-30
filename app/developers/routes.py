@@ -39,12 +39,9 @@ from app.common.data.interfaces.temporary import (
     delete_section,
     delete_submissions_created_by_user,
 )
-from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.expressions.helpers import (
-    get_managed_expression_form,
-    get_supported_form_questions,
-    get_validation_supported_for_question,
-)
+from app.common.data.types import ExpressionType, QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.expressions.forms import build_managed_expression_form
+from app.common.expressions.registry import get_managed_expressions_for_question_type
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -594,7 +591,7 @@ def edit_question(
         question=question,
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
-        managed_validation_available=get_validation_supported_for_question(question),
+        managed_validation_available=get_managed_expressions_for_question_type(question.data_type),
     )
 
 
@@ -605,10 +602,7 @@ def edit_question(
 @is_platform_admin
 def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
-    form = ConditionSelectQuestionForm()
-
-    supported_questions = get_supported_form_questions(question)
-    form.add_question_options(supported_questions)
+    form = ConditionSelectQuestionForm(question=question)
 
     if form.validate_on_submit():
         return redirect(
@@ -623,7 +617,6 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
     return render_template(
         "developers/add_question_condition_select_question.html",
         question=question,
-        supported_questions=supported_questions,
         grant=question.form.section.collection.grant,
         form=form,
     )
@@ -639,9 +632,8 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     question = get_question_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
-    ConditionForm = get_managed_expression_form(depends_on_question)
+    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question.data_type)
     form = ConditionForm() if ConditionForm else None
-
     if form and form.validate_on_submit():
         expression = form.get_expression(depends_on_question)
 
@@ -699,8 +691,8 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
             )
         )
 
-    ConditionForm = get_managed_expression_form(depends_on_question)
-    form = ConditionForm.from_expression(expression) if ConditionForm else None
+    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question.data_type, expression)
+    form = ConditionForm() if ConditionForm else None
 
     if form and form.validate_on_submit():
         updated_managed_expression = form.get_expression(depends_on_question)
@@ -743,7 +735,7 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
 def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
 
-    ValidationForm = get_managed_expression_form(question)
+    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question.data_type)
     form = ValidationForm() if ValidationForm else None
     if form and form.validate_on_submit():
         expression = form.get_expression(question)
@@ -803,8 +795,8 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
             )
         )
 
-    ValidationForm = get_managed_expression_form(question)
-    form = ValidationForm.from_expression(expression) if ValidationForm else None
+    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question.data_type, expression)
+    form = ValidationForm() if ValidationForm else None
 
     if form and form.validate_on_submit():
         updated_managed_expression = form.get_expression(question)

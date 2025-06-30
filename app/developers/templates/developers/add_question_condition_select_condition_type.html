@@ -4,6 +4,8 @@
 {% from "govuk_frontend_jinja/components/input/macro.html" import govukInput %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "developers/_render_managed_expression_form.html" import render_managed_expression_form %}
 
 {% block pageTitle %}
   Add a condition - {{ question.name }} - MHCLG Funding Service
@@ -12,10 +14,12 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
+  {# todo: pressing back here should remember which question you had selected in case you want to just move one up or down in the list #}
+  {#       that would also line up with how the browsers "back" button would work (remembering form options) #}
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.edit_question", grant_id = grant.id, collection_id = question.form.section.collection.id, section_id = question.form.section.id, form_id = question.form.id, question_id=question.id)
+        "href": url_for("developers.add_question_condition_select_question", grant_id = grant.id, question_id=question.id)
     })
   }}
 {% endblock beforeContent %}
@@ -27,22 +31,15 @@
 
       {% include "developers/_add_question_condition_context.html" %}
 
-      {% if not form.question.choices %}
-        <p class="govuk-body">There are no questions in this form that can be used as a condition.</p>
+      {% if form is not none %}
+        {% set label_html %}
+          Only show the question if the answer
+          <span class="govuk-visually-hidden">to {{ depends_on_question.text }}</span>
+          is
+        {% endset %}
+        {{ render_managed_expression_form(form, label_html=label_html) }}
       {% else %}
-        <form method="post" novalidate>
-          {{ form.csrf_token }}
-          {{
-            form.question(params={
-              "label": {
-                "text": "What answer should the condition check?",
-                "classes": "govuk-label--m",
-                "isPageHeading": false
-              },
-            })
-          }}
-          {{ form.submit }}
-        </form>
+        <p class="govuk-body">This question cannot be used a condition.</p>
       {% endif %}
     </div>
   </div>

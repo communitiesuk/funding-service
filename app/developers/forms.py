@@ -5,6 +5,8 @@ from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSelect, GovSubm
 from wtforms import RadioField, SelectField, SubmitField
 from wtforms.validators import DataRequired, Optional
 
+from app.common.expressions.registry import get_supported_form_questions
+
 if TYPE_CHECKING:
     from app.common.data.models import Question
 
@@ -49,5 +51,9 @@ class ConditionSelectQuestionForm(FlaskForm):
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
-    def add_question_options(self, questions: list["Question"]) -> None:
-        self.question.choices = [(question.id, f"{question.text} ({question.name})") for question in questions]
+    def __init__(self, *args, question: "Question", **kwargs):  # type: ignore[no-untyped-def]
+        super().__init__(*args, **kwargs)
+
+        self.question.choices = [
+            (question.id, f"{question.text} ({question.name})") for question in get_supported_form_questions(question)
+        ]
