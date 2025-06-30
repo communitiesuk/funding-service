@@ -99,7 +99,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         ...
 
     @classmethod
-    def render_conditional_fields(cls, form: "_ManagedExpressionForm") -> Markup:
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm") -> Markup:
         """
         A hook used by `build_managed_expression_form` to support conditionally-revealed the fields that a user needs
         to complete when they select this managed expression type from the radio list of available managed expressions.
