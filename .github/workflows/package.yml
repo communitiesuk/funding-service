@@ -28,7 +28,7 @@ jobs:
       ghcr_image_location: ${{ steps.build_and_publish.outputs.ghcr_image_location }}
 
     steps:
-      - uses: buildpacks/github-actions/setup-pack@18140f827a09dd7fad8a189e7fdd97460811cd53 # v5.9.1
+      - uses: buildpacks/github-actions/setup-pack@bc04fbfd78e903050bab17a2dcf907e71e3c4afa # v5.9.2
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Set up Python
