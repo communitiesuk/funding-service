@@ -1,7 +1,7 @@
 import pytest
+from flask_login import AnonymousUserMixin
 
 from app import AuthorisationHelper
-from app.common.data.models_user import AnonymousUser
 from app.common.data.types import RoleEnum
 
 
@@ -31,8 +31,7 @@ class TestAuthorisationHelper:
         assert AuthorisationHelper.is_platform_admin(user) is expected
 
     def test_is_platform_admin_works_for_anonymous_user(self):
-        user = AnonymousUser()
-        assert AuthorisationHelper.is_platform_admin(user) is False
+        assert AuthorisationHelper.is_platform_admin(AnonymousUserMixin()) is False
 
     @pytest.mark.parametrize(
         "role, expected",
