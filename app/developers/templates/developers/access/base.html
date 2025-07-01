@@ -1,0 +1,48 @@
+{% extends "common/base.html" %}
+{% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+{% from "common/partials/navigation.html" import accessGrantFundingServiceNavigation %}
+
+{% set nav_items = nav_items or [] %}
+{% set right_nav_items = right_nav_items or [] %}
+
+{% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
+
+{% block header %}
+  {{
+    mhclgHeader(
+      params={
+        "homepageUrl": "#",
+        "assetPath": assetPath
+      },
+      currentUser=current_user,
+    )
+  }}
+  {{ accessGrantFundingServiceNavigation(nav_items, right_nav_items) }}
+{% endblock header %}
+
+{% block main %}
+  <div {% if show_watermark %}class="app-watermark-container"{% endif %}>
+    <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
+      {% block beforeContent %}{% endblock %}
+      <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
+        {% block mainWrapper %}
+          <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
+            {% block errorSummary %}
+              <div class="govuk-grid-row">
+                <div class="govuk-grid-column-two-thirds">
+                  {% if form is defined and form.errors %}
+                    {{ govukErrorSummary(wtforms_errors(form)) }}
+                  {% endif %}
+                </div>
+              </div>
+            {% endblock errorSummary %}
+
+            {% block content %}
+            {% endblock content %}
+          </main>
+        {% endblock mainWrapper %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

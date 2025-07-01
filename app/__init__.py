@@ -131,6 +131,7 @@ def create_app() -> Flask:
     app.jinja_loader = ChoiceLoader(
         [
             PackageLoader("app.common"),
+            PackageLoader("app.access_grant_funding"),
             PackageLoader("app.deliver_grant_funding"),
             PackageLoader("app.developers"),
             PrefixLoader({"govuk_frontend_jinja": PackageLoader("govuk_frontend_jinja")}),
@@ -185,12 +186,14 @@ def create_app() -> Flask:
     # Attach routes
     _register_custom_converters(app)
 
+    from app.access_grant_funding.routes import access_grant_funding_blueprint
     from app.common.auth import auth_blueprint
     from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
     from app.developers import developers_blueprint
     from app.healthcheck import healthcheck_blueprint
 
     app.register_blueprint(healthcheck_blueprint)
+    app.register_blueprint(access_grant_funding_blueprint)
     app.register_blueprint(deliver_grant_funding_blueprint)
     app.register_blueprint(developers_blueprint)
     app.register_blueprint(auth_blueprint)
