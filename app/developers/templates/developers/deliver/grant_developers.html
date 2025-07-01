@@ -42,7 +42,7 @@
                 },
                 "value": { "text": ( grant.collections | length | string ) + " preview collections" },
                 "actions": {
-                    "items": [{ "text": "Manage", "href": url_for('developers.grant_developers_collections', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
+                    "items": [{ "text": "Manage", "href": url_for('developers.deliver.grant_developers_collections', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
                 },
             }]
         })
@@ -51,7 +51,7 @@
       <div class="govuk-grid-row govuk-!-margin-top-7">
         <div class="govuk-grid-column-two-thirds">
           <p class="govuk-body">
-            <a class="govuk-link app-link--destructive" href="{{ url_for('developers.grant_developers', grant_id=grant.id, delete='') }}">Delete this grant</a>
+            <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.grant_developers', grant_id=grant.id, delete='') }}">Delete this grant</a>
           </p>
         </div>
       </div>

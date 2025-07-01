@@ -10,7 +10,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_collection", grant_id = grant.id, collection_id=collection.id)
+        "href": url_for("developers.deliver.manage_collection", grant_id = grant.id, collection_id=collection.id)
     })
   }}
 {% endblock beforeContent %}
@@ -44,15 +44,15 @@
               "text": section.title,
               "actions":[{
                 "text":"Move up",
-                "href": url_for('developers.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1),
+                "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1),
                 "post": True
               }, {
                 "text": "Move down",
-                "href": url_for('developers.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'down'),
+                "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'down'),
                 "disabled":(loop.index >= collection.sections | length),
                 "post": True
               }, {
-                "href": url_for('developers.manage_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id),
+                "href": url_for('developers.deliver.manage_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id),
                 "text": "Manage",
                 "post": False
               }]
@@ -69,7 +69,7 @@
         govukButton({
         "text": "Add a section",
         "classes": "govuk-button--secondary",
-        "href": url_for("developers.add_section", grant_id = grant.id, collection_id=collection.id)
+        "href": url_for("developers.deliver.add_section", grant_id = grant.id, collection_id=collection.id)
         })
       }}
     </div>

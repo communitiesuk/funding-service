@@ -6,7 +6,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "developers/_render_managed_expression_form.html" import render_managed_expression_form %}
+{% from "developers/deliver/_render_managed_expression_form.html" import render_managed_expression_form %}
 
 {% block pageTitle %}
   Add validation - {{ question.name }} - MHCLG Funding Service
@@ -15,7 +15,7 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
-  {{ govukBackLink({ "text": "Back", "href": url_for("developers.edit_question", grant_id=grant.id, collection_id=question.form.section.collection.id, section_id=question.form.section.id, form_id=question.form.id, question_id=question.id) }) }}
+  {{ govukBackLink({ "text": "Back", "href": url_for("developers.deliver.edit_question", grant_id=grant.id, collection_id=question.form.section.collection.id, section_id=question.form.section.id, form_id=question.form.id, question_id=question.id) }) }}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -65,7 +65,7 @@
           <div class="govuk-grid-row govuk-!-margin-top-7">
             <div class="govuk-grid-column-two-thirds">
               <p class="govuk-body">
-                <a class="govuk-link app-link--destructive" href="{{ url_for('developers.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=expression.id, delete='') }}">Delete validation</a>
+                <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=expression.id, delete='') }}">Delete validation</a>
               </p>
             </div>
           </div>

@@ -6,7 +6,7 @@
 {% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
-{% from "developers/_render_managed_expression_form.html" import render_managed_expression_form %}
+{% from "developers/deliver/_render_managed_expression_form.html" import render_managed_expression_form %}
 
 {% block pageTitle %}
   Add a condition - {{ question.name }} - MHCLG Funding Service
@@ -18,8 +18,8 @@
 {% set heading = "Edit condition" if is_editing else "Add a condition" %}
 {% set submit_label = "Update condition" if is_editing else "Add condition" %}
 
-{% set back_to_select_question_for_condition = url_for("developers.add_question_condition_select_question", grant_id = grant.id, question_id=question.id) %}
-{% set back_to_edit_question = url_for("developers.edit_question", grant_id=grant.id, collection_id=question.form.section.collection.id, section_id=question.form.section.id, form_id=question.form.id, question_id=question.id) %}
+{% set back_to_select_question_for_condition = url_for("developers.deliver.add_question_condition_select_question", grant_id = grant.id, question_id=question.id) %}
+{% set back_to_edit_question = url_for("developers.deliver.edit_question", grant_id=grant.id, collection_id=question.form.section.collection.id, section_id=question.form.section.id, form_id=question.form.id, question_id=question.id) %}
 {% set back_link = back_to_edit_question if is_editing else back_to_select_question_for_condition %}
 
 {% block beforeContent %}
@@ -50,7 +50,7 @@
 
       <h1 class="govuk-heading-l">{{ heading }}</h1>
 
-      {% include "developers/_add_question_condition_context.html" %}
+      {% include "developers/deliver/_add_question_condition_context.html" %}
 
       {% if form is not none %}
         {% set label_html %}
@@ -67,7 +67,7 @@
         <div class="govuk-grid-row govuk-!-margin-top-7">
           <div class="govuk-grid-column-two-thirds">
             <p class="govuk-body">
-              <a class="govuk-link app-link--destructive" href="{{ url_for('developers.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=expression.id, delete='') }}">Delete condition</a>
+              <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=expression.id, delete='') }}">Delete condition</a>
             </p>
           </div>
         </div>

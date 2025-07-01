@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
-{% extends "developers/access_grant_funding_base.html" %}
+{% extends "developers/deliver/access_grant_funding_base.html" %}
 
 {% set page_title = "Check your answers - " ~ collection_form.title %}
 
@@ -39,7 +39,7 @@
             if submission_helper.is_completed else
             [
               {
-                "href": url_for('developers.ask_a_question', submission_id=submission_helper.id, question_id=question.id, source=back_link_source_enum.CHECK_YOUR_ANSWERS.value),
+                "href": url_for('developers.deliver.ask_a_question', submission_id=submission_helper.id, question_id=question.id, source=back_link_source_enum.CHECK_YOUR_ANSWERS.value),
                 "text": "Change",
                 "visuallyHiddenText": question.name
               }
@@ -55,7 +55,7 @@
           %}
         {% else %}
           {% set valueLink %}
-            <a href="{{ url_for('developers.ask_a_question', submission_id=submission_helper.id, question_id=question.id, source=back_link_source_enum.CHECK_YOUR_ANSWERS.value) }}" class="govuk-link govuk-link--no-visited-state">
+            <a href="{{ url_for('developers.deliver.ask_a_question', submission_id=submission_helper.id, question_id=question.id, source=back_link_source_enum.CHECK_YOUR_ANSWERS.value) }}" class="govuk-link govuk-link--no-visited-state">
               Enter {{ question.name }}
             </a>
           {% endset %}
@@ -77,7 +77,7 @@
 
       {% if submission_helper.is_completed %}
         <p class="govuk-body">
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.submission_tasklist", submission_id=submission_helper.id) }}">Return to the task list</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.deliver.submission_tasklist", submission_id=submission_helper.id) }}">Return to the task list</a>
         </p>
       {% else %}
         <form method="post" novalidate>

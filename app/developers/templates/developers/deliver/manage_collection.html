@@ -11,7 +11,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.grant_developers_collections", grant_id = grant.id),
+        "href": url_for("developers.deliver.grant_developers_collections", grant_id = grant.id),
     })
   }}
 {% endblock beforeContent %}
@@ -57,7 +57,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("developers.edit_collection", grant_id = grant.id, collection_id=collection.id),
+                        "href": url_for("developers.deliver.edit_collection", grant_id = grant.id, collection_id=collection.id),
                         "text": "Change",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -69,7 +69,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("developers.list_sections", grant_id = grant.id, collection_id=collection.id),
+                        "href": url_for("developers.deliver.list_sections", grant_id = grant.id, collection_id=collection.id),
                         "text": "Manage",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -81,7 +81,7 @@
               "actions": {
                   "items": [
                       {
-                        "href": url_for("developers.list_submissions_for_collection", collection_id=collection.id, submission_mode=submission_mode_enum.TEST),
+                        "href": url_for("developers.deliver.list_submissions_for_collection", collection_id=collection.id, submission_mode=submission_mode_enum.TEST),
                         "text": "View",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
@@ -105,7 +105,7 @@
         {% if not section.forms %}
           <p class="govuk-body">
             This section has no forms, you can
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_section', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">manage this section</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_section', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">manage this section</a>
             to add a form.
           </p>
         {% endif %}
@@ -121,7 +121,7 @@
             {% endtrans %}
           {% endset %}
           {% set form_link %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id) }}">{{ form.title }}</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id) }}">{{ form.title }}</a>
           {% endset %}
           {%
             do rows.append({
@@ -144,14 +144,14 @@
       {% else %}
         <p class="govuk-body">
           This collection has no sections, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.list_sections', grant_id = grant.id, collection_id=collection.id) }}">manage sections</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.list_sections', grant_id = grant.id, collection_id=collection.id) }}">manage sections</a>
           to add a section.
         </p>
       {% endfor %}
 
       <div class="govuk-grid-row govuk-!-margin-top-7">
         <div class="govuk-grid-column-two-thirds">
-          <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_collection', grant_id=grant.id, collection_id=collection.id, delete='') }}">Delete this collection</a></p>
+          <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.manage_collection', grant_id=grant.id, collection_id=collection.id, delete='') }}">Delete this collection</a></p>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 {% from "common/macros/status.html" import status %}
-{% extends "developers/access_grant_funding_base.html" %}
+{% extends "developers/deliver/access_grant_funding_base.html" %}
 
 {% set page_title = "Collection for " ~ submission_helper.name %}
 
@@ -16,7 +16,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_collection", grant_id=submission_helper.grant.id, collection_id=submission_helper.collection.id)
+        "href": url_for("developers.deliver.manage_collection", grant_id=submission_helper.grant.id, collection_id=submission_helper.collection.id)
     })
   }}
 {% endblock beforeContent %}
@@ -43,9 +43,9 @@
           {% for form in forms %}
             {%
               set linkHref = (
-                url_for("developers.ask_a_question", submission_id=submission_helper.id, question_id=submission_helper.get_first_question_for_form(form).id)
+                url_for("developers.deliver.ask_a_question", submission_id=submission_helper.id, question_id=submission_helper.get_first_question_for_form(form).id)
                 if submission_helper.get_status_for_form(form) == statuses.NOT_STARTED else
-                url_for("developers.check_your_answers", submission_id=submission_helper.id, form_id=form.id, source=back_link_source_enum.TASKLIST.value)
+                url_for("developers.deliver.check_your_answers", submission_id=submission_helper.id, form_id=form.id, source=back_link_source_enum.TASKLIST.value)
               )
             %}
             {%

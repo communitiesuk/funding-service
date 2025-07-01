@@ -12,7 +12,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.list_sections", grant_id = grant.id, collection_id=collection.id)
+        "href": url_for("developers.deliver.list_sections", grant_id = grant.id, collection_id=collection.id)
     })
   }}
 {% endblock beforeContent %}
@@ -47,7 +47,7 @@
             "value":{"text": section.title},
             "actions": {
               "items": [{
-                "href": url_for("developers.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
+                "href": url_for("developers.deliver.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
                 "text": "Change",
                 "classes": "govuk-link--no-visited-state"
               }]
@@ -71,7 +71,7 @@
         <!-- prettier-ignore -->
         <p class="govuk-body">
           You can add and re-order forms. Form questions can be managed from the
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.manage_collection', grant_id=grant.id, collection_id=collection.id) }}">collection tasklist</a>.
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_collection', grant_id=grant.id, collection_id=collection.id) }}">collection tasklist</a>.
         </p>
 
         <p class="govuk-body">This section has {{ forms_text }}.</p>
@@ -84,11 +84,11 @@
             "text": form.title,
             "actions":[{
               "text":"Move up",
-              "href": url_for('developers.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1),
+              "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1),
               "post": True
             }, {
               "text": "Move down",
-              "href": url_for('developers.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'down'),
+              "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'down'),
               "post": True,
               "disabled": (loop.index >= section.forms | length)
             }]
@@ -104,14 +104,14 @@
         govukButton({
         "text": "Add a form",
         "classes": "govuk-button--secondary",
-        "href": url_for("developers.add_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id)
+        "href": url_for("developers.deliver.add_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id)
         })
       }}
     </div>
   </div>
   <div class="govuk-grid-row govuk-!-margin-top-7">
     <div class="govuk-grid-column-two-thirds">
-      <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.manage_section', grant_id=grant.id, collection_id=collection.id, section_id=section.id, delete='') }}">Delete this section</a></p>
+      <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.manage_section', grant_id=grant.id, collection_id=collection.id, section_id=section.id, delete='') }}">Delete this section</a></p>
     </div>
   </div>
 {% endblock content %}
