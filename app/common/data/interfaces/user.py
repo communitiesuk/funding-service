@@ -14,13 +14,14 @@ from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
 
-def get_user(id_: str | uuid.UUID) -> User | None:
-    return db.session.get(User, id_)
-
-
+# todo: move this thing somewhere else
 def get_current_user() -> User:
     user = cast(User, current_user)
     return user
+
+
+def get_user(id_: str | uuid.UUID) -> User | None:
+    return db.session.get(User, id_)
 
 
 def get_user_by_email(email_address: str) -> User | None:
