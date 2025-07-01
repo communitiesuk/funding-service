@@ -28,6 +28,7 @@
         {% if grant.collections %}
           {% set rows=[] %}
           {% for collection in grant.collections %}
+            {% set submission_helper = submission_helpers.get(collection.id) %}
             {# todo: this should be a link to create (if required), then redirect to, a submission for the collection #}
             {% set linkHref = "#" %}
             {# todo: link status up via submission_helper (one per collection? :sweat:) #}
@@ -37,7 +38,7 @@
                       "text": collection.name,
                     },
                   "status": {
-                    "html": status(statuses.NOT_STARTED, statuses)
+                    "html": status(submission_helper.status if submission_helper else statuses.NOT_STARTED, statuses)
                   },
                 "href": linkHref,
               })

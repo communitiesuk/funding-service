@@ -11,7 +11,7 @@ The only place that should import from here is the `app.developers` package.
 
 from uuid import UUID
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from app.common.data.models import (
     Collection,
@@ -21,6 +21,7 @@ from app.common.data.models import (
     Section,
     Submission,
 )
+from app.common.data.models_user import User
 from app.extensions import db
 
 
@@ -78,3 +79,9 @@ def delete_question(question: Question) -> None:
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )
     db.session.flush()
+
+
+def get_submission_by_collection_and_user(collection: Collection, user: "User") -> Submission | None:
+    return db.session.scalar(
+        select(Submission).where(Submission.collection == collection, Submission.created_by == user)
+    )
