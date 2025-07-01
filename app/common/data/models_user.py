@@ -38,8 +38,27 @@ class User(BaseModel):
     def is_anonymous(self) -> bool:
         return False
 
-    def get_id(self) -> str:
+    def get_id(self) -> str | None:
         return str(self.id)
+
+
+class AnonymousUser(User):
+    __abstract__ = True
+
+    @property
+    def is_active(self) -> bool:
+        return False
+
+    @property
+    def is_authenticated(self) -> bool:
+        return False
+
+    @property
+    def is_anonymous(self) -> bool:
+        return True
+
+    def get_id(self) -> None:
+        return
 
 
 class UserRole(BaseModel):

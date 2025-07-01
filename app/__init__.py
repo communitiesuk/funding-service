@@ -111,6 +111,10 @@ def create_app() -> Flask:
     login_manager.init_app(app)
     record_sqlalchemy_queries.init_app(app, db)
 
+    from app.common.data.models_user import AnonymousUser
+
+    login_manager.anonymous_user = AnonymousUser
+
     @login_manager.user_loader  # type: ignore[misc]
     def load_user(user_id: str) -> Optional["User"]:
         return interfaces.user.get_user(user_id)

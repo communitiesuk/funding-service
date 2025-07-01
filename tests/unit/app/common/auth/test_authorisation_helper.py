@@ -1,6 +1,7 @@
 import pytest
 
 from app import AuthorisationHelper
+from app.common.data.models_user import AnonymousUser
 from app.common.data.types import RoleEnum
 
 
@@ -28,6 +29,10 @@ class TestAuthorisationHelper:
         user = factories.user.build()
         factories.user_role.build(user=user, role=role, has_grant=has_grant_linked_to_role)
         assert AuthorisationHelper.is_platform_admin(user) is expected
+
+    def test_is_platform_admin_works_for_anonymous_user(self):
+        user = AnonymousUser()
+        assert AuthorisationHelper.is_platform_admin(user) is False
 
     @pytest.mark.parametrize(
         "role, expected",
