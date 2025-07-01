@@ -21,7 +21,7 @@ _registry_by_data_type: dict[QuestionDataType, list[type["ManagedExpression"]]] 
 
 def get_registered_data_types() -> set[QuestionDataType]:
     """Returns the set of question data types that have at least one managed expression supporting them."""
-    return set(_registry_by_data_type.keys())
+    return set(k for k, v in _registry_by_data_type.items() if v)
 
 
 def get_managed_expressions_for_question_type(question_type: QuestionDataType) -> list[type["ManagedExpression"]]:
@@ -47,4 +47,4 @@ def register_managed_expression(cls: type["ManagedExpression"]) -> type["Managed
 
 def get_supported_form_questions(question: "Question") -> list["Question"]:
     questions = question.form.questions
-    return [q for q in questions if q.data_type in _registry_by_data_type and q.id != question.id]
+    return [q for q in questions if q.data_type in get_registered_data_types() and q.id != question.id]
