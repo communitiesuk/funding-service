@@ -1,6 +1,6 @@
 {% from "govuk_frontend_jinja/components/panel/macro.html" import govukPanel %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
-{% extends "developers/access_grant_funding_base.html" %}
+{% extends "developers/deliver/access_grant_funding_base.html" %}
 
 {% set page_title = "Submission submitted - " ~ submission_helper.name %}
 
@@ -33,7 +33,7 @@
 
       <p class="govuk-body">
         You can
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.submission_tasklist', submission_id=submission_helper.id) }}">view your submission</a>
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.submission_tasklist', submission_id=submission_helper.id) }}">view your submission</a>
         at any time.
       </p>
     </div>

@@ -10,7 +10,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_section", grant_id = grant.id, collection_id=collection.id, section_id=section.id)
+        "href": url_for("developers.deliver.manage_section", grant_id = grant.id, collection_id=collection.id, section_id=section.id)
     })
   }}
 {% endblock beforeContent %}
@@ -45,7 +45,7 @@
       {{
         govukButton({
         "text": "Continue",
-        "href": url_for("developers.add_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_type="empty")
+        "href": url_for("developers.deliver.add_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_type="empty")
         })
       }}
     </div>

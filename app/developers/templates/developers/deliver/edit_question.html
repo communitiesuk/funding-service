@@ -11,7 +11,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.manage_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
+        "href": url_for("developers.deliver.manage_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
     })
   }}
 {% endblock beforeContent %}
@@ -68,7 +68,7 @@
 
 
               {% set value_html %}
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
                   <span class="govuk-visually-hidden">Change condition for</span>
                   {{ condition.managed.message }}
                 </a>
@@ -91,7 +91,7 @@
             {{
               govukButton({
                 "text": "Add condition",
-                "href": url_for('developers.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
+                "href": url_for('developers.deliver.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
                 "classes": "govuk-button--secondary"
               })
             }}
@@ -110,7 +110,7 @@
                   <span class="govuk-visually-hidden">validation</span>
                 {% endset %}
                 {% set value_html %}
-                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}">
+                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}">
                     <span class="govuk-visually-hidden">Change validation for</span>
                     {{ validation.managed.message }}
                   </a>
@@ -133,7 +133,7 @@
               {{
                 govukButton({
                   "text": "Add more validation" if question.validations else "Add validation",
-                  "href": url_for("developers.add_question_validation", grant_id=grant.id, question_id=question.id),
+                  "href": url_for("developers.deliver.add_question_validation", grant_id=grant.id, question_id=question.id),
                   "classes": "govuk-button--secondary"
                 })
               }}
@@ -146,7 +146,7 @@
       <div class="govuk-grid-row govuk-!-margin-top-7">
         <div class="govuk-grid-column-two-thirds">
           <p class="govuk-body">
-            <a class="govuk-link app-link--destructive" href="{{ url_for('developers.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=question.id, delete='') }}">
+            <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=question.id, delete='') }}">
               Delete this question
             </a>
           </p>
