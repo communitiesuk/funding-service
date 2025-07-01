@@ -1,5 +1,6 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
 {% set page_title = "Developers - " ~ grant.name %}
@@ -25,28 +26,52 @@
         Developers
       </h1>
       <p class="govuk-body">You can try out tech and designs that are work in progress.</p>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <h2 class="govuk-heading-m govuk-!-margin-top-4">Collections</h2>
 
-      <h2 class="govuk-heading-m">Collecting information from users</h2>
+      {% set rows=[] %}
+      {% for collection in grant.collections %}
+        {% set collection_link %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_collection', grant_id=grant.id, collection_id=collection.id) }}">{{ collection.name }}</a>
+        {% endset %}
+        {%
+          do rows.append([
+            { "html": collection_link },
+            {"text": collection.created_by.email },
+            {"text": format_date(collection.created_at_utc) }
+          ])
+        %}
+      {% endfor %}
+      {% if not grant.collections %}
+        <p class="govuk-body">This grant has no collections.</p>
+      {% else %}
+        {{
+          govukTable({
+            "captionClasses": "govuk-table__caption--m",
+            "head": [
+              { "text": "Description" },
+              { "text": "Added by" },
+              { "text": "Added on" }
+            ],
+            "rows": rows
+          })
+        }}
+      {% endif %}
 
-      {# we probably want to extend this component to always set the padding and have a top line #}
-      {# or add a class to the top that will then apply the right styling - for menu summary lists #}
-      <hr class="govuk-section-break govuk-section-break--visible" />
       {{
-        govukSummaryList({
-            "rows": [
-            {
-                "key": {
-                    "text": "Collections",
-                    "classes": "govuk-!-padding-top-4 govuk-!-padding-bottom-4"
-                },
-                "value": { "text": ( grant.collections | length | string ) + " preview collections" },
-                "actions": {
-                    "items": [{ "text": "Manage", "href": url_for('developers.deliver.grant_developers_collections', grant_id = grant.id), "classes": "govuk-link--no-visited-state" }]
-                },
-            }]
+        govukButton({
+          "text": "Add collection",
+          "classes": "govuk-button--secondary",
+          "href": url_for("developers.deliver.setup_collection", grant_id = grant.id)
         })
       }}
-
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
       <div class="govuk-grid-row govuk-!-margin-top-7">
         <div class="govuk-grid-column-two-thirds">
           <p class="govuk-body">

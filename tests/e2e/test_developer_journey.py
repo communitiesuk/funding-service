@@ -75,10 +75,7 @@ def navigate_to_collection_detail_page(
     all_grants_page.navigate()
     grant_dashboard_page = all_grants_page.click_grant(grant_name)
     developers_page = grant_dashboard_page.click_developers(grant_name)
-    list_collections_page = developers_page.click_manage_collections(grant_name=grant_name)
-    collection_detail_page = list_collections_page.click_on_collection(
-        grant_name=grant_name, collection_name=collection_name
-    )
+    collection_detail_page = developers_page.click_on_collection(grant_name=grant_name, collection_name=collection_name)
     return collection_detail_page
 
 
@@ -108,17 +105,16 @@ def test_create_and_preview_collection(
 
         # Go to developers tab
         developers_page = grant_dashboard_page.click_developers(new_grant_name)
-        manage_collections_page = developers_page.click_manage_collections(grant_name=new_grant_name)
 
         # Add a new collection
-        add_collection_page = manage_collections_page.click_add_collection()
+        add_collection_page = developers_page.click_add_collection()
         new_collection_name = f"E2E collection {uuid.uuid4()}"
         add_collection_page.fill_in_collection_name(new_collection_name)
-        manage_collections_page = add_collection_page.click_submit(new_grant_name)
-        manage_collections_page.check_collection_exists(new_collection_name)
+        developers_page = add_collection_page.click_submit(new_grant_name)
+        developers_page.check_collection_exists(new_collection_name)
 
         # Add a new section
-        collection_detail_page = manage_collections_page.click_on_collection(
+        collection_detail_page = developers_page.click_on_collection(
             collection_name=new_collection_name, grant_name=new_grant_name
         )
         add_section_page = collection_detail_page.click_add_section()

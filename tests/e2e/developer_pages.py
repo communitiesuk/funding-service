@@ -29,21 +29,16 @@ class GrantDevelopersPage(GrantDevelopersBasePage):
     manage_collections_link: Locator
     delete_link: Locator
     confirm_delete: Locator
+    add_collection_button: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(
             page, domain, grant_name=grant_name, heading=page.get_by_role("heading", name=f"{grant_name} Developers")
         )
         self.manage_collections_link = self.page.get_by_role("link", name="Manage")
-
         self.delete_link = page.get_by_role("link", name="Delete this grant")
         self.confirm_delete = page.get_by_role("button", name="Confirm deletion")
-
-    def click_manage_collections(self, grant_name: str) -> ListCollectionsPage:
-        self.manage_collections_link.click()
-        list_collections_page = ListCollectionsPage(self.page, self.domain, self.grant_name)
-        expect(list_collections_page.heading).to_be_visible()
-        return list_collections_page
+        self.add_collection_button = self.page.get_by_role("button", name="Add collection")
 
     def delete_grant(self) -> "AllGrantsPage":
         from tests.e2e.pages import AllGrantsPage
@@ -53,16 +48,6 @@ class GrantDevelopersPage(GrantDevelopersBasePage):
         all_grants_page = AllGrantsPage(self.page, self.domain)
         expect(all_grants_page.title).to_be_visible()
         return all_grants_page
-
-
-class ListCollectionsPage(GrantDevelopersBasePage):
-    add_collection_button: Locator
-
-    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
-        super().__init__(
-            page, domain, grant_name=grant_name, heading=page.get_by_role("heading", name=f"{grant_name} collections")
-        )
-        self.add_collection_button = self.page.get_by_role("button", name="Add collection")
 
     def click_add_collection(self) -> AddCollectionPage:
         self.add_collection_button.click()
@@ -94,11 +79,11 @@ class AddCollectionPage(GrantDevelopersBasePage):
     def fill_in_collection_name(self, name: str) -> None:
         self.page.get_by_role("textbox", name="What is the name of the collection?").fill(name)
 
-    def click_submit(self, grant_name: str) -> ListCollectionsPage:
+    def click_submit(self, grant_name: str) -> GrantDevelopersPage:
         self.page.get_by_role("button", name="Set up collection").click()
-        list_collections_page = ListCollectionsPage(self.page, self.domain, grant_name=grant_name)
-        expect(list_collections_page.heading).to_be_visible()
-        return list_collections_page
+        developers_page = GrantDevelopersPage(self.page, self.domain, grant_name=grant_name)
+        expect(developers_page.heading).to_be_visible()
+        return developers_page
 
 
 class CollectionDetailPage(GrantDevelopersBasePage):
