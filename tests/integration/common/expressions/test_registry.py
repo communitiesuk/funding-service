@@ -1,14 +1,24 @@
 from app.common.data.types import QuestionDataType
-from app.common.expressions.registry import get_supported_form_questions
+from app.common.expressions.registry import (
+    get_managed_expressions_for_question_type,
+    get_registered_data_types,
+    get_supported_form_questions,
+)
 
 
 class TestManagedExpressions:
+    def test_get_registered_data_types(self, factories):
+        unsupported_question_type = QuestionDataType.TEXT_SINGLE_LINE
+
+        # because we're using a defaultdict we should make sure reading empty values can't change the logic
+        assert get_managed_expressions_for_question_type(unsupported_question_type) == []
+        assert unsupported_question_type not in get_registered_data_types()
+
     def test_get_supported_form_questions_filters_question_types(self, factories):
         form = factories.form.build()
         factories.question.build_batch(3, data_type=QuestionDataType.TEXT_SINGLE_LINE, form=form)
         only_supported_target = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
         question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
-
         supported_questions = get_supported_form_questions(question)
         assert len(supported_questions) == 1
         assert supported_questions[0].id == only_supported_target.id
