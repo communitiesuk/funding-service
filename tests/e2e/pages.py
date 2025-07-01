@@ -176,7 +176,9 @@ class GrantSetupIntroPage(TopNavMixin, BasePage):
 class GrantSetupGGISPage(TopNavMixin, BasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.title = self.page.get_by_role("heading", name="Government Grants Information System (GGIS)")
+        self.title = self.page.get_by_role(
+            "heading", name="Do you have a Government Grants Information System (GGIS) reference number?"
+        )
         self.yes_radio = self.page.get_by_role("radio", name="Yes")
         self.ggis_number_input = self.page.get_by_role("textbox", name="Enter your GGIS reference number")
         self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
