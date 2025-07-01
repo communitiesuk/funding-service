@@ -23,7 +23,7 @@ def grants_list() -> ResponseReturnValue:
 
 # note: no auth decorator on this page, fully public, the template itself deals with varying the response based on
 #       anonymous vs logged-in user.
-@developers_access_blueprint.route("/grant/<uuid:grant_id>", methods=["GET", "POST"])
+@developers_access_blueprint.route("/grants/<uuid:grant_id>", methods=["GET", "POST"])
 def grant_details(grant_id: uuid.UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id)
     current_user = interfaces.user.get_current_user()
