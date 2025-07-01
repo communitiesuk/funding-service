@@ -794,7 +794,7 @@ def test_grant_setup_ggis_get_with_session(authenticated_platform_admin_client):
     response = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_setup_ggis"))
     assert response.status_code == 200
     soup = BeautifulSoup(response.data, "html.parser")
-    assert soup.h1.text.strip() == "Government Grants Information System (GGIS)"
+    assert soup.h1.text.strip() == "Do you have a Government Grants Information System (GGIS) reference number?"
 
 
 def test_grant_setup_ggis_get_without_session_redirects(authenticated_platform_admin_client):
