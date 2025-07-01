@@ -20,6 +20,7 @@ all_auth_annotations = [
     "@is_platform_admin",
 ]
 routes_with_expected_platform_admin_only_access = [
+    "developers.access.grants_list",
     "developers.deliver.grant_developers",
     "developers.deliver.grant_developers_collections",
     "developers.deliver.setup_collection",

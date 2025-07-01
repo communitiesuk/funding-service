@@ -17,6 +17,7 @@
 {% endblock head %}
 
 {% block header %}
+  {# todo: have this header read a homepageUrl variable, then any subclasses can just use super() calls #}
   {{
     mhclgHeader(
       params={
