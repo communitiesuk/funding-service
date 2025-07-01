@@ -11,8 +11,8 @@ from app.common.expressions.managed import Between, GreaterThan, LessThan
 class TestBaseManagedExpression:
     def test_gets_referenced_question(self, factories):
         user = factories.user.create()
-        question = factories.question.create()
-        depends_on_question = factories.question.create(form=question.form)
+        depends_on_question = factories.question.create()
+        question = factories.question.create(form=depends_on_question.form)
 
         add_question_condition(question, user, GreaterThan(question_id=depends_on_question.id, minimum_value=1000))
         from_db = get_question_by_id(question.id)
