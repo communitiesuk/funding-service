@@ -285,6 +285,15 @@ def is_question_dependency_order_valid(question: Question, depends_on_question: 
     return question.order > depends_on_question.order
 
 
+def depends_on_question(question: Question) -> Question | None:
+    """Returns the first question in a form that depends on the given question"""
+    for target_question in question.form.questions:
+        for condition in target_question.conditions:
+            if condition.managed and condition.managed.question_id == question.id:
+                return target_question
+    return None
+
+
 def move_question_up(question: Question) -> Question:
     swap_question = question.form.questions[question.order - 1]
     check_question_order_dependency(question, swap_question)

@@ -560,17 +560,30 @@ def edit_question(
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        delete_question(question)
-        # TODO: Flash message for deletion?
-        return redirect(
-            url_for(
-                "developers.deliver.manage_form",
-                grant_id=grant_id,
-                collection_id=collection_id,
-                section_id=section_id,
-                form_id=form_id,
+        try:
+            delete_question(question)
+            # TODO: Flash message for deletion?
+            return redirect(
+                url_for(
+                    "developers.deliver.manage_form",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                )
             )
-        )
+        except DependencyOrderException as e:
+            flash(e.as_flash_context(), "dependency_order_error")  # type:ignore [arg-type]
+            return redirect(
+                url_for(
+                    "developers.deliver.edit_question",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                    question_id=question_id,
+                )
+            )
 
     if wt_form.validate_on_submit():
         try:

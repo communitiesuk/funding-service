@@ -13,6 +13,7 @@ from app.common.data.interfaces.collections import (
     create_form,
     create_question,
     create_section,
+    depends_on_question,
     get_collection,
     get_expression,
     get_form_by_id,
@@ -376,6 +377,17 @@ def test_move_question_with_dependencies(db_session, factories):
 
     # q2 can move up as q3 can still depend on it
     move_question_up(q2)
+
+
+def test_question_depends_on(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    [q1, q2] = factories.question.create_batch(2, form=form)
+
+    add_question_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
+
+    assert depends_on_question(q2) is None
+    assert depends_on_question(q1) is q2
 
 
 def test_update_submission_data(db_session, factories):
