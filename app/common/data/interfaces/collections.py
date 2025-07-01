@@ -271,14 +271,18 @@ def check_question_order_dependency(question: Question, swap_question: Question)
     for condition in question.conditions:
         if condition.managed and condition.managed.question_id == swap_question.id:
             raise DependencyOrderException(
-                "You cannot move questions above answers they depend on.", question, swap_question
+                "You cannot move questions above answers they depend on", question, swap_question
             )
 
     for condition in swap_question.conditions:
         if condition.managed and condition.managed.question_id == question.id:
             raise DependencyOrderException(
-                "You cannot move answers below questions that depend on them.", swap_question, question
+                "You cannot move answers below questions that depend on them", swap_question, question
             )
+
+
+def is_question_dependency_order_valid(question: Question, depends_on_question: Question) -> bool:
+    return question.order > depends_on_question.order
 
 
 def move_question_up(question: Question) -> Question:
@@ -324,6 +328,13 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
 
 
 def add_question_condition(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
+    if not is_question_dependency_order_valid(question, managed_expression.referenced_question):
+        raise DependencyOrderException(
+            "Cannot add managed condition that depends on a later question",
+            question,
+            managed_expression.referenced_question,
+        )
+
     expression = Expression(
         statement=managed_expression.statement,
         context=managed_expression.model_dump(mode="json"),

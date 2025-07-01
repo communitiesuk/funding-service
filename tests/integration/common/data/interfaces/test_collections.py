@@ -495,6 +495,16 @@ def test_add_question_condition(db_session, factories):
         add_question_condition(question, user, managed_expression)
 
 
+def test_add_question_condition_blocks_on_order(db_session, factories):
+    user = factories.user.create()
+    q1 = factories.question.create()
+    q2 = factories.question.create(form=q1.form)
+
+    with pytest.raises(DependencyOrderException) as e:
+        add_question_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+    assert str(e.value) == "Cannot add managed condition that depends on a later question"
+
+
 def test_add_question_validation(db_session, factories):
     question = factories.question.create()
     user = factories.user.create()
