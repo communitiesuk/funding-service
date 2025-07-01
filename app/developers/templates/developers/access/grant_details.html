@@ -1,0 +1,61 @@
+{% extends "developers/access/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+{% from "common/macros/status.html" import status %}
+
+{% set page_title = "Grants" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("developers.access.grants_list")
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ grant.name }}</h1>
+      <p class="govuk-body">{{ grant.description }}</p>
+
+      {% if authorisation_helper.is_logged_in(current_user) %}
+        <h2 class="govuk-heading-m">Collections</h2>
+        {% if grant.collections %}
+          {% set rows=[] %}
+          {% for collection in grant.collections %}
+            {# todo: this should be a link to create (if required), then redirect to, a submission for the collection #}
+            {% set linkHref = "#" %}
+            {# todo: link status up via submission_helper (one per collection? :sweat:) #}
+            {%
+              do rows.append({
+                    "title": {
+                      "text": collection.name,
+                    },
+                  "status": {
+                    "html": status(statuses.NOT_STARTED, statuses)
+                  },
+                "href": linkHref,
+              })
+            %}
+          {% endfor %}
+
+          {{
+            govukTaskList({
+              "idPrefix": "collections",
+              "items": rows
+            })
+          }}
+        {% else %}
+          <p class="govuk-body">There are no collections for this grant yet.</p>
+        {% endif %}
+      {% else %}
+        <p class="govuk-body">
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('auth.request_a_link_to_sign_in') }}">Sign in to access this grant</a>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}
