@@ -55,9 +55,10 @@
           <p class="govuk-body">There are no collections for this grant yet.</p>
         {% endif %}
       {% else %}
-        <p class="govuk-body">
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('auth.request_a_link_to_sign_in') }}">Sign in to access this grant</a>
-        </p>
+        <form method="POST" novalidate>
+          {{ form.csrf_token }}
+          {{ form.submit }}
+        </form>
       {% endif %}
     </div>
   </div>

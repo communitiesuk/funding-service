@@ -57,3 +57,7 @@ class ConditionSelectQuestionForm(FlaskForm):
         self.question.choices = [
             (question.id, f"{question.text} ({question.name})") for question in get_supported_form_questions(question)
         ]
+
+
+class SignInToAccessGrantForm(FlaskForm):
+    submit = SubmitField("Sign in to access this grant", widget=GovSubmitInput())
