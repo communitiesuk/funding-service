@@ -24,8 +24,8 @@
       {% with errors = get_flashed_messages(with_categories="dependency_order_error") %}
         {% if errors %}
           {% set type, error = errors[0] %}
-          {% set question_link = url_for("developers.edit_question", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=error.question_id) %}
-          {% set depends_on_link = url_for("developers.edit_question", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=error.depends_on_question_id) %}
+          {% set question_link = url_for("developers.deliver.edit_question", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=error.question_id) %}
+          {% set depends_on_link = url_for("developers.deliver.edit_question", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=error.depends_on_question_id) %}
 
 
           {% set banner_html %}
