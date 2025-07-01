@@ -71,6 +71,7 @@ routes_with_expected_member_only_access = [
 
 routes_with_expected_is_mhclg_user_access = ["deliver_grant_funding.list_grants"]
 routes_with_no_expected_access_restrictions = [
+    "developers.access.grant_details",
     "auth.request_a_link_to_sign_in",
     "auth.check_email",
     "auth.claim_magic_link",

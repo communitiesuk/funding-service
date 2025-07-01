@@ -11,7 +11,7 @@
           {% for grant in grants %}
             <li>
               <h2 class="govuk-heading-m">
-                <a class="govuk-link govuk-link--no-visited-state" href="#">{{ grant.name }}</a>
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.access.grant_details', grant_id=grant.id) }}">{{ grant.name }}</a>
               </h2>
               <p class="govuk-body">{{ grant.description }}</p>
               <hr class="govuk-section-break--m" />

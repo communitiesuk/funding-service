@@ -6,6 +6,10 @@ from app.common.data.types import GRANT_ROLES_MAPPING, RoleEnum
 
 class AuthorisationHelper:
     @staticmethod
+    def is_logged_in(user: User) -> bool:
+        return user.is_authenticated
+
+    @staticmethod
     def has_logged_in(user: User) -> bool:
         # FIXME: We should have some actual tracking of whether the user has logged in. This could either be a
         #        field on the model called `last_logged_in_at` or similar, or we could only create entries in the user
