@@ -42,6 +42,7 @@ from app.common.data.interfaces.temporary import (
 from app.common.data.types import ExpressionType, QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_expressions_for_question_type
+from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -54,8 +55,6 @@ from app.developers.forms import (
     CheckYourAnswersForm,
     ConditionSelectQuestionForm,
     ConfirmDeletionForm,
-    PreviewCollectionForm,
-    SubmitSubmissionForm,
 )
 from app.extensions import auto_commit_after_request, notification_service
 
@@ -118,7 +117,7 @@ def setup_collection(grant_id: UUID) -> ResponseReturnValue:
 def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id)  # TODO: handle collection versioning; this just grabs latest.
 
-    form = PreviewCollectionForm()
+    form = GenericSubmitForm()
     confirm_deletion_form = ConfirmDeletionForm()
     if (
         "delete" in request.args
@@ -871,7 +870,7 @@ def _get_form_runner_link_from_source(
 @is_platform_admin
 def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
-    form = SubmitSubmissionForm()
+    form = GenericSubmitForm()
 
     if form.validate_on_submit():
         try:

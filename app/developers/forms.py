@@ -14,10 +14,6 @@ if TYPE_CHECKING:
 #       of the app importing from the developers package.
 
 
-class PreviewCollectionForm(FlaskForm):
-    submit = SubmitField("Test this collection", widget=GovSubmitInput())
-
-
 class CheckYourAnswersForm(FlaskForm):
     section_completed = RadioField(
         "Have you completed this section?",
@@ -36,10 +32,6 @@ class CheckYourAnswersForm(FlaskForm):
 
 class ConfirmDeletionForm(FlaskForm):
     confirm_deletion = SubmitField("Confirm deletion", widget=GovSubmitInput())
-
-
-class SubmitSubmissionForm(FlaskForm):
-    submit = SubmitField("Submit", widget=GovSubmitInput())
 
 
 class ConditionSelectQuestionForm(FlaskForm):
