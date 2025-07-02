@@ -1,4 +1,7 @@
-from flask_debugtoolbar import DebugToolbarExtension
+try:
+    from flask_debugtoolbar import DebugToolbarExtension
+except ImportError:
+    DebugToolbarExtension = None  # type: ignore[misc, assignment]
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy_lite import SQLAlchemy
@@ -12,7 +15,7 @@ from app.services.notify import NotificationService
 db = SQLAlchemy()
 auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
 migrate = Migrate()
-toolbar = DebugToolbarExtension()
+toolbar = DebugToolbarExtension() if DebugToolbarExtension is not None else None
 notification_service = NotificationService()
 talisman = Talisman()
 flask_assets_vite = FlaskAssetsViteExtension()
