@@ -253,7 +253,7 @@ def test_create_collection_post(authenticated_platform_admin_client, factories, 
         data=collection_form.data,
     )
     assert result.status_code == 302
-    assert result.location == url_for("developers.deliver.grant_developers_collections", grant_id=grant.id)
+    assert result.location == url_for("developers.deliver.grant_developers", grant_id=grant.id)
 
     grant_from_db = db_session.scalars(select(Grant).where(Grant.id == grant.id)).one()
     assert len(grant_from_db.collections) == 1

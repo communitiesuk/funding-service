@@ -86,13 +86,6 @@ def grant_developers(grant_id: UUID) -> ResponseReturnValue:
     )
 
 
-@developers_deliver_blueprint.route("/grants/<uuid:grant_id>/collections", methods=["GET"])
-@is_platform_admin
-def grant_developers_collections(grant_id: UUID) -> str:
-    grant = interfaces.grants.get_grant(grant_id)
-    return render_template("developers/deliver/list_collections.html", grant=grant)
-
-
 @developers_deliver_blueprint.route("/grants/<uuid:grant_id>/collections/set-up", methods=["GET", "POST"])
 @is_platform_admin
 @auto_commit_after_request
@@ -104,7 +97,7 @@ def setup_collection(grant_id: UUID) -> ResponseReturnValue:
             assert form.name.data is not None
             user = interfaces.user.get_current_user()
             create_collection(name=form.name.data, user=user, grant=grant)
-            return redirect(url_for("developers.deliver.grant_developers_collections", grant_id=grant_id))
+            return redirect(url_for("developers.deliver.grant_developers", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
@@ -126,7 +119,7 @@ def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValu
     ):
         delete_collection(collection_id=collection.id)
         # TODO: Flash message for deletion?
-        return redirect(url_for("developers.deliver.grant_developers_collections", grant_id=grant_id))
+        return redirect(url_for("developers.deliver.grant_developers", grant_id=grant_id))
 
     if form.validate_on_submit() and form.submit.data:
         user = interfaces.user.get_current_user()
