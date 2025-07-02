@@ -7,9 +7,10 @@ from flask_login import login_user, logout_user
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import redirect_if_authenticated
-from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
+from app.common.auth.forms import SignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
+from app.common.forms import GenericSubmitForm
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
 
@@ -66,7 +67,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     if not magic_link or not magic_link.usable:
         return redirect(url_for("auth.request_a_link_to_sign_in"))
 
-    form = ClaimMagicLinkForm()
+    form = GenericSubmitForm()
     if form.validate_on_submit():
         interfaces.magic_link.claim_magic_link(magic_link=magic_link)
         if not login_user(magic_link.user):
@@ -80,7 +81,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
 @auth_blueprint.route("/sso/sign-in", methods=["GET", "POST"])
 @redirect_if_authenticated
 def sso_sign_in() -> ResponseReturnValue:
-    form = SSOSignInForm()
+    form = GenericSubmitForm()
     if form.validate_on_submit():
         session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
         return redirect(session["flow"]["auth_uri"]), 302
