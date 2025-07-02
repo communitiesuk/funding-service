@@ -35,10 +35,6 @@ class GrantSetupForm(FlaskForm):
             self.submit.label.text = self.SUBMIT_BUTTON_TEXT_CHANGE
 
 
-class GrantSetupIntroForm(FlaskForm):
-    submit = SubmitField("Continue", widget=GovSubmitInput())
-
-
 class GrantGGISForm(FlaskForm):
     has_ggis = RadioField(
         "Do you have a GGIS number?",
@@ -130,10 +126,6 @@ class GrantContactForm(GrantSetupForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-
-
-class GrantCheckYourAnswersForm(FlaskForm):
-    submit = SubmitField("Confirm and set up grant", widget=GovSubmitInput())
 
 
 class CollectionForm(GrantSetupForm):

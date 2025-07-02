@@ -11,15 +11,14 @@ from app.common.auth.decorators import has_grant_role, is_mhclg_user, is_platfor
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.types import RoleEnum
+from app.common.forms import GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
     GrantChangeGGISForm,
-    GrantCheckYourAnswersForm,
     GrantContactForm,
     GrantDescriptionForm,
     GrantGGISForm,
     GrantNameForm,
-    GrantSetupIntroForm,
 )
 from app.deliver_grant_funding.session_models import GrantSetupSession
 from app.extensions import auto_commit_after_request, notification_service
@@ -32,7 +31,7 @@ CHECK_YOUR_ANSWERS = "check-your-answers"
 @deliver_grant_funding_blueprint.route("/grant-setup", methods=["GET", "POST"])
 @is_platform_admin
 def grant_setup_intro() -> ResponseReturnValue:
-    form = GrantSetupIntroForm()
+    form = GenericSubmitForm()
     if form.validate_on_submit():
         grant_session = GrantSetupSession()
         session["grant_setup"] = grant_session.to_session_dict()
@@ -178,7 +177,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
 
     grant_session = GrantSetupSession.from_session(session["grant_setup"])
-    form = GrantCheckYourAnswersForm()
+    form = GenericSubmitForm()
 
     if form.validate_on_submit():
         grant = interfaces.grants.create_grant(
