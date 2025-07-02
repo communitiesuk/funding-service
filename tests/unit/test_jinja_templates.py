@@ -30,3 +30,9 @@ def test_for_unused_jinja_imports(app, file):
 
     if unused_imports := imports - calls:
         raise UnusedJinjaImports(unused_imports, file.relative_to(root_dir))
+
+
+if not files:
+    test_for_unused_jinja_imports = pytest.fail("Did not find any templates - check this test")(
+        test_for_unused_jinja_imports
+    )
