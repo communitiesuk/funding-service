@@ -8,8 +8,8 @@ from app.common.data import interfaces
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.temporary import get_submission_by_collection_and_user
 from app.common.data.types import SubmissionStatusEnum
+from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.developers.forms import SignInToAccessGrantForm
 
 developers_access_blueprint = Blueprint("access", __name__, url_prefix="/access")
 
@@ -28,7 +28,7 @@ def grant_details(grant_id: uuid.UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id)
     current_user = interfaces.user.get_current_user()
 
-    form = SignInToAccessGrantForm()
+    form = GenericSubmitForm()
     if form.validate_on_submit():
         session["next"] = request.full_path
         return redirect(url_for("auth.request_a_link_to_sign_in"))

@@ -57,7 +57,7 @@
       {% else %}
         <form method="POST" novalidate>
           {{ form.csrf_token }}
-          {{ form.submit }}
+          {{ form.submit(params={"text": "Sign in to access this grant"}) }}
         </form>
       {% endif %}
     </div>
