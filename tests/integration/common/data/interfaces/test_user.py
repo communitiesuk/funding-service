@@ -59,6 +59,13 @@ class TestGetUserByAzureAdSubjectId:
         assert user is None
 
 
+class TestSetUserLastLoggedInAt:
+    def test_set_user_last_logged_in_at_utc(self, db_session, factories) -> None:
+        user = factories.user.create(email="test@communites.gov.uk", last_logged_in_at_utc=None)
+        interfaces.user.set_user_last_logged_in_at_utc(user)
+        assert user.last_logged_in_at_utc is not None
+
+
 class TestUpsertUserByEmail:
     def test_create_new_user(self, db_session):
         assert db_session.scalar(select(func.count()).select_from(User)) == 0

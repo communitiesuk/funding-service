@@ -34,6 +34,11 @@ def get_user_by_azure_ad_subject_id(azure_ad_subject_id: str) -> User | None:
     return db.session.execute(select(User).where(User.azure_ad_subject_id == azure_ad_subject_id)).scalar_one_or_none()
 
 
+def set_user_last_logged_in_at_utc(user: User) -> User:
+    user.last_logged_in_at_utc = func.current_timestamp()
+    return user
+
+
 def upsert_user_by_email(
     email_address: str,
     *,

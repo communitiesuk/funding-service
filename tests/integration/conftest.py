@@ -257,14 +257,19 @@ def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Ca
 
 @pytest.fixture()
 def authenticated_no_role_client(
-    anonymous_client: FlaskClient, factories: _Factories, request: FixtureRequest
+    anonymous_client: FlaskClient, factories: _Factories, request: FixtureRequest, db_session: Session
 ) -> Generator[FlaskClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
 
     user = factories.user.create(email=email)
 
+    # `login_user(user)` is what we use to catch and update a user's `last_logged_in_at_utc` by looking out for flask
+    # login's `user_logged_in` signal. In our app, these `login_user(user)` calls are only done in routes that use the
+    # `auto_commit_after_request` decorator, but here we're not in an existing session and would be left with a dirty
+    # session after this client is used in tests, so we need to commit this change to the user before we continue.
     login_user(user)
+    db_session.commit()
 
     yield anonymous_client
 
@@ -279,9 +284,9 @@ def authenticated_member_client(
     user = factories.user.create(email=email)
     grant = factories.grant.create()
     factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
-    db_session.commit()
 
     login_user(user)
+    db_session.commit()
 
     yield anonymous_client
 
@@ -295,9 +300,9 @@ def authenticated_platform_admin_client(
 
     user = factories.user.create(email=email)
     factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
-    db_session.commit()
 
     login_user(user)
+    db_session.commit()
 
     yield anonymous_client
 

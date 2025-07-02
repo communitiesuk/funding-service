@@ -39,7 +39,7 @@ def test_list_grants_as_admin(
     for expected in expected_headers:
         assert expected in header_texts, f"Header '{expected}' not found in table"
     assert soup.h1.text == "Grants"
-    assert len(queries) == 3  # 1) select grant, 2) rollback, 3) savepoint
+    assert len(queries) == 3  # 1) select user, 2) select user_role, 3) select grants
 
 
 def test_list_grants_as_member_with_single_grant(
@@ -52,7 +52,7 @@ def test_list_grants_as_member_with_single_grant(
 
     nav_items = [item.text.strip() for item in soup.select(".govuk-service-navigation__item")]
     assert nav_items == ["Grant details", "Grant team"]
-    assert len(queries) == 2
+    assert len(queries) == 3  # 1) select user, 2) select user_role, 3) select grants
 
 
 def test_list_grants_as_member_with_multiple_grants(
