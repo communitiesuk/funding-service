@@ -16,7 +16,7 @@
       </ul>
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit(params={"isStartButton": true}) }}
+        {{ form.submit(params={"text": "Sign in", "isStartButton": true}) }}
       </form>
     </div>
   </div>

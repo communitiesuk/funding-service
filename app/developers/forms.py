@@ -14,10 +14,6 @@ if TYPE_CHECKING:
 #       of the app importing from the developers package.
 
 
-class PreviewCollectionForm(FlaskForm):
-    submit = SubmitField("Test this collection", widget=GovSubmitInput())
-
-
 class CheckYourAnswersForm(FlaskForm):
     section_completed = RadioField(
         "Have you completed this section?",
@@ -38,10 +34,6 @@ class ConfirmDeletionForm(FlaskForm):
     confirm_deletion = SubmitField("Confirm deletion", widget=GovSubmitInput())
 
 
-class SubmitSubmissionForm(FlaskForm):
-    submit = SubmitField("Submit", widget=GovSubmitInput())
-
-
 class ConditionSelectQuestionForm(FlaskForm):
     question = SelectField(
         "Which answer should the condition check?",
@@ -57,7 +49,3 @@ class ConditionSelectQuestionForm(FlaskForm):
         self.question.choices = [
             (question.id, f"{question.text} ({question.name})") for question in get_supported_form_questions(question)
         ]
-
-
-class SignInToAccessGrantForm(FlaskForm):
-    submit = SubmitField("Sign in to access this grant", widget=GovSubmitInput())

@@ -8,15 +8,14 @@ from sqlalchemy import select
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import Collection, Form, Grant, Question, Section
 from app.common.data.types import ExpressionType, QuestionDataType, RoleEnum
+from app.common.forms import GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     CollectionForm,
     FormForm,
-    GrantCheckYourAnswersForm,
     GrantContactForm,
     GrantDescriptionForm,
     GrantGGISForm,
     GrantNameForm,
-    GrantSetupIntroForm,
     QuestionForm,
     QuestionTypeForm,
     SectionForm,
@@ -778,7 +777,7 @@ def test_grant_setup_intro_get(authenticated_platform_admin_client):
 
 
 def test_grant_setup_intro_post(authenticated_platform_admin_client):
-    intro_form = GrantSetupIntroForm()
+    intro_form = GenericSubmitForm()
     response = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.grant_setup_intro"), data=intro_form.data, follow_redirects=False
     )
@@ -931,7 +930,7 @@ def test_grant_check_your_answers_post_creates_grant(authenticated_platform_admi
             "primary_contact_email": "joe.bloggs@gmail.com",
         }
 
-    contact_form = GrantCheckYourAnswersForm()
+    contact_form = GenericSubmitForm()
     response = authenticated_platform_admin_client.post(
         url_for("deliver_grant_funding.grant_setup_check_your_answers"), data=contact_form.data, follow_redirects=False
     )
