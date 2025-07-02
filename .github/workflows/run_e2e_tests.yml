@@ -71,7 +71,7 @@ jobs:
           aws-region: eu-west-2
 
       - name: run e2e tests
-        run: uv run --frozen pytest --e2e --e2e-env ${{ inputs.environment }} --tracing=retain-on-failure --browser chromium
+        run: uv run --frozen pytest --e2e --e2e-env ${{ inputs.environment }} --tracing=retain-on-failure --browser chromium -vv --durations=999 tests/e2e
         env:
           SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
           SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
