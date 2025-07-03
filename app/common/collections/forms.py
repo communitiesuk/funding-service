@@ -3,12 +3,12 @@ from functools import partial
 from typing import Any, Callable, Mapping, cast
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from immutabledict import immutabledict
-from wtforms import Field, Form
+from wtforms import Field, Form, RadioField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import StringField, SubmitField
-from wtforms.validators import ValidationError
+from wtforms.validators import DataRequired, Optional, ValidationError
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
@@ -134,3 +134,19 @@ def build_question_form(question: Question, expression_context: ExpressionContex
     _DynamicQuestionForm.attach_field(question, field)
 
     return _DynamicQuestionForm
+
+
+class CheckYourAnswersForm(FlaskForm):
+    section_completed = RadioField(
+        "Have you completed this section?",
+        choices=[("yes", "Yes, I’ve completed this section"), ("no", "No, I’ll come back to it later")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())
+
+    # the form should be validly optional unless all questions in the section have been answered
+    def set_is_required(self, all_questions_answered: bool) -> None:
+        if all_questions_answered:
+            self.section_completed.validators = [DataRequired("Select if you have completed this section")]
+        else:
+            self.section_completed.validators = [Optional()]

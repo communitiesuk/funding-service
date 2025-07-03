@@ -107,11 +107,6 @@ layers = [
   "common : deliver_grant_funding : extensions : healthcheck : services : config : logging : monkeypatch : sentry : types"
 ]
 
-# todo: should these forms move to the collections forms instead
-ignore_imports = [
-    "app.common.collections.runner -> app.developers.forms"
-]
-
 [[tool.importlinter.contracts]]
 name = "DB models should not be used directly by any other parts of the app; queries should go through interfaces instead."
 type = "forbidden"
