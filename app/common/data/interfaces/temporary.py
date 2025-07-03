@@ -76,7 +76,9 @@ def delete_form(form: Form) -> None:
 def delete_question(question: Question) -> None:
     depends_on_this_question = depends_on_question(question)
     if depends_on_this_question:
-        raise DependencyOrderException("Cannot delete question that is depended on", depends_on_this_question, question)
+        raise DependencyOrderException(
+            "You cannot delete an answer that other questions depend on", depends_on_this_question, question
+        )
     db.session.delete(question)
     question.form.questions.reorder()
     db.session.execute(

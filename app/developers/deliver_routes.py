@@ -573,7 +573,7 @@ def edit_question(
                 )
             )
         except DependencyOrderException as e:
-            flash(e.as_flash_context(), "dependency_order_error")  # type:ignore [arg-type]
+            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
             return redirect(
                 url_for(
                     "developers.deliver.edit_question",

@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
-{% from "developers/deliver/_dependency_banner.html" import dependency_banner %}
+{% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = collection.name ~ " - " ~ grant.name %}
@@ -24,7 +24,7 @@
       {% with errors = get_flashed_messages(with_categories=flash_message_type.DEPENDENCY_ORDER_ERROR) %}
         {% if errors %}
           {% set type, error = errors[0] %}
-          {{ dependency_banner(error, "You cannot move questions above answers they depend on.", grant.id, collection.id, section.id, db_form.id) }}
+          {{ dependency_banner(error, grant.id, collection.id, section.id, db_form.id) }}
         {% endif %}
       {% endwith %}
 

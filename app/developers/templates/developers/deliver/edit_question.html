@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "developers/deliver/_dependency_banner.html" import dependency_banner %}
+{% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
 
 {% set page_title = "Edit question - " ~ db_form.title %}
 {% set active_item_identifier = "developers" %}
@@ -23,7 +23,7 @@
       {% with errors = get_flashed_messages(with_categories="dependency_order_error") %}
         {% if errors %}
           {% set type, error = errors[0] %}
-          {{ dependency_banner(error, "You cannot delete an answer that other questions depend on.", grant.id, collection.id, section.id, db_form.id) }}
+          {{ dependency_banner(error, grant.id, collection.id, section.id, db_form.id) }}
         {% endif %}
       {% endwith %}
 
