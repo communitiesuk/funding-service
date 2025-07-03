@@ -65,3 +65,9 @@ class ManagedExpressionsEnum(enum.StrEnum):
     GREATER_THAN = "Greater than"
     LESS_THAN = "Less than"
     BETWEEN = "Between"
+
+
+class FormRunnerState(enum.StrEnum):
+    TASKLIST = "tasklist"
+    QUESTION = "question"
+    CHECK_YOUR_ANSWERS = "check-your-answers"
