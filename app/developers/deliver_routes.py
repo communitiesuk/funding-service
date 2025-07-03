@@ -20,7 +20,6 @@ from app.common.data.interfaces.collections import (
     get_form_by_id,
     get_question_by_id,
     get_section_by_id,
-    is_question_dependency_order_valid,
     move_form_down,
     move_form_up,
     move_question_down,
@@ -615,17 +614,14 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
 
     if form.validate_on_submit():
         depends_on_question = get_question_by_id(form.question.data)
-        if not is_question_dependency_order_valid(question, depends_on_question):
-            form.question.errors.append("Select an answer that comes before this question in the form")  # type:ignore[attr-defined]
-        else:
-            return redirect(
-                url_for(
-                    "developers.deliver.add_question_condition",
-                    grant_id=grant_id,
-                    question_id=question_id,
-                    depends_on_question_id=depends_on_question.id,
-                )
+        return redirect(
+            url_for(
+                "developers.deliver.add_question_condition",
+                grant_id=grant_id,
+                question_id=question_id,
+                depends_on_question_id=depends_on_question.id,
             )
+        )
 
     return render_template(
         "developers/deliver/add_question_condition_select_question.html",
