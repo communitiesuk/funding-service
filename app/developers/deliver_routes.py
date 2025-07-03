@@ -1,3 +1,4 @@
+from contextlib import suppress
 from typing import TYPE_CHECKING, ClassVar
 from uuid import UUID
 
@@ -884,13 +885,15 @@ class DGFFormRunner(FormRunner):
             question_id=question.id if question else None,
             source=source,
         ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, source: url_for(
-            "developers.deliver.submission_tasklist", submission_id=runner.submission.id, form_id=runner.form.id
+        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source: url_for(
+            "developers.deliver.submission_tasklist",
+            submission_id=runner.submission.id,
+            form_id=runner.form.id if runner.form else None,
         ),
         FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source: url_for(
             "developers.deliver.check_your_answers",
             submission_id=runner.submission.id,
-            form_id=form.id if form else runner.form.id,
+            form_id=form.id if form else runner.form.id if runner.form else None,
             source=source,
         ),
     }
@@ -900,10 +903,12 @@ class DGFFormRunner(FormRunner):
 @auto_commit_after_request
 @is_platform_admin
 def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
-    runner = DGFFormRunner.load(submission_id)
+    source = request.args.get("source")
+    runner = DGFFormRunner.load(submission_id).context(source=FormRunnerState(source) if source else None)
 
     if runner.tasklist_form.validate_on_submit():
-        if runner.submit(interfaces.user.get_current_user()):
+        with suppress(ValueError):
+            runner.submit(interfaces.user.get_current_user())
             return redirect(url_for("developers.deliver.collection_confirmation", submission_id=runner.submission.id))
 
     return render_template(
@@ -916,7 +921,10 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
 @is_platform_admin
 @auto_commit_after_request
 def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    runner = DGFFormRunner.load(submission_id).context(question_id=question_id)
+    source = request.args.get("source")
+    runner = DGFFormRunner.load(submission_id).context(
+        question_id=question_id, source=FormRunnerState(source) if source else None
+    )
 
     if not runner.validate():
         return redirect(runner.next_url)
@@ -934,10 +942,14 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
 @auto_commit_after_request
 @is_platform_admin
 def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValue:
-    runner = DGFFormRunner.load(submission_id).context(form_id=form_id)
+    source = request.args.get("source")
+    runner = DGFFormRunner.load(submission_id).context(
+        form_id=form_id, source=FormRunnerState(source) if source else None
+    )
 
     if runner.check_your_answers_form.validate_on_submit():
-        if runner.save_is_form_completed(interfaces.user.get_current_user()):
+        with suppress(ValueError):
+            runner.save_is_form_completed(interfaces.user.get_current_user())
             return redirect(runner.next_url)
 
     return render_template("developers/deliver/check_your_answers.html", runner=runner)
