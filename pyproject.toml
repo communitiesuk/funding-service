@@ -126,6 +126,9 @@ source_modules = [
     "app.sentry",
     "app.types",
 ]
+ignore_imports = [
+    "app.developers.commands -> app.common.data.models"
+]
 # Unable to do `exhaustive` here unfortunately, so we won't get told if new modules are added and we forget to put them
 # in here. C'est la vie.
 # Importantly we don't block `app.common.data.models_user` because this is used in a lot of places to cast Flask's

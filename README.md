@@ -80,3 +80,23 @@ However, if you have enabled SSO locally as per [the instructions above](#sso), 
     - Login locally using the SSO stub server with the email address `svc-Preaward-Funds@test.communities.gov.uk`, and tick the "Platform admin type login" option.
 - Update your local `.env` file with the UUID that matches the user `svc-Preaward-Funds@test.communities.gov.uk` in your local database: `SELECT id from "user" where email='svc-Preaward-Funds@test.communities.gov.uk';`
 - Edit [authenticated_browser_sso()](./tests/e2e/conftest.py) to use 'login_with_session_cookie()' for the local env.
+
+## Seed data
+
+We have some sample grant configuration exported at `app/developers/data/grants.json`. This data will be loaded automatically into your developer environment during docker-compose startup.
+
+To run a manual load:
+
+```bash
+uv run flask developers seed-grants
+```
+
+### Refreshing grant exports
+
+If you make an update to the grant that you want to be persisted and synced for all other developers, run:
+
+```bash
+uv run flask developers export-grants
+```
+
+Then commit the change, create a PR and get it merged. Developer environments will sync the changes automatically when their app starts up again.

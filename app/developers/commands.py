@@ -1,243 +1,158 @@
 import hashlib
+import json
 import uuid
-from typing import TYPE_CHECKING, Sequence, TypedDict
+from pathlib import Path
+from typing import Any, TypedDict
 
 import click
+from faker import Faker
+from flask import current_app
+from sqlalchemy.exc import NoResultFound
 
-from app.common.data import interfaces
+from app.common.data.base import BaseModel
+from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.temporary import delete_grant
-from app.common.data.types import QuestionDataType
+from app.common.data.models import Collection, Expression, Form, Grant, Question, Section
+from app.common.data.models_user import User
 from app.developers import developers_blueprint
-
-if TYPE_CHECKING:
-    from app.common.data.models import Grant
+from app.extensions import db
 
 
-class QuestionSpec(TypedDict):
-    text: str
-    data_type: QuestionDataType
+def to_dict(instance: BaseModel) -> dict[str, Any]:
+    return {col.name: getattr(instance, col.name) for col in instance.__table__.columns}
 
 
-class FormSpec(TypedDict):
-    title: str
-    questions: list[QuestionSpec]
+class GrantExport(TypedDict):
+    grant: dict[str, Any]
+    collections: list[Any]
+    sections: list[Any]
+    forms: list[Any]
+    questions: list[Any]
+    expressions: list[Any]
 
 
-class SectionSpec(TypedDict):
-    title: str
-    slug: str
-    forms: list[FormSpec]
-
-
-def _stable_uuid(seed: str) -> uuid.UUID:
-    return uuid.UUID(hex=hashlib.md5(seed.encode()).hexdigest())
-
-
-def _seed_grant(
-    grants: Sequence["Grant"], grant_name: str, collection_name: str, collection_slug: str, sections: list[SectionSpec]
-) -> None:
-    from tests.models import (
-        _CollectionFactory,
-        _FormFactory,
-        _GrantFactory,
-        _QuestionFactory,
-        _SectionFactory,
-    )
-
-    if grant := next((grant for grant in grants if grant.name == grant_name), None):
-        click.echo(f"Grant '{grant_name}' already exists; recreating it.")
-        delete_grant(grant.id)
-
-    grant = _GrantFactory.create(id=_stable_uuid(grant_name), name=grant_name)
-    collection = _CollectionFactory.create(
-        id=_stable_uuid(collection_name), grant=grant, name=collection_name, slug=collection_slug
-    )
-
-    for section_data in sections:
-        section = _SectionFactory.create(
-            id=_stable_uuid(collection_name + section_data["title"]),
-            collection=collection,
-            title=section_data["title"],
-            slug=section_data["slug"],
+@developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
+@click.argument("grant_ids", nargs=-1, type=click.UUID)
+def export_grants(grant_ids: list[uuid.UUID]) -> None:
+    export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
+    if not export_path.exists():
+        raise RuntimeError(
+            f"Could not find the exported data at {export_path}. "
+            f"Make sure you're running this command from the root of the repository."
         )
-        for form_data in section_data["forms"]:
-            form = _FormFactory.create(
-                id=_stable_uuid(collection_name + section_data["title"] + form_data["title"]),
-                section=section,
-                title=form_data["title"],
-            )
-            for question in form_data["questions"]:
-                _QuestionFactory.create(
-                    id=_stable_uuid(collection_name + section_data["title"] + form_data["title"] + question["text"]),
-                    form=form,
-                    text=question["text"],
-                    data_type=question["data_type"],
-                )
 
-    click.echo(f"Seeded the ‘{grant_name}’ grant.")
+    if len(grant_ids) == 0:
+        with open(export_path) as infile:
+            previous_export_data = json.load(infile)
+        grant_ids = [uuid.UUID(grant_data["grant"]["id"]) for grant_data in previous_export_data["grants"]]
+        click.echo(
+            f"No grant IDs provided. "
+            f"Refreshing export data for previously exported grants: {','.join(str(g) for g in grant_ids)}\n"
+        )
 
+    all_grants = get_all_grants()
+    grants = [grant for grant in all_grants if grant.id in grant_ids]
+    missing_grants = [str(grant_id) for grant_id in grant_ids if grant_id not in [grant.id for grant in grants]]
+    if missing_grants:
+        click.echo(f"Could not find the following grant(s): {','.join(missing_grants)}")
+        exit(1)
 
-def _seed_chessboards_in_parks(grants: Sequence["Grant"]) -> None:
-    _seed_grant(
-        grants,
-        grant_name="Chessboards in parks",
-        collection_name="Report on chessboards in parks",
-        collection_slug="report-on-chessboards-in-parks",
-        sections=[
-            {
-                "title": "About the park",
-                "slug": "about-the-park",
-                "forms": [
-                    {
-                        "title": "Park information",
-                        "questions": [
-                            {"text": "What is the name of the park?", "data_type": QuestionDataType.TEXT_SINGLE_LINE},
-                            {"text": "How many chessboards are there?", "data_type": QuestionDataType.INTEGER},
-                        ],
-                    },
-                    {
-                        "title": "Visitor information",
-                        "questions": [
-                            {
-                                "text": "How many visitors were there in the last reporting period?",
-                                "data_type": QuestionDataType.INTEGER,
-                            },
-                        ],
-                    },
-                ],
-            },
-            {
-                "title": "About the chess",
-                "slug": "about-the-chess",
-                "forms": [
-                    {
-                        "title": "Information about the chess games played",
-                        "questions": [
-                            {
-                                "text": "Describe the most exciting game played in the last reporting period.",
-                                "data_type": QuestionDataType.TEXT_MULTI_LINE,
-                            }
-                        ],
-                    }
-                ],
-            },
-        ],
-    )
+    export_data: dict[str, list[Any]] = {
+        "grants": [],
+        "users": [],
+    }
 
+    for grant in grants:
+        grant_export: GrantExport = {
+            "grant": to_dict(grant),
+            "collections": [],
+            "sections": [],
+            "forms": [],
+            "questions": [],
+            "expressions": [],
+        }
+        export_data["grants"].append(grant_export)
+        users = set()
 
-def _seed_playgrounds_in_parks(grants: Sequence["Grant"]) -> None:
-    _seed_grant(
-        grants,
-        grant_name="Playgrounds in Parks",
-        collection_name="Report on playgrounds in parks",
-        collection_slug="report-on-playgrounds-in-parks",
-        sections=[
-            {
-                "title": "Playground Overview",
-                "slug": "playground-overview",
-                "forms": [
-                    {
-                        "title": "Playground Details",
-                        "questions": [
-                            {"text": "What is the name of the park?", "data_type": QuestionDataType.TEXT_SINGLE_LINE},
-                            {
-                                "text": "How many pieces of playground equipment are there?",
-                                "data_type": QuestionDataType.INTEGER,
-                            },
-                            {
-                                "text": "Is the playground accessible to children with disabilities?",
-                                "data_type": QuestionDataType.INTEGER,
-                            },
-                        ],
-                    }
-                ],
-            },
-            {
-                "title": "Usage & Maintenance",
-                "slug": "usage-maintenance",
-                "forms": [
-                    {
-                        "title": "Usage Statistics",
-                        "questions": [
-                            {
-                                "text": "How many children used the playground last month?",
-                                "data_type": QuestionDataType.INTEGER,
-                            },
-                        ],
-                    },
-                    {
-                        "title": "Maintenance Notes",
-                        "questions": [
-                            {
-                                "text": "Were there any safety incidents reported?",
-                                "data_type": QuestionDataType.INTEGER,
-                            },
-                            {
-                                "text": """
-                                Describe any maintenance activities or issues during the last reporting period.
-                                """,
-                                "data_type": QuestionDataType.TEXT_MULTI_LINE,
-                            },
-                        ],
-                    },
-                ],
-            },
-        ],
-    )
+        for collection in grant.collections:
+            grant_export["collections"].append(to_dict(collection))
+            users.add(collection.created_by)
+
+            for section in collection.sections:
+                grant_export["sections"].append(to_dict(section))
+
+                for form in section.forms:
+                    grant_export["forms"].append(to_dict(form))
+
+                    for question in form.questions:
+                        grant_export["questions"].append(to_dict(question))
+
+                        for expression in question.expressions:
+                            grant_export["expressions"].append(to_dict(expression))
+                            users.add(expression.created_by)
+
+        for user in users:
+            if user.id in [u["id"] for u in export_data["users"]]:
+                continue
+
+            user_data = to_dict(user)
+
+            # Anonymise the user, but in a consistent way
+            faker = Faker()
+            faker.seed_instance(int(hashlib.md5(user_data["email"].encode()).hexdigest(), 16))
+            user_data["email"] = faker.email(domain="test.communities.gov.uk")
+            user_data["name"] = faker.name()
+
+            export_data["users"].append(user_data)
+
+    export_json = current_app.json.dumps(export_data, indent=2)
+    with open(export_path, "w") as outfile:
+        outfile.write(export_json + "\n")
+
+    click.echo(f"Written {len(grants)} grants to {export_path}")
 
 
-def _seed_picnic_areas_in_parks(grants: Sequence["Grant"]) -> None:
-    _seed_grant(
-        grants,
-        grant_name="Picnic Areas in Parks",
-        collection_name="Report on picnic areas in parks",
-        collection_slug="report-on-picnic-areas-in-parks",
-        sections=[
-            {
-                "title": "Park Overview",
-                "slug": "park-overview",
-                "forms": [
-                    {
-                        "title": "General Park Information",
-                        "questions": [
-                            {"text": "What is the name of the park?", "data_type": QuestionDataType.TEXT_SINGLE_LINE},
-                            {"text": "How many picnic tables are available?", "data_type": QuestionDataType.INTEGER},
-                        ],
-                    },
-                    {
-                        "title": "Usage Information",
-                        "questions": [
-                            {
-                                "text": "How many families used the picnic area last month?",
-                                "data_type": QuestionDataType.INTEGER,
-                            },
-                        ],
-                    },
-                ],
-            },
-            {
-                "title": "Feedback",
-                "slug": "feedback",
-                "forms": [
-                    {
-                        "title": "Public Feedback on Picnic Areas",
-                        "questions": [
-                            {
-                                "text": "Share any notable comments or stories from visitors about the picnic areas.",
-                                "data_type": QuestionDataType.TEXT_MULTI_LINE,
-                            }
-                        ],
-                    }
-                ],
-            },
-        ],
-    )
-
-
-@developers_blueprint.cli.command("seed-grants", help="Seed exemplar grants to aid development and testing.")
+@developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
 def seed_grants() -> None:
-    grants = interfaces.grants.get_all_grants()
+    export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
-    _seed_chessboards_in_parks(grants)
-    _seed_picnic_areas_in_parks(grants)
-    _seed_playgrounds_in_parks(grants)
+    with open(export_path) as infile:
+        export_data = json.load(infile)
+
+    for user in export_data["users"]:
+        user = User(**user)
+        db.session.merge(user)
+    db.session.flush()
+
+    for grant_data in export_data["grants"]:
+        try:
+            delete_grant(grant_data["grant"]["id"])
+            db.session.commit()
+        except NoResultFound:
+            pass
+
+        grant = Grant(**grant_data["grant"])
+        db.session.add(grant)
+
+        for collection in grant_data["collections"]:
+            collection = Collection(**collection)
+            db.session.add(collection)
+
+        for section in grant_data["sections"]:
+            section = Section(**section)
+            db.session.add(section)
+
+        for form in grant_data["forms"]:
+            form = Form(**form)
+            db.session.add(form)
+
+        for question in grant_data["questions"]:
+            question = Question(**question)
+            db.session.add(question)
+
+        for expression in grant_data["expressions"]:
+            expression = Expression(**expression)
+            db.session.add(expression)
+
+    db.session.commit()
+    click.echo(f"Loaded/synced {len(export_data['grants'])} grant(s) into the database.")
