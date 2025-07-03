@@ -1,14 +1,16 @@
+import datetime
 import uuid
 from typing import cast
 
 from flask_login import current_user
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
-from app.common.data.models_user import User, UserRole
+from app.common.data.models import Grant, Organisation
+from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
@@ -30,6 +32,11 @@ def get_user_by_email(email_address: str) -> User | None:
 
 def get_user_by_azure_ad_subject_id(azure_ad_subject_id: str) -> User | None:
     return db.session.execute(select(User).where(User.azure_ad_subject_id == azure_ad_subject_id)).scalar_one_or_none()
+
+
+def set_user_last_logged_in_at_utc(user: User) -> User:
+    user.last_logged_in_at_utc = func.current_timestamp()
+    return user
 
 
 def upsert_user_by_email(
@@ -167,3 +174,33 @@ def remove_all_roles_from_user(user: User) -> None:
     db.session.execute(statement)
     db.session.flush()
     db.session.expire(user)
+
+
+def create_invitation(
+    email: str,
+    organisation: Organisation | None = None,
+    grant: Grant | None = None,
+    role: RoleEnum | None = None,
+) -> Invitation:
+    invitation = Invitation(
+        email=email,
+        organisation_id=organisation.id if organisation else None,
+        grant_id=grant.id if grant else None,
+        role=role,
+        expires_at_utc=func.now() + datetime.timedelta(days=7),
+    )
+    db.session.add(invitation)
+    db.session.flush()
+    return invitation
+
+
+def get_invitation(invitation_id: uuid.UUID) -> Invitation | None:
+    return db.session.get(Invitation, invitation_id)
+
+
+def claim_invitation(invitation: Invitation, user: User) -> Invitation:
+    invitation.claimed_at_utc = func.now()
+    invitation.user = user
+    db.session.add(invitation)
+    db.session.flush()
+    return invitation

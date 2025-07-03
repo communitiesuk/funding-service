@@ -30,6 +30,7 @@ from app.extensions import (
     migrate,
     notification_service,
     record_sqlalchemy_queries,
+    register_signals,
     talisman,
     toolbar,
 )
@@ -109,6 +110,7 @@ def create_app() -> Flask:
     notification_service.init_app(app)
     talisman.init_app(app, **app.config["TALISMAN_SETTINGS"])
     login_manager.init_app(app)
+    register_signals(app)
     record_sqlalchemy_queries.init_app(app, db)
 
     @login_manager.user_loader  # type: ignore[misc]

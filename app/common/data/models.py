@@ -1,9 +1,6 @@
-import datetime
-import secrets
 import uuid
 from typing import TYPE_CHECKING, Optional
 
-from pytz import utc
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -58,24 +55,6 @@ class Organisation(BaseModel):
     roles: Mapped[list["UserRole"]] = relationship(
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"
     )
-
-
-class MagicLink(BaseModel):
-    __tablename__ = "magic_link"
-
-    code: Mapped[str] = mapped_column(unique=True, default=lambda: secrets.token_urlsafe(12))
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
-    redirect_to_path: Mapped[str]
-    expires_at_utc: Mapped[datetime.datetime]
-    claimed_at_utc: Mapped[datetime.datetime | None]
-
-    user: Mapped[User] = relationship("User", back_populates="magic_links")
-
-    __table_args__ = (Index(None, code, unique=True, postgresql_where="claimed_at_utc IS NOT NULL"),)
-
-    @property
-    def usable(self) -> bool:
-        return self.claimed_at_utc is None and self.expires_at_utc > datetime.datetime.now(utc).replace(tzinfo=None)
 
 
 class Collection(BaseModel):

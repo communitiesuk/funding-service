@@ -1,9 +1,11 @@
+from datetime import datetime
+
 import pytest
 from sqlalchemy import func, select
 
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
-from app.common.data.models_user import User, UserRole
+from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
 
 
@@ -55,6 +57,13 @@ class TestGetUserByAzureAdSubjectId:
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
         assert user is None
+
+
+class TestSetUserLastLoggedInAt:
+    def test_set_user_last_logged_in_at_utc(self, db_session, factories) -> None:
+        user = factories.user.create(email="test@communites.gov.uk", last_logged_in_at_utc=None)
+        interfaces.user.set_user_last_logged_in_at_utc(user)
+        assert user.last_logged_in_at_utc is not None
 
 
 class TestUpsertUserByEmail:
@@ -326,3 +335,40 @@ class TestRemoveUserRoleInterfaces:
         interfaces.user.remove_all_roles_from_user(user)
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
         assert user.roles == []
+
+
+class TestInvitations:
+    @pytest.mark.freeze_time("2023-10-01 12:00:00")
+    def test_create_invitation(self, db_session, factories):
+        invitation = interfaces.user.create_invitation(email="test@email.com", role=RoleEnum.MEMBER)
+        invite_from_db = db_session.get(Invitation, invitation.id)
+        assert invite_from_db is not None
+        assert invite_from_db.email == "test@email.com"
+        assert invite_from_db.role == RoleEnum.MEMBER
+        assert invite_from_db.expires_at_utc == datetime(2023, 10, 8, 12, 0, 0)
+        assert invite_from_db.claimed_at_utc is None
+        assert invite_from_db.grant_id is None
+        assert invite_from_db.organisation_id is None
+        assert invite_from_db.usable is True
+
+    @pytest.mark.freeze_time("2025-10-01 12:00:00")
+    def test_get_invitation(self, db_session, factories):
+        invitation = factories.invitation.create(role=RoleEnum.MEMBER, email="test@email.com")
+        invite_from_db = interfaces.user.get_invitation(invitation.id)
+        assert invite_from_db is not None
+        assert invite_from_db.usable is True
+        assert invite_from_db.email == "test@email.com"
+        assert invite_from_db.role == RoleEnum.MEMBER
+        assert invite_from_db.expires_at_utc == datetime(2025, 10, 8, 12, 0, 0)
+
+    @pytest.mark.freeze_time("2025-10-01 12:00:00")
+    def test_claim_invitation(self, db_session, factories):
+        user = factories.user.create(email="new_user@email.com")
+        invitation = factories.invitation.create(role=RoleEnum.MEMBER, email="new_user@email.com")
+        assert invitation.claimed_at_utc is None
+        assert invitation.usable is True
+
+        claimed_invitation = interfaces.user.claim_invitation(invitation, user)
+        assert claimed_invitation.claimed_at_utc == datetime(2025, 10, 1, 12, 0, 0)
+        assert claimed_invitation.usable is False
+        assert claimed_invitation.user == user

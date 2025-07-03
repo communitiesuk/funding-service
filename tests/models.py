@@ -20,14 +20,13 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
-    MagicLink,
     Organisation,
     Question,
     Section,
     Submission,
     SubmissionEvent,
 )
-from app.common.data.models_user import User, UserRole
+from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
 from app.extensions import db
 
@@ -60,6 +59,7 @@ class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     name = factory.Faker("name")
     email = factory.Faker("email")
     azure_ad_subject_id = factory.fuzzy.FuzzyText(length=25)
+    last_logged_in_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
 
 
 class _OrganisationFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -107,6 +107,7 @@ class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
     code = factory.LazyFunction(lambda: secrets.token_urlsafe(12))
     user_id = factory.LazyAttribute(lambda o: o.user.id)
     user = factory.SubFactory(_UserFactory)
+    email = factory.Faker("email")
     redirect_to_path = factory.LazyFunction(lambda: url_for("deliver_grant_funding.list_grants"))
     expires_at_utc = factory.LazyFunction(lambda: datetime.datetime.now() + datetime.timedelta(minutes=15))
     claimed_at_utc = None
@@ -224,3 +225,37 @@ class _ExpressionFactory(factory.alchemy.SQLAlchemyModelFactory):
     #       makes some kind of sense for the question type
     statement = factory.LazyFunction(_required)
     type = factory.LazyFunction(_required)
+
+
+class _InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Invitation
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+    email = factory.Faker("email")
+    user_id = None
+    user = None
+    organisation_id = None
+    organisation = None
+    grant_id = None
+    grant = None
+    role = None
+    expires_at_utc = factory.LazyFunction(lambda: datetime.datetime.now() + datetime.timedelta(days=7))
+    claimed_at_utc = None
+
+    class Params:
+        has_organisation = factory.Trait(
+            organisation_id=factory.LazyAttribute(lambda o: o.organisation.id),
+            organisation=factory.SubFactory(_OrganisationFactory),
+        )
+        has_grant = factory.Trait(
+            grant_id=factory.LazyAttribute(lambda o: o.grant.id),
+            grant=factory.SubFactory(_GrantFactory),
+        )
+        is_claimed = factory.Trait(
+            claimed_at_utc=factory.LazyFunction(lambda: datetime.datetime.now()),
+            user=factory.SubFactory(_UserFactory),
+            user_id=factory.LazyAttribute(lambda o: o.user.id if o.user else None),
+        )
