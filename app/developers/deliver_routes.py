@@ -58,6 +58,7 @@ from app.developers.forms import (
     ConfirmDeletionForm,
 )
 from app.extensions import auto_commit_after_request, notification_service
+from app.types import FlashMessageType
 
 if TYPE_CHECKING:
     from app.common.data.models import Form, Question, Submission
@@ -527,7 +528,7 @@ def move_question(
         elif direction == "down":
             move_question_down(question)
     except DependencyOrderException as e:
-        flash(e.as_flash_context(), "dependency_order_error")  # type:ignore [arg-type]
+        flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
 
     return redirect(
         url_for(

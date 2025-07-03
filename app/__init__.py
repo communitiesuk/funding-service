@@ -36,6 +36,7 @@ from app.extensions import (
 )
 from app.monkeypatch import patch_sqlalchemy_lite_async
 from app.sentry import init_sentry
+from app.types import FlashMessageType
 
 if TYPE_CHECKING:
     from app.common.data.models_user import User
@@ -211,5 +212,6 @@ def create_app() -> Flask:
     # should make an intentional decision for when to be setting this
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
     app.add_template_global(AuthorisationHelper, "authorisation_helper")
+    app.add_template_global(FlashMessageType, "flash_message_type")
 
     return app

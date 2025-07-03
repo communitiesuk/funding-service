@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -244,14 +244,20 @@ def get_question_by_id(question_id: UUID) -> Question:
     return db.session.get_one(Question, question_id)
 
 
-class DependencyOrderException(Exception):
-    def __init__(self, question: Question, depends_on_question: Question):
-        super().__init__("You cannot move questions above answers they depend on.")
+class FlashableException(Protocol):
+    def as_flash_context(self) -> dict[str, str]: ...
+
+
+class DependencyOrderException(Exception, FlashableException):
+    def __init__(self, message: str, question: Question, depends_on_question: Question):
+        super().__init__(message)
+        self.message = message
         self.question = question
         self.depends_on_question = depends_on_question
 
     def as_flash_context(self) -> dict[str, str]:
         return {
+            "message": self.message,
             "question_id": str(self.question.id),
             "question_text": self.question.text,
             "depends_on_question_id": str(self.depends_on_question.id),
@@ -264,11 +270,15 @@ class DependencyOrderException(Exception):
 def check_question_order_dependency(question: Question, swap_question: Question) -> None:
     for condition in question.conditions:
         if condition.managed and condition.managed.question_id == swap_question.id:
-            raise DependencyOrderException(question, swap_question)
+            raise DependencyOrderException(
+                "You cannot move questions above answers they depend on.", question, swap_question
+            )
 
     for condition in swap_question.conditions:
         if condition.managed and condition.managed.question_id == question.id:
-            raise DependencyOrderException(swap_question, question)
+            raise DependencyOrderException(
+                "You cannot move answers below questions that depend on them.", swap_question, question
+            )
 
 
 def move_question_up(question: Question) -> Question:
