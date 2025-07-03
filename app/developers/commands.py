@@ -17,6 +17,8 @@ from app.common.data.models_user import User
 from app.developers import developers_blueprint
 from app.extensions import db
 
+export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
+
 
 def to_dict(instance: BaseModel) -> dict[str, Any]:
     return {col.name: getattr(instance, col.name) for col in instance.__table__.columns}
@@ -39,7 +41,6 @@ ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
 @click.argument("grant_ids", nargs=-1, type=click.UUID)
 def export_grants(grant_ids: list[uuid.UUID]) -> None:
-    export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
     if not export_path.exists():
         raise RuntimeError(
             f"Could not find the exported data at {export_path}. "
@@ -120,8 +121,6 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:
 
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
 def seed_grants() -> None:
-    export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
-
     with open(export_path) as infile:
         export_data = json.load(infile)
 
