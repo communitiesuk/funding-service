@@ -2,11 +2,10 @@
 from typing import TYPE_CHECKING, Callable, ClassVar, Optional
 from uuid import UUID
 
-from app.common.collections.forms import build_question_form
+from app.common.collections.forms import CheckYourAnswersForm, build_question_form
 from app.common.data.types import FormRunnerState, SubmissionStatusEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.developers.forms import CheckYourAnswersForm
 from app.extensions import notification_service
 
 if TYPE_CHECKING:
