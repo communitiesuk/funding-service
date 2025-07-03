@@ -1,36 +1,19 @@
-{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+{% from "common/macros/collections.html" import collection_question %}
+{% from "common/macros/collections.html" import collection_before %}
 {% extends "developers/deliver/access_grant_funding_base.html" %}
 
-{% set page_title = question.text ~ " - " ~ question.form.title %}
+{% set page_title = runner.question.text ~ " - " ~ runner.form.title %}
+
+{# configure the page for the base error summary #}
+{# todo: probably worth just aliasing this in the render call #}
+{% set form = runner.question_form %}
 
 {% block beforeContent %}
-  {% if submission_helper.is_test %}
-    {{ mhclgTestBanner("Test submission") }}
-  {% endif %}
-
-  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+  {{ collection_before(runner) }}
 {% endblock beforeContent %}
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-
-        {# https://github.com/alphagov/govuk-frontend/issues/1841 #}
-        {# GOV.UK Frontend macros don't let you add captions to label/legend-headings that are outside of the <h> element #}
-        {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
-        {# So we just manually add the caption here. #}
-        <span class="govuk-caption-l">{{ question.form.title }}</span>
-        {% if question.data_type == question_types.TEXT_SINGLE_LINE or question.data_type == question_types.TEXT_MULTI_LINE %}
-          {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
-        {% elif question.data_type == question_types.INTEGER %}
-          {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
-        {% endif %}
-
-        {{ form.submit }}
-      </form>
-    </div>
+    <div class="govuk-grid-column-two-thirds">{{ collection_question(runner) }}</div>
   </div>
 {% endblock content %}

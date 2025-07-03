@@ -12,7 +12,7 @@ from werkzeug.routing import BaseConverter
 from app import logging
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
-from app.common.data.types import SubmissionModeEnum
+from app.common.data.types import FormRunnerState, QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.filters import (
     format_date,
     format_date_range,
@@ -213,5 +213,7 @@ def create_app() -> Flask:
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
     app.add_template_global(AuthorisationHelper, "authorisation_helper")
     app.add_template_global(FlashMessageType, "flash_message_type")
-
+    app.add_template_global(QuestionDataType, "question_types")
+    app.add_template_global(FormRunnerState, "form_runner_state")
+    app.add_template_global(SubmissionStatusEnum, "submission_status")
     return app
