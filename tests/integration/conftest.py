@@ -46,7 +46,7 @@ def setup_db_container() -> Generator[PostgresContainer, None, None]:
     # off a little bit of time - why not.
     testcontainers_config.sleep_time = 0.1
 
-    test_postgres = PostgresContainer("postgres:16")
+    test_postgres = PostgresContainer("postgres:17.5")
     test_postgres.start()
 
     yield test_postgres
