@@ -16,20 +16,24 @@ class TestCreateMagicLink:
     def test_create_magic_link_existing_user(self, db_session, factories):
         user = factories.user.create(azure_ad_subject_id=None)
 
-        magic_link = interfaces.magic_link.create_magic_link(user, redirect_to_path="/")
+        magic_link = interfaces.magic_link.create_magic_link(email=user.email, user=user, redirect_to_path="/")
 
         assert magic_link.user == user
 
-    def test_create_magic_link_no_user(self, db_session, factories):
-        magic_link = interfaces.magic_link.create_magic_link(user=None, redirect_to_path="/")
+    def test_create_magic_link_new_user(self, db_session, factories):
+        user_email = "new_user@email.com"
+        user_from_db = db_session.scalar(select(User).where(User.email == user_email))
+        assert user_from_db is None
+
+        magic_link = interfaces.magic_link.create_magic_link(email=user_email, user=None, redirect_to_path="/")
 
         assert magic_link.user is None
 
     @pytest.mark.freeze_time("2024-10-01 12:00:00")
-    def test_create_magic_link_expiry(self, db_session, factories):
+    def test_create_magic_link_check_expiry_time(self, db_session, factories):
         user = factories.user.create(azure_ad_subject_id=None)
 
-        magic_link = interfaces.magic_link.create_magic_link(user, redirect_to_path="/")
+        magic_link = interfaces.magic_link.create_magic_link(email=user.email, user=user, redirect_to_path="/")
 
         should_expire_at = datetime.strptime("2024-10-01 12:00:00", freeze_time_format) + timedelta(minutes=15)
         assert magic_link.expires_at_utc == should_expire_at
@@ -42,7 +46,9 @@ class TestCreateMagicLink:
         # update now by 5 minutes
         time_freezer.update_frozen_time(timedelta(minutes=5))
 
-        new_magic_link = interfaces.magic_link.create_magic_link(user=old_magic_link.user, redirect_to_path="/")
+        new_magic_link = interfaces.magic_link.create_magic_link(
+            email=old_magic_link.email, user=None, redirect_to_path="/"
+        )
 
         assert old_magic_link.expires_at_utc == datetime.strptime("2024-10-01 10:05:00", freeze_time_format)
         assert new_magic_link.expires_at_utc == datetime.strptime("2024-10-01 10:20:00", freeze_time_format)
@@ -67,17 +73,17 @@ class TestGetMagicLink:
 class TestClaimMagicLink:
     @pytest.mark.freeze_time("2024-10-01 10:00:00")
     def test_claim_magic_link_success(self, db_session, factories):
-        user = factories.user.create()
         magic_link = factories.magic_link.create()
         assert magic_link.claimed_at_utc is None
         assert magic_link.user is None
-        assert magic_link.is_usable.is_(True)
+        assert magic_link.is_usable is True
 
+        user = factories.user.create()
         interfaces.magic_link.claim_magic_link(magic_link, user)
 
         assert magic_link.claimed_at_utc == datetime.strptime("2024-10-01 10:00:00", freeze_time_format)
         assert magic_link.user == user
-        assert magic_link.is_usable.is_(False)
+        assert magic_link.is_usable is False
 
     def test_claim_magic_link_fail_no_user(self, db_session, factories):
         magic_link = factories.magic_link.create()
@@ -444,7 +450,7 @@ class TestInvitations:
         user = factories.user.create(email="new_user@email.com")
         invitation = factories.invitation.create(role=RoleEnum.MEMBER, email="new_user@email.com")
         assert invitation.claimed_at_utc is None
-        assert invitation.usable is True
+        assert invitation.is_usable is True
 
         claimed_invitation = interfaces.user.claim_invitation(invitation, user)
         assert claimed_invitation.claimed_at_utc == datetime.strptime("2025-10-01 12:00:00", freeze_time_format)
