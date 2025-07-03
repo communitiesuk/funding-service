@@ -28,9 +28,13 @@
           {% set rows=[] %}
           {% for collection in grant.collections %}
             {% set submission_helper = submission_helpers.get(collection.id) %}
-            {# todo: this should be a link to create (if required), then redirect to, a submission for the collection #}
-            {% set linkHref = "#" %}
-            {# todo: link status up via submission_helper (one per collection? :sweat:) #}
+            {%
+              set link_href = (
+                url_for("developers.access.submission_tasklist", submission_id=submission_helper.id)
+                if submission_helper
+                else url_for("developers.access.start_submission_redirect", collection_id=collection.id)
+              )
+            %}
             {%
               do rows.append({
                 "title": {
