@@ -446,6 +446,19 @@ class TestInvitations:
         assert invite_from_db.organisation_id is None
         assert invite_from_db.is_usable is True
 
+    @pytest.mark.freeze_time("2023-10-01 12:00:00")
+    def test_create_invitation_expires_existing_invitations(self, db_session, factories) -> None:
+        grant = factories.grant.create()
+        factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+        invite_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert len(invite_from_db) == 1
+        new_invitation = interfaces.user.create_invitation(
+            email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER
+        )
+        usable_invite_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert len(usable_invite_from_db) == 1
+        assert new_invitation.id == usable_invite_from_db[0].id
+
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
     def test_get_invitation(self, db_session, factories):
         invitation = factories.invitation.create(role=RoleEnum.MEMBER, email="test@email.com")

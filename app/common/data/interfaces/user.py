@@ -3,7 +3,7 @@ import uuid
 from typing import cast
 
 from flask_login import current_user
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, update
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
@@ -169,19 +169,27 @@ def remove_grant_team_role_from_user(user: User, grant_id: uuid.UUID) -> None:
     db.session.expire(user)
 
 
-def remove_all_roles_from_user(user: User) -> None:
-    statement = delete(UserRole).where(UserRole.user_id == user.id)
-    db.session.execute(statement)
-    db.session.flush()
-    db.session.expire(user)
-
-
 def create_invitation(
     email: str,
-    organisation: Organisation | None = None,
     grant: Grant | None = None,
+    organisation: Organisation | None = None,
     role: RoleEnum | None = None,
 ) -> Invitation:
+    # Expire any existing invitations for the same email, organisation, and grant
+    stmt = update(Invitation).where(
+        and_(
+            Invitation.email == email,
+            Invitation.is_usable.is_(True),
+        )
+    )
+    if grant:
+        stmt = stmt.where(Invitation.grant_id == grant.id)
+    if organisation:
+        stmt = stmt.where(Invitation.organisation_id == organisation.id)
+
+    db.session.execute(stmt.values(expires_at_utc=func.now()))
+
+    # Create a new invitation
     invitation = Invitation(
         email=email,
         organisation_id=organisation.id if organisation else None,
@@ -192,6 +200,13 @@ def create_invitation(
     db.session.add(invitation)
     db.session.flush()
     return invitation
+
+
+def remove_all_roles_from_user(user: User) -> None:
+    statement = delete(UserRole).where(UserRole.user_id == user.id)
+    db.session.execute(statement)
+    db.session.flush()
+    db.session.expire(user)
 
 
 def get_invitation(invitation_id: uuid.UUID) -> Invitation | None:

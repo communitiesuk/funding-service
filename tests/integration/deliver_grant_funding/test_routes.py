@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import Collection, Form, Grant, Question, Section
+from app.common.data.models_user import Invitation
 from app.common.data.types import ExpressionType, QuestionDataType, RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.deliver_grant_funding.forms import (
@@ -1041,9 +1042,9 @@ def test_list_users_for_grant_with_platform_admin_add_member(
         json={"user_email": "test1@communities.gov.uk"},
         follow_redirects=True,
     )
-    users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
-    assert users
-    assert len(users) == 1
+    invitations = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").invitations
+    assert invitations
+    assert len(invitations) == 1
 
 
 def test_list_users_for_grant_with_platform_admin_add_same_member_again(
@@ -1063,6 +1064,41 @@ def test_list_users_for_grant_with_platform_admin_add_same_member_again(
     assert form_errors["user_email"][0] == f'This user already is a member of "{grant.name}" so you cannot add them'
 
 
+def test_add_user_to_grant_creates_invitation_for_new_user(
+    authenticated_platform_admin_client, db_session, factories, mock_notification_service_calls
+):
+    grant = factories.grant.create()
+    authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
+        json={"user_email": "test1@communities.gov.uk"},
+        follow_redirects=True,
+    )
+
+    usable_invites_from_db = db_session.query(Invitation).where(Invitation.is_usable.is_(True)).all()
+    assert len(usable_invites_from_db) == 1
+    assert (
+        usable_invites_from_db[0].email == "test1@communities.gov.uk"
+        and usable_invites_from_db[0].grant_id == grant.id
+        and usable_invites_from_db[0].role == RoleEnum.MEMBER
+    )
+
+
+def test_add_user_to_grant_adds_existing_user_no_invitation(
+    authenticated_platform_admin_client, db_session, factories, mock_notification_service_calls
+):
+    grant = factories.grant.create()
+    user = factories.user.create(email="test1@communities.gov.uk")
+    authenticated_platform_admin_client.post(
+        url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
+        json={"user_email": "test1@communities.gov.uk"},
+        follow_redirects=True,
+    )
+    usable_invites_from_db = db_session.query(Invitation).where(Invitation.is_usable.is_(True)).all()
+    assert not usable_invites_from_db
+    assert len(user.roles) == 1
+    assert user.roles[0].grant_id == grant.id and user.roles[0].role == RoleEnum.MEMBER
+
+
 def test_list_users_for_grant_with_member_no_add_member_button(authenticated_grant_member_client, factories):
     grant = factories.grant.create()
     user = get_current_user()
@@ -1072,6 +1108,20 @@ def test_list_users_for_grant_with_member_no_add_member_button(authenticated_gra
     )
     soup = BeautifulSoup(response.data, "html.parser")
     assert soup.find("a", string=lambda text: text and "Add grant team member" in text) is None
+
+
+def test_list_users_for_grant_with_not_logged_in_members(
+    authenticated_platform_admin_client, factories, templates_rendered
+):
+    grant = factories.grant.create()
+    factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+
+    response = authenticated_platform_admin_client.get(
+        url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
+    )
+    soup = BeautifulSoup(response.data, "html.parser")
+    assert "Not yet signed in" in soup.h2.text.strip()
+    assert "test@communities.gov.uk" in soup.td.text.strip()
 
 
 def test_list_users_for_grant_with_member(authenticated_grant_member_client, templates_rendered, factories):

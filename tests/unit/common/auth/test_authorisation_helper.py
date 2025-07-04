@@ -1,5 +1,8 @@
+from datetime import datetime
+
 import pytest
 from flask_login import AnonymousUserMixin
+from pytz import utc
 
 from app import AuthorisationHelper
 from app.common.data.types import RoleEnum
@@ -7,14 +10,16 @@ from app.common.data.types import RoleEnum
 
 class TestAuthorisationHelper:
     @pytest.mark.parametrize(
-        "name, expected",
+        "name, last_logged_in, expected",
         [
-            ("John", True),
-            (None, False),
+            ("John", datetime.now(utc), True),
+            ("John", None, False),
+            (None, datetime.now(utc), True),
+            (None, None, False),
         ],
     )
-    def test_has_logged_in(self, factories, name, expected):
-        user = factories.user.build(name=name)
+    def test_has_logged_in(self, factories, name, last_logged_in, expected):
+        user = factories.user.build(name=name, last_logged_in_at_utc=last_logged_in)
         assert AuthorisationHelper.has_logged_in(user) is expected
 
     @pytest.mark.parametrize(

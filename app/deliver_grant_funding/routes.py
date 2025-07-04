@@ -232,16 +232,33 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
     form = GrantAddUserForm(grant=grant)
     if form.validate_on_submit():
         if form.user_email.data:
-            user = next((user for user in grant.users if user.email.lower() == form.user_email.data.lower()), None)
-            if user is None:
-                created_user = interfaces.user.upsert_user_by_email(email_address=form.user_email.data)
-                interfaces.user.set_grant_team_role_for_user(user=created_user, grant_id=grant_id, role=RoleEnum.MEMBER)
-                notification_service.send_member_confirmation(
-                    grant_name=grant.name,
-                    email_address=form.user_email.data,
+            # are they already in this grant - if so, redirect to the list of users
+            grant_user = next(
+                (user for user in grant.users if user.email.lower() == form.user_email.data.lower()), None
+            )
+            if grant_user:
+                return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
+
+            # are they an existing user, but not in this grant, if so just create their role on this grant - send email
+            existing_user = interfaces.user.get_user_by_email(email_address=form.user_email.data)
+            if existing_user:
+                interfaces.user.set_grant_team_role_for_user(
+                    user=existing_user, grant_id=grant_id, role=RoleEnum.MEMBER
                 )
-                flash("We’ve emailed the grant team member a link to sign in")
+            else:
+                # if they have been invited but not yet claimed their invitation (so no user object exists yet) -
+                # then create a new invite and expire the existing one(s) - all handled by create_invitation
+                # otherwise - totally new user, create an invitation for them - send email
+                interfaces.user.create_invitation(
+                    email=form.user_email.data, organisation=None, grant=grant, role=RoleEnum.MEMBER
+                )
+            notification_service.send_member_confirmation(
+                grant_name=grant.name,
+                email_address=form.user_email.data,
+            )
+            flash("We’ve emailed the grant team member a link to sign in")
             return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
+
     return render_template("deliver_grant_funding/grant_team/grant_user_add.html", form=form, grant=grant)
 
 
