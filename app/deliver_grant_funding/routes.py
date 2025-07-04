@@ -249,7 +249,7 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
 @has_grant_role(RoleEnum.MEMBER)
 def grant_details(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
-    return render_template("deliver_grant_funding/grant_details.html", grant=grant)
+    return render_template("deliver_grant_funding/grant_details.html", grant=grant, roles_enum=RoleEnum)
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-ggis", methods=["GET", "POST"])
@@ -273,7 +273,7 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-name", methods=["GET", "POST"])
-@is_platform_admin
+@has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
@@ -297,7 +297,7 @@ def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-description", methods=["GET", "POST"])
-@is_platform_admin
+@has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
@@ -317,7 +317,7 @@ def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-contact", methods=["GET", "POST"])
-@is_platform_admin
+@has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)

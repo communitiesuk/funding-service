@@ -82,28 +82,55 @@ def test_list_grant_requires_mhclg_user(authenticated_no_role_client, factories,
     assert response.status_code == 403
 
 
-def test_view_grant_details(authenticated_platform_admin_client, factories, templates_rendered):
-    grant = factories.grant.create()
-    result = authenticated_platform_admin_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
-    assert result.status_code == 200
-    assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
-    soup = BeautifulSoup(result.data, "html.parser")
-    assert grant.name in soup.h1.text.strip()
-    assert "Grant details" in soup.h1.text.strip()
+class TestViewGrantDetails:
+    def test_as_platform_admin(self, authenticated_platform_admin_client, factories, templates_rendered):
+        grant = factories.grant.create()
+        result = authenticated_platform_admin_client.get(
+            url_for("deliver_grant_funding.grant_details", grant_id=grant.id)
+        )
+        assert result.status_code == 200
+        assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
+        soup = BeautifulSoup(result.data, "html.parser")
+        assert grant.name in soup.h1.text.strip()
+        assert "Grant details" in soup.h1.text.strip()
 
+        change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
+        assert {link.get_text().strip() for link in change_links} == {
+            "Change GGIS reference number",
+            "Change grant name",
+            "Change main contact",
+            "Change main purpose",
+        }
 
-@pytest.mark.xfail(reason="haven't fixed the change links yet")
-def test_view_grant_details_as_grant_member(authenticated_grant_member_client, factories, templates_rendered):
-    grant = authenticated_grant_member_client.grant
-    result = authenticated_grant_member_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
-    assert result.status_code == 200
-    assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
-    soup = BeautifulSoup(result.data, "html.parser")
-    assert grant.name in soup.h1.text.strip()
-    assert "Grant details" in soup.h1.text.strip()
+    def test_as_grant_admin(self, authenticated_grant_admin_client, factories, templates_rendered):
+        grant = authenticated_grant_admin_client.grant
+        result = authenticated_grant_admin_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
+        assert result.status_code == 200
+        assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
+        soup = BeautifulSoup(result.data, "html.parser")
+        assert grant.name in soup.h1.text.strip()
+        assert "Grant details" in soup.h1.text.strip()
 
-    change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
-    assert len(change_links) == 0
+        change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
+        assert {link.get_text().strip() for link in change_links} == {
+            "Change grant name",
+            "Change main contact",
+            "Change main purpose",
+        }
+
+    def test_as_grant_member(self, authenticated_grant_member_client, factories, templates_rendered):
+        grant = authenticated_grant_member_client.grant
+        result = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.grant_details", grant_id=grant.id)
+        )
+        assert result.status_code == 200
+        assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
+        soup = BeautifulSoup(result.data, "html.parser")
+        assert grant.name in soup.h1.text.strip()
+        assert "Grant details" in soup.h1.text.strip()
+
+        change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
+        assert {link.get_text().strip() for link in change_links} == set()
 
 
 def test_grant_change_ggis_get(authenticated_platform_admin_client, factories, templates_rendered):
@@ -117,20 +144,18 @@ def test_grant_change_ggis_get(authenticated_platform_admin_client, factories, t
     assert "What is the GGIS reference number?" in soup.h1.text.strip()
 
 
-def test_grant_change_name_get(authenticated_platform_admin_client, factories, templates_rendered):
-    grant = factories.grant.create()
-    result = authenticated_platform_admin_client.get(
-        url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id)
-    )
+def test_grant_change_name_get(authenticated_grant_admin_client, factories, templates_rendered):
+    grant = authenticated_grant_admin_client.grant
+    result = authenticated_grant_admin_client.get(url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id))
     assert result.status_code == 200
     assert templates_rendered.get("deliver_grant_funding.grant_change_name").context.get("grant") == grant
     soup = BeautifulSoup(result.data, "html.parser")
     assert "What is the name of this grant?" in soup.h1.text.strip()
 
 
-def test_grant_change_description_get(authenticated_platform_admin_client, factories, templates_rendered):
-    grant = factories.grant.create()
-    result = authenticated_platform_admin_client.get(
+def test_grant_change_description_get(authenticated_grant_admin_client, factories, templates_rendered):
+    grant = authenticated_grant_admin_client.grant
+    result = authenticated_grant_admin_client.get(
         url_for("deliver_grant_funding.grant_change_description", grant_id=grant.id)
     )
     assert result.status_code == 200
@@ -139,9 +164,9 @@ def test_grant_change_description_get(authenticated_platform_admin_client, facto
     assert "What is the main purpose of this grant?" in soup.h1.text.strip()
 
 
-def test_grant_change_contact_get(authenticated_platform_admin_client, factories, templates_rendered):
-    grant = factories.grant.create()
-    result = authenticated_platform_admin_client.get(
+def test_grant_change_contact_get(authenticated_grant_admin_client, factories, templates_rendered):
+    grant = authenticated_grant_admin_client.grant
+    result = authenticated_grant_admin_client.get(
         url_for("deliver_grant_funding.grant_change_contact", grant_id=grant.id)
     )
     assert result.status_code == 200

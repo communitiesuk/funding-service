@@ -293,6 +293,29 @@ def authenticated_grant_member_client(
     yield anonymous_client
 
 
+# TODO: combine (at least) the grant clients and allow the user+grant to come from another fixture so that we don't
+#       need to attach them to the client; tests that want access to the configured user+grant could request the
+#       fixture directly? Also maybe a pytest mark could be used to set the role provided for the authenticated grant
+#       client rather than having two definitions.
+@pytest.fixture()
+def authenticated_grant_admin_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    grant = factories.grant.create()
+    factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, grant=grant)
+
+    login_user(user)
+    anonymous_client.user = user
+    anonymous_client.grant = grant
+    db_session.commit()
+
+    yield anonymous_client
+
+
 @pytest.fixture()
 def authenticated_platform_admin_client(
     anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
