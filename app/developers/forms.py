@@ -52,9 +52,8 @@ class ConditionSelectQuestionForm(FlaskForm):
         self.question.choices = [
             (question.id, f"{question.text} ({question.name})") for question in get_supported_form_questions(question)
         ]
-        self.question.validators.append(self.question_depends_on_order)  # type: ignore[attr-defined]
 
-    def question_depends_on_order(self, form: "ConditionSelectQuestionForm", field: "Field") -> None:
-        depends_on_question = get_question_by_id(form.question.data)
+    def validate_question(self: "ConditionSelectQuestionForm", field: "Field") -> None:
+        depends_on_question = get_question_by_id(self.question.data)
         if not is_question_dependency_order_valid(self.target_question, depends_on_question):
             raise ValidationError("Select an answer that comes before this question in the form")
