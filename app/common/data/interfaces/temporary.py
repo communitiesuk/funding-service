@@ -13,7 +13,7 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
-from app.common.data.interfaces.collections import DependencyOrderException, depends_on_question
+from app.common.data.interfaces.collections import raise_if_question_has_any_dependencies
 from app.common.data.models import (
     Collection,
     Form,
@@ -74,11 +74,8 @@ def delete_form(form: Form) -> None:
 
 
 def delete_question(question: Question) -> None:
-    depends_on_this_question = depends_on_question(question)
-    if depends_on_this_question:
-        raise DependencyOrderException(
-            "You cannot delete an answer that other questions depend on", depends_on_this_question, question
-        )
+    raise_if_question_has_any_dependencies(question)
+
     db.session.delete(question)
     question.form.questions.reorder()
     db.session.execute(
