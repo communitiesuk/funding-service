@@ -45,10 +45,11 @@
   </div>
 
   {% set table_pending_signin_rows = namespace(items=[]) %}
-  {% for user in grant.users if not authorisation_helper.has_logged_in(user) %}
+
+  {% for invite in grant.invitations if invite.is_usable %}
     {%
       set table_pending_signin_rows.items = table_pending_signin_rows.items + [[
-        {"text": user.email},
+        {"text": invite.email},
         {"text": "Grant team member"}
       ]]
     %}

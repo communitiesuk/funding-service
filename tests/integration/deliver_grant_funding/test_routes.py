@@ -1040,9 +1040,9 @@ def test_list_users_for_grant_with_platform_admin_add_member(
         json={"user_email": "test1@communities.gov.uk"},
         follow_redirects=True,
     )
-    users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
-    assert users
-    assert len(users) == 1
+    invitations = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").invitations
+    assert invitations
+    assert len(invitations) == 1
 
 
 def test_list_users_for_grant_with_platform_admin_add_same_member_again(
