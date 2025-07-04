@@ -54,7 +54,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(id_=magic_link_id)
     if not magic_link or not magic_link.is_usable:
-        abort(404)
+        return abort(404)
 
     notification_id = session.pop("magic_link_email_notification_id", None)
     return render_template("common/auth/check_email.html", email=magic_link.email, notification_id=notification_id)
@@ -82,7 +82,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
             user = interfaces.user.upsert_user_by_email(email_address=str(magic_link.email))
         interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
         if not login_user(user):
-            abort(400)
+            return abort(400)
 
         return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
 
@@ -153,7 +153,7 @@ def sso_get_token() -> ResponseReturnValue:
     session.pop("flow", None)
 
     if not login_user(user):
-        abort(400)
+        return abort(400)
 
     return redirect(redirect_to_path)
 

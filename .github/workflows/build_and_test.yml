@@ -70,10 +70,20 @@ jobs:
         uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6
         with:
           enable-cache: true
-      - name: install dependencies
-        run: uv sync
       - name: run type checking
         run: uv run mypy
+
+  type_checking_ty:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6
+        with:
+          enable-cache: true
+      - name: run type checking
+        run: uv run ty check
 
   lint_html_formatting:
     runs-on: ubuntu-latest

@@ -107,3 +107,15 @@ def build_db_config(setup_db_container: PostgresContainer | None) -> Dict[str, A
             {"username": setup_db_container.username, "password": setup_db_container.password}
         ),
     }
+
+
+def get_h1_text(soup: BeautifulSoup) -> str:
+    h1 = soup.h1
+    assert h1, "Could not find <h1> on page"
+    return cast(str, h1.text).strip()
+
+
+def get_h2_text(soup: BeautifulSoup) -> str:
+    h2 = soup.h2
+    assert h2, "Could not find <h2> on page"
+    return cast(str, h2.text).strip()

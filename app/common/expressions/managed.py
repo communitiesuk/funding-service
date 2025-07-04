@@ -137,8 +137,8 @@ class BottomOfRangeIsLower:
         self.message = message
 
     def __call__(self, form: "FlaskForm", field: "Field") -> None:
-        bottom_of_range = form.between_bottom_of_range and form.between_bottom_of_range.data
-        top_of_range = form.between_top_of_range and form.between_top_of_range.data
+        bottom_of_range = form.between_bottom_of_range and form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
+        top_of_range = form.between_top_of_range and form.between_top_of_range.data  # ty: ignore[unresolved-attribute]
         if bottom_of_range and top_of_range:
             if bottom_of_range >= top_of_range:
                 raise ValidationError(self.message)
@@ -186,14 +186,14 @@ class GreaterThan(ManagedExpression):
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.greater_than_value.validators = [InputRequired("Enter the minimum value allowed for this question")]
+        form.greater_than_value.validators = [InputRequired("Enter the minimum value allowed for this question")]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "GreaterThan":
         return GreaterThan(
             question_id=question.id,
-            minimum_value=form.greater_than_value.data,
-            inclusive=form.greater_than_inclusive.data,
+            minimum_value=form.greater_than_value.data,  # ty: ignore[unresolved-attribute]
+            inclusive=form.greater_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
 
 
@@ -239,14 +239,14 @@ class LessThan(ManagedExpression):
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.less_than_value.validators = [InputRequired("Enter the maximum value allowed for this question")]
+        form.less_than_value.validators = [InputRequired("Enter the maximum value allowed for this question")]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "LessThan":
         return LessThan(
             question_id=question.id,
-            maximum_value=form.less_than_value.data,
-            inclusive=form.less_than_inclusive.data,
+            maximum_value=form.less_than_value.data,  # ty: ignore[unresolved-attribute]
+            inclusive=form.less_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
 
 
@@ -322,11 +322,11 @@ class Between(ManagedExpression):
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.between_bottom_of_range.validators = [
+        form.between_bottom_of_range.validators = [  # ty: ignore[unresolved-attribute]
             InputRequired("Enter the minimum value allowed for this question"),
             BottomOfRangeIsLower("The minimum value must be lower than the maximum value"),
         ]
-        form.between_top_of_range.validators = [
+        form.between_top_of_range.validators = [  # ty: ignore[unresolved-attribute]
             InputRequired("Enter the maximum value allowed for this question"),
             BottomOfRangeIsLower("The maximum value must be higher than the minimum value"),
         ]
@@ -335,10 +335,10 @@ class Between(ManagedExpression):
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "Between":
         return Between(
             question_id=question.id,
-            minimum_value=form.between_bottom_of_range.data,
-            minimum_inclusive=form.between_bottom_inclusive.data,
-            maximum_value=form.between_top_of_range.data,
-            maximum_inclusive=form.between_top_inclusive.data,
+            minimum_value=form.between_bottom_of_range.data,  # ty: ignore[unresolved-attribute]
+            minimum_inclusive=form.between_bottom_inclusive.data,  # ty: ignore[unresolved-attribute]
+            maximum_value=form.between_top_of_range.data,  # ty: ignore[unresolved-attribute]
+            maximum_inclusive=form.between_top_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
 
 

@@ -42,10 +42,10 @@ import inspect
 import typing as t
 from time import perf_counter
 
-import sqlalchemy as sa
 import sqlalchemy.event as sa_event
 from flask import Flask, current_app, g, has_app_context
 from flask_sqlalchemy_lite import SQLAlchemy
+from sqlalchemy import Engine, ExecutionContext
 
 
 @dataclasses.dataclass
@@ -73,19 +73,19 @@ class RecordSqlalchemyQueriesExtension:
             with app.app_context():
                 self._listen(db.engine)
 
-    def _listen(self, engine: sa.engine.Engine) -> None:
+    def _listen(self, engine: Engine) -> None:
         sa_event.listen(engine, "before_cursor_execute", self._record_start, named=True)
         sa_event.listen(engine, "after_cursor_execute", self._record_end, named=True)
 
     @staticmethod
-    def _record_start(context: sa.engine.ExecutionContext, **kwargs: t.Any) -> None:
+    def _record_start(context: ExecutionContext, **kwargs: t.Any) -> None:
         if not has_app_context():
             return
 
         context._rsq_start_time = perf_counter()  # type: ignore[attr-defined]
 
     @staticmethod
-    def _record_end(context: sa.engine.ExecutionContext, **kwargs: t.Any) -> None:
+    def _record_end(context: ExecutionContext, **kwargs: t.Any) -> None:
         if not has_app_context():
             return
 

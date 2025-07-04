@@ -45,7 +45,7 @@ def get_magic_link(id_: uuid.UUID | None = None, code: str | None = None) -> Mag
     return db.session.scalar(stmt)
 
 
-def claim_magic_link(magic_link: MagicLink, user: User) -> None:
+def claim_magic_link(magic_link: MagicLink, user: User | None) -> None:
     if not user:
         raise ValueError("User must be provided")
     magic_link.claimed_at_utc = func.now()

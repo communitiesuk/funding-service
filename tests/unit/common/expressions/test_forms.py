@@ -12,6 +12,7 @@ class TestBuildManagedExpressionForm:
 
     def test_integer_data_type(self):
         _FormClass = build_managed_expression_form(ExpressionType.CONDITION, QuestionDataType.INTEGER)
+        assert _FormClass
         form = _FormClass()
 
         assert form.type.choices == [
@@ -22,6 +23,7 @@ class TestBuildManagedExpressionForm:
 
     def test_recognises_invalid_data_for_a_managed_expression(self):
         _FormClass = build_managed_expression_form(ExpressionType.CONDITION, QuestionDataType.INTEGER)
+        assert _FormClass
         form = _FormClass(
             formdata=MultiDict(
                 {
@@ -47,6 +49,7 @@ class TestBuildManagedExpressionForm:
         question = factories.question.build()
 
         _FormClass = build_managed_expression_form(ExpressionType.CONDITION, QuestionDataType.INTEGER)
+        assert _FormClass
         form = _FormClass(
             formdata=MultiDict(
                 {

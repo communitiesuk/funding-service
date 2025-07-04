@@ -359,14 +359,14 @@ def test_move_question_with_dependencies(db_session, factories):
     # q3 can't move above its dependency q2
     with pytest.raises(DependencyOrderException) as e:
         move_question_up(q3)
-    assert e.value.question == q3
-    assert e.value.depends_on_question == q2
+    assert e.value.question == q3  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
 
     # q2 can't move below q3 which depends on it
     with pytest.raises(DependencyOrderException) as e:
         move_question_down(q2)
-    assert e.value.question == q3
-    assert e.value.depends_on_question == q2
+    assert e.value.question == q3  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
 
     # q1 can freely move up and down as it has no dependencies
     move_question_down(q1)

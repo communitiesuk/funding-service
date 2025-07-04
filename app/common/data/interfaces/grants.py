@@ -77,15 +77,15 @@ def update_grant(
     primary_contact_email: str | TNotProvided = NOT_PROVIDED,
 ) -> Grant:
     if ggis_number is not NOT_PROVIDED:
-        grant.ggis_number = ggis_number
+        grant.ggis_number = ggis_number  # ty: ignore[invalid-assignment]
     if name is not NOT_PROVIDED:
-        grant.name = name
+        grant.name = name  # ty: ignore[invalid-assignment]
     if description is not NOT_PROVIDED:
-        grant.description = description
+        grant.description = description  # ty: ignore[invalid-assignment]
     if primary_contact_name is not NOT_PROVIDED:
-        grant.primary_contact_name = primary_contact_name
+        grant.primary_contact_name = primary_contact_name  # ty: ignore[invalid-assignment]
     if primary_contact_email is not NOT_PROVIDED:
-        grant.primary_contact_email = primary_contact_email
+        grant.primary_contact_email = primary_contact_email  # ty: ignore[invalid-assignment]
     try:
         db.session.flush()
     except IntegrityError as e:

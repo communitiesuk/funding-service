@@ -36,6 +36,7 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.temporary import (
     delete_collection,
     delete_form,
+    delete_grant,
     delete_question,
     delete_section,
     delete_submissions_created_by_user,
@@ -78,7 +79,7 @@ def grant_developers(grant_id: UUID) -> ResponseReturnValue:
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        interfaces.temporary.delete_grant(grant_id=grant.id)
+        delete_grant(grant_id=grant.id)
         return redirect(url_for("deliver_grant_funding.list_grants"))
 
     return render_template(
@@ -219,7 +220,7 @@ def move_section(grant_id: UUID, collection_id: UUID, section_id: UUID, directio
     elif direction == "down":
         move_section_down(section)
     else:
-        abort(400)
+        return abort(400)
 
     return redirect(url_for("developers.deliver.list_sections", grant_id=grant_id, collection_id=collection_id))
 
@@ -272,7 +273,7 @@ def move_form(
     elif direction == "down":
         move_form_down(form)
     else:
-        abort(400)
+        return abort(400)
 
     return redirect(
         url_for(
@@ -520,7 +521,7 @@ def move_question(
     question = get_question_by_id(question_id=question_id)
 
     if direction not in ["up", "down"]:
-        abort(400)
+        return abort(400)
 
     try:
         if direction == "up":
