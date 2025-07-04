@@ -9,7 +9,7 @@ from notifications_python_client import NotificationsAPIClient  # type: ignore[a
 from notifications_python_client.errors import APIError, TokenError
 
 if TYPE_CHECKING:
-    from app.common.data.models import Submission
+    from app.common.data.models import Grant, Submission
 
 
 class NotificationError(Exception):
@@ -103,17 +103,12 @@ class NotificationService:
             },
         )
 
-    def send_member_confirmation(
-        self,
-        email_address: str,
-        *,
-        grant_name: str,
-    ) -> Notification:
+    def send_member_confirmation(self, email_address: str, *, grant: "Grant") -> Notification:
         return self._send_email(
             email_address,
             current_app.config["GOVUK_NOTIFY_MEMBER_CONFIRMATION_TEMPLATE_ID"],
             personalisation={
-                "grant_name": grant_name,
-                "sign_in_url": url_for("auth.sso_sign_in", _external=True),
+                "grant_name": grant.name,
+                "sign_in_url": url_for("deliver_grant_funding.grant_details", grant_id=grant.id, _external=True),
             },
         )

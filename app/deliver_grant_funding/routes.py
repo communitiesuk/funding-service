@@ -253,7 +253,7 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
                     email=form.user_email.data, organisation=None, grant=grant, role=RoleEnum.MEMBER
                 )
             notification_service.send_member_confirmation(
-                grant_name=grant.name,
+                grant=grant,
                 email_address=form.user_email.data,
             )
             flash("We’ve emailed the grant team member a link to sign in")

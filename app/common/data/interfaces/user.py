@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from typing import cast
+from typing import Sequence, cast
 
 from flask_login import current_user
 from sqlalchemy import and_, func, update
@@ -211,6 +211,12 @@ def remove_all_roles_from_user(user: User) -> None:
 
 def get_invitation(invitation_id: uuid.UUID) -> Invitation | None:
     return db.session.get(Invitation, invitation_id)
+
+
+def get_usable_invitations_by_email(email: str) -> Sequence[Invitation]:
+    return db.session.scalars(
+        select(Invitation).where(and_(Invitation.email == email, Invitation.is_usable.is_(True)))
+    ).all()
 
 
 def claim_invitation(invitation: Invitation, user: User) -> Invitation:
