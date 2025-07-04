@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17.5
+        image: postgres:17.5@sha256:3962158596daaef3682838cc8eb0e719ad1ce520f88e34596ce8d5de1b6330a1
         env:
           POSTGRES_PASSWORD: password  # pragma: allowlist secret
           POSTGRES_DB: postgres
