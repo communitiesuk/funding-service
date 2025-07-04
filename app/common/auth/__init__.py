@@ -111,7 +111,7 @@ def sso_get_token() -> ResponseReturnValue:
     sso_user = result["id_token_claims"]
     user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id=sso_user["sub"])
 
-    if user is None:
+    if user is None and "FSD_ADMIN" not in sso_user.get("roles", []):
         # check if they have a valid invite, if not tell them to get a new one
         user_invites = interfaces.user.get_usable_invitations_by_email(email=sso_user["preferred_username"])
         if not user_invites:

@@ -422,6 +422,10 @@ class TestRemoveUserRoleInterfaces:
 
 
 class TestInvitations:
+    # TODO tests to write
+    # get_valid_invitations_by_email - new test
+    # check a new invite creation expires any existing ones
+
     @pytest.mark.freeze_time("2023-10-01 12:00:00")
     def test_create_invitation(self, db_session, factories):
         invitation = interfaces.user.create_invitation(email="test@email.com", role=RoleEnum.MEMBER)

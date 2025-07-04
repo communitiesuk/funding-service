@@ -189,7 +189,13 @@ class TestSSOSignInView:
 
 
 class TestSSOGetTokenView:
-    def test_get_without_fsd_admin_role_and_with_no_asigned_roles(self, app, anonymous_client):
+    # TODO tests to add
+    # - Check valid invites create new user and roles (1 or many invites)
+    # - Check invalid invites (either nonexistent or expired) give a 403 with the right message, and no user created
+    # - Check new platform admin user (therefore with no invites) can log in and have a user created
+    # Check any pending invites are claimed and linked to the new user object, including all roles created across
+    # multiple grants (same test as top one?)
+    def test_get_without_fsd_admin_role_and_with_no_assigned_roles(self, app, anonymous_client):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {

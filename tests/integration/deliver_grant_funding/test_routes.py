@@ -1073,6 +1073,11 @@ def test_list_users_for_grant_with_member_no_add_member_button(authenticated_gra
     assert soup.find("a", string=lambda text: text and "Add grant team member" in text) is None
 
 
+# TODO tests to write
+# list users for grant where users haven't logged in yet (pending invites)
+# check invitation created when new user added to grant, but not when an existing user is added to a new grant
+
+
 def test_list_users_for_grant_with_member(authenticated_grant_member_client, templates_rendered, factories):
     grant = factories.grant.create()
     user = get_current_user()
