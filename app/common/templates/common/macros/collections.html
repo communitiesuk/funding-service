@@ -1,0 +1,180 @@
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "common/macros/status.html" import status %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+
+{% macro collection_before(runner) %}
+  {% if runner.submission.is_test %}
+    {{ mhclgTestBanner("Test submission") }}
+  {% endif %}
+  {{ govukBackLink({ "text": "Back", "href": runner.back_url }) }}
+{% endmacro %}
+
+{% macro collection_question(runner) %}
+  {% set question = runner.question %}
+  {% set form = runner.question_form %}
+  <form method="post" novalidate>
+    {{ form.csrf_token }}
+
+    {# https://github.com/alphagov/govuk-frontend/issues/1841 #}
+    {# GOV.UK Frontend macros don't let you add captions to label/legend-headings that are outside of the <h> element #}
+    {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
+    {# So we just manually add the caption here. #}
+    <span class="govuk-caption-l">{{ question.form.title }}</span>
+    {% if question.data_type == question_types.TEXT_SINGLE_LINE or question.data_type == question_types.TEXT_MULTI_LINE %}
+      {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
+    {% elif question.data_type == question_types.INTEGER %}
+      {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
+    {% endif %}
+
+    {{ form.submit }}
+  </form>
+{% endmacro %}
+
+{% macro collection_check_your_answers(runner) %}
+  {% set form = runner.form %}
+  {% set submission = runner.submission %}
+
+  <span class="govuk-caption-l">{{ form.title }}</span>
+  <h1 class="govuk-heading-l">{{ "Your submitted answers" if submission.is_completed else "Check your answers" }}</h1>
+
+  {% set rows = [] %}
+  {% for question in submission.get_ordered_visible_questions_for_form(form) %}
+    {% set answer = submission.get_answer_for_question(question.id) %}
+    {% if answer is not none %}
+      {% set value_html %}
+        <span data-testid="answer-{{ question.text }}">{{ answer.root }}</span>
+      {% endset %}
+      {%
+        set actions = (
+        []
+        if submission.is_completed else
+        [
+          {
+            "href": runner.to_url(form_runner_state.QUESTION, question=question, source=form_runner_state.CHECK_YOUR_ANSWERS),
+            "text": "Change",
+            "visuallyHiddenText": question.name
+          }
+        ]
+        )
+      %}
+      {%
+        do rows.append({
+          "key": {"text": question.text},
+          "value": {"html": value_html},
+          "actions": {"items": actions},
+        })
+      %}
+    {% else %}
+      {% set valueLink %}
+        <a href="{{ runner.to_url(form_runner_state.QUESTION, question=question, source=form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
+      {% endset %}
+      {%
+        do rows.append({
+          "key": {"text": question.text},
+          "value": {"html": valueLink}
+        })
+      %}
+    {% endif %}
+  {% endfor %}
+
+  {{
+    govukSummaryList({
+      "classes": "govuk-!-margin-bottom-9",
+      "rows": rows
+    })
+  }}
+
+  {% if submission.is_completed %}
+    <p class="govuk-body">
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ runner.to_url(form_runner_state.TASKLIST) }}">Return to the task list</a>
+    </p>
+  {% else %}
+    {% set check_your_answers_form = runner.check_your_answers_form %}
+    <form method="post" novalidate>
+      {{ check_your_answers_form.csrf_token }}
+      {% set all_questions_answered, _ = submission.get_all_questions_are_answered_for_form(form) %}
+      {% if all_questions_answered %}
+        {{
+          check_your_answers_form.section_completed(params={
+            "fieldset": {
+              "legend": {
+                "text": "Have you completed this section?",
+                "isPageHeading": false,
+                "classes": "govuk-fieldset__legend--m"
+              }
+            }
+          })
+        }}
+      {% endif %}
+      {{ check_your_answers_form.submit }}
+    </form>
+  {% endif %}
+{% endmacro %}
+
+{% macro collection_tasklist(runner) %}
+  {% set submission = runner.submission %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% for section in submission.get_ordered_visible_sections() %}
+        <h2 class="govuk-heading-m">{{ section.title }}</h2>
+
+        {% set forms = submission.get_ordered_visible_forms_for_section(section) %}
+        {% if not forms %}
+          <p class="govuk-body">This section has no forms.</p>
+        {% else %}
+          {% set rows=[] %}
+          {% for form in forms %}
+            {%
+              set link_href = (
+                runner.to_url(form_runner_state.QUESTION, question=submission.get_first_question_for_form(form))
+                if submission.get_status_for_form(form) == submission_status.NOT_STARTED
+                else runner.to_url(form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=form_runner_state.TASKLIST)
+              )
+            %}
+            {%
+              do rows.append({
+                "title": {
+                  "text": form.title
+                },
+                "status": {
+                  "html": status(submission.get_status_for_form(form), submission_status)
+                },
+                "href": link_href,
+              })
+            %}
+          {% endfor %}
+
+          {{
+            govukTaskList({
+              "idPrefix": section.slug,
+              "items": rows
+            })
+          }}
+        {% endif %}
+      {% else %}
+        <p class="govuk-body">This collection has no sections.</p>
+      {% endfor %}
+    </div>
+  </div>
+  {% if not submission.is_completed %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds">
+        {% if not submission.all_forms_are_completed %}
+          <p class="govuk-body">You must complete all sections before you can submit the submission.</p>
+        {% endif %}
+        <form method="post" novalidate>
+          {{ runner.tasklist_form.csrf_token }}
+
+          {{
+            runner.tasklist_form.submit(params={
+              "text": "Submit",
+              "disabled": not submission.all_forms_are_completed
+            })
+          }}
+        </form>
+      </div>
+    </div>
+  {% endif %}
+{% endmacro %}
