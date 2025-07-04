@@ -31,16 +31,18 @@ def create_magic_link(email: str, *, user: User | None, redirect_to_path: str) -
 
 def get_magic_link(id_: uuid.UUID | None = None, code: str | None = None) -> MagicLink | None:
     """
-    This will only return magic links that are usable ie. have not yet expired. If it gets a magic link that has expired
-    it will return None.
+    This interface will return a magic link even if it deemed 'not usable' ie. it has expired, so if using this
+    interface you need to make sure you're dealing appropriately with unusable magic links.
     """
     if (id_ and code) or (not id_ and not code):
         raise ValueError("Must provide exactly one of `id_` and `code`")
-
+    stmt = select(MagicLink)
     if id_:
-        return db.session.scalar(select(MagicLink).where(and_(MagicLink.id == id_, MagicLink.is_usable.is_(True))))
+        stmt = stmt.where(MagicLink.id == id_)
+    else:
+        stmt = stmt.where(MagicLink.code == code)
 
-    return db.session.scalar(select(MagicLink).where(and_(MagicLink.code == code, MagicLink.is_usable.is_(True))))
+    return db.session.scalar(stmt)
 
 
 def claim_magic_link(magic_link: MagicLink, user: User) -> None:
