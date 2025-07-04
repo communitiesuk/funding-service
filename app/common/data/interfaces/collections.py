@@ -266,7 +266,7 @@ class DependencyOrderException(Exception, FlashableException):
 
 
 # todo: we might want something more generalisable that checks all order dependencies across a form
-#       but this gives us the specific result we want for for the UX for now
+#       but this gives us the specific result we want for the UX for now
 def check_question_order_dependency(question: Question, swap_question: Question) -> None:
     for condition in question.conditions:
         if condition.managed and condition.managed.question_id == swap_question.id:
