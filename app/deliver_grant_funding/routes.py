@@ -238,20 +238,7 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
             )
             if grant_user:
                 return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
-
-            # are they an existing user, but not in this grant, if so just create their role on this grant - send email
-            existing_user = interfaces.user.get_user_by_email(email_address=form.user_email.data)
-            if existing_user:
-                interfaces.user.set_grant_team_role_for_user(
-                    user=existing_user, grant_id=grant_id, role=RoleEnum.MEMBER
-                )
-            else:
-                # if they have been invited but not yet claimed their invitation (so no user object exists yet) -
-                # then create a new invite and expire the existing one(s) - all handled by create_invitation
-                # otherwise - totally new user, create an invitation for them - send email
-                interfaces.user.create_invitation(
-                    email=form.user_email.data, organisation=None, grant=grant, role=RoleEnum.MEMBER
-                )
+            interfaces.user.add_grant_member_role_or_create_invitation(email_address=form.user_email.data, grant=grant)
             notification_service.send_member_confirmation(
                 grant=grant,
                 email_address=form.user_email.data,

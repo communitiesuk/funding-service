@@ -104,42 +104,37 @@ def sso_sign_in() -> ResponseReturnValue:
 @auto_commit_after_request
 def sso_get_token() -> ResponseReturnValue:
     result = build_msal_app().acquire_token_by_auth_code_flow(session.get("flow", {}), request.args)
-
     if "error" in result:
         return abort(500, "Azure AD get-token flow failed with: {}".format(result))
 
     sso_user = result["id_token_claims"]
+
+    # Does the user exist already?
     user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id=sso_user["sub"])
 
-    if user is None:
-        # check if they have a valid invite, if not tell them to get a new one
+    # Platform admin route
+    if "FSD_ADMIN" in sso_user.get("roles", []):
+        user = interfaces.user.upsert_user_and_set_platform_admin_role(
+            azure_ad_subject_id=sso_user["sub"], email_address=sso_user["preferred_username"], name=sso_user["name"]
+        )
+
+    # Invitations route
+    elif user is None:
         user_invites = interfaces.user.get_usable_invitations_by_email(email=sso_user["preferred_username"])
+        # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
         if not user_invites:
             return render_template(
                 "common/auth/mhclg-user-not-authorised.html",
                 service_desk_url=current_app.config["SERVICE_DESK_URL"],
                 invite_expired=True,
             ), 403
-        # There were valid invite(s) so create a new user and roles
-        user = interfaces.user.upsert_user_by_azure_ad_subject_id(
+        user = interfaces.user.create_user_and_claim_invitations(
             azure_ad_subject_id=sso_user["sub"],
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
-        for invite in user_invites:
-            # claim all usable invitations
-            interfaces.user.upsert_user_role(user=user, grant_id=invite.grant_id, role=invite.role)
-            interfaces.user.claim_invitation(invitation=invite, user=user)
 
-    redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
-
-    if "FSD_ADMIN" in sso_user.get("roles", []):
-        user = interfaces.user.upsert_user_by_azure_ad_subject_id(
-            azure_ad_subject_id=sso_user["sub"],
-            email_address=sso_user["preferred_username"],
-            name=sso_user["name"],
-        )
-        interfaces.user.set_platform_admin_role_for_user(user)
+    # Existing User with roles route
     elif user and user.roles:
         user = interfaces.user.upsert_user_by_azure_ad_subject_id(
             azure_ad_subject_id=sso_user["sub"],
@@ -148,16 +143,22 @@ def sso_get_token() -> ResponseReturnValue:
         )
         if AuthorisationHelper.is_platform_admin(user):
             interfaces.user.remove_platform_admin_role_from_user(user)
+            # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
             if not user.roles:
                 return render_template(
                     "common/auth/mhclg-user-not-authorised.html",
                     service_desk_url=current_app.config["SERVICE_DESK_URL"],
                 ), 403
+
+    # No user user and no roles means they should 403 for now
     else:
+        # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
         return render_template(
             "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]
         ), 403
 
+    # For all other valid users with roles after the above, finish the flow and redirect
+    redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
     session.pop("flow", None)
 
     if not login_user(user):

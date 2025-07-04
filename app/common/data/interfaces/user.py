@@ -152,8 +152,8 @@ def remove_platform_admin_role_from_user(user: User) -> None:
     db.session.expire(user)
 
 
-def set_grant_team_role_for_user(user: User, grant_id: uuid.UUID, role: RoleEnum) -> UserRole:
-    grant_team_role = upsert_user_role(user=user, grant_id=grant_id, role=role)
+def set_grant_team_role_for_user(user: User, grant: Grant, role: RoleEnum) -> UserRole:
+    grant_team_role = upsert_user_role(user=user, grant_id=grant.id, role=role)
     return grant_team_role
 
 
@@ -175,17 +175,16 @@ def create_invitation(
     organisation: Organisation | None = None,
     role: RoleEnum | None = None,
 ) -> Invitation:
-    # Expire any existing invitations for the same email, organisation, and grant
+    # Expire any existing invitations for the same email, organisation, and grant,
+    # filtering on NULL if org/grant not passed
     stmt = update(Invitation).where(
         and_(
             Invitation.email == email,
             Invitation.is_usable.is_(True),
+            (Invitation.grant_id == grant.id) if grant else Invitation.grant_id.is_(None),
+            (Invitation.organisation_id == organisation.id) if organisation else Invitation.organisation_id.is_(None),
         )
     )
-    if grant:
-        stmt = stmt.where(Invitation.grant_id == grant.id)
-    if organisation:
-        stmt = stmt.where(Invitation.organisation_id == organisation.id)
 
     db.session.execute(stmt.values(expires_at_utc=func.now()))
 
@@ -225,3 +224,37 @@ def claim_invitation(invitation: Invitation, user: User) -> Invitation:
     db.session.add(invitation)
     db.session.flush()
     return invitation
+
+
+def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: str, name: str) -> User:
+    # We do a check that there are invitations that exist for this email address before calling this function, but it's
+    # safer to do this check again in here to avoid passing in invitations that don't belong to this user. SQLAlchemy
+    # should cache the result of this query from when it was previously called so shouldn't impact performance.
+    invitations = get_usable_invitations_by_email(email=email_address)
+    user = upsert_user_by_azure_ad_subject_id(
+        azure_ad_subject_id=azure_ad_subject_id,
+        email_address=email_address,
+        name=name,
+    )
+    for invite in invitations:
+        upsert_user_role(user=user, grant_id=invite.grant_id, role=invite.role)
+        claim_invitation(invitation=invite, user=user)
+    return user
+
+
+def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_address: str, name: str) -> User:
+    user = upsert_user_by_azure_ad_subject_id(
+        azure_ad_subject_id=azure_ad_subject_id,
+        email_address=email_address,
+        name=name,
+    )
+    set_platform_admin_role_for_user(user)
+    return user
+
+
+def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant) -> None:
+    existing_user = get_user_by_email(email_address=email_address)
+    if existing_user:
+        set_grant_team_role_for_user(user=existing_user, grant=grant, role=RoleEnum.MEMBER)
+    else:
+        create_invitation(email=email_address, organisation=None, grant=grant, role=RoleEnum.MEMBER)
