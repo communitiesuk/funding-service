@@ -1,9 +1,8 @@
 from typing import TYPE_CHECKING
 
 from flask_wtf import FlaskForm
-
 from govuk_frontend_wtf.wtforms_widgets import GovSelect, GovSubmitInput
-from wtforms import SelectField, SubmitField, Field, ValidationError
+from wtforms import Field, SelectField, SubmitField, ValidationError
 from wtforms.validators import DataRequired
 
 from app.common.data.interfaces.collections import get_question_by_id, is_question_dependency_order_valid
