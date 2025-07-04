@@ -1014,7 +1014,7 @@ def test_list_users_for_grant_with_platform_admin_check_add_member_button(
     )
 
 
-def test_list_users_for_grant_with_platform_admin_add_another_platform_admin(
+def test_add_user_to_grant_with_platform_admin_add_another_platform_admin(
     authenticated_platform_admin_client, templates_rendered, factories, mock_notification_service_calls
 ):
     grant = factories.grant.create()
@@ -1033,7 +1033,7 @@ def test_list_users_for_grant_with_platform_admin_add_another_platform_admin(
     )
 
 
-def test_list_users_for_grant_with_platform_admin_add_member(
+def test_add_user_to_grant_with_platform_admin_add_member(
     authenticated_platform_admin_client, templates_rendered, factories, mock_notification_service_calls
 ):
     grant = factories.grant.create()
@@ -1047,7 +1047,7 @@ def test_list_users_for_grant_with_platform_admin_add_member(
     assert len(invitations) == 1
 
 
-def test_list_users_for_grant_with_platform_admin_add_same_member_again(
+def test_add_user_to_grant_with_platform_admin_add_same_member_again(
     authenticated_platform_admin_client, templates_rendered, factories, mock_notification_service_calls
 ):
     grant = factories.grant.create()
