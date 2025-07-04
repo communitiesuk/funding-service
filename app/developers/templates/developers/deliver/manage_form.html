@@ -21,6 +21,29 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with errors = get_flashed_messages(with_categories=flash_message_type.DEPENDENCY_ORDER_ERROR) %}
+        {% if errors %}
+          {% set type, error = errors[0] %}
+          {% set question_link = url_for("developers.deliver.edit_question", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=error.question_id) %}
+          {% set depends_on_link = url_for("developers.deliver.edit_question", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=error.depends_on_question_id) %}
+
+
+          {% set banner_html %}
+            <p class="govuk-body govuk-!-font-weight-bold">{{ error.message }}</p>
+            <p class="govuk-body govuk-!-font-weight-bold">
+              Question:
+              <a class="govuk-notification-banner__link" href="{{ question_link }}">{{ error.question_text }}</a>
+            </p>
+            <p class="govuk-body govuk-!-font-weight-bold">
+              Depends on the answer to:
+              <a class="govuk-notification-banner__link" href="{{ depends_on_link }}">{{ error.depends_on_question_text }}</a>
+            </p>
+          {% endset %}
+
+          {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+        {% endif %}
+      {% endwith %}
+
       {% if form %}
         {% set banner_html %}
           <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this form?</p>

@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
 
@@ -10,6 +10,7 @@ from app.common.auth.decorators import is_platform_admin
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    DependencyOrderException,
     create_collection,
     create_form,
     create_question,
@@ -57,6 +58,7 @@ from app.developers.forms import (
     ConfirmDeletionForm,
 )
 from app.extensions import auto_commit_after_request, notification_service
+from app.types import FlashMessageType
 
 if TYPE_CHECKING:
     from app.common.data.models import Form, Question, Submission
@@ -517,12 +519,16 @@ def move_question(
 ) -> ResponseReturnValue:
     question = get_question_by_id(question_id=question_id)
 
-    if direction == "up":
-        move_question_up(question)
-    elif direction == "down":
-        move_question_down(question)
-    else:
+    if direction not in ["up", "down"]:
         abort(400)
+
+    try:
+        if direction == "up":
+            move_question_up(question)
+        elif direction == "down":
+            move_question_down(question)
+    except DependencyOrderException as e:
+        flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
 
     return redirect(
         url_for(

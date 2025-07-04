@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.exc import NoResultFound
 
 from app.common.data.interfaces.collections import (
+    DependencyOrderException,
     add_question_condition,
     add_question_validation,
     add_submission_event,
@@ -346,6 +347,35 @@ def test_move_question_up_down(db_session, factories):
     assert q1.order == 2
     assert q2.order == 0
     assert q3.order == 1
+
+
+def test_move_question_with_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    [q1, q2, q3] = factories.question.create_batch(3, form=form)
+
+    add_question_condition(q3, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+
+    # q3 can't move above its dependency q2
+    with pytest.raises(DependencyOrderException) as e:
+        move_question_up(q3)
+    assert e.value.question == q3
+    assert e.value.depends_on_question == q2
+
+    # q2 can't move below q3 which depends on it
+    with pytest.raises(DependencyOrderException) as e:
+        move_question_down(q2)
+    assert e.value.question == q3
+    assert e.value.depends_on_question == q2
+
+    # q1 can freely move up and down as it has no dependencies
+    move_question_down(q1)
+    move_question_down(q1)
+    move_question_up(q1)
+    move_question_up(q1)
+
+    # q2 can move up as q3 can still depend on it
+    move_question_up(q2)
 
 
 def test_update_submission_data(db_session, factories):
