@@ -246,6 +246,7 @@ class TestSSOGetTokenView:
 
     def test_get_valid_token_with_redirect(self, anonymous_client, factories, db_session):
         dummy_grant = factories.grant.create()
+        factories.user.create(email="test@test.communities.gov.uk", azure_ad_subject_id="subject_id")
         with anonymous_client.session_transaction() as session:
             session["next"] = url_for("deliver_grant_funding.grant_details", grant_id=dummy_grant.id)
 
@@ -256,7 +257,7 @@ class TestSSOGetTokenView:
                     "preferred_username": "test@test.communities.gov.uk",
                     "name": "SSO User",
                     "roles": ["FSD_ADMIN"],
-                    "sub": "someStringValue",
+                    "sub": "subject_id",
                 }
             }
             response = anonymous_client.get(
@@ -273,31 +274,9 @@ class TestSSOGetTokenView:
         new_user = db_session.scalar(select(User).where(User.email == "test@test.communities.gov.uk"))
         assert new_user.name == "SSO User"
 
-    def test_grant_team_member_without_azure_ad_subject_id_can_log_in(self, anonymous_client, factories, db_session):
-        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
-            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id=None)
-            grant = factories.grant.create()
-            factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
-
-            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
-                "id_token_claims": {
-                    "preferred_username": "test.member@communities.gov.uk",
-                    "name": "SSO User",
-                    "roles": [],
-                    "sub": "someStringValue",
-                }
-            }
-
-            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
-            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
-            assert updated_user.azure_ad_subject_id == "someStringValue"
-            assert updated_user.name == "SSO User"
-
-        assert response.status_code == 200
-
     def test_platform_admin_with_fsd_admin_role_removed(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
-            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id=None)
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="abc123")
             factories.user_role.create(user=user, role=RoleEnum.ADMIN)
 
             mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
@@ -305,12 +284,12 @@ class TestSSOGetTokenView:
                     "preferred_username": "test.member@communities.gov.uk",
                     "name": "SSO User",
                     "roles": [],
-                    "sub": "someStringValue",
+                    "sub": "abc123",
                 }
             }
 
             response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
-            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "abc123"))
 
             assert AuthorisationHelper.is_platform_admin(updated_user) is False
 
@@ -320,7 +299,7 @@ class TestSSOGetTokenView:
         self, anonymous_client, factories, db_session
     ):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
-            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id=None)
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="wer234")
             grant = factories.grant.create()
             factories.user_role.create(user=user, role=RoleEnum.ADMIN)
             factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
@@ -331,12 +310,12 @@ class TestSSOGetTokenView:
                     "preferred_username": "test.member@communities.gov.uk",
                     "name": "SSO User",
                     "roles": [],
-                    "sub": "someStringValue",
+                    "sub": "wer234",
                 }
             }
 
             response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
-            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "wer234"))
 
             assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
             assert AuthorisationHelper.is_grant_member(grant_id=grant.id, user=updated_user) is True
@@ -346,7 +325,7 @@ class TestSSOGetTokenView:
 
     def test_platform_admin_remove_all_other_roles(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
-            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id=None)
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="wer234")
             factories.user_role.create(user=user, role=RoleEnum.ADMIN)
             grants = factories.grant.create_batch(2)
             for grant in grants:
@@ -358,12 +337,12 @@ class TestSSOGetTokenView:
                     "preferred_username": "test.member@communities.gov.uk",
                     "name": "SSO User",
                     "roles": ["FSD_ADMIN"],
-                    "sub": "someStringValue",
+                    "sub": "wer234",
                 }
             }
 
             response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
-            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "wer234"))
             assert AuthorisationHelper.is_platform_admin(updated_user) is True
             assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
