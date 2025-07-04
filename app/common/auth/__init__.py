@@ -26,12 +26,13 @@ auth_blueprint = Blueprint(
 @auto_commit_after_request
 def request_a_link_to_sign_in() -> ResponseReturnValue:
     form = SignInForm()
+    link_expired = request.args.get("link_expired", False)
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
-
-        user = interfaces.user.upsert_user_by_email(email_address=email)
+        user = interfaces.user.get_user_by_email(email_address=email)
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
+            email=email,
             redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
         )
 
@@ -45,18 +46,18 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 
         return redirect(url_for("auth.check_email", magic_link_id=magic_link.id))
 
-    return render_template("common/auth/sign_in_magic_link.html", form=form)
+    return render_template("common/auth/sign_in_magic_link.html", form=form, link_expired=link_expired)
 
 
 @auth_blueprint.get("/check-your-email/<uuid:magic_link_id>")
 @redirect_if_authenticated
 def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(id_=magic_link_id)
-    if not magic_link or not magic_link.usable:
+    if not magic_link or not magic_link.is_usable:
         abort(404)
 
     notification_id = session.pop("magic_link_email_notification_id", None)
-    return render_template("common/auth/check_email.html", user=magic_link.user, notification_id=notification_id)
+    return render_template("common/auth/check_email.html", email=magic_link.email, notification_id=notification_id)
 
 
 @auth_blueprint.route("/sign-in/<magic_link_code>", methods=["GET", "POST"])
@@ -64,13 +65,23 @@ def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(code=magic_link_code)
-    if not magic_link or not magic_link.usable:
-        return redirect(url_for("auth.request_a_link_to_sign_in"))
+    if not magic_link or not magic_link.is_usable:
+        if magic_link:
+            session["next"] = magic_link.redirect_to_path
+        return redirect(
+            url_for(
+                "auth.request_a_link_to_sign_in",
+                link_expired=True,
+            )
+        )
 
     form = GenericSubmitForm()
     if form.validate_on_submit():
-        interfaces.magic_link.claim_magic_link(magic_link=magic_link)
-        if not login_user(magic_link.user):
+        user = magic_link.user
+        if not user:
+            user = interfaces.user.upsert_user_by_email(email_address=str(magic_link.email))
+        interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
+        if not login_user(user):
             abort(400)
 
         return redirect(sanitise_redirect_url(magic_link.redirect_to_path))

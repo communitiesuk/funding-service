@@ -80,7 +80,7 @@ class TestSignInView:
 
 class TestCheckEmailPage:
     def test_get(self, anonymous_client, factories):
-        magic_link = factories.magic_link.create(user__email="test@communities.gov.uk")
+        magic_link = factories.magic_link.create(email="test@communities.gov.uk")
         response = anonymous_client.get(url_for("auth.check_email", magic_link_id=magic_link.id))
         assert response.status_code == 200
         assert b"Check your email" in response.data
@@ -98,18 +98,21 @@ class TestClaimMagicLinkView:
     def test_redirect_on_unknown_magic_link(self, anonymous_client):
         response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code="unknown-code"))
         assert response.status_code == 302
-        assert response.location == url_for("auth.request_a_link_to_sign_in")
+        assert response.location == url_for("auth.request_a_link_to_sign_in", link_expired=True)
 
     def test_redirect_on_used_magic_link(self, anonymous_client, factories):
+        # FIXME: Check that the session["next"] is the original redirect_to_path value
         magic_link = factories.magic_link.create(
             user__email="test@communities.gov.uk",
             redirect_to_path="/my-redirect",
             claimed_at_utc=datetime.datetime.now() - datetime.timedelta(hours=1),
         )
-
-        response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
-        assert response.status_code == 302
-        assert response.location == url_for("auth.request_a_link_to_sign_in")
+        response = anonymous_client.get(
+            url_for("auth.claim_magic_link", magic_link_code=magic_link.code), follow_redirects=True
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+        assert "Link expired" in soup.h2.text
 
     def test_redirect_on_expired_magic_link(self, anonymous_client, factories):
         magic_link = factories.magic_link.create(
@@ -120,7 +123,7 @@ class TestClaimMagicLinkView:
 
         response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
         assert response.status_code == 302
-        assert response.location == url_for("auth.request_a_link_to_sign_in")
+        assert response.location == url_for("auth.request_a_link_to_sign_in", link_expired=True)
 
     @pytest.mark.parametrize(
         "redirect_to, safe_redirect_to",
@@ -129,12 +132,17 @@ class TestClaimMagicLinkView:
             ("https://bad.place/blah", "/"),  # Single test case; see TestSanitiseRedirectURL for more exhaustion
         ),
     )
-    def test_post_claims_link_and_redirects(self, anonymous_client, factories, redirect_to, safe_redirect_to):
-        magic_link = factories.magic_link.create(
-            user__email="test@communities.gov.uk", redirect_to_path=redirect_to, claimed_at_utc=None
-        )
-        user = interfaces.user.get_current_user()
+    def test_post_claims_link_and_creates_user_and_redirects(
+        self, anonymous_client, factories, db_session, redirect_to, safe_redirect_to
+    ):
+        user_email = "new_user@email.com"
 
+        magic_link = interfaces.magic_link.create_magic_link(email=user_email, user=None, redirect_to_path=redirect_to)
+
+        user_from_db = db_session.scalar(select(User).where(User.email == user_email))
+        assert user_from_db is None
+
+        user = interfaces.user.get_current_user()
         assert user.is_authenticated is False
 
         response = anonymous_client.post(
@@ -143,11 +151,15 @@ class TestClaimMagicLinkView:
             follow_redirects=False,
         )
 
+        user_from_db = db_session.scalar(select(User).where(User.email == user_email))
+
         assert response.status_code == 302
         assert response.location == safe_redirect_to
         assert magic_link.claimed_at_utc is not None
+        assert magic_link.is_usable is False
         assert user.is_authenticated is True
         assert magic_link.user.id == user.id
+        assert user_from_db is not None
 
 
 class TestSignOutView:

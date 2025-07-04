@@ -35,7 +35,7 @@ def get_user_by_azure_ad_subject_id(azure_ad_subject_id: str) -> User | None:
 
 
 def set_user_last_logged_in_at_utc(user: User) -> User:
-    user.last_logged_in_at_utc = func.current_timestamp()
+    user.last_logged_in_at_utc = func.now()
     return user
 
 
