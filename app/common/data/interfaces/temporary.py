@@ -13,6 +13,7 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
+from app.common.data.interfaces.collections import raise_if_question_has_any_dependencies
 from app.common.data.models import (
     Collection,
     Form,
@@ -73,6 +74,8 @@ def delete_form(form: Form) -> None:
 
 
 def delete_question(question: Question) -> None:
+    raise_if_question_has_any_dependencies(question)
+
     db.session.delete(question)
     question.form.questions.reorder()
     db.session.execute(

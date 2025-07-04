@@ -25,6 +25,7 @@ from app.common.data.interfaces.collections import (
     move_question_up,
     move_section_down,
     move_section_up,
+    raise_if_question_has_any_dependencies,
     remove_question_expression,
     update_question,
     update_question_expression,
@@ -376,6 +377,21 @@ def test_move_question_with_dependencies(db_session, factories):
 
     # q2 can move up as q3 can still depend on it
     move_question_up(q2)
+
+
+def test_raise_if_question_has_any_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    [q1, q2] = factories.question.create_batch(2, form=form)
+
+    add_question_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
+
+    assert raise_if_question_has_any_dependencies(q2) is None
+
+    with pytest.raises(DependencyOrderException) as e:
+        raise_if_question_has_any_dependencies(q1)
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
 
 
 def test_update_submission_data(db_session, factories):

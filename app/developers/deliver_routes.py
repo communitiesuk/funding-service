@@ -26,6 +26,7 @@ from app.common.data.interfaces.collections import (
     move_question_up,
     move_section_down,
     move_section_up,
+    raise_if_question_has_any_dependencies,
     remove_question_expression,
     update_collection,
     update_form,
@@ -555,22 +556,34 @@ def edit_question(
     wt_form = QuestionForm(obj=question)
 
     confirm_deletion_form = ConfirmDeletionForm()
-    if (
-        "delete" in request.args
-        and confirm_deletion_form.validate_on_submit()
-        and confirm_deletion_form.confirm_deletion.data
-    ):
-        delete_question(question)
-        # TODO: Flash message for deletion?
-        return redirect(
-            url_for(
-                "developers.deliver.manage_form",
-                grant_id=grant_id,
-                collection_id=collection_id,
-                section_id=section_id,
-                form_id=form_id,
+    if "delete" in request.args:
+        try:
+            raise_if_question_has_any_dependencies(question)
+
+            if confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
+                delete_question(question)
+                # TODO: Flash message for deletion?
+                return redirect(
+                    url_for(
+                        "developers.deliver.manage_form",
+                        grant_id=grant_id,
+                        collection_id=collection_id,
+                        section_id=section_id,
+                        form_id=form_id,
+                    )
+                )
+        except DependencyOrderException as e:
+            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
+            return redirect(
+                url_for(
+                    "developers.deliver.edit_question",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                    question_id=question_id,
+                )
             )
-        )
 
     if wt_form.validate_on_submit():
         try:

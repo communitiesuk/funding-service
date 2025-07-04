@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Never, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -283,6 +283,16 @@ def check_question_order_dependency(question: Question, swap_question: Question)
 
 def is_question_dependency_order_valid(question: Question, depends_on_question: Question) -> bool:
     return question.order > depends_on_question.order
+
+
+def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
+    for target_question in question.form.questions:
+        for condition in target_question.conditions:
+            if condition.managed and condition.managed.question_id == question.id:
+                raise DependencyOrderException(
+                    "You cannot delete an answer that other questions depend on", target_question, question
+                )
+    return None
 
 
 def move_question_up(question: Question) -> Question:
