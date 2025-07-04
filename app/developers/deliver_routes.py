@@ -613,12 +613,13 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
     form = ConditionSelectQuestionForm(question=question)
 
     if form.validate_on_submit():
+        depends_on_question = get_question_by_id(form.question.data)
         return redirect(
             url_for(
                 "developers.deliver.add_question_condition",
                 grant_id=grant_id,
                 question_id=question_id,
-                depends_on_question_id=form.question.data,
+                depends_on_question_id=depends_on_question.id,
             )
         )
 

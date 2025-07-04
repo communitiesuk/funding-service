@@ -92,12 +92,13 @@ class TestExpressionContext:
 class TestEvaluatingManagedExpressions:
     def test_greater_than(self, factories):
         user = factories.user.create()
-        question = factories.question.create()
-        managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+        q0 = factories.question.create()
+        question = factories.question.create(form=q0.form)
+        managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
         add_question_condition(question, user, managed_expression)
 
         expr = question.expressions[0]
 
-        assert evaluate(expr, ExpressionContext(immutabledict({question.safe_qid: 500}))) is False
-        assert evaluate(expr, ExpressionContext(immutabledict({question.safe_qid: 3000}))) is False
-        assert evaluate(expr, ExpressionContext(immutabledict({question.safe_qid: 3001}))) is True
+        assert evaluate(expr, ExpressionContext(immutabledict({q0.safe_qid: 500}))) is False
+        assert evaluate(expr, ExpressionContext(immutabledict({q0.safe_qid: 3000}))) is False
+        assert evaluate(expr, ExpressionContext(immutabledict({q0.safe_qid: 3001}))) is True

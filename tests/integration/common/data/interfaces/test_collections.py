@@ -473,11 +473,12 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
 
 
 def test_add_question_condition(db_session, factories):
-    question = factories.question.create()
+    q0 = factories.question.create()
+    question = factories.question.create(form=q0.form)
     user = factories.user.create()
 
     # configured by the user interface
-    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+    managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
 
     add_question_condition(question, user, managed_expression)
 
@@ -486,13 +487,23 @@ def test_add_question_condition(db_session, factories):
 
     assert len(from_db.expressions) == 1
     assert from_db.expressions[0].type == ExpressionType.CONDITION
-    assert from_db.expressions[0].statement == f"{question.safe_qid} > 3000"
+    assert from_db.expressions[0].statement == f"{q0.safe_qid} > 3000"
 
     # check the serialised context lines up with the values in the managed expression
     assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
     with pytest.raises(DuplicateValueError):
         add_question_condition(question, user, managed_expression)
+
+
+def test_add_question_condition_blocks_on_order(db_session, factories):
+    user = factories.user.create()
+    q1 = factories.question.create()
+    q2 = factories.question.create(form=q1.form)
+
+    with pytest.raises(DependencyOrderException) as e:
+        add_question_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+    assert str(e.value) == "Cannot add managed condition that depends on a later question"
 
 
 def test_add_question_validation(db_session, factories):
@@ -516,17 +527,18 @@ def test_add_question_validation(db_session, factories):
 
 
 def test_update_expression(db_session, factories):
-    question = factories.question.create()
+    q0 = factories.question.create()
+    question = factories.question.create(form=q0.form)
     user = factories.user.create()
-    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+    managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
 
     add_question_condition(question, user, managed_expression)
 
-    updated_expression = GreaterThan(minimum_value=5000, question_id=question.id)
+    updated_expression = GreaterThan(minimum_value=5000, question_id=q0.id)
 
     update_question_expression(question.expressions[0], updated_expression)
 
-    assert question.expressions[0].statement == f"{question.safe_qid} > 5000"
+    assert question.expressions[0].statement == f"{q0.safe_qid} > 5000"
 
 
 def test_update_expression_errors_on_validation_overlap(db_session, factories):
@@ -546,9 +558,10 @@ def test_update_expression_errors_on_validation_overlap(db_session, factories):
 
 
 def test_remove_expression(db_session, factories):
-    question = factories.question.create()
+    q0 = factories.question.create()
+    question = factories.question.create(form=q0.form)
     user = factories.user.create()
-    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+    managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
 
     add_question_condition(question, user, managed_expression)
 
