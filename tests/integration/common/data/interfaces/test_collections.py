@@ -390,8 +390,8 @@ def test_raise_if_question_has_any_dependencies(db_session, factories):
 
     with pytest.raises(DependencyOrderException) as e:
         raise_if_question_has_any_dependencies(q1)
-    assert e.value.question == q2
-    assert e.value.depends_on_question == q1
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
 
 
 def test_update_submission_data(db_session, factories):
