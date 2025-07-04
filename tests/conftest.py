@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 from werkzeug.test import TestResponse
 
 from app import create_app
+from app.common.data.models import Grant
+from app.common.data.models_user import User
 from tests.models import (
     _CollectionFactory,
     _ExpressionFactory,
@@ -82,6 +84,9 @@ def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
 
 
 class FundingServiceTestClient(FlaskClient):
+    user: User | None = None
+    grant: Grant | None = None
+
     def open(
         self,
         *args: t.Any,

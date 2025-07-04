@@ -43,10 +43,10 @@ def test_list_grants_as_admin(
 
 
 def test_list_grants_as_member_with_single_grant(
-    app, authenticated_member_client, factories, templates_rendered, track_sql_queries
+    app, authenticated_grant_member_client, factories, templates_rendered, track_sql_queries
 ):
     with track_sql_queries() as queries:
-        result = authenticated_member_client.get("/grants", follow_redirects=True)
+        result = authenticated_grant_member_client.get("/grants", follow_redirects=True)
     assert result.status_code == 200
     soup = BeautifulSoup(result.data, "html.parser")
 
@@ -56,14 +56,14 @@ def test_list_grants_as_member_with_single_grant(
 
 
 def test_list_grants_as_member_with_multiple_grants(
-    app, authenticated_member_client, factories, templates_rendered, track_sql_queries
+    app, authenticated_grant_member_client, factories, templates_rendered, track_sql_queries
 ):
     grants = factories.grant.create_batch(5)
     user = get_current_user()
     for grant in grants:
         factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
 
-    result = authenticated_member_client.get("/grants")
+    result = authenticated_grant_member_client.get("/grants")
     assert result.status_code == 200
     soup = BeautifulSoup(result.data, "html.parser")
     button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
@@ -90,6 +90,20 @@ def test_view_grant_details(authenticated_platform_admin_client, factories, temp
     soup = BeautifulSoup(result.data, "html.parser")
     assert grant.name in soup.h1.text.strip()
     assert "Grant details" in soup.h1.text.strip()
+
+
+@pytest.mark.xfail(reason="haven't fixed the change links yet")
+def test_view_grant_details_as_grant_member(authenticated_grant_member_client, factories, templates_rendered):
+    grant = authenticated_grant_member_client.grant
+    result = authenticated_grant_member_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
+    assert result.status_code == 200
+    assert templates_rendered.get("deliver_grant_funding.grant_details").context.get("grant") == grant
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert grant.name in soup.h1.text.strip()
+    assert "Grant details" in soup.h1.text.strip()
+
+    change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
+    assert len(change_links) == 0
 
 
 def test_grant_change_ggis_get(authenticated_platform_admin_client, factories, templates_rendered):
@@ -1023,20 +1037,22 @@ def test_list_users_for_grant_with_platform_admin_add_same_member_again(
     assert form_errors["user_email"][0] == f'This user already is a member of "{grant.name}" so you cannot add them'
 
 
-def test_list_users_for_grant_with_member_no_add_member_button(authenticated_member_client, factories):
+def test_list_users_for_grant_with_member_no_add_member_button(authenticated_grant_member_client, factories):
     grant = factories.grant.create()
     user = get_current_user()
     factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
-    response = authenticated_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
+    response = authenticated_grant_member_client.get(
+        url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
+    )
     soup = BeautifulSoup(response.data, "html.parser")
     assert soup.find("a", string=lambda text: text and "Add grant team member" in text) is None
 
 
-def test_list_users_for_grant_with_member(authenticated_member_client, templates_rendered, factories):
+def test_list_users_for_grant_with_member(authenticated_grant_member_client, templates_rendered, factories):
     grant = factories.grant.create()
     user = get_current_user()
     factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
-    authenticated_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
+    authenticated_grant_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
     users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
     assert users
     assert len(users) == 1
