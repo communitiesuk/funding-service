@@ -110,19 +110,27 @@ def sso_get_token() -> ResponseReturnValue:
 
     sso_user = result["id_token_claims"]
     user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id=sso_user["sub"])
-    # TODO: FSPT-515 - remove this logic. This additional logic is to cover grant team members who are directly added as
-    # users but don't yet have the azure_ad_subject_id field present as they haven't logged in. Our SSO now uses this as
-    # the unique identifying field so needs it to be present. This should be removed when we move to an invitation
-    # mechanism in FSPT-515 which won't create a User in the database until they sign in for the first time, allowing us
-    # to simplify this flow.
+
     if user is None:
-        user = interfaces.user.get_user_by_email(email_address=sso_user["preferred_username"])
-        if user and not user.azure_ad_subject_id:
-            user = interfaces.user.upsert_user_by_email(
-                email_address=sso_user["preferred_username"],
-                name=sso_user["name"],
-                azure_ad_subject_id=sso_user["sub"],
-            )
+        # check if they have a valid invite, if not tell them to get a new one
+        user_invites = interfaces.user.get_usable_invitations_by_email(email=sso_user["preferred_username"])
+        if not user_invites:
+            return render_template(
+                "common/auth/mhclg-user-not-authorised.html",
+                service_desk_url=current_app.config["SERVICE_DESK_URL"],
+                invite_expired=True,
+            ), 403
+        # There were valid invite(s) so create a new user and roles
+        user = interfaces.user.upsert_user_by_azure_ad_subject_id(
+            azure_ad_subject_id=sso_user["sub"],
+            email_address=sso_user["preferred_username"],
+            name=sso_user["name"],
+        )
+        for invite in user_invites:
+            # claim all usable invitations
+            interfaces.user.upsert_user_role(user=user, grant_id=invite.grant_id, role=invite.role)
+            interfaces.user.claim_invitation(invitation=invite, user=user)
+
     redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
 
     if "FSD_ADMIN" in sso_user.get("roles", []):

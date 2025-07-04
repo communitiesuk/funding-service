@@ -7,10 +7,19 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">Access denied</h1>
       <p class="govuk-body">You do not have permission to log into the Funding Service.</p>
-      <p class="govuk-body">
-        If you think you should have access, please contact us through our
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk</a>.
-      </p>
+
+      {% if invite_expired == True %}
+        <p class="govuk-body">
+          Your invitation has expired. Contact the
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk</a>
+          to request a new invitation.
+        </p>
+      {% else %}
+        <p class="govuk-body">
+          If you think you should have access, please contact us through our
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk</a>.
+        </p>
+      {% endif %}
     </div>
   </div>
 {% endblock content %}
