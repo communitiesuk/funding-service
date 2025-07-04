@@ -21,6 +21,10 @@ all_auth_annotations = [
 ]
 routes_with_expected_platform_admin_only_access = [
     "developers.access.grants_list",
+    "developers.access.start_submission_redirect",
+    "developers.access.submission_tasklist",
+    "developers.access.ask_a_question",
+    "developers.access.check_your_answers",
     "developers.deliver.grant_developers",
     "developers.deliver.setup_collection",
     "developers.deliver.manage_collection",
