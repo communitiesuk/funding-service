@@ -11,17 +11,17 @@ class TestFormRunner:
         submission = factories.submission.build(collection=question.form.section.collection)
         helper = SubmissionHelper(submission)
 
-        question_state_context = FormRunner(helper).context(question_id=question.id, source=None)
+        question_state_context = FormRunner(submission=helper, question=question, source=None)
         assert question_state_context.question == question
         assert question_state_context.form == question.form
         assert question_state_context.question_form is not None
 
-        check_your_answers_context = FormRunner(helper).context(form_id=question.form.id, source=None)
+        check_your_answers_context = FormRunner(submission=helper, form=question.form, source=None)
         assert check_your_answers_context.question is None
         assert check_your_answers_context.form == question.form
         assert check_your_answers_context.check_your_answers_form is not None
 
-        tasklist_context = FormRunner(helper).context(source=None)
+        tasklist_context = FormRunner(submission=helper, source=None)
         assert tasklist_context.question is None
         assert tasklist_context.form is None
         assert tasklist_context.tasklist_form is not None
@@ -33,7 +33,7 @@ class TestFormRunner:
         )
         helper = SubmissionHelper(submission)
 
-        runner = FormRunner(helper).context(question_id=question.id, source=None)
+        runner = FormRunner(submission=helper, question=question, source=None)
         assert runner.question_form.get_question_field(question) is not None
         assert runner.question_form.get_answer_to_question(question) == "An answer"
 
@@ -55,7 +55,7 @@ class TestFormRunner:
                 FormRunnerState.CHECK_YOUR_ANSWERS: check_answers_mock,
             }
 
-        runner = MappedFormRunner(helper).context(question_id=question.id, source=None)
+        runner = MappedFormRunner(submission=helper, question=question, source=None)
         url = runner.to_url(FormRunnerState.QUESTION, source=FormRunnerState.TASKLIST)
         assert url == "mock_question_url"
         question_mock.assert_called_once_with(runner, question, question.form, FormRunnerState.TASKLIST)
@@ -91,10 +91,10 @@ class TestFormRunner:
                 FormRunnerState.CHECK_YOUR_ANSWERS: check_your_answers_mock,
             }
 
-        runner = MappedFormRunner(helper).context(question_id=question.id, source=None)
+        runner = MappedFormRunner(submission=helper, question=question, source=None)
         assert runner.validate() and runner.next_url == f"mock_question_url_{str(second_question.id)}"
 
-        end_of_form = MappedFormRunner(helper).context(question_id=second_question.id, source=None)
+        end_of_form = MappedFormRunner(submission=helper, question=second_question, source=None)
         assert end_of_form.validate() and end_of_form.next_url == "mock_check_answers_url"
 
     def test_back_url(self, factories):
@@ -109,8 +109,8 @@ class TestFormRunner:
         class MappedFormRunner(FormRunner):
             url_map = {FormRunnerState.QUESTION: question_mock, FormRunnerState.TASKLIST: tasklist_mock}
 
-        runner = MappedFormRunner(helper).context(question_id=second_question.id, source=None)
+        runner = MappedFormRunner(submission=helper, question=second_question, source=None)
         assert runner.back_url == f"mock_question_url_{str(question.id)}"
 
-        start_of_form = MappedFormRunner(helper).context(question_id=question.id, source=None)
+        start_of_form = MappedFormRunner(submission=helper, question=question, source=None)
         assert start_of_form.back_url == "mock_tasklist_url"

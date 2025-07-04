@@ -904,7 +904,7 @@ class DGFFormRunner(FormRunner):
 @is_platform_admin
 def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    runner = DGFFormRunner.load(submission_id).context(source=FormRunnerState(source) if source else None)
+    runner = DGFFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
 
     if runner.tasklist_form.validate_on_submit():
         with suppress(ValueError):
@@ -922,8 +922,8 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    runner = DGFFormRunner.load(submission_id).context(
-        question_id=question_id, source=FormRunnerState(source) if source else None
+    runner = DGFFormRunner.load(
+        submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
     )
 
     if not runner.validate():
@@ -943,8 +943,8 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
 @is_platform_admin
 def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    runner = DGFFormRunner.load(submission_id).context(
-        form_id=form_id, source=FormRunnerState(source) if source else None
+    runner = DGFFormRunner.load(
+        submission_id=submission_id, form_id=form_id, source=FormRunnerState(source) if source else None
     )
 
     if runner.check_your_answers_form.validate_on_submit():
@@ -986,7 +986,7 @@ def list_submissions_for_collection(collection_id: UUID, submission_mode: Submis
 @developers_deliver_blueprint.route("/submission/<uuid:submission_id>", methods=["GET"])
 @is_platform_admin
 def manage_submission(submission_id: UUID) -> ResponseReturnValue:
-    submission_helper = SubmissionHelper.load(submission_id)
+    submission_helper = SubmissionHelper.load(submission_id=submission_id)
 
     return render_template(
         "developers/deliver/manage_submission.html",

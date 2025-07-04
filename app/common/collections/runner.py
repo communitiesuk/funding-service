@@ -27,36 +27,34 @@ class FormRunner:
     This allows us to implement the form runner in different domain environments consistently."""
 
     url_map: ClassVar[runner_url_map] = {}
-    question: Optional["Question"] = None
-    form: Optional["Form"] = None
-    source: Optional[FormRunnerState] = None
-    _valid: Optional[bool] = None
 
-    def __init__(self, submission: SubmissionHelper):
+    def __init__(
+        self,
+        submission: SubmissionHelper,
+        question: Optional["Question"] = None,
+        form: Optional["Form"] = None,
+        source: Optional["FormRunnerState"] = None,
+    ):
+        if question and form:
+            raise ValueError("Expected only one of question or form")
+
         self.submission = submission
-
-    @classmethod
-    def load(cls, submission_id: UUID) -> "FormRunner":
-        return cls(SubmissionHelper.load(submission_id))
-
-    def context(
-        self, *, question_id: Optional[UUID] = None, form_id: Optional[UUID] = None, source: Optional[FormRunnerState]
-    ) -> "FormRunner":
-        if question_id and form_id:
-            raise ValueError("Expected only one of question_id or form_id")
-
+        self.question = question
+        self.form = form
         self.source = source
+
+        self._valid: Optional[bool] = None
+
         self._tasklist_form = GenericSubmitForm()
+        self._question_form: Optional[DynamicQuestionForm] = None
+        self._check_your_answers_form: Optional[CheckYourAnswersForm] = None
 
-        if question_id:
-            self.question = self.submission.get_question(question_id)
+        if self.question:
             self.form = self.question.form
-
             context = self.submission.expression_context
             self._question_form = build_question_form(self.question, context)(data=context)
-        if form_id:
-            self.form = self.submission.get_form(form_id)
 
+        if self.form:
             all_questions_answered, _ = self.submission.get_all_questions_are_answered_for_form(self.form)
             self._check_your_answers_form = CheckYourAnswersForm(
                 section_completed=(
@@ -65,17 +63,37 @@ class FormRunner:
             )
             self._check_your_answers_form.set_is_required(all_questions_answered)
 
-        return self
+    @classmethod
+    def load(
+        cls,
+        *,
+        submission_id: UUID,
+        question_id: Optional[UUID] = None,
+        form_id: Optional[UUID] = None,
+        source: Optional[FormRunnerState] = None,
+    ) -> "FormRunner":
+        if question_id and form_id:
+            raise ValueError("Expected only one of question_id or form_id")
+
+        submission = SubmissionHelper.load(submission_id)
+        question, form = None, None
+
+        if question_id:
+            question = submission.get_question(question_id)
+        elif form_id:
+            form = submission.get_form(form_id)
+
+        return cls(submission=submission, question=question, form=form, source=source)
 
     @property
     def question_form(self) -> "DynamicQuestionForm":
-        if not self.question:
+        if not self.question or not self._question_form:
             raise RuntimeError("Question context not set")
         return self._question_form
 
     @property
     def check_your_answers_form(self) -> "CheckYourAnswersForm":
-        if not self.form:
+        if not self.form or not self._check_your_answers_form:
             raise RuntimeError("Form context not set")
         return self._check_your_answers_form
 
@@ -136,9 +154,7 @@ class FormRunner:
                 if next_question:
                     return self.to_url(FormRunnerState.QUESTION, question=next_question)
 
-                return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
-            else:
-                return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
+            return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
         return self.to_url(FormRunnerState.TASKLIST)
 
