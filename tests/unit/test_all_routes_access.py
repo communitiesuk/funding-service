@@ -58,11 +58,12 @@ routes_with_expected_platform_admin_only_access = [
     "deliver_grant_funding.grant_setup_check_your_answers",
     "deliver_grant_funding.add_user_to_grant",
     "deliver_grant_funding.grant_change_ggis",
+]
+routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.grant_change_name",
     "deliver_grant_funding.grant_change_description",
     "deliver_grant_funding.grant_change_contact",
 ]
-routes_with_expected_grant_admin_only_access = []
 routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_users_for_grant",
     "deliver_grant_funding.grant_details",
@@ -88,6 +89,8 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
         decorators = _get_decorators(app.view_functions[rule.endpoint])
         if rule.endpoint in routes_with_expected_platform_admin_only_access:
             assert "@is_platform_admin" in decorators
+        elif rule.endpoint in routes_with_expected_grant_admin_only_access:
+            assert "@has_grant_role(RoleEnum.ADMIN)" in decorators
         elif rule.endpoint in routes_with_expected_member_only_access:
             assert "@has_grant_role(RoleEnum.MEMBER)" in decorators
         elif rule.endpoint in routes_with_expected_is_mhclg_user_access:

@@ -10,7 +10,6 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 from flask import Flask, abort, template_rendered
 from flask.sessions import SessionMixin
-from flask.testing import FlaskClient
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
 from flask_migrate import upgrade
@@ -116,7 +115,7 @@ def _validate_form_argument_to_render_template(response: TestResponse, templates
 
 
 @pytest.fixture()
-def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> FlaskClient:
+def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> FundingServiceTestClient:
     _setup_session_clean_tracking()  # setting up listeners
 
     class CustomClient(FundingServiceTestClient):
@@ -166,7 +165,7 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Flas
 
     app.test_client_class = CustomClient
     client = app.test_client()
-    return client
+    return t.cast(CustomClient, client)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -257,8 +256,8 @@ def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Ca
 
 @pytest.fixture()
 def authenticated_no_role_client(
-    anonymous_client: FlaskClient, factories: _Factories, request: FixtureRequest, db_session: Session
-) -> Generator[FlaskClient, None, None]:
+    anonymous_client: FundingServiceTestClient, factories: _Factories, request: FixtureRequest, db_session: Session
+) -> Generator[FundingServiceTestClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
 
@@ -269,15 +268,16 @@ def authenticated_no_role_client(
     # `auto_commit_after_request` decorator, but here we're not in an existing session and would be left with a dirty
     # session after this client is used in tests, so we need to commit this change to the user before we continue.
     login_user(user)
+    anonymous_client.user = user
     db_session.commit()
 
     yield anonymous_client
 
 
 @pytest.fixture()
-def authenticated_member_client(
-    anonymous_client: FlaskClient, factories: _Factories, db_session: Session, request: FixtureRequest
-) -> Generator[FlaskClient, None, None]:
+def authenticated_grant_member_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
 
@@ -286,6 +286,31 @@ def authenticated_member_client(
     factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
 
     login_user(user)
+    anonymous_client.user = user
+    anonymous_client.grant = grant
+    db_session.commit()
+
+    yield anonymous_client
+
+
+# TODO: combine (at least) the grant clients and allow the user+grant to come from another fixture so that we don't
+#       need to attach them to the client; tests that want access to the configured user+grant could request the
+#       fixture directly? Also maybe a pytest mark could be used to set the role provided for the authenticated grant
+#       client rather than having two definitions.
+@pytest.fixture()
+def authenticated_grant_admin_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    grant = factories.grant.create()
+    factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, grant=grant)
+
+    login_user(user)
+    anonymous_client.user = user
+    anonymous_client.grant = grant
     db_session.commit()
 
     yield anonymous_client
@@ -293,8 +318,8 @@ def authenticated_member_client(
 
 @pytest.fixture()
 def authenticated_platform_admin_client(
-    anonymous_client: FlaskClient, factories: _Factories, db_session: Session, request: FixtureRequest
-) -> Generator[FlaskClient, None, None]:
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
 
@@ -302,6 +327,7 @@ def authenticated_platform_admin_client(
     factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
 
     login_user(user)
+    anonymous_client.user = user
     db_session.commit()
 
     yield anonymous_client
