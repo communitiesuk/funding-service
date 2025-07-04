@@ -30,6 +30,10 @@ def create_magic_link(email: str, *, user: User | None, redirect_to_path: str) -
 
 
 def get_magic_link(id_: uuid.UUID | None = None, code: str | None = None) -> MagicLink | None:
+    """
+    This will only return magic links that are usable ie. have not yet expired. If it gets a magic link that has expired
+    it will return None.
+    """
     if (id_ and code) or (not id_ and not code):
         raise ValueError("Must provide exactly one of `id_` and `code`")
 
