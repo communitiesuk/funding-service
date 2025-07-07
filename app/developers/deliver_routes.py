@@ -1,5 +1,4 @@
-from enum import StrEnum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
@@ -7,7 +6,7 @@ from flask.typing import ResponseReturnValue
 from wtforms import Field
 
 from app.common.auth.decorators import is_platform_admin
-from app.common.collections.forms import build_question_form
+from app.common.collections.runner import DGFFormRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     DependencyOrderException,
@@ -42,7 +41,13 @@ from app.common.data.interfaces.temporary import (
     delete_section,
     delete_submissions_created_by_user,
 )
-from app.common.data.types import ExpressionType, QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import (
+    ExpressionType,
+    FormRunnerState,
+    QuestionDataType,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_expressions_for_question_type
 from app.common.forms import GenericSubmitForm
@@ -55,7 +60,6 @@ from app.deliver_grant_funding.forms import (
     SectionForm,
 )
 from app.developers.forms import (
-    CheckYourAnswersForm,
     ConditionSelectQuestionForm,
     ConfirmDeletionForm,
 )
@@ -63,7 +67,7 @@ from app.extensions import auto_commit_after_request, notification_service
 from app.types import FlashMessageType
 
 if TYPE_CHECKING:
-    from app.common.data.models import Form, Question, Submission
+    pass
 
 
 developers_deliver_blueprint = Blueprint("deliver", __name__, url_prefix="/deliver")
@@ -854,55 +858,6 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
     )
 
 
-class FormRunnerSourceEnum(StrEnum):
-    QUESTION = "question"
-    TASKLIST = "tasklist"
-    CHECK_YOUR_ANSWERS = "check-your-answers"
-
-
-def _get_form_runner_link_from_source(
-    source: str | None,
-    submission: Optional["Submission"] = None,
-    form: Optional["Form"] = None,
-    question: Optional["Question"] = None,
-) -> str | None:
-    if not source:
-        return None
-
-    if source == FormRunnerSourceEnum.QUESTION and submission and question:
-        return url_for("developers.deliver.ask_a_question", submission_id=submission.id, question_id=question.id)
-    elif source == FormRunnerSourceEnum.TASKLIST and submission:
-        return url_for("developers.deliver.submission_tasklist", submission_id=submission.id)
-    elif source == FormRunnerSourceEnum.CHECK_YOUR_ANSWERS and submission and form:
-        return url_for("developers.deliver.check_your_answers", submission_id=submission.id, form_id=form.id)
-
-    return None
-
-
-@developers_deliver_blueprint.route("/submissions/<uuid:submission_id>", methods=["GET", "POST"])
-@auto_commit_after_request
-@is_platform_admin
-def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
-    submission_helper = SubmissionHelper.load(submission_id)
-    form = GenericSubmitForm()
-
-    if form.validate_on_submit():
-        try:
-            submission_helper.submit(interfaces.user.get_current_user())
-            notification_service.send_collection_submission(submission_helper.submission)
-            return redirect(url_for("developers.deliver.collection_confirmation", submission_id=submission_helper.id))
-        except ValueError:
-            form.submit.errors.append("You must complete all forms before submitting the collection")  # type:ignore[attr-defined]
-
-    return render_template(
-        "developers/deliver/collection_tasklist.html",
-        submission_helper=submission_helper,
-        statuses=SubmissionStatusEnum,
-        back_link_source_enum=FormRunnerSourceEnum,
-        form=form,
-    )
-
-
 @developers_deliver_blueprint.route("/submissions/<uuid:submission_id>/confirmation", methods=["GET", "POST"])
 @is_platform_admin
 def collection_confirmation(submission_id: UUID) -> ResponseReturnValue:
@@ -921,86 +876,43 @@ def collection_confirmation(submission_id: UUID) -> ResponseReturnValue:
     )
 
 
+@developers_deliver_blueprint.route("/submissions/<uuid:submission_id>", methods=["GET", "POST"])
+@auto_commit_after_request
+@is_platform_admin
+def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
+    source = request.args.get("source")
+    runner = DGFFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
+
+    if runner.tasklist_form.validate_on_submit():
+        if runner.complete_submission(interfaces.user.get_current_user()):
+            # todo: for now we'll email and confirm on submission but later DGF form builder will likely
+            #       just return to the tasklist editing page on completion
+            notification_service.send_collection_submission(runner.submission.submission)
+            return redirect(url_for("developers.deliver.collection_confirmation", submission_id=runner.submission.id))
+
+    return render_template(
+        "developers/deliver/collection_tasklist.html",
+        runner=runner,
+    )
+
+
 @developers_deliver_blueprint.route("/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"])
 @is_platform_admin
 @auto_commit_after_request
 def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    submission_helper = SubmissionHelper.load(submission_id)
-    question = submission_helper.get_question(question_id)
-
-    # this method should work as long as data types are a single field and may
-    # need to be revised if we have compound data types
-    expression_context = submission_helper.expression_context
-    # todo: questions with multiple inputs will need to think this through a bit more
-    form = build_question_form(question, expression_context=expression_context)(data=expression_context)
-
-    if not submission_helper.is_question_visible(question, submission_helper.expression_context):
-        current_app.logger.warning(
-            "Routed to a question that is not visible for submission_id=%(submission_id)s, "
-            "question_id=%(question_id)s, is_submitted=%(is_submitted)s",
-            dict(
-                submission_id=str(submission_helper.id),
-                question_id=str(question.id),
-                is_submitted=form.is_submitted(),
-            ),
-        )
-        return redirect(
-            url_for("developers.deliver.check_your_answers", submission_id=submission_id, form_id=question.form_id)
-        )
-
-    if submission_helper.is_completed:
-        if form.is_submitted():
-            # TODO: Add an error flash message?
-            pass
-        return redirect(
-            url_for("developers.deliver.check_your_answers", submission_id=submission_id, form_id=question.form_id)
-        )
-
-    if form.validate_on_submit():
-        submission_helper.submit_answer_for_question(question.id, form)
-
-        if request.args.get("source") == FormRunnerSourceEnum.CHECK_YOUR_ANSWERS:
-            return redirect(
-                url_for("developers.deliver.check_your_answers", submission_id=submission_id, form_id=question.form_id)
-            )
-
-        next_question = submission_helper.get_next_question(current_question_id=question_id)
-        if next_question:
-            return redirect(
-                url_for("developers.deliver.ask_a_question", submission_id=submission_id, question_id=next_question.id)
-            )
-
-        return redirect(
-            url_for("developers.deliver.check_your_answers", submission_id=submission_id, form_id=question.form_id)
-        )
-
-    previous_question = submission_helper.get_previous_question(current_question_id=question_id)
-    back_link_from_context = _get_form_runner_link_from_source(
-        source=request.args.get("source"),
-        submission=submission_helper.submission,
-        form=question.form,
-        question=question,
+    source = request.args.get("source")
+    runner = DGFFormRunner.load(
+        submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
     )
-    back_link = (
-        back_link_from_context
-        if back_link_from_context
-        else url_for(
-            "developers.deliver.ask_a_question",
-            submission_id=submission_helper.submission.id,
-            question_id=previous_question.id,
-        )
-        if previous_question
-        else url_for("developers.deliver.submission_tasklist", submission_id=submission_helper.submission.id)
-    )
-    return render_template(
-        "developers/deliver/ask_a_question.html",
-        back_link=back_link,
-        submission_helper=submission_helper,
-        form=form,
-        question=question,
-        question_types=QuestionDataType,
-        back_link_source_enum=FormRunnerSourceEnum,
-    )
+
+    if not runner.validate_can_show_question_page():
+        return redirect(runner.next_url)
+
+    if runner.question_form and runner.question_form.validate_on_submit():
+        runner.save_question_answer()
+        return redirect(runner.next_url)
+
+    return render_template("developers/deliver/ask_a_question.html", runner=runner)
 
 
 @developers_deliver_blueprint.route(
@@ -1009,54 +921,16 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
 @auto_commit_after_request
 @is_platform_admin
 def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValue:
-    submission_helper = SubmissionHelper.load(submission_id)
-    collection_form = submission_helper.get_form(form_id)
-
-    form = CheckYourAnswersForm(
-        section_completed=(
-            "yes" if submission_helper.get_status_for_form(collection_form) == SubmissionStatusEnum.COMPLETED else None
-        )
-    )
-    previous_question = submission_helper.get_last_question_for_form(collection_form)
-    assert previous_question
-
-    back_link_from_context = _get_form_runner_link_from_source(
-        source=request.args.get("source"), submission=submission_helper.submission, form=collection_form
-    )
-    back_link = (
-        back_link_from_context
-        if back_link_from_context
-        else url_for(
-            "developers.deliver.ask_a_question",
-            submission_id=submission_helper.submission.id,
-            question_id=previous_question.id,
-        )
+    source = request.args.get("source")
+    runner = DGFFormRunner.load(
+        submission_id=submission_id, form_id=form_id, source=FormRunnerState(source) if source else None
     )
 
-    all_questions_answered, _ = submission_helper.get_all_questions_are_answered_for_form(collection_form)
-    form.set_is_required(all_questions_answered)
+    if runner.check_your_answers_form.validate_on_submit():
+        if runner.save_is_form_completed(interfaces.user.get_current_user()):
+            return redirect(runner.next_url)
 
-    if form.validate_on_submit():
-        try:
-            submission_helper.toggle_form_completed(
-                form=collection_form,
-                user=interfaces.user.get_current_user(),
-                is_complete=form.section_completed.data == "yes",
-            )
-            return redirect(url_for("developers.deliver.submission_tasklist", submission_id=submission_helper.id))
-        except ValueError:
-            form.section_completed.errors.append(  # type:ignore[attr-defined]
-                "You must complete all questions before marking this section as complete"
-            )
-
-    return render_template(
-        "developers/deliver/check_your_answers.html",
-        back_link=back_link,
-        submission_helper=submission_helper,
-        collection_form=collection_form,
-        form=form,
-        back_link_source_enum=FormRunnerSourceEnum,
-    )
+    return render_template("developers/deliver/check_your_answers.html", runner=runner)
 
 
 @developers_deliver_blueprint.route(
@@ -1083,14 +957,13 @@ def list_submissions_for_collection(collection_id: UUID, submission_mode: Submis
         collection=collection,
         submissions=submissions,
         is_test_mode=submission_mode == SubmissionModeEnum.TEST,
-        statuses=SubmissionStatusEnum,
     )
 
 
 @developers_deliver_blueprint.route("/submission/<uuid:submission_id>", methods=["GET"])
 @is_platform_admin
 def manage_submission(submission_id: UUID) -> ResponseReturnValue:
-    submission_helper = SubmissionHelper.load(submission_id)
+    submission_helper = SubmissionHelper.load(submission_id=submission_id)
 
     return render_template(
         "developers/deliver/manage_submission.html",
@@ -1102,5 +975,4 @@ def manage_submission(submission_id: UUID) -> ResponseReturnValue:
         submission_helper=submission_helper,
         grant=submission_helper.collection.grant,
         collection=submission_helper.collection,
-        statuses=SubmissionStatusEnum,
     )

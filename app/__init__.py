@@ -12,7 +12,7 @@ from werkzeug.routing import BaseConverter
 from app import logging
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
-from app.common.data.types import SubmissionModeEnum
+from app.common.data.types import FormRunnerState, QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.filters import (
     format_date,
     format_date_range,
@@ -148,7 +148,7 @@ def create_app() -> Flask:
     app.jinja_env.add_extension("jinja2.ext.do")
 
     @app.context_processor
-    def _formatters() -> dict[str, Any]:
+    def _jinja_template_context() -> dict[str, Any]:
         return dict(
             format_date=format_date,
             format_date_short=format_date_short,
@@ -156,7 +156,13 @@ def create_app() -> Flask:
             format_date_range=format_date_range,
             format_datetime_range=format_datetime_range,
             to_ordinal=to_ordinal,
-            submission_mode_enum=SubmissionModeEnum,
+            enum=dict(
+                submission_mode=SubmissionModeEnum,
+                flash_message_type=FlashMessageType,
+                question_type=QuestionDataType,
+                form_runner_state=FormRunnerState,
+                submission_status=SubmissionStatusEnum,
+            ),
         )
 
     # TODO: Remove our basic auth application code when the app is deployed behind CloudFront and the app is not
@@ -212,6 +218,4 @@ def create_app() -> Flask:
     # should make an intentional decision for when to be setting this
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
     app.add_template_global(AuthorisationHelper, "authorisation_helper")
-    app.add_template_global(FlashMessageType, "flash_message_type")
-
     return app

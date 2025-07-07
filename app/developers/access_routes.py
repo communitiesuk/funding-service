@@ -7,7 +7,6 @@ from app.common.auth.decorators import is_platform_admin
 from app.common.data import interfaces
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.temporary import get_submission_by_collection_and_user
-from app.common.data.types import SubmissionStatusEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 
@@ -44,7 +43,6 @@ def grant_details(grant_id: uuid.UUID) -> ResponseReturnValue:
     return render_template(
         "developers/access/grant_details.html",
         grant=grant,
-        statuses=SubmissionStatusEnum,
         submission_helpers=submission_helpers,
         form=form,
     )

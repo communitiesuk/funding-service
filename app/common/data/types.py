@@ -1,14 +1,23 @@
 from __future__ import annotations
 
 import enum
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from immutabledict import immutabledict
+
+if TYPE_CHECKING:
+    from app.common.collections.runner import FormRunner
+    from app.common.data.models import Form, Question
 
 scalars = str | int | float | bool | None
 json_scalars = Dict[str, Any]
 json_flat_scalars = Dict[str, scalars]
 immutable_json_flat_scalars = immutabledict[str, scalars]
+
+TRunnerUrlMap = dict[
+    "FormRunnerState",
+    Callable[["FormRunner", Optional["Question"], Optional["Form"], Optional["FormRunnerState"]], str],
+]
 
 
 class RoleEnum(str, enum.Enum):
@@ -65,3 +74,9 @@ class ManagedExpressionsEnum(enum.StrEnum):
     GREATER_THAN = "Greater than"
     LESS_THAN = "Less than"
     BETWEEN = "Between"
+
+
+class FormRunnerState(enum.StrEnum):
+    TASKLIST = "tasklist"
+    QUESTION = "question"
+    CHECK_YOUR_ANSWERS = "check-your-answers"

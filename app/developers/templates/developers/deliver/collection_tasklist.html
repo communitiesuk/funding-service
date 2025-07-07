@@ -1,19 +1,22 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
-{% from "common/macros/status.html" import status %}
+{% from "common/macros/status.html" import status with context %}
+{% from "common/macros/collections.html" import collection_tasklist with context %}
 {% extends "developers/deliver/access_grant_funding_base.html" %}
 
-{% set page_title = "Collection for " ~ submission_helper.name %}
+{% set page_title = "Collection for " ~ runner.submission.name %}
+
+{% set form = runner.tasklist_form %}
 
 {% block beforeContent %}
-  {% if submission_helper.is_test %}
+  {% if runner.submission.is_test %}
     {{ mhclgTestBanner("Test submission") }}
   {% endif %}
+  {# the top level back behaviour is likely context specific #}
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.deliver.manage_collection", grant_id=submission_helper.grant.id, collection_id=submission_helper.collection.id)
+        "href": url_for("developers.deliver.manage_collection", grant_id=runner.submission.grant.id, collection_id=runner.submission.collection.id)
     })
   }}
 {% endblock beforeContent %}
@@ -21,72 +24,15 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-l">{{ submission_helper.name }}</h1>
+      <h1 class="govuk-heading-l">{{ runner.submission.name }}</h1>
 
       {# NOTE: Should we have this as a custom component or macro-ize it? #}
       <dl class="app-metadata govuk-!-margin-bottom-7">
         <dt class="app-metadata__key">Status:</dt>
-        <dd class="app-metadata__value" data-testid="submission-status">{{ status(submission_helper.status, statuses) }}</dd>
+        <dd class="app-metadata__value" data-testid="submission-status">{{ status(runner.submission.status) }}</dd>
       </dl>
-
-      {% for section in submission_helper.get_ordered_visible_sections() %}
-        <h2 class="govuk-heading-m">{{ section.title }}</h2>
-
-        {% set forms = submission_helper.get_ordered_visible_forms_for_section(section) %}
-        {% if not forms %}
-          <p class="govuk-body">This section has no forms.</p>
-        {% else %}
-          {% set rows=[] %}
-          {% for form in forms %}
-            {%
-              set linkHref = (
-                url_for("developers.deliver.ask_a_question", submission_id=submission_helper.id, question_id=submission_helper.get_first_question_for_form(form).id)
-                if submission_helper.get_status_for_form(form) == statuses.NOT_STARTED else
-                url_for("developers.deliver.check_your_answers", submission_id=submission_helper.id, form_id=form.id, source=back_link_source_enum.TASKLIST.value)
-              )
-            %}
-            {%
-              do rows.append({
-                    "title": {
-                      "text": form.title,
-                    },
-                  "status": {
-                    "html": status(submission_helper.get_status_for_form(form), statuses)
-                  },
-                "href": linkHref,
-              })
-            %}
-          {% endfor %}
-
-          {{
-            govukTaskList({
-              "idPrefix": section.slug,
-              "items": rows
-            })
-          }}
-        {% endif %}
-      {% else %}
-        <p class="govuk-body">This collection has no sections.</p>
-      {% endfor %}
     </div>
   </div>
-  {% if submission_helper.status != statuses.COMPLETED %}
-    <div class="govuk-grid-row">
-      <div class="govuk-grid-column-two-thirds">
-        {% if not submission_helper.all_forms_are_completed %}
-          <p class="govuk-body">You must complete all sections before you can submit the submission.</p>
-        {% endif %}
-        <form method="post" novalidate>
-          {{ form.csrf_token }}
 
-          {{
-            form.submit(params={
-              "text": "Submit",
-              "disabled": not submission_helper.all_forms_are_completed
-            })
-          }}
-        </form>
-      </div>
-    </div>
-  {% endif %}
+  {{ collection_tasklist(runner) }}
 {% endblock content %}

@@ -1,102 +1,17 @@
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+{% from "common/macros/collections.html" import collection_check_your_answers with context %}
+{% from "common/macros/collections.html" import collection_before with context %}
 {% extends "developers/deliver/access_grant_funding_base.html" %}
 
-{% set page_title = "Check your answers - " ~ collection_form.title %}
+{% set page_title = "Check your answers - " ~ runner.form.title %}
+
+{% set form = runner.check_your_answers_form %}
 
 {% block beforeContent %}
-  {% if submission_helper.is_test %}
-    {{ mhclgTestBanner("Test submission") }}
-  {% endif %}
-  {{
-    govukBackLink({
-        "text": "Back",
-        "href": back_link,
-    })
-  }}
+  {{ collection_before(runner) }}
 {% endblock beforeContent %}
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">{{ collection_form.title }}</span>
-
-      <h1 class="govuk-heading-l">{{ "Your submitted answers" if submission_helper.is_completed else "Check your answers" }}</h1>
-
-      {% set rows = [] %}
-      {% for question in submission_helper.get_ordered_visible_questions_for_form(collection_form) %}
-        {% set answer = submission_helper.get_answer_for_question(question.id) %}
-        {% if answer is not none %}
-          {% set value_html %}
-            <span data-testid="answer-{{ question.text }}">{{ answer.root }}</span>
-          {% endset %}
-          {%
-            set actions = (
-            []
-            if submission_helper.is_completed else
-            [
-              {
-                "href": url_for('developers.deliver.ask_a_question', submission_id=submission_helper.id, question_id=question.id, source=back_link_source_enum.CHECK_YOUR_ANSWERS.value),
-                "text": "Change",
-                "visuallyHiddenText": question.name
-              }
-            ]
-            )
-          %}
-          {%
-            do rows.append({
-              "key": {"text": question.text},
-              "value": {"html": value_html},
-              "actions": {"items": actions},
-            })
-          %}
-        {% else %}
-          {% set valueLink %}
-            <a href="{{ url_for('developers.deliver.ask_a_question', submission_id=submission_helper.id, question_id=question.id, source=back_link_source_enum.CHECK_YOUR_ANSWERS.value) }}" class="govuk-link govuk-link--no-visited-state">
-              Enter {{ question.name }}
-            </a>
-          {% endset %}
-          {%
-            do rows.append({
-              "key": {"text": question.text},
-              "value": {"html": valueLink}
-            })
-          %}
-        {% endif %}
-      {% endfor %}
-
-      {{
-        govukSummaryList({
-          "classes": "govuk-!-margin-bottom-9",
-          "rows": rows
-        })
-      }}
-
-      {% if submission_helper.is_completed %}
-        <p class="govuk-body">
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.deliver.submission_tasklist", submission_id=submission_helper.id) }}">Return to the task list</a>
-        </p>
-      {% else %}
-        <form method="post" novalidate>
-          {{ form.csrf_token }}
-          {% set all_questions_answered, _ = submission_helper.get_all_questions_are_answered_for_form(collection_form) %}
-          {% if all_questions_answered %}
-            {{
-              form.section_completed(params={
-                "fieldset": {
-                  "legend": {
-                    "text": "Have you completed this section?",
-                    "isPageHeading": false,
-                    "classes": "govuk-fieldset__legend--m"
-                  }
-                }
-              })
-            }}
-          {% endif %}
-          {{ form.submit }}
-        </form>
-      {% endif %}
-    </div>
+    <div class="govuk-grid-column-two-thirds">{{ collection_check_your_answers(runner) }}</div>
   </div>
 {% endblock content %}

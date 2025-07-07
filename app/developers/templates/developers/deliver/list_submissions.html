@@ -1,7 +1,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
-{% from "common/macros/status.html" import status %}
+{% from "common/macros/status.html" import status with context %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Submissions - " ~ collection.name %}
@@ -37,7 +37,7 @@
         {
           "html": link_to_submission,
         }, {
-          "html": status(submission.status, statuses)
+          "html": status(submission.status)
         }, {
           "text": submission.created_by_email
         }, {

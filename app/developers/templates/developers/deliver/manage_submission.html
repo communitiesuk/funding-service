@@ -1,7 +1,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
-{% from "common/macros/status.html" import status %}
+{% from "common/macros/status.html" import status with context %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Collection - " ~ collection.name %}
@@ -26,7 +26,7 @@
       <span class="govuk-caption-l">{{ submission_helper.reference }}</span>
       Submission
     </h1>
-    {{ status(submission_helper.status, statuses) }}
+    {{ status(submission_helper.status) }}
   </div>
 
   {% for section in submission_helper.get_ordered_visible_sections() %}
