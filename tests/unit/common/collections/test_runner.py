@@ -1,6 +1,8 @@
 from unittest.mock import Mock
 
-from app.common.collections.runner import FormRunner
+import pytest
+
+from app.common.collections.runner import AGFFormRunner, DGFFormRunner, FormRunner
 from app.common.data.types import FormRunnerState, QuestionDataType
 from app.common.helpers.collections import SubmissionHelper, TextSingleLine
 
@@ -117,3 +119,12 @@ class TestFormRunner:
 
         start_of_form = MappedFormRunner(submission=helper, question=question, source=None)
         assert start_of_form.back_url == "mock_tasklist_url"
+
+    class TestUrlConfig:
+        @pytest.mark.parametrize("runner_class", (DGFFormRunner, AGFFormRunner))
+        def test_runners_url_map_resolves(self, factories, runner_class):
+            question = factories.question.build()
+            submission = factories.submission.build(collection=question.form.section.collection)
+            runner = runner_class(submission=SubmissionHelper(submission), question=question)
+            for state in FormRunnerState:
+                assert runner.to_url(state) is not None
