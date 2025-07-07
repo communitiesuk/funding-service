@@ -1,5 +1,5 @@
-{% from "common/macros/collections.html" import collection_question %}
-{% from "common/macros/collections.html" import collection_before %}
+{% from "common/macros/collections.html" import collection_question with context %}
+{% from "common/macros/collections.html" import collection_before with context %}
 {% extends "developers/deliver/access_grant_funding_base.html" %}
 
 {% set page_title = runner.question.text ~ " - " ~ runner.form.title %}

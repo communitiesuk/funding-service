@@ -1,7 +1,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "common/macros/status.html" import status %}
+{% from "common/macros/status.html" import status with context %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 
 {% macro collection_before(runner) %}
@@ -22,9 +22,9 @@
     {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
     {# So we just manually add the caption here. #}
     <span class="govuk-caption-l">{{ question.form.title }}</span>
-    {% if question.data_type == question_types.TEXT_SINGLE_LINE or question.data_type == question_types.TEXT_MULTI_LINE %}
+    {% if question.data_type == enum.question_type.TEXT_SINGLE_LINE or question.data_type == enum.question_type.TEXT_MULTI_LINE %}
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
-    {% elif question.data_type == question_types.INTEGER %}
+    {% elif question.data_type == enum.question_type.INTEGER %}
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
     {% endif %}
 
@@ -52,7 +52,7 @@
         if submission.is_completed else
         [
           {
-            "href": runner.to_url(form_runner_state.QUESTION, question=question, source=form_runner_state.CHECK_YOUR_ANSWERS),
+            "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
             "text": "Change",
             "visuallyHiddenText": question.name
           }
@@ -68,7 +68,7 @@
       %}
     {% else %}
       {% set valueLink %}
-        <a href="{{ runner.to_url(form_runner_state.QUESTION, question=question, source=form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
+        <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
       {% endset %}
       {%
         do rows.append({
@@ -88,7 +88,7 @@
 
   {% if submission.is_completed %}
     <p class="govuk-body">
-      <a class="govuk-link govuk-link--no-visited-state" href="{{ runner.to_url(form_runner_state.TASKLIST) }}">Return to the task list</a>
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ runner.to_url(enum.form_runner_state.TASKLIST) }}">Return to the task list</a>
     </p>
   {% else %}
     {% set check_your_answers_form = runner.check_your_answers_form %}
@@ -128,9 +128,9 @@
           {% for form in forms %}
             {%
               set link_href = (
-                runner.to_url(form_runner_state.QUESTION, question=submission.get_first_question_for_form(form))
-                if submission.get_status_for_form(form) == submission_status.NOT_STARTED
-                else runner.to_url(form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=form_runner_state.TASKLIST)
+                runner.to_url(enum.form_runner_state.QUESTION, question=submission.get_first_question_for_form(form))
+                if submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED
+                else runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST)
               )
             %}
             {%
@@ -139,7 +139,7 @@
                   "text": form.title
                 },
                 "status": {
-                  "html": status(submission.get_status_for_form(form), submission_status)
+                  "html": status(submission.get_status_for_form(form))
                 },
                 "href": link_href,
               })

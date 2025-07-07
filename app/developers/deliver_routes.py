@@ -979,7 +979,6 @@ def list_submissions_for_collection(collection_id: UUID, submission_mode: Submis
         collection=collection,
         submissions=submissions,
         is_test_mode=submission_mode == SubmissionModeEnum.TEST,
-        statuses=SubmissionStatusEnum,
     )
 
 
@@ -998,5 +997,4 @@ def manage_submission(submission_id: UUID) -> ResponseReturnValue:
         submission_helper=submission_helper,
         grant=submission_helper.collection.grant,
         collection=submission_helper.collection,
-        statuses=SubmissionStatusEnum,
     )
