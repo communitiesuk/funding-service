@@ -1,7 +1,7 @@
 import pytest
 from immutabledict import immutabledict
 
-from app.common.data.interfaces.collections import add_question_condition
+from app.common.data.models import Expression
 from app.common.expressions import ExpressionContext, evaluate
 from app.common.expressions.managed import GreaterThan
 
@@ -93,9 +93,10 @@ class TestEvaluatingManagedExpressions:
     def test_greater_than(self, factories):
         user = factories.user.create()
         q0 = factories.question.create()
-        question = factories.question.create(form=q0.form)
-        managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
-        add_question_condition(question, user, managed_expression)
+        question = factories.question.create(
+            form=q0.form,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q0.id, minimum_value=3000), user)],
+        )
 
         expr = question.expressions[0]
 
