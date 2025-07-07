@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
 
@@ -46,7 +46,6 @@ from app.common.data.types import (
     FormRunnerState,
     QuestionDataType,
     SubmissionModeEnum,
-    SubmissionStatusEnum,
 )
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_expressions_for_question_type
@@ -63,7 +62,7 @@ from app.developers.forms import (
     ConditionSelectQuestionForm,
     ConfirmDeletionForm,
 )
-from app.extensions import auto_commit_after_request, notification_service
+from app.extensions import auto_commit_after_request
 from app.types import FlashMessageType
 
 if TYPE_CHECKING:
@@ -858,24 +857,6 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
     )
 
 
-@developers_deliver_blueprint.route("/submissions/<uuid:submission_id>/confirmation", methods=["GET", "POST"])
-@is_platform_admin
-def collection_confirmation(submission_id: UUID) -> ResponseReturnValue:
-    submission_helper = SubmissionHelper.load(submission_id)
-
-    if submission_helper.status != SubmissionStatusEnum.COMPLETED:
-        current_app.logger.warning(
-            "Cannot access submission confirmation for non complete collection for submission_id=%(submission_id)s",
-            dict(submission_id=str(submission_helper.id)),
-        )
-        return redirect(url_for("developers.deliver.submission_tasklist", submission_id=submission_helper.id))
-
-    return render_template(
-        "developers/deliver/collection_submit_confirmation.html",
-        submission_helper=submission_helper,
-    )
-
-
 @developers_deliver_blueprint.route("/submissions/<uuid:submission_id>", methods=["GET", "POST"])
 @auto_commit_after_request
 @is_platform_admin
@@ -885,10 +866,13 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
 
     if runner.tasklist_form.validate_on_submit():
         if runner.complete_submission(interfaces.user.get_current_user()):
-            # todo: for now we'll email and confirm on submission but later DGF form builder will likely
-            #       just return to the tasklist editing page on completion
-            notification_service.send_collection_submission(runner.submission.submission)
-            return redirect(url_for("developers.deliver.collection_confirmation", submission_id=runner.submission.id))
+            return redirect(
+                url_for(
+                    "developers.deliver.manage_collection",
+                    collection_id=runner.submission.collection.id,
+                    grant_id=runner.submission.grant.id,
+                )
+            )
 
     return render_template(
         "developers/deliver/collection_tasklist.html",

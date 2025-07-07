@@ -30,7 +30,7 @@
   {% set rows=[] %}
   {% for submission in submissions %}
     {% set link_to_submission %}
-      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_submission', submission_id=submission.id) }}">{{ submission.reference }}</a>
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_submission', submission_id=submission.id) }}" data-submission-link>{{ submission.reference }}</a>
     {% endset %}
     {%
       do rows.append([

@@ -1,6 +1,6 @@
 import uuid
 
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.decorators import is_platform_admin
@@ -12,7 +12,7 @@ from app.common.data.interfaces.temporary import get_submission_by_collection_an
 from app.common.data.types import FormRunnerState, SubmissionModeEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, notification_service
 
 developers_access_blueprint = Blueprint("access", __name__, url_prefix="/access")
 
@@ -73,7 +73,8 @@ def submission_tasklist(submission_id: uuid.UUID) -> ResponseReturnValue:
 
     if runner.tasklist_form.validate_on_submit():
         if runner.complete_submission(interfaces.user.get_current_user()):
-            return redirect(url_for("developers.access.grant_details", grant_id=runner.submission.grant.id))
+            notification_service.send_collection_submission(runner.submission.submission)
+            return redirect(url_for("developers.access.collection_confirmation", submission_id=runner.submission.id))
 
     return render_template(
         "developers/access/collection_tasklist.html",
@@ -112,7 +113,25 @@ def check_your_answers(submission_id: uuid.UUID, form_id: uuid.UUID) -> Response
     )
 
     if runner.check_your_answers_form.validate_on_submit():
-        runner.save_is_form_completed(interfaces.user.get_current_user())
-        return redirect(runner.next_url)
+        if runner.save_is_form_completed(interfaces.user.get_current_user()):
+            return redirect(runner.next_url)
 
     return render_template("developers/access/check_your_answers.html", runner=runner)
+
+
+@developers_access_blueprint.route("/submissions/<uuid:submission_id>/confirmation", methods=["GET", "POST"])
+@is_platform_admin
+def collection_confirmation(submission_id: uuid.UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+
+    if not submission_helper.is_completed:
+        current_app.logger.warning(
+            "Cannot access submission confirmation for non complete collection for submission_id=%(submission_id)s",
+            dict(submission_id=str(submission_helper.id)),
+        )
+        return redirect(url_for("developers.access.submission_tasklist", submission_id=submission_helper.id))
+
+    return render_template(
+        "developers/access/collection_submit_confirmation.html",
+        submission_helper=submission_helper,
+    )
