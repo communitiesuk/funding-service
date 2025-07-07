@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from app.common.data.interfaces.collections import add_question_condition, get_question_by_id
+from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
 from app.common.expressions import evaluate
 from app.common.expressions.managed import Between, GreaterThan, LessThan
@@ -12,9 +12,13 @@ class TestBaseManagedExpression:
     def test_gets_referenced_question(self, factories):
         user = factories.user.create()
         depends_on_question = factories.question.create()
-        question = factories.question.create(form=depends_on_question.form)
+        question = factories.question.create(
+            form=depends_on_question.form,
+            expressions=[
+                Expression.from_managed(GreaterThan(question_id=depends_on_question.id, minimum_value=1000), user)
+            ],
+        )
 
-        add_question_condition(question, user, GreaterThan(question_id=depends_on_question.id, minimum_value=1000))
         from_db = get_question_by_id(question.id)
 
         assert from_db.conditions[0].managed.referenced_question.id == depends_on_question.id

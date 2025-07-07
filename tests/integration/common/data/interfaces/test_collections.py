@@ -32,7 +32,7 @@ from app.common.data.interfaces.collections import (
     update_submission_data,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import Collection
+from app.common.data.models import Collection, Expression
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType, SubmissionEventKey
 from app.common.expressions.managed import GreaterThan, LessThan
 from app.common.helpers.collections import TextSingleLine
@@ -353,9 +353,11 @@ def test_move_question_up_down(db_session, factories):
 def test_move_question_with_dependencies(db_session, factories):
     form = factories.form.create()
     user = factories.user.create()
-    [q1, q2, q3] = factories.question.create_batch(3, form=form)
-
-    add_question_condition(q3, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+    q1, q2 = factories.question.create_batch(2, form=form)
+    q3 = factories.question.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q2.id, minimum_value=3000), user)],
+    )
 
     # q3 can't move above its dependency q2
     with pytest.raises(DependencyOrderException) as e:
@@ -382,9 +384,11 @@ def test_move_question_with_dependencies(db_session, factories):
 def test_raise_if_question_has_any_dependencies(db_session, factories):
     form = factories.form.create()
     user = factories.user.create()
-    [q1, q2] = factories.question.create_batch(2, form=form)
-
-    add_question_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
+    q1 = factories.question.create(form=form)
+    q2 = factories.question.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=1000), user)],
+    )
 
     assert raise_if_question_has_any_dependencies(q2) is None
 
@@ -574,12 +578,14 @@ def test_update_expression_errors_on_validation_overlap(db_session, factories):
 
 
 def test_remove_expression(db_session, factories):
-    q0 = factories.question.create()
-    question = factories.question.create(form=q0.form)
+    qid = uuid.uuid4()
     user = factories.user.create()
-    managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
-
-    add_question_condition(question, user, managed_expression)
+    question = factories.question.create(
+        id=qid,
+        expressions=[
+            Expression.from_managed(GreaterThan(question_id=qid, minimum_value=3000), user),
+        ],
+    )
 
     assert len(question.expressions) == 1
     expression_id = question.expressions[0].id

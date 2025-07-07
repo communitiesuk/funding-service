@@ -9,6 +9,7 @@ for transactional isolation.
 
 import datetime
 import secrets
+from typing import Any
 from uuid import uuid4
 
 import factory
@@ -195,6 +196,19 @@ class _QuestionFactory(SQLAlchemyModelFactory):
 
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)
+
+    @factory.post_generation  # type: ignore[misc]
+    def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
+        if not extracted:
+            return
+
+        for expression in extracted:
+            expression.question_id = self.id
+            db.session.add(expression)
+            self.expressions.append(expression)
+
+        if create:
+            db.session.commit()
 
 
 class _SubmissionEventFactory(SQLAlchemyModelFactory):
