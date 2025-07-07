@@ -1,4 +1,3 @@
-from contextlib import suppress
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -885,9 +884,7 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
     runner = DGFFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
 
     if runner.tasklist_form.validate_on_submit():
-        with suppress(ValueError):
-            runner.submit(interfaces.user.get_current_user())
-
+        if runner.complete_submission(interfaces.user.get_current_user()):
             # todo: for now we'll email and confirm on submission but later DGF form builder will likely
             #       just return to the tasklist editing page on completion
             notification_service.send_collection_submission(runner.submission.submission)
@@ -930,8 +927,7 @@ def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValu
     )
 
     if runner.check_your_answers_form.validate_on_submit():
-        with suppress(ValueError):
-            runner.save_is_form_completed(interfaces.user.get_current_user())
+        if runner.save_is_form_completed(interfaces.user.get_current_user()):
             return redirect(runner.next_url)
 
     return render_template("developers/deliver/check_your_answers.html", runner=runner)

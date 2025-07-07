@@ -56,9 +56,9 @@ class FormRunner:
             self._check_your_answers_form = CheckYourAnswersForm(
                 section_completed=(
                     "yes" if self.submission.get_status_for_form(self.form) == SubmissionStatusEnum.COMPLETED else None
-                )
+                ),
+                all_questions_answered=all_questions_answered,
             )
-            self._check_your_answers_form.set_is_required(all_questions_answered)
 
     @classmethod
     def load(
@@ -104,7 +104,7 @@ class FormRunner:
 
         self.submission.submit_answer_for_question(self.question.id, self.question_form)
 
-    def save_is_form_completed(self, user: "User") -> None:
+    def save_is_form_completed(self, user: "User") -> bool:
         if not self.form:
             raise RuntimeError("Form context not set")
 
@@ -114,18 +114,20 @@ class FormRunner:
                 user=user,
                 is_complete=self.check_your_answers_form.section_completed.data == "yes",
             )
-        except ValueError as e:
+            return True
+        except ValueError:
             self.check_your_answers_form.section_completed.errors.append(  # type:ignore[attr-defined]
                 "You must complete all questions before marking this section as complete"
             )
-            raise ValueError("Failed to save form completed status") from e
+            return False
 
-    def submit(self, user: "User") -> None:
+    def complete_submission(self, user: "User") -> bool:
         try:
             self.submission.submit(user)
-        except ValueError as e:
+            return True
+        except ValueError:
             self._tasklist_form.submit.errors.append("You must complete all forms before submitting the collection")  # type:ignore[attr-defined]
-            raise ValueError("Failed to submit") from e
+            return False
 
     def to_url(
         self,

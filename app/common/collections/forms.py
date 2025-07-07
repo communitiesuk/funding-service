@@ -144,8 +144,10 @@ class CheckYourAnswersForm(FlaskForm):
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
-    # the form should be validly optional unless all questions in the section have been answered
-    def set_is_required(self, all_questions_answered: bool) -> None:
+    def __init__(self, *args: Any, all_questions_answered: bool, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        # the form should be validly optional unless all questions in the section have been answered
         if all_questions_answered:
             self.section_completed.validators = [DataRequired("Select if you have completed this section")]
         else:
