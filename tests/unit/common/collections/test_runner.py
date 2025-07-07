@@ -92,10 +92,13 @@ class TestFormRunner:
             }
 
         runner = MappedFormRunner(submission=helper, question=question, source=None)
-        assert runner.validate() and runner.next_url == f"mock_question_url_{str(second_question.id)}"
+        assert (
+            runner.validate_can_show_question_page()
+            and runner.next_url == f"mock_question_url_{str(second_question.id)}"
+        )
 
         end_of_form = MappedFormRunner(submission=helper, question=second_question, source=None)
-        assert end_of_form.validate() and end_of_form.next_url == "mock_check_answers_url"
+        assert end_of_form.validate_can_show_question_page() and end_of_form.next_url == "mock_check_answers_url"
 
     def test_back_url(self, factories):
         question = factories.question.build()

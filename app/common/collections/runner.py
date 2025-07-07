@@ -1,21 +1,18 @@
 # todo: propose moving common/helper/collections.py to common/collections/submission.py
-from typing import TYPE_CHECKING, Callable, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 from uuid import UUID
 
+from flask import url_for
+
 from app.common.collections.forms import CheckYourAnswersForm, build_question_form
-from app.common.data.types import FormRunnerState, SubmissionStatusEnum
+from app.common.data.types import FormRunnerState, SubmissionStatusEnum, TRunnerUrlMap
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.extensions import notification_service
 
 if TYPE_CHECKING:
     from app.common.collections.forms import DynamicQuestionForm
     from app.common.data.models import Form, Question
     from app.common.data.models_user import User
-
-runner_url_map = dict[
-    FormRunnerState, Callable[["FormRunner", Optional["Question"], Optional["Form"], Optional[FormRunnerState]], str]
-]
 
 
 class FormRunner:
@@ -26,7 +23,7 @@ class FormRunner:
 
     This allows us to implement the form runner in different domain environments consistently."""
 
-    url_map: ClassVar[runner_url_map] = {}
+    url_map: ClassVar[TRunnerUrlMap] = {}
 
     def __init__(
         self,
@@ -126,7 +123,6 @@ class FormRunner:
     def submit(self, user: "User") -> None:
         try:
             self.submission.submit(user)
-            notification_service.send_collection_submission(self.submission.submission)
         except ValueError as e:
             self._tasklist_form.submit.errors.append("You must complete all forms before submitting the collection")  # type:ignore[attr-defined]
             raise ValueError("Failed to submit") from e
@@ -143,22 +139,25 @@ class FormRunner:
 
     @property
     def next_url(self) -> str:
-        if self.question and self._valid is not None:
-            if self._valid:
-                if self.source == FormRunnerState.CHECK_YOUR_ANSWERS:
-                    # todo: even if we came from check your answers, move to the next question
-                    #       if it hasn't been answered
-                    return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
+        # if we're in the context of a question page, decide if we should go to the next question
+        # or back to check your answers based on if the integrity checks pass
+        if self.question:
+            if self.source == FormRunnerState.CHECK_YOUR_ANSWERS or not self._valid:
+                # todo: even if we came from check your answers, move to the next question
+                #       if it hasn't been answered
+                return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
-                next_question = self.submission.get_next_question(self.question.id)
-                if next_question:
-                    return self.to_url(FormRunnerState.QUESTION, question=next_question)
+            next_question = self.submission.get_next_question(self.question.id)
+            return (
+                self.to_url(FormRunnerState.QUESTION, question=next_question)
+                if next_question
+                else self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
+            )
 
-            return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
-
+        # default back to the tasklist if we're routing forward outside of a question context (check your answers)
         return self.to_url(FormRunnerState.TASKLIST)
 
-    def validate(self) -> bool:
+    def validate_can_show_question_page(self) -> bool:
         # for now we're only validating the question state, there may be integrity
         # checks for check your answers or tasklist in the future
         if not self.question:
@@ -193,3 +192,25 @@ class FormRunner:
             return self.to_url(FormRunnerState.QUESTION, question=previous_question)
 
         return self.to_url(FormRunnerState.TASKLIST)
+
+
+class DGFFormRunner(FormRunner):
+    url_map: ClassVar[TRunnerUrlMap] = {
+        FormRunnerState.QUESTION: lambda runner, question, _form, source: url_for(
+            "developers.deliver.ask_a_question",
+            submission_id=runner.submission.id,
+            question_id=question.id if question else None,
+            source=source,
+        ),
+        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source: url_for(
+            "developers.deliver.submission_tasklist",
+            submission_id=runner.submission.id,
+            form_id=runner.form.id if runner.form else None,
+        ),
+        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source: url_for(
+            "developers.deliver.check_your_answers",
+            submission_id=runner.submission.id,
+            form_id=form.id if form else runner.form.id if runner.form else None,
+            source=source,
+        ),
+    }
