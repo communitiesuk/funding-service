@@ -7,11 +7,11 @@ from typing import Optional as TOptional
 from uuid import UUID
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovCheckboxesInput, GovCheckboxInput, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovCheckboxesInput, GovCheckboxInput, GovRadioInput, GovTextInput
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
 from wtforms import BooleanField, IntegerField
-from wtforms.fields.choices import SelectMultipleField
+from wtforms.fields.choices import RadioField, SelectMultipleField
 from wtforms.fields.core import Field
 from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
 
@@ -362,7 +362,7 @@ class ChoicesFromList(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CHOICE_FROM_LIST
 
     # todo: This expression doesn't really make sense for validation - hide it?
-    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES}
+    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
 
     _key: ManagedExpressionsEnum = name
 
@@ -415,6 +415,135 @@ class ChoicesFromList(ManagedExpression):
 
         choices = [SingleChoiceFromList(key=key, label=choice_labels[key]) for key in form.choice_from_list.data]
         return ChoicesFromList(
+            question_id=question.id,
+            choices=choices,  # ty: ignore[unresolved-attribute]
+        )
+
+
+@register_managed_expression
+class SingleChoiceFromListExpression(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.SINGLE_CHOICE_FROM_LIST
+
+    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.CHECKBOXES}
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    choice: "SingleChoiceFromList"
+
+    @property
+    def description(self) -> str:
+        return "single choice from list"
+
+    @property
+    def message(self) -> str:
+        return f"The choice “{self.choice.label}” has been selected"
+
+    @property
+    def statement(self) -> str:
+        # fixme: we need to inject the choice into the expression context rather than format it into this string;
+        #        small concerns over escaping user input. choice keys here are UUIDs that we control but it still
+        #        feels dangerously close to doing something bad
+        return f"'{self.choice.key}' in {self.safe_qid}"
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        return {
+            "single_choice_from_list": RadioField(
+                "Single choice from a list of options",
+                # fixme: it'd be nice if this was a SingleChoiceFromList instance as well, not a raw dict.
+                default=expression.context["choice"]["key"] if expression else None,
+                widget=GovRadioInput(),
+                choices=[(choice["id"], choice["label"]) for choice in referenced_question.data_source.data],
+                validators=[Optional()],
+                render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        form.single_choice_from_list.validators = [  # ty: ignore[unresolved-attribute]
+            DataRequired("Choose an option"),
+        ]
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "SingleChoiceFromListExpression":
+        # fixme: bad code structure requires local import
+        from app.common.helpers.collections import SingleChoiceFromList
+
+        choice_labels = {choice["id"]: choice["label"] for choice in question.data_source.data}
+
+        choice = SingleChoiceFromList(
+            key=form.single_choice_from_list.data, label=choice_labels[form.single_choice_from_list.data]
+        )
+        return SingleChoiceFromListExpression(
+            question_id=question.id,
+            choice=choice,  # ty: ignore[unresolved-attribute]
+        )
+
+
+@register_managed_expression
+class AllChoicesFromListExpression(ManagedExpression):
+    # note: in hindsight this makes the SingleChoiceFromListExpression feel redundant, except for maybe a _slightly_
+    # clearer/cleaner user experience when they specifically only want to pivot on a single answer
+
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.ALL_CHOICES_FROM_LIST
+
+    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.CHECKBOXES}
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    choices: list["SingleChoiceFromList"]
+
+    @property
+    def description(self) -> str:
+        return "all choices from list"
+
+    @property
+    def message(self) -> str:
+        if len(self.choices) == 1:
+            return f"The answer is “{self.choices[0].label}”"
+
+        return f"All of “{'”, “'.join(c.label for c in self.choices)}” have been selected"
+
+    @property
+    def statement(self) -> str:
+        choice_ids = {str(choice.key) for choice in self.choices}
+        return f"{choice_ids}.issubset({self.safe_qid})"
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        return {
+            "all_choices_from_list": SelectMultipleField(
+                "Choose from a list of options",
+                default=[choice["key"] for choice in expression.context["choices"]] if expression else None,
+                widget=GovCheckboxesInput(),
+                choices=[(choice["id"], choice["label"]) for choice in referenced_question.data_source.data],
+                validators=[Optional()],
+                render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        form.all_choices_from_list.validators = [  # ty: ignore[unresolved-attribute]
+            DataRequired("Choose at least one option"),
+        ]
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "AllChoicesFromListExpression":
+        # fixme: bad code structure requires local import
+        from app.common.helpers.collections import SingleChoiceFromList
+
+        choice_labels = {choice["id"]: choice["label"] for choice in question.data_source.data}
+
+        choices = [SingleChoiceFromList(key=key, label=choice_labels[key]) for key in form.all_choices_from_list.data]
+        return AllChoicesFromListExpression(
             question_id=question.id,
             choices=choices,  # ty: ignore[unresolved-attribute]
         )

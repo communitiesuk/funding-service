@@ -77,6 +77,8 @@ class ManagedExpressionsEnum(enum.StrEnum):
     LESS_THAN = "Less than"
     BETWEEN = "Between"
     CHOICE_FROM_LIST = "One of"
+    SINGLE_CHOICE_FROM_LIST = "A specific choice"
+    ALL_CHOICES_FROM_LIST = "All choices"
 
 
 class FormRunnerState(enum.StrEnum):
