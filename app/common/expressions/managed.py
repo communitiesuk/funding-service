@@ -7,12 +7,13 @@ from typing import Optional as TOptional
 from uuid import UUID
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovCheckboxesInput, GovCheckboxInput, GovTextInput
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
 from wtforms import BooleanField, IntegerField
+from wtforms.fields.choices import SelectMultipleField
 from wtforms.fields.core import Field
-from wtforms.validators import InputRequired, Optional, ValidationError
+from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
@@ -21,6 +22,7 @@ from app.common.qid import SafeQidMixin
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
     from app.common.expressions.forms import _ManagedExpressionForm
+    from app.common.helpers.collections import RadioChoice
 
 
 class ManagedExpression(BaseModel, SafeQidMixin):
@@ -58,7 +60,9 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     # that are defined in `question_data_types`.
     @staticmethod
     @abc.abstractmethod
-    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
         """
         A hook used by `build_managed_expression_form`. It should return the set of form fields which need to be
         added to the managed expression form. The fields returned should collect the data needed to define an instance
@@ -99,7 +103,9 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         ...
 
     @classmethod
-    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm") -> Markup:
+    def concatenate_all_wtf_fields_html(
+        cls, form: "_ManagedExpressionForm", referenced_question: TOptional["Question"] = None
+    ) -> Markup:
         """
         A hook used by `build_managed_expression_form` to support conditionally-revealed the fields that a user needs
         to complete when they select this managed expression type from the radio list of available managed expressions.
@@ -107,7 +113,10 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         This does not need to be re-defined on any subclasses; it will work automatically.
         """
         # FIXME: Re-using cls.get_form_fields() is a 🤏 bit wasteful (building form fields that aren't used).
-        fields = [getattr(form, field_name)() for field_name in cls.get_form_fields().keys()]
+        fields = [
+            getattr(form, field_name)()
+            for field_name in cls.get_form_fields(referenced_question=referenced_question).keys()
+        ]
 
         return Markup("\n".join(fields))
 
@@ -168,7 +177,9 @@ class GreaterThan(ManagedExpression):
         return f"{self.safe_qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
 
     @staticmethod
-    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
         return {
             "greater_than_value": IntegerField(
                 "Minimum value",
@@ -221,7 +232,9 @@ class LessThan(ManagedExpression):
         return f"{self.safe_qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
 
     @staticmethod
-    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
         return {
             "less_than_value": IntegerField(
                 "Maximum value",
@@ -292,7 +305,9 @@ class Between(ManagedExpression):
         )
 
     @staticmethod
-    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
         return {
             "between_bottom_of_range": IntegerField(
                 "Minimum value",
@@ -342,9 +357,77 @@ class Between(ManagedExpression):
         )
 
 
+@register_managed_expression
+class ChoicesFromList(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CHOICE_FROM_LIST
+    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    choices: list["RadioChoice"]
+
+    @property
+    def description(self) -> str:
+        return "choice from list"
+
+    @property
+    def message(self) -> str:
+        if len(self.choices) == 1:
+            return f"The answer is “{self.choices[0].label}”"
+
+        return f"The answer is one of “{'”, “'.join(c.label for c in self.choices)}”"
+
+    @property
+    def statement(self) -> str:
+        choice_ids = {str(choice.key) for choice in self.choices}
+        return f"{self.safe_qid} in {choice_ids}"
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        return {
+            "choice_from_list": SelectMultipleField(
+                "Choose from a list of options",
+                default=[choice["key"] for choice in expression.context["choices"]] if expression else None,
+                widget=GovCheckboxesInput(),
+                choices=[(choice["id"], choice["label"]) for choice in referenced_question.data_source.data],
+                validators=[Optional()],
+                render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        form.choice_from_list.validators = [  # ty: ignore[unresolved-attribute]
+            DataRequired("Choose at least one option"),
+        ]
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "ChoicesFromList":
+        # fixme: bad code structure requires local import
+        from app.common.helpers.collections import RadioChoice
+
+        choice_labels = {choice["id"]: choice["label"] for choice in question.data_source.data}
+
+        choices = [RadioChoice(key=key, label=choice_labels[key]) for key in form.choice_from_list.data]
+        return ChoicesFromList(
+            question_id=question.id,
+            choices=choices,  # ty: ignore[unresolved-attribute]
+        )
+
+
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
+    # fixme: bad code structure requires local import
+    from app.common.helpers.collections import RadioChoice  # noqa
+
     if not expression.managed_name:
         raise ValueError(f"Expression {expression.id} is not a managed expression.")
 
     ExpressionType = TypeAdapter(lookup_managed_expression(expression.managed_name))
+
+    # Because of bad code structuring; RadioChoice is not fully defined when ChoicesFromList is defined, pydantic errors
+    # hack to fix that is rebuild the instance: https://docs.pydantic.dev/2.11/errors/usage_errors/#class-not-fully-defined
+    ExpressionType.rebuild()
     return ExpressionType.validate_python(expression.context)

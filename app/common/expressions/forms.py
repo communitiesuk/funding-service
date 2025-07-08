@@ -19,13 +19,20 @@ if TYPE_CHECKING:
 class _ManagedExpressionForm(FlaskForm):
     _question_data_type: QuestionDataType
     _managed_expressions: list[type["ManagedExpression"]]
+    _referenced_question: Question
     type: RadioField
 
     def get_managed_expression_radio_conditional_items(self) -> list[dict[str, dict[str, Markup]]]:
         items = []
         for _managed_expression in self._managed_expressions:
             # format the radio items for `govuk-frontend-wtf` macro syntax
-            items.append({"conditional": {"html": _managed_expression.concatenate_all_wtf_fields_html(self)}})
+            items.append(
+                {
+                    "conditional": {
+                        "html": _managed_expression.concatenate_all_wtf_fields_html(self, self._referenced_question)
+                    }
+                }
+            )
         return items
 
     def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
@@ -44,7 +51,7 @@ class _ManagedExpressionForm(FlaskForm):
 
 
 def build_managed_expression_form(  # noqa: C901
-    type_: ExpressionType, question_type: QuestionDataType, expression: Expression | None = None
+    type_: ExpressionType, referenced_question: Question, expression: Expression | None = None
 ) -> type["_ManagedExpressionForm"] | None:
     """
     For a given question type, generate a FlaskForm that will allow a user to select one of its managed expressions.
@@ -55,6 +62,7 @@ def build_managed_expression_form(  # noqa: C901
     The form is constructed dynamically from the definition of all registered managed expressions; each one lists
     the question types that can be a condition for, and that it can validate against.
     """
+    question_type = referenced_question.data_type
     managed_expressions = get_managed_expressions_for_question_type(question_type)
     if not managed_expressions:
         return None
@@ -70,6 +78,7 @@ def build_managed_expression_form(  # noqa: C901
     class ManagedExpressionForm(_ManagedExpressionForm):
         _question_data_type = question_type
         _managed_expressions = managed_expressions
+        _referenced_question = referenced_question
 
         type = RadioField(
             choices=[(managed_expression.name, managed_expression.name) for managed_expression in managed_expressions],
@@ -83,7 +92,7 @@ def build_managed_expression_form(  # noqa: C901
     for managed_expression in managed_expressions:
         pass_expression = expression and expression.managed_name == managed_expression.name
         for field_name, field in managed_expression.get_form_fields(
-            expression=expression if pass_expression else None
+            expression=expression if pass_expression else None, referenced_question=referenced_question
         ).items():
             setattr(ManagedExpressionForm, field_name, field)
 

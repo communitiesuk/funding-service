@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 class SubmissionAnswerProtocol(Protocol):
     def get_answer_for_display(self) -> str: ...
     def get_value_for_form(self) -> str: ...
+    def get_value_for_expression(self) -> str: ...
 
 
 class OurRootModel[T](RootModel[T]):
@@ -38,6 +39,9 @@ class OurRootModel[T](RootModel[T]):
         return self.root
 
     def get_value_for_form(self):
+        return self.root
+
+    def get_value_for_expression(self):
         return self.root
 
 
@@ -59,6 +63,9 @@ class RadioChoice(BaseModel):
 
     def get_value_for_form(self):
         return self.key
+
+    def get_value_for_expression(self):
+        return str(self.key)
 
 
 class SubmissionHelper:
@@ -100,9 +107,21 @@ class SubmissionHelper:
         return self.submission.reference
 
     @property
-    def expression_context(self) -> ExpressionContext:
+    def form_data(self) -> ExpressionContext:
+        # todo: rename ExpressionContext - just use collections.ChainMap[expression, form, submission]?
         submission_data = {
             question.safe_qid: answer.get_value_for_form()
+            for section in self.submission.collection.sections
+            for form in section.forms
+            for question in form.questions
+            if (answer := self.get_answer_for_question(question.id)) is not None
+        }
+        return ExpressionContext(from_submission=immutabledict(submission_data))
+
+    @property
+    def expression_context(self) -> ExpressionContext:
+        submission_data = {
+            question.safe_qid: answer.get_value_for_expression()
             for section in self.submission.collection.sections
             for form in section.forms
             for question in form.questions

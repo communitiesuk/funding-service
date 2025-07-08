@@ -24,7 +24,7 @@ _accepted_fields = StringField | IntegerField
 # by `build_question_form`. This gives us nicer intellisense/etc. The downside is that this class needs to be kept
 # in sync manually with the one inside `build_question_form`.
 class DynamicQuestionForm(FlaskForm):
-    _expression_context: ExpressionContext
+    _form_data: ExpressionContext
     _questions: list[Question]
     submit: SubmitField
 
@@ -60,9 +60,9 @@ class DynamicQuestionForm(FlaskForm):
         extra_validators = defaultdict(list, extra_validators or {})
 
         # Inject the latest data from this form submission into the context for validators to use.
-        self._expression_context.form_context = self._build_form_context()
+        self._form_data.form_context = self._build_form_context()
         for q in self._questions:
-            extra_validators[q.safe_qid].extend(build_validators(q, self._expression_context))
+            extra_validators[q.safe_qid].extend(build_validators(q, self._form_data))
 
         # Do a second validation pass that includes all of our managed/custom validation. This has a small bit of
         # redundancy because it will run the data validation checks again, but it means that all of our own
@@ -100,10 +100,10 @@ def build_validators(question: Question, expression_context: ExpressionContext) 
     return validators
 
 
-def build_question_form(question: Question, expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
+def build_question_form(question: Question, form_data: ExpressionContext) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
-        _expression_context = expression_context
+        _form_data = form_data
         _questions = [question]
 
         submit = SubmitField("Continue", widget=GovSubmitInput())
