@@ -57,7 +57,7 @@ Integer = OurRootModel[int]
 
 # {"id": "abcdef-1234-1234", "label": "Local Authority"}
 class SingleChoiceFromList(BaseModel):
-    key: uuid.UUID
+    key: str
     label: str
 
     @property
@@ -68,7 +68,7 @@ class SingleChoiceFromList(BaseModel):
         return self.key
 
     def get_value_for_expression(self):
-        return str(self.key)
+        return self.key
 
 
 class AnyChoicesFromList(BaseModel):
@@ -85,7 +85,7 @@ class AnyChoicesFromList(BaseModel):
         return [choice.key for choice in self.choices]
 
     def get_value_for_expression(self):
-        return [str(choice.key) for choice in self.choices]
+        return [choice.key for choice in self.choices]
 
 
 class SubmissionHelper:

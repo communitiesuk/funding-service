@@ -1,4 +1,3 @@
-import uuid
 from typing import TYPE_CHECKING, Any, Never, Protocol
 from uuid import UUID
 
@@ -233,7 +232,7 @@ def _create_data_source(question: Question, choices: list[str]):
     # note: should data sources be 1 row for all of the data, or should each 'choice' be a row in a table?
     data_source_choices = []
     for choice in choices:
-        data_source_choices.append({"id": str(uuid.uuid4()), "label": choice})
+        data_source_choices.append({"id": slugify(choice), "label": choice})
 
     data_source = DataSource(question_id=question.id, data=data_source_choices)
     db.session.add(data_source)
@@ -243,10 +242,8 @@ def _update_data_source(question: Question, choices: list[str]):
     # todo: how to handle changing choices?
     data_source_choices = []
     for choice in choices:
-        # fixme: dont generate new IDs for any labels that are the same
-        # note: how to detect new entries vs typo fixes to existing labels?
         # fixme: need to disallow removing choices that have been used in anywhere in the system
-        data_source_choices.append({"id": str(uuid.uuid4()), "label": choice})
+        data_source_choices.append({"id": slugify(choice), "label": choice})
 
     question.data_source.data = data_source_choices
 
