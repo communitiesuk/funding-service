@@ -197,17 +197,13 @@ def test_create_and_preview_collection(
         ).to_be_visible()
         expect(tasklist_page.submit_button).to_be_enabled()
 
-        confirmation_page = tasklist_page.click_submit()
-        collection_reference = confirmation_page.collection_reference.inner_text()
-
-        # Go back to schema detail page
-        collection_detail_page = navigate_to_collection_detail_page(page, domain, new_grant_name, new_collection_name)
+        collection_detail_page = tasklist_page.click_submit()
 
         # View the collection
         expect(collection_detail_page.summary_row_submissions.get_by_text("1 test submission")).to_be_visible()
         collections_list_page = collection_detail_page.click_view_submissions()
 
-        view_collection_page = collections_list_page.click_on_submission(collection_reference=collection_reference)
+        view_collection_page = collections_list_page.click_on_first_submission()
 
         answers_list = view_collection_page.get_questions_list_for_form(form_name)
         expect(answers_list).to_be_visible()

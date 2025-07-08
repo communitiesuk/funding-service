@@ -1,0 +1,37 @@
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+{% from "common/macros/status.html" import status with context %}
+{% from "common/macros/collections.html" import collection_tasklist with context %}
+{% extends "developers/access/base.html" %}
+
+{% set page_title = "Collection for " ~ runner.submission.name %}
+
+{% set form = runner.tasklist_form %}
+
+{% block beforeContent %}
+  {% if runner.submission.is_test %}
+    {{ mhclgTestBanner("Test submission") }}
+  {% endif %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("developers.access.grant_details", grant_id=runner.submission.grant.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ runner.submission.name }}</h1>
+
+      {# NOTE: Should we have this as a custom component or macro-ize it? #}
+      <dl class="app-metadata govuk-!-margin-bottom-7">
+        <dt class="app-metadata__key">Status:</dt>
+        <dd class="app-metadata__value" data-testid="submission-status">{{ status(runner.submission.status) }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  {{ collection_tasklist(runner) }}
+{% endblock content %}

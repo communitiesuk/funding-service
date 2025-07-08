@@ -98,7 +98,7 @@ class NotificationService:
                 "submission name": submission.collection.name,
                 "submission reference": submission.reference,
                 "submission url": url_for(
-                    "developers.deliver.submission_tasklist", submission_id=submission.id, _external=True
+                    "developers.access.submission_tasklist", submission_id=submission.id, _external=True
                 ),
             },
         )
