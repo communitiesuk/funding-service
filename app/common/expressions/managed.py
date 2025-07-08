@@ -361,6 +361,7 @@ class Between(ManagedExpression):
 class ChoicesFromList(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CHOICE_FROM_LIST
 
+    # todo: This expression doesn't really make sense for validation - hide it?
     question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES}
 
     _key: ManagedExpressionsEnum = name
