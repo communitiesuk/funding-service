@@ -37,7 +37,8 @@
       {% for question in submission_helper.get_ordered_visible_questions_for_form(form) %}
 
         {% set value_html %}
-          {% if submission_helper.get_answer_for_question(question.id) %}
+          {% set answer = submission_helper.get_answer_for_question(question.id) %}
+          {% if answer %}
             {% include answer.render_answer_template %}
           {% else %}
             (Not answered)

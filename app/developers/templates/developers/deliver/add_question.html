@@ -28,7 +28,7 @@
         {{ form.name }}
         {{ form.hint }}
 
-        {% if chosen_question_data_type == enum.question_type.RADIOS %}
+        {% if chosen_question_data_type == enum.question_type.RADIOS or chosen_question_data_type == enum.question_type.CHECKBOXES %}
         {{ form.choices }}
         {% endif %}
 

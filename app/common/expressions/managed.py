@@ -360,7 +360,7 @@ class Between(ManagedExpression):
 @register_managed_expression
 class ChoicesFromList(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CHOICE_FROM_LIST
-    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
+    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES}
 
     _key: ManagedExpressionsEnum = name
 

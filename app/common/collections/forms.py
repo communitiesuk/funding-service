@@ -3,9 +3,16 @@ from functools import partial
 from typing import Any, Callable, Mapping, cast
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import (
+    GovCheckboxesInput,
+    GovRadioInput,
+    GovSubmitInput,
+    GovTextArea,
+    GovTextInput,
+)
 from immutabledict import immutabledict
 from wtforms import Field, Form, RadioField
+from wtforms.fields.choices import SelectMultipleField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import StringField, SubmitField
 from wtforms.validators import DataRequired, Optional, ValidationError
@@ -135,6 +142,13 @@ def build_question_form(question: Question, form_data: ExpressionContext) -> typ
                 label=question.text,
                 description=question.hint or "",
                 widget=GovRadioInput(),
+                choices=[(choice["id"], choice["label"]) for choice in question.data_source.data],
+            )
+        case QuestionDataType.CHECKBOXES:
+            field = SelectMultipleField(
+                label=question.text,
+                description=question.hint or "",
+                widget=GovCheckboxesInput(),
                 choices=[(choice["id"], choice["label"]) for choice in question.data_source.data],
             )
         case _:

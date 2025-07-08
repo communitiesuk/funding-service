@@ -165,6 +165,7 @@ class QuestionTypeForm(FlaskForm):
             (QuestionDataType.TEXT_MULTI_LINE.name, QuestionDataType.TEXT_MULTI_LINE.value),
             (QuestionDataType.INTEGER.name, QuestionDataType.INTEGER.value),
             (QuestionDataType.RADIOS.name, QuestionDataType.RADIOS.value),
+            (QuestionDataType.CHECKBOXES.name, QuestionDataType.CHECKBOXES.value),
         ],
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
@@ -205,7 +206,7 @@ class QuestionForm(FlaskForm):
     def __init__(self, *args, question_type: QuestionDataType, **kwargs):
         super(QuestionForm, self).__init__(*args, **kwargs)
 
-        if question_type == QuestionDataType.RADIOS:
+        if question_type in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             self.choices.validators = []
             self.choices.validators.append(DataRequired(self.choices.label.text))
 

@@ -249,7 +249,7 @@ class Question(BaseModel, SafeQidMixin):
 
     @property
     def choices(self):
-        if self.data_type != QuestionDataType.RADIOS:
+        if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
         return "\n".join(choice["label"] for choice in self.data_source.data)

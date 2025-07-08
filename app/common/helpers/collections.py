@@ -71,6 +71,23 @@ class RadioChoice(BaseModel):
         return str(self.key)
 
 
+class MultiChoice(BaseModel):
+    choices: list[RadioChoice]
+
+    @property
+    def render_answer_template(self) -> str:
+        return "common/partials/answers/multi_choice.html"
+
+    def get_answer_for_display(self):
+        return [choice.label for choice in self.choices]
+
+    def get_value_for_form(self):
+        return [choice.key for choice in self.choices]
+
+    def get_value_for_expression(self):
+        return [str(choice.key) for choice in self.choices]
+
+
 class SubmissionHelper:
     """
     This offensively-named class is a helper for the `app.common.data.models.Submission` and associated sub-models.
@@ -377,6 +394,19 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
             choice_label = next(choice[1] for choice in question_choices if choice[0] == choice_id)
 
             return RadioChoice(key=form.get_answer_to_question(question), label=choice_label)
+        case QuestionDataType.CHECKBOXES:
+            _QuestionModel = MultiChoice
+
+            # fixme: bad juju - come back and clean this up nicely
+            choice_ids = form.get_answer_to_question(question)
+            question_field = form.get_question_field(question)
+            question_choices = question_field.choices
+            choices = []
+            for _choice in question_choices:
+                if _choice[0] in choice_ids:
+                    choices.append(RadioChoice(key=_choice[0], label=_choice[1]))
+
+            return MultiChoice(choices=choices)
         case _:
             raise ValueError(f"Could not parse data for question type={question.data_type}")
 
@@ -395,5 +425,7 @@ def _deserialise_question_type(
             return TypeAdapter(Integer).validate_python(serialised_data)
         case QuestionDataType.RADIOS:
             return TypeAdapter(RadioChoice).validate_python(serialised_data)
+        case QuestionDataType.CHECKBOXES:
+            return TypeAdapter(MultiChoice).validate_python(serialised_data)
         case _:
             raise ValueError(f"Could not deserialise data for question type={question.data_type}")

@@ -483,7 +483,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
             assert wt_form.hint.data is not None
             assert wt_form.name.data is not None
 
-            if question_data_type_enum == QuestionDataType.RADIOS:
+            if question_data_type_enum in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
                 assert wt_form.choices.data
 
             create_question(
