@@ -29,14 +29,16 @@ if TYPE_CHECKING:
 
 
 class SubmissionAnswerProtocol(Protocol):
-    def get_answer_for_display(self) -> str: ...
+    render_answer_template: str
+
     def get_value_for_form(self) -> str: ...
     def get_value_for_expression(self) -> str: ...
 
 
 class OurRootModel[T](RootModel[T]):
-    def get_answer_for_display(self):
-        return self.root
+    @property
+    def render_answer_template(self) -> str:
+        return "common/partials/answers/root.html"
 
     def get_value_for_form(self):
         return self.root
@@ -58,8 +60,9 @@ class RadioChoice(BaseModel):
     key: uuid.UUID
     label: str
 
-    def get_answer_for_display(self):
-        return self.label
+    @property
+    def render_answer_template(self) -> str:
+        return "common/partials/answers/radio.html"
 
     def get_value_for_form(self):
         return self.key
