@@ -12,7 +12,7 @@ from sqlalchemy.exc import NoResultFound
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.temporary import delete_grant
-from app.common.data.models import Collection, Expression, Form, Grant, Question, Section
+from app.common.data.models import Collection, DataSource, Expression, Form, Grant, Question, Section
 from app.common.data.models_user import User
 from app.developers import developers_blueprint
 from app.extensions import db
@@ -33,6 +33,7 @@ GrantExport = TypedDict(
         "forms": list[Any],
         "questions": list[Any],
         "expressions": list[Any],
+        "data_sources": list[Any],
     },
 )
 ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list[Any]})
@@ -76,6 +77,7 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:
             "forms": [],
             "questions": [],
             "expressions": [],
+            "data_sources": [],
         }
 
         export_data["grants"].append(grant_export)
@@ -97,6 +99,9 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:
                         for expression in question.expressions:
                             grant_export["expressions"].append(to_dict(expression))
                             users.add(expression.created_by)
+
+                        if question.data_source:
+                            grant_export["data_sources"].append(to_dict(question.data_source))
 
         for user in users:
             if user.id in [u["id"] for u in export_data["users"]]:
@@ -158,6 +163,10 @@ def seed_grants() -> None:
         for expression in grant_data["expressions"]:
             expression = Expression(**expression)
             db.session.add(expression)
+
+        for data_source in grant_data["data_sources"]:
+            data_source = DataSource(**data_source)
+            db.session.add(data_source)
 
     db.session.commit()
     click.echo(f"Loaded/synced {len(export_data['grants'])} grant(s) into the database.")

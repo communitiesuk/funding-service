@@ -230,7 +230,9 @@ class Question(BaseModel, SafeQidMixin):
     expressions: Mapped[list["Expression"]] = relationship(
         "Expression", back_populates="question", cascade="all, delete-orphan", order_by="Expression.created_at_utc"
     )
-    data_source: Mapped["DataSource"] = relationship("DataSource", back_populates="question")
+    data_source: Mapped["DataSource"] = relationship(
+        "DataSource", cascade="all, delete-orphan", back_populates="question"
+    )
 
     @property
     def conditions(self) -> list["Expression"]:
