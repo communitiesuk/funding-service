@@ -45,7 +45,7 @@
               "text": question.text
             },
             "value": {
-              "text": submission_helper.get_answer_for_question(question.id).root or "(Not answered)"
+              "text": submission_helper.get_answer_for_question(question.id).get_answer_for_display() if submission_helper.get_answer_for_question(question.id) else "(Not answered)"
             }
           })
         %}

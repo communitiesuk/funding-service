@@ -11,7 +11,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 )
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, ValidationError
+from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.grants import grant_name_exists
@@ -164,6 +164,7 @@ class QuestionTypeForm(FlaskForm):
             (QuestionDataType.TEXT_SINGLE_LINE.name, QuestionDataType.TEXT_SINGLE_LINE.value),
             (QuestionDataType.TEXT_MULTI_LINE.name, QuestionDataType.TEXT_MULTI_LINE.value),
             (QuestionDataType.INTEGER.name, QuestionDataType.INTEGER.value),
+            (QuestionDataType.RADIOS.name, QuestionDataType.RADIOS.value),
         ],
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
@@ -192,7 +193,37 @@ class QuestionForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
+    choices = StringField(
+        "Enter the options for your list",
+        validators=[],
+        description="Enter each option on a new line",
+        filters=[strip_string_if_not_empty, lambda val: val.replace("\r", "") if val else val],
+        widget=GovTextArea(),
+    )
     submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, *args, question_type: QuestionDataType, **kwargs):
+        super(QuestionForm, self).__init__(*args, **kwargs)
+
+        if question_type == QuestionDataType.RADIOS:
+            self.choices.validators = []
+            self.choices.validators.append(DataRequired(self.choices.label.text))
+
+            def _validate_no_blank_lines(form, field):
+                choices = field.data.split("\n")
+                if any(choice.strip() == "" for choice in choices):
+                    raise ValidationError("no empty lines")
+
+            def _validate_no_duplicates(form, field):
+                choices = [choice.strip() for choice in field.data.split("\n")]
+                if len(choices) != len(set(choices)):
+                    raise ValidationError("duplicate lines")
+
+            self.choices.validators.append(_validate_no_blank_lines)
+            self.choices.validators.append(_validate_no_duplicates)
+        else:
+            self.choices.validators = []
+            self.choices.validators.append(Optional())
 
 
 class GrantAddUserForm(FlaskForm):

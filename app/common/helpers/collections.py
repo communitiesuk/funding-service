@@ -1,11 +1,12 @@
 import uuid
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from immutabledict import immutabledict
-from pydantic import RootModel, TypeAdapter
+from pydantic import BaseModel, RootModel, TypeAdapter
+from typing_extensions import Protocol
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.data import interfaces
@@ -27,9 +28,37 @@ if TYPE_CHECKING:
     from app.common.data.models import Form, Grant, Question, Section, Submission
 
 
-TextSingleLine = RootModel[str]
-TextMultiLine = RootModel[str]
-Integer = RootModel[int]
+class SubmissionAnswerProtocol(Protocol):
+    def get_answer_for_display(self) -> str: ...
+    def get_value_for_form(self) -> str: ...
+
+
+class OurRootModel[T](RootModel[T]):
+    def get_answer_for_display(self):
+        return self.root
+
+    def get_value_for_form(self):
+        return self.root
+
+
+# "abc"
+TextSingleLine = OurRootModel[str]
+# "abc/ndef"
+TextMultiLine = OurRootModel[str]
+# 123
+Integer = OurRootModel[int]
+
+
+# {"id": "abcdef-1234-1234", "label": "Local Authority"}
+class RadioChoice(BaseModel):
+    key: uuid.UUID
+    label: str
+
+    def get_answer_for_display(self):
+        return self.label
+
+    def get_value_for_form(self):
+        return self.key
 
 
 class SubmissionHelper:
@@ -73,7 +102,7 @@ class SubmissionHelper:
     @property
     def expression_context(self) -> ExpressionContext:
         submission_data = {
-            question.safe_qid: answer.model_dump()
+            question.safe_qid: answer.get_value_for_form()
             for section in self.submission.collection.sections
             for form in section.forms
             for question in form.questions
@@ -232,7 +261,7 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
-    def get_answer_for_question(self, question_id: UUID) -> TextSingleLine | TextMultiLine | Integer | None:
+    def get_answer_for_question(self, question_id: UUID) -> SubmissionAnswerProtocol | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
@@ -307,10 +336,8 @@ class SubmissionHelper:
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
 
 
-def _form_data_to_question_type(
-    question: "Question", form: DynamicQuestionForm
-) -> TextSingleLine | TextMultiLine | Integer:
-    _QuestionModel: type[RootModel]  # type: ignore[type-arg]
+def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm) -> SubmissionAnswerProtocol:
+    _QuestionModel: type[RootModel] | type[RadioChoice]  # type: ignore[type-arg]
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
             _QuestionModel = TextSingleLine
@@ -318,6 +345,16 @@ def _form_data_to_question_type(
             _QuestionModel = TextMultiLine
         case QuestionDataType.INTEGER:
             _QuestionModel = Integer
+        case QuestionDataType.RADIOS:
+            _QuestionModel = RadioChoice
+
+            # fixme: bad juju - come back and clean this up nicely
+            choice_id = form.get_answer_to_question(question)
+            question_field = form.get_question_field(question)
+            question_choices = question_field.choices
+            choice_label = next(choice[1] for choice in question_choices if choice[0] == choice_id)
+
+            return RadioChoice(key=form.get_answer_to_question(question), label=choice_label)
         case _:
             raise ValueError(f"Could not parse data for question type={question.data_type}")
 
@@ -325,8 +362,8 @@ def _form_data_to_question_type(
 
 
 def _deserialise_question_type(
-    question: "Question", serialised_data: str | int | float | bool
-) -> TextSingleLine | TextMultiLine | Integer:
+    question: "Question", serialised_data: str | int | float | bool | Any
+) -> SubmissionAnswerProtocol:
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
             return TypeAdapter(TextSingleLine).validate_python(serialised_data)
@@ -334,5 +371,7 @@ def _deserialise_question_type(
             return TypeAdapter(TextMultiLine).validate_python(serialised_data)
         case QuestionDataType.INTEGER:
             return TypeAdapter(Integer).validate_python(serialised_data)
+        case QuestionDataType.RADIOS:
+            return TypeAdapter(RadioChoice).validate_python(serialised_data)
         case _:
             raise ValueError(f"Could not deserialise data for question type={question.data_type}")

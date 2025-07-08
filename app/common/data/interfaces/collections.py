@@ -1,3 +1,4 @@
+import uuid
 from typing import TYPE_CHECKING, Any, Never, Protocol
 from uuid import UUID
 
@@ -9,6 +10,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
+    DataSource,
     Expression,
     Form,
     Grant,
@@ -78,7 +80,7 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
 
 
 def update_submission_data(submission: Submission, question: Question, data: BaseModel) -> Submission:
-    submission.data[str(question.id)] = data.model_dump()
+    submission.data[str(question.id)] = data.model_dump(mode="json")
     db.session.flush()
     return submission
 
@@ -227,7 +229,31 @@ def update_form(form: Form, *, title: str) -> Form:
     return form
 
 
-def create_question(form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType) -> Question:
+def _create_data_source(question: Question, choices: list[str]):
+    # note: should data sources be 1 row for all of the data, or should each 'choice' be a row in a table?
+    data_source_choices = []
+    for choice in choices:
+        data_source_choices.append({"id": str(uuid.uuid4()), "label": choice})
+
+    data_source = DataSource(question_id=question.id, data=data_source_choices)
+    db.session.add(data_source)
+
+
+def _update_data_source(question: Question, choices: list[str]):
+    # todo: how to handle changing choices?
+    data_source_choices = []
+    for choice in choices:
+        # fixme: dont generate new IDs for any labels that are the same
+        # note: how to detect new entries vs typo fixes to existing labels?
+        # fixme: need to disallow removing choices that have been used in anywhere in the system
+        data_source_choices.append({"id": str(uuid.uuid4()), "label": choice})
+
+    question.data_source.data = data_source_choices
+
+
+def create_question(
+    form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType, choices: list[str] | None
+) -> Question:
     question = Question(text=text, form_id=form.id, slug=slugify(text), hint=hint, name=name, data_type=data_type)
     form.questions.append(question)  # type: ignore[no-untyped-call]
     db.session.add(question)
@@ -237,6 +263,11 @@ def create_question(form: Form, *, text: str, hint: str, name: str, data_type: Q
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
+
+    if choices is not None:
+        _create_data_source(question, choices)
+        db.session.flush()
+
     return question
 
 
@@ -309,7 +340,9 @@ def move_question_down(question: Question) -> Question:
     return question
 
 
-def update_question(question: Question, *, text: str, hint: str | None, name: str) -> Question:
+def update_question(
+    question: Question, *, text: str, hint: str | None, name: str, choices: list[str] | None
+) -> Question:
     question.text = text
     question.hint = hint
     question.name = name
@@ -320,6 +353,11 @@ def update_question(question: Question, *, text: str, hint: str | None, name: st
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
+
+    if choices is not None:
+        _update_data_source(question, choices)
+        db.session.flush()
+
     return question
 
 

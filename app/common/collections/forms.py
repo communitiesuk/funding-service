@@ -108,6 +108,8 @@ def build_question_form(question: Question, expression_context: ExpressionContex
 
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
+    # todo: should we inject existing answers from expression context into the fields here?
+
     field: _accepted_fields
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
@@ -127,6 +129,13 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                 label=question.text,
                 description=question.hint or "",
                 widget=GovTextInput(),
+            )
+        case QuestionDataType.RADIOS:
+            field = RadioField(
+                label=question.text,
+                description=question.hint or "",
+                widget=GovRadioInput(),
+                choices=[(choice["id"], choice["label"]) for choice in question.data_source.data],
             )
         case _:
             raise Exception("Unable to generate dynamic form for question type {_}")

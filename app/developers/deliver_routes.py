@@ -476,17 +476,22 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
 
-    wt_form = QuestionForm()
+    wt_form = QuestionForm(question_type=question_data_type_enum)
     if wt_form.validate_on_submit():
         try:
             assert wt_form.text.data is not None
             assert wt_form.hint.data is not None
             assert wt_form.name.data is not None
+
+            if question_data_type_enum == QuestionDataType.RADIOS:
+                assert wt_form.choices.data
+
             create_question(
                 form=form,
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
+                choices=wt_form.choices.data.split("\n"),
                 data_type=question_data_type_enum,
             )
             return redirect(
@@ -556,7 +561,7 @@ def edit_question(
     grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID
 ) -> ResponseReturnValue:
     question = get_question_by_id(question_id=question_id)
-    wt_form = QuestionForm(obj=question)
+    wt_form = QuestionForm(obj=question, question_type=question.data_type)
 
     confirm_deletion_form = ConfirmDeletionForm()
     if "delete" in request.args:
@@ -593,7 +598,13 @@ def edit_question(
             assert wt_form.text.data is not None
             assert wt_form.hint.data is not None
             assert wt_form.name.data is not None
-            update_question(question=question, text=wt_form.text.data, hint=wt_form.hint.data, name=wt_form.name.data)
+            update_question(
+                question=question,
+                text=wt_form.text.data,
+                hint=wt_form.hint.data,
+                name=wt_form.name.data,
+                choices=wt_form.choices.data.split("\n"),
+            )
             return redirect(
                 url_for(
                     "developers.deliver.manage_form",

@@ -49,7 +49,12 @@ class FormRunner:
         if self.question:
             self.form = self.question.form
             context = self.submission.expression_context
-            self._question_form = build_question_form(self.question, context)(data=context)
+
+            print(context)
+
+            # todo: lift this refactor below out into the real code; split form class creation and instantiation
+            _QuestionForm = build_question_form(self.question, context)
+            self._question_form = _QuestionForm(data=context)
 
         if self.form:
             all_questions_answered, _ = self.submission.get_all_questions_are_answered_for_form(self.form)

@@ -19,6 +19,7 @@ from app.common.data.types import (
     SubmissionStatusEnum,
     json_flat_scalars,
     json_scalars,
+    scalars,
 )
 from app.common.expressions.managed import get_managed_expression
 from app.common.qid import SafeQidMixin
@@ -229,6 +230,7 @@ class Question(BaseModel, SafeQidMixin):
     expressions: Mapped[list["Expression"]] = relationship(
         "Expression", back_populates="question", cascade="all, delete-orphan", order_by="Expression.created_at_utc"
     )
+    data_source: Mapped["DataSource"] = relationship("DataSource", back_populates="question")
 
     @property
     def conditions(self) -> list["Expression"]:
@@ -242,6 +244,13 @@ class Question(BaseModel, SafeQidMixin):
     def question_id(self) -> uuid.UUID:  # type: ignore[override]
         """A small proxy to support SafeQidMixin so that logic can be centralised."""
         return self.id
+
+    @property
+    def choices(self):
+        if self.data_type != QuestionDataType.RADIOS:
+            return None
+
+        return "\n".join(choice["label"] for choice in self.data_source.data)
 
     def get_expression(self, id: uuid.UUID) -> "Expression":
         try:
@@ -332,3 +341,12 @@ class Expression(BaseModel):
             type=ExpressionType.CONDITION,
             managed_name=managed_expression._key,
         )
+
+
+class DataSource(BaseModel):
+    __tablename__ = "data_source"
+
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    data: Mapped[list[dict[str, scalars]]] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
+
+    question: Mapped[Question] = relationship("Question", back_populates="data_source")

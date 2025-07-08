@@ -26,6 +26,8 @@
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
     {% elif question.data_type == enum.question_type.INTEGER %}
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
+    {% elif question.data_type == enum.question_type.RADIOS %}
+      {{ form.render_question(question, params={"fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true} } }) }}
     {% endif %}
 
     {{ form.submit }}
@@ -44,7 +46,7 @@
     {% set answer = submission.get_answer_for_question(question.id) %}
     {% if answer is not none %}
       {% set value_html %}
-        <span data-testid="answer-{{ question.text }}">{{ answer.root }}</span>
+        <span data-testid="answer-{{ question.text }}">{{ answer.get_answer_for_display() }}</span>
       {% endset %}
       {%
         set actions = (
