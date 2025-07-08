@@ -491,7 +491,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
-                choices=wt_form.choices.data.split("\n"),
+                choices=wt_form.choices.data.split("\n") if wt_form.choices.data else None,
                 data_type=question_data_type_enum,
             )
             return redirect(
@@ -603,7 +603,7 @@ def edit_question(
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
-                choices=wt_form.choices.data.split("\n"),
+                choices=wt_form.choices.data.split("\n") if wt_form.choices.data else None,
             )
             return redirect(
                 url_for(
