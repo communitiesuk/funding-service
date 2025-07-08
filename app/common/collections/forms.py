@@ -149,6 +149,7 @@ def build_question_form(question: Question, form_data: ExpressionContext) -> typ
                 label=question.text,
                 description=question.hint or "",
                 widget=GovCheckboxesInput(),
+                validators=[DataRequired("Select at least one option")],
                 choices=[(choice["id"], choice["label"]) for choice in question.data_source.data],
             )
         case _:
