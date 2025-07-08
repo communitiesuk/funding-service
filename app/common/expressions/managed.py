@@ -22,7 +22,7 @@ from app.common.qid import SafeQidMixin
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
     from app.common.expressions.forms import _ManagedExpressionForm
-    from app.common.helpers.collections import RadioChoice
+    from app.common.helpers.collections import SingleChoiceFromList
 
 
 class ManagedExpression(BaseModel, SafeQidMixin):
@@ -360,12 +360,13 @@ class Between(ManagedExpression):
 @register_managed_expression
 class ChoicesFromList(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CHOICE_FROM_LIST
+
     question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES}
 
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    choices: list["RadioChoice"]
+    choices: list["SingleChoiceFromList"]
 
     @property
     def description(self) -> str:
@@ -407,11 +408,11 @@ class ChoicesFromList(ManagedExpression):
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "ChoicesFromList":
         # fixme: bad code structure requires local import
-        from app.common.helpers.collections import RadioChoice
+        from app.common.helpers.collections import SingleChoiceFromList
 
         choice_labels = {choice["id"]: choice["label"] for choice in question.data_source.data}
 
-        choices = [RadioChoice(key=key, label=choice_labels[key]) for key in form.choice_from_list.data]
+        choices = [SingleChoiceFromList(key=key, label=choice_labels[key]) for key in form.choice_from_list.data]
         return ChoicesFromList(
             question_id=question.id,
             choices=choices,  # ty: ignore[unresolved-attribute]
@@ -420,7 +421,7 @@ class ChoicesFromList(ManagedExpression):
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
     # fixme: bad code structure requires local import
-    from app.common.helpers.collections import RadioChoice  # noqa
+    from app.common.helpers.collections import SingleChoiceFromList  # noqa
 
     if not expression.managed_name:
         raise ValueError(f"Expression {expression.id} is not a managed expression.")

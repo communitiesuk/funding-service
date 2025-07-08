@@ -56,7 +56,7 @@ Integer = OurRootModel[int]
 
 
 # {"id": "abcdef-1234-1234", "label": "Local Authority"}
-class RadioChoice(BaseModel):
+class SingleChoiceFromList(BaseModel):
     key: uuid.UUID
     label: str
 
@@ -71,8 +71,8 @@ class RadioChoice(BaseModel):
         return str(self.key)
 
 
-class MultiChoice(BaseModel):
-    choices: list[RadioChoice]
+class AnyChoicesFromList(BaseModel):
+    choices: list[SingleChoiceFromList]
 
     @property
     def render_answer_template(self) -> str:
@@ -376,7 +376,7 @@ class SubmissionHelper:
 
 
 def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm) -> SubmissionAnswerProtocol:
-    _QuestionModel: type[RootModel] | type[RadioChoice]  # type: ignore[type-arg]
+    _QuestionModel: type[RootModel] | type[SingleChoiceFromList]  # type: ignore[type-arg]
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
             _QuestionModel = TextSingleLine
@@ -385,7 +385,7 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
         case QuestionDataType.INTEGER:
             _QuestionModel = Integer
         case QuestionDataType.RADIOS:
-            _QuestionModel = RadioChoice
+            _QuestionModel = SingleChoiceFromList
 
             # fixme: bad juju - come back and clean this up nicely
             choice_id = form.get_answer_to_question(question)
@@ -393,9 +393,9 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
             question_choices = question_field.choices
             choice_label = next(choice[1] for choice in question_choices if choice[0] == choice_id)
 
-            return RadioChoice(key=form.get_answer_to_question(question), label=choice_label)
+            return SingleChoiceFromList(key=form.get_answer_to_question(question), label=choice_label)
         case QuestionDataType.CHECKBOXES:
-            _QuestionModel = MultiChoice
+            _QuestionModel = AnyChoicesFromList
 
             # fixme: bad juju - come back and clean this up nicely
             choice_ids = form.get_answer_to_question(question)
@@ -404,9 +404,9 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
             choices = []
             for _choice in question_choices:
                 if _choice[0] in choice_ids:
-                    choices.append(RadioChoice(key=_choice[0], label=_choice[1]))
+                    choices.append(SingleChoiceFromList(key=_choice[0], label=_choice[1]))
 
-            return MultiChoice(choices=choices)
+            return AnyChoicesFromList(choices=choices)
         case _:
             raise ValueError(f"Could not parse data for question type={question.data_type}")
 
@@ -424,8 +424,8 @@ def _deserialise_question_type(
         case QuestionDataType.INTEGER:
             return TypeAdapter(Integer).validate_python(serialised_data)
         case QuestionDataType.RADIOS:
-            return TypeAdapter(RadioChoice).validate_python(serialised_data)
+            return TypeAdapter(SingleChoiceFromList).validate_python(serialised_data)
         case QuestionDataType.CHECKBOXES:
-            return TypeAdapter(MultiChoice).validate_python(serialised_data)
+            return TypeAdapter(AnyChoicesFromList).validate_python(serialised_data)
         case _:
             raise ValueError(f"Could not deserialise data for question type={question.data_type}")
