@@ -15,11 +15,7 @@ class AuthorisationHelper:
     def has_logged_in(user: User | AnonymousUserMixin) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False
-        # FIXME: We should have some actual tracking of whether the user has logged in. This could either be a
-        #        field on the model called `last_logged_in_at` or similar, or we could only create entries in the user
-        #        table when the user actually logs in, rather than at invitation-time. Then we could simply trust that
-        #        if a user entry exists, they have definitely logged in.
-        return bool(user.name)
+        return bool(user.last_logged_in_at_utc)
 
     @staticmethod
     def is_platform_admin(user: User | AnonymousUserMixin) -> bool:

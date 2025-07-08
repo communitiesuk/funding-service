@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
-from app.common.data.models_user import User
+from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
@@ -44,6 +44,11 @@ class Grant(BaseModel):
         secondary="user_role",
         primaryjoin="Grant.id==UserRole.grant_id",
         secondaryjoin="User.id==UserRole.user_id",
+        viewonly=True,
+    )
+    invitations: Mapped[list["Invitation"]] = relationship(
+        "Invitation",
+        back_populates="grant",
         viewonly=True,
     )
 

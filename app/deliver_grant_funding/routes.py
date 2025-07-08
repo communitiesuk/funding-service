@@ -232,16 +232,20 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
     form = GrantAddUserForm(grant=grant)
     if form.validate_on_submit():
         if form.user_email.data:
-            user = next((user for user in grant.users if user.email.lower() == form.user_email.data.lower()), None)
-            if user is None:
-                created_user = interfaces.user.upsert_user_by_email(email_address=form.user_email.data)
-                interfaces.user.set_grant_team_role_for_user(user=created_user, grant_id=grant_id, role=RoleEnum.MEMBER)
-                notification_service.send_member_confirmation(
-                    grant_name=grant.name,
-                    email_address=form.user_email.data,
-                )
-                flash("We’ve emailed the grant team member a link to sign in")
+            # are they already in this grant - if so, redirect to the list of users
+            grant_user = next(
+                (user for user in grant.users if user.email.lower() == form.user_email.data.lower()), None
+            )
+            if grant_user:
+                return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
+            interfaces.user.add_grant_member_role_or_create_invitation(email_address=form.user_email.data, grant=grant)
+            notification_service.send_member_confirmation(
+                grant=grant,
+                email_address=form.user_email.data,
+            )
+            flash("We’ve emailed the grant team member a link to sign in")
             return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
+
     return render_template("deliver_grant_funding/grant_team/grant_user_add.html", form=form, grant=grant)
 
 

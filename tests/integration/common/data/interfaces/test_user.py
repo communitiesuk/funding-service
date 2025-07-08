@@ -349,9 +349,7 @@ class TestSetUserRoleInterfaces:
         grant = factories.grant.create()
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
 
-        grant_team_role = interfaces.user.set_grant_team_role_for_user(
-            user=user, grant_id=grant.id, role=RoleEnum.MEMBER
-        )
+        grant_team_role = interfaces.user.set_grant_team_role_for_user(user=user, grant=grant, role=RoleEnum.MEMBER)
         assert grant_team_role.grant_id == grant.id and grant_team_role.user_id == user.id
         assert len(user.roles) == 1
 
@@ -363,9 +361,7 @@ class TestSetUserRoleInterfaces:
         factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
-        grant_team_role = interfaces.user.set_grant_team_role_for_user(
-            user=user, grant_id=grant.id, role=RoleEnum.MEMBER
-        )
+        grant_team_role = interfaces.user.set_grant_team_role_for_user(user=user, grant=grant, role=RoleEnum.MEMBER)
         assert grant_team_role.user_id == user.id and grant_team_role.grant_id == grant.id
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
@@ -446,6 +442,45 @@ class TestInvitations:
         assert invite_from_db.organisation_id is None
         assert invite_from_db.is_usable is True
 
+    @pytest.mark.freeze_time("2023-10-01 12:00:00")
+    def test_create_invitation_expires_existing_invitations(self, db_session, factories) -> None:
+        grant = factories.grant.create()
+        factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+        invite_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert len(invite_from_db) == 1
+        new_invitation = interfaces.user.create_invitation(
+            email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER
+        )
+        usable_invite_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert len(usable_invite_from_db) == 1
+        assert new_invitation.id == usable_invite_from_db[0].id
+
+    def test_create_invitation_expires_existing_invitations_when_org_grant_null(self, db_session, factories) -> None:
+        grant = factories.grant.create()
+        organisation = factories.organisation.create()
+        grant_only_invitation = factories.invitation.create(
+            email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER
+        )
+        organisation_only_invitation = factories.invitation.create(
+            email="test@communities.gov.uk", organisation=organisation, role=RoleEnum.MEMBER
+        )
+
+        invite_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert len(invite_from_db) == 2
+
+        new_grant_invitation = interfaces.user.create_invitation(
+            email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER
+        )
+
+        new_organisation_invitation = interfaces.user.create_invitation(
+            email="test@communities.gov.uk", organisation=organisation, role=RoleEnum.MEMBER
+        )
+
+        usable_invites_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert len(usable_invites_from_db) == 2
+        assert new_grant_invitation and new_organisation_invitation in usable_invites_from_db
+        assert grant_only_invitation and organisation_only_invitation not in usable_invites_from_db
+
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
     def test_get_invitation(self, db_session, factories):
         invitation = factories.invitation.create(role=RoleEnum.MEMBER, email="test@email.com")
@@ -467,3 +502,72 @@ class TestInvitations:
         assert claimed_invitation.claimed_at_utc == datetime.strptime("2025-10-01 12:00:00", freeze_time_format)
         assert claimed_invitation.is_usable is False
         assert claimed_invitation.user == user
+
+    @pytest.mark.freeze_time("2025-10-01 12:00:00")
+    def test_get_usable_invitations_by_email(self, db_session, factories) -> None:
+        grants = factories.grant.create_batch(5)
+
+        # Create an expired invitation to check it isn't returned
+        expired_invitation = factories.invitation.create(
+            email="test@communities.gov.uk",
+            grant=grants[-1],
+            role=RoleEnum.MEMBER,
+            expires_at_utc=datetime(2025, 9, 1, 12, 0, 0),
+        )
+
+        # Create an already claimed invitation to check it isn't returned
+        claimed_invitation = factories.invitation.create(
+            email="test@communities.gov.uk",
+            grant=grants[-2],
+            role=RoleEnum.MEMBER,
+            expires_at_utc=datetime(2025, 10, 4, 12, 0, 0),
+            claimed_at_utc=datetime(2025, 9, 30, 12, 0, 0),
+        )
+
+        for grant in grants[:3]:
+            factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+
+        usable_invitations = interfaces.user.get_usable_invitations_by_email(email="test@communities.gov.uk")
+        assert len(usable_invitations) == 3
+        assert expired_invitation and claimed_invitation not in usable_invitations
+
+    def test_create_user_and_claim_invitations(self, db_session, factories) -> None:
+        grants = factories.grant.create_batch(3)
+        invitations = []
+        for grant in grants:
+            invitation = factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+            invitations.append(invitation)
+
+        # Create an invitation for a different user to make sure it doesn't get claimed
+        factories.invitation.create(email="different_email@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+
+        interfaces.user.create_user_and_claim_invitations(
+            azure_ad_subject_id="oih12373",
+            email_address="test@communities.gov.uk",
+            name="Test User",
+        )
+
+        usable_invites_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert (
+            len(usable_invites_from_db) == 1 and usable_invites_from_db[0].email == "different_email@communities.gov.uk"
+        )
+
+        user_from_db = db_session.scalar(select(User).where(User.azure_ad_subject_id == "oih12373"))
+        assert len(user_from_db.roles) == 3
+
+    def test_grant_member_add_role_or_create_invitation_adds_role(self, db_session, factories) -> None:
+        grant = factories.grant.create()
+        user = factories.user.create(email="test@communities.gov.uk")
+        interfaces.user.add_grant_member_role_or_create_invitation(email_address="test@communities.gov.uk", grant=grant)
+
+        assert db_session.scalar(select(func.count()).select_from(Invitation)) == 0
+        assert len(user.roles) == 1 and user.roles[0].grant_id == grant.id and user.roles[0].role == RoleEnum.MEMBER
+
+    def test_grant_member_add_role_or_create_invitation_creates_invitation(self, db_session, factories) -> None:
+        grant = factories.grant.create()
+        interfaces.user.add_grant_member_role_or_create_invitation(email_address="test@communities.gov.uk", grant=grant)
+        assert db_session.scalar(select(func.count()).select_from(Invitation)) == 1
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
+        assert db_session.scalar(select(func.count()).select_from(User)) == 0
+        invite_from_db = db_session.scalar(select(Invitation).where(Invitation.is_usable.is_(True)))
+        assert invite_from_db.grant_id == grant.id and invite_from_db.role == RoleEnum.MEMBER
