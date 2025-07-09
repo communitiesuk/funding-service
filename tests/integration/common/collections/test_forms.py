@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+from werkzeug.datastructures import MultiDict
 
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
@@ -30,7 +31,7 @@ def test_validation_attached_to_field_and_runs(factories, value, error_message):
     )
 
     _FormClass = build_question_form(question, expression_context=ExpressionContext())
-    form = _FormClass(data={"q_e4bd98ab41ef4d23b1e59c0404891e7a": value})
+    form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7a": str(value)}))
 
     valid = form.validate()
     if error_message:
