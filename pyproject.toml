@@ -62,7 +62,7 @@ dev = [
     "freezegun==1.5.2",
     "import-linter==2.3",
     "alembic-postgresql-enum==1.7.0",
-    "ty==0.0.1a13",
+    "ty==0.0.1a14",
 ]
 
 [tool.uv]
