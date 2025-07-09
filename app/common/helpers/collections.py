@@ -78,9 +78,6 @@ class AnyChoicesFromList(BaseModel):
     def render_answer_template(self) -> str:
         return "common/partials/answers/multi_choice.html"
 
-    def get_answer_for_display(self):
-        return [choice.label for choice in self.choices]
-
     def get_value_for_form(self):
         return [choice.key for choice in self.choices]
 
