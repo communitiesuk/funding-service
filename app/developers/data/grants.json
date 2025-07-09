@@ -74,7 +74,8 @@
           },
           "id": "4d0c5dbb-2e7d-4f8e-8ad8-88c9db6b6c4d",
           "question_id": "ea7902d5-2fd4-4487-8fdb-473914eb9256",
-          "updated_at_utc": "Wed, 09 Jul 2025 10:13:36 GMT"
+          "updated_at_utc": "Wed, 09 Jul 2025 10:13:36 GMT",
+          "used_choice_ids": []
         },
         {
           "created_at_utc": "Tue, 08 Jul 2025 16:25:52 GMT",
@@ -108,7 +109,8 @@
           },
           "id": "ae8110b1-9971-4b63-9c2e-57894f5a38be",
           "question_id": "cff81599-4d4a-4c61-9d44-fd6d47cc6123",
-          "updated_at_utc": "Wed, 09 Jul 2025 10:13:41 GMT"
+          "updated_at_utc": "Wed, 09 Jul 2025 10:13:41 GMT",
+          "used_choice_ids": []
         },
         {
           "created_at_utc": "Tue, 08 Jul 2025 16:26:33 GMT",
@@ -126,7 +128,8 @@
           },
           "id": "a5dd1d9d-7c80-40ab-ae86-0022e38277c5",
           "question_id": "45561ca2-6020-4103-9ab5-42922b1a36f6",
-          "updated_at_utc": "Wed, 09 Jul 2025 10:13:46 GMT"
+          "updated_at_utc": "Wed, 09 Jul 2025 10:13:46 GMT",
+          "used_choice_ids": []
         },
         {
           "created_at_utc": "Tue, 08 Jul 2025 16:27:42 GMT",
@@ -156,7 +159,8 @@
           },
           "id": "570e15eb-3ded-41a0-8207-779462eab16f",
           "question_id": "e12f8f0f-c7de-416d-8705-a903fe4254fc",
-          "updated_at_utc": "Wed, 09 Jul 2025 10:13:50 GMT"
+          "updated_at_utc": "Wed, 09 Jul 2025 10:13:50 GMT",
+          "used_choice_ids": []
         },
         {
           "created_at_utc": "Tue, 08 Jul 2025 16:28:21 GMT",
@@ -186,7 +190,8 @@
           },
           "id": "c550d95c-0d2d-4c66-934b-4b683bb9ed02",
           "question_id": "910f702b-3ab4-429f-afe1-d27c576ccbed",
-          "updated_at_utc": "Wed, 09 Jul 2025 10:13:52 GMT"
+          "updated_at_utc": "Wed, 09 Jul 2025 10:13:52 GMT",
+          "used_choice_ids": []
         },
         {
           "created_at_utc": "Tue, 08 Jul 2025 16:29:04 GMT",
@@ -216,7 +221,8 @@
           },
           "id": "7c6499cd-d9c3-4bc0-8ad3-12770dc4652b",
           "question_id": "dc8ed489-e2e7-474e-9296-745c9e68efbe",
-          "updated_at_utc": "Wed, 09 Jul 2025 10:13:55 GMT"
+          "updated_at_utc": "Wed, 09 Jul 2025 10:13:55 GMT",
+          "used_choice_ids": []
         },
         {
           "created_at_utc": "Tue, 08 Jul 2025 16:29:18 GMT",
@@ -246,7 +252,8 @@
           },
           "id": "d4c43cdc-5441-4e8d-b3f6-fd7989fb2488",
           "question_id": "788599fb-97ea-446e-9b6d-0c8bde1d399b",
-          "updated_at_utc": "Wed, 09 Jul 2025 10:13:58 GMT"
+          "updated_at_utc": "Wed, 09 Jul 2025 10:13:58 GMT",
+          "used_choice_ids": []
         }
       ],
       "expressions": [
@@ -1158,15 +1165,6 @@
   ],
   "users": [
     {
-      "azure_ad_subject_id": "40e16bf9d02fa7f67c6bb767b197e544",
-      "created_at_utc": "Thu, 03 Jul 2025 15:18:06 GMT",
-      "email": "sclark@test.communities.gov.uk",
-      "id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
-      "last_logged_in_at_utc": "Wed, 09 Jul 2025 10:13:30 GMT",
-      "name": "Willie Brown",
-      "updated_at_utc": "Wed, 09 Jul 2025 10:13:30 GMT"
-    },
-    {
       "azure_ad_subject_id": "mDLVWMQVmvxRxPNKpKUFODrcU",
       "created_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT",
       "email": "johnsonlori@test.communities.gov.uk",
@@ -1174,6 +1172,15 @@
       "last_logged_in_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT",
       "name": "Margaret Ballard",
       "updated_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT"
+    },
+    {
+      "azure_ad_subject_id": "40e16bf9d02fa7f67c6bb767b197e544",
+      "created_at_utc": "Thu, 03 Jul 2025 15:18:06 GMT",
+      "email": "sclark@test.communities.gov.uk",
+      "id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
+      "last_logged_in_at_utc": "Wed, 09 Jul 2025 10:13:30 GMT",
+      "name": "Willie Brown",
+      "updated_at_utc": "Wed, 09 Jul 2025 10:13:30 GMT"
     },
     {
       "azure_ad_subject_id": "GLLNgipKjLFCQjLaXVVeUjNyH",

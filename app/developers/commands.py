@@ -47,7 +47,7 @@ ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list
 
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
 @click.argument("grant_ids", nargs=-1, type=click.UUID)
-def export_grants(grant_ids: list[uuid.UUID]) -> None:
+def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
     if not export_path.exists():
         raise RuntimeError(
             f"Could not find the exported data at {export_path}. "

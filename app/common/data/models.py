@@ -2,8 +2,9 @@ import uuid
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, String, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_json import mutable_json_type
@@ -349,5 +350,6 @@ class DataSource(BaseModel):
 
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
     data: Mapped[DataSourceDataTypeModel]
+    used_choice_ids: Mapped[list[str]] = mapped_column(MutableList.as_mutable(ARRAY(String)), default=list)
 
     question: Mapped[Question] = relationship("Question", back_populates="data_source")

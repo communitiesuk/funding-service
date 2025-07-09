@@ -81,6 +81,21 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
 
 def update_submission_data(submission: Submission, question: Question, data: BaseModel) -> Submission:
     submission.data[str(question.id)] = data.model_dump(mode="json")
+
+    if question.data_source:
+        from app.common.helpers.collections import AnyChoicesFromList, SingleChoiceFromList
+
+        if isinstance(data, SingleChoiceFromList):
+            used_choice_ids = [data.key]
+        elif isinstance(data, AnyChoicesFromList):
+            used_choice_ids = [choice.key for choice in data.choices]
+        else:
+            raise RuntimeError("Unsupported data type")
+
+        for used_choice_id in used_choice_ids:
+            if used_choice_id not in question.data_source.used_choice_ids:
+                question.data_source.used_choice_ids.append(used_choice_id)
+
     db.session.flush()
     return submission
 
@@ -245,6 +260,15 @@ def _update_data_source(question: Question, choices: list[str]):
     for choice in choices:
         # fixme: need to disallow removing choices that have been used in anywhere in the system
         data_source_choices.append(DataSourceChoice(id=slugify(choice), label=choice))
+
+    # you cannot remove choices that have been used anywhere in the system:
+    # - in expressions
+    # - selected as answers in submissions
+    new_choice_ids = set(choice.id for choice in data_source_choices)
+    removed_choices = [choice for choice in question.data_source.data.choices if choice.id not in new_choice_ids]
+    for removed_choice in removed_choices:
+        if removed_choice.id in question.data_source.used_choice_ids:
+            raise RuntimeError(f"Cannot remove choice “{removed_choice.label}’; it has been used.")
 
     question.data_source.data = DataSourceDataTypeModel(choices=data_source_choices)
 

@@ -598,22 +598,27 @@ def edit_question(
             assert wt_form.text.data is not None
             assert wt_form.hint.data is not None
             assert wt_form.name.data is not None
-            update_question(
-                question=question,
-                text=wt_form.text.data,
-                hint=wt_form.hint.data,
-                name=wt_form.name.data,
-                choices=wt_form.choices.data.split("\n") if wt_form.choices.data else None,
-            )
-            return redirect(
-                url_for(
-                    "developers.deliver.manage_form",
-                    grant_id=grant_id,
-                    collection_id=collection_id,
-                    section_id=section_id,
-                    form_id=form_id,
+            try:
+                update_question(
+                    question=question,
+                    text=wt_form.text.data,
+                    hint=wt_form.hint.data,
+                    name=wt_form.name.data,
+                    choices=wt_form.choices.data.split("\n") if wt_form.choices.data else None,
                 )
-            )
+            except RuntimeError as e:
+                if "it has been used" in str(e):
+                    wt_form.choices.errors.append(str(e))
+            else:
+                return redirect(
+                    url_for(
+                        "developers.deliver.manage_form",
+                        grant_id=grant_id,
+                        collection_id=collection_id,
+                        section_id=section_id,
+                        form_id=form_id,
+                    )
+                )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
