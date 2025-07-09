@@ -7,9 +7,10 @@ from typing import Any, TypedDict
 import click
 from faker import Faker
 from flask import current_app
+from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.exc import NoResultFound
 
-from app.common.data.base import BaseModel
+from app.common.data.base import BaseModel, DataSourceDataTypeModel
 from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.temporary import delete_grant
 from app.common.data.models import Collection, DataSource, Expression, Form, Grant, Question, Section
@@ -21,7 +22,12 @@ export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
 
 def to_dict(instance: BaseModel) -> dict[str, Any]:
-    return {col.name: getattr(instance, col.name) for col in instance.__table__.columns}
+    return {
+        col.name: getattr(instance, col.name).model_dump(mode="json")
+        if isinstance(getattr(instance, col.name), PydanticBaseModel)
+        else getattr(instance, col.name)
+        for col in instance.__table__.columns
+    }
 
 
 GrantExport = TypedDict(
@@ -165,6 +171,7 @@ def seed_grants() -> None:
             db.session.add(expression)
 
         for data_source in grant_data["data_sources"]:
+            data_source["data"] = DataSourceDataTypeModel(choices=data_source.get("data", {"choices": []})["choices"])
             data_source = DataSource(**data_source)
             db.session.add(data_source)
 

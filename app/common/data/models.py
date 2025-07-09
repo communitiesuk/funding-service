@@ -8,7 +8,7 @@ from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_json import mutable_json_type
 
-from app.common.data.base import BaseModel, CIStr
+from app.common.data.base import BaseModel, CIStr, DataSourceDataTypeModel
 from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
     ExpressionType,
@@ -19,7 +19,6 @@ from app.common.data.types import (
     SubmissionStatusEnum,
     json_flat_scalars,
     json_scalars,
-    scalars,
 )
 from app.common.expressions.managed import get_managed_expression
 from app.common.qid import SafeQidMixin
@@ -252,7 +251,7 @@ class Question(BaseModel, SafeQidMixin):
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
-        return "\n".join(choice["label"] for choice in self.data_source.data)
+        return "\n".join(choice.label for choice in self.data_source.data.choices)
 
     def get_expression(self, id: uuid.UUID) -> "Expression":
         try:
@@ -349,6 +348,6 @@ class DataSource(BaseModel):
     __tablename__ = "data_source"
 
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
-    data: Mapped[list[dict[str, scalars]]] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
+    data: Mapped[DataSourceDataTypeModel]
 
     question: Mapped[Question] = relationship("Question", back_populates="data_source")

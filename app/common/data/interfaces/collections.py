@@ -6,6 +6,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.common.data.base import DataSourceChoice, DataSourceDataTypeModel
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
@@ -232,9 +233,9 @@ def _create_data_source(question: Question, choices: list[str]):
     # note: should data sources be 1 row for all of the data, or should each 'choice' be a row in a table?
     data_source_choices = []
     for choice in choices:
-        data_source_choices.append({"id": slugify(choice), "label": choice})
+        data_source_choices.append(DataSourceChoice(id=slugify(choice), label=choice))
 
-    data_source = DataSource(question_id=question.id, data=data_source_choices)
+    data_source = DataSource(question_id=question.id, data=DataSourceDataTypeModel(choices=data_source_choices))
     db.session.add(data_source)
 
 
@@ -243,9 +244,9 @@ def _update_data_source(question: Question, choices: list[str]):
     data_source_choices = []
     for choice in choices:
         # fixme: need to disallow removing choices that have been used in anywhere in the system
-        data_source_choices.append({"id": slugify(choice), "label": choice})
+        data_source_choices.append(DataSourceChoice(id=slugify(choice), label=choice))
 
-    question.data_source.data = data_source_choices
+    question.data_source.data = DataSourceDataTypeModel(choices=data_source_choices)
 
 
 def create_question(

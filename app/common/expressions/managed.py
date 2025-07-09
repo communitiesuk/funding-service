@@ -394,7 +394,7 @@ class ChoicesFromList(ManagedExpression):
                 "Choose from a list of options",
                 default=[choice["key"] for choice in expression.context["choices"]] if expression else None,
                 widget=GovCheckboxesInput(),
-                choices=[(choice["id"], choice["label"]) for choice in referenced_question.data_source.data],
+                choices=[(choice.id, choice.label) for choice in referenced_question.data_source.data],
                 validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
@@ -411,7 +411,7 @@ class ChoicesFromList(ManagedExpression):
         # fixme: bad code structure requires local import
         from app.common.helpers.collections import SingleChoiceFromList
 
-        choice_labels = {choice["id"]: choice["label"] for choice in question.data_source.data}
+        choice_labels = {choice.id: choice.label for choice in question.data_source.data.choices}
 
         choices = [SingleChoiceFromList(key=key, label=choice_labels[key]) for key in form.choice_from_list.data]
         return ChoicesFromList(
@@ -456,7 +456,7 @@ class SingleChoiceFromListExpression(ManagedExpression):
                 # fixme: it'd be nice if this was a SingleChoiceFromList instance as well, not a raw dict.
                 default=expression.context["choice"]["key"] if expression else None,
                 widget=GovRadioInput(),
-                choices=[(choice["id"], choice["label"]) for choice in referenced_question.data_source.data],
+                choices=[(choice.id, choice.label) for choice in referenced_question.data_source.data.choices],
                 validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
@@ -473,7 +473,7 @@ class SingleChoiceFromListExpression(ManagedExpression):
         # fixme: bad code structure requires local import
         from app.common.helpers.collections import SingleChoiceFromList
 
-        choice_labels = {choice["id"]: choice["label"] for choice in question.data_source.data}
+        choice_labels = {choice.id: choice.label for choice in question.data_source.data.choices}
 
         choice = SingleChoiceFromList(
             key=form.single_choice_from_list.data, label=choice_labels[form.single_choice_from_list.data]
@@ -523,7 +523,7 @@ class AllChoicesFromListExpression(ManagedExpression):
                 "Choose from a list of options",
                 default=[choice["key"] for choice in expression.context["choices"]] if expression else None,
                 widget=GovCheckboxesInput(),
-                choices=[(choice["id"], choice["label"]) for choice in referenced_question.data_source.data],
+                choices=[(choice.id, choice.label) for choice in referenced_question.data_source.data.choices],
                 validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
@@ -540,7 +540,7 @@ class AllChoicesFromListExpression(ManagedExpression):
         # fixme: bad code structure requires local import
         from app.common.helpers.collections import SingleChoiceFromList
 
-        choice_labels = {choice["id"]: choice["label"] for choice in question.data_source.data}
+        choice_labels = {choice.id: choice.label for choice in question.data_source.data.choices}
 
         choices = [SingleChoiceFromList(key=key, label=choice_labels[key]) for key in form.all_choices_from_list.data]
         return AllChoicesFromListExpression(
