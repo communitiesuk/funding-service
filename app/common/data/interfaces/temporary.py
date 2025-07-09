@@ -56,6 +56,11 @@ def delete_collection(collection_id: UUID) -> None:
 
 
 def delete_section(section: Section) -> None:
+    # remove the instance from its collection specifically, which triggers reordering of all other sections
+    # correctly.
+    # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
+    # definitely has a few quirks.
+    section.collection.sections.remove(section)  # type: ignore[no-untyped-call]
     db.session.delete(section)
     section.collection.sections.reorder()
     db.session.execute(
@@ -65,6 +70,11 @@ def delete_section(section: Section) -> None:
 
 
 def delete_form(form: Form) -> None:
+    # remove the instance from its collection specifically, which triggers reordering of all other sections
+    # correctly.
+    # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
+    # definitely has a few quirks.
+    form.section.forms.remove(form)  # type: ignore[no-untyped-call]
     db.session.delete(form)
     form.section.forms.reorder()
     db.session.execute(
@@ -75,7 +85,11 @@ def delete_form(form: Form) -> None:
 
 def delete_question(question: Question) -> None:
     raise_if_question_has_any_dependencies(question)
-
+    # remove the instance from its collection specifically, which triggers reordering of all other sections
+    # correctly.
+    # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
+    # definitely has a few quirks.
+    question.form.questions.remove(question)  # type: ignore[no-untyped-call]
     db.session.delete(question)
     question.form.questions.reorder()
     db.session.execute(
