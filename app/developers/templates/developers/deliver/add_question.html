@@ -22,10 +22,17 @@
         <dd class="govuk-summary-list__value">{{ chosen_question_data_type.value }}</dd>
       </dl>
 
+      <form id="generate-question-form" class="govuk-!-display-none">
+        {{ form.csrf_token }}
+        <input id="collection" name="collection" type="text" value="{{ collection.name }}"/>
+        <input id="section" name="section" type="text" value="{{ section.title }}"/>
+        <input id="form" name="form" type="text" value="{{ db_form.title }}"/>
+      </form>
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.text }}
-        {{ form.name }}
+        {{ form.name(params={"attributes": {"data-fs-module": "generate-question-name", "data-fs-module-target-input-id": form.text.id, "data-fs-module-form-id": "generate-question-form", "data-fs-module-target-output-id": form.name.id } }) }}
         {{ form.hint }}
 
         {% if chosen_question_data_type == enum.question_type.RADIOS %}

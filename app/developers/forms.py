@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovSelect, GovSubmitInput
+from govuk_frontend_wtf.wtforms_widgets import GovSelect, GovSubmitInput, GovTextInput
 from wtforms import Field, SelectField, SubmitField, ValidationError
+from wtforms.fields.simple import StringField
 from wtforms.validators import DataRequired
 
 from app.common.data.interfaces.collections import get_question_by_id, is_question_dependency_order_valid
@@ -40,3 +41,22 @@ class ConditionSelectQuestionForm(FlaskForm):
         depends_on_question = get_question_by_id(self.question.data)
         if not is_question_dependency_order_valid(self.target_question, depends_on_question):
             raise ValidationError("Select an answer that comes before this question in the form")
+
+
+class GenerateQuestionNameForm(FlaskForm):
+    collection = StringField(
+        widget=GovTextInput(),
+        validators=[DataRequired()],
+    )
+    section = StringField(
+        widget=GovTextInput(),
+        validators=[DataRequired()],
+    )
+    form = StringField(
+        widget=GovTextInput(),
+        validators=[DataRequired()],
+    )
+    question = StringField(
+        widget=GovTextInput(),
+        validators=[DataRequired()],
+    )

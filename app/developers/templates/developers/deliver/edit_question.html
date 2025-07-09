@@ -50,12 +50,19 @@
       </div>
       <div class="govuk-grid-row">
         <div class="govuk-grid-column-full">
+          <form id="generate-question-form" class="govuk-!-display-none">
+            {{ form.csrf_token }}
+            <input id="collection" name="collection" type="text" value="{{ collection.name }}"/>
+            <input id="section" name="section" type="text" value="{{ section.title }}"/>
+            <input id="form" name="form" type="text" value="{{ db_form.title }}"/>
+          </form>
+
           <form method="post" novalidate>
             {{ form.csrf_token }}
             {{ form.form_id }}
             {{ form.question_data_type }}
             {{ form.text }}
-            {{ form.name }}
+            {{ form.name(params={"attributes": {"data-fs-module": "generate-question-name", "data-fs-module-target-input-id": form.text.id, "data-fs-module-form-id": "generate-question-form", "data-fs-module-target-output-id": form.name.id } }) }}
             {{ form.hint }}
 
             {% if question.data_type == enum.question_type.RADIOS %}
