@@ -33,7 +33,7 @@ from app.common.expressions import (
 )
 
 if TYPE_CHECKING:
-    from app.common.data.models import Form, Grant, Question, Section, Submission
+    from app.common.data.models import Collection, Form, Grant, Question, Section, Submission
 
 
 class SubmissionHelper:
@@ -322,6 +322,40 @@ class SubmissionHelper:
                 return next(question_iterator, None)
 
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
+
+
+class CollectionHelper:
+    def __init__(self, collection: "Collection", submission_mode: SubmissionModeEnum):
+        self.collection = collection
+        self.submission_mode = submission_mode
+        self.submissions = [
+            SubmissionHelper(s)
+            for s in (
+                collection.test_submissions
+                if submission_mode == SubmissionModeEnum.TEST
+                else collection.live_submissions
+            )
+        ]
+
+    def generate_csv_content_for_all_submissions(self) -> str:
+        """
+        AI generated placeholder
+        """
+        headers = ["Submission ID", "Created By", "Created At", "Status"]
+        rows = [
+            [
+                str(submission.id),
+                submission.created_by_email,
+                submission.created_at_utc.isoformat(),
+                submission.status,
+            ]
+            for submission in self.submissions
+        ]
+
+        csv_content = ",".join(headers) + "\n"
+        csv_content += "\n".join([",".join(row) for row in rows])
+
+        return csv_content
 
 
 def _form_data_to_question_type(
