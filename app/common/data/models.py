@@ -2,14 +2,13 @@ import uuid
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, String, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.ext.mutable import MutableList
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_json import mutable_json_type
 
-from app.common.data.base import BaseModel, CIStr, DataSourceDataTypeModel
+from app.common.data.base import BaseModel, CIStr, DataSourceChoiceModel, DataSourceDataTypeModel
 from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
     ExpressionType,
@@ -249,10 +248,11 @@ class Question(BaseModel, SafeQidMixin):
 
     @property
     def choices(self):
+        # note: used to (re)populate the "edit question" page for form designers
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
-        return "\n".join(choice.label for choice in self.data_source.data.choices)
+        return "\n".join(choice.label for choice in self.data_source.choices)
 
     def get_expression(self, id: uuid.UUID) -> "Expression":
         try:
@@ -306,6 +306,10 @@ class Expression(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
+    data_source_choice_references: Mapped[list["DataSourceChoiceReference"]] = relationship(
+        "DataSourceChoiceReference", back_populates="expression", cascade="all, delete-orphan"
+    )
+
     __table_args__ = (
         Index(
             "uq_type_validation_unique_key",
@@ -349,7 +353,49 @@ class DataSource(BaseModel):
     __tablename__ = "data_source"
 
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
-    data: Mapped[DataSourceDataTypeModel]
-    used_choice_ids: Mapped[list[str]] = mapped_column(MutableList.as_mutable(ARRAY(String)), default=list)
-
     question: Mapped[Question] = relationship("Question", back_populates="data_source")
+    choices: Mapped[OrderingList["DataSourceChoice"]] = relationship(
+        "DataSourceChoice",
+        back_populates="data_source",
+        order_by="DataSourceChoice.order",
+        collection_class=ordering_list("order"),
+        lazy="selectin",
+        # Importantly we don't `delete-orphan` here; when we move choices around, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all, save-update, merge",
+    )
+
+    @property
+    def better_choices(self) -> "DataSourceDataTypeModel":
+        return DataSourceDataTypeModel(
+            choices=[DataSourceChoiceModel(key=choice.key, label=choice.label) for choice in self.choices]
+        )
+
+
+class DataSourceChoice(BaseModel):
+    __tablename__ = "data_source_choice"
+
+    data_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_source.id"))
+    order: Mapped[int]
+    key: Mapped[str]
+    label: Mapped[str]
+
+    data_source: Mapped[DataSource] = relationship("DataSource", back_populates="choices")
+    references: Mapped[list["DataSourceChoiceReference"]] = relationship(
+        "DataSourceChoiceReference", back_populates="data_source_choice"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("data_source_id", "order", name="uq_data_source_id_order", deferrable=True),
+        UniqueConstraint("data_source_id", "key", name="uq_data_source_id_key"),
+    )
+
+
+class DataSourceChoiceReference(BaseModel):
+    __tablename__ = "data_source_choice_reference"
+
+    data_source_choice_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_source_choice.id"))
+    expression_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("expression.id"))
+
+    data_source_choice: Mapped[DataSourceChoice] = relationship("DataSourceChoice", back_populates="references")
+    expression: Mapped[Expression] = relationship("Expression", back_populates="data_source_choice_references")

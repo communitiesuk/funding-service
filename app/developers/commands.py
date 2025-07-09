@@ -10,10 +10,20 @@ from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.exc import NoResultFound
 
-from app.common.data.base import BaseModel, DataSourceDataTypeModel
+from app.common.data.base import BaseModel
 from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.temporary import delete_grant
-from app.common.data.models import Collection, DataSource, Expression, Form, Grant, Question, Section
+from app.common.data.models import (
+    Collection,
+    DataSource,
+    DataSourceChoice,
+    DataSourceChoiceReference,
+    Expression,
+    Form,
+    Grant,
+    Question,
+    Section,
+)
 from app.common.data.models_user import User
 from app.developers import developers_blueprint
 from app.extensions import db
@@ -40,6 +50,8 @@ GrantExport = TypedDict(
         "questions": list[Any],
         "expressions": list[Any],
         "data_sources": list[Any],
+        "data_source_choices": list[Any],
+        "data_source_choice_references": list[Any],
     },
 )
 ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list[Any]})
@@ -84,6 +96,8 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
             "questions": [],
             "expressions": [],
             "data_sources": [],
+            "data_source_choices": [],
+            "data_source_choice_references": [],
         }
 
         export_data["grants"].append(grant_export)
@@ -108,6 +122,12 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
 
                         if question.data_source:
                             grant_export["data_sources"].append(to_dict(question.data_source))
+
+                            for choice in question.data_source.choices:
+                                grant_export["data_source_choices"].append(to_dict(choice))
+
+                                for reference in choice.references:
+                                    grant_export["data_source_choice_references"].append(to_dict(reference))
 
         for user in users:
             if user.id in [u["id"] for u in export_data["users"]]:
@@ -171,9 +191,17 @@ def seed_grants() -> None:
             db.session.add(expression)
 
         for data_source in grant_data["data_sources"]:
-            data_source["data"] = DataSourceDataTypeModel(choices=data_source.get("data", {"choices": []})["choices"])
             data_source = DataSource(**data_source)
             db.session.add(data_source)
+
+        for data_source_choice in grant_data["data_source_choices"]:
+            data_source_choice = DataSourceChoice(**data_source_choice)
+            db.session.add(data_source_choice)
+
+        for data_source_choice_reference in grant_data["data_source_choice_references"]:
+            data_source_choice_reference = DataSourceChoiceReference(**data_source_choice_reference)
+            db.session.add(data_source_choice_reference)
+
 
     db.session.commit()
     click.echo(f"Loaded/synced {len(export_data['grants'])} grant(s) into the database.")

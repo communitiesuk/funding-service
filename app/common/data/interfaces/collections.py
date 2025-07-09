@@ -1,3 +1,4 @@
+import uuid
 from typing import TYPE_CHECKING, Any, Never, Protocol
 from uuid import UUID
 
@@ -6,11 +7,13 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.common.data.base import DataSourceChoice, DataSourceDataTypeModel
+from app.common.data.base import DataSourceChoiceModel
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
     DataSource,
+    DataSourceChoice,
+    DataSourceChoiceReference,
     Expression,
     Form,
     Grant,
@@ -81,21 +84,6 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
 
 def update_submission_data(submission: Submission, question: Question, data: BaseModel) -> Submission:
     submission.data[str(question.id)] = data.model_dump(mode="json")
-
-    if question.data_source:
-        from app.common.helpers.collections import AnyChoicesFromList, SingleChoiceFromList
-
-        if isinstance(data, SingleChoiceFromList):
-            used_choice_ids = [data.key]
-        elif isinstance(data, AnyChoicesFromList):
-            used_choice_ids = [choice.key for choice in data.choices]
-        else:
-            raise RuntimeError("Unsupported data type")
-
-        for used_choice_id in used_choice_ids:
-            if used_choice_id not in question.data_source.used_choice_ids:
-                question.data_source.used_choice_ids.append(used_choice_id)
-
     db.session.flush()
     return submission
 
@@ -248,29 +236,72 @@ def _create_data_source(question: Question, choices: list[str]):
     # note: should data sources be 1 row for all of the data, or should each 'choice' be a row in a table?
     data_source_choices = []
     for choice in choices:
-        data_source_choices.append(DataSourceChoice(id=slugify(choice), label=choice))
+        data_source_choices.append(DataSourceChoiceModel(key=slugify(choice), label=choice))
 
-    data_source = DataSource(question_id=question.id, data=DataSourceDataTypeModel(choices=data_source_choices))
+    data_source = DataSource(id=uuid.uuid4(), question_id=question.id)
     db.session.add(data_source)
+
+    data_source_new_choices = []
+    for choice in choices:
+        data_source_new_choices.append(
+            DataSourceChoice(data_source_id=data_source.id, key=slugify(choice), label=choice)
+        )
+    data_source.choices = data_source_new_choices
+    db.session.flush()
 
 
 def _update_data_source(question: Question, choices: list[str]):
-    # todo: how to handle changing choices?
-    data_source_choices = []
+    # get ready for this... (could surely be streamlined, but)
+    # 1 - map the existing data source choices by the key (slugified label), so that we can find existing choices
+    #     easily
+    existing_choice_labels = [choice.label for choice in question.data_source.choices]
+    existing_choices_map = {choice.key: choice for choice in question.data_source.choices}
+    # 1a. go through all of the new choices; for any that exist already, update their labels just in case
     for choice in choices:
-        # fixme: need to disallow removing choices that have been used in anywhere in the system
-        data_source_choices.append(DataSourceChoice(id=slugify(choice), label=choice))
+        if slugify(choice) in existing_choices_map:
+            existing_choices_map[slugify(choice)].label = choice
 
-    # you cannot remove choices that have been used anywhere in the system:
-    # - in expressions
-    # - selected as answers in submissions
-    new_choice_ids = set(choice.id for choice in data_source_choices)
-    removed_choices = [choice for choice in question.data_source.data.choices if choice.id not in new_choice_ids]
-    for removed_choice in removed_choices:
-        if removed_choice.id in question.data_source.used_choice_ids:
-            raise RuntimeError(f"Cannot remove choice “{removed_choice.label}’; it has been used.")
+    # 2. build the full set of new choices
+    new_choices = [
+        existing_choices_map.get(
+            slugify(choice),
+            DataSourceChoice(data_source_id=question.data_source.id, key=slugify(choice), label=choice),
+        )
+        for choice in choices
+    ]
 
-    question.data_source.data = DataSourceDataTypeModel(choices=data_source_choices)
+    db.session.execute(text("SET CONSTRAINTS uq_data_source_id_order DEFERRED"))
+    # 3. keep a reference to all of the existing choices, so that we can delete any that end up being unused
+    old_choices = question.data_source.choices.copy()
+
+    # 4. wipe the existing data source choices; this relationship is an ordering_list so we can't just replace it
+    #    with a new list outright, else ordering might break.
+    question.data_source.choices.clear()
+
+    # 5. clearing the ordering list wipes the FK on choices, so we need to restore them all.
+    for choice in new_choices:
+        choice.data_source_id = question.data_source.id
+
+    # 6. extend the ordering list relationship with our new set of choices
+    question.data_source.choices.extend(new_choices)
+
+    # 7. finally, mark any unused old choices for deletion (otherwise we try to clear out `data_source_id`, leading to
+    #    constraint errors.
+    for choice in old_choices:
+        if choice not in question.data_source.choices:
+            db.session.delete(choice)
+
+    # 8. trigger reordering on all choices, to set the `order` property on each choice.
+    question.data_source.choices.reorder()
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        e.removed_choice_labels = set(existing_choice_labels) - set(choices)
+        db.session.rollback()
+        raise e
+
+    # 9. profit?
 
 
 def create_question(
@@ -378,7 +409,12 @@ def update_question(
 
     if choices is not None:
         _update_data_source(question, choices)
-        db.session.flush()
+
+        try:
+            db.session.flush()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise e
 
     return question
 
@@ -407,6 +443,28 @@ def add_question_condition(question: Question, user: User, managed_expression: "
 
     expression = Expression.from_managed(managed_expression, user)
     question.expressions.append(expression)
+
+    from app.common.expressions.managed import BaseDataSourceManagedExpression
+
+    if (
+        isinstance(managed_expression, BaseDataSourceManagedExpression)
+        and managed_expression.referenced_question.data_source
+    ):
+        referenced_data_source_choices = db.session.scalars(
+            select(DataSourceChoice).where(
+                DataSourceChoice.data_source == managed_expression.referenced_question.data_source,
+                DataSourceChoice.key.in_([choice.key for choice in managed_expression.referenced_data_source_choices]),
+            )
+        ).all()
+        for dscr in expression.data_source_choice_references:
+            db.session.delete(dscr)
+        expression.data_source_choice_references = [
+            DataSourceChoiceReference(
+                expression_id=expression.id, data_source_choice_id=referenced_data_source_choice.id
+            )
+            for referenced_data_source_choice in referenced_data_source_choices
+        ]
+
     try:
         db.session.flush()
     except IntegrityError as e:
@@ -446,6 +504,28 @@ def update_question_expression(expression: Expression, managed_expression: "Mana
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key
+
+    from app.common.expressions.managed import BaseDataSourceManagedExpression
+
+    if (
+        isinstance(managed_expression, BaseDataSourceManagedExpression)
+        and managed_expression.referenced_question.data_source
+    ):
+        referenced_data_source_choices = db.session.scalars(
+            select(DataSourceChoice).where(
+                DataSourceChoice.data_source == managed_expression.referenced_question.data_source,
+                DataSourceChoice.key.in_([choice.key for choice in managed_expression.referenced_data_source_choices]),
+            )
+        ).all()
+        for dscr in expression.data_source_choice_references:
+            db.session.delete(dscr)
+        expression.data_source_choice_references = [
+            DataSourceChoiceReference(
+                expression_id=expression.id, data_source_choice_id=referenced_data_source_choice.id
+            )
+            for referenced_data_source_choice in referenced_data_source_choices
+        ]
+
     try:
         db.session.flush()
     except IntegrityError as e:

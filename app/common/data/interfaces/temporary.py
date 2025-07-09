@@ -89,12 +89,14 @@ def delete_question(question: Question) -> None:
     # correctly.
     # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
     # definitely has a few quirks.
-    question.form.questions.remove(question)  # type: ignore[no-untyped-call]
-    db.session.delete(question)
-    question.form.questions.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )
+    question.form.questions.reorder()
+    db.session.delete(question)
+    question.form.questions.reorder()
+    db.session.flush()
+    question.form.questions.reorder()
     db.session.flush()
 
 

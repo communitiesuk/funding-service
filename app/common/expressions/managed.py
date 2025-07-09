@@ -357,8 +357,15 @@ class Between(ManagedExpression):
         )
 
 
+class BaseDataSourceManagedExpression(ManagedExpression):
+    @property
+    @abc.abstractmethod  # todo: decorator does nothing here because ABCMeta cant be used
+    def referenced_data_source_choices(self) -> list["SingleChoiceFromList"]:
+        raise NotImplementedError
+
+
 @register_managed_expression
-class ChoicesFromList(ManagedExpression):
+class ChoicesFromList(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CHOICE_FROM_LIST
 
     # todo: This expression doesn't really make sense for validation - hide it?
@@ -394,7 +401,7 @@ class ChoicesFromList(ManagedExpression):
                 "Choose from a list of options",
                 default=[choice["key"] for choice in expression.context["choices"]] if expression else None,
                 widget=GovCheckboxesInput(),
-                choices=[(choice.id, choice.label) for choice in referenced_question.data_source.data],
+                choices=[(choice.key, choice.label) for choice in referenced_question.data_source.choices],
                 validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
@@ -411,7 +418,7 @@ class ChoicesFromList(ManagedExpression):
         # fixme: bad code structure requires local import
         from app.common.helpers.collections import SingleChoiceFromList
 
-        choice_labels = {choice.id: choice.label for choice in question.data_source.data.choices}
+        choice_labels = {choice.key: choice.label for choice in question.data_source.choices}
 
         choices = [SingleChoiceFromList(key=key, label=choice_labels[key]) for key in form.choice_from_list.data]
         return ChoicesFromList(
@@ -419,9 +426,13 @@ class ChoicesFromList(ManagedExpression):
             choices=choices,  # ty: ignore[unresolved-attribute]
         )
 
+    @property
+    def referenced_data_source_choices(self) -> list["SingleChoiceFromList"]:
+        return self.choices
+
 
 @register_managed_expression
-class SingleChoiceFromListExpression(ManagedExpression):
+class SingleChoiceFromListExpression(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.SINGLE_CHOICE_FROM_LIST
 
     question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.CHECKBOXES}
@@ -456,7 +467,7 @@ class SingleChoiceFromListExpression(ManagedExpression):
                 # fixme: it'd be nice if this was a SingleChoiceFromList instance as well, not a raw dict.
                 default=expression.context["choice"]["key"] if expression else None,
                 widget=GovRadioInput(),
-                choices=[(choice.id, choice.label) for choice in referenced_question.data_source.data.choices],
+                choices=[(choice.key, choice.label) for choice in referenced_question.data_source.choices],
                 validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
@@ -473,7 +484,7 @@ class SingleChoiceFromListExpression(ManagedExpression):
         # fixme: bad code structure requires local import
         from app.common.helpers.collections import SingleChoiceFromList
 
-        choice_labels = {choice.id: choice.label for choice in question.data_source.data.choices}
+        choice_labels = {choice.key: choice.label for choice in question.data_source.choices}
 
         choice = SingleChoiceFromList(
             key=form.single_choice_from_list.data, label=choice_labels[form.single_choice_from_list.data]
@@ -483,9 +494,13 @@ class SingleChoiceFromListExpression(ManagedExpression):
             choice=choice,  # ty: ignore[unresolved-attribute]
         )
 
+    @property
+    def referenced_data_source_choices(self) -> list["SingleChoiceFromList"]:
+        return [self.choice]
+
 
 @register_managed_expression
-class AllChoicesFromListExpression(ManagedExpression):
+class AllChoicesFromListExpression(BaseDataSourceManagedExpression):
     # note: in hindsight this makes the SingleChoiceFromListExpression feel redundant, except for maybe a _slightly_
     # clearer/cleaner user experience when they specifically only want to pivot on a single answer
 
@@ -523,7 +538,7 @@ class AllChoicesFromListExpression(ManagedExpression):
                 "Choose from a list of options",
                 default=[choice["key"] for choice in expression.context["choices"]] if expression else None,
                 widget=GovCheckboxesInput(),
-                choices=[(choice.id, choice.label) for choice in referenced_question.data_source.data.choices],
+                choices=[(choice.key, choice.label) for choice in referenced_question.data_source.choices],
                 validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
@@ -540,13 +555,17 @@ class AllChoicesFromListExpression(ManagedExpression):
         # fixme: bad code structure requires local import
         from app.common.helpers.collections import SingleChoiceFromList
 
-        choice_labels = {choice.id: choice.label for choice in question.data_source.data.choices}
+        choice_labels = {choice.key: choice.label for choice in question.data_source.choices}
 
         choices = [SingleChoiceFromList(key=key, label=choice_labels[key]) for key in form.all_choices_from_list.data]
         return AllChoicesFromListExpression(
             question_id=question.id,
             choices=choices,  # ty: ignore[unresolved-attribute]
         )
+
+    @property
+    def referenced_data_source_choices(self) -> list["SingleChoiceFromList"]:
+        return self.choices
 
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:

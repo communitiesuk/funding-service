@@ -3,6 +3,7 @@ from uuid import UUID
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
+from sqlalchemy.exc import IntegrityError
 from wtforms import Field
 
 from app.common.auth.decorators import is_platform_admin
@@ -605,6 +606,13 @@ def edit_question(
                     hint=wt_form.hint.data,
                     name=wt_form.name.data,
                     choices=wt_form.choices.data.split("\n") if wt_form.choices.data else None,
+                )
+            except IntegrityError:
+                blocked_choice_labels = [choice.label for choice in question.data_source.choices if choice.references]
+
+                wt_form.choices.errors.append(
+                    "You cannot remove options that are referenced by other questions: "
+                    f"“{'”, “'.join(blocked_choice_labels)}”"
                 )
             except RuntimeError as e:
                 if "it has been used" in str(e):

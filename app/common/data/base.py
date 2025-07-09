@@ -21,13 +21,13 @@ convention = {
 type CIStr = str
 
 
-class DataSourceChoice(PydanticBaseModel):
-    id: str
+class DataSourceChoiceModel(PydanticBaseModel):
+    key: str
     label: str
 
 
 class DataSourceDataTypeModel(PydanticBaseModel):
-    choices: list[DataSourceChoice]
+    choices: list[DataSourceChoiceModel]
 
 
 class DataSourceDataType(TypeDecorator):

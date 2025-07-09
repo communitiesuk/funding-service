@@ -142,7 +142,7 @@ def build_question_form(question: Question, form_data: ExpressionContext) -> typ
                 label=question.text,
                 description=question.hint or "",
                 widget=GovRadioInput(),
-                choices=[(choice.id, choice.label) for choice in question.data_source.data.choices],
+                choices=[(choice.key, choice.label) for choice in question.data_source.choices],
             )
         case QuestionDataType.CHECKBOXES:
             field = SelectMultipleField(
@@ -150,7 +150,7 @@ def build_question_form(question: Question, form_data: ExpressionContext) -> typ
                 description=question.hint or "",
                 widget=GovCheckboxesInput(),
                 validators=[DataRequired("Select at least one option")],
-                choices=[(choice.id, choice.label) for choice in question.data_source.data.choices],
+                choices=[(choice.key, choice.label) for choice in question.data_source.choices],
             )
         case _:
             raise Exception("Unable to generate dynamic form for question type {_}")
