@@ -4,10 +4,11 @@ from uuid import UUID
 
 from flask import abort, current_app, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
+from flask_login import logout_user
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
-from app.common.data.types import RoleEnum
+from app.common.data.types import AuthMethodEnum, RoleEnum
 
 
 def login_required[**P](
@@ -97,5 +98,29 @@ def has_grant_role[**P](
             return func(*args, **kwargs)
 
         return is_mhclg_user(wrapped)
+
+    return decorator
+
+
+def require_auth_method[**P](
+    auth_method: AuthMethodEnum,
+) -> Callable[[Callable[P, ResponseReturnValue]], Callable[P, ResponseReturnValue]]:
+    def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+        @functools.wraps(func)
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+            user = interfaces.user.get_current_user()
+            # This decorator is itself wrapped by `login_required`, so we know that `current_user` exists and is
+            # not an anonymous user (ie a user is definitely logged-in) if we get here.
+            session_auth = session.get("auth")
+            if user.roles and session_auth is not AuthMethodEnum.SSO:
+                logout_user()
+                return redirect(url_for("index"))
+
+            if session.get("auth") != auth_method:
+                return abort(403)
+
+            return func(*args, **kwargs)
+
+        return login_required(wrapped)
 
     return decorator
