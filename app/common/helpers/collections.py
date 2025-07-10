@@ -72,6 +72,17 @@ class SubmissionHelper:
         return self.submission.reference
 
     @property
+    def form_data(self) -> dict[str, Any]:
+        form_data = {
+            question.safe_qid: answer.get_value_for_form()
+            for section in self.submission.collection.sections
+            for form in section.forms
+            for question in form.questions
+            if (answer := self.get_answer_for_question(question.id)) is not None
+        }
+        return form_data
+
+    @property
     def expression_context(self) -> ExpressionContext:
         submission_data = {
             question.safe_qid: answer.get_value_for_expression()
