@@ -10,8 +10,9 @@ class TestBuildManagedExpressionForm:
     # Not intended to be an exhaustive check against all question data types, but to prove that fundamentally the
     # system/framework is capable.
 
-    def test_integer_data_type(self):
-        _FormClass = build_managed_expression_form(ExpressionType.CONDITION, QuestionDataType.INTEGER)
+    def test_integer_data_type(self, factories):
+        question = factories.question.build(data_type=QuestionDataType.INTEGER)
+        _FormClass = build_managed_expression_form(ExpressionType.CONDITION, question)
         assert _FormClass
         form = _FormClass()
 
@@ -21,8 +22,9 @@ class TestBuildManagedExpressionForm:
             (ManagedExpressionsEnum.BETWEEN, ManagedExpressionsEnum.BETWEEN),
         ]
 
-    def test_recognises_invalid_data_for_a_managed_expression(self):
-        _FormClass = build_managed_expression_form(ExpressionType.CONDITION, QuestionDataType.INTEGER)
+    def test_recognises_invalid_data_for_a_managed_expression(self, factories):
+        question = factories.question.build(data_type=QuestionDataType.INTEGER)
+        _FormClass = build_managed_expression_form(ExpressionType.CONDITION, question)
         assert _FormClass
         form = _FormClass(
             formdata=MultiDict(
@@ -46,9 +48,9 @@ class TestBuildManagedExpressionForm:
         }
 
     def test_can_build_a_managed_expression_from_valid_data(self, factories):
-        question = factories.question.build()
+        question = factories.question.build(data_type=QuestionDataType.INTEGER)
 
-        _FormClass = build_managed_expression_form(ExpressionType.CONDITION, QuestionDataType.INTEGER)
+        _FormClass = build_managed_expression_form(ExpressionType.CONDITION, question)
         assert _FormClass
         form = _FormClass(
             formdata=MultiDict(
