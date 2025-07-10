@@ -3,8 +3,9 @@ from unittest.mock import Mock
 import pytest
 
 from app.common.collections.runner import FormRunner
+from app.common.collections.types import TextSingleLine
 from app.common.data.types import FormRunnerState, QuestionDataType
-from app.common.helpers.collections import SubmissionHelper, TextSingleLine
+from app.common.helpers.collections import SubmissionHelper
 
 
 class TestFormRunner:
@@ -31,7 +32,8 @@ class TestFormRunner:
     def test_form_runner_correctly_configures_dynamic_question_form(self, factories):
         question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         submission = factories.submission.build(
-            collection=question.form.section.collection, data={str(question.id): TextSingleLine("An answer").root}
+            collection=question.form.section.collection,
+            data={str(question.id): TextSingleLine("An answer").get_value_for_submission()},
         )
         helper = SubmissionHelper(submission)
 

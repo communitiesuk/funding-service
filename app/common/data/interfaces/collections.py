@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Any, Never, Protocol
 from uuid import UUID
 
-from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.common.collections.types import SubmissionAnswerRootModel
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
@@ -77,8 +77,10 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
     return collection
 
 
-def update_submission_data(submission: Submission, question: Question, data: BaseModel) -> Submission:
-    submission.data[str(question.id)] = data.model_dump()
+def update_submission_data(
+    submission: Submission, question: Question, data: SubmissionAnswerRootModel[Any]
+) -> Submission:
+    submission.data[str(question.id)] = data.get_value_for_submission()
     db.session.flush()
     return submission
 

@@ -4,9 +4,10 @@ import pytest
 from immutabledict import immutabledict
 
 from app.common.collections.forms import build_question_form
+from app.common.collections.types import Integer, TextSingleLine
 from app.common.data.types import QuestionDataType, SubmissionStatusEnum
 from app.common.expressions import ExpressionContext
-from app.common.helpers.collections import Integer, SubmissionHelper, TextSingleLine
+from app.common.helpers.collections import SubmissionHelper
 from tests.utils import AnyStringMatching
 
 EC = ExpressionContext

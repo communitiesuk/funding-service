@@ -1,13 +1,19 @@
 import uuid
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from immutabledict import immutabledict
 from pydantic import RootModel, TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
+from app.common.collections.types import (
+    Integer,
+    SubmissionAnswerRootModel,
+    TextMultiLine,
+    TextSingleLine,
+)
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_submission
 from app.common.data.models_user import User
@@ -25,11 +31,6 @@ from app.common.expressions import (
 
 if TYPE_CHECKING:
     from app.common.data.models import Form, Grant, Question, Section, Submission
-
-
-TextSingleLine = RootModel[str]
-TextMultiLine = RootModel[str]
-Integer = RootModel[int]
 
 
 class SubmissionHelper:
@@ -73,7 +74,7 @@ class SubmissionHelper:
     @property
     def expression_context(self) -> ExpressionContext:
         submission_data = {
-            question.safe_qid: answer.model_dump()
+            question.safe_qid: answer.get_value_for_expression()
             for section in self.submission.collection.sections
             for form in section.forms
             for question in form.questions
@@ -232,7 +233,7 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
-    def get_answer_for_question(self, question_id: UUID) -> TextSingleLine | TextMultiLine | Integer | None:
+    def get_answer_for_question(self, question_id: UUID) -> SubmissionAnswerRootModel[Any] | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
