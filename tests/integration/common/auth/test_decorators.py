@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import pytest
+from flask import session
 from flask_login import login_user
 from werkzeug.exceptions import Forbidden, InternalServerError
 
@@ -11,7 +12,8 @@ from app.common.auth.decorators import (
     login_required,
     redirect_if_authenticated,
 )
-from app.common.data.types import RoleEnum
+from app.common.data import interfaces
+from app.common.data.types import AuthMethodEnum, RoleEnum
 
 
 class TestLoginRequired:
@@ -23,6 +25,7 @@ class TestLoginRequired:
         user = factories.user.create(email="test@anything.com", azure_ad_subject_id=None)
 
         login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
         response = test_login_required()
         assert response == "OK"
 
@@ -34,6 +37,17 @@ class TestLoginRequired:
         response = test_login_required()
         assert response.status_code == 302
 
+    def test_no_session_auth_variable(self, factories, app) -> None:
+        @login_required
+        def test_login_required():
+            return "OK"
+
+        user = factories.user.create(email="test@anything.com", azure_ad_subject_id=None)
+
+        login_user(user)
+        with pytest.raises(InternalServerError):
+            test_login_required()
+
 
 class TestMHCLGLoginRequired:
     def test_logged_in_mhclg_user_gets_response(self, app, factories):
@@ -44,6 +58,7 @@ class TestMHCLGLoginRequired:
         user = factories.user.create(email="test@communities.gov.uk")
 
         login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
         response = test_login_required()
         assert response == "OK"
 
@@ -56,6 +71,7 @@ class TestMHCLGLoginRequired:
 
         with pytest.raises(Forbidden):
             login_user(user)
+            session["auth"] = AuthMethodEnum.MAGIC_LINK
             test_login_required()
 
     def test_anonymous_user_gets_redirect(self, app):
@@ -65,6 +81,33 @@ class TestMHCLGLoginRequired:
 
         response = test_login_required()
         assert response.status_code == 302
+
+    def test_deliver_grant_funding_user_auth_via_magic_link(self, app, factories) -> None:
+        @is_mhclg_user
+        def test_login_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+        response = test_login_required()
+        current_user = interfaces.user.get_current_user()
+        assert response.status_code == 302
+        assert current_user.is_anonymous is True
+
+    def test_authed_via_magic_link_not_sso(self, app, factories) -> None:
+        @is_mhclg_user
+        def test_login_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+
+        with pytest.raises(Forbidden):
+            login_user(user)
+            session["auth"] = AuthMethodEnum.MAGIC_LINK
+            test_login_required()
 
 
 class TestPlatformAdminRoleRequired:
@@ -77,6 +120,8 @@ class TestPlatformAdminRoleRequired:
         factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
 
         login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
         response = test_login_required()
         assert response == "OK"
 
@@ -89,6 +134,7 @@ class TestPlatformAdminRoleRequired:
 
         with pytest.raises(Forbidden):
             login_user(user)
+            session["auth"] = AuthMethodEnum.SSO
             test_login_required()
 
     def test_anonymous_user_gets_redirect(self, app):
@@ -109,6 +155,8 @@ class TestRedirectIfAuthenticated:
         user = factories.user.create(email="test@communities.gov.uk")
 
         login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
         response = test_authenticated_redirect()
         assert response.status_code == 302
 
@@ -121,6 +169,7 @@ class TestRedirectIfAuthenticated:
 
         with pytest.raises(InternalServerError):
             login_user(user)
+            session["auth"] = AuthMethodEnum.SSO
             test_authenticated_redirect()
 
     def test_anonymous_user_gets_response(self, app):
@@ -142,6 +191,7 @@ class TestHasGrantRole:
             return "OK"
 
         login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
         with pytest.raises(Forbidden) as exc_info:
             view_func(grant_id=grant.id)
 
@@ -156,6 +206,8 @@ class TestHasGrantRole:
             return "OK"
 
         login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
         response = view_func(grant_id="abc")
         assert response == "OK"
 
@@ -169,6 +221,7 @@ class TestHasGrantRole:
             return "OK"
 
         login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
         with pytest.raises(ValueError, match="Grant ID required"):
             view_func(grant_id=None)
 
@@ -182,6 +235,8 @@ class TestHasGrantRole:
             return "OK"
 
         login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
         response = view_func(grant_id=grant.id)
         assert response == "OK"
 
@@ -195,6 +250,8 @@ class TestHasGrantRole:
             return "OK"
 
         login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
         with pytest.raises(Forbidden) as e:
             view_func(grant_id=grant.id)
         assert "Access denied" in str(e.value)

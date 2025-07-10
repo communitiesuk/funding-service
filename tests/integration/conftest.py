@@ -30,7 +30,7 @@ from werkzeug.test import TestResponse
 
 from app import create_app
 from app.common.data.models_user import User
-from app.common.data.types import RoleEnum
+from app.common.data.types import AuthMethodEnum, RoleEnum
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
@@ -270,6 +270,9 @@ def authenticated_no_role_client(
     # `auto_commit_after_request` decorator, but here we're not in an existing session and would be left with a dirty
     # session after this client is used in tests, so we need to commit this change to the user before we continue.
     login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
+
     anonymous_client.user = user
     db_session.commit()
 
@@ -288,6 +291,8 @@ def authenticated_grant_member_client(
     factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
 
     login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
     anonymous_client.user = user
     anonymous_client.grant = grant
     db_session.commit()
@@ -311,6 +316,8 @@ def authenticated_grant_admin_client(
     factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, grant=grant)
 
     login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
     anonymous_client.user = user
     anonymous_client.grant = grant
     db_session.commit()
@@ -329,6 +336,8 @@ def authenticated_platform_admin_client(
     factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
 
     login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
     anonymous_client.user = user
     db_session.commit()
 

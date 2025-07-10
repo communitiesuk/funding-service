@@ -3,6 +3,7 @@ from typing import Generator, cast
 from unittest.mock import patch
 
 import pytest
+from flask import session
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
 from playwright.sync_api import BrowserContext, Page, ViewportSize, expect
@@ -11,6 +12,7 @@ from pytest_playwright import CreateContextCallback
 
 from app import create_app
 from app.common.data.models_user import User
+from app.common.data.types import AuthMethodEnum
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
 from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.helpers import retrieve_magic_link
@@ -126,6 +128,7 @@ def login_with_session_cookie(page: Page, domain: str, e2e_test_secrets: EndToEn
     @new_app.route("/fake_login")
     def fake_login() -> ResponseReturnValue:
         login_user(user=user_obj, fresh=True)
+        session["auth"] = AuthMethodEnum.SSO
         return "OK"
 
     with new_app.test_request_context():

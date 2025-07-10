@@ -4,10 +4,11 @@ from uuid import UUID
 
 from flask import abort, current_app, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
+from flask_login import logout_user
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
-from app.common.data.types import RoleEnum
+from app.common.data.types import AuthMethodEnum, RoleEnum
 
 
 def login_required[**P](
@@ -16,9 +17,13 @@ def login_required[**P](
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
         user = interfaces.user.get_current_user()
+        session_auth = session.get("auth")
         if not user.is_authenticated:
             session["next"] = request.full_path
             return redirect(url_for("auth.sso_sign_in"))
+        if session_auth is None:
+            logout_user()
+            return abort(500)
 
         return func(*args, **kwargs)
 
@@ -51,9 +56,22 @@ def is_mhclg_user[**P](
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
-        user = interfaces.user.get_current_user()
         # This decorator is itself wrapped by `login_required`, so we know that `current_user` exists and is
         # not an anonymous user (ie a user is definitely logged-in) if we get here.
+
+        user = interfaces.user.get_current_user()
+        session_auth = session.get("auth")
+
+        # If Deliver Grant Funding user and has logged in with magic link somehow
+        if AuthorisationHelper.is_deliver_grant_funding_user(user) and session_auth != AuthMethodEnum.SSO:
+            logout_user()
+            session["next"] = request.full_path
+            return redirect(url_for("auth.sso_sign_in"))
+
+        # Guarding against SSO users who somehow login via magic link
+        if session_auth != AuthMethodEnum.SSO:
+            return abort(403)
+
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
         if not user.email.endswith(internal_domains):
             return abort(403)
@@ -70,6 +88,12 @@ def is_platform_admin[**P](
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
         # This decorator is itself wrapped by `is_mhclg_user`, so we know that `current_user` exists and is
         # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
+
+        # Guarding against SSO users who somehow login via magic link
+        session_auth = session.get("auth")
+        if session_auth != AuthMethodEnum.SSO:
+            return abort(403)
+
         if not AuthorisationHelper.is_platform_admin(user=interfaces.user.get_current_user()):
             return abort(403)
 
@@ -84,6 +108,11 @@ def has_grant_role[**P](
     def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
         @functools.wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+            # Guarding against SSO users who somehow login via magic link
+            session_auth = session.get("auth")
+            if session_auth != AuthMethodEnum.SSO:
+                return abort(403)
+
             user = interfaces.user.get_current_user()
             if AuthorisationHelper.is_platform_admin(user=user):
                 return func(*args, **kwargs)
