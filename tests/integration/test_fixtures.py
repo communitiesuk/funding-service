@@ -4,6 +4,9 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import text
 
+from app.common.data.models import Collection
+from app.common.helpers.collections import SubmissionHelper
+
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_temp_tables(db_session):
@@ -110,3 +113,22 @@ def test_update_frozen_time_with_tick(db_session, time_freezer):
 def test_request_fixture_invalid_time_raises_value_error(time_freezer, db_session):
     # Testing validation inside the time_freezer fixture - this should fail as no freeze_time marker provided
     pass
+
+
+def test_collection_factory_completed_submissions(db_session, factories):
+    collection = factories.collection.create(create_completed_submissions__test=3, create_completed_submissions__live=2)
+
+    collection_from_db = db_session.get(Collection, (collection.id, 1))
+    assert len(collection_from_db._submissions) == 5
+    assert len(collection_from_db.test_submissions) == 3
+    assert len(collection_from_db.live_submissions) == 2
+
+    answers_dict = collection._submissions[0].data
+    assert len(answers_dict) == 3
+
+    for submission in collection_from_db.test_submissions:
+        helper = SubmissionHelper(submission)
+        all_questions = collection.sections[0].forms[0].questions
+        for question in all_questions:
+            assert helper.get_question(question.id).text == question.text
+            assert helper.get_answer_for_question(question.id).root == submission.data[str(question.id)]

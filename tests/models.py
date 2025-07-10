@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import factory
 import factory.fuzzy
+import faker
 from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 
@@ -130,6 +131,71 @@ class _CollectionFactory(SQLAlchemyModelFactory):
 
     grant_id = factory.LazyAttribute(lambda o: "o.grant.id")
     grant = factory.SubFactory(_GrantFactory)
+
+    @factory.post_generation  # type: ignore
+    def create_completed_submissions(  # type: ignore
+        obj: Collection,
+        create,
+        extracted,
+        test: int = 0,
+        live: int = 0,
+        **kwargs,
+    ) -> None:
+        if not test or not live:
+            return
+        section = _SectionFactory.create(collection=obj)
+        form = _FormFactory.create(section=section)
+        q1 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?")
+        q2 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE, text="What is your quest?")
+        q3 = _QuestionFactory.create(form=form, data_type=QuestionDataType.INTEGER, text="What is your age?")
+
+        for _ in range(0, test):
+            _SubmissionFactory.create(
+                collection=obj,
+                mode=SubmissionModeEnum.TEST,
+                data={
+                    str(q1.id): faker.Faker().name(),
+                    str(q2.id): "\n".join(faker.Faker().sentences(nb=3)),
+                    str(q3.id): faker.Faker().random_number(2),
+                },
+                status=SubmissionStatusEnum.COMPLETED,
+            )
+        for _ in range(0, live):
+            _SubmissionFactory.create(
+                collection=obj,
+                mode=SubmissionModeEnum.LIVE,
+                data={
+                    str(q1.id): faker.Faker().name(),
+                    str(q2.id): "\n".join(faker.Faker().sentences(nb=3)),
+                    str(q3.id): faker.Faker().random_number(2),
+                },
+                status=SubmissionStatusEnum.COMPLETED,
+            )
+
+    @factory.post_generation  # type: ignore
+    def create_submissions(  # type: ignore
+        obj: Collection,
+        create,
+        extracted,
+        test: int = 0,
+        live: int = 0,
+        **kwargs,
+    ) -> None:
+        """
+        Uses this pattern https://factoryboy.readthedocs.io/en/stable/reference.html#post-generation-hooks to create
+        submissions for the collection of different types.
+        Doesn't use a sub/related factory because of circular import problems.
+        :param create:
+        :param extracted:
+        :param test: Number of test submissions to create
+        :param live: Number of live submissions to create
+        :param kwargs:
+        :return:
+        """
+        for _ in range(0, test):
+            _SubmissionFactory.create(collection=obj, mode=SubmissionModeEnum.TEST)
+        for _ in range(0, live):
+            _SubmissionFactory.create(collection=obj, mode=SubmissionModeEnum.LIVE)
 
 
 class _SubmissionFactory(SQLAlchemyModelFactory):
