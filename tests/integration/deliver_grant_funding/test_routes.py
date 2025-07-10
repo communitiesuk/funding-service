@@ -1168,3 +1168,35 @@ def test_accessing_question_page_with_failing_condition_redirects(
     assert response.location == url_for(
         "developers.deliver.check_your_answers", submission_id=submission.id, form_id=question.form.id
     )
+
+
+def test_download_csv_export(authenticated_platform_admin_client, factories, db_session):
+    # TODO AI generated stub - make this work with new factory features
+
+    # Create a grant and a collection
+    grant = factories.grant.create()
+    print(grant)
+    pytest.fail("Finish implementing this test")
+    # collection = factories.collection.create(grant=grant, create_submissions__test=4)
+    #
+    # # Create a submission for the collection
+    # submission = factories.submission.create(collection=collection)
+    #
+    # # Create a question and an answer for the submission
+    # question = factories.question.create(
+    #     form=factories.form.create(section=factories.section.create(collection=collection))
+    # )
+    # factories.answer.create(submission=submission, question=question, text="Test answer")
+    #
+    # # Make the request to download the CSV export
+    # response = authenticated_platform_admin_client.get(
+    #     url_for("developers.deliver.download_csv_export", submission_id=submission.id)
+    # )
+    #
+    # # Check the response status code and content type
+    # assert response.status_code == 200
+    # assert response.content_type == "text/csv"
+
+    # # Check that the CSV contains the expected data
+    # csv_content = response.data.decode("utf-8")
+    # assert "Test answer" in csv_content

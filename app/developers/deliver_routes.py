@@ -951,7 +951,7 @@ def list_submissions_for_collection(collection_id: UUID, submission_mode: Submis
         ),
         grant=collection.grant,
         collection=collection,
-        submissions=helper.submissions,
+        submissions=[submission for _, submission in helper.submissions.items()],
         submission_mode=submission_mode,
         is_test_mode=submission_mode == SubmissionModeEnum.TEST,
     )
@@ -976,6 +976,7 @@ def export_submissions_for_collection(collection_id: UUID, submission_mode: Subm
             mimetype="text/csv",
             as_attachment=True,
             download_name=f"{collection.name} - {submission_mode.name}.{export_format}",
+            max_age=0,
         )
 
     else:

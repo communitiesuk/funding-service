@@ -143,6 +143,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         extracted,
         test: int = 0,
         live: int = 0,
+        use_random_data: bool = True,
         **kwargs,
     ) -> None:
         if not test and not live:
@@ -162,40 +163,37 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         q6 = _QuestionFactory.create(form=form, data_type=QuestionDataType.EMAIL, text="What is your email address?")
         q7 = _QuestionFactory.create(form=form, data_type=QuestionDataType.URL, text="What is your website address?")
 
-        for _ in range(0, test):
-            _SubmissionFactory.create(
-                collection=obj,
-                mode=SubmissionModeEnum.TEST,
-                data={
-                    str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
-                    str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
-                    str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
-                    str(q4.id): YesNo(random.choice([True, False])).get_value_for_submission(),  # ty: ignore[missing-argument]
-                    str(q5.id): SingleChoiceFromList(
-                        key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
-                    ).get_value_for_submission(),
-                    str(q6.id): TextSingleLine(faker.Faker().email()).get_value_for_submission(),
-                    str(q7.id): TextSingleLine(faker.Faker().url()).get_value_for_submission(),
-                },
-                status=SubmissionStatusEnum.COMPLETED,
-            )
-        for _ in range(0, live):
-            _SubmissionFactory.create(
-                collection=obj,
-                mode=SubmissionModeEnum.LIVE,
-                data={
-                    str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
-                    str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
-                    str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
-                    str(q4.id): YesNo(random.choice([True, False])).get_value_for_submission(),  # ty: ignore[missing-argument]
-                    str(q5.id): SingleChoiceFromList(
-                        key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
-                    ).get_value_for_submission(),
-                    str(q6.id): TextSingleLine(faker.Faker().email()).get_value_for_submission(),
-                    str(q7.id): TextSingleLine(faker.Faker().url()).get_value_for_submission(),
-                },
-                status=SubmissionStatusEnum.COMPLETED,
-            )
+        def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
+            for _ in range(0, count):
+                _SubmissionFactory.create(
+                    collection=obj,
+                    mode=submission_mode,
+                    data={
+                        str(q1.id): TextSingleLine(
+                            faker.Faker().name() if use_random_data else "test name"
+                        ).get_value_for_submission(),
+                        str(q2.id): TextMultiLine(
+                            "\r\n".join(faker.Faker().sentences(nb=3))
+                            if use_random_data
+                            else "Line 1\r\nline2\r\nline 3"
+                        ).get_value_for_submission(),
+                        str(q3.id): Integer(
+                            faker.Faker().random_number(2) if use_random_data else 123
+                        ).get_value_for_submission(),
+                        str(q4.id): YesNo(
+                            random.choice([True, False]) if use_random_data else True
+                        ).get_value_for_submission(),  # ty: ignore[missing-argument]
+                        str(q5.id): SingleChoiceFromList(
+                            key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
+                        ).get_value_for_submission(),
+                        str(q6.id): TextSingleLine(faker.Faker().email()).get_value_for_submission(),
+                        str(q7.id): TextSingleLine(faker.Faker().url()).get_value_for_submission(),
+                    },
+                    status=SubmissionStatusEnum.COMPLETED,
+                )
+
+        _create_submission_of_type(SubmissionModeEnum.TEST, test)
+        _create_submission_of_type(SubmissionModeEnum.LIVE, live)
 
     @factory.post_generation  # type: ignore
     def create_submissions(  # type: ignore

@@ -48,6 +48,7 @@ routes_with_expected_platform_admin_only_access = [
     "developers.deliver.add_question_validation",
     "developers.deliver.edit_question_validation",
     "developers.deliver.list_submissions_for_collection",
+    "developers.deliver.export_submissions_for_collection",
     "developers.deliver.manage_submission",
     "deliver_grant_funding.grant_setup_intro",
     "deliver_grant_funding.grant_setup_ggis",

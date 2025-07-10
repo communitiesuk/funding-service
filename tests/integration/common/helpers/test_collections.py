@@ -1,13 +1,20 @@
+import csv
 import uuid
+from io import StringIO
 
 import pytest
 from immutabledict import immutabledict
 
 from app.common.collections.forms import build_question_form
 from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine, YesNo
-from app.common.data.types import QuestionDataType, SubmissionStatusEnum
+from app.common.data import interfaces
+from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions import ExpressionContext
-from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.collections import (
+    CollectionHelper,
+    SubmissionHelper,
+    _deserialise_question_type,
+)
 from tests.utils import AnyStringMatching
 
 EC = ExpressionContext
@@ -383,3 +390,70 @@ class TestSubmissionHelper:
             assert str(e.value) == AnyStringMatching(
                 r"Could not submit submission id=[a-z0-9-]+ because not all forms are complete."
             )
+
+
+class TestCollectionHelper:
+    def test_init_collection_helper(self, factories):
+        collection = factories.collection.create(create_submissions__test=2, create_submissions__live=3)
+        collection_from_db = interfaces.collections.get_collection(collection.id)
+        assert len(collection_from_db._submissions) == 5
+
+        test_collection_helper = CollectionHelper(
+            collection=collection_from_db, submission_mode=SubmissionModeEnum.TEST
+        )
+        assert test_collection_helper.collection == collection
+        assert test_collection_helper.submission_mode == SubmissionModeEnum.TEST
+        assert len(test_collection_helper.submissions) == 2
+
+        live_collection_helper = CollectionHelper(
+            collection=collection_from_db, submission_mode=SubmissionModeEnum.LIVE
+        )
+        assert live_collection_helper.collection == collection
+        assert live_collection_helper.submission_mode == SubmissionModeEnum.LIVE
+        assert len(live_collection_helper.submissions) == 3
+
+    def test_generate_csv_content(self, factories):
+        num_test_submissions = 3
+        collection = factories.collection.create(create_completed_submissions__test=num_test_submissions)
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+        count_of_valid_rows_in_csv = 0
+        assert reader.fieldnames == [
+            "Submission reference",
+            "Created by",
+            "Created time UTC",
+            "[Export test form] Your name",
+            "[Export test form] Your quest",
+            "[Export test form] Airspeed velocity",
+            "[Export test form] Best option",
+        ]
+        expected_question_data = {}
+        for _, submission in c_helper.submissions.items():
+            expected_question_data[submission.reference] = {
+                f"[{question.form.title}] {question.name}": _deserialise_question_type(
+                    question, submission.submission.data[str(question.id)]
+                ).get_value_for_text_export()
+                for _, question in submission.all_visible_questions.items()
+            }
+        for line in reader:
+            submission_ref = line["Submission reference"]
+            s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+            assert line["Created by"] == s_helper.created_by_email
+            assert line["Created time UTC"] == s_helper.created_at_utc.isoformat()
+            for header, value in expected_question_data[submission_ref].items():
+                assert line[header] == value
+            count_of_valid_rows_in_csv += 1
+
+        assert count_of_valid_rows_in_csv == num_test_submissions
+
+    def test_generate_csv_content_skipped_questions(self, factories):
+        pass
+
+
+# TODO add tests for:
+# X multi line data in the csv (multi line text)
+# - skipped questions (conditional)
+# X do we want random data in this or known values? The latter is easier to test, but the former is more realistic.
+# X check this fails if csv data doesn't mtch
+# X check it fails if csv contains more or less rows than expected
