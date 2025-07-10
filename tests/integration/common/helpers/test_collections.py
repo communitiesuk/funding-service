@@ -5,9 +5,10 @@ from immutabledict import immutabledict
 
 from app.common.collections.forms import build_question_form
 from app.common.collections.types import Integer, TextMultiLine, TextSingleLine
-from app.common.data.types import QuestionDataType, SubmissionStatusEnum
+from app.common.data import interfaces
+from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions import ExpressionContext
-from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from tests.utils import AnyStringMatching
 
 EC = ExpressionContext
@@ -73,7 +74,7 @@ class TestSubmissionHelper:
                 "because submission id=[a-z0-9-]+ is already submitted."
             )
 
-    class TestFormData:
+    class TestExpressionContext:
         def test_no_submission_data(self, factories):
             form = factories.form.build()
             form_two = factories.form.build(section=form.section)
@@ -84,7 +85,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=form.section.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.form_data == {}
+            assert helper.expression_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
             assert len(QuestionDataType) == 3, "Update this test if adding new questions"
@@ -330,3 +331,24 @@ class TestSubmissionHelper:
             assert str(e.value) == AnyStringMatching(
                 r"Could not submit submission id=[a-z0-9-]+ because not all forms are complete."
             )
+
+
+class TestCollectionHelper:
+    def test_init_collection_helper(self, factories):
+        collection = factories.collection.create(create_submissions__test=2, create_submissions__live=3)
+        collection_from_db = interfaces.collections.get_collection(collection.id)
+        assert len(collection_from_db._submissions) == 5
+
+        test_collection_helper = CollectionHelper(
+            collection=collection_from_db, submission_mode=SubmissionModeEnum.TEST
+        )
+        assert test_collection_helper.collection == collection
+        assert test_collection_helper.submission_mode == SubmissionModeEnum.TEST
+        assert len(test_collection_helper.submissions) == 2
+
+        live_collection_helper = CollectionHelper(
+            collection=collection_from_db, submission_mode=SubmissionModeEnum.LIVE
+        )
+        assert live_collection_helper.collection == collection
+        assert live_collection_helper.submission_mode == SubmissionModeEnum.LIVE
+        assert len(live_collection_helper.submissions) == 3
