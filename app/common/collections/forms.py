@@ -8,7 +8,7 @@ from immutabledict import immutabledict
 from wtforms import Field, Form, RadioField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import StringField, SubmitField
-from wtforms.validators import DataRequired, Optional, ValidationError
+from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
@@ -115,18 +115,21 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                 label=question.text,
                 description=question.hint or "",
                 widget=GovTextInput(),
+                validators=[DataRequired(f"Enter the {question.name}")],
             )
         case QuestionDataType.TEXT_MULTI_LINE:
             field = StringField(
                 label=question.text,
                 description=question.hint or "",
                 widget=GovTextArea(),
+                validators=[DataRequired(f"Enter the {question.name}")],
             )
         case QuestionDataType.INTEGER:
             field = IntegerField(
                 label=question.text,
                 description=question.hint or "",
                 widget=GovTextInput(),
+                validators=[InputRequired(f"Enter the {question.name}")],
             )
         case _:
             raise Exception("Unable to generate dynamic form for question type {_}")

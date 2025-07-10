@@ -9,6 +9,7 @@ from govuk_frontend_wtf.wtforms_widgets import GovTextArea, GovTextInput
 from werkzeug.datastructures import MultiDict
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import StringField
+from wtforms.validators import DataRequired, InputRequired
 
 from app import create_app
 from app.common.collections.forms import build_question_form
@@ -75,14 +76,14 @@ class TestBuildQuestionForm:
         )
 
     @pytest.mark.parametrize(
-        "data_type, expected_field_type, expected_widget",
+        "data_type, expected_field_type, expected_widget, expected_validators",
         (
-            (QuestionDataType.TEXT_SINGLE_LINE, StringField, GovTextInput),
-            (QuestionDataType.TEXT_MULTI_LINE, StringField, GovTextArea),
-            (QuestionDataType.INTEGER, IntegerField, GovTextInput),
+            (QuestionDataType.TEXT_SINGLE_LINE, StringField, GovTextInput, [DataRequired]),
+            (QuestionDataType.TEXT_MULTI_LINE, StringField, GovTextArea, [DataRequired]),
+            (QuestionDataType.INTEGER, IntegerField, GovTextInput, [InputRequired]),
         ),
     )
-    def test_expected_field_types(self, app, data_type, expected_field_type, expected_widget):
+    def test_expected_field_types(self, app, data_type, expected_field_type, expected_widget, expected_validators):
         """Feels like a bit of a redundant test that's just reimplementing the function, but ... :shrug:"""
         q = Question(id=uuid.uuid4(), text="Question text", hint="Question hint", data_type=data_type)
         form = build_question_form(q, expression_context=EC())()
@@ -92,3 +93,5 @@ class TestBuildQuestionForm:
         assert isinstance(question_field.widget, expected_widget)
         assert question_field.label.text == "Question text"
         assert question_field.description == "Question hint"
+        for validator in expected_validators:
+            assert isinstance(question_field.validators[0], validator)
