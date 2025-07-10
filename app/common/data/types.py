@@ -33,6 +33,11 @@ GRANT_ROLES_MAPPING = {
 }
 
 
+class AuthMethodEnum(str, enum.Enum):
+    SSO = "sso"
+    MAGIC_LINK = "magic link"
+
+
 class QuestionDataType(enum.StrEnum):
     # If adding values here, also update QuestionTypeForm
     # and manually create a migration to update question_type_enum in the db
