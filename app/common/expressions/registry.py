@@ -16,17 +16,25 @@ if TYPE_CHECKING:
 
 
 _registry_by_expression_enum: dict[ManagedExpressionsEnum, type["ManagedExpression"]] = {}
-_registry_by_data_type: dict[QuestionDataType, list[type["ManagedExpression"]]] = defaultdict(list)
+_condition_registry_by_data_type: dict[QuestionDataType, list[type["ManagedExpression"]]] = defaultdict(list)
+_validator_registry_by_data_type: dict[QuestionDataType, list[type["ManagedExpression"]]] = defaultdict(list)
 
 
 def get_registered_data_types() -> set[QuestionDataType]:
     """Returns the set of question data types that have at least one managed expression supporting them."""
-    return set(k for k, v in _registry_by_data_type.items() if v)
+    return set(k for k, v in _condition_registry_by_data_type.items() if v) | set(
+        k for k, v in _validator_registry_by_data_type.items() if v
+    )
 
 
-def get_managed_expressions_for_question_type(question_type: QuestionDataType) -> list[type["ManagedExpression"]]:
+def get_managed_conditions_by_data_type(question_type: QuestionDataType) -> list[type["ManagedExpression"]]:
     """Returns the list of managed expressions supported for a particular question type."""
-    return _registry_by_data_type[question_type]
+    return _condition_registry_by_data_type[question_type]
+
+
+def get_managed_validators_by_data_type(question_type: QuestionDataType) -> list[type["ManagedExpression"]]:
+    """Returns the list of managed expressions supported for a particular question type."""
+    return _validator_registry_by_data_type[question_type]
 
 
 def lookup_managed_expression(expression_enum: ManagedExpressionsEnum) -> type["ManagedExpression"]:
@@ -39,8 +47,11 @@ def register_managed_expression(cls: type["ManagedExpression"]) -> type["Managed
     app.common.expressions.managed.ManagedExpression) in this registry, which should allow it to automatically show up
     in the UI and forms for creating and editing instances of those expressions (conditions and validators).
     """
-    for supported_question_data_type in cls.question_data_types:
-        _registry_by_data_type[supported_question_data_type].append(cls)
+    for supported_question_data_type in cls.supported_condition_data_types:
+        _condition_registry_by_data_type[supported_question_data_type].append(cls)
+        _registry_by_expression_enum[cls.name] = cls
+    for supported_question_data_type in cls.supported_validator_data_types:
+        _validator_registry_by_data_type[supported_question_data_type].append(cls)
         _registry_by_expression_enum[cls.name] = cls
     return cls
 

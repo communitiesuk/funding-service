@@ -9,7 +9,8 @@ from wtforms.validators import DataRequired
 from app.common.data.models import Expression, Question
 from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions.registry import (
-    get_managed_expressions_for_question_type,
+    get_managed_conditions_by_data_type,
+    get_managed_validators_by_data_type,
 )
 
 if TYPE_CHECKING:
@@ -58,17 +59,18 @@ def build_managed_expression_form(  # noqa: C901
     The form is constructed dynamically from the definition of all registered managed expressions; each one lists
     the question types that can be a condition for, and that it can validate against.
     """
-    managed_expressions = get_managed_expressions_for_question_type(question.data_type)
-    if not managed_expressions:
-        return None
-
     match type_:
         case ExpressionType.CONDITION:
             type_validation_message = "Select what the answer should be to show this question"
+            managed_expressions = get_managed_conditions_by_data_type(question.data_type)
         case ExpressionType.VALIDATION:
             type_validation_message = "Select the kind of validation to apply"
+            managed_expressions = get_managed_validators_by_data_type(question.data_type)
         case _:
             raise RuntimeError("unknown expression type")
+
+    if not managed_expressions:
+        return None
 
     class ManagedExpressionForm(_ManagedExpressionForm):
         _question_data_type = question.data_type

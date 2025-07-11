@@ -48,7 +48,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions.forms import build_managed_expression_form
-from app.common.expressions.registry import get_managed_expressions_for_question_type
+from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -616,7 +616,7 @@ def edit_question(
         question=question,
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
-        managed_validation_available=get_managed_expressions_for_question_type(question.data_type),
+        managed_validation_available=get_managed_validators_by_data_type(question.data_type),
     )
 
 
