@@ -1,9 +1,38 @@
+from unittest import mock
 from unittest.mock import patch
 
+import pytest
 from flask import Flask, request
+from wtforms import ValidationError
 
 from app.common.data.types import RoleEnum
-from app.deliver_grant_funding.forms import GrantAddUserForm, GrantGGISForm, GrantNameForm
+from app.deliver_grant_funding.forms import (
+    GrantAddUserForm,
+    GrantGGISForm,
+    GrantNameForm,
+    _validate_no_blank_lines,
+    _validate_no_duplicates,
+    strip_string_if_not_empty,
+)
+
+
+class TestFilters:
+    def test_strip_string_if_not_empty(self):
+        assert strip_string_if_not_empty("  blah ") == "blah"
+
+
+class TestValidators:
+    def test_validate_no_blank_lines(self):
+        _validate_no_blank_lines(mock.Mock(), mock.Mock(data="  blah  "))
+
+        with pytest.raises(ValidationError):
+            _validate_no_blank_lines(mock.Mock(), mock.Mock(data="    "))
+
+    def test_validate_no_duplicates(self):
+        _validate_no_duplicates(mock.Mock(), mock.Mock(data="a\nb\nc"))
+
+        with pytest.raises(ValidationError):
+            _validate_no_duplicates(mock.Mock(), mock.Mock(data="a\na\na"))
 
 
 def test_grant_name_form_passes_when_name_does_not_exist():

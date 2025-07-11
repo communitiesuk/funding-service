@@ -712,7 +712,12 @@ def test_add_text_question_get(authenticated_platform_admin_client, factories):
 
 def test_add_text_question_post(authenticated_platform_admin_client, factories, db_session):
     form = factories.form.create()
-    wt_form = QuestionForm(text="Text question 1", hint="some hint text", name="question 1")
+    wt_form = QuestionForm(
+        question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        text="Text question 1",
+        hint="some hint text",
+        name="question 1",
+    )
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.deliver.add_question",
@@ -741,7 +746,9 @@ def test_add_text_question_post(authenticated_platform_admin_client, factories, 
 def test_add_text_question_post_duplicate_text(authenticated_platform_admin_client, factories, db_session):
     form = factories.form.create()
     factories.question.create(form=form, text="duplicate text")
-    wt_form = QuestionForm(text="duplicate text", hint="some hint text", name="question 1")
+    wt_form = QuestionForm(
+        question_type=QuestionDataType.TEXT_SINGLE_LINE, text="duplicate text", hint="some hint text", name="question 1"
+    )
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.deliver.add_question",
@@ -783,7 +790,12 @@ def test_edit_question_get(authenticated_platform_admin_client, factories):
 def test_edit_question_post(authenticated_platform_admin_client, factories, db_session):
     form = factories.form.create()
     question = factories.question.create(form=form, text="Test Question", hint="Test Hint", name="Test Question Name")
-    wt_form = QuestionForm(text="Updated Question", hint="Updated Hint", name="Updated Question Name")
+    wt_form = QuestionForm(
+        question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        text="Updated Question",
+        hint="Updated Hint",
+        name="Updated Question Name",
+    )
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.deliver.edit_question",

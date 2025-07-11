@@ -39,6 +39,7 @@ class QuestionDataType(enum.StrEnum):
     TEXT_SINGLE_LINE = "A single line of text"
     TEXT_MULTI_LINE = "Multiple lines of text"
     INTEGER = "A whole number"
+    RADIOS = "Select one from a list of choices"
 
     @staticmethod
     def coerce(value: Any) -> "QuestionDataType":
