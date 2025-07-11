@@ -146,6 +146,11 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             return
         section = _SectionFactory.create(collection=obj)
         form = _FormFactory.create(section=section)
+
+        # Assertion to remind us to add more question types here when we start supporting them
+        assert len(QuestionDataType) == 3, "If you have added a new question type, please update this factory."
+
+        # Create a question of each supported type
         q1 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?")
         q2 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE, text="What is your quest?")
         q3 = _QuestionFactory.create(form=form, data_type=QuestionDataType.INTEGER, text="What is your age?")
@@ -166,9 +171,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 collection=obj,
                 mode=SubmissionModeEnum.LIVE,
                 data={
-                    str(q1.id): faker.Faker().name(),
-                    str(q2.id): "\n".join(faker.Faker().sentences(nb=3)),
-                    str(q3.id): faker.Faker().random_number(2),
+                    str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
+                    str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
+                    str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
                 },
                 status=SubmissionStatusEnum.COMPLETED,
             )
