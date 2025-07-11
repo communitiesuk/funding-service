@@ -5,8 +5,9 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
-from govuk_frontend_wtf.wtforms_widgets import GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovTextArea, GovTextInput
 from werkzeug.datastructures import MultiDict
+from wtforms.fields.choices import RadioField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import StringField
 from wtforms.validators import DataRequired, InputRequired
@@ -71,7 +72,7 @@ class TestBuildQuestionForm:
         assert hasattr(form, "submit")
 
     def test_the_next_test_exhausts_QuestionDataType(self):
-        assert len(QuestionDataType) == 3, (
+        assert len(QuestionDataType) == 4, (
             "If this test breaks, tweak the number and update `test_expected_field_types` accordingly."
         )
 
@@ -81,11 +82,14 @@ class TestBuildQuestionForm:
             (QuestionDataType.TEXT_SINGLE_LINE, StringField, GovTextInput, [DataRequired]),
             (QuestionDataType.TEXT_MULTI_LINE, StringField, GovTextArea, [DataRequired]),
             (QuestionDataType.INTEGER, IntegerField, GovTextInput, [InputRequired]),
+            (QuestionDataType.RADIOS, RadioField, GovRadioInput, []),
         ),
     )
-    def test_expected_field_types(self, app, data_type, expected_field_type, expected_widget, expected_validators):
+    def test_expected_field_types(
+        self, factories, app, data_type, expected_field_type, expected_widget, expected_validators
+    ):
         """Feels like a bit of a redundant test that's just reimplementing the function, but ... :shrug:"""
-        q = Question(id=uuid.uuid4(), text="Question text", hint="Question hint", data_type=data_type)
+        q = factories.question.build(text="Question text", hint="Question hint", data_type=data_type)
         form = build_question_form(q, expression_context=EC())()
 
         question_field = form.get_question_field(q)

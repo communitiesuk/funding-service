@@ -9,9 +9,10 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextArea,
     GovTextInput,
 )
+from wtforms import Field
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, ValidationError
+from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.grants import grant_name_exists
@@ -22,6 +23,18 @@ from app.common.forms.validators import CommunitiesEmail, WordRange
 
 def strip_string_if_not_empty(value: str) -> str | None:
     return value.strip() if value else value
+
+
+def _validate_no_blank_lines(form: FlaskForm, field: Field) -> None:
+    choices = field.data.split("\n")
+    if any(choice.strip() == "" for choice in choices):
+        raise ValidationError("Remove blank lines from the list")
+
+
+def _validate_no_duplicates(form: FlaskForm, field: Field) -> None:
+    choices = [choice.strip() for choice in field.data.split("\n")]
+    if len(choices) != len(set(choices)):
+        raise ValidationError("Remove duplicate options from the list")
 
 
 class GrantSetupForm(FlaskForm):
@@ -160,11 +173,7 @@ class FormForm(FlaskForm):
 class QuestionTypeForm(FlaskForm):
     question_data_type = RadioField(
         "What is the type of the question?",
-        choices=[
-            (QuestionDataType.TEXT_SINGLE_LINE.name, QuestionDataType.TEXT_SINGLE_LINE.value),
-            (QuestionDataType.TEXT_MULTI_LINE.name, QuestionDataType.TEXT_MULTI_LINE.value),
-            (QuestionDataType.INTEGER.name, QuestionDataType.INTEGER.value),
-        ],
+        choices=[(qdt.name, qdt.value) for qdt in QuestionDataType],
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
         name="question type",
@@ -192,7 +201,24 @@ class QuestionForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
+    data_source_items = StringField(
+        "List of options",
+        validators=[Optional()],
+        description="Each option must be on its own line",
+        filters=[strip_string_if_not_empty, lambda val: val.replace("\r", "") if val else val],
+        widget=GovTextArea(),
+    )
     submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, question_type: QuestionDataType, **kwargs: Any) -> None:
+        super(QuestionForm, self).__init__(*args, **kwargs)
+
+        if question_type in [QuestionDataType.RADIOS]:
+            self.data_source_items.validators = [
+                DataRequired("Enter the options for your list"),
+                _validate_no_blank_lines,
+                _validate_no_duplicates,
+            ]
 
 
 class GrantAddUserForm(FlaskForm):

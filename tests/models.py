@@ -18,9 +18,11 @@ import faker
 from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 
-from app.common.collections.types import Integer, TextMultiLine, TextSingleLine
+from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine
 from app.common.data.models import (
     Collection,
+    DataSource,
+    DataSourceItem,
     Expression,
     Form,
     Grant,
@@ -148,12 +150,13 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         form = _FormFactory.create(section=section)
 
         # Assertion to remind us to add more question types here when we start supporting them
-        assert len(QuestionDataType) == 3, "If you have added a new question type, please update this factory."
+        assert len(QuestionDataType) == 4, "If you have added a new question type, please update this factory."
 
         # Create a question of each supported type
         q1 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?")
         q2 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE, text="What is your quest?")
         q3 = _QuestionFactory.create(form=form, data_type=QuestionDataType.INTEGER, text="What is your age?")
+        q4 = _QuestionFactory.create(form=form, data_type=QuestionDataType.RADIOS, text="What is the best option?")
 
         for _ in range(0, test):
             _SubmissionFactory.create(
@@ -163,6 +166,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
                     str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
                     str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
+                    str(q4.id): SingleChoiceFromList(
+                        key=q4.data_source.items[0].key, label=q4.data_source.items[0].label
+                    ).get_value_for_submission(),
                 },
                 status=SubmissionStatusEnum.COMPLETED,
             )
@@ -174,6 +180,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
                     str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
                     str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
+                    str(q4.id): SingleChoiceFromList(
+                        key=q4.data_source.items[0].key, label=q4.data_source.items[0].label
+                    ).get_value_for_submission(),
                 },
                 status=SubmissionStatusEnum.COMPLETED,
             )
@@ -253,11 +262,38 @@ class _FormFactory(SQLAlchemyModelFactory):
     section_id = factory.LazyAttribute(lambda o: o.section.id)
 
 
+class _DataSourceItemFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = DataSourceItem
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    order = factory.Sequence(lambda n: n)
+    key = factory.Sequence(lambda n: "key-%d" % n)
+    label = factory.Sequence(lambda n: "Option %d" % n)
+
+    data_source_id = factory.LazyAttribute(lambda o: o.data_source.id if o.data_source else None)
+    data_source = None
+
+
+class _DataSourceFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = DataSource
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    items = factory.RelatedFactoryList(_DataSourceItemFactory, size=3, factory_related_name="data_source")
+
+    question = None
+    question_id = factory.LazyAttribute(lambda o: o.question.id if o.question else None)
+
+
 class _QuestionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Question
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
+        exclude = ("needs_data_source",)
 
     id = factory.LazyFunction(uuid4)
     text = factory.Sequence(lambda n: "Question %d" % n)
@@ -268,6 +304,13 @@ class _QuestionFactory(SQLAlchemyModelFactory):
 
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)
+
+    needs_data_source = factory.LazyAttribute(lambda o: o.data_type == QuestionDataType.RADIOS)
+    data_source = factory.Maybe(
+        "needs_data_source",
+        yes_declaration=factory.RelatedFactory(_DataSourceFactory, factory_related_name="question"),
+        no_declaration=None,
+    )
 
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
