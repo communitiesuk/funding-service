@@ -362,12 +362,37 @@ class TestCollectionHelper:
         csv_content = c_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
         count_of_valid_rows_in_csv = 0
-        assert reader.fieldnames == ["Submission reference", "Created by", "Created time UTC"]
+        assert reader.fieldnames == [
+            "Submission reference",
+            "Created by",
+            "Created time UTC",
+            "[Form 0] Question name 0",
+            "[Form 0] Question name 1",
+            "[Form 0] Question name 2",
+        ]
+        expected_question_data = {}
+        for _, submission in c_helper.submissions.items():
+            expected_question_data[submission.reference] = {
+                f"[{question.form.title}] {question.name}": submission.submission.data[
+                    str(question.id)
+                ]  # TODO build this to use the right data conversion, not just str()
+                for _, question in submission.all_visible_questions.items()
+            }
         for line in reader:
             submission_ref = line["Submission reference"]
             s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
             assert line["Created by"] == s_helper.created_by_email
             assert line["Created time UTC"] == s_helper.created_at_utc.isoformat()
+            for header, value in expected_question_data[submission_ref].items():
+                assert line[header] == str(value)  # TODO build this to use the right data conversion, not just str()
             count_of_valid_rows_in_csv += 1
 
         assert count_of_valid_rows_in_csv == num_test_submissions
+
+
+# TODO add tests for:
+# - multi line data in the csv (multi line text)
+# - skipped questions (conditional)
+# - do we want random data in this or known values? The latter is easier to test, but the former is more realistic.
+# - check this fails if csv data doesn't mtch
+# - check it fails if csv contains more or less rows than expected

@@ -96,6 +96,15 @@ class SubmissionHelper:
         return ExpressionContext(from_submission=immutabledict(submission_data))
 
     @property
+    def all_visible_questions(self) -> dict[UUID, "Question"]:
+        return {
+            question.id: question
+            for section in self.get_ordered_visible_sections()
+            for form in self.get_ordered_visible_forms_for_section(section)
+            for question in self.get_ordered_visible_questions_for_form(form)
+        }
+
+    @property
     def status(self) -> str:
         submitted = SubmissionEventKey.SUBMISSION_SUBMITTED in [x.key for x in self.submission.events]
 
@@ -344,22 +353,43 @@ class CollectionHelper:
 
         return None
 
+    def get_all_possible_questions_for_collection(self) -> list["Question"]:
+        """
+        Returns a list of all questions that are part of the collection, across all sections and forms.
+        """
+        return [
+            question
+            for section in sorted(self.collection.sections, key=lambda s: s.order)
+            for form in sorted(section.forms, key=lambda f: f.order)
+            for question in sorted(form.questions, key=lambda q: q.order)
+        ]
+
     def generate_csv_content_for_all_submissions(self) -> str:
         metadata_headers = ["Submission reference", "Created by", "Created time UTC"]
-        question_headers = []
-        all_headers = metadata_headers + question_headers
+        question_headers = {
+            question.id: f"[{question.form.title}] {question.name}"
+            for question in self.get_all_possible_questions_for_collection()
+        }
+        all_headers = metadata_headers + [header_string for _, header_string in question_headers.items()]
 
         csv_output = StringIO()
         csv_writer = csv.DictWriter(csv_output, fieldnames=all_headers)
         csv_writer.writeheader()
         for submission in [value for key, value in self.submissions.items()]:
-            csv_writer.writerow(
-                {
-                    "Submission reference": submission.reference,
-                    "Created by": submission.created_by_email,
-                    "Created time UTC": submission.created_at_utc.isoformat(),
-                }
-            )
+            submission_csv_data = {
+                "Submission reference": submission.reference,
+                "Created by": submission.created_by_email,
+                "Created time UTC": submission.created_at_utc.isoformat(),
+            }
+            visible_questions = submission.all_visible_questions
+            for question_id, header_string in question_headers.items():
+                if question_id not in visible_questions.keys():
+                    submission_csv_data[header_string] = "Not supplied"
+                else:
+                    answer = submission.get_answer_for_question(question_id).get_value_for_text_export()
+                    submission_csv_data[header_string] = answer
+
+            csv_writer.writerow(submission_csv_data)
 
         return csv_output.getvalue()
 
