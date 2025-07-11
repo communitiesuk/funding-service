@@ -44,7 +44,7 @@
     {% set answer = submission.get_answer_for_question(question.id) %}
     {% if answer is not none %}
       {% set value_html %}
-        <span data-testid="answer-{{ question.text }}">{{ answer.root }}</span>
+        {% include answer._render_answer_template %}
       {% endset %}
       {%
         set actions = (

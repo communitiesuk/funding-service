@@ -3,6 +3,7 @@ import uuid
 import pytest
 from sqlalchemy.exc import NoResultFound
 
+from app.common.collections.types import TextSingleLine
 from app.common.data.interfaces.collections import (
     DependencyOrderException,
     add_question_condition,
@@ -35,7 +36,6 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Collection, Expression
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType, SubmissionEventKey
 from app.common.expressions.managed import GreaterThan, LessThan
-from app.common.helpers.collections import TextSingleLine
 
 
 def test_get_collection(db_session, factories):
