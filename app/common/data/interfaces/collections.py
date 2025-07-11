@@ -244,6 +244,36 @@ def _create_data_source(question: Question, items: list[str]) -> None:
     db.session.flush()
 
 
+def _update_data_source(question: Question, items: list[str]) -> None:
+    existing_choices_map = {choice.key: choice for choice in question.data_source.items}
+    for item in items:
+        if slugify(item) in existing_choices_map:
+            existing_choices_map[slugify(item)].label = item
+
+    new_choices = [
+        existing_choices_map.get(
+            slugify(choice),
+            DataSourceItem(data_source_id=question.data_source.id, key=slugify(choice), label=choice),
+        )
+        for choice in items
+    ]
+
+    db.session.execute(text("SET CONSTRAINTS uq_data_source_id_order DEFERRED"))
+
+    to_delete = [item for item in question.data_source.items if item not in new_choices]
+    for item_to_delete in to_delete:
+        db.session.delete(item_to_delete)
+
+    question.data_source.items = new_choices
+    question.data_source.items.reorder()  # type: ignore[attr-defined]
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise e
+
+
 def create_question(
     form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType, items: list[str] | None = None
 ) -> Question:
@@ -333,11 +363,16 @@ def move_question_down(question: Question) -> Question:
     return question
 
 
-def update_question(question: Question, *, text: str, hint: str | None, name: str) -> Question:
+def update_question(
+    question: Question, *, text: str, hint: str | None, name: str, items: list[str] | None = None
+) -> Question:
     question.text = text
     question.hint = hint
     question.name = name
     question.slug = slugify(text)
+
+    if items is not None:
+        _update_data_source(question, items)
 
     try:
         db.session.flush()
