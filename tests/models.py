@@ -18,6 +18,7 @@ import faker
 from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 
+from app.common.collections.types import Integer, TextMultiLine, TextSingleLine
 from app.common.data.models import (
     Collection,
     Expression,
@@ -154,9 +155,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 collection=obj,
                 mode=SubmissionModeEnum.TEST,
                 data={
-                    str(q1.id): faker.Faker().name(),
-                    str(q2.id): "\n".join(faker.Faker().sentences(nb=3)),
-                    str(q3.id): faker.Faker().random_number(2),
+                    str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
+                    str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
+                    str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
                 },
                 status=SubmissionStatusEnum.COMPLETED,
             )
