@@ -142,7 +142,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         live: int = 0,
         **kwargs,
     ) -> None:
-        if not test or not live:
+        if not test and not live:
             return
         section = _SectionFactory.create(collection=obj)
         form = _FormFactory.create(section=section)
