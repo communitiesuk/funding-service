@@ -229,6 +229,9 @@ class Question(BaseModel, SafeQidMixin):
     expressions: Mapped[list["Expression"]] = relationship(
         "Expression", back_populates="question", cascade="all, delete-orphan", order_by="Expression.created_at_utc"
     )
+    data_source: Mapped["DataSource"] = relationship(
+        "DataSource", cascade="all, delete-orphan", back_populates="question"
+    )
 
     @property
     def conditions(self) -> list["Expression"]:
@@ -332,3 +335,39 @@ class Expression(BaseModel):
             type=ExpressionType.CONDITION,
             managed_name=managed_expression._key,
         )
+
+
+class DataSource(BaseModel):
+    __tablename__ = "data_source"
+
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    question: Mapped[Question] = relationship("Question", back_populates="data_source", uselist=False)
+
+    items: Mapped[list["DataSourceItem"]] = relationship(
+        "DataSourceItem",
+        back_populates="data_source",
+        order_by="DataSourceItem.order",
+        collection_class=ordering_list("order"),
+        lazy="selectin",
+        # Importantly we don't `delete-orphan` here; when we move choices around, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all, save-update, merge",
+    )
+
+    __table_args__ = (UniqueConstraint("question_id", name="uq_question_id"),)
+
+
+class DataSourceItem(BaseModel):
+    __tablename__ = "data_source_item"
+
+    data_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_source.id"))
+    order: Mapped[int]
+    key: Mapped[str]
+    label: Mapped[str]
+
+    data_source: Mapped[DataSource] = relationship("DataSource", back_populates="items", uselist=False)
+
+    __table_args__ = (
+        UniqueConstraint("data_source_id", "order", name="uq_data_source_id_order", deferrable=True),
+        UniqueConstraint("data_source_id", "key", name="uq_data_source_id_key"),
+    )
