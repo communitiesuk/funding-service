@@ -1,4 +1,4 @@
-"""empty message
+"""create data source tables
 
 Revision ID: 013_data_sources
 Revises: 012_adding_invitations_table
