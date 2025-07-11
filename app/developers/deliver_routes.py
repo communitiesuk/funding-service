@@ -48,7 +48,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions.forms import build_managed_expression_form
-from app.common.expressions.registry import get_managed_expressions_for_question_type
+from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -616,7 +616,7 @@ def edit_question(
         question=question,
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
-        managed_validation_available=get_managed_expressions_for_question_type(question.data_type),
+        managed_validation_available=get_managed_validators_by_data_type(question.data_type),
     )
 
 
@@ -658,7 +658,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
     question = get_question_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
-    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question.data_type)
+    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
     form = ConditionForm() if ConditionForm else None
     if form and form.validate_on_submit():
         expression = form.get_expression(depends_on_question)
@@ -717,7 +717,7 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
             )
         )
 
-    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question.data_type, expression)
+    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question, expression)
     form = ConditionForm() if ConditionForm else None
 
     if form and form.validate_on_submit():
@@ -761,7 +761,7 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
 def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
 
-    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question.data_type)
+    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
     form = ValidationForm() if ValidationForm else None
     if form and form.validate_on_submit():
         expression = form.get_expression(question)
@@ -821,7 +821,7 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
             )
         )
 
-    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question.data_type, expression)
+    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question, expression)
     form = ValidationForm() if ValidationForm else None
 
     if form and form.validate_on_submit():

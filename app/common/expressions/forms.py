@@ -9,7 +9,8 @@ from wtforms.validators import DataRequired
 from app.common.data.models import Expression, Question
 from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions.registry import (
-    get_managed_expressions_for_question_type,
+    get_managed_conditions_by_data_type,
+    get_managed_validators_by_data_type,
 )
 
 if TYPE_CHECKING:
@@ -44,10 +45,13 @@ class _ManagedExpressionForm(FlaskForm):
 
 
 def build_managed_expression_form(  # noqa: C901
-    type_: ExpressionType, question_type: QuestionDataType, expression: Expression | None = None
+    type_: ExpressionType, question: Question, expression: Expression | None = None
 ) -> type["_ManagedExpressionForm"] | None:
     """
-    For a given question type, generate a FlaskForm that will allow a user to select one of its managed expressions.
+    For a given question, generate a FlaskForm that will allow a user to select one of its managed expressions.
+
+    We take a question instance rather than the data type, as some managed expressions may refer to values on the
+    question itself (eg radios, checkboxes).
 
     Each managed expression declares the data that defines it, and has hooks that can be used to attach, validate, and
     render the specific form fields it needs.
@@ -55,20 +59,21 @@ def build_managed_expression_form(  # noqa: C901
     The form is constructed dynamically from the definition of all registered managed expressions; each one lists
     the question types that can be a condition for, and that it can validate against.
     """
-    managed_expressions = get_managed_expressions_for_question_type(question_type)
-    if not managed_expressions:
-        return None
-
     match type_:
         case ExpressionType.CONDITION:
             type_validation_message = "Select what the answer should be to show this question"
+            managed_expressions = get_managed_conditions_by_data_type(question.data_type)
         case ExpressionType.VALIDATION:
             type_validation_message = "Select the kind of validation to apply"
+            managed_expressions = get_managed_validators_by_data_type(question.data_type)
         case _:
             raise RuntimeError("unknown expression type")
 
+    if not managed_expressions:
+        return None
+
     class ManagedExpressionForm(_ManagedExpressionForm):
-        _question_data_type = question_type
+        _question_data_type = question.data_type
         _managed_expressions = managed_expressions
 
         type = RadioField(

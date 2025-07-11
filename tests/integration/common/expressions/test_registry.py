@@ -1,6 +1,7 @@
 from app.common.data.types import QuestionDataType
 from app.common.expressions.registry import (
-    get_managed_expressions_for_question_type,
+    get_managed_conditions_by_data_type,
+    get_managed_validators_by_data_type,
     get_registered_data_types,
     get_supported_form_questions,
 )
@@ -11,7 +12,8 @@ class TestManagedExpressions:
         unsupported_question_type = QuestionDataType.TEXT_SINGLE_LINE
 
         # because we're using a defaultdict we should make sure reading empty values can't change the logic
-        assert get_managed_expressions_for_question_type(unsupported_question_type) == []
+        assert get_managed_conditions_by_data_type(unsupported_question_type) == []
+        assert get_managed_validators_by_data_type(unsupported_question_type) == []
         assert unsupported_question_type not in get_registered_data_types()
 
     def test_get_supported_form_questions_filters_question_types(self, factories):

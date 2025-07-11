@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 class ManagedExpression(BaseModel, SafeQidMixin):
     # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
     name: ClassVar[ManagedExpressionsEnum]
-    question_data_types: ClassVar[set[QuestionDataType]]
+    supported_condition_data_types: ClassVar[set[QuestionDataType]]
+    supported_validator_data_types: ClassVar[set[QuestionDataType]]
 
     _key: ManagedExpressionsEnum
     question_id: UUID
@@ -147,7 +148,8 @@ class BottomOfRangeIsLower:
 @register_managed_expression
 class GreaterThan(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.GREATER_THAN
-    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
 
     _key: ManagedExpressionsEnum = name
 
@@ -200,7 +202,8 @@ class GreaterThan(ManagedExpression):
 @register_managed_expression
 class LessThan(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.LESS_THAN
-    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
 
     _key: ManagedExpressionsEnum = name
 
@@ -253,7 +256,8 @@ class LessThan(ManagedExpression):
 @register_managed_expression
 class Between(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.BETWEEN
-    question_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
 
     _key: ManagedExpressionsEnum = name
 

@@ -4,7 +4,7 @@ import pytest
 from immutabledict import immutabledict
 
 from app.common.collections.forms import build_question_form
-from app.common.collections.types import Integer, TextSingleLine
+from app.common.collections.types import Integer, TextMultiLine, TextSingleLine
 from app.common.data.types import QuestionDataType, SubmissionStatusEnum
 from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import SubmissionHelper
@@ -73,6 +73,54 @@ class TestSubmissionHelper:
                 "because submission id=[a-z0-9-]+ is already submitted."
             )
 
+    class TestFormData:
+        def test_no_submission_data(self, factories):
+            form = factories.form.build()
+            form_two = factories.form.build(section=form.section)
+            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
+            factories.question.build(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"))
+
+            submission = factories.submission.build(collection=form.section.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.form_data == {}
+
+        def test_with_submission_data(self, factories):
+            assert len(QuestionDataType) == 3, "Update this test if adding new questions"
+
+            form = factories.form.build()
+            form_two = factories.form.build(section=form.section)
+            q1 = factories.question.build(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            )
+            q2 = factories.question.build(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"),
+                data_type=QuestionDataType.TEXT_MULTI_LINE,
+            )
+            q3 = factories.question.build(
+                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
+            )
+
+            submission = factories.submission.build(
+                collection=form.section.collection,
+                data={
+                    str(q1.id): TextSingleLine("answer").get_value_for_submission(),
+                    str(q2.id): TextMultiLine("answer\nthis").get_value_for_submission(),
+                    str(q3.id): Integer(50).get_value_for_submission(),
+                },
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.form_data == {
+                "q_d696aebc49d24170a92fb6ef42994294": "answer",
+                "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
+                "q_d696aebc49d24170a92fb6ef42994296": 50,
+            }
+
     class TestExpressionContext:
         def test_no_submission_data(self, factories):
             form = factories.form.build()
@@ -87,19 +135,42 @@ class TestSubmissionHelper:
             assert helper.expression_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
+            assert len(QuestionDataType) == 3, "Update this test if adding new questions"
+
             form = factories.form.build()
             form_two = factories.form.build(section=form.section)
-            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
-            factories.question.build(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"))
+            q1 = factories.question.build(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            )
+            q2 = factories.question.build(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"),
+                data_type=QuestionDataType.TEXT_MULTI_LINE,
+            )
+            q3 = factories.question.build(
+                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
+            )
 
             submission = factories.submission.build(
-                collection=form.section.collection, data={"d696aebc-49d2-4170-a92f-b6ef42994294": "answer"}
+                collection=form.section.collection,
+                data={
+                    str(q1.id): TextSingleLine("answer").get_value_for_submission(),
+                    str(q2.id): TextMultiLine("answer\nthis").get_value_for_submission(),
+                    str(q3.id): Integer(50).get_value_for_submission(),
+                },
             )
             helper = SubmissionHelper(submission)
 
             assert helper.expression_context == ExpressionContext(
-                from_submission=immutabledict({"q_d696aebc49d24170a92fb6ef42994294": "answer"})
+                from_submission=immutabledict(
+                    {
+                        "q_d696aebc49d24170a92fb6ef42994294": "answer",
+                        "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
+                        "q_d696aebc49d24170a92fb6ef42994296": 50,
+                    }
+                )
             )
 
     class TestStatuses:
