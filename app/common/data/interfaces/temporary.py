@@ -11,6 +11,9 @@ The only place that should import from here is the `app.developers` package.
 
 from uuid import UUID
 
+from sqlalchemy import select, text
+
+from app.common.data.interfaces.collections import raise_if_question_has_any_dependencies
 from app.common.data.models import (
     Collection,
     Form,
@@ -19,6 +22,7 @@ from app.common.data.models import (
     Section,
     Submission,
 )
+from app.common.data.models_user import User
 from app.extensions import db
 
 
@@ -51,19 +55,50 @@ def delete_collection(collection_id: UUID) -> None:
     db.session.flush()
 
 
-def delete_section(section_id: UUID) -> None:
-    section = db.session.query(Section).where(Section.id == section_id).one()
+def delete_section(section: Section) -> None:
+    # remove the instance from its collection specifically, which triggers reordering of all other sections
+    # correctly.
+    # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
+    # definitely has a few quirks.
+    section.collection.sections.remove(section)  # type: ignore[no-untyped-call]
     db.session.delete(section)
+    section.collection.sections.reorder()
+    db.session.execute(
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+    )
     db.session.flush()
 
 
-def delete_form(form_id: UUID) -> None:
-    form = db.session.query(Form).where(Form.id == form_id).one()
+def delete_form(form: Form) -> None:
+    # remove the instance from its collection specifically, which triggers reordering of all other sections
+    # correctly.
+    # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
+    # definitely has a few quirks.
+    form.section.forms.remove(form)  # type: ignore[no-untyped-call]
     db.session.delete(form)
+    form.section.forms.reorder()
+    db.session.execute(
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+    )
     db.session.flush()
 
 
-def delete_question(question_id: UUID) -> None:
-    question = db.session.query(Question).where(Question.id == question_id).one()
+def delete_question(question: Question) -> None:
+    raise_if_question_has_any_dependencies(question)
+    # remove the instance from its collection specifically, which triggers reordering of all other sections
+    # correctly.
+    # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
+    # definitely has a few quirks.
+    question.form.questions.remove(question)  # type: ignore[no-untyped-call]
     db.session.delete(question)
+    question.form.questions.reorder()
+    db.session.execute(
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+    )
     db.session.flush()
+
+
+def get_submission_by_collection_and_user(collection: Collection, user: "User") -> Submission | None:
+    return db.session.scalar(
+        select(Submission).where(Submission.collection == collection, Submission.created_by == user)
+    )

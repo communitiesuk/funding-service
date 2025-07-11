@@ -22,6 +22,7 @@ class DuplicateValueError(Exception):
         "uq_question_text_form": "text",
         "uq_question_name_form": "name",
         "uq_type_validation_unique_key": "question_id",
+        "uq_type_condition_unique_question": "question_id",
     }
 
     def __init__(self, integrity_error: IntegrityError) -> None:
@@ -32,7 +33,7 @@ class DuplicateValueError(Exception):
         self.field_name = DuplicateValueError.constraint_name_map[diagnostics.constraint_name]
         if not isinstance(integrity_error.params, dict):
             raise ValueError("IntegrityError params must be a dict")
-        self.new_value = integrity_error.params[self.field_name]
+        self.new_value = integrity_error.params.get(self.field_name, "unknown")
 
 
 class InvalidUserRoleError(Exception):
@@ -42,8 +43,6 @@ class InvalidUserRoleError(Exception):
 
     constraint_message_map: dict[str, str] = {
         "ck_user_role_member_role_not_platform": "A 'member' role must be linked to an organisation or grant.",
-        "ck_user_role_s151_officer_role_org_only": "A 's151_officer' role can only be linked to an organisation.",
-        "ck_user_role_assessor_role_grant_only": "An 'assessor' role can only be linked to a grant.",
     }
 
     def __init__(self, integrity_error: IntegrityError) -> None:

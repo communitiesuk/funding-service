@@ -1,0 +1,20 @@
+{% macro render_managed_expression_form(form, label_html) %}
+  <form method="post" novalidate>
+    {{ form.csrf_token }}
+
+    {{
+      form.type(params={
+      "fieldset": {
+          "legend": {
+          "html": label_html,
+          "classes": "govuk-fieldset__legend--m",
+          "isPageHeading": False
+          },
+      },
+      "items": form.get_managed_expression_radio_conditional_items()
+      })
+    }}
+
+    {{ form.submit }}
+  </form>
+{% endmacro %}

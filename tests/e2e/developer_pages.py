@@ -1,6 +1,14 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
 from playwright.sync_api import Locator, Page, expect
+
+from app.common.data.types import ManagedExpressionsEnum
+from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
+
+if TYPE_CHECKING:
+    from tests.e2e.pages import AllGrantsPage
 
 
 class GrantDevelopersBasePage:
@@ -19,28 +27,27 @@ class GrantDevelopersBasePage:
 
 class GrantDevelopersPage(GrantDevelopersBasePage):
     manage_collections_link: Locator
+    delete_link: Locator
+    confirm_delete: Locator
+    add_collection_button: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(
             page, domain, grant_name=grant_name, heading=page.get_by_role("heading", name=f"{grant_name} Developers")
         )
         self.manage_collections_link = self.page.get_by_role("link", name="Manage")
-
-    def click_manage_collections(self, grant_name: str) -> ListCollectionsPage:
-        self.manage_collections_link.click()
-        list_collections_page = ListCollectionsPage(self.page, self.domain, self.grant_name)
-        expect(list_collections_page.heading).to_be_visible()
-        return list_collections_page
-
-
-class ListCollectionsPage(GrantDevelopersBasePage):
-    add_collection_button: Locator
-
-    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
-        super().__init__(
-            page, domain, grant_name=grant_name, heading=page.get_by_role("heading", name=f"{grant_name} collections")
-        )
+        self.delete_link = page.get_by_role("link", name="Delete this grant")
+        self.confirm_delete = page.get_by_role("button", name="Confirm deletion")
         self.add_collection_button = self.page.get_by_role("button", name="Add collection")
+
+    def delete_grant(self) -> "AllGrantsPage":
+        from tests.e2e.pages import AllGrantsPage
+
+        self.delete_link.click()
+        self.confirm_delete.click()
+        all_grants_page = AllGrantsPage(self.page, self.domain)
+        expect(all_grants_page.title).to_be_visible()
+        return all_grants_page
 
     def click_add_collection(self) -> AddCollectionPage:
         self.add_collection_button.click()
@@ -72,11 +79,11 @@ class AddCollectionPage(GrantDevelopersBasePage):
     def fill_in_collection_name(self, name: str) -> None:
         self.page.get_by_role("textbox", name="What is the name of the collection?").fill(name)
 
-    def click_submit(self, grant_name: str) -> ListCollectionsPage:
+    def click_submit(self, grant_name: str) -> GrantDevelopersPage:
         self.page.get_by_role("button", name="Set up collection").click()
-        list_collections_page = ListCollectionsPage(self.page, self.domain, grant_name=grant_name)
-        expect(list_collections_page.heading).to_be_visible()
-        return list_collections_page
+        developers_page = GrantDevelopersPage(self.page, self.domain, grant_name=grant_name)
+        expect(developers_page.heading).to_be_visible()
+        return developers_page
 
 
 class CollectionDetailPage(GrantDevelopersBasePage):
@@ -276,6 +283,119 @@ class ManageFormPage(GrantDevelopersBasePage):
     def check_question_exists(self, question_name: str) -> None:
         expect(self.page.get_by_role("term").filter(has_text=question_name)).to_be_visible()
 
+    def click_edit_question(self, question_name: str) -> "EditQuestionPage":
+        self.page.get_by_role("link", name=question_name).click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
+
+
+class EditQuestionPage(GrantDevelopersBasePage):
+    add_validation_button: Locator
+    back_link: Locator
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, collection_name: str, section_title: str, form_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Edit question"),
+        )
+        self.section_title = section_title
+        self.collection_name = collection_name
+        self.form_name = form_name
+        self.add_validation_button = self.page.get_by_role("button", name="Add validation").or_(
+            self.page.get_by_role("button", name="Add more validation")
+        )
+        self.back_link = self.page.get_by_role("link", name="Back")
+
+    def click_add_validation(self) -> "AddValidationPage":
+        self.add_validation_button.click()
+        add_validation_page = AddValidationPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(add_validation_page.heading).to_be_visible()
+        return add_validation_page
+
+    def click_back(self) -> "ManageFormPage":
+        self.back_link.click()
+        manage_form_page = ManageFormPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(manage_form_page.heading).to_be_visible()
+        return manage_form_page
+
+
+class AddValidationPage(GrantDevelopersBasePage):
+    add_validation_button: Locator
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, collection_name: str, section_title: str, form_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Add validation"),
+        )
+        self.section_title = section_title
+        self.collection_name = collection_name
+        self.form_name = form_name
+        self.add_validation_button = self.page.get_by_role("button", name="Add validation")
+
+    def configure_managed_validation(self, managed_validation: ManagedExpression) -> None:
+        self.click_managed_validation_type(managed_validation)
+
+        match managed_validation._key:
+            case ManagedExpressionsEnum.GREATER_THAN:
+                managed_validation = cast(GreaterThan, managed_validation)
+                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_validation.minimum_value))
+
+                if managed_validation.inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
+
+            case ManagedExpressionsEnum.LESS_THAN:
+                managed_validation = cast(LessThan, managed_validation)
+                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_validation.maximum_value))
+
+                if managed_validation.inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+
+    def click_managed_validation_type(self, managed_validation: ManagedExpression) -> None:
+        self.page.get_by_role("radio", name=managed_validation._key.value).click()
+
+    def click_add_validation(self) -> "EditQuestionPage":
+        self.add_validation_button.click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
+
 
 class SelectQuestionTypePage(GrantDevelopersBasePage):
     section_title: str
@@ -435,11 +555,11 @@ class TasklistPage(GrantDevelopersBasePage):
     def click_on_form(self, form_name: str) -> None:
         self.page.get_by_role("link", name=form_name).click()
 
-    def click_submit(self) -> SubmitSubmissionConfirmationPage:
+    def click_submit(self) -> CollectionDetailPage:
         self.submit_button.click()
-        confirmation_page = SubmitSubmissionConfirmationPage(self.page, self.domain, self.grant_name)
-        expect(confirmation_page.heading).to_be_visible()
-        return confirmation_page
+        collection_detail_page = CollectionDetailPage(self.page, self.domain, self.grant_name, self.collection_name)
+        expect(collection_detail_page.heading).to_be_visible()
+        return collection_detail_page
 
     def click_back(self) -> CollectionDetailPage:
         self.back_link.click()
@@ -520,6 +640,10 @@ class SubmissionsListPage(GrantDevelopersBasePage):
         )
         self.collection_name = collection_name
 
+    def click_on_first_submission(self) -> ViewSubmissionPage:
+        first_submission_reference = self.page.locator("[data-submission-link]").first.inner_text()
+        return self.click_on_submission(first_submission_reference)
+
     def click_on_submission(self, collection_reference: str) -> ViewSubmissionPage:
         self.page.get_by_role("link", name=collection_reference).click()
         view_collection_page = ViewSubmissionPage(
@@ -543,16 +667,3 @@ class ViewSubmissionPage(GrantDevelopersBasePage):
 
     def get_questions_list_for_form(self, form_name: str) -> Locator:
         return self.page.get_by_test_id(form_name)
-
-
-class SubmitSubmissionConfirmationPage(GrantDevelopersBasePage):
-    collection_reference: Locator
-
-    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
-        super().__init__(
-            page,
-            domain,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Submission submitted"),
-        )
-        self.collection_reference = page.get_by_test_id("submission-reference")

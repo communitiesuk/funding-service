@@ -28,6 +28,11 @@ class Manifest(RootModel[Optional[Dict[str, Asset]]]):
 
 
 class FlaskAssetsViteExtension:
+    def __init__(self) -> None:
+        self._app: App | None = None
+        self._live_enabled: bool | None = None
+        self._manifest: Manifest | None = None
+
     def init_app(self, app: App) -> None:
         self._app = app
         self._live_enabled = self._app.config["ASSETS_VITE_LIVE_ENABLED"]
@@ -35,7 +40,7 @@ class FlaskAssetsViteExtension:
         try:
             with open("app/assets/dist/manifest.json", "r") as f:
                 data = json.load(f)
-                self._manifest = Manifest(**data)
+                self._manifest = Manifest(root=data)
         except FileNotFoundError as e:
             if not self._live_enabled or self._app.config["FLASK_ENV"] == Environment.PROD:
                 raise Exception("Asset manifest not found, make sure assets are generated") from e
@@ -50,9 +55,14 @@ class FlaskAssetsViteExtension:
             to enable hot module replacement and automatic udpates to both SCSS
             and JavaScript.
             """
+            if self._app is None or self._live_enabled is None:
+                raise RuntimeError("Need to call FlaskAssetsViteExtension.init_app() first")
 
             if self._live_enabled:
                 return f"{self._app.config['ASSETS_VITE_BASE_URL']}/static/{relative_file_path}"
+
+            if not self._manifest:
+                raise Exception("Asset manifest not found, make sure assets are generated")
 
             generated_asset = self._manifest[relative_file_path]
             if generated_asset:
@@ -62,4 +72,4 @@ class FlaskAssetsViteExtension:
             # assets that have not been transpiled by vite but may have been copied
             return url_for("static", filename=relative_file_path)
 
-        return dict(vite_asset=vite_asset)
+        return dict(vite_asset=vite_asset)  # ty: ignore[invalid-return-type]

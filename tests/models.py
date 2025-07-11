@@ -9,10 +9,12 @@ for transactional isolation.
 
 import datetime
 import secrets
+from typing import Any
 from uuid import uuid4
 
 import factory
 import factory.fuzzy
+from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 
 from app.common.data.models import (
@@ -20,14 +22,13 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
-    MagicLink,
     Organisation,
     Question,
     Section,
     Submission,
     SubmissionEvent,
 )
-from app.common.data.models_user import User, UserRole
+from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
 from app.extensions import db
 
@@ -36,7 +37,7 @@ def _required() -> None:
     raise ValueError("Value must be set explicitly for tests")
 
 
-class _GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _GrantFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Grant
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -50,7 +51,7 @@ class _GrantFactory(factory.alchemy.SQLAlchemyModelFactory):
     primary_contact_email = factory.Faker("email")
 
 
-class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _UserFactory(SQLAlchemyModelFactory):
     class Meta:
         model = User
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -60,9 +61,10 @@ class _UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     name = factory.Faker("name")
     email = factory.Faker("email")
     azure_ad_subject_id = factory.fuzzy.FuzzyText(length=25)
+    last_logged_in_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
 
 
-class _OrganisationFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _OrganisationFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Organisation
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -71,7 +73,7 @@ class _OrganisationFactory(factory.alchemy.SQLAlchemyModelFactory):
     name = factory.Sequence(lambda n: "Organisation %d" % n)
 
 
-class _UserRoleFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _UserRoleFactory(SQLAlchemyModelFactory):
     class Meta:
         model = UserRole
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -97,7 +99,7 @@ class _UserRoleFactory(factory.alchemy.SQLAlchemyModelFactory):
         )
 
 
-class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _MagicLinkFactory(SQLAlchemyModelFactory):
     class Meta:
         model = MagicLink
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -105,14 +107,15 @@ class _MagicLinkFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     code = factory.LazyFunction(lambda: secrets.token_urlsafe(12))
-    user_id = factory.LazyAttribute(lambda o: o.user.id)
-    user = factory.SubFactory(_UserFactory)
+    user_id = factory.LazyAttribute(lambda o: o.user.id if o.user else None)  # noqa: E731
+    user = None
+    email = factory.Faker("email")
     redirect_to_path = factory.LazyFunction(lambda: url_for("deliver_grant_funding.list_grants"))
     expires_at_utc = factory.LazyFunction(lambda: datetime.datetime.now() + datetime.timedelta(minutes=15))
     claimed_at_utc = None
 
 
-class _CollectionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _CollectionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Collection
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -129,7 +132,7 @@ class _CollectionFactory(factory.alchemy.SQLAlchemyModelFactory):
     grant = factory.SubFactory(_GrantFactory)
 
 
-class _SubmissionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _SubmissionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Submission
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -148,7 +151,7 @@ class _SubmissionFactory(factory.alchemy.SQLAlchemyModelFactory):
     collection_version = factory.LazyAttribute(lambda o: o.collection.version)
 
 
-class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _SectionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Section
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -163,7 +166,7 @@ class _SectionFactory(factory.alchemy.SQLAlchemyModelFactory):
     collection_id = factory.LazyAttribute(lambda o: o.collection.id)
 
 
-class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _FormFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Form
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -178,7 +181,7 @@ class _FormFactory(factory.alchemy.SQLAlchemyModelFactory):
     section_id = factory.LazyAttribute(lambda o: o.section.id)
 
 
-class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _QuestionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Question
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -194,8 +197,21 @@ class _QuestionFactory(factory.alchemy.SQLAlchemyModelFactory):
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)
 
+    @factory.post_generation  # type: ignore[misc]
+    def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
+        if not extracted:
+            return
 
-class _SubmissionEventFactory(factory.alchemy.SQLAlchemyModelFactory):
+        for expression in extracted:
+            expression.question_id = self.id
+            db.session.add(expression)
+            self.expressions.append(expression)
+
+        if create:
+            db.session.commit()
+
+
+class _SubmissionEventFactory(SQLAlchemyModelFactory):
     class Meta:
         model = SubmissionEvent
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -207,7 +223,7 @@ class _SubmissionEventFactory(factory.alchemy.SQLAlchemyModelFactory):
     created_by = factory.SubFactory(_UserFactory)
 
 
-class _ExpressionFactory(factory.alchemy.SQLAlchemyModelFactory):
+class _ExpressionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Expression
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
@@ -224,3 +240,37 @@ class _ExpressionFactory(factory.alchemy.SQLAlchemyModelFactory):
     #       makes some kind of sense for the question type
     statement = factory.LazyFunction(_required)
     type = factory.LazyFunction(_required)
+
+
+class _InvitationFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = Invitation
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+    email = factory.Faker("email")
+    user_id = None
+    user = None
+    organisation_id = None
+    organisation = None
+    grant_id = None
+    grant = None
+    role = None
+    expires_at_utc = factory.LazyFunction(lambda: datetime.datetime.now() + datetime.timedelta(days=7))
+    claimed_at_utc = None
+
+    class Params:
+        has_organisation = factory.Trait(
+            organisation_id=factory.LazyAttribute(lambda o: o.organisation.id),
+            organisation=factory.SubFactory(_OrganisationFactory),
+        )
+        has_grant = factory.Trait(
+            grant_id=factory.LazyAttribute(lambda o: o.grant.id),
+            grant=factory.SubFactory(_GrantFactory),
+        )
+        is_claimed = factory.Trait(
+            claimed_at_utc=factory.LazyFunction(lambda: datetime.datetime.now()),
+            user=factory.SubFactory(_UserFactory),
+            user_id=factory.LazyAttribute(lambda o: o.user.id if o.user else None),
+        )

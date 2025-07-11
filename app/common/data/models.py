@@ -1,20 +1,18 @@
-import datetime
-import secrets
 import uuid
 from typing import TYPE_CHECKING, Optional
 
-from pytz import utc
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.orderinglist import ordering_list
+from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
-from app.common.data.models_user import User
+from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
     ExpressionType,
+    ManagedExpressionsEnum,
     QuestionDataType,
     SubmissionEventKey,
     SubmissionModeEnum,
@@ -22,16 +20,19 @@ from app.common.data.types import (
     json_flat_scalars,
     json_scalars,
 )
+from app.common.expressions.managed import get_managed_expression
+from app.common.qid import SafeQidMixin
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
+    from app.common.expressions.managed import ManagedExpression
 
 
 class Grant(BaseModel):
     __tablename__ = "grant"
 
+    ggis_number: Mapped[str]
     name: Mapped[CIStr] = mapped_column(unique=True)
-    ggis_number: Mapped[str | None]
     description: Mapped[str]
     primary_contact_name: Mapped[str]
     primary_contact_email: Mapped[str]
@@ -45,6 +46,11 @@ class Grant(BaseModel):
         secondaryjoin="User.id==UserRole.user_id",
         viewonly=True,
     )
+    invitations: Mapped[list["Invitation"]] = relationship(
+        "Invitation",
+        back_populates="grant",
+        viewonly=True,
+    )
 
 
 class Organisation(BaseModel):
@@ -54,24 +60,6 @@ class Organisation(BaseModel):
     roles: Mapped[list["UserRole"]] = relationship(
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"
     )
-
-
-class MagicLink(BaseModel):
-    __tablename__ = "magic_link"
-
-    code: Mapped[str] = mapped_column(unique=True, default=lambda: secrets.token_urlsafe(12))
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
-    redirect_to_path: Mapped[str]
-    expires_at_utc: Mapped[datetime.datetime]
-    claimed_at_utc: Mapped[datetime.datetime | None]
-
-    user: Mapped[User] = relationship("User", back_populates="magic_links")
-
-    __table_args__ = (Index(None, code, unique=True, postgresql_where="claimed_at_utc IS NOT NULL"),)
-
-    @property
-    def usable(self) -> bool:
-        return self.claimed_at_utc is None and self.expires_at_utc > datetime.datetime.now(utc).replace(tzinfo=None)
 
 
 class Collection(BaseModel):
@@ -101,7 +89,7 @@ class Collection(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    sections: Mapped[list["Section"]] = relationship(
+    sections: Mapped[OrderingList["Section"]] = relationship(
         "Section",
         lazy=True,
         order_by="Section.order",
@@ -166,7 +154,7 @@ class Section(BaseModel):
     collection_version: Mapped[int]
     collection: Mapped[Collection] = relationship("Collection", back_populates="sections")
 
-    forms: Mapped[list["Form"]] = relationship(
+    forms: Mapped[OrderingList["Form"]] = relationship(
         "Form",
         lazy=True,
         order_by="Form.order",
@@ -207,7 +195,7 @@ class Form(BaseModel):
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
     )
 
-    questions: Mapped[list["Question"]] = relationship(
+    questions: Mapped[OrderingList["Question"]] = relationship(
         "Question",
         lazy=True,
         order_by="Question.order",
@@ -218,7 +206,7 @@ class Form(BaseModel):
     )
 
 
-class Question(BaseModel):
+class Question(BaseModel, SafeQidMixin):
     __tablename__ = "question"
 
     text: Mapped[str]
@@ -239,11 +227,27 @@ class Question(BaseModel):
 
     # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
     expressions: Mapped[list["Expression"]] = relationship(
-        "Expression", back_populates="question", cascade="all, delete-orphan"
+        "Expression", back_populates="question", cascade="all, delete-orphan", order_by="Expression.created_at_utc"
     )
 
-    # todo: add properties for pulling out separate conditions and validation types of expressions
-    #       those could come in with some simple interface tests
+    @property
+    def conditions(self) -> list["Expression"]:
+        return [expression for expression in self.expressions if expression.type == ExpressionType.CONDITION]
+
+    @property
+    def validations(self) -> list["Expression"]:
+        return [expression for expression in self.expressions if expression.type == ExpressionType.VALIDATION]
+
+    @property
+    def question_id(self) -> uuid.UUID:  # type: ignore[override]
+        """A small proxy to support SafeQidMixin so that logic can be centralised."""
+        return self.id
+
+    def get_expression(self, id: uuid.UUID) -> "Expression":
+        try:
+            return next(expression for expression in self.expressions if expression.id == id)
+        except StopIteration as e:
+            raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
 
     __table_args__ = (
         UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
@@ -281,6 +285,10 @@ class Expression(BaseModel):
         SqlEnum(ExpressionType, name="expression_type_enum", validate_strings=True)
     )
 
+    managed_name: Mapped[Optional[ManagedExpressionsEnum]] = mapped_column(
+        SqlEnum(ManagedExpressionsEnum, name="managed_expression_enum", validate_strings=True, nullable=True)
+    )
+
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
     question: Mapped[Question] = relationship("Question", back_populates="expressions")
 
@@ -292,8 +300,35 @@ class Expression(BaseModel):
             "uq_type_validation_unique_key",
             "type",
             "question_id",
-            text("(context ->> 'key')"),
+            "managed_name",
             postgresql_where=f"type = '{ExpressionType.VALIDATION.value}'::expression_type_enum",
             unique=True,
         ),
+        Index(
+            "uq_type_condition_unique_question",
+            "type",
+            "question_id",
+            "managed_name",
+            text("(context ->> 'question_id')"),
+            postgresql_where=f"type = '{ExpressionType.CONDITION.value}'::expression_type_enum",
+            unique=True,
+        ),
     )
+
+    @property
+    def managed(self) -> "ManagedExpression":
+        return get_managed_expression(self)
+
+    @classmethod
+    def from_managed(
+        cls,
+        managed_expression: "ManagedExpression",
+        created_by: "User",
+    ) -> "Expression":
+        return Expression(
+            statement=managed_expression.statement,
+            context=managed_expression.model_dump(mode="json"),
+            created_by=created_by,
+            type=ExpressionType.CONDITION,
+            managed_name=managed_expression._key,
+        )

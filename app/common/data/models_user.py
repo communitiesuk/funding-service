@@ -1,15 +1,19 @@
+import secrets
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
+from pytz import utc
+from sqlalchemy import CheckConstraint, ColumnElement, ForeignKey, Index, UniqueConstraint, func
 from sqlalchemy import Enum as SqlEnum
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.types import RoleEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import Grant, MagicLink, Organisation, Submission
+    from app.common.data.models import Grant, Organisation, Submission
 
 
 class User(BaseModel):
@@ -20,8 +24,13 @@ class User(BaseModel):
     azure_ad_subject_id: Mapped[str] = mapped_column(nullable=True, unique=True)
 
     magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
+    invitations: Mapped[list["Invitation"]] = relationship(
+        "Invitation", back_populates="user", cascade="all, delete-orphan"
+    )
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     submissions: Mapped[list["Submission"]] = relationship("Submission", back_populates="created_by")
+
+    last_logged_in_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
 
     # START: Flask-Login attributes
     # These ideally might be provided by UserMixin, except that breaks our type hinting when using this class in
@@ -38,7 +47,7 @@ class User(BaseModel):
     def is_anonymous(self) -> bool:
         return False
 
-    def get_id(self) -> str:
+    def get_id(self) -> str | None:
         return str(self.id)
 
 
@@ -81,12 +90,65 @@ class UserRole(BaseModel):
             "role != 'MEMBER' OR NOT (organisation_id IS NULL AND grant_id IS NULL)",
             name="member_role_not_platform",
         ),
-        CheckConstraint(
-            "role != 'S151_OFFICER' OR (organisation_id IS NOT NULL AND grant_id IS NULL)",
-            name="s151_officer_role_org_only",
-        ),
-        CheckConstraint(
-            "role != 'ASSESSOR' OR (organisation_id IS NULL AND grant_id IS NOT NULL)",
-            name="assessor_role_grant_only",
-        ),
     )
+
+
+class MagicLink(BaseModel):
+    __tablename__ = "magic_link"
+
+    code: Mapped[str] = mapped_column(unique=True, default=lambda: secrets.token_urlsafe(12))
+    email: Mapped[CIStr] = mapped_column(nullable=True)
+
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    redirect_to_path: Mapped[str]
+    expires_at_utc: Mapped[datetime]
+    claimed_at_utc: Mapped[datetime | None]
+
+    user: Mapped[User] = relationship("User", back_populates="magic_links")
+
+    __table_args__ = (Index(None, code, unique=True, postgresql_where="claimed_at_utc IS NOT NULL"),)
+
+    @hybrid_property
+    def is_usable(self) -> bool:
+        return self.claimed_at_utc is None and self.expires_at_utc > datetime.now(utc).replace(tzinfo=None)
+
+    @is_usable.inplace.expression
+    @classmethod
+    def _is_usable_expression(cls) -> ColumnElement[bool]:
+        return cls.claimed_at_utc.is_(None) & (cls.expires_at_utc > func.now())
+
+
+class Invitation(BaseModel):
+    __tablename__ = "invitation"
+
+    email: Mapped[CIStr]
+
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    organisation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organisation.id", ondelete="CASCADE"), nullable=True
+    )
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
+    role: Mapped["RoleEnum"] = mapped_column(
+        SqlEnum(
+            RoleEnum,
+            name="role_enum",
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship("User", back_populates="invitations")
+    organisation: Mapped["Organisation"] = relationship("Organisation")
+    grant: Mapped["Grant"] = relationship("Grant", back_populates="invitations")
+
+    expires_at_utc: Mapped[datetime] = mapped_column(nullable=False)
+    claimed_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    @hybrid_property
+    def is_usable(self) -> bool:
+        return self.claimed_at_utc is None and self.expires_at_utc > datetime.now(utc).replace(tzinfo=None)
+
+    @is_usable.inplace.expression
+    @classmethod
+    def _is_usable_expression(cls) -> ColumnElement[bool]:
+        return cls.claimed_at_utc.is_(None) & (cls.expires_at_utc > func.now())

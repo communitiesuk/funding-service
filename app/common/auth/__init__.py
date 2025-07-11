@@ -5,18 +5,12 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import redirect_if_authenticated
-from app.common.auth.forms import ClaimMagicLinkForm, SignInForm, SSOSignInForm
+from app.common.auth.forms import SignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
-from app.common.data.interfaces.user import (
-    get_user_by_azure_ad_subject_id,
-    get_user_by_email,
-    upsert_user_by_azure_ad_subject_id,
-    upsert_user_by_email,
-    upsert_user_role,
-)
-from app.common.data.types import RoleEnum
+from app.common.forms import GenericSubmitForm
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
 
@@ -32,12 +26,13 @@ auth_blueprint = Blueprint(
 @auto_commit_after_request
 def request_a_link_to_sign_in() -> ResponseReturnValue:
     form = SignInForm()
+    link_expired = request.args.get("link_expired", False)
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
-
-        user = upsert_user_by_email(email_address=email)
+        user = interfaces.user.get_user_by_email(email_address=email)
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
+            email=email,
             redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
         )
 
@@ -51,18 +46,18 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 
         return redirect(url_for("auth.check_email", magic_link_id=magic_link.id))
 
-    return render_template("common/auth/sign_in_magic_link.html", form=form)
+    return render_template("common/auth/sign_in_magic_link.html", form=form, link_expired=link_expired)
 
 
 @auth_blueprint.get("/check-your-email/<uuid:magic_link_id>")
 @redirect_if_authenticated
 def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(id_=magic_link_id)
-    if not magic_link or not magic_link.usable:
-        abort(404)
+    if not magic_link or not magic_link.is_usable:
+        return abort(404)
 
     notification_id = session.pop("magic_link_email_notification_id", None)
-    return render_template("common/auth/check_email.html", user=magic_link.user, notification_id=notification_id)
+    return render_template("common/auth/check_email.html", email=magic_link.email, notification_id=notification_id)
 
 
 @auth_blueprint.route("/sign-in/<magic_link_code>", methods=["GET", "POST"])
@@ -70,14 +65,24 @@ def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     magic_link = interfaces.magic_link.get_magic_link(code=magic_link_code)
-    if not magic_link or not magic_link.usable:
-        return redirect(url_for("auth.request_a_link_to_sign_in"))
+    if not magic_link or not magic_link.is_usable:
+        if magic_link:
+            session["next"] = magic_link.redirect_to_path
+        return redirect(
+            url_for(
+                "auth.request_a_link_to_sign_in",
+                link_expired=True,
+            )
+        )
 
-    form = ClaimMagicLinkForm()
+    form = GenericSubmitForm()
     if form.validate_on_submit():
-        interfaces.magic_link.claim_magic_link(magic_link=magic_link)
-        if not login_user(magic_link.user):
-            abort(400)
+        user = magic_link.user
+        if not user:
+            user = interfaces.user.upsert_user_by_email(email_address=str(magic_link.email))
+        interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
+        if not login_user(user):
+            return abort(400)
 
         return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
 
@@ -87,7 +92,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
 @auth_blueprint.route("/sso/sign-in", methods=["GET", "POST"])
 @redirect_if_authenticated
 def sso_sign_in() -> ResponseReturnValue:
-    form = SSOSignInForm()
+    form = GenericSubmitForm()
     if form.validate_on_submit():
         session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
         return redirect(session["flow"]["auth_uri"]), 302
@@ -99,49 +104,65 @@ def sso_sign_in() -> ResponseReturnValue:
 @auto_commit_after_request
 def sso_get_token() -> ResponseReturnValue:
     result = build_msal_app().acquire_token_by_auth_code_flow(session.get("flow", {}), request.args)
-
     if "error" in result:
         return abort(500, "Azure AD get-token flow failed with: {}".format(result))
 
     sso_user = result["id_token_claims"]
-    user = get_user_by_azure_ad_subject_id(azure_ad_subject_id=sso_user["sub"])
-    # TODO: FSPT-515 - remove this logic. This additional logic is to cover grant team members who are directly added as
-    # users but don't yet have the azure_ad_subject_id field present as they haven't logged in. Our SSO now uses this as
-    # the unique identifying field so needs it to be present. This should be removed when we move to an invitation
-    # mechanism in FSPT-515 which won't create a User in the database until they sign in for the first time, allowing us
-    # to simplify this flow.
-    if user is None:
-        user = get_user_by_email(email_address=sso_user["preferred_username"])
-        if user and not user.azure_ad_subject_id:
-            user = upsert_user_by_email(
-                email_address=sso_user["preferred_username"],
-                name=sso_user["name"],
-                azure_ad_subject_id=sso_user["sub"],
-            )
-    redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
 
+    # Does the user exist already?
+    user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id=sso_user["sub"])
+
+    # Platform admin route
     if "FSD_ADMIN" in sso_user.get("roles", []):
-        user = upsert_user_by_azure_ad_subject_id(
+        user = interfaces.user.upsert_user_and_set_platform_admin_role(
+            azure_ad_subject_id=sso_user["sub"], email_address=sso_user["preferred_username"], name=sso_user["name"]
+        )
+
+    # Invitations route
+    elif user is None:
+        user_invites = interfaces.user.get_usable_invitations_by_email(email=sso_user["preferred_username"])
+        # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
+        if not user_invites:
+            return render_template(
+                "common/auth/mhclg-user-not-authorised.html",
+                service_desk_url=current_app.config["SERVICE_DESK_URL"],
+                invite_expired=True,
+            ), 403
+        user = interfaces.user.create_user_and_claim_invitations(
             azure_ad_subject_id=sso_user["sub"],
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
-        upsert_user_role(user_id=user.id, role=RoleEnum.ADMIN)
+
+    # Existing User with roles route
     elif user and user.roles:
-        user = upsert_user_by_azure_ad_subject_id(
+        user = interfaces.user.upsert_user_by_azure_ad_subject_id(
             azure_ad_subject_id=sso_user["sub"],
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
+        if AuthorisationHelper.is_platform_admin(user):
+            interfaces.user.remove_platform_admin_role_from_user(user)
+            # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
+            if not user.roles:
+                return render_template(
+                    "common/auth/mhclg-user-not-authorised.html",
+                    service_desk_url=current_app.config["SERVICE_DESK_URL"],
+                ), 403
+
+    # No user user and no roles means they should 403 for now
     else:
+        # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
         return render_template(
             "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]
         ), 403
 
+    # For all other valid users with roles after the above, finish the flow and redirect
+    redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))
     session.pop("flow", None)
 
     if not login_user(user):
-        abort(400)
+        return abort(400)
 
     return redirect(redirect_to_path)
 

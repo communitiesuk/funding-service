@@ -1,5 +1,16 @@
 {% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
 
+{% macro accessGrantFundingServiceNavigation(nav_items=[], right_nav_items=[]) %}
+  {{
+    govukServiceNavigation({
+    "serviceName": "Access grant funding",
+    "serviceUrl": "#",
+    "navigation": nav_items + right_nav_items,
+    "navigationClasses": "app-service-navigation__wrapper--sectional" if right_nav_items else "",
+    })
+  }}
+{% endmacro %}
+
 {% macro deliverGrantFundingServiceNavigation(nav_items=[], right_nav_items=[]) %}
   {{
     govukServiceNavigation({

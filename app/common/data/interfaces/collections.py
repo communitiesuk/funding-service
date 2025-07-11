@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Never, Protocol
 from uuid import UUID
 
-from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.common.collections.types import SubmissionAnswerRootModel
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
@@ -29,7 +29,7 @@ from app.common.utils import slugify
 from app.extensions import db
 
 if TYPE_CHECKING:
-    from app.common.expressions.managed import BaseExpression
+    from app.common.expressions.managed import ManagedExpression
 
 
 def create_collection(*, name: str, user: User, grant: Grant, version: int = 1) -> Collection:
@@ -77,8 +77,10 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
     return collection
 
 
-def update_submission_data(submission: Submission, question: Question, data: BaseModel) -> Submission:
-    submission.data[str(question.id)] = data.model_dump()
+def update_submission_data(
+    submission: Submission, question: Question, data: SubmissionAnswerRootModel[Any]
+) -> Submission:
+    submission.data[str(question.id)] = data.get_value_for_submission()
     db.session.flush()
     return submission
 
@@ -124,7 +126,7 @@ def create_submission(*, collection: Collection, created_by: User, mode: Submiss
 
 def create_section(*, title: str, collection: Collection) -> Section:
     section = Section(title=title, collection_id=collection.id, slug=slugify(title))
-    collection.sections.append(section)
+    collection.sections.append(section)  # type: ignore[no-untyped-call]
     db.session.add(section)
     try:
         db.session.flush()
@@ -184,13 +186,17 @@ def move_section_down(section: Section) -> Section:
     return section
 
 
-def get_form_by_id(form_id: UUID) -> Form:
-    return db.session.get_one(Form, form_id)
+def get_form_by_id(form_id: UUID, with_all_questions: bool = False) -> Form:
+    options = []
+    if with_all_questions:
+        # todo: this will need refining again when we have different levels of grouped questions
+        options.append(selectinload(Form.questions).joinedload(Question.expressions))
+    return db.session.query(Form).options(*options).where(Form.id == form_id).one()
 
 
 def create_form(*, title: str, section: Section) -> Form:
     form = Form(title=title, section_id=section.id, slug=slugify(title))
-    section.forms.append(form)
+    section.forms.append(form)  # type: ignore[no-untyped-call]
     db.session.add(form)
 
     try:
@@ -225,7 +231,7 @@ def update_form(form: Form, *, title: str) -> Form:
 
 def create_question(form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType) -> Question:
     question = Question(text=text, form_id=form.id, slug=slugify(text), hint=hint, name=name, data_type=data_type)
-    form.questions.append(question)
+    form.questions.append(question)  # type: ignore[no-untyped-call]
     db.session.add(question)
 
     try:
@@ -240,13 +246,68 @@ def get_question_by_id(question_id: UUID) -> Question:
     return db.session.get_one(Question, question_id)
 
 
+class FlashableException(Protocol):
+    def as_flash_context(self) -> dict[str, str]: ...
+
+
+class DependencyOrderException(Exception, FlashableException):
+    def __init__(self, message: str, question: Question, depends_on_question: Question):
+        super().__init__(message)
+        self.message = message
+        self.question = question
+        self.depends_on_question = depends_on_question
+
+    def as_flash_context(self) -> dict[str, str]:
+        return {
+            "message": self.message,
+            "question_id": str(self.question.id),
+            "question_text": self.question.text,
+            "depends_on_question_id": str(self.depends_on_question.id),
+            "depends_on_question_text": self.depends_on_question.text,
+        }
+
+
+# todo: we might want something more generalisable that checks all order dependencies across a form
+#       but this gives us the specific result we want for the UX for now
+def check_question_order_dependency(question: Question, swap_question: Question) -> None:
+    for condition in question.conditions:
+        if condition.managed and condition.managed.question_id == swap_question.id:
+            raise DependencyOrderException(
+                "You cannot move questions above answers they depend on", question, swap_question
+            )
+
+    for condition in swap_question.conditions:
+        if condition.managed and condition.managed.question_id == question.id:
+            raise DependencyOrderException(
+                "You cannot move answers below questions that depend on them", swap_question, question
+            )
+
+
+def is_question_dependency_order_valid(question: Question, depends_on_question: Question) -> bool:
+    return question.order > depends_on_question.order
+
+
+def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
+    for target_question in question.form.questions:
+        for condition in target_question.conditions:
+            if condition.managed and condition.managed.question_id == question.id:
+                raise DependencyOrderException(
+                    "You cannot delete an answer that other questions depend on", target_question, question
+                )
+    return None
+
+
 def move_question_up(question: Question) -> Question:
-    swap_elements_in_list_and_flush(question.form.questions, question.order, question.order - 1)
+    swap_question = question.form.questions[question.order - 1]
+    check_question_order_dependency(question, swap_question)
+    swap_elements_in_list_and_flush(question.form.questions, question.order, swap_question.order)
     return question
 
 
 def move_question_down(question: Question) -> Question:
-    swap_elements_in_list_and_flush(question.form.questions, question.order, question.order + 1)
+    swap_question = question.form.questions[question.order + 1]
+    check_question_order_dependency(question, swap_question)
+    swap_elements_in_list_and_flush(question.form.questions, question.order, swap_question.order)
     return question
 
 
@@ -278,24 +339,31 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
     return submission
 
 
-def add_question_condition(question: Question, user: User, managed_expression: "BaseExpression") -> Question:
-    expression = Expression(
-        statement=managed_expression.statement,
-        context=managed_expression.model_dump(mode="json"),
-        created_by=user,
-        type=ExpressionType.CONDITION,
-    )
+def add_question_condition(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
+    if not is_question_dependency_order_valid(question, managed_expression.referenced_question):
+        raise DependencyOrderException(
+            "Cannot add managed condition that depends on a later question",
+            question,
+            managed_expression.referenced_question,
+        )
+
+    expression = Expression.from_managed(managed_expression, user)
     question.expressions.append(expression)
-    db.session.flush()
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
     return question
 
 
-def add_question_validation(question: Question, user: User, managed_expression: "BaseExpression") -> Question:
+def add_question_validation(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
     expression = Expression(
         statement=managed_expression.statement,
         context=managed_expression.model_dump(mode="json"),
         created_by=user,
         type=ExpressionType.VALIDATION,
+        managed_name=managed_expression._key,
     )
     question.expressions.append(expression)
     try:
@@ -306,14 +374,23 @@ def add_question_validation(question: Question, user: User, managed_expression: 
     return question
 
 
+def get_expression(expression_id: UUID) -> Expression:
+    return db.session.get_one(Expression, expression_id)
+
+
 def remove_question_expression(question: Question, expression: Expression) -> Question:
     question.expressions.remove(expression)
     db.session.flush()
     return question
 
 
-def update_question_expression(expression: Expression, managed_expression: "BaseExpression") -> Expression:
+def update_question_expression(expression: Expression, managed_expression: "ManagedExpression") -> Expression:
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
-    db.session.flush()
+    expression.managed_name = managed_expression._key
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
     return expression

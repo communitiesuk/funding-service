@@ -44,15 +44,15 @@ def get_all_grants() -> Sequence[Grant]:
 
 def create_grant(
     *,
+    ggis_number: str,
     name: str,
     description: str,
     primary_contact_name: str,
     primary_contact_email: str,
-    ggis_number: str | None = None,
 ) -> Grant:
     grant: Grant = Grant(
-        name=name,
         ggis_number=ggis_number,
+        name=name,
         description=description,
         primary_contact_name=primary_contact_name,
         primary_contact_email=primary_contact_email,
@@ -70,22 +70,22 @@ def create_grant(
 def update_grant(
     grant: Grant,
     *,
+    ggis_number: str | TNotProvided = NOT_PROVIDED,
     name: str | TNotProvided = NOT_PROVIDED,
     description: str | TNotProvided = NOT_PROVIDED,
     primary_contact_name: str | TNotProvided = NOT_PROVIDED,
     primary_contact_email: str | TNotProvided = NOT_PROVIDED,
-    ggis_number: str | None | TNotProvided = NOT_PROVIDED,
 ) -> Grant:
-    if name is not NOT_PROVIDED:
-        grant.name = name
-    if description is not NOT_PROVIDED:
-        grant.description = description
-    if primary_contact_name is not NOT_PROVIDED:
-        grant.primary_contact_name = primary_contact_name
-    if primary_contact_email is not NOT_PROVIDED:
-        grant.primary_contact_email = primary_contact_email
     if ggis_number is not NOT_PROVIDED:
-        grant.ggis_number = ggis_number
+        grant.ggis_number = ggis_number  # ty: ignore[invalid-assignment]
+    if name is not NOT_PROVIDED:
+        grant.name = name  # ty: ignore[invalid-assignment]
+    if description is not NOT_PROVIDED:
+        grant.description = description  # ty: ignore[invalid-assignment]
+    if primary_contact_name is not NOT_PROVIDED:
+        grant.primary_contact_name = primary_contact_name  # ty: ignore[invalid-assignment]
+    if primary_contact_email is not NOT_PROVIDED:
+        grant.primary_contact_email = primary_contact_email  # ty: ignore[invalid-assignment]
     try:
         db.session.flush()
     except IntegrityError as e:

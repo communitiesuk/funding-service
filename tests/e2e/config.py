@@ -2,6 +2,7 @@ import json
 import re
 import subprocess
 from typing import Literal, Protocol, cast
+from uuid import UUID
 
 import boto3
 from playwright.sync_api import HttpCredentials
@@ -9,13 +10,26 @@ from playwright.sync_api import HttpCredentials
 
 class EndToEndTestSecrets(Protocol):
     @property
+    def E2E_ENV(self) -> Literal["local", "dev", "test"]: ...
+
+    @property
     def HTTP_BASIC_AUTH(self) -> HttpCredentials | None: ...
 
     @property
     def GOVUK_NOTIFY_API_KEY(self) -> str: ...
 
+    @property
+    def SECRET_KEY(self) -> str: ...
+
+    @property
+    def SSO_PLATFORM_ADMIN_USER_ID(self) -> UUID: ...
+
 
 class LocalEndToEndSecrets:
+    @property
+    def E2E_ENV(self) -> Literal["local"]:
+        return "local"
+
     @property
     def HTTP_BASIC_AUTH(self) -> None:
         return None
@@ -29,8 +43,33 @@ class LocalEndToEndSecrets:
 
             return notify_key_line.group(1)
 
+    @property
+    def SECRET_KEY(self) -> str:
+        with open(".env") as env_file:
+            secret_key_line = re.search(r"^SECRET_KEY=(.+)$", env_file.read(), flags=re.MULTILINE)
+            if not secret_key_line:
+                raise ValueError("Could not read SECRET KEY from local .env file")
+
+            return secret_key_line.group(1)
+
+    @property
+    def SSO_PLATFORM_ADMIN_USER_ID(self) -> UUID:
+        with open(".env") as env_file:
+            sso_user_id_line = re.search(r"^SSO_PLATFORM_ADMIN_USER_ID=(.+)$", env_file.read(), flags=re.MULTILINE)
+            if not sso_user_id_line:
+                raise ValueError("Could not read SSO user ID from local .env file")
+
+            return UUID(sso_user_id_line.group(1))
+
 
 class AWSEndToEndSecrets:
+    e2e_env: Literal["dev", "test"]
+    e2e_aws_vault_profile: str | None
+
+    @property
+    def E2E_ENV(self) -> Literal["dev", "test"]:
+        return self.e2e_env
+
     def __init__(self, e2e_env: Literal["dev", "test"], e2e_aws_vault_profile: str | None):
         self.e2e_env = e2e_env
         self.e2e_aws_vault_profile = e2e_aws_vault_profile
@@ -78,3 +117,11 @@ class AWSEndToEndSecrets:
     @property
     def GOVUK_NOTIFY_API_KEY(self) -> str:
         return self._read_aws_parameter_store_value("/apprunner/funding-service/GOVUK_NOTIFY_API_KEY")
+
+    @property
+    def SECRET_KEY(self) -> str:
+        return self._read_aws_parameter_store_value("/apprunner/funding-service/SECRET_KEY")
+
+    @property
+    def SSO_PLATFORM_ADMIN_USER_ID(self) -> UUID:
+        return UUID(self._read_aws_parameter_store_value("/apprunner/funding-service/E2E_SSO_PLATFORM_ADMIN_USER_ID"))

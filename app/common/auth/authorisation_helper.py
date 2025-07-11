@@ -1,38 +1,48 @@
 from uuid import UUID
 
+from flask_login import AnonymousUserMixin
+
 from app.common.data.models_user import User
 from app.common.data.types import GRANT_ROLES_MAPPING, RoleEnum
 
 
 class AuthorisationHelper:
     @staticmethod
-    def has_logged_in(user: User) -> bool:
-        # FIXME: We should have some actual tracking of whether the user has logged in. This could either be a
-        #        field on the model called `last_logged_in_at` or similar, or we could only create entries in the user
-        #        table when the user actually logs in, rather than at invitation-time. Then we could simply trust that
-        #        if a user entry exists, they have definitely logged in.
-        return bool(user.name)
+    def is_logged_in(user: User | AnonymousUserMixin) -> bool:
+        return user.is_authenticated
 
     @staticmethod
-    def is_platform_admin(user: User) -> bool:
+    def has_logged_in(user: User | AnonymousUserMixin) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
+        return bool(user.last_logged_in_at_utc)
+
+    @staticmethod
+    def is_platform_admin(user: User | AnonymousUserMixin) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
         return any(
             role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id is None
             for role in user.roles
         )
 
     @staticmethod
-    def is_grant_admin(grant_id: UUID, user: User) -> bool:
+    def is_grant_admin(grant_id: UUID, user: User | AnonymousUserMixin) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
         return any(
             role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id == grant_id
             for role in user.roles
         )
 
     @staticmethod
-    def is_grant_member(grant_id: UUID, user: User) -> bool:
+    def is_grant_member(grant_id: UUID, user: User | AnonymousUserMixin) -> bool:
         """
         Determines whether a user has permissions to act as a grant member.
         Platform admin overrides anything else.
         """
+        if isinstance(user, AnonymousUserMixin):
+            return False
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
 
@@ -45,11 +55,13 @@ class AuthorisationHelper:
         )
 
     @staticmethod
-    def has_grant_role(grant_id: UUID, role: RoleEnum, user: User) -> bool:
+    def has_grant_role(grant_id: UUID, role: RoleEnum, user: User | AnonymousUserMixin) -> bool:
         """
         Will return True if the user has the specified role for the grant.
         Platform admin overrides anything else.
         """
+        if isinstance(user, AnonymousUserMixin):
+            return False
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
         match role:

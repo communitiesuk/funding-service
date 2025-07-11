@@ -1,0 +1,17 @@
+{% from "common/macros/collections.html" import collection_question with context %}
+{% from "common/macros/collections.html" import collection_before with context %}
+{% extends "developers/access/base.html" %}
+
+{% set page_title = runner.question.text ~ " - " ~ runner.form.title %}
+
+{% set form = runner.question_form %}
+
+{% block beforeContent %}
+  {{ collection_before(runner) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">{{ collection_question(runner) }}</div>
+  </div>
+{% endblock content %}

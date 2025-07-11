@@ -1,0 +1,21 @@
+{% extends "common/base.html" %}
+{% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "common/partials/navigation.html" import accessGrantFundingServiceNavigation %}
+
+{% set nav_items = nav_items or [] %}
+{% set right_nav_items = right_nav_items or [] %}
+
+{% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
+
+{% block header %}
+  {{
+    mhclgHeader(
+      params={
+        "homepageUrl": "#",
+        "assetPath": assetPath
+      },
+      currentUser=current_user,
+    )
+  }}
+  {{ accessGrantFundingServiceNavigation(nav_items, right_nav_items) }}
+{% endblock header %}

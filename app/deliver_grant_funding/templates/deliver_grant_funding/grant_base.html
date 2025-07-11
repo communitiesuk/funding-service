@@ -5,12 +5,6 @@
 {%
   set nav_items = [
       {
-          "text": "Home",
-          "key": "grant_dashboard",
-          "href": url_for("deliver_grant_funding.view_grant", grant_id=grant.id),
-          "current": active_item_identifier == "grants"
-      },
-      {
           "text": "Grant details",
           "key": "grant_details",
           "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
@@ -39,7 +33,7 @@
     do nav_items.append({
         "text": "Developers",
         "key": "grant_developers",
-        "href": url_for("developers.grant_developers", grant_id=grant.id),
+        "href": url_for("developers.deliver.grant_developers", grant_id=grant.id),
         "current": active_item_identifier == "developers"
     })
   %}

@@ -8,15 +8,19 @@ from _pytest.config import Config
 from _pytest.config.argparsing import Parser
 from flask import Flask
 from flask.testing import FlaskClient
+from html5lib.html5parser import ParseError
 from sqlalchemy.orm import Session
 from werkzeug.test import TestResponse
 
 from app import create_app
+from app.common.data.models import Grant
+from app.common.data.models_user import User
 from tests.models import (
     _CollectionFactory,
     _ExpressionFactory,
     _FormFactory,
     _GrantFactory,
+    _InvitationFactory,
     _MagicLinkFactory,
     _OrganisationFactory,
     _QuestionFactory,
@@ -81,6 +85,9 @@ def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
 
 
 class FundingServiceTestClient(FlaskClient):
+    user: User | None = None
+    grant: Grant | None = None
+
     def open(
         self,
         *args: t.Any,
@@ -102,9 +109,7 @@ class FundingServiceTestClient(FlaskClient):
 
                 # TODO: remove this when https://github.com/communitiesuk/funding-service/pull/36 has been merged.
                 if "FLASK_VITE_HEADER" not in line_with_context and "^ unexpected-end-tag" not in line_with_context:
-                    raise html5lib.html5parser.ParseError(
-                        f"\n\n{line_with_context}\n{' ' * (character_number - 1)}^ {error}"
-                    )
+                    raise ParseError(f"\n\n{line_with_context}\n{' ' * (character_number - 1)}^ {error}")
 
         return response
 
@@ -143,6 +148,7 @@ _Factories = namedtuple(
         "user_role",
         "submission_event",
         "expression",
+        "invitation",
     ],
 )
 
@@ -162,4 +168,5 @@ def factories(db_session: Session) -> _Factories:
         user_role=_UserRoleFactory,
         submission_event=_SubmissionEventFactory,
         expression=_ExpressionFactory,
+        invitation=_InvitationFactory,
     )

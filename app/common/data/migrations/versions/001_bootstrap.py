@@ -27,7 +27,7 @@ submission_event_key_enum = sa.Enum(
 
 def upgrade() -> None:
     public_citext = PGExtension(schema="public", signature="citext")
-    op.create_entity(public_citext)
+    op.create_entity(public_citext)  # ty: ignore[unresolved-attribute]
     op.create_table(
         "grant",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -274,4 +274,4 @@ def downgrade() -> None:
     submission_event_key_enum.drop(op.get_bind())
 
     public_citext = PGExtension(schema="public", signature="citext")
-    op.drop_entity(public_citext)
+    op.drop_entity(public_citext)  # ty: ignore[unresolved-attribute]

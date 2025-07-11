@@ -12,8 +12,15 @@ from werkzeug.routing import BaseConverter
 from app import logging
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
-from app.common.data.types import SubmissionModeEnum
-from app.common.filters import format_date, format_date_range, format_date_short, format_datetime, format_datetime_range
+from app.common.data.types import FormRunnerState, QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.filters import (
+    format_date,
+    format_date_range,
+    format_date_short,
+    format_datetime,
+    format_datetime_range,
+    to_ordinal,
+)
 from app.config import get_settings
 from app.extensions import (
     auto_commit_after_request,
@@ -23,11 +30,13 @@ from app.extensions import (
     migrate,
     notification_service,
     record_sqlalchemy_queries,
+    register_signals,
     talisman,
     toolbar,
 )
 from app.monkeypatch import patch_sqlalchemy_lite_async
 from app.sentry import init_sentry
+from app.types import FlashMessageType
 
 if TYPE_CHECKING:
     from app.common.data.models_user import User
@@ -102,6 +111,7 @@ def create_app() -> Flask:
     notification_service.init_app(app)
     talisman.init_app(app, **app.config["TALISMAN_SETTINGS"])
     login_manager.init_app(app)
+    register_signals(app)
     record_sqlalchemy_queries.init_app(app, db)
 
     @login_manager.user_loader  # type: ignore[misc]
@@ -124,6 +134,7 @@ def create_app() -> Flask:
     app.jinja_loader = ChoiceLoader(
         [
             PackageLoader("app.common"),
+            PackageLoader("app.access_grant_funding"),
             PackageLoader("app.deliver_grant_funding"),
             PackageLoader("app.developers"),
             PrefixLoader({"govuk_frontend_jinja": PackageLoader("govuk_frontend_jinja")}),
@@ -137,14 +148,21 @@ def create_app() -> Flask:
     app.jinja_env.add_extension("jinja2.ext.do")
 
     @app.context_processor
-    def _formatters() -> dict[str, Any]:
+    def _jinja_template_context() -> dict[str, Any]:
         return dict(
             format_date=format_date,
             format_date_short=format_date_short,
             format_datetime=format_datetime,
             format_date_range=format_date_range,
             format_datetime_range=format_datetime_range,
-            submission_mode_enum=SubmissionModeEnum,
+            to_ordinal=to_ordinal,
+            enum=dict(
+                submission_mode=SubmissionModeEnum,
+                flash_message_type=FlashMessageType,
+                question_type=QuestionDataType,
+                form_runner_state=FormRunnerState,
+                submission_status=SubmissionStatusEnum,
+            ),
         )
 
     # TODO: Remove our basic auth application code when the app is deployed behind CloudFront and the app is not
@@ -177,12 +195,14 @@ def create_app() -> Flask:
     # Attach routes
     _register_custom_converters(app)
 
+    from app.access_grant_funding.routes import access_grant_funding_blueprint
     from app.common.auth import auth_blueprint
     from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
     from app.developers import developers_blueprint
     from app.healthcheck import healthcheck_blueprint
 
     app.register_blueprint(healthcheck_blueprint)
+    app.register_blueprint(access_grant_funding_blueprint)
     app.register_blueprint(deliver_grant_funding_blueprint)
     app.register_blueprint(developers_blueprint)
     app.register_blueprint(auth_blueprint)
@@ -198,5 +218,4 @@ def create_app() -> Flask:
     # should make an intentional decision for when to be setting this
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
     app.add_template_global(AuthorisationHelper, "authorisation_helper")
-
     return app

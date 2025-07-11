@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16.8@sha256:301bcb60b8a3ee4ab7e147932723e3abd1cef53516ce5210b39fd9fe5e3602ae
+        image: postgres:17.5@sha256:3962158596daaef3682838cc8eb0e719ad1ce520f88e34596ce8d5de1b6330a1
         env:
           POSTGRES_PASSWORD: password  # pragma: allowlist secret
           POSTGRES_DB: postgres
@@ -20,7 +20,7 @@ jobs:
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
     - name: Install the latest version of uv
-      uses: astral-sh/setup-uv@445689ea25e0de0a23313031f5fe577c74ae45a1 # v6
+      uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6
       with:
         enable-cache: true
     - name: Check DB is up to date
@@ -47,7 +47,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@445689ea25e0de0a23313031f5fe577c74ae45a1 # v6
+        uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6
         with:
           enable-cache: true
       - name: install dependencies
@@ -67,13 +67,23 @@ jobs:
       - name: checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@445689ea25e0de0a23313031f5fe577c74ae45a1 # v6
+        uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6
         with:
           enable-cache: true
-      - name: install dependencies
-        run: uv sync
       - name: run type checking
         run: uv run mypy
+
+  type_checking_ty:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6
+        with:
+          enable-cache: true
+      - name: run type checking
+        run: uv run ty check
 
   lint_html_formatting:
     runs-on: ubuntu-latest
@@ -99,7 +109,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@445689ea25e0de0a23313031f5fe577c74ae45a1 # v6
+        uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6
         with:
           enable-cache: true
       - name: install dependencies

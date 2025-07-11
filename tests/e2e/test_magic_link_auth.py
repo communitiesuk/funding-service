@@ -16,6 +16,7 @@ def test_magic_link_redirect_journey(page: Page, domain: str, e2e_test_secrets: 
 
     page.wait_for_url(re.compile(rf"{domain}/check-your-email/.+"))
     notification_id = page.locator("[data-notification-id]").get_attribute("data-notification-id")
+    assert notification_id
 
     magic_link_url = retrieve_magic_link(notification_id, e2e_test_secrets)
     page.goto(magic_link_url)

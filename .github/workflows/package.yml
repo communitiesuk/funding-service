@@ -28,16 +28,16 @@ jobs:
       ghcr_image_location: ${{ steps.build_and_publish.outputs.ghcr_image_location }}
 
     steps:
-      - uses: buildpacks/github-actions/setup-pack@18140f827a09dd7fad8a189e7fdd97460811cd53 # v5.9.1
+      - uses: buildpacks/github-actions/setup-pack@bc04fbfd78e903050bab17a2dcf907e71e3c4afa # v5.9.2
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Set up Python
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: 3.13.5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@445689ea25e0de0a23313031f5fe577c74ae45a1 # v6
+        uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6
         with:
           enable-cache: true
 

@@ -1,6 +1,5 @@
 {% extends "govuk_frontend_jinja/template.html" %}
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
-{% from "govuk_frontend_jinja/components/phase-banner/macro.html" import govukPhaseBanner %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 
@@ -17,6 +16,7 @@
 {% endblock head %}
 
 {% block header %}
+  {# todo: have this header read a homepageUrl variable, then any subclasses can just use super() calls #}
   {{
     mhclgHeader(
       params={

@@ -39,14 +39,14 @@ def redirect_if_authenticated[**P](
             if user.email.endswith(internal_domains):
                 return redirect(url_for("deliver_grant_funding.list_grants"))
 
-            abort(500)
+            return abort(500)
 
         return func(*args, **kwargs)
 
     return wrapper
 
 
-def mhclg_login_required[**P](
+def is_mhclg_user[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
@@ -56,26 +56,26 @@ def mhclg_login_required[**P](
         # not an anonymous user (ie a user is definitely logged-in) if we get here.
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
         if not user.email.endswith(internal_domains):
-            abort(403)
+            return abort(403)
 
         return func(*args, **kwargs)
 
     return login_required(wrapper)
 
 
-def platform_admin_role_required[**P](
+def is_platform_admin[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
-        # This decorator is itself wrapped by `mhclg_login_required`, so we know that `current_user` exists and is
+        # This decorator is itself wrapped by `is_mhclg_user`, so we know that `current_user` exists and is
         # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
         if not AuthorisationHelper.is_platform_admin(user=interfaces.user.get_current_user()):
-            abort(403)
+            return abort(403)
 
         return func(*args, **kwargs)
 
-    return mhclg_login_required(wrapper)
+    return is_mhclg_user(wrapper)
 
 
 def has_grant_role[**P](
@@ -92,10 +92,10 @@ def has_grant_role[**P](
                 raise ValueError("Grant ID required.")
 
             if not AuthorisationHelper.has_grant_role(grant_id=UUID(str(kwargs["grant_id"])), role=role, user=user):
-                abort(403, description="Access denied")
+                return abort(403, description="Access denied")
 
             return func(*args, **kwargs)
 
-        return mhclg_login_required(wrapped)
+        return is_mhclg_user(wrapped)
 
     return decorator

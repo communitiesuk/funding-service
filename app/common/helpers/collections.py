@@ -1,24 +1,36 @@
 import uuid
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
+from immutabledict import immutabledict
 from pydantic import RootModel, TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
+from app.common.collections.types import (
+    Integer,
+    SubmissionAnswerRootModel,
+    TextMultiLine,
+    TextSingleLine,
+)
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_submission
 from app.common.data.models_user import User
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import (
+    QuestionDataType,
+    SubmissionEventKey,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
+from app.common.expressions import (
+    ExpressionContext,
+    UndefinedVariableInExpression,
+    evaluate,
+)
 
 if TYPE_CHECKING:
     from app.common.data.models import Form, Grant, Question, Section, Submission
-
-
-TextSingleLine = RootModel[str]
-TextMultiLine = RootModel[str]
-Integer = RootModel[int]
 
 
 class SubmissionHelper:
@@ -58,6 +70,28 @@ class SubmissionHelper:
     @property
     def reference(self) -> str:
         return self.submission.reference
+
+    @property
+    def form_data(self) -> dict[str, Any]:
+        form_data = {
+            question.safe_qid: answer.get_value_for_form()
+            for section in self.submission.collection.sections
+            for form in section.forms
+            for question in form.questions
+            if (answer := self.get_answer_for_question(question.id)) is not None
+        }
+        return form_data
+
+    @property
+    def expression_context(self) -> ExpressionContext:
+        submission_data = {
+            question.safe_qid: answer.get_value_for_expression()
+            for section in self.submission.collection.sections
+            for form in section.forms
+            for question in form.questions
+            if (answer := self.get_answer_for_question(question.id)) is not None
+        }
+        return ExpressionContext(from_submission=immutabledict(submission_data))
 
     @property
     def status(self) -> str:
@@ -173,9 +207,22 @@ class SubmissionHelper:
         """Returns the visible, ordered forms for a given section based upon the current state of this collection."""
         return sorted(section.forms, key=lambda f: f.order)
 
+    def is_question_visible(self, question: "Question", context: "ExpressionContext") -> bool:
+        try:
+            return all(evaluate(condition, context) for condition in question.conditions)
+        except UndefinedVariableInExpression:
+            # todo: fail open for now - this method should accept an optional bool that allows this condition to fail
+            #       or not- checking visibility on the question page itself should never fail - the summary page could
+            # todo: check dependency chain for conditions when undefined variables are encountered to avoid
+            #       always suppressing errors and not surfacing issues on misconfigured forms
+            return False
+
     def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
-        return sorted(form.questions, key=lambda q: q.order)
+        ordered_questions = sorted(form.questions, key=lambda q: q.order)
+        return [
+            question for question in ordered_questions if self.is_question_visible(question, self.expression_context)
+        ]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
         questions = self.get_ordered_visible_questions_for_form(form)
@@ -197,10 +244,10 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
-    def get_answer_for_question(self, question_id: UUID) -> TextSingleLine | TextMultiLine | Integer | None:
+    def get_answer_for_question(self, question_id: UUID) -> SubmissionAnswerRootModel[Any] | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
-        return _deserialise_question_type(question, serialised_data) if serialised_data else None
+        return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
 
     def submit_answer_for_question(self, question_id: UUID, form: DynamicQuestionForm) -> None:
         if self.is_completed:
@@ -275,18 +322,18 @@ class SubmissionHelper:
 def _form_data_to_question_type(
     question: "Question", form: DynamicQuestionForm
 ) -> TextSingleLine | TextMultiLine | Integer:
+    _QuestionModel: type[RootModel]  # type: ignore[type-arg]
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
-            assert isinstance(form.question.data, str)
-            return TextSingleLine(form.question.data)
+            _QuestionModel = TextSingleLine
         case QuestionDataType.TEXT_MULTI_LINE:
-            assert isinstance(form.question.data, str)
-            return TextMultiLine(form.question.data)
+            _QuestionModel = TextMultiLine
         case QuestionDataType.INTEGER:
-            assert isinstance(form.question.data, int)
-            return Integer(form.question.data)
+            _QuestionModel = Integer
         case _:
             raise ValueError(f"Could not parse data for question type={question.data_type}")
+
+    return _QuestionModel(form.get_answer_to_question(question))
 
 
 def _deserialise_question_type(

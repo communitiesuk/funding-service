@@ -22,11 +22,11 @@ vite:
 
 .PHONY: check-html
 check-html:
-	npx prettier --plugin=prettier-plugin-jinja-template --parser=jinja-template --tab-width=2 --html-whitespace-sensitivity ignore --bracket-same-line=true --print-width=240 --check **/*.html
+	npx prettier --plugin=prettier-plugin-jinja-template --parser=jinja-template --tab-width=2 --html-whitespace-sensitivity css --bracket-same-line=true --print-width=240 --check **/*.html
 
 .PHONY: format-html
 format-html:
-	npx prettier --plugin=prettier-plugin-jinja-template --parser=jinja-template --tab-width=2 --html-whitespace-sensitivity ignore --bracket-same-line=true --print-width=240 --write **/*.html
+	npx prettier --plugin=prettier-plugin-jinja-template --parser=jinja-template --tab-width=2 --html-whitespace-sensitivity css --bracket-same-line=true --print-width=240 --write **/*.html
 
 .PHONY: build
 build:

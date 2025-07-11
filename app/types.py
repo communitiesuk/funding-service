@@ -10,3 +10,7 @@ class TNotProvided(Enum):
 
 
 NOT_PROVIDED = TNotProvided.token
+
+
+class FlashMessageType(Enum):
+    DEPENDENCY_ORDER_ERROR = "dependency_order_error"

@@ -2,7 +2,7 @@ import copy
 import os
 import urllib.parse
 from enum import Enum
-from typing import Any, Self, Tuple, Type
+from typing import Any, Self, Tuple
 
 from flask_talisman.talisman import ONE_YEAR_IN_SECS
 from pydantic import BaseModel, PostgresDsn, model_validator
@@ -78,7 +78,7 @@ class _BaseConfig(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Type[BaseSettings],
+        settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,
         dotenv_settings: PydanticBaseSettingsSource,
@@ -251,6 +251,10 @@ class _SharedConfig(_BaseConfig):
 
     # Service Desk
     SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5"
+
+    # Grant setup
+    GGIS_TEAM_EMAIL: str = "ggis@communities.gov.uk"
+    PIPELINE_GRANTS_SCHEME_FORM_URL: str = "https://forms.office.com.mcas.ms/pages/responsepage.aspx?id=EGg0v32c3kOociSi7zmVqBUKhC0CqZtGmIj1YcYa53xUNTFRWkRXQ1ZJUEJMOTg1UllGWEpCNDQ4NSQlQCN0PWcu&route=shorturl"
 
     @property
     def IS_PRODUCTION(self) -> bool:

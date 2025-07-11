@@ -1,0 +1,17 @@
+{% from "common/macros/collections.html" import collection_check_your_answers with context %}
+{% from "common/macros/collections.html" import collection_before with context %}
+{% extends "developers/access/base.html" %}
+
+{% set page_title = "Check your answers - " ~ runner.form.title %}
+
+{% set form = runner.check_your_answers_form %}
+
+{% block beforeContent %}
+  {{ collection_before(runner) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">{{ collection_check_your_answers(runner) }}</div>
+  </div>
+{% endblock content %}

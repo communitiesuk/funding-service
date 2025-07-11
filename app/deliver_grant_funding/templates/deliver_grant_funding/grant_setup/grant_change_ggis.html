@@ -1,0 +1,51 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Enter your GGIS reference number" %}
+{% set active_item_identifier = "details" %}
+
+{% block beforeContent %}
+  {% if not grant %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": back_link_href
+      })
+    }}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l">What is the GGIS reference number?</h1>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{
+          form.ggis_number(params={
+            "label": {
+              "text": "Enter your GGIS reference number",
+              "isPageHeading": false,
+              "classes": "govuk-visually-hidden",
+            },
+            "classes": "govuk-!-width-two-thirds",
+            "spellcheck": false,
+            "autocomplete": "off"
+          })
+        }}
+
+        <div class="govuk-button-group">
+          {% set submit_label = 'Update GGIS reference number' if grant else 'Save and continue' %}
+          {{ form.submit(params={"text": submit_label}) }}
+
+          {% if grant %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link_href }}">Cancel</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

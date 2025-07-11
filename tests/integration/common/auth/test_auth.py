@@ -4,14 +4,13 @@ from unittest.mock import patch
 import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
-from app.common.data.models import MagicLink
-from app.common.data.models_user import User
+from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import RoleEnum
-from tests.utils import AnyStringMatching, page_has_error
+from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_error
 
 
 class TestSignInView:
@@ -81,7 +80,7 @@ class TestSignInView:
 
 class TestCheckEmailPage:
     def test_get(self, anonymous_client, factories):
-        magic_link = factories.magic_link.create(user__email="test@communities.gov.uk")
+        magic_link = factories.magic_link.create(email="test@communities.gov.uk")
         response = anonymous_client.get(url_for("auth.check_email", magic_link_id=magic_link.id))
         assert response.status_code == 200
         assert b"Check your email" in response.data
@@ -99,18 +98,21 @@ class TestClaimMagicLinkView:
     def test_redirect_on_unknown_magic_link(self, anonymous_client):
         response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code="unknown-code"))
         assert response.status_code == 302
-        assert response.location == url_for("auth.request_a_link_to_sign_in")
+        assert response.location == url_for("auth.request_a_link_to_sign_in", link_expired=True)
 
     def test_redirect_on_used_magic_link(self, anonymous_client, factories):
+        # FIXME: Check that the session["next"] is the original redirect_to_path value
         magic_link = factories.magic_link.create(
             user__email="test@communities.gov.uk",
             redirect_to_path="/my-redirect",
             claimed_at_utc=datetime.datetime.now() - datetime.timedelta(hours=1),
         )
-
-        response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
-        assert response.status_code == 302
-        assert response.location == url_for("auth.request_a_link_to_sign_in")
+        response = anonymous_client.get(
+            url_for("auth.claim_magic_link", magic_link_code=magic_link.code), follow_redirects=True
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+        assert "Link expired" in get_h2_text(soup)
 
     def test_redirect_on_expired_magic_link(self, anonymous_client, factories):
         magic_link = factories.magic_link.create(
@@ -121,7 +123,7 @@ class TestClaimMagicLinkView:
 
         response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
         assert response.status_code == 302
-        assert response.location == url_for("auth.request_a_link_to_sign_in")
+        assert response.location == url_for("auth.request_a_link_to_sign_in", link_expired=True)
 
     @pytest.mark.parametrize(
         "redirect_to, safe_redirect_to",
@@ -130,12 +132,17 @@ class TestClaimMagicLinkView:
             ("https://bad.place/blah", "/"),  # Single test case; see TestSanitiseRedirectURL for more exhaustion
         ),
     )
-    def test_post_claims_link_and_redirects(self, anonymous_client, factories, redirect_to, safe_redirect_to):
-        magic_link = factories.magic_link.create(
-            user__email="test@communities.gov.uk", redirect_to_path=redirect_to, claimed_at_utc=None
-        )
-        user = interfaces.user.get_current_user()
+    def test_post_claims_link_and_creates_user_and_redirects(
+        self, anonymous_client, factories, db_session, redirect_to, safe_redirect_to
+    ):
+        user_email = "new_user@email.com"
 
+        magic_link = interfaces.magic_link.create_magic_link(email=user_email, user=None, redirect_to_path=redirect_to)
+
+        user_from_db = db_session.scalar(select(User).where(User.email == user_email))
+        assert user_from_db is None
+
+        user = interfaces.user.get_current_user()
         assert user.is_authenticated is False
 
         response = anonymous_client.post(
@@ -144,11 +151,15 @@ class TestClaimMagicLinkView:
             follow_redirects=False,
         )
 
+        user_from_db = db_session.scalar(select(User).where(User.email == user_email))
+
         assert response.status_code == 302
         assert response.location == safe_redirect_to
         assert magic_link.claimed_at_utc is not None
+        assert magic_link.is_usable is False
         assert user.is_authenticated is True
         assert magic_link.user.id == user.id
+        assert user_from_db is not None
 
 
 class TestSignOutView:
@@ -178,7 +189,7 @@ class TestSSOSignInView:
 
 
 class TestSSOGetTokenView:
-    def test_get_without_fsd_admin_role_and_with_no_asigned_roles(self, app, anonymous_client):
+    def test_get_without_fsd_admin_role_and_with_no_assigned_roles(self, app, anonymous_client):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
@@ -235,8 +246,9 @@ class TestSSOGetTokenView:
 
     def test_get_valid_token_with_redirect(self, anonymous_client, factories, db_session):
         dummy_grant = factories.grant.create()
+        factories.user.create(email="test@test.communities.gov.uk", azure_ad_subject_id="subject_id")
         with anonymous_client.session_transaction() as session:
-            session["next"] = url_for("deliver_grant_funding.view_grant", grant_id=dummy_grant.id)
+            session["next"] = url_for("deliver_grant_funding.grant_details", grant_id=dummy_grant.id)
 
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
@@ -245,7 +257,7 @@ class TestSSOGetTokenView:
                     "preferred_username": "test@test.communities.gov.uk",
                     "name": "SSO User",
                     "roles": ["FSD_ADMIN"],
-                    "sub": "someStringValue",
+                    "sub": "subject_id",
                 }
             }
             response = anonymous_client.get(
@@ -254,7 +266,7 @@ class TestSSOGetTokenView:
             )
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert dummy_grant.name in soup.h1.text
+        assert dummy_grant.name in get_h1_text(soup)
 
         with anonymous_client.session_transaction() as session:
             assert "next" not in session
@@ -262,27 +274,155 @@ class TestSSOGetTokenView:
         new_user = db_session.scalar(select(User).where(User.email == "test@test.communities.gov.uk"))
         assert new_user.name == "SSO User"
 
-    def test_grant_team_member_without_azure_ad_subject_id_can_log_in(self, anonymous_client, factories, db_session):
+    def test_platform_admin_first_login(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
-            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id=None)
-            grant = factories.grant.create()
-            factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test.member@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": ["FSD_ADMIN"],
+                    "sub": "abc123",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+        user = interfaces.user.get_current_user()
+        assert response.status_code == 200
+        assert AuthorisationHelper.is_platform_admin(user)
+
+    def test_platform_admin_with_fsd_admin_role_removed(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="abc123")
+            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
 
             mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
                 "id_token_claims": {
                     "preferred_username": "test.member@communities.gov.uk",
                     "name": "SSO User",
                     "roles": [],
-                    "sub": "someStringValue",
+                    "sub": "abc123",
                 }
             }
 
             response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
-            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "someStringValue"))
-            assert updated_user.azure_ad_subject_id == "someStringValue"
-            assert updated_user.name == "SSO User"
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "abc123"))
+
+            assert AuthorisationHelper.is_platform_admin(updated_user) is False
+
+        assert response.status_code == 403
+
+    def test_platform_admin_with_grant_member_role_fsd_admin_role_removed(
+        self, anonymous_client, factories, db_session
+    ):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="wer234")
+            grant = factories.grant.create()
+            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+            factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test.member@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": [],
+                    "sub": "wer234",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "wer234"))
+
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+            assert AuthorisationHelper.is_grant_member(grant_id=grant.id, user=updated_user) is True
+            assert AuthorisationHelper.is_platform_admin(updated_user) is False
 
         assert response.status_code == 200
+
+    def test_platform_admin_remove_all_other_roles(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="wer234")
+            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+            grants = factories.grant.create_batch(2)
+            for grant in grants:
+                factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 3
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test.member@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": ["FSD_ADMIN"],
+                    "sub": "wer234",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "wer234"))
+            assert AuthorisationHelper.is_platform_admin(updated_user) is True
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+
+        assert response.status_code == 200
+
+    def test_grant_member_with_valid_invites_first_login(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = interfaces.user.get_current_user()
+            assert user.is_anonymous
+
+            grants = factories.grant.create_batch(3)
+            invitations = []
+
+            for grant in grants:
+                invitation = factories.invitation.create(
+                    email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER
+                )
+                invitations.append(invitation)
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": [],
+                    "sub": "abc123",
+                }
+            }
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+        assert response.status_code == 200
+
+        assert len(user.roles) == 3
+
+        usable_invites_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert not usable_invites_from_db
+
+    @pytest.mark.freeze_time("2025-10-01 12:00:00")
+    def test_invalid_grant_team_member_invitations_403(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            grants = factories.grant.create_batch(4)
+            # Create an expired invitation
+            factories.invitation.create(
+                email="test@communities.gov.uk",
+                grant=grants[-1],
+                role=RoleEnum.MEMBER,
+                expires_at_utc=datetime.datetime(2025, 9, 1, 12, 0, 0),
+            )
+            for grant in grants[:3]:
+                factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": [],
+                    "sub": "abc123",
+                }
+            }
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+
+        assert response.status_code == 200
+        user = interfaces.user.get_current_user()
+        assert len(user.roles) == 3
+        usable_invites_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert not usable_invites_from_db
 
 
 class TestAuthenticatedUserRedirect:

@@ -1,3 +1,5 @@
+# mypy: disable-error-code="unused-ignore"
+
 import multiprocessing
 import os
 import typing as t
@@ -10,7 +12,6 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 from flask import Flask, abort, template_rendered
 from flask.sessions import SessionMixin
-from flask.testing import FlaskClient
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
 from flask_migrate import upgrade
@@ -44,9 +45,9 @@ def setup_db_container() -> Generator[PostgresContainer, None, None]:
 
     # Reduce sleep/wait time from 1 second to 0.1 seconds. We could drop this if it ever causes any problems, but shaves
     # off a little bit of time - why not.
-    testcontainers_config.sleep_time = 0.1
+    testcontainers_config.sleep_time = 0.1  # ty: ignore[invalid-assignment]
 
-    test_postgres = PostgresContainer("postgres:16")
+    test_postgres = PostgresContainer("postgres:17.5")
     test_postgres.start()
 
     yield test_postgres
@@ -87,7 +88,7 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
 
     @app.route("/_testing/403")
     def raise_403() -> ResponseReturnValue:
-        abort(403)
+        return abort(403)
 
     @app.route("/_testing/sqlalchemy-not-found")
     def raise_sqlalchemy_not_found() -> ResponseReturnValue:
@@ -96,7 +97,7 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
             app.extensions["sqlalchemy"].session.query(User).where(User.id == uuid.uuid4()).one()
         except Exception as e:
             if not isinstance(e, NoResultFound):
-                abort(500)
+                return abort(500)
             raise e
         raise RuntimeError("query expected no results and an error, but didn't")
 
@@ -116,7 +117,7 @@ def _validate_form_argument_to_render_template(response: TestResponse, templates
 
 
 @pytest.fixture()
-def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> FlaskClient:
+def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> FundingServiceTestClient:
     _setup_session_clean_tracking()  # setting up listeners
 
     class CustomClient(FundingServiceTestClient):
@@ -147,7 +148,7 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Flas
                 method = kwargs.get("method") or (args[0] if args else "GET")
                 path = kwargs.get("path") or (args[0] if args else "/")
 
-                pytest.fail(
+                raise pytest.fail(
                     f"Detected uncommitted changes in the SQLAlchemy session after handling "
                     f"{method} request to {path}. "
                     f"To ensure database consistency, wrap your request handler with @auto_commit_after_request."
@@ -166,7 +167,7 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Flas
 
     app.test_client_class = CustomClient
     client = app.test_client()
-    return client
+    return t.cast(CustomClient, client)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -257,47 +258,79 @@ def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Ca
 
 @pytest.fixture()
 def authenticated_no_role_client(
-    anonymous_client: FlaskClient, factories: _Factories, request: FixtureRequest
-) -> Generator[FlaskClient, None, None]:
+    anonymous_client: FundingServiceTestClient, factories: _Factories, request: FixtureRequest, db_session: Session
+) -> Generator[FundingServiceTestClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
 
     user = factories.user.create(email=email)
 
+    # `login_user(user)` is what we use to catch and update a user's `last_logged_in_at_utc` by looking out for flask
+    # login's `user_logged_in` signal. In our app, these `login_user(user)` calls are only done in routes that use the
+    # `auto_commit_after_request` decorator, but here we're not in an existing session and would be left with a dirty
+    # session after this client is used in tests, so we need to commit this change to the user before we continue.
     login_user(user)
+    anonymous_client.user = user
+    db_session.commit()
 
     yield anonymous_client
 
 
 @pytest.fixture()
-def authenticated_member_client(
-    anonymous_client: FlaskClient, factories: _Factories, db_session: Session, request: FixtureRequest
-) -> Generator[FlaskClient, None, None]:
+def authenticated_grant_member_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
 
     user = factories.user.create(email=email)
     grant = factories.grant.create()
     factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
-    db_session.commit()
 
     login_user(user)
+    anonymous_client.user = user
+    anonymous_client.grant = grant
+    db_session.commit()
+
+    yield anonymous_client
+
+
+# TODO: combine (at least) the grant clients and allow the user+grant to come from another fixture so that we don't
+#       need to attach them to the client; tests that want access to the configured user+grant could request the
+#       fixture directly? Also maybe a pytest mark could be used to set the role provided for the authenticated grant
+#       client rather than having two definitions.
+@pytest.fixture()
+def authenticated_grant_admin_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    grant = factories.grant.create()
+    factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, grant=grant)
+
+    login_user(user)
+    anonymous_client.user = user
+    anonymous_client.grant = grant
+    db_session.commit()
 
     yield anonymous_client
 
 
 @pytest.fixture()
 def authenticated_platform_admin_client(
-    anonymous_client: FlaskClient, factories: _Factories, db_session: Session, request: FixtureRequest
-) -> Generator[FlaskClient, None, None]:
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
 
     user = factories.user.create(email=email)
     factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
-    db_session.commit()
 
     login_user(user)
+    anonymous_client.user = user
+    db_session.commit()
 
     yield anonymous_client
 

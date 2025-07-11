@@ -21,7 +21,10 @@
       "matchPackageNames": ["postgres"],
       "matchManagers": ["docker-compose", "github-actions"],
       "allowedVersions": "<17",
-      "description": "If updating to a new major version, update testcontainers in tests/integration/conftest"
+      "description": "If updating to a new major version, update testcontainers in tests/integration/conftest",
+      "prBodyNotes": [
+        "## Notice for developers\n\nAlso update testcontainers in `tests/integration/conftest`."
+      ]
     },
     {
       "groupName": "Paths filter GitHub action",

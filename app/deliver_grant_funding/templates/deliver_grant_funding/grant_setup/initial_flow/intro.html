@@ -28,7 +28,7 @@
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit }}
+        {{ form.submit(params={"text": "Continue"}) }}
       </form>
     </div>
   </div>

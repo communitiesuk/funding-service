@@ -7,7 +7,7 @@
     <div class="govuk-grid-column-two-thirds">
       <form class="app-js-hidden" method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit }}
+        {{ form.submit(params={"text": "Sign in"}) }}
       </form>
     </div>
   </div>

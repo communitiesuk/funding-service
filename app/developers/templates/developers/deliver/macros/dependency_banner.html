@@ -1,0 +1,22 @@
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+
+{# todo: its not nice that we have to pass around so much contexts - we shouldnt need this much to route #}
+{% macro dependency_banner(error, grant_id, collection_id, section_id, form_id) %}
+  {% set question_link = url_for("developers.deliver.edit_question", grant_id=grant_id, collection_id=collection_id, section_id=section_id, form_id=form_id, question_id=error.question_id) %}
+  {% set depends_on_link = url_for("developers.deliver.edit_question", grant_id=grant_id, collection_id=collection_id, section_id=section_id, form_id=form_id, question_id=error.depends_on_question_id) %}
+
+
+  {% set banner_html %}
+    <p class="govuk-body govuk-!-font-weight-bold">{{ error.message }}</p>
+    <p class="govuk-body govuk-!-font-weight-bold">
+      Question:
+      <a class="govuk-notification-banner__link" href="{{ question_link }}">{{ error.question_text }}</a>
+    </p>
+    <p class="govuk-body govuk-!-font-weight-bold">
+      Depends on the answer to:
+      <a class="govuk-notification-banner__link" href="{{ depends_on_link }}">{{ error.depends_on_question_text }}</a>
+    </p>
+  {% endset %}
+
+  {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+{% endmacro %}

@@ -35,11 +35,7 @@ class GrantSetupForm(FlaskForm):
             self.submit.label.text = self.SUBMIT_BUTTON_TEXT_CHANGE
 
 
-class GrantSetupIntroForm(FlaskForm):
-    submit = SubmitField("Continue", widget=GovSubmitInput())
-
-
-class GrantGGISForm(GrantSetupForm):
+class GrantGGISForm(FlaskForm):
     has_ggis = RadioField(
         "Do you have a GGIS number?",
         # These choices have no effect on the frontend, but are used for validation. Frontend choices are found in the
@@ -55,6 +51,7 @@ class GrantGGISForm(GrantSetupForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
     def validate(self, extra_validators: dict[str, list[Any]] | None = None) -> bool:
         if not super().validate(extra_validators):
@@ -67,9 +64,20 @@ class GrantGGISForm(GrantSetupForm):
         return True
 
 
+class GrantChangeGGISForm(FlaskForm):
+    ggis_number = StringField(
+        "What is the GGIS reference number?",
+        description="For example, G2-SCH-2025-05-12346",
+        filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter your GGIS reference number")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Update", widget=GovSubmitInput())
+
+
 class GrantNameForm(GrantSetupForm):
     name = StringField(
-        "What is the name of this grant?",
+        "Enter the grant name",
         description="Use the full and official name of the grant - no abbreviations or acronyms",
         validators=[
             DataRequired("Enter the grant name"),
@@ -91,7 +99,7 @@ class GrantDescriptionForm(GrantSetupForm):
     DESCRIPTION_MAX_WORDS = 200
 
     description = TextAreaField(
-        "What is the main purpose of this grant?",
+        "Enter the main purpose of this grant",
         validators=[
             DataRequired("Enter the main purpose of this grant"),
             WordRange(max_words=DESCRIPTION_MAX_WORDS, field_display_name="description"),
@@ -118,10 +126,6 @@ class GrantContactForm(GrantSetupForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
-
-
-class GrantCheckYourAnswersForm(FlaskForm):
-    submit = SubmitField("Add grant", widget=GovSubmitInput())
 
 
 class CollectionForm(GrantSetupForm):

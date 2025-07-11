@@ -34,15 +34,18 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+# TODO: Remove this module if/when https://github.com/pallets-eco/flask-sqlalchemy-lite/pull/21 is merged and
+#       a matching update has been made to Flask-DebugToolbar to use that functiomnality natively.
+
 import dataclasses
 import inspect
 import typing as t
 from time import perf_counter
 
-import sqlalchemy as sa
 import sqlalchemy.event as sa_event
 from flask import Flask, current_app, g, has_app_context
 from flask_sqlalchemy_lite import SQLAlchemy
+from sqlalchemy import Engine, ExecutionContext
 
 
 @dataclasses.dataclass
@@ -70,24 +73,24 @@ class RecordSqlalchemyQueriesExtension:
             with app.app_context():
                 self._listen(db.engine)
 
-    def _listen(self, engine: sa.engine.Engine) -> None:
+    def _listen(self, engine: Engine) -> None:
         sa_event.listen(engine, "before_cursor_execute", self._record_start, named=True)
         sa_event.listen(engine, "after_cursor_execute", self._record_end, named=True)
 
     @staticmethod
-    def _record_start(context: sa.engine.ExecutionContext, **kwargs: t.Any) -> None:
+    def _record_start(context: ExecutionContext, **kwargs: t.Any) -> None:
         if not has_app_context():
             return
 
         context._rsq_start_time = perf_counter()  # type: ignore[attr-defined]
 
     @staticmethod
-    def _record_end(context: sa.engine.ExecutionContext, **kwargs: t.Any) -> None:
+    def _record_end(context: ExecutionContext, **kwargs: t.Any) -> None:
         if not has_app_context():
             return
 
-        if "_recorded_sqlalchemy_queries" not in g:
-            g._recorded_sqlalchemy_queries = []
+        if "_sqlalchemy_queries" not in g:
+            g._sqlalchemy_queries = []
 
         import_top = current_app.import_name.partition(".")[0]
         import_dot = f"{import_top}."
@@ -96,7 +99,7 @@ class RecordSqlalchemyQueriesExtension:
         while frame:
             name = frame.f_globals.get("__name__")
 
-            if name and (name == import_top or name.startswith(import_dot)):
+            if name and (name == import_top or name.startswith(import_dot)) and "record_sqlalchemy_queries" not in name:
                 code = frame.f_code
                 location = f"{code.co_filename}:{frame.f_lineno} ({code.co_name})"
                 break
@@ -110,7 +113,7 @@ class RecordSqlalchemyQueriesExtension:
         if "SAVEPOINT" in statement:
             return
 
-        g._recorded_sqlalchemy_queries.append(
+        g._sqlalchemy_queries.append(
             QueryInfo(
                 statement=context.statement,
                 parameters=context.parameters,
@@ -122,4 +125,4 @@ class RecordSqlalchemyQueriesExtension:
 
 
 def get_recorded_queries() -> list[QueryInfo]:
-    return t.cast(list[QueryInfo], g.get("_recorded_sqlalchemy_queries", []))
+    return t.cast(list[QueryInfo], g.get("_sqlalchemy_queries", []))
