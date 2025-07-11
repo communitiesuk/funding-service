@@ -14,7 +14,7 @@ from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
 from app.common.expressions import ExpressionContext, evaluate
 
-_accepted_fields = StringField | IntegerField
+_accepted_fields = StringField | IntegerField | RadioField
 
 
 # FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
@@ -130,6 +130,13 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                 description=question.hint or "",
                 widget=GovTextInput(),
                 validators=[InputRequired(f"Enter the {question.name}")],
+            )
+        case QuestionDataType.RADIOS:
+            field = RadioField(
+                label=question.text,
+                description=question.hint or "",
+                widget=GovRadioInput(),
+                choices=[(item.key, item.label) for item in question.data_source.items],
             )
         case _:
             raise Exception("Unable to generate dynamic form for question type {_}")
