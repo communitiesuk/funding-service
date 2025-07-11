@@ -1,5 +1,7 @@
+import csv
 import uuid
 from datetime import datetime
+from io import StringIO
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
@@ -323,34 +325,43 @@ class CollectionHelper:
     def __init__(self, collection: "Collection", submission_mode: SubmissionModeEnum):
         self.collection = collection
         self.submission_mode = submission_mode
-        self.submissions = [
-            SubmissionHelper(s)
+        self.submissions = {
+            s.id: SubmissionHelper(s)
             for s in (
                 collection.test_submissions
                 if submission_mode == SubmissionModeEnum.TEST
                 else collection.live_submissions
             )
-        ]
+        }
+
+    def get_submission_helper_by_id(self, submission_id: UUID) -> SubmissionHelper | None:
+        return self.submissions.get(submission_id, None)
+
+    def get_submission_helper_by_reference(self, submission_reference: UUID) -> SubmissionHelper | None:
+        for _, submission in self.submissions.items():
+            if submission.reference == submission_reference:
+                return submission
+
+        return None
 
     def generate_csv_content_for_all_submissions(self) -> str:
-        """
-        AI generated placeholder
-        """
-        headers = ["Submission ID", "Created By", "Created At", "Status"]
-        rows = [
-            [
-                str(submission.id),
-                submission.created_by_email,
-                submission.created_at_utc.isoformat(),
-                submission.status,
-            ]
-            for submission in self.submissions
-        ]
+        metadata_headers = ["Submission reference", "Created by", "Created time UTC"]
+        question_headers = []
+        all_headers = metadata_headers + question_headers
 
-        csv_content = ",".join(headers) + "\n"
-        csv_content += "\n".join([",".join(row) for row in rows])
+        csv_output = StringIO()
+        csv_writer = csv.DictWriter(csv_output, fieldnames=all_headers)
+        csv_writer.writeheader()
+        for submission in [value for key, value in self.submissions.items()]:
+            csv_writer.writerow(
+                {
+                    "Submission reference": submission.reference,
+                    "Created by": submission.created_by_email,
+                    "Created time UTC": submission.created_at_utc.isoformat(),
+                }
+            )
 
-        return csv_content
+        return csv_output.getvalue()
 
 
 def _form_data_to_question_type(

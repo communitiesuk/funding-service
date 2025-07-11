@@ -1,4 +1,6 @@
+import csv
 import uuid
+from io import StringIO
 
 import pytest
 from immutabledict import immutabledict
@@ -8,7 +10,7 @@ from app.common.collections.types import Integer, TextMultiLine, TextSingleLine
 from app.common.data import interfaces
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions import ExpressionContext
-from app.common.helpers.collections import CollectionHelper, SubmissionHelper
+from app.common.helpers.collections import CollectionHelper, Integer, SubmissionHelper, TextSingleLine
 from tests.utils import AnyStringMatching
 
 EC = ExpressionContext
@@ -352,3 +354,20 @@ class TestCollectionHelper:
         assert live_collection_helper.collection == collection
         assert live_collection_helper.submission_mode == SubmissionModeEnum.LIVE
         assert len(live_collection_helper.submissions) == 3
+
+    def test_generate_csv_content(self, factories):
+        num_test_submissions = 3
+        collection = factories.collection.create(create_completed_submissions__test=num_test_submissions)
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+        count_of_valid_rows_in_csv = 0
+        assert reader.fieldnames == ["Submission reference", "Created by", "Created time UTC"]
+        for line in reader:
+            submission_ref = line["Submission reference"]
+            s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+            assert line["Created by"] == s_helper.created_by_email
+            assert line["Created time UTC"] == s_helper.created_at_utc.isoformat()
+            count_of_valid_rows_in_csv += 1
+
+        assert count_of_valid_rows_in_csv == num_test_submissions
