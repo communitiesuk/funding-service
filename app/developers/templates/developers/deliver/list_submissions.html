@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 {% from "common/macros/status.html" import status with context %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Submissions - " ~ collection.name %}
@@ -26,6 +27,15 @@
     Submissions
   </h1>
   <p class="govuk-body">View the information that has been provided by users for a submission.</p>
+  <p class="govuk-body">
+    {{
+      govukButton({
+        "text": "Export as CSV",
+        "href": url_for('developers.deliver.export_submissions_for_collection', submission_mode=submission_mode,collection_id=collection.id, format='csv'),
+        "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
+      })
+    }}
+  </p>
 
   {% set rows=[] %}
   {% for submission in submissions %}

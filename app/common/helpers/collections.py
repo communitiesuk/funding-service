@@ -1,5 +1,7 @@
+import csv
 import uuid
 from datetime import datetime
+from io import StringIO
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
@@ -30,7 +32,7 @@ from app.common.expressions import (
 )
 
 if TYPE_CHECKING:
-    from app.common.data.models import Form, Grant, Question, Section, Submission
+    from app.common.data.models import Collection, Form, Grant, Question, Section, Submission
 
 
 class SubmissionHelper:
@@ -92,6 +94,15 @@ class SubmissionHelper:
             if (answer := self.get_answer_for_question(question.id)) is not None
         }
         return ExpressionContext(from_submission=immutabledict(submission_data))
+
+    @property
+    def all_visible_questions(self) -> dict[UUID, "Question"]:
+        return {
+            question.id: question
+            for section in self.get_ordered_visible_sections()
+            for form in self.get_ordered_visible_forms_for_section(section)
+            for question in self.get_ordered_visible_questions_for_form(form)
+        }
 
     @property
     def status(self) -> str:
@@ -317,6 +328,70 @@ class SubmissionHelper:
                 return next(question_iterator, None)
 
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
+
+
+class CollectionHelper:
+    def __init__(self, collection: "Collection", submission_mode: SubmissionModeEnum):
+        self.collection = collection
+        self.submission_mode = submission_mode
+        self.submissions = {
+            s.id: SubmissionHelper(s)
+            for s in (
+                collection.test_submissions
+                if submission_mode == SubmissionModeEnum.TEST
+                else collection.live_submissions
+            )
+        }
+
+    def get_submission_helper_by_id(self, submission_id: UUID) -> SubmissionHelper | None:
+        return self.submissions.get(submission_id, None)
+
+    def get_submission_helper_by_reference(self, submission_reference: UUID) -> SubmissionHelper | None:
+        for _, submission in self.submissions.items():
+            if submission.reference == submission_reference:
+                return submission
+
+        return None
+
+    def get_all_possible_questions_for_collection(self) -> list["Question"]:
+        """
+        Returns a list of all questions that are part of the collection, across all sections and forms.
+        """
+        return [
+            question
+            for section in sorted(self.collection.sections, key=lambda s: s.order)
+            for form in sorted(section.forms, key=lambda f: f.order)
+            for question in sorted(form.questions, key=lambda q: q.order)
+        ]
+
+    def generate_csv_content_for_all_submissions(self) -> str:
+        metadata_headers = ["Submission reference", "Created by", "Created time UTC"]
+        question_headers = {
+            question.id: f"[{question.form.title}] {question.name}"
+            for question in self.get_all_possible_questions_for_collection()
+        }
+        all_headers = metadata_headers + [header_string for _, header_string in question_headers.items()]
+
+        csv_output = StringIO()
+        csv_writer = csv.DictWriter(csv_output, fieldnames=all_headers)
+        csv_writer.writeheader()
+        for submission in [value for key, value in self.submissions.items()]:
+            submission_csv_data = {
+                "Submission reference": submission.reference,
+                "Created by": submission.created_by_email,
+                "Created time UTC": submission.created_at_utc.isoformat(),
+            }
+            visible_questions = submission.all_visible_questions
+            for question_id, header_string in question_headers.items():
+                if question_id not in visible_questions.keys():
+                    submission_csv_data[header_string] = "Not supplied"
+                else:
+                    answer = submission.get_answer_for_question(question_id).get_value_for_text_export()
+                    submission_csv_data[header_string] = answer
+
+            csv_writer.writerow(submission_csv_data)
+
+        return csv_output.getvalue()
 
 
 def _form_data_to_question_type(

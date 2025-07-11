@@ -142,6 +142,9 @@ class Submission(BaseModel):
         ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
     )
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(reference={self.reference}, mode={self.mode})"
+
 
 class Section(BaseModel):
     __tablename__ = "section"
