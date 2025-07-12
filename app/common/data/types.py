@@ -75,6 +75,7 @@ class ManagedExpressionsEnum(enum.StrEnum):
     GREATER_THAN = "Greater than"
     LESS_THAN = "Less than"
     BETWEEN = "Between"
+    ANY_OF = "Any of"
 
 
 class FormRunnerState(enum.StrEnum):

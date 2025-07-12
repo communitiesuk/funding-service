@@ -7,16 +7,17 @@ from typing import Optional as TOptional
 from uuid import UUID
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovCheckboxesInput, GovCheckboxInput, GovTextInput
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
-from wtforms import BooleanField, IntegerField
+from wtforms import BooleanField, IntegerField, SelectMultipleField
 from wtforms.fields.core import Field
-from wtforms.validators import InputRequired, Optional, ValidationError
+from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.qid import SafeQidMixin
+from app.types import TRadioItem
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
@@ -359,9 +360,75 @@ class Between(ManagedExpression):
         )
 
 
+@register_managed_expression
+class AnyOf(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.ANY_OF
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    items: list["TRadioItem"]
+
+    @property
+    def description(self) -> str:
+        return "any of"
+
+    @property
+    def message(self) -> str:
+        if len(self.items) == 1:
+            return f"The answer is “{self.items[0]['label']}”"
+
+        return f"The answer is one of “{'”, “'.join(c['label'] for c in self.items)}”"
+
+    @property
+    def statement(self) -> str:
+        item_keys = {str(item["key"]) for item in self.items}
+        return f"{self.safe_qid} in {item_keys}"
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        if referenced_question is None or referenced_question.data_source is None:
+            raise ValueError("The question for the AnyOf expression must have a data source")
+
+        return {
+            "any_of": SelectMultipleField(
+                "Choose from the list of options",
+                default=[item["key"] for item in expression.context["items"]] if expression else None,  # type: ignore[index, union-attr]
+                widget=GovCheckboxesInput(),
+                choices=[(item.key, item.label) for item in referenced_question.data_source.items],
+                validators=[Optional()],
+                render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        form.any_of.validators = [  # ty: ignore[unresolved-attribute]
+            DataRequired("Choose at least one option"),
+        ]
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "AnyOf":
+        item_labels = {choice.key: choice.label for choice in question.data_source.items}
+
+        items = [cast(TRadioItem, {"key": key, "label": item_labels[key]}) for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
+        return AnyOf(
+            question_id=question.id,
+            items=items,  # ty: ignore[unresolved-attribute]
+        )
+
+
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
     if not expression.managed_name:
         raise ValueError(f"Expression {expression.id} is not a managed expression.")
 
     ExpressionType = TypeAdapter(lookup_managed_expression(expression.managed_name))
+
+    # TODO: for AnyOf, do we want to pull the list of items from the DB rather than denormalising into the `context`
+    #       blob? We need to have hardlink references between expressions and the radio items they rely on first (this
+    #       would be done in FSPT-673).
     return ExpressionType.validate_python(expression.context)

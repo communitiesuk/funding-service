@@ -1,5 +1,6 @@
 from app.common.data.types import QuestionDataType
 from app.common.expressions.registry import (
+    _registry_by_expression_enum,
     get_managed_conditions_by_data_type,
     get_managed_validators_by_data_type,
     get_registered_data_types,
@@ -36,3 +37,9 @@ class TestManagedExpressions:
         # make sure the original question under test does show up in the correct circumstances
         assert get_supported_form_questions(second_question) == [valid_question]
         assert get_supported_form_questions(valid_question) == [second_question]
+
+    def test_new_managed_expressions_added(self):
+        assert len(_registry_by_expression_enum) == 4, (
+            "If you've added a new managed expression, update this test and add"
+            "suitable tests in `tests/integration/common/expressions/test_managed.py`"
+        )
