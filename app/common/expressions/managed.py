@@ -59,7 +59,9 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     # that are defined in `question_data_types`.
     @staticmethod
     @abc.abstractmethod
-    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
         """
         A hook used by `build_managed_expression_form`. It should return the set of form fields which need to be
         added to the managed expression form. The fields returned should collect the data needed to define an instance
@@ -100,7 +102,9 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         ...
 
     @classmethod
-    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm") -> Markup:
+    def concatenate_all_wtf_fields_html(
+        cls, form: "_ManagedExpressionForm", referenced_question: TOptional["Question"] = None
+    ) -> Markup:
         """
         A hook used by `build_managed_expression_form` to support conditionally-revealed the fields that a user needs
         to complete when they select this managed expression type from the radio list of available managed expressions.
@@ -108,7 +112,10 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         This does not need to be re-defined on any subclasses; it will work automatically.
         """
         # FIXME: Re-using cls.get_form_fields() is a 🤏 bit wasteful (building form fields that aren't used).
-        fields = [getattr(form, field_name)() for field_name in cls.get_form_fields().keys()]
+        fields = [
+            getattr(form, field_name)()
+            for field_name in cls.get_form_fields(referenced_question=referenced_question).keys()
+        ]
 
         return Markup("\n".join(fields))
 
@@ -170,7 +177,9 @@ class GreaterThan(ManagedExpression):
         return f"{self.safe_qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
 
     @staticmethod
-    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
         return {
             "greater_than_value": IntegerField(
                 "Minimum value",
@@ -224,7 +233,9 @@ class LessThan(ManagedExpression):
         return f"{self.safe_qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
 
     @staticmethod
-    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
         return {
             "less_than_value": IntegerField(
                 "Maximum value",
@@ -296,7 +307,9 @@ class Between(ManagedExpression):
         )
 
     @staticmethod
-    def get_form_fields(expression: TOptional["Expression"] = None) -> dict[str, "Field"]:
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
         return {
             "between_bottom_of_range": IntegerField(
                 "Minimum value",
