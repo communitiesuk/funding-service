@@ -232,7 +232,8 @@ $RECYCLE.BIN/
 flask_session
 
 # IntelliJ
-.idea
+.idea/*
+!.idea/watcherTasks.xml
 
 # Mac files
 .bash_profile
