@@ -108,13 +108,23 @@
   </div>
   <div class="govuk-grid-row govuk-!-margin-top-5">
     <div class="govuk-grid-column-two-thirds">
-      {{
-        govukButton({
-            "text": "Add question",
-            "classes": "govuk-button--secondary",
-            "href": url_for("developers.deliver.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id),
-        })
-      }}
+      <div class="govuk-button-group">
+        {{
+          govukButton({
+              "text": "Add question",
+              "classes": "govuk-button--secondary",
+              "href": url_for("developers.deliver.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id),
+          })
+        }}
+
+        {{
+          govukButton({
+              "text": "Add group",
+              "classes": "govuk-button--secondary",
+              "href": url_for("developers.deliver.add_group", grant_id=grant.id, form_id=db_form.id),
+          })
+        }}
+      </div>
       <p class="govuk-body">
         <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, delete='') }}">Delete this task</a>
       </p>

@@ -1,0 +1,40 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Add a group - " ~ db_form.title %}
+{% set active_item_identifier = "developers" %}
+
+{% block beforeContent %}
+  {# todo: if we're allowing going in to manage nested groups with anything below a depth of 1 #}
+  {#       we'll need to go back according to what we're in #}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("developers.deliver.manage_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.collection_id }}
+        {{
+          form.group_name (params={
+            "label": {
+              "classes": "govuk-label--l",
+              "isPageHeading": true
+            }
+          })
+        }}
+        {{
+          form.submit(params={
+              "text": "Add group"
+          })
+        }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

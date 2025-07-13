@@ -249,7 +249,7 @@ class Question(BaseModel, SafeQidMixin):
     )
 
     # used to store any question specific values like group specific layout or question data type specific configuration
-    context: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
+    context: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True), default={})  # type: ignore[no-untyped-call]
 
     @property
     def conditions(self) -> list["Expression"]:

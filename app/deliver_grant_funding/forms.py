@@ -170,6 +170,16 @@ class FormForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
+class AddGroupForm(FlaskForm):
+    group_name = StringField(
+        "What is the name of the group?",
+        validators=[DataRequired("Enter a group name")],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
 class QuestionTypeForm(FlaskForm):
     question_data_type = RadioField(
         "What is the type of the question?",

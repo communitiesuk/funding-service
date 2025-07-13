@@ -53,6 +53,7 @@ from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import (
+    AddGroupForm,
     CollectionForm,
     FormForm,
     QuestionForm,
@@ -433,6 +434,54 @@ def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UU
         db_form=db_form,
         form=wt_form,
     )
+
+
+@developers_deliver_blueprint.route(
+    "/grants/<uuid:grant_id>/forms/<uuid:form_id>/add-group",
+    methods=["GET", "POST"],
+)
+@auto_commit_after_request
+@is_platform_admin
+def add_group(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    # this will just need a name to get started, managing a group will then have quite a few more configurations
+    # we can like the add/edit/manage process up when we start to have precedent with questions
+    db_form = get_form_by_id(form_id)
+    form = AddGroupForm()
+
+    if form.validate_on_submit():
+        try:
+            assert form.group_name.data is not None
+            interfaces.collections.create_group(db_form, name=form.group_name.data)
+            return redirect(
+                url_for(
+                    "developers.deliver.manage_form",
+                    grant_id=grant_id,
+                    collection_id=db_form.section.collection.id,
+                    section_id=db_form.section.id,
+                    form_id=form_id,
+                )
+            )
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "developers/deliver/add_group.html",
+        grant=db_form.section.collection.grant,
+        section=db_form.section,
+        collection=db_form.section.collection,
+        form=form,
+        db_form=db_form,
+    )
+
+
+# @developers_deliver_blueprint.route(
+#     "/grants/<uuid:grant_id>/forms/<uuid:form_id>/groups/<uuid:group_id>",
+#     methods=["GET", "POST"],
+# )
+# @is_platform_admin
+# def manage_group(grant_id: UUID, form_id: UUID, group_id: UUID) -> ResponseReturnValue:
+#     pass
 
 
 @developers_deliver_blueprint.route(

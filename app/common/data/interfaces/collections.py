@@ -24,6 +24,7 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     ExpressionType,
     QuestionDataType,
+    QuestionType,
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -300,7 +301,15 @@ def _update_data_source(question: Question, items: list[str]) -> None:
 def create_question(
     form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType, items: list[str] | None = None
 ) -> Question:
-    question = Question(text=text, form_id=form.id, slug=slugify(text), hint=hint, name=name, data_type=data_type)
+    question = Question(
+        text=text,
+        form_id=form.id,
+        slug=slugify(text),
+        hint=hint,
+        name=name,
+        data_type=data_type,
+        type=QuestionType.QUESTION,
+    )
     form.questions.append(question)  # type: ignore[no-untyped-call]
     db.session.add(question)
 
@@ -315,6 +324,24 @@ def create_question(
         db.session.flush()
 
     return question
+
+
+def create_group(form: Form, *, name: str) -> Question:
+    # todo: you probably want to have a user presentable name for the group (the text)
+    #       and a data export name for the group (the name)
+    group = Question(
+        text=name, form=form, slug=slugify(name), name=name, data_type=QuestionDataType.PAGE, type=QuestionType.GROUP
+    )
+    form.questions.append(group)  # type: ignore[no-untyped-call]
+    db.session.add(group)
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+
+    return group
 
 
 def get_question_by_id(question_id: UUID) -> Question:
