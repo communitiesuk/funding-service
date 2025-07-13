@@ -36,7 +36,9 @@ GRANT_ROLES_MAPPING = {
 class AuthMethodEnum(str, enum.Enum):
     SSO = "sso"
     MAGIC_LINK = "magic link"
-
+class QuestionType(enum.StrEnum):
+    QUESTION = "Question"
+    GROUP = "Group"
 
 class QuestionDataType(enum.StrEnum):
     EMAIL = "An email address"
@@ -47,6 +49,9 @@ class QuestionDataType(enum.StrEnum):
     INTEGER = "A whole number"
     YES_NO = "Yes or no"
     RADIOS = "Select one from a list of choices"
+
+    # empty question type used by entries that don't collect data, like groups and content pages
+    PAGE = "Page"
 
     @staticmethod
     def coerce(value: Any) -> "QuestionDataType":

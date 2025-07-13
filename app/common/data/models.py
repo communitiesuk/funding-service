@@ -14,6 +14,7 @@ from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
+    QuestionType,
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -220,6 +221,13 @@ class Question(BaseModel, SafeQidMixin):
     slug: Mapped[str]
     order: Mapped[int]
     hint: Mapped[Optional[str]]
+    type: Mapped["QuestionType"] = mapped_column(
+        SqlEnum(
+            QuestionType,
+            name="question_type_enum",
+            validate_strings=True,
+        )
+    )
     data_type: Mapped[QuestionDataType] = mapped_column(
         SqlEnum(
             QuestionDataType,
@@ -239,6 +247,9 @@ class Question(BaseModel, SafeQidMixin):
     data_source: Mapped["DataSource"] = relationship(
         "DataSource", cascade="all, delete-orphan", back_populates="question"
     )
+
+    # used to store any question specific values like group specific layout or question data type specific configuration
+    context: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
 
     @property
     def conditions(self) -> list["Expression"]:
