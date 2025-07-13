@@ -52,9 +52,9 @@
         <div class="govuk-grid-column-full">
           <form id="generate-question-form" class="govuk-!-display-none">
             {{ form.csrf_token }}
-            <input id="collection" name="collection" type="text" value="{{ collection.name }}"/>
-            <input id="section" name="section" type="text" value="{{ section.title }}"/>
-            <input id="form" name="form" type="text" value="{{ db_form.title }}"/>
+            <input id="collection" name="collection" type="text" value="{{ collection.name }}" />
+            <input id="section" name="section" type="text" value="{{ section.title }}" />
+            <input id="form" name="form" type="text" value="{{ db_form.title }}" />
           </form>
 
           <form method="post" novalidate>

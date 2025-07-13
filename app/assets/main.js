@@ -67,6 +67,52 @@ window.MHCLG = MHCLG;
         const RATE_LIMIT_MS = 1000; // Minimum 1 second between requests
         const DEBOUNCE_MS = 500; // Wait 500ms after blur event
 
+        const randInRange = function (min, max) {
+            const minCeiled = Math.ceil(min);
+            const maxFloored = Math.floor(max);
+            return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled); // The maximum is exclusive and the minimum is inclusive
+        };
+
+        // SVG Generator Function
+        const createSparkle = function(config) {
+            const {
+                parentElement
+            } = config;
+
+            const sparkleWrapper = document.createElement('span');
+            sparkleWrapper.classList.add('app-sparkle__sparkle-wrapper');
+            sparkleWrapper.style.top = randInRange(0, 100) + '%';
+            sparkleWrapper.style.left = randInRange(0, 100) + '%';
+
+            // Create SVG element
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            const size = randInRange(20, 40);
+            svg.setAttribute('width', size);
+            svg.setAttribute('height', size);
+            svg.style.marginLeft = '-' + (size/2);
+            svg.style.marginTop = '-' + (size/2);
+            svg.setAttribute('viewBox', '0 0 284 276');
+            svg.setAttribute('z-index', 2);
+            svg.classList.add('app-sparkle__sparkle-instance');
+
+            // Create path element
+            const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathElement.setAttribute('d', 'M142 0C142 0 150.54 70.8382 180.353 100.363C210.904 130.617 284 137.5 284 137.5C284 137.5 210.904 144.383 180.353 174.637C150.54 204.162 142 275 142 275C142 275 133.46 204.162 103.647 174.637C73.0964 144.383 0 137.5 0 137.5C0 137.5 73.0964 130.617 103.647 100.363C133.46 70.8382 142 0 142 0Z');
+            pathElement.setAttribute('fill', "#ffd500");
+
+            // Append path to SVG
+            svg.appendChild(pathElement);
+
+            // Insert SVG into specified parent element
+            sparkleWrapper.appendChild(svg);
+            parentElement.appendChild(sparkleWrapper);
+
+            // 1000 ms is tied to the animation duration in CSS
+            setTimeout(() => {sparkleWrapper.remove();}, 1000);
+
+            return svg;
+        };
+
         const makeApiCall = async (inputValue, targetElement, component, outputElement) => {
             // Rate limiting check
             const now = Date.now();
@@ -138,6 +184,13 @@ window.MHCLG = MHCLG;
                 // Update target element or related field
                 if (data.name && outputElement) {
                     outputElement.value = data.name;
+
+                    const sparkleDiv = document.createElement('div');
+                    sparkleDiv.dataset.fsModule = 'generate-sparkles';
+                    outputElement.parentNode.insertBefore(sparkleDiv, outputElement);
+                    sparkleDiv.appendChild(outputElement);
+
+                    window.MHCLG.fsModules.start();
                 }
 
             } catch (error) {
@@ -166,7 +219,6 @@ window.MHCLG = MHCLG;
                         x: Math.max(0, Math.min(1, normalizedX)), // Clamp between 0-1
                         y: Math.max(0, Math.min(1, normalizedY))  // Clamp between 0-1
                     };
-
                 }
             }
         };
@@ -201,9 +253,23 @@ window.MHCLG = MHCLG;
                     return;
                 }
 
+                let sparkleCount = 25;
+
                 // Disable the output element immediately
                 if (outputElement) {
+                    createSparkle( { parentElement: wrapper_div } );
+                    createSparkle( { parentElement: wrapper_div } );
+                    createSparkle( { parentElement: wrapper_div } );
+                    createSparkle( { parentElement: wrapper_div } );
+
                     outputElement.disabled = true;
+                    (function sparkleTimer() {
+                        setTimeout(() => {
+                            createSparkle({parentElement: wrapper_div});
+
+                            if (sparkleCount-- >= 0) {sparkleTimer();}
+                        }, randInRange(0, 500));
+                    })();
                 }
 
                 // Debounce the API call
@@ -211,6 +277,12 @@ window.MHCLG = MHCLG;
                     makeApiCall(inputValue, e.target, component, outputElement);
                 }, DEBOUNCE_MS);
             });
+
+            let wrapper_div = document.createElement("div");
+            wrapper_div.classList.add('app-sparkle__container');
+
+            component.parentNode.insertBefore(wrapper_div, component);
+            wrapper_div.appendChild(component);
 
             // Cleanup on page unload
             const cleanup = () => {

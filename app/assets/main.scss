@@ -171,3 +171,52 @@ $app-destructive-link-active-colour: $govuk-text-colour;
     background-color: #f47738;
     color: white;
 }
+
+.app-sparkle__container {
+  position: relative;
+}
+
+.app-sparkle__sparkle-wrapper {
+  position: absolute;
+
+  @media (prefers-reduced-motion: no-preference) {
+    animation-duration: 1s;
+    animation-name: come-in-out;
+    animation-timing-function: linear;
+  }
+
+  @keyframes come-in-out {
+    0% {
+      transform: scale(0);
+    }
+
+    50% {
+      transform: scale(1);
+    }
+
+    100% {
+      transform: scale(0);
+    }
+  }
+}
+
+.app-sparkle__sparkle-instance {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+
+  @media (prefers-reduced-motion: no-preference) {
+    animation-duration: 1s;
+    animation-name: spin;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(180deg);
+    }
+  }
+}
