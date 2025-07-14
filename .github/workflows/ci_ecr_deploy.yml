@@ -93,7 +93,7 @@ jobs:
       - name: Deploy image to App Runner
         run: |
           aws apprunner update-service \
-          --service-arn arn:aws:apprunner:eu-west-2:${{ secrets.AWS_ACCOUNT }}:service/${{ inputs.environment }}-funding-service/<service-id> \
+          ----service-arn ${{ steps.get_service_arn.outputs.SERVICE_ARN }} \
           --source-configuration '{
             "ImageRepository": {
               "ImageIdentifier": "${{ inputs.ecr_image_location }}",
