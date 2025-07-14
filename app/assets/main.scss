@@ -159,6 +159,7 @@ $app-destructive-link-active-colour: $govuk-text-colour;
     text-align: center;
     border-top: 5px solid #f47738;
     z-index: 10;
+    margin-bottom: -29px !important;  // 29px hardcoded sorry; dont think we can calculate this
 }
 
 .app-test-data-banner__tag {

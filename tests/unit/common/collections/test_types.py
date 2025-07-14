@@ -22,4 +22,4 @@ class TestSubmissionAnswerRootModels:
         assert model(data).get_value_for_expression() == data
 
     def test_get_value_for_text_export(self, model, data):
-        assert model(data).get_value_for_text_export() == data
+        assert model(data).get_value_for_text_export() == str(data)

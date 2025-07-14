@@ -5,11 +5,13 @@ from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from immutabledict import immutabledict
-from pydantic import RootModel, TypeAdapter
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.collections.types import (
     Integer,
+    SingleChoiceFromList,
     SubmissionAnswerRootModel,
     TextMultiLine,
     TextSingleLine,
@@ -176,7 +178,7 @@ class SubmissionHelper:
 
     def get_all_questions_are_answered_for_form(
         self, form: "Form"
-    ) -> tuple[bool, list[TextSingleLine | TextMultiLine | Integer]]:
+    ) -> tuple[bool, list[TextSingleLine | TextMultiLine | Integer | SingleChoiceFromList]]:
         visible_questions = self.get_ordered_visible_questions_for_form(form)
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
         return len(visible_questions) == len(answers), answers
@@ -244,7 +246,9 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
-    def get_answer_for_question(self, question_id: UUID) -> SubmissionAnswerRootModel[Any] | None:
+    def get_answer_for_question(
+        self, question_id: UUID
+    ) -> SubmissionAnswerRootModel[Any] | SingleChoiceFromList | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
@@ -321,24 +325,28 @@ class SubmissionHelper:
 
 def _form_data_to_question_type(
     question: "Question", form: DynamicQuestionForm
-) -> TextSingleLine | TextMultiLine | Integer:
-    _QuestionModel: type[RootModel]  # type: ignore[type-arg]
+) -> TextSingleLine | TextMultiLine | Integer | SingleChoiceFromList:
+    _QuestionModel: type[PydanticBaseModel]
+
+    answer = form.get_answer_to_question(question)
+
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
-            _QuestionModel = TextSingleLine
+            return TextSingleLine(answer)
         case QuestionDataType.TEXT_MULTI_LINE:
-            _QuestionModel = TextMultiLine
+            return TextMultiLine(answer)
         case QuestionDataType.INTEGER:
-            _QuestionModel = Integer
-        case _:
-            raise ValueError(f"Could not parse data for question type={question.data_type}")
+            return Integer(answer)
+        case QuestionDataType.RADIOS:
+            label = next(item.label for item in question.data_source.items if item.key == answer)
+            return SingleChoiceFromList(key=answer, label=label)
 
-    return _QuestionModel(form.get_answer_to_question(question))
+    raise ValueError(f"Could not parse data for question type={question.data_type}")
 
 
 def _deserialise_question_type(
     question: "Question", serialised_data: str | int | float | bool
-) -> TextSingleLine | TextMultiLine | Integer:
+) -> TextSingleLine | TextMultiLine | Integer | SingleChoiceFromList:
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
             return TypeAdapter(TextSingleLine).validate_python(serialised_data)
@@ -346,5 +354,7 @@ def _deserialise_question_type(
             return TypeAdapter(TextMultiLine).validate_python(serialised_data)
         case QuestionDataType.INTEGER:
             return TypeAdapter(Integer).validate_python(serialised_data)
-        case _:
-            raise ValueError(f"Could not deserialise data for question type={question.data_type}")
+        case QuestionDataType.RADIOS:
+            return TypeAdapter(SingleChoiceFromList).validate_python(serialised_data)
+
+    raise ValueError(f"Could not deserialise data for question type={question.data_type}")

@@ -60,8 +60,8 @@ def delete_section(section: Section) -> None:
     # correctly.
     # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
     # definitely has a few quirks.
-    section.collection.sections.remove(section)  # type: ignore[no-untyped-call]
     db.session.delete(section)
+    section.collection.sections.remove(section)  # type: ignore[no-untyped-call]
     section.collection.sections.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
@@ -74,8 +74,8 @@ def delete_form(form: Form) -> None:
     # correctly.
     # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
     # definitely has a few quirks.
-    form.section.forms.remove(form)  # type: ignore[no-untyped-call]
     db.session.delete(form)
+    form.section.forms.remove(form)  # type: ignore[no-untyped-call]
     form.section.forms.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
@@ -89,8 +89,8 @@ def delete_question(question: Question) -> None:
     # correctly.
     # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
     # definitely has a few quirks.
-    question.form.questions.remove(question)  # type: ignore[no-untyped-call]
     db.session.delete(question)
+    question.form.questions.remove(question)  # type: ignore[no-untyped-call]
     question.form.questions.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")

@@ -1,6 +1,6 @@
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
-from pydantic import RootModel
+from pydantic import BaseModel, RootModel
 
 
 class SubmissionAnswerProtocol(Protocol):
@@ -11,7 +11,7 @@ class SubmissionAnswerProtocol(Protocol):
     def get_value_for_submission(self) -> Any: ...
     def get_value_for_form(self) -> Any: ...
     def get_value_for_expression(self) -> Any: ...
-    def get_value_for_text_export(self) -> Any: ...
+    def get_value_for_text_export(self) -> str: ...
 
 
 class SubmissionAnswerRootModel[T](RootModel[T]):
@@ -20,7 +20,7 @@ class SubmissionAnswerRootModel[T](RootModel[T]):
         return "common/partials/answers/root.html"
 
     def get_value_for_submission(self) -> T:
-        return self.root
+        return cast(T, self.model_dump(mode="json"))
 
     def get_value_for_form(self) -> T:
         return self.root
@@ -28,10 +28,31 @@ class SubmissionAnswerRootModel[T](RootModel[T]):
     def get_value_for_expression(self) -> T:
         return self.root
 
-    def get_value_for_text_export(self) -> T:
-        return self.root
+    def get_value_for_text_export(self) -> str:
+        return str(self.root)
 
 
 TextSingleLine = SubmissionAnswerRootModel[str]
 TextMultiLine = SubmissionAnswerRootModel[str]
 Integer = SubmissionAnswerRootModel[int]
+
+
+class SingleChoiceFromList(BaseModel):
+    key: str
+    label: str
+
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/single_choice_from_list.html"
+
+    def get_value_for_submission(self) -> dict[str, Any]:
+        return self.model_dump(mode="json")
+
+    def get_value_for_form(self) -> str:
+        return self.key
+
+    def get_value_for_expression(self) -> str:
+        return self.key
+
+    def get_value_for_text_export(self) -> str:
+        return self.label
