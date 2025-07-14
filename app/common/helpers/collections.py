@@ -6,7 +6,6 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
-from flask import current_app
 from immutabledict import immutabledict
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import TypeAdapter
@@ -340,20 +339,21 @@ class CollectionHelper:
     def __init__(self, collection: "Collection", submission_mode: SubmissionModeEnum):
         self.collection = collection
         self.submission_mode = submission_mode
-        self.submissions = {
-            s.id: SubmissionHelper(s)
+        self.submissions = [
+            s
             for s in (
                 collection.test_submissions
                 if submission_mode == SubmissionModeEnum.TEST
                 else collection.live_submissions
             )
-        }
+        ]
+        self.submission_helpers = {s.id: SubmissionHelper(s) for s in self.submissions}
 
     def get_submission_helper_by_id(self, submission_id: UUID) -> SubmissionHelper | None:
-        return self.submissions.get(submission_id, None)
+        return self.submission_helpers.get(submission_id, None)
 
     def get_submission_helper_by_reference(self, submission_reference: UUID) -> SubmissionHelper | None:
-        for _, submission in self.submissions.items():
+        for _, submission in self.submission_helpers.items():
             if submission.reference == submission_reference:
                 return submission
 
@@ -376,13 +376,12 @@ class CollectionHelper:
             question.id: f"[{question.form.title}] {question.name}"
             for question in self.get_all_possible_questions_for_collection()
         }
-        current_app.logger.info(question_headers)
         all_headers = metadata_headers + [header_string for _, header_string in question_headers.items()]
 
         csv_output = StringIO()
         csv_writer = csv.DictWriter(csv_output, fieldnames=all_headers)
         csv_writer.writeheader()
-        for submission in [value for key, value in self.submissions.items()]:
+        for submission in [value for key, value in self.submission_helpers.items()]:
             submission_csv_data = {
                 "Submission reference": submission.reference,
                 "Created by": submission.created_by_email,

@@ -1,3 +1,5 @@
+import csv
+from io import StringIO
 from uuid import UUID
 
 import pytest
@@ -8,7 +10,7 @@ from sqlalchemy import select
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import Collection, Form, Grant, Question, Section
 from app.common.data.models_user import Invitation
-from app.common.data.types import ExpressionType, QuestionDataType, RoleEnum
+from app.common.data.types import ExpressionType, QuestionDataType, RoleEnum, SubmissionModeEnum
 from app.common.forms import GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -1171,32 +1173,34 @@ def test_accessing_question_page_with_failing_condition_redirects(
 
 
 def test_download_csv_export(authenticated_platform_admin_client, factories, db_session):
-    # TODO AI generated stub - make this work with new factory features
-
     # Create a grant and a collection
     grant = factories.grant.create()
-    print(grant)
-    pytest.fail("Finish implementing this test")
-    # collection = factories.collection.create(grant=grant, create_submissions__test=4)
-    #
-    # # Create a submission for the collection
-    # submission = factories.submission.create(collection=collection)
-    #
-    # # Create a question and an answer for the submission
-    # question = factories.question.create(
-    #     form=factories.form.create(section=factories.section.create(collection=collection))
-    # )
-    # factories.answer.create(submission=submission, question=question, text="Test answer")
-    #
-    # # Make the request to download the CSV export
-    # response = authenticated_platform_admin_client.get(
-    #     url_for("developers.deliver.download_csv_export", submission_id=submission.id)
-    # )
-    #
-    # # Check the response status code and content type
-    # assert response.status_code == 200
-    # assert response.content_type == "text/csv"
+    collection = factories.collection.create(grant=grant, create_completed_submissions_each_question_type__test=3)
 
-    # # Check that the CSV contains the expected data
-    # csv_content = response.data.decode("utf-8")
-    # assert "Test answer" in csv_content
+    response = authenticated_platform_admin_client.get(
+        url_for(
+            "developers.deliver.export_submissions_for_collection",
+            collection_id=collection.id,
+            submission_mode=SubmissionModeEnum.TEST,
+            format="csv",
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/csv"
+    assert response.headers["Content-Disposition"] == f'attachment; filename="{collection.name} - TEST.csv"'
+
+    csv_content = response.data.decode("utf-8")
+    reader = csv.DictReader(StringIO(csv_content))
+
+    assert reader.fieldnames == [
+        "Submission reference",
+        "Created by",
+        "Created time UTC",
+        "[Export test form] Your name",
+        "[Export test form] Your quest",
+        "[Export test form] Airspeed velocity",
+        "[Export test form] Best option",
+    ]
+    rows = list(reader)
+    assert len(rows) == 3

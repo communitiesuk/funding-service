@@ -35,6 +35,7 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.expressions.managed import GreaterThan
 from app.extensions import db
 
 
@@ -137,7 +138,68 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     grant = factory.SubFactory(_GrantFactory)
 
     @factory.post_generation  # type: ignore
-    def create_completed_submissions(  # type: ignore
+    def create_completed_submissions_conditional_question(  # type: ignore
+        obj: Collection,
+        create,
+        extracted,
+        test: bool = False,
+        live: bool = False,
+        **kwargs,
+    ) -> None:
+        if not live and not test:
+            return
+
+        section = _SectionFactory.create(collection=obj)
+        form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
+
+        # Create a conditional branch of questions
+        q1 = _QuestionFactory.create(
+            name="Number of cups of tea",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="How many cups of tea do you drink in a week?",
+        )
+        q2 = _QuestionFactory.create(
+            name="Tea bag pack size",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="What size pack of teabags do you usually buy?",
+            expressions=[
+                Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=30), _UserFactory.create())
+            ],
+        )
+        q3 = _QuestionFactory.create(
+            name="Favourite dunking biscuit",
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="What is your favourite biscuit to dunk?",
+        )
+
+        def _create_submission(mode: SubmissionModeEnum, complete_question_2: bool = False) -> None:
+            response_data: dict[str, Any] = {
+                str(q1.id): Integer(40 if complete_question_2 else 20).get_value_for_submission()
+            }
+            if complete_question_2:
+                response_data[str(q2.id)] = Integer(80).get_value_for_submission()
+
+            response_data[str(q3.id)] = TextSingleLine("digestive").get_value_for_submission()
+
+            _SubmissionFactory.create(
+                collection=obj,
+                mode=mode,
+                data=response_data,
+                status=SubmissionStatusEnum.COMPLETED,
+            )
+
+        if test:
+            _create_submission(SubmissionModeEnum.TEST, complete_question_2=True)
+            _create_submission(SubmissionModeEnum.TEST, complete_question_2=False)
+        if live:
+            _create_submission(SubmissionModeEnum.LIVE, complete_question_2=True)
+            _create_submission(SubmissionModeEnum.LIVE, complete_question_2=False)
+
+    @factory.post_generation  # type: ignore
+    def create_completed_submissions_each_question_type(  # type: ignore
         obj: Collection,
         create,
         extracted,
