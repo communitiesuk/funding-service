@@ -10,6 +10,7 @@ from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import SignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
+from app.common.data.types import AuthMethodEnum
 from app.common.forms import GenericSubmitForm
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
@@ -93,6 +94,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
         if not login_user(user):
             return abort(400)
 
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
         return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
 
     return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
@@ -173,6 +175,8 @@ def sso_get_token() -> ResponseReturnValue:
 
     if not login_user(user):
         return abort(400)
+
+    session["auth"] = AuthMethodEnum.SSO
 
     return redirect(redirect_to_path)
 

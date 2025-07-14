@@ -68,7 +68,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_users_for_grant",
     "deliver_grant_funding.grant_details",
 ]
-routes_with_expected_logged_in_access = [
+routes_with_expected_access_grant_funding_logged_in_access = [
     "developers.access.start_submission_redirect",
     "developers.access.submission_tasklist",
     "developers.access.ask_a_question",
@@ -104,8 +104,8 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
             assert "@is_mhclg_user" in decorators
         # todo: this will be the access grant funding routes where the user is logged in
         #       and will likely have access through their org, this should be updated as part of that work
-        elif rule.endpoint in routes_with_expected_logged_in_access:
-            assert "@login_required" in decorators
+        elif rule.endpoint in routes_with_expected_access_grant_funding_logged_in_access:
+            assert "@access_grant_funding_login_required" in decorators
         elif rule.endpoint in routes_with_no_expected_access_restrictions:
             # If route is expected to be unauthenticated, check it doesn't have any auth decorators
             assert not any(decorator in all_auth_annotations for decorator in decorators)
