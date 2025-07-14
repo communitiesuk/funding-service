@@ -65,8 +65,8 @@ def create_question(
         assert data_source_items
         question_details_page.fill_data_source_items(data_source_items)
 
-    manage_form_page = question_details_page.click_submit()
-    manage_form_page.check_question_exists(question_text)
+    question_details_page.click_submit()
+    question_details_page.click_back()
 
     created_questions_to_test.append(
         {

@@ -462,8 +462,21 @@ class AddQuestionDetailsPage(GrantDevelopersBasePage):
     def fill_data_source_items(self, items: list[str]) -> None:
         self.page.get_by_role("textbox", name="List of options").fill("\n".join(items))
 
-    def click_submit(self) -> ManageFormPage:
+    def click_submit(self) -> "EditQuestionPage":
         self.page.get_by_role("button", name="Submit").click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
+
+    def click_back(self) -> ManageFormPage:
+        self.page.get_by_role("link", name="Back").click()
         manage_form_page = ManageFormPage(
             self.page,
             self.domain,

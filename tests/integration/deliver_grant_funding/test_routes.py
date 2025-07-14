@@ -731,11 +731,12 @@ def test_add_text_question_post(authenticated_platform_admin_client, factories, 
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.edit_question",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
+        question_id=db_session.query(Question).first().id,
     )
 
     form_from_db = db_session.scalars(select(Form).where(Form.id == form.id)).one()

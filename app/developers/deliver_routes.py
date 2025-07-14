@@ -483,7 +483,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
             assert wt_form.hint.data is not None
             assert wt_form.name.data is not None
 
-            create_question(
+            question = create_question(
                 form=form,
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
@@ -495,11 +495,12 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
             )
             return redirect(
                 url_for(
-                    "developers.deliver.manage_form",
+                    "developers.deliver.edit_question",
                     grant_id=grant_id,
                     collection_id=collection_id,
                     section_id=section_id,
                     form_id=form_id,
+                    question_id=question.id,
                 )
             )
         except DuplicateValueError as e:
