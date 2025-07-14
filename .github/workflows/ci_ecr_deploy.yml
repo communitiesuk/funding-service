@@ -80,6 +80,15 @@ jobs:
       #     cpu: 1
       #     memory: 2
       #     wait-for-service-stability-seconds: 600
+      - name: Get App Runner service ARN
+        id: get_service_arn
+        run: |
+          SERVICE_ARN=$(aws apprunner list-services \
+            --region eu-west-2 \
+            --query "ServiceSummaryList[?ServiceName=='${{ inputs.environment }}-funding-service'].ServiceArn" \
+            --output text)
+          echo "SERVICE_ARN=$SERVICE_ARN" >> $GITHUB_OUTPUT
+
 
       - name: Deploy image to App Runner
         run: |
