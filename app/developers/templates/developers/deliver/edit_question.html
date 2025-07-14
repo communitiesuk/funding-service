@@ -57,6 +57,11 @@
             {{ form.text }}
             {{ form.name }}
             {{ form.hint }}
+
+            {% if question.data_type == enum.question_type.RADIOS %}
+              {{ form.data_source_items }}
+            {% endif %}
+
             {{ form.submit }}
           </form>
 

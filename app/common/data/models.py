@@ -246,6 +246,11 @@ class Question(BaseModel, SafeQidMixin):
         """A small proxy to support SafeQidMixin so that logic can be centralised."""
         return self.id
 
+    @property
+    def data_source_items(self) -> str:
+        # This is just used to help (re)populate the QuestionForm nicely.
+        return "\n".join([item.label for item in self.data_source.items])
+
     def get_expression(self, id: uuid.UUID) -> "Expression":
         try:
             return next(expression for expression in self.expressions if expression.id == id)
