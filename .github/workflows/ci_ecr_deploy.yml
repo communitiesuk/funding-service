@@ -67,50 +67,30 @@ jobs:
         if: steps.changes.outputs.alembic-head == 'true'
         uses: ./.github/workflows/run-database-migrations
 
-      - name: Get App Runner service ARN
-        id: get_service_arn
+      - name: Set ECR repo variable and construct image URI
+        id: ecr_info
         run: |
-          SERVICE_ARN=$(aws apprunner list-services \
-            --region eu-west-2 \
-            --query "ServiceSummaryList[?ServiceName=='${{ inputs.environment }}-funding-service'].ServiceArn" \
-            --output text)
-          echo "SERVICE_ARN=$SERVICE_ARN" >> $GITHUB_OUTPUT
-        
+          # Set ECR repo based on account and environment
+          ECR_REPO=${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/${{ inputs.environment }}-funding-service
+
+          # Construct final image URI using provided image tag
+          ECR_IMAGE_LOCATION=$ECR_REPO:${{ github.sha }}
+
+          echo "ecr_image_location=$ECR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
+
       - name: Deploy image to App Runner
-        run: |
-          if [ -z "$SERVICE_ARN" ]; then
-            echo "ERROR: SERVICE_ARN is empty. Exiting."
-            exit 1
-          fi
-          aws apprunner update-service \
-            --service-arn "$SERVICE_ARN" \
-            --source-configuration "$(jq -n \
-              --arg img "${{ inputs.ecr_image_location }}" \
-              '{
-                "ImageRepository": {
-                  "ImageIdentifier": $img,
-                  "ImageRepositoryType": "ECR",
-                  "ImageConfiguration": {"Port": "8080"}
-                },
-                "AutoDeploymentsEnabled": true
-              }')"
-        env:
-          AWS_REGION: eu-west-2
-          SERVICE_ARN: ${{ steps.get_service_arn.outputs.SERVICE_ARN }}
-      
-      # - name: Deploy image to App Runner
-      #   id: deploy
-      #   uses: awslabs/amazon-app-runner-deploy@v2.5.2
-      #   with:
-      #     service: ${{ inputs.environment }}-funding-service
-      #     image: ${{ inputs.ecr_image_location }}
-      #     image_repository_type: ECR
-      #     access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
-      #     region: eu-west-2
-      #     port: 8080
-      #     cpu: 1
-      #     memory: 2
-      #     wait-for-service-stability-seconds: 600
+        id: deploy
+        uses: awslabs/amazon-app-runner-deploy@main
+        with:
+          service: ${{ inputs.environment }}-funding-service
+          image: ${{ steps.ecr_info.outputs.ecr_image_location }}
+          image_repository_type: ECR
+          access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
+          region: eu-west-2
+          port: 8080
+          cpu: 1
+          memory: 2
+          wait-for-service-stability-seconds: 600
 
       
   e2e_tests:
@@ -138,4 +118,3 @@ jobs:
     secrets:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
-
