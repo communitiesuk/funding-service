@@ -81,7 +81,7 @@ jobs:
       #     memory: 2
       #     wait-for-service-stability-seconds: 600
 
-      - name: Deploy image from ECR to App Runner
+      - name: Deploy image to App Runner
         run: |
           aws apprunner update-service \
           --service-arn arn:aws:apprunner:eu-west-2:${{ secrets.AWS_ACCOUNT }}:service/${{ inputs.environment }}-funding-service/<service-id> \
