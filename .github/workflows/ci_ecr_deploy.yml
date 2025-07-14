@@ -67,6 +67,37 @@ jobs:
         if: steps.changes.outputs.alembic-head == 'true'
         uses: ./.github/workflows/run-database-migrations
 
+      - name: Get App Runner service ARN
+        id: get_service_arn
+        run: |
+          SERVICE_ARN=$(aws apprunner list-services \
+            --region eu-west-2 \
+            --query "ServiceSummaryList[?ServiceName=='${{ inputs.environment }}-funding-service'].ServiceArn" \
+            --output text)
+          echo "SERVICE_ARN=$SERVICE_ARN" >> $GITHUB_OUTPUT
+        
+      - name: Deploy image to App Runner
+        run: |
+          if [ -z "$SERVICE_ARN" ]; then
+            echo "ERROR: SERVICE_ARN is empty. Exiting."
+            exit 1
+          fi
+          aws apprunner update-service \
+            --service-arn "$SERVICE_ARN" \
+            --source-configuration '{
+              "ImageRepository": {
+                "ImageIdentifier": "'"${{ inputs.ecr_image_location }}"'",
+                "ImageRepositoryType": "ECR",
+                "ImageConfiguration": {
+                  "Port": "8080"
+                }
+              },
+              "AutoDeploymentsEnabled": true
+            }'
+        env:
+          AWS_REGION: eu-west-2
+          SERVICE_ARN: ${{ steps.get_service_arn.outputs.SERVICE_ARN }}
+      
       # - name: Deploy image to App Runner
       #   id: deploy
       #   uses: awslabs/amazon-app-runner-deploy@v2.5.2
@@ -80,35 +111,8 @@ jobs:
       #     cpu: 1
       #     memory: 2
       #     wait-for-service-stability-seconds: 600
+
       
-      - name: Get App Runner service ARN
-        id: get_service_arn
-        run: |
-          SERVICE_ARN=$(aws apprunner list-services \
-            --region eu-west-2 \
-            --query "ServiceSummaryList[?ServiceName=='${{ inputs.environment }}-funding-service'].ServiceArn" \
-            --output text)
-          echo "SERVICE_ARN=$SERVICE_ARN" >> $GITHUB_OUTPUT
-
-
-      - name: Deploy image to App Runner
-        run: |
-          echo "Using service ARN: $SERVICE_ARN"
-          aws apprunner update-service \
-            --service-arn ${{ steps.get_service_arn.outputs.SERVICE_ARN }} \
-            --source-configuration '{
-              "ImageRepository": {
-                "ImageIdentifier": "${{ inputs.ecr_image_location }}",
-                "ImageRepositoryType": "ECR",
-                "ImageConfiguration": {
-                  "Port": "8080"
-                }
-              },
-              "AutoDeploymentsEnabled": true
-            }'
-        env:
-          AWS_REGION: eu-west-2
-
   e2e_tests:
     name: Python E2E tests
     if: ${{ inputs.run_e2e_tests == true }}
