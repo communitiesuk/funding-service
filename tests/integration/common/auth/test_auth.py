@@ -33,15 +33,29 @@ class TestSignInView:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Email address must end with @communities.gov.uk or @test.communities.gov.uk")
 
-    def test_post_valid_email(self, anonymous_client, mock_notification_service_calls):
+    def test_post_mhclg_email_redirects_to_sso(self, anonymous_client, mock_notification_service_calls):
         response = anonymous_client.post(
             url_for("auth.request_a_link_to_sign_in"),
             data={"email_address": "test@communities.gov.uk"},
             follow_redirects=True,
         )
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert response.status_code == 200
+        assert "Deliver grant funding" in get_h1_text(soup)
+        assert "Sign in with Microsoft" in get_h2_text(soup)
+        with anonymous_client.session_transaction() as session:
+            assert "magic_link_redirect" not in session
+
+    def test_post_valid_non_mhclg_email(self, anonymous_client, mock_notification_service_calls):
+        response = anonymous_client.post(
+            url_for("auth.request_a_link_to_sign_in"),
+            data={"email_address": "test@example.com"},
+            follow_redirects=True,
+        )
         assert response.status_code == 200
         assert b"Check your email" in response.data
-        assert b"test@communities.gov.uk" in response.data
+        assert b"test@example.com" in response.data
         assert len(mock_notification_service_calls) == 1
         assert mock_notification_service_calls[0].kwargs["personalisation"]["magic_link"] == AnyStringMatching(
             r"http://funding.communities.gov.localhost:8080/sign-in/.*"
@@ -66,7 +80,7 @@ class TestSignInView:
 
         response = anonymous_client.post(
             url_for("auth.request_a_link_to_sign_in"),
-            data={"email_address": "test@test.communities.gov.uk"},
+            data={"email_address": "test@example.com"},
             follow_redirects=True,
         )
         assert response.status_code == 200
