@@ -73,6 +73,7 @@ jobs:
         with:
           service: ${{ inputs.environment }}-funding-service
           image: ${{ inputs.ecr_image_location }}
+          image_repository_type: ECR
           access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
           region: eu-west-2
           port: 8080
