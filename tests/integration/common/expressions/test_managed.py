@@ -5,7 +5,8 @@ import pytest
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
 from app.common.expressions import evaluate
-from app.common.expressions.managed import Between, GreaterThan, LessThan
+from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan
+from app.types import TRadioItem
 
 
 class TestBaseManagedExpression:
@@ -76,4 +77,23 @@ class TestBetweenExpression:
             maximum_value=maximum_value,
             maximum_inclusive=maximum_inclusive,
         )
+        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+
+
+class TestAnyOfExpression:
+    @pytest.mark.parametrize(
+        "items, answer, expected_result",
+        (
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], "red", True),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], "blue", True),
+            (
+                [{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}],
+                "Blue",
+                False,
+            ),  # case sensitive - this shouldn't be able to happen, though
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], "green", False),
+        ),
+    )
+    def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool):
+        expr = AnyOf(question_id=uuid.uuid4(), items=items)
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
