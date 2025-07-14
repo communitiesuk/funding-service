@@ -1,4 +1,4 @@
-name: Paketo build
+name: Paketo build CI
 run-name: Build ${{ github.ref_name }}
 
 permissions:
@@ -78,7 +78,7 @@ jobs:
             --builder paketobuildpacks/builder-jammy-full \
             --publish
 
-          echo "ecr_image_location=$ECR_IMAGE_URI" >> $GITHUB_OUTPUT
+          echo "::add-mask::$ECR_IMAGE_URI"
 
   notify_slack:
     needs:
