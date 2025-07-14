@@ -171,7 +171,7 @@ class FormForm(FlaskForm):
 
 
 class AddGroupForm(FlaskForm):
-    group_name = StringField(
+    name = StringField(
         "What is the name of the group?",
         validators=[DataRequired("Enter a group name")],
         filters=[strip_string_if_not_empty],

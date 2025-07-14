@@ -450,8 +450,8 @@ def add_group(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
     if form.validate_on_submit():
         try:
-            assert form.group_name.data is not None
-            interfaces.collections.create_group(db_form, name=form.group_name.data)
+            assert form.name.data is not None
+            interfaces.collections.create_group(db_form, name=form.name.data)
             return redirect(
                 url_for(
                     "developers.deliver.manage_form",

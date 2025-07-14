@@ -1,6 +1,7 @@
 {# todo: I think all of this can be accomplished by overriding some design system classes #}
 {#       which would allow us to use the standard summary list macro with a few style changes #}
-{% macro moveUpDownTable(table_rows) %}
+
+{% macro table(table_rows, add_question_link=false) %}
   <dl class="govuk-summary-list app-move-up-down-table">
     {% for row in table_rows %}
       <div class="govuk-summary-list__row app-move-up-down-table__row">
@@ -38,5 +39,53 @@
         </dd>
       </div>
     {% endfor %}
+
+    {% if add_question_link %}
+      {% set link %}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.choose_question_type', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}"> Add question </a>
+      {% endset %}
+
+      {% if table_rows %}
+        <div class="govuk-summary-list__row app-move-up-down-table__row">
+          <dt class="govuk-summary-list__value">{{ link }}</dt>
+        </div>
+      {% else %}
+        <p class="govuk-body">{{ link }}</p>
+      {% endif %}
+    {% endif %}
   </dl>
+{% endmacro %}
+
+{# todo: don't show border bottom on the last row and half the margin-bottom if its not the last table #}
+{% macro moveUpDownTable(table_rows, is_group=false, group_name=None, question=None) %}
+  {% if is_group %}
+    <div class="govuk-summary-card">
+      <div class="govuk-summary-card__title-wrapper">
+        <h2 class="govuk-summary-card__title">{{ group_name }}</h2>
+        <ul class="govuk-summary-card__actions">
+          <li class="govuk-summary-card__action">
+            {% if question == db_form.questions | first %}
+              <span class="govuk-body app-move-up-down-table__action--disabled">Move up</span>
+            {% else %}
+              <form method="POST" action="{{ url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'up') }}">
+                <button type="submit" class="app-link-button">Move up</button>
+              </form>
+            {% endif %}
+          </li>
+          <li class="govuk-summary-card__action">
+            {% if question == db_form.questions | last %}
+              <span class="govuk-body app-move-up-down-table__action--disabled">Move down</span>
+            {% else %}
+              <form method="POST" action="{{ url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'down') }}">
+                <button type="submit" class="app-link-button">Move down</button>
+              </form>
+            {% endif %}
+          </li>
+        </ul>
+      </div>
+      <div class="govuk-summary-card__content">{{ table(table_rows, true) }}</div>
+    </div>
+  {% else %}
+    {{ table(table_rows) }}
+  {% endif %}
 {% endmacro %}

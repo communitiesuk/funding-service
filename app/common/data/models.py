@@ -252,6 +252,10 @@ class Question(BaseModel, SafeQidMixin):
     context: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True), default={})  # type: ignore[no-untyped-call]
 
     @property
+    def is_group(self) -> bool:
+        return self.type == QuestionType.GROUP
+
+    @property
     def conditions(self) -> list["Expression"]:
         return [expression for expression in self.expressions if expression.type == ExpressionType.CONDITION]
 
