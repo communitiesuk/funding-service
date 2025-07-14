@@ -476,18 +476,22 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
 
-    wt_form = QuestionForm()
+    wt_form = QuestionForm(question_type=question_data_type_enum)
     if wt_form.validate_on_submit():
         try:
             assert wt_form.text.data is not None
             assert wt_form.hint.data is not None
             assert wt_form.name.data is not None
+
             create_question(
                 form=form,
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
                 data_type=question_data_type_enum,
+                items=[item.strip() for item in wt_form.data_source_items.data.split("\n") if item.strip()]
+                if question_data_type_enum == QuestionDataType.RADIOS and wt_form.data_source_items.data is not None
+                else None,
             )
             return redirect(
                 url_for(
@@ -556,7 +560,7 @@ def edit_question(
     grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID
 ) -> ResponseReturnValue:
     question = get_question_by_id(question_id=question_id)
-    wt_form = QuestionForm(obj=question)
+    wt_form = QuestionForm(obj=question, question_type=question.data_type)
 
     confirm_deletion_form = ConfirmDeletionForm()
     if "delete" in request.args:

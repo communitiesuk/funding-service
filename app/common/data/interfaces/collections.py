@@ -1,3 +1,4 @@
+import uuid
 from typing import TYPE_CHECKING, Any, Never, Protocol
 from uuid import UUID
 
@@ -5,10 +6,12 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.common.collections.types import SubmissionAnswerRootModel
+from app.common.collections.types import SingleChoiceFromList, SubmissionAnswerRootModel
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
+    DataSource,
+    DataSourceItem,
     Expression,
     Form,
     Grant,
@@ -78,7 +81,7 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
 
 
 def update_submission_data(
-    submission: Submission, question: Question, data: SubmissionAnswerRootModel[Any]
+    submission: Submission, question: Question, data: SubmissionAnswerRootModel[Any] | SingleChoiceFromList
 ) -> Submission:
     submission.data[str(question.id)] = data.get_value_for_submission()
     db.session.flush()
@@ -229,7 +232,21 @@ def update_form(form: Form, *, title: str) -> Form:
     return form
 
 
-def create_question(form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType) -> Question:
+def _create_data_source(question: Question, items: list[str]) -> None:
+    data_source = DataSource(id=uuid.uuid4(), question_id=question.id)
+    db.session.add(data_source)
+
+    data_source_items = []
+    for choice in items:
+        data_source_items.append(DataSourceItem(data_source_id=data_source.id, key=slugify(choice), label=choice))
+    data_source.items = data_source_items
+
+    db.session.flush()
+
+
+def create_question(
+    form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType, items: list[str] | None = None
+) -> Question:
     question = Question(text=text, form_id=form.id, slug=slugify(text), hint=hint, name=name, data_type=data_type)
     form.questions.append(question)  # type: ignore[no-untyped-call]
     db.session.add(question)
@@ -239,6 +256,11 @@ def create_question(form: Form, *, text: str, hint: str, name: str, data_type: Q
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
+
+    if items is not None:
+        _create_data_source(question, items)
+        db.session.flush()
+
     return question
 
 
