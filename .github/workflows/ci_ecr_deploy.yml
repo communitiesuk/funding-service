@@ -25,6 +25,8 @@ on:
     secrets:
       AWS_ACCOUNT:
         required: true
+      CI_AWS_ACCOUNT:
+        required: true
       SLACK_BOT_TOKEN:
         required: true
       TEMP_SLACK_CHANNEL_ID:
@@ -71,8 +73,7 @@ jobs:
         id: ecr_info
         run: |
           # Set ECR repo based on account and environment
-          ECR_REPO=${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/${{ inputs.environment }}-funding-service
-
+          ECR_REPO=${{ secrets.CI_AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/funding-service-ci-shared-app
           # Construct final image URI using provided image tag
           ECR_IMAGE_LOCATION=$ECR_REPO:${{ github.sha }}
 
