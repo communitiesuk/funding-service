@@ -87,12 +87,12 @@ jobs:
             --source-configuration "$(jq -n \
               --arg img "${{ inputs.ecr_image_location }}" \
               '{
-                ImageRepository: {
-                  ImageIdentifier: $img,
-                  ImageRepositoryType: ECR,
-                  ImageConfiguration: {Port: "8080"}
+                "ImageRepository": {
+                  "ImageIdentifier": $img,
+                  "ImageRepositoryType": "ECR",
+                  "ImageConfiguration": {"Port": "8080"}
                 },
-                AutoDeploymentsEnabled": true
+                "AutoDeploymentsEnabled": true
               }')"
         env:
           AWS_REGION: eu-west-2
