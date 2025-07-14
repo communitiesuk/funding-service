@@ -84,16 +84,16 @@ jobs:
           fi
           aws apprunner update-service \
             --service-arn "$SERVICE_ARN" \
-            --source-configuration '{
-              "ImageRepository": {
-                "ImageIdentifier": "'"${{ inputs.ecr_image_location }}"'",
-                "ImageRepositoryType": "ECR",
-                "ImageConfiguration": {
-                  "Port": "8080"
-                }
-              },
-              "AutoDeploymentsEnabled": true
-            }'
+            --source-configuration "$(jq -n \
+              --arg img "${{ inputs.ecr_image_location }}" \
+              '{
+                ImageRepository: {
+                  ImageIdentifier: $img,
+                  ImageRepositoryType: ECR,
+                  ImageConfiguration: {Port: "8080"}
+                },
+                AutoDeploymentsEnabled": true
+              }')"
         env:
           AWS_REGION: eu-west-2
           SERVICE_ARN: ${{ steps.get_service_arn.outputs.SERVICE_ARN }}
