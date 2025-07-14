@@ -67,19 +67,36 @@ jobs:
         if: steps.changes.outputs.alembic-head == 'true'
         uses: ./.github/workflows/run-database-migrations
 
-      - name: Deploy image to App Runner
-        id: deploy
-        uses: awslabs/amazon-app-runner-deploy@v2.5.2
-        with:
-          service: ${{ inputs.environment }}-funding-service
-          image: ${{ inputs.ecr_image_location }}
-          image_repository_type: ECR
-          access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
-          region: eu-west-2
-          port: 8080
-          cpu: 1
-          memory: 2
-          wait-for-service-stability-seconds: 600
+      # - name: Deploy image to App Runner
+      #   id: deploy
+      #   uses: awslabs/amazon-app-runner-deploy@v2.5.2
+      #   with:
+      #     service: ${{ inputs.environment }}-funding-service
+      #     image: ${{ inputs.ecr_image_location }}
+      #     image_repository_type: ECR
+      #     access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
+      #     region: eu-west-2
+      #     port: 8080
+      #     cpu: 1
+      #     memory: 2
+      #     wait-for-service-stability-seconds: 600
+
+      - name: Deploy image from ECR to App Runner
+        run: |
+          aws apprunner update-service \
+          --service-arn arn:aws:apprunner:eu-west-2:${{ secrets.AWS_ACCOUNT }}:service/${{ inputs.environment }}-funding-service/<service-id> \
+          --source-configuration '{
+            "ImageRepository": {
+              "ImageIdentifier": "${{ inputs.ecr_image_location }}",
+              "ImageRepositoryType": "ECR",
+              "ImageConfiguration": {
+                "Port": "8080"
+              }
+            },
+            "AutoDeploymentsEnabled": true
+          }'
+        env:
+          AWS_REGION: eu-west-2
 
   e2e_tests:
     name: Python E2E tests
