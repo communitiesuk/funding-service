@@ -56,6 +56,25 @@ jobs:
       SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
       SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
 
+  ci_ecr_deploy_dev:
+    name: Deploy to dev from CI ECR
+    needs:
+      - paketo_build_ecr
+    uses: ./.github/workflows/ci_ecr_deploy.yml
+    concurrency:
+      group: fs-deploy-dev-ecr
+      cancel-in-progress: false
+    with:
+      environment: dev
+      ecr_image_location: ${{ needs.paketo_build_ecr.outputs.ecr_image_location }}
+      run_e2e_tests: true
+    secrets:
+      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+      SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
+      SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
+  
   deploy_test:
     name: Deploy to test
     # TODO: Strip this condition when we have dev/test/prod envs; for now, if we trigger the pipeline manually then
@@ -72,6 +91,28 @@ jobs:
     with:
       environment: test
       ghcr_image_location: ${{ needs.paketo_build.outputs.ghcr_image_location }}
+      run_e2e_tests: true
+    secrets:
+      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+      SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
+      SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
+   
+  ci_ecr_deploy_test:
+    name: Deploy to test from CI ECR
+    if: github.event_name == 'push'
+    needs:
+      - paketo_build_ecr
+      - ci_ecr_deploy_dev
+      - run_e2e_tests_docker_compose
+    uses: ./.github/workflows/ci_ecr_deploy.yml
+    concurrency:
+      group: fs-deploy-test-ecr
+      cancel-in-progress: false
+    with:
+      environment: test
+      ecr_image_location: ${{ needs.paketo_build_ecr.outputs.ecr_image_location }}
       run_e2e_tests: true
     secrets:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
