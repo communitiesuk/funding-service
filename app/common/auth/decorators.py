@@ -11,16 +11,41 @@ from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum, RoleEnum
 
 
-def login_required[**P](
+def access_grant_funding_login_required[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
         user = interfaces.user.get_current_user()
+        if not user.is_authenticated:
+            session["next"] = request.full_path
+            return redirect(url_for("auth.request_a_link_to_sign_in"))
+
         session_auth = session.get("auth")
+        # This shouldn't be able to happen as we set it in our login routes but if it does somehow happen then we want
+        # to make sure we know about it through a Sentry error as it would mean our login flows are broken
+        if session_auth is None:
+            logout_user()
+            return abort(500)
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def deliver_grant_funding_login_required[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        user = interfaces.user.get_current_user()
         if not user.is_authenticated:
             session["next"] = request.full_path
             return redirect(url_for("auth.sso_sign_in"))
+
+        session_auth = session.get("auth")
+        # This shouldn't be able to happen as we set it in our login routes but if it does somehow happen then we want
+        # to make sure we know about it through a Sentry error as it would mean our login flows are broken
         if session_auth is None:
             logout_user()
             return abort(500)
@@ -78,7 +103,7 @@ def is_mhclg_user[**P](
 
         return func(*args, **kwargs)
 
-    return login_required(wrapper)
+    return deliver_grant_funding_login_required(wrapper)
 
 
 def is_platform_admin[**P](
