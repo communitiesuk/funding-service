@@ -70,6 +70,7 @@ jobs:
       run_e2e_tests: true
     secrets:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+      CI_AWS_ACCOUNT: ${{ secrets.CI_AWS_ACCOUNT }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
       SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
@@ -116,6 +117,7 @@ jobs:
       run_e2e_tests: true
     secrets:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+      CI_AWS_ACCOUNT: ${{ secrets.CI_AWS_ACCOUNT }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
       SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
