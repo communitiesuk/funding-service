@@ -189,15 +189,20 @@ class QuestionForm(FlaskForm):
         widget=GovTextInput(),
     )
     hint = StringField(
-        "Question hint",
+        "Question hint (optional)",
         filters=[strip_string_if_not_empty],
         widget=GovTextArea(),
-        description="The question hint will be shown to users when they are answering the question.",
+        description=(
+            "If needed, provide a single sentence without a full stop to help someone answer the question correctly"
+        ),
+        render_kw={"params": {"rows": 2}},
     )
     name = StringField(
         "Question name",
         validators=[DataRequired("Enter the question name")],
-        description="The question name will be shown when exporting submissions from your users.",
+        description=(
+            "A short description of the answer in lower case, for example “risk category” or “contact email address”"
+        ),
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
