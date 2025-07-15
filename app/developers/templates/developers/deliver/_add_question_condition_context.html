@@ -1,18 +1,4 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-
-{{
-  govukSummaryList({
-    "rows": [{
-      "key": { "text": "Collection" },
-      "value": { "text": question.form.section.collection.name },
-    }, {
-      "key": { "text": "Form" },
-      "value": { "text": question.form.title },
-    }],
-    "classes": "app-!-border-top-line"
-  })
-}}
-
 <h2 class="govuk-heading-m">Condition</h2>
 {{
   govukSummaryList({
