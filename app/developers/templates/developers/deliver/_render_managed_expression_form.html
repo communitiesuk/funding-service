@@ -1,4 +1,4 @@
-{% macro render_managed_expression_form(form, label_html) %}
+{% macro render_managed_expression_form(form, label_html, submit_label) %}
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
@@ -15,6 +15,6 @@
       })
     }}
 
-    {{ form.submit }}
+    {{ form.submit(params={"text": submit_label}) }}
   </form>
 {% endmacro %}

@@ -32,7 +32,7 @@
           <span class="govuk-visually-hidden">to {{ depends_on_question.text }}</span>
           is
         {% endset %}
-        {{ render_managed_expression_form(form, label_html=label_html) }}
+        {{ render_managed_expression_form(form, label_html=label_html, submit_label="Add condition") }}
       {% else %}
         <p class="govuk-body">This question cannot be used a condition.</p>
       {% endif %}

@@ -62,7 +62,7 @@
               {{ form.data_source_items }}
             {% endif %}
 
-            {{ form.submit }}
+            {{ form.submit(params={"text": "Save"}) }}
           </form>
 
           <div class="govuk-form-group">
