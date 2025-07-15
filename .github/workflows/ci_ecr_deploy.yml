@@ -13,10 +13,6 @@ on:
         type: string
         required: true
         default: dev
-      ecr_image_location:
-        description: "Image URI in CI ECR to deploy"
-        type: string
-        required: true
       run_e2e_tests:
         description: "Run end-to-end tests?"
         type: boolean

@@ -14,15 +14,11 @@ on:
         required: true
       CI_AWS_ACCOUNT:
         required: true
-    outputs:
-      ecr_image_location:
-        description: "A URI pointing to the paketo-built image in ECR"
-        value: ${{ jobs.paketo_build.outputs.ecr_image_location }}
 
 jobs:
   paketo_build:
     runs-on: ubuntu-latest
-    name: Paketo
+    name: Paketo_ci
     outputs:
       ecr_image_location: ${{ steps.build_and_publish.outputs.ecr_image_location }}
 
