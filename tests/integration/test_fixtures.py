@@ -124,7 +124,7 @@ def test_collection_factory_completed_submissions(db_session, factories):
     assert len(collection_from_db.live_submissions) == 2
 
     answers_dict = collection._submissions[0].data
-    assert len(answers_dict) == 5
+    assert len(answers_dict) == 6
 
     for submission in collection_from_db.test_submissions:
         helper = SubmissionHelper(submission)
