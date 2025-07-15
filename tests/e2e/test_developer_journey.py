@@ -26,6 +26,7 @@ question_text_by_type: dict[QuestionDataType, str] = {
     QuestionDataType.INTEGER: "Enter a number",
     QuestionDataType.YES_NO: "Yes or no",
     QuestionDataType.RADIOS: "Select one from a list of options",
+    QuestionDataType.URL: "Enter a website address",
 }
 
 
@@ -43,6 +44,10 @@ question_response_data_by_type: dict[QuestionDataType, list[_QuestionResponse]] 
     ],
     QuestionDataType.YES_NO: [_QuestionResponse("Yes")],
     QuestionDataType.RADIOS: [_QuestionResponse("option 2")],
+    QuestionDataType.URL: [
+        _QuestionResponse("not-a-url", "Enter a website address in the correct format, like https://www.gov.uk"),
+        _QuestionResponse("https://gov.uk"),
+    ],
 }
 
 TCreatedQuestionsToTest = TypedDict(
@@ -165,6 +170,7 @@ def test_create_and_preview_collection(
         create_question(QuestionDataType.INTEGER, manage_form_page)
         create_question(QuestionDataType.YES_NO, manage_form_page)
         create_question(QuestionDataType.RADIOS, manage_form_page, ["option 1", "option 2", "option 3"])
+        create_question(QuestionDataType.URL, manage_form_page)
 
         add_validation(
             manage_form_page,

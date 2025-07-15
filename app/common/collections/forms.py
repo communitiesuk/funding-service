@@ -8,7 +8,7 @@ from immutabledict import immutabledict
 from wtforms import Field, Form, RadioField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField, SubmitField
-from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
+from wtforms.validators import URL, DataRequired, Email, InputRequired, Optional, ValidationError
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
@@ -156,6 +156,19 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                 description=question.hint or "",
                 widget=GovRadioInput(),
                 choices=[(item.key, item.label) for item in question.data_source.items],
+            )
+        case QuestionDataType.URL:
+            field = StringField(
+                label=question.text,
+                description=question.hint or "",
+                widget=GovTextInput(),
+                validators=[
+                    DataRequired(f"Enter the {question.name}"),
+                    URL(
+                        message="Enter a website address in the correct format, like https://www.gov.uk",
+                        require_tld=True,
+                    ),
+                ],
             )
         case _:
             raise Exception("Unable to generate dynamic form for question type {_}")
