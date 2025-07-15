@@ -164,7 +164,10 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                 widget=GovTextInput(),
                 validators=[
                     DataRequired(f"Enter the {question.name}"),
-                    URL(message="Enter a website address in the correct format, like https://www.gov.uk", require_tld=True),
+                    URL(
+                        message="Enter a website address in the correct format, like https://www.gov.uk",
+                        require_tld=True,
+                    ),
                 ],
             )
         case _:
