@@ -87,7 +87,7 @@ class TestSubmissionHelper:
             assert helper.form_data == {}
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 6, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 7, "Update this test if adding new questions"
 
             form = factories.form.build()
             form_two = factories.form.build(section=form.section)
@@ -119,6 +119,9 @@ class TestSubmissionHelper:
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994299"),
                 data_type=QuestionDataType.EMAIL,
             )
+            q7 = factories.question.build(
+                form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994300"), data_type=QuestionDataType.URL
+            )
 
             submission = factories.submission.build(
                 collection=form.section.collection,
@@ -129,6 +132,7 @@ class TestSubmissionHelper:
                     str(q4.id): YesNo(True).get_value_for_submission(),  # ty: ignore[missing-argument]
                     str(q5.id): SingleChoiceFromList(key="my-key", label="My label").get_value_for_submission(),
                     str(q6.id): TextSingleLine("name@example.com").get_value_for_submission(),
+                    str(q7.id): TextSingleLine("https://example.com").get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -140,6 +144,7 @@ class TestSubmissionHelper:
                 "q_d696aebc49d24170a92fb6ef42994297": True,
                 "q_d696aebc49d24170a92fb6ef42994298": "my-key",
                 "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
+                "q_d696aebc49d24170a92fb6ef42994300": "https://example.com",
             }
 
     class TestExpressionContext:
@@ -156,7 +161,7 @@ class TestSubmissionHelper:
             assert helper.expression_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 6, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 7, "Update this test if adding new questions"
 
             form = factories.form.build()
             form_two = factories.form.build(section=form.section)
@@ -188,6 +193,11 @@ class TestSubmissionHelper:
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994299"),
                 data_type=QuestionDataType.EMAIL,
             )
+            q7 = factories.question.build(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994300"),
+                data_type=QuestionDataType.URL,
+            )
             submission = factories.submission.build(
                 collection=form.section.collection,
                 data={
@@ -197,6 +207,7 @@ class TestSubmissionHelper:
                     str(q4.id): YesNo(True).get_value_for_submission(),  # ty: ignore[missing-argument]
                     str(q5.id): SingleChoiceFromList(key="my-key", label="My label").get_value_for_submission(),
                     str(q6.id): TextSingleLine("name@example.com").get_value_for_submission(),
+                    str(q7.id): TextSingleLine("https://example.com").get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -210,6 +221,7 @@ class TestSubmissionHelper:
                         "q_d696aebc49d24170a92fb6ef42994297": True,
                         "q_d696aebc49d24170a92fb6ef42994298": "my-key",
                         "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
+                        "q_d696aebc49d24170a92fb6ef42994300": "https://example.com",
                     }
                 )
             )

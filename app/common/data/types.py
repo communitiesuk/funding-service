@@ -40,6 +40,8 @@ class AuthMethodEnum(str, enum.Enum):
 
 class QuestionDataType(enum.StrEnum):
     EMAIL = "An email address"
+    # todo: should we call this "A URL" or "A website address"
+    URL = "A website address"
     TEXT_SINGLE_LINE = "A single line of text"
     TEXT_MULTI_LINE = "Multiple lines of text"
     INTEGER = "A whole number"

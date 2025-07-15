@@ -287,6 +287,7 @@ class TestCreateQuestion:
             QuestionDataType.EMAIL,
             QuestionDataType.TEXT_MULTI_LINE,
             QuestionDataType.INTEGER,
+            QuestionDataType.URL,
         ],
     )
     def test_simple_types(self, db_session, factories, question_type):
@@ -349,7 +350,7 @@ class TestCreateQuestion:
         assert [item.key for item in question.data_source.items] == ["one", "two", "three"]
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 6, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 7, "Add a new test above if adding a new question type"
 
 
 class TestUpdateQuestion:
@@ -450,7 +451,7 @@ class TestUpdateQuestion:
         assert db_session.get(DataSourceItem, item_ids[1]) is None
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 6, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 7, "Add a new test above if adding a new question type"
 
 
 def test_move_question_up_down(db_session, factories):

@@ -10,7 +10,7 @@ from werkzeug.datastructures import MultiDict
 from wtforms.fields.choices import RadioField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField
-from wtforms.validators import DataRequired, Email, InputRequired
+from wtforms.validators import URL, DataRequired, Email, InputRequired
 
 from app import create_app
 from app.common.collections.forms import build_question_form
@@ -72,7 +72,7 @@ class TestBuildQuestionForm:
         assert hasattr(form, "submit")
 
     def test_the_next_test_exhausts_QuestionDataType(self):
-        assert len(QuestionDataType) == 6, (
+        assert len(QuestionDataType) == 7, (
             "If this test breaks, tweak the number and update `test_expected_field_types` accordingly."
         )
 
@@ -85,6 +85,7 @@ class TestBuildQuestionForm:
             (QuestionDataType.YES_NO, RadioField, GovRadioInput, [InputRequired]),
             (QuestionDataType.RADIOS, RadioField, GovRadioInput, []),
             (QuestionDataType.EMAIL, EmailField, GovTextInput, [DataRequired, Email]),
+            (QuestionDataType.URL, StringField, GovTextInput, [DataRequired, URL]),
         ),
     )
     def test_expected_field_types(
