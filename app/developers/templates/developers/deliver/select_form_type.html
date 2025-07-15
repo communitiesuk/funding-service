@@ -3,14 +3,14 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
 
-{% set page_title = "Add a form - " ~ section.title %}
+{% set page_title = "Add a task - " ~ section.title %}
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.deliver.manage_section", grant_id = grant.id, collection_id=collection.id, section_id=section.id)
+        "href": url_for("developers.deliver.manage_collection", grant_id = grant.id, collection_id=collection.id)
     })
   }}
 {% endblock beforeContent %}
@@ -23,7 +23,7 @@
           "name": "form_type",
           "fieldset": {
             "legend": {
-              "text": "Add a form",
+              "text": "Add a task",
               "isPageHeading": true,
               "classes": "govuk-fieldset__legend--l"
             }
@@ -31,11 +31,11 @@
           "items": [
             {
               "value": "empty",
-              "text": "Add an empty form"
+              "text": "Add an empty task"
             },
             {
               "value": "question-bank",
-              "text": "Use a form from the question bank",
+              "text": "Use a task from the question bank",
               "hint": {"text":"Pre-configured questions that align with functional and organisational data standards."},
               "disabled": true
             },

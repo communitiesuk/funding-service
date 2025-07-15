@@ -109,6 +109,10 @@ class Collection(BaseModel):
     def live_submissions(self) -> list["Submission"]:
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
 
+    @property
+    def forms(self) -> list["Form"]:
+        return [form for section in self.sections for form in section.forms]
+
 
 class Submission(BaseModel):
     __tablename__ = "submission"

@@ -18,9 +18,19 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% if confirm_deletion_form %}
+      {% if delete_collection %}
         {% set banner_html %}
           <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this collection?</p>
+          <form method="post" novalidate>
+            {{ confirm_deletion_form.csrf_token }}
+            {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+      {% elif delete_section %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the “{{ delete_section }}” section?</p>
           <form method="post" novalidate>
             {{ confirm_deletion_form.csrf_token }}
             {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
@@ -31,85 +41,20 @@
       {% endif %}
 
       <h1 class="govuk-heading-l">{{ collection.name }}</h1>
-      {% set sections_text %}
-        {% trans count=collection.sections | length %}
-          {{ count }}
-          section {% pluralize %}
-          {{ count }}
-          sections
-        {% endtrans %}
-      {% endset %}
-      {% set submissions_text %}
-        {% trans count=collection.test_submissions | length %}
-          {{ count }}
-          test submission {% pluralize %}
-          {{ count }}
-          test submissions
-        {% endtrans %}
-      {% endset %}
-
-      {{
-        govukSummaryList({
-          "rows": [{
-              "key": {"text": "Name"},
-              "value":{"text": collection.name},
-              "actions": {
-                  "items": [
-                      {
-                        "href": url_for("developers.deliver.edit_collection", grant_id = grant.id, collection_id=collection.id),
-                        "text": "Change",
-                        "classes": "govuk-link govuk-link--no-visited-state"
-                      }
-                  ]
-              }
-        },{
-              "key": {"text": "Sections"},
-              "value":{"text": sections_text},
-              "actions": {
-                  "items": [
-                      {
-                        "href": url_for("developers.deliver.list_sections", grant_id = grant.id, collection_id=collection.id),
-                        "text": "Manage",
-                        "classes": "govuk-link govuk-link--no-visited-state"
-                      }
-                  ]
-              }
-        }, {
-              "key": {"text": "Submissions"},
-              "value":{"text": submissions_text },
-              "actions": {
-                  "items": [
-                      {
-                        "href": url_for("developers.deliver.list_submissions_for_collection", collection_id=collection.id, submission_mode=enum.submission_mode.TEST),
-                        "text": "View",
-                        "classes": "govuk-link govuk-link--no-visited-state"
-                      }
-                  ]
-              }
-        }]
-        })
-      }}
-
+    </div>
+    <div class="govuk-grid-column-one-third govuk-!-text-align-right">
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Test this collection", "classes": "govuk-button--secondary"}) }}
+        {{ form.submit(params={"text": "Test this form", "classes": "govuk-button--secondary" if not collection.sections else ""}) }}
       </form>
     </div>
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full govuk-!-margin-top-5">
+      <h2 class="govuk-heading-m">Sections</h2>
       {% for section in collection.sections %}
-        <h2 class="govuk-heading-m">{{ section.title }}</h2>
-
-        {% if not section.forms %}
-          <p class="govuk-body">
-            This section has no forms, you can
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_section', grant_id = grant.id, collection_id=collection.id, section_id=section.id) }}">manage this section</a>
-            to add a form.
-          </p>
-        {% endif %}
-
         {% set rows=[] %}
+
         {% for form in section.forms %}
           {% set question_text %}
             {% trans count=form.questions | length %}
@@ -122,6 +67,28 @@
           {% set form_link %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id) }}">{{ form.title }}</a>
           {% endset %}
+          {% set actions = [] %}
+          {% if form.order != 0 %}
+            {%
+              do actions.append( {
+              	"text":"Move up",
+                       "classes": "govuk-link--no-visited-state",
+              	"href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1),
+              	"post": True
+              })
+            %}
+          {% endif %}
+          {% if not loop.last %}
+            {%
+              do actions.append( {
+                "text":"Move down",
+                "classes": "govuk-link--no-visited-state",
+                "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'down'),"disabled":(loop.index <= 1),
+                "post": True
+              })
+            %}
+          {% endif %}
+          {% do actions.append({"text": "Rename", "visuallyHiddenText": form.title, "href": url_for("developers.deliver.edit_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id), "classes": "govuk-link--no-visited-state" }) %}
           {%
             do rows.append({
                 "key": {
@@ -130,29 +97,62 @@
                 "value": {
                   "text": question_text
                 },
+                "actions": {
+                  "classes": "govuk-!-width-one-third",
+                  "items": actions
+                },
             })
           %}
         {% endfor %}
 
+
+        {% set add_task_html %}
+          <a class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" href="{{ url_for("developers.deliver.add_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id) }}">
+            {{ "Add another task" if section.forms else "Add a task" }}<span class="govuk-visually-hidden">to the “{{ section.title }}” section</span>
+          </a>
+        {% endset %}
+        {% do rows.append({"key": {"html": add_task_html, "classes": "govuk-!-padding-top-5" if section.forms else ""}, "value": {} }) %}
+        {% set actions = [] %}
+        {% if section.order != 0 %}
+          {%
+            do actions.append( {
+              "text":"Move up",
+              "classes": "govuk-link--no-visited-state",
+              "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1),
+              "post": True
+            })
+          %}
+        {% endif %}
+        {% if not loop.last %}
+          {%
+            do actions.append( {
+              "text":"Move down",
+              "classes": "govuk-link--no-visited-state",
+              "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'down'),"disabled":(loop.index <= 1),
+              "post": True
+            })
+          %}
+        {% endif %}
+        {% do actions.append({"text": "Manage", "visuallyHiddenText": section.title, "href": url_for("developers.deliver.manage_section", grant_id=grant.id, collection_id=collection.id, section_id=section.id), "classes": "govuk-link--no-visited-state" }) %}
         {{
           govukSummaryList({
+            "card": {
+              "title": {"text": section.title, "headingLevel": 3},
+              "actions": {"items": actions } },
             "rows": rows,
-            "classes": "app-tasklist-builder"
+            "classes": "app-tasklist-builder",
           })
         }}
       {% else %}
-        <p class="govuk-body">
-          This collection has no sections, you can
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.list_sections', grant_id = grant.id, collection_id=collection.id) }}">manage sections</a>
-          to add a section.
-        </p>
+        <p class="govuk-body">This form has no sections.</p>
+        <a class="govuk-button" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add a section to the form</a>
       {% endfor %}
 
-      <div class="govuk-grid-row govuk-!-margin-top-7">
-        <div class="govuk-grid-column-two-thirds">
-          <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.manage_collection', grant_id=grant.id, collection_id=collection.id, delete='') }}">Delete this collection</a></p>
+      {% if collection.sections %}
+        <div class="govuk-!-margin-top-7">
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add another section to the form</a>
         </div>
-      </div>
+      {% endif %}
     </div>
   </div>
 {% endblock content %}
