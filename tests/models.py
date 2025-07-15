@@ -151,7 +151,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         form = _FormFactory.create(section=section)
 
         # Assertion to remind us to add more question types here when we start supporting them
-        assert len(QuestionDataType) == 5, "If you have added a new question type, please update this factory."
+        assert len(QuestionDataType) == 6, "If you have added a new question type, please update this factory."
 
         # Create a question of each supported type
         q1 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?")
@@ -159,6 +159,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         q3 = _QuestionFactory.create(form=form, data_type=QuestionDataType.INTEGER, text="What is your age?")
         q4 = _QuestionFactory.create(form=form, data_type=QuestionDataType.YES_NO, text="Do you like cheese?")
         q5 = _QuestionFactory.create(form=form, data_type=QuestionDataType.RADIOS, text="What is the best option?")
+        q6 = _QuestionFactory.create(form=form, data_type=QuestionDataType.EMAIL, text="What is your email address?")
 
         for _ in range(0, test):
             _SubmissionFactory.create(
@@ -172,6 +173,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     str(q5.id): SingleChoiceFromList(
                         key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
                     ).get_value_for_submission(),
+                    str(q6.id): TextSingleLine(faker.Faker().email()).get_value_for_submission(),
                 },
                 status=SubmissionStatusEnum.COMPLETED,
             )
@@ -187,6 +189,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     str(q5.id): SingleChoiceFromList(
                         key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
                     ).get_value_for_submission(),
+                    str(q6.id): TextSingleLine(faker.Faker().email()).get_value_for_submission(),
                 },
                 status=SubmissionStatusEnum.COMPLETED,
             )

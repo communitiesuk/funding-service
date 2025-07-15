@@ -20,6 +20,7 @@ class _QuestionResponse:
 
 
 question_text_by_type: dict[QuestionDataType, str] = {
+    QuestionDataType.EMAIL: "Enter an email address",
     QuestionDataType.TEXT_SINGLE_LINE: "Enter a single line of text",
     QuestionDataType.TEXT_MULTI_LINE: "Enter a few lines of text",
     QuestionDataType.INTEGER: "Enter a number",
@@ -29,6 +30,10 @@ question_text_by_type: dict[QuestionDataType, str] = {
 
 
 question_response_data_by_type: dict[QuestionDataType, list[_QuestionResponse]] = {
+    QuestionDataType.EMAIL: [
+        _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
+        _QuestionResponse("name@example.com"),
+    ],
     QuestionDataType.TEXT_SINGLE_LINE: [_QuestionResponse("E2E question text single line")],
     QuestionDataType.TEXT_MULTI_LINE: [_QuestionResponse("E2E question text multi line\nwith a second line")],
     QuestionDataType.INTEGER: [
@@ -154,6 +159,7 @@ def test_create_and_preview_collection(
 
         # Add a question of each type
         manage_form_page = section_detail_page.click_manage_form(form_name)
+        create_question(QuestionDataType.EMAIL, manage_form_page)
         create_question(QuestionDataType.TEXT_SINGLE_LINE, manage_form_page)
         create_question(QuestionDataType.TEXT_MULTI_LINE, manage_form_page)
         create_question(QuestionDataType.INTEGER, manage_form_page)

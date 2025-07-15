@@ -332,7 +332,7 @@ def _form_data_to_question_type(
     answer = form.get_answer_to_question(question)
 
     match question.data_type:
-        case QuestionDataType.TEXT_SINGLE_LINE:
+        case QuestionDataType.TEXT_SINGLE_LINE | QuestionDataType.EMAIL:
             return TextSingleLine(answer)
         case QuestionDataType.TEXT_MULTI_LINE:
             return TextMultiLine(answer)
@@ -351,7 +351,7 @@ def _deserialise_question_type(
     question: "Question", serialised_data: str | int | float | bool
 ) -> TextSingleLine | TextMultiLine | Integer | YesNo | SingleChoiceFromList:
     match question.data_type:
-        case QuestionDataType.TEXT_SINGLE_LINE:
+        case QuestionDataType.TEXT_SINGLE_LINE | QuestionDataType.EMAIL:
             return TypeAdapter(TextSingleLine).validate_python(serialised_data)
         case QuestionDataType.TEXT_MULTI_LINE:
             return TypeAdapter(TextMultiLine).validate_python(serialised_data)

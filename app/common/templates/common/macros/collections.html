@@ -22,7 +22,7 @@
     {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
     {# So we just manually add the caption here. #}
     <span class="govuk-caption-l">{{ question.form.title }}</span>
-    {% if question.data_type == enum.question_type.TEXT_SINGLE_LINE or question.data_type == enum.question_type.TEXT_MULTI_LINE %}
+    {% if question.data_type == enum.question_type.TEXT_SINGLE_LINE or question.data_type == enum.question_type.TEXT_MULTI_LINE or question.data_type == enum.question_type.EMAIL %}
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
     {% elif question.data_type == enum.question_type.INTEGER %}
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}

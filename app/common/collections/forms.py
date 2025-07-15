@@ -7,14 +7,14 @@ from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, Go
 from immutabledict import immutabledict
 from wtforms import Field, Form, RadioField
 from wtforms.fields.numeric import IntegerField
-from wtforms.fields.simple import StringField, SubmitField
-from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
+from wtforms.fields.simple import EmailField, StringField, SubmitField
+from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
 from app.common.expressions import ExpressionContext, evaluate
 
-_accepted_fields = StringField | IntegerField | RadioField
+_accepted_fields = EmailField | StringField | IntegerField | RadioField
 
 
 # FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
@@ -110,6 +110,16 @@ def build_question_form(question: Question, expression_context: ExpressionContex
 
     field: _accepted_fields
     match question.data_type:
+        case QuestionDataType.EMAIL:
+            field = EmailField(
+                label=question.text,
+                description=question.hint or "",
+                widget=GovTextInput(),
+                validators=[
+                    DataRequired(f"Enter the {question.name}"),
+                    Email(message="Enter an email address in the correct format, like name@example.com"),
+                ],
+            )
         case QuestionDataType.TEXT_SINGLE_LINE:
             field = StringField(
                 label=question.text,
