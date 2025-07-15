@@ -491,7 +491,12 @@ def add_group(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 @is_platform_admin
 def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
-    wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
+
+    group_id = request.args.get("group", None)
+    group = get_question_by_id(group_id) if group_id else None
+    wt_form = QuestionTypeForm(
+        question_data_type=request.args.get("question_data_type", None), group=group.id if group else None
+    )
     if wt_form.validate_on_submit():
         question_data_type = wt_form.question_data_type.data
         return redirect(
@@ -502,6 +507,7 @@ def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, 
                 section_id=section_id,
                 form_id=form_id,
                 question_data_type=question_data_type,
+                group=wt_form.group.data if wt_form.group.data else None,
             )
         )
     return render_template(
@@ -525,6 +531,9 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
 
+    group_id = request.args.get("group", None)
+    group = get_question_by_id(group_id) if group_id else None
+
     wt_form = QuestionForm(question_type=question_data_type_enum)
     if wt_form.validate_on_submit():
         try:
@@ -532,8 +541,17 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
             assert wt_form.hint.data is not None
             assert wt_form.name.data is not None
 
+            # could pass both of these in always but for now I like that this explicitly reads one or the other
+            # parent = {
+            #    form: form
+            # } if not group else {
+            #     group: group
+            # }
+
             question = create_question(
-                form=form,
+                # note just for me, *parent passes it in as positional
+                form=form if not group else None,
+                group=group if group else None,
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
@@ -565,6 +583,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
         db_form=form,
         chosen_question_data_type=question_data_type_enum,
         form=wt_form,
+        group=group,
     )
 
 
@@ -672,10 +691,10 @@ def edit_question(
 
     return render_template(
         "developers/deliver/edit_question.html",
-        grant=question.form.section.collection.grant,
-        collection=question.form.section.collection,
-        section=question.form.section,
-        db_form=question.form,
+        grant=question.belongs_to_form.section.collection.grant,
+        collection=question.belongs_to_form.section.collection,
+        section=question.belongs_to_form.section,
+        db_form=question.belongs_to_form,
         question=question,
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,

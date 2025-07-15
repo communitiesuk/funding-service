@@ -9,7 +9,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.deliver.choose_question_type", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_data_type=chosen_question_data_type.name, back_link="manage_section")
+        "href": url_for("developers.deliver.choose_question_type", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_data_type=chosen_question_data_type.name, group=group.id if group else None, back_link="manage_section")
     })
   }}
 {% endblock beforeContent %}

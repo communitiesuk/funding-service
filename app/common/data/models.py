@@ -237,8 +237,25 @@ class Question(BaseModel, SafeQidMixin):
     )
     name: Mapped[str]
 
-    form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
-    form: Mapped[Form] = relationship("Form", back_populates="questions")
+    # todo: we can wrangle this so everything has it uniformly set but at the moment its convenient that only top level questions
+    #       are returned in the initial query - needs to be thought through from a data integrity point of view
+    form_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("form.id"))
+    form: Mapped[Optional[Form]] = relationship("Form", back_populates="questions")
+
+    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("question.id"))
+    parent: Mapped[Optional["Question"]] = relationship(
+        "Question", remote_side="Question.id", back_populates="questions"
+    )
+
+    questions: Mapped[list["Question"]] = relationship(
+        "Question",
+        back_populates="parent",
+        order_by="Question.order",
+        collection_class=ordering_list("order"),
+        # Importantly we don't `delete-orphan` here; when we move questions up/down, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all, save-update, merge",
+    )
 
     # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
     expressions: Mapped[list["Expression"]] = relationship(
@@ -250,6 +267,12 @@ class Question(BaseModel, SafeQidMixin):
 
     # used to store any question specific values like group specific layout or question data type specific configuration
     context: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True), default={})  # type: ignore[no-untyped-call]
+
+    # todo: not this
+    @property
+    def belongs_to_form(self) -> Optional["Form"]:
+        # fixme: doesn't deal with further nested groups
+        return self.parent.form if self.parent else self.form
 
     @property
     def is_group(self) -> bool:

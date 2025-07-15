@@ -213,6 +213,7 @@ def move_section_down(section: Section) -> Section:
     return section
 
 
+# todo: when we get the form we should also fetch the questions to a certain depth to avoid them from being lazy loaded
 def get_form_by_id(form_id: UUID, with_all_questions: bool = False) -> Form:
     options = []
     if with_all_questions:
@@ -299,18 +300,33 @@ def _update_data_source(question: Question, items: list[str]) -> None:
 
 
 def create_question(
-    form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType, items: list[str] | None = None
+    form: Form = None,
+    group: Question = None,
+    *,
+    text: str,
+    hint: str,
+    name: str,
+    data_type: QuestionDataType,
+    items: list[str] | None = None,
 ) -> Question:
+    if form is None and group is None:
+        raise ValueError("Specify either form or group")
+
     question = Question(
         text=text,
-        form_id=form.id,
+        form=form if form else None,
+        parent=group if group else None,
         slug=slugify(text),
         hint=hint,
         name=name,
         data_type=data_type,
         type=QuestionType.QUESTION,
     )
-    form.questions.append(question)  # type: ignore[no-untyped-call]
+    if form:
+        form.questions.append(question)  # type: ignore[no-untyped-call]
+    elif group:
+        # todo: we can call this "children" if it helps the code read better - I like representing the the theory for now
+        group.questions.append(question)  # type: ignore[no-untyped-call]
     db.session.add(question)
 
     try:
@@ -390,7 +406,9 @@ def is_question_dependency_order_valid(question: Question, depends_on_question: 
 
 
 def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
-    for target_question in question.form.questions:
+    # fixme: just changing this doesn't actually make sense it should go through all of the questions
+    #        there should be a default way of going through all questions flat - its likely a property on the form
+    for target_question in question.belongs_to_form.questions:
         for condition in target_question.conditions:
             if condition.managed and condition.managed.question_id == question.id:
                 raise DependencyOrderException(
@@ -400,16 +418,19 @@ def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
 
 
 def move_question_up(question: Question) -> Question:
-    swap_question = question.form.questions[question.order - 1]
+    # todo: a generic way of referencing this concept, as well as to a flat representation of all of the questions in a form
+    parent = question.parent or question.form
+    swap_question = parent.questions[question.order - 1]
     check_question_order_dependency(question, swap_question)
-    swap_elements_in_list_and_flush(question.form.questions, question.order, swap_question.order)
+    swap_elements_in_list_and_flush(parent.questions, question.order, swap_question.order)
     return question
 
 
 def move_question_down(question: Question) -> Question:
-    swap_question = question.form.questions[question.order + 1]
+    parent = question.parent or question.form
+    swap_question = parent.questions[question.order + 1]
     check_question_order_dependency(question, swap_question)
-    swap_elements_in_list_and_flush(question.form.questions, question.order, swap_question.order)
+    swap_elements_in_list_and_flush(parent.questions, question.order, swap_question.order)
     return question
 
 

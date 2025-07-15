@@ -9,7 +9,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextArea,
     GovTextInput,
 )
-from wtforms import Field
+from wtforms import Field, HiddenField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
@@ -187,6 +187,10 @@ class QuestionTypeForm(FlaskForm):
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
         name="question type",
+    )
+    group = HiddenField(
+        "Group",
+        description="The group this question will be added to. If not set, the question will be added to the form directly.",
     )
     submit = SubmitField(widget=GovSubmitInput())
 

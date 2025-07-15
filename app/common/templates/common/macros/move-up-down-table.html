@@ -1,7 +1,7 @@
 {# todo: I think all of this can be accomplished by overriding some design system classes #}
 {#       which would allow us to use the standard summary list macro with a few style changes #}
 
-{% macro table(table_rows, add_question_link=false) %}
+{% macro table(table_rows, add_question_link=false, question=None) %}
   <dl class="govuk-summary-list app-move-up-down-table">
     {% for row in table_rows %}
       <div class="govuk-summary-list__row app-move-up-down-table__row">
@@ -42,7 +42,9 @@
 
     {% if add_question_link %}
       {% set link %}
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.choose_question_type', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}"> Add question </a>
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.choose_question_type', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, group=question.id) }}">
+          Add question
+        </a>
       {% endset %}
 
       {% if table_rows %}
@@ -83,7 +85,7 @@
           </li>
         </ul>
       </div>
-      <div class="govuk-summary-card__content">{{ table(table_rows, true) }}</div>
+      <div class="govuk-summary-card__content">{{ table(table_rows, true, question) }}</div>
     </div>
   {% else %}
     {{ table(table_rows) }}
