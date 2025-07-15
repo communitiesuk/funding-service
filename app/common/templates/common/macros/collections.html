@@ -26,6 +26,8 @@
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
     {% elif question.data_type == enum.question_type.INTEGER %}
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
+    {% elif question.data_type == enum.question_type.YES_NO %}
+      {{ form.render_question(question, params={"fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true} }, "classes": "govuk-radios--inline" }) }}
     {% elif question.data_type == enum.question_type.RADIOS %}
       {{ form.render_question(question, params={"fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true} } }) }}
     {% endif %}

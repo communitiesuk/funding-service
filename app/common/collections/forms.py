@@ -131,6 +131,15 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                 widget=GovTextInput(),
                 validators=[InputRequired(f"Enter the {question.name}")],
             )
+        case QuestionDataType.YES_NO:
+            field = RadioField(
+                label=question.text,
+                description=question.hint or "",
+                widget=GovRadioInput(),
+                choices=[(1, "Yes"), (0, "No")],
+                validators=[InputRequired("Select yes or no")],
+                coerce=lambda val: bool(int(val)),
+            )
         case QuestionDataType.RADIOS:
             field = RadioField(
                 label=question.text,

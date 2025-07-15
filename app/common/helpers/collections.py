@@ -15,6 +15,7 @@ from app.common.collections.types import (
     SubmissionAnswerRootModel,
     TextMultiLine,
     TextSingleLine,
+    YesNo,
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_submission
@@ -178,7 +179,7 @@ class SubmissionHelper:
 
     def get_all_questions_are_answered_for_form(
         self, form: "Form"
-    ) -> tuple[bool, list[TextSingleLine | TextMultiLine | Integer | SingleChoiceFromList]]:
+    ) -> tuple[bool, list[TextSingleLine | TextMultiLine | Integer | YesNo | SingleChoiceFromList]]:
         visible_questions = self.get_ordered_visible_questions_for_form(form)
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
         return len(visible_questions) == len(answers), answers
@@ -325,7 +326,7 @@ class SubmissionHelper:
 
 def _form_data_to_question_type(
     question: "Question", form: DynamicQuestionForm
-) -> TextSingleLine | TextMultiLine | Integer | SingleChoiceFromList:
+) -> TextSingleLine | TextMultiLine | Integer | YesNo | SingleChoiceFromList:
     _QuestionModel: type[PydanticBaseModel]
 
     answer = form.get_answer_to_question(question)
@@ -337,6 +338,8 @@ def _form_data_to_question_type(
             return TextMultiLine(answer)
         case QuestionDataType.INTEGER:
             return Integer(answer)
+        case QuestionDataType.YES_NO:
+            return YesNo(answer)  # ty: ignore[missing-argument]
         case QuestionDataType.RADIOS:
             label = next(item.label for item in question.data_source.items if item.key == answer)
             return SingleChoiceFromList(key=answer, label=label)
@@ -346,7 +349,7 @@ def _form_data_to_question_type(
 
 def _deserialise_question_type(
     question: "Question", serialised_data: str | int | float | bool
-) -> TextSingleLine | TextMultiLine | Integer | SingleChoiceFromList:
+) -> TextSingleLine | TextMultiLine | Integer | YesNo | SingleChoiceFromList:
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
             return TypeAdapter(TextSingleLine).validate_python(serialised_data)
@@ -354,6 +357,8 @@ def _deserialise_question_type(
             return TypeAdapter(TextMultiLine).validate_python(serialised_data)
         case QuestionDataType.INTEGER:
             return TypeAdapter(Integer).validate_python(serialised_data)
+        case QuestionDataType.YES_NO:
+            return TypeAdapter(YesNo).validate_python(serialised_data)
         case QuestionDataType.RADIOS:
             return TypeAdapter(SingleChoiceFromList).validate_python(serialised_data)
 

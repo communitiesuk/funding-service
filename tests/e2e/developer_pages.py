@@ -607,7 +607,7 @@ class QuestionPage(GrantDevelopersBasePage):
         self.continue_button = page.get_by_role("button", name="Continue")
 
     def respond_to_question(self, question_type: QuestionDataType, answer: str) -> None:
-        if question_type == QuestionDataType.RADIOS:
+        if question_type == QuestionDataType.YES_NO or question_type == QuestionDataType.RADIOS:
             self.page.get_by_role("radio", name=answer).click()
         else:
             self.page.get_by_role("textbox", name=self.question_name).fill(answer)

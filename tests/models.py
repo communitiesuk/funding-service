@@ -8,6 +8,7 @@ for transactional isolation.
 """
 
 import datetime
+import random
 import secrets
 from typing import Any
 from uuid import uuid4
@@ -18,7 +19,7 @@ import faker
 from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 
-from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine
+from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine, YesNo
 from app.common.data.models import (
     Collection,
     DataSource,
@@ -150,13 +151,14 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         form = _FormFactory.create(section=section)
 
         # Assertion to remind us to add more question types here when we start supporting them
-        assert len(QuestionDataType) == 4, "If you have added a new question type, please update this factory."
+        assert len(QuestionDataType) == 5, "If you have added a new question type, please update this factory."
 
         # Create a question of each supported type
         q1 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?")
         q2 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE, text="What is your quest?")
         q3 = _QuestionFactory.create(form=form, data_type=QuestionDataType.INTEGER, text="What is your age?")
-        q4 = _QuestionFactory.create(form=form, data_type=QuestionDataType.RADIOS, text="What is the best option?")
+        q4 = _QuestionFactory.create(form=form, data_type=QuestionDataType.YES_NO, text="Do you like cheese?")
+        q5 = _QuestionFactory.create(form=form, data_type=QuestionDataType.RADIOS, text="What is the best option?")
 
         for _ in range(0, test):
             _SubmissionFactory.create(
@@ -166,8 +168,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
                     str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
                     str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
-                    str(q4.id): SingleChoiceFromList(
-                        key=q4.data_source.items[0].key, label=q4.data_source.items[0].label
+                    str(q4.id): YesNo(random.choice([True, False])).get_value_for_submission(),  # ty: ignore[missing-argument]
+                    str(q5.id): SingleChoiceFromList(
+                        key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
                     ).get_value_for_submission(),
                 },
                 status=SubmissionStatusEnum.COMPLETED,
@@ -180,8 +183,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
                     str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
                     str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
-                    str(q4.id): SingleChoiceFromList(
-                        key=q4.data_source.items[0].key, label=q4.data_source.items[0].label
+                    str(q4.id): YesNo(random.choice([True, False])).get_value_for_submission(),  # ty: ignore[missing-argument]
+                    str(q5.id): SingleChoiceFromList(
+                        key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
                     ).get_value_for_submission(),
                 },
                 status=SubmissionStatusEnum.COMPLETED,

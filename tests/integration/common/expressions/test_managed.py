@@ -5,7 +5,7 @@ import pytest
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
 from app.common.expressions import evaluate
-from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan
+from app.common.expressions.managed import AnyOf, Between, GreaterThan, IsNo, IsYes, LessThan
 from app.types import TRadioItem
 
 
@@ -96,4 +96,30 @@ class TestAnyOfExpression:
     )
     def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool):
         expr = AnyOf(question_id=uuid.uuid4(), items=items)
+        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+
+
+class TestIsYesExpression:
+    @pytest.mark.parametrize(
+        "answer, expected_result",
+        (
+            (True, True),
+            (False, False),
+        ),
+    )
+    def test_evaluate(self, answer: str, expected_result: bool):
+        expr = IsYes(question_id=uuid.uuid4())
+        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+
+
+class TestIsNoExpression:
+    @pytest.mark.parametrize(
+        "answer, expected_result",
+        (
+            (True, False),
+            (False, True),
+        ),
+    )
+    def test_evaluate(self, answer: str, expected_result: bool):
+        expr = IsNo(question_id=uuid.uuid4())
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
