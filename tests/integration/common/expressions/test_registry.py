@@ -39,7 +39,7 @@ class TestManagedExpressions:
         assert get_supported_form_questions(valid_question) == [second_question]
 
     def test_new_managed_expressions_added(self):
-        assert len(_registry_by_expression_enum) == 6, (
+        assert len(_registry_by_expression_enum) == 7, (
             "If you've added a new managed expression, update this test and add"
             "suitable tests in `tests/integration/common/expressions/test_managed.py`"
         )

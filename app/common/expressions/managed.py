@@ -10,7 +10,7 @@ from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovCheckboxesInput, GovCheckboxInput, GovTextInput
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
-from wtforms import BooleanField, IntegerField, SelectMultipleField
+from wtforms import BooleanField, IntegerField, SelectMultipleField, StringField
 from wtforms.fields.core import Field
 from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
 
@@ -494,6 +494,57 @@ class IsNo(ManagedExpression):
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsNo":
         return IsNo(question_id=question.id)
+
+
+@register_managed_expression
+class HasDomain(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.HAS_DOMAIN
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.EMAIL}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.EMAIL}
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+
+    domain: str
+
+    @property
+    def description(self) -> str:
+        return "has the domain"
+
+    @property
+    def message(self) -> str:
+        return f"The answer must be from “{self.domain}”"
+
+    @property
+    def statement(self) -> str:
+        # fixme: this could register a function with simpleeval to explicitly check the domain part of
+        #       a given email input
+        return f"'{self.domain}' in {self.safe_qid}"
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        return {
+            "domain": StringField(
+                "Domain",
+                default=cast(str, expression.context["domain"]) if expression else None,
+                widget=GovTextInput(),
+                validators=[Optional()],
+            )
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        form.domain.validators = [DataRequired("Enter a domain")]  # ty: ignore[unresolved-attribute]
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "HasDomain":
+        return HasDomain(
+            question_id=question.id,
+            domain=form.domain.data,  # ty: ignore[unresolved-attribute]
+        )
 
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:

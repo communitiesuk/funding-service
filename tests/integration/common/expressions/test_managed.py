@@ -5,7 +5,7 @@ import pytest
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
 from app.common.expressions import evaluate
-from app.common.expressions.managed import AnyOf, Between, GreaterThan, IsNo, IsYes, LessThan
+from app.common.expressions.managed import AnyOf, Between, GreaterThan, HasDomain, IsNo, IsYes, LessThan
 from app.types import TRadioItem
 
 
@@ -122,4 +122,17 @@ class TestIsNoExpression:
     )
     def test_evaluate(self, answer: str, expected_result: bool):
         expr = IsNo(question_id=uuid.uuid4())
+        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+
+
+class TestHasDomainExpression:
+    @pytest.mark.parametrize(
+        "domain, answer, expected_result",
+        (
+            ("communities.gov.uk", "first.last@communities.gov.uk", True),
+            ("communities.gov.uk", "first.last@example.gov.uk", False),
+        ),
+    )
+    def test_evaluate(self, domain: str, answer: str, expected_result: bool):
+        expr = HasDomain(question_id=uuid.uuid4(), domain=domain)
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result

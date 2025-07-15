@@ -85,6 +85,7 @@ class ManagedExpressionsEnum(enum.StrEnum):
     IS_YES = "Yes"
     IS_NO = "No"
     ANY_OF = "Any of"
+    HAS_DOMAIN = "From the domain"
 
 
 class FormRunnerState(enum.StrEnum):
