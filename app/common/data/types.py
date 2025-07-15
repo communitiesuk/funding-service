@@ -44,6 +44,7 @@ class QuestionDataType(enum.StrEnum):
     TEXT_SINGLE_LINE = "A single line of text"
     TEXT_MULTI_LINE = "Multiple lines of text"
     INTEGER = "A whole number"
+    YES_NO = "Yes or no"
     RADIOS = "Select one from a list of choices"
 
     @staticmethod
@@ -80,6 +81,8 @@ class ManagedExpressionsEnum(enum.StrEnum):
     GREATER_THAN = "Greater than"
     LESS_THAN = "Less than"
     BETWEEN = "Between"
+    IS_YES = "Yes"
+    IS_NO = "No"
     ANY_OF = "Any of"
 
 

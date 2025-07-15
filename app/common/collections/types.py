@@ -37,6 +37,24 @@ TextMultiLine = SubmissionAnswerRootModel[str]
 Integer = SubmissionAnswerRootModel[int]
 
 
+class YesNo(SubmissionAnswerRootModel[bool]):
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/yes_no.html"
+
+    def get_value_for_submission(self) -> bool:
+        return cast(bool, self.model_dump(mode="json"))
+
+    def get_value_for_form(self) -> bool:
+        return self.root
+
+    def get_value_for_expression(self) -> bool:
+        return self.root
+
+    def get_value_for_text_export(self) -> str:
+        return "Yes" if self.root else "No"
+
+
 class SingleChoiceFromList(BaseModel):
     key: str
     label: str

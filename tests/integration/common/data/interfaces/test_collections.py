@@ -337,6 +337,25 @@ class TestCreateQuestion:
         assert question.slug == "test-question"
         assert question.data_source is None
 
+    def test_yes_no(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.YES_NO,
+        )
+        assert question is not None
+        assert question.id is not None
+        assert question.text == "Test Question"
+        assert question.hint == "Test Hint"
+        assert question.name == "Test Question Name"
+        assert question.data_type == QuestionDataType.YES_NO
+        assert question.order == 0
+        assert question.slug == "test-question"
+        assert question.data_source is None
+
     def test_radios(self, db_session, factories):
         form = factories.form.create()
         question = create_question(
@@ -359,7 +378,7 @@ class TestCreateQuestion:
         assert [item.key for item in question.data_source.items] == ["one", "two", "three"]
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 4, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 5, "Add a new test above if adding a new question type"
 
 
 class TestUpdateQuestion:
@@ -439,6 +458,30 @@ class TestUpdateQuestion:
         assert updated_question.data_type == QuestionDataType.INTEGER
         assert updated_question.slug == "updated-question"
 
+    def test_yes_no(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.YES_NO,
+        )
+        assert question is not None
+
+        updated_question = update_question(
+            question=question,
+            text="Updated Question",
+            hint="Updated Hint",
+            name="Updated Question Name",
+        )
+
+        assert updated_question.text == "Updated Question"
+        assert updated_question.hint == "Updated Hint"
+        assert updated_question.name == "Updated Question Name"
+        assert updated_question.data_type == QuestionDataType.YES_NO
+        assert updated_question.slug == "updated-question"
+
     def test_radios(self, db_session, factories):
         form = factories.form.create()
         question = create_question(
@@ -477,7 +520,7 @@ class TestUpdateQuestion:
         assert db_session.get(DataSourceItem, item_ids[1]) is None
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 4, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 5, "Add a new test above if adding a new question type"
 
 
 def test_move_question_up_down(db_session, factories):

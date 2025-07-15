@@ -4,7 +4,7 @@ import pytest
 from immutabledict import immutabledict
 
 from app.common.collections.forms import build_question_form
-from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine
+from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine, YesNo
 from app.common.data.types import QuestionDataType, SubmissionStatusEnum
 from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import SubmissionHelper
@@ -87,7 +87,7 @@ class TestSubmissionHelper:
             assert helper.form_data == {}
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 4, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 5, "Update this test if adding new questions"
 
             form = factories.form.build()
             form_two = factories.form.build(section=form.section)
@@ -105,8 +105,11 @@ class TestSubmissionHelper:
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
             )
             q4 = factories.question.build(
+                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
+            )
+            q5 = factories.question.build(
                 form=form_two,
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"),
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994298"),
                 data_type=QuestionDataType.RADIOS,
                 data_source__items__key="my-key",
                 data_source__items__label="My label",
@@ -118,7 +121,8 @@ class TestSubmissionHelper:
                     str(q1.id): TextSingleLine("answer").get_value_for_submission(),
                     str(q2.id): TextMultiLine("answer\nthis").get_value_for_submission(),
                     str(q3.id): Integer(50).get_value_for_submission(),
-                    str(q4.id): SingleChoiceFromList(key="my-key", label="My label").get_value_for_submission(),
+                    str(q4.id): YesNo(True).get_value_for_submission(),  # ty: ignore[missing-argument]
+                    str(q5.id): SingleChoiceFromList(key="my-key", label="My label").get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -127,7 +131,8 @@ class TestSubmissionHelper:
                 "q_d696aebc49d24170a92fb6ef42994294": "answer",
                 "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
                 "q_d696aebc49d24170a92fb6ef42994296": 50,
-                "q_d696aebc49d24170a92fb6ef42994297": "my-key",
+                "q_d696aebc49d24170a92fb6ef42994297": True,
+                "q_d696aebc49d24170a92fb6ef42994298": "my-key",
             }
 
     class TestExpressionContext:
@@ -144,7 +149,7 @@ class TestSubmissionHelper:
             assert helper.expression_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 4, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 5, "Update this test if adding new questions"
 
             form = factories.form.build()
             form_two = factories.form.build(section=form.section)
@@ -162,8 +167,11 @@ class TestSubmissionHelper:
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
             )
             q4 = factories.question.build(
+                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
+            )
+            q5 = factories.question.build(
                 form=form_two,
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"),
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994298"),
                 data_type=QuestionDataType.RADIOS,
                 data_source__items__key="my-key",
                 data_source__items__label="My label",
@@ -174,7 +182,8 @@ class TestSubmissionHelper:
                     str(q1.id): TextSingleLine("answer").get_value_for_submission(),
                     str(q2.id): TextMultiLine("answer\nthis").get_value_for_submission(),
                     str(q3.id): Integer(50).get_value_for_submission(),
-                    str(q4.id): SingleChoiceFromList(key="my-key", label="My label").get_value_for_submission(),
+                    str(q4.id): YesNo(True).get_value_for_submission(),  # ty: ignore[missing-argument]
+                    str(q5.id): SingleChoiceFromList(key="my-key", label="My label").get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -185,7 +194,8 @@ class TestSubmissionHelper:
                         "q_d696aebc49d24170a92fb6ef42994294": "answer",
                         "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
                         "q_d696aebc49d24170a92fb6ef42994296": 50,
-                        "q_d696aebc49d24170a92fb6ef42994297": "my-key",
+                        "q_d696aebc49d24170a92fb6ef42994297": True,
+                        "q_d696aebc49d24170a92fb6ef42994298": "my-key",
                     }
                 )
             )

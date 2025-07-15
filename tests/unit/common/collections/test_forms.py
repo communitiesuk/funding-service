@@ -72,7 +72,7 @@ class TestBuildQuestionForm:
         assert hasattr(form, "submit")
 
     def test_the_next_test_exhausts_QuestionDataType(self):
-        assert len(QuestionDataType) == 4, (
+        assert len(QuestionDataType) == 5, (
             "If this test breaks, tweak the number and update `test_expected_field_types` accordingly."
         )
 
@@ -82,6 +82,7 @@ class TestBuildQuestionForm:
             (QuestionDataType.TEXT_SINGLE_LINE, StringField, GovTextInput, [DataRequired]),
             (QuestionDataType.TEXT_MULTI_LINE, StringField, GovTextArea, [DataRequired]),
             (QuestionDataType.INTEGER, IntegerField, GovTextInput, [InputRequired]),
+            (QuestionDataType.YES_NO, RadioField, GovRadioInput, [InputRequired]),
             (QuestionDataType.RADIOS, RadioField, GovRadioInput, []),
         ),
     )

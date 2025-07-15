@@ -23,6 +23,7 @@ question_text_by_type: dict[QuestionDataType, str] = {
     QuestionDataType.TEXT_SINGLE_LINE: "Enter a single line of text",
     QuestionDataType.TEXT_MULTI_LINE: "Enter a few lines of text",
     QuestionDataType.INTEGER: "Enter a number",
+    QuestionDataType.YES_NO: "Yes or no",
     QuestionDataType.RADIOS: "Select one from a list of options",
 }
 
@@ -35,6 +36,7 @@ question_response_data_by_type: dict[QuestionDataType, list[_QuestionResponse]] 
         _QuestionResponse("101", "The answer must be less than or equal to 100"),
         _QuestionResponse("100"),
     ],
+    QuestionDataType.YES_NO: [_QuestionResponse("Yes")],
     QuestionDataType.RADIOS: [_QuestionResponse("option 2")],
 }
 
@@ -155,6 +157,7 @@ def test_create_and_preview_collection(
         create_question(QuestionDataType.TEXT_SINGLE_LINE, manage_form_page)
         create_question(QuestionDataType.TEXT_MULTI_LINE, manage_form_page)
         create_question(QuestionDataType.INTEGER, manage_form_page)
+        create_question(QuestionDataType.YES_NO, manage_form_page)
         create_question(QuestionDataType.RADIOS, manage_form_page, ["option 1", "option 2", "option 3"])
 
         add_validation(

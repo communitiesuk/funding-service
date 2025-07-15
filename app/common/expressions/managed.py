@@ -422,6 +422,80 @@ class AnyOf(ManagedExpression):
         )
 
 
+@register_managed_expression
+class IsYes(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_YES
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.YES_NO}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+
+    @property
+    def description(self) -> str:
+        return "is yes"
+
+    @property
+    def message(self) -> str:
+        return "The answer is “yes”"
+
+    @property
+    def statement(self) -> str:
+        return f"{self.safe_qid} is True"
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        return {}
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        pass
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsYes":
+        return IsYes(question_id=question.id)
+
+
+@register_managed_expression
+class IsNo(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_NO
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.YES_NO}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+
+    @property
+    def description(self) -> str:
+        return "is no"
+
+    @property
+    def message(self) -> str:
+        return "The answer is “no”"
+
+    @property
+    def statement(self) -> str:
+        return f"{self.safe_qid} is False"
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        return {}
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        pass
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsNo":
+        return IsNo(question_id=question.id)
+
+
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
     if not expression.managed_name:
         raise ValueError(f"Expression {expression.id} is not a managed expression.")
