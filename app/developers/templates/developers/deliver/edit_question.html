@@ -4,6 +4,7 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
 {% set page_title = "Edit question - " ~ db_form.title %}
 {% set active_item_identifier = "developers" %}
@@ -41,11 +42,16 @@
 
       <h1 class="govuk-heading-l">Edit question</h1>
       <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
-          <dl class="govuk-body govuk-!-margin-bottom-6">
-            <dt class="govuk-body govuk-!-margin-bottom-1">Question type</dt>
-            <dd class="govuk-summary-list__value">{{ question.data_type }}</dd>
-          </dl>
+        <div class="govuk-grid-column-full">
+          {{
+            govukSummaryList({
+              "rows": [{
+                "key": {"text": "Question type"},
+                "value":{"text": question.data_type.value},
+                "classes": "govuk-summary-list__row--no-border"
+              }]
+            })
+          }}
         </div>
       </div>
       <div class="govuk-grid-row">

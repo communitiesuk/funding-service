@@ -1,5 +1,6 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
 {% set page_title = "Add a question - " ~ db_form.title %}
 {% set active_item_identifier = "developers" %}
@@ -17,10 +18,16 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">Add question</h1>
-      <dl class="govuk-body govuk-!-margin-bottom-6">
-        <dt class="govuk-body govuk-!-margin-bottom-1">Question type</dt>
-        <dd class="govuk-summary-list__value">{{ chosen_question_data_type.value }}</dd>
-      </dl>
+
+      {{
+        govukSummaryList({
+          "rows": [{
+            "key": {"text": "Question type"},
+            "value":{"text": chosen_question_data_type.value},
+            "classes": "govuk-summary-list__row--no-border"
+          }]
+        })
+      }}
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
