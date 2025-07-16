@@ -80,7 +80,7 @@ class TestFormRunner:
         runner.to_url(FormRunnerState.CHECK_YOUR_ANSWERS, form=second_form)
         check_answers_mock.assert_called_once_with(runner, question, second_form, None)
 
-    def test_next_url(self, factories):
+    def test_next_url(self, factories, app):
         question = factories.question.build()
         second_question = factories.question.build(form=question.form)
         submission = factories.submission.build(collection=question.form.section.collection)

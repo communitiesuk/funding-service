@@ -2,11 +2,11 @@
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "common/macros/status.html" import status with context %}
-{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgStopTestingBanner %}
 
 {% macro collection_before(runner) %}
   {% if runner.submission.is_test %}
-    {{ mhclgTestBanner("Test submission") }}
+    {{ mhclgStopTestingBanner(runner) }}
   {% endif %}
   {{ govukBackLink({ "text": "Back", "href": runner.back_url }) }}
 {% endmacro %}

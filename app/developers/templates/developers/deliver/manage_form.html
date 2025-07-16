@@ -1,9 +1,9 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
-{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
 {% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = collection.name ~ " - " ~ grant.name %}
@@ -21,6 +21,13 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with errors = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
+        {% if errors %}
+          {{ govukNotificationBanner(params={"titleText": "Testing complete", "text": errors[0]}) }}
+        {% endif %}
+        {% set errors = None %}
+      {% endwith %}
+
       {% with errors = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
         {% if errors %}
           {% set error = errors[0] %}
@@ -28,12 +35,12 @@
         {% endif %}
       {% endwith %}
 
-      {% if form %}
+      {% if delete_form %}
         {% set banner_html %}
           <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this task?</p>
           <form method="post" novalidate>
-            {{ form.csrf_token }}
-            {{ form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+            {{ delete_form.csrf_token }}
+            {{ delete_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
           </form>
         {% endset %}
 
@@ -45,11 +52,20 @@
         {{ db_form.title }}
       </h1>
     </div>
+    <div class="govuk-grid-column-one-third govuk-!-text-align-right">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.submit(params={"text": "Test this task", "classes": "govuk-button--secondary" if not collection.sections else "", "disabled": db_form.questions | length == 0}) }}
+      </form>
+    </div>
   </div>
   <div class="govuk-grid-row govuk-!-margin-top-5">
-    <div class="govuk-grid-column-full">
+    <div class="govuk-grid-column-two-thirds">
       <h2 class="govuk-heading-m">Questions</h2>
-
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
       {% set table_rows = [] %}
       {% for question in db_form.questions %}
         {% set question_link %}
@@ -101,7 +117,7 @@
         })
       }}
       <p class="govuk-body">
-        <a class="govuk-button govuk-button--warning" href="{{ url_for('developers.deliver.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, delete='') }}">Delete this task</a>
+        <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, delete='') }}">Delete this task</a>
       </p>
     </div>
   </div>
