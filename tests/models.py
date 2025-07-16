@@ -211,22 +211,43 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         if not test and not live:
             return
         section = _SectionFactory.create(collection=obj)
-        form = _FormFactory.create(section=section)
+        form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
 
         # Assertion to remind us to add more question types here when we start supporting them
         assert len(QuestionDataType) == 7, "If you have added a new question type, please update this factory."
 
         # Create a question of each supported type
-        q1 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?")
-        q2 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE, text="What is your quest?")
-        q3 = _QuestionFactory.create(form=form, data_type=QuestionDataType.INTEGER, text="What is your age?")
-        q4 = _QuestionFactory.create(form=form, data_type=QuestionDataType.YES_NO, text="Do you like cheese?")
-        q5 = _QuestionFactory.create(form=form, data_type=QuestionDataType.RADIOS, text="What is the best option?")
-        q6 = _QuestionFactory.create(form=form, data_type=QuestionDataType.EMAIL, text="What is your email address?")
-        q7 = _QuestionFactory.create(form=form, data_type=QuestionDataType.URL, text="What is your website address?")
+        q1 = _QuestionFactory.create(
+            name="Your name", form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?"
+        )
+        q2 = _QuestionFactory.create(
+            name="Your quest", form=form, data_type=QuestionDataType.TEXT_MULTI_LINE, text="What is your quest?"
+        )
+        q3 = _QuestionFactory.create(
+            name="Airspeed velocity",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="What is the airspeed velocity of an unladen swallow?",
+        )
+        q4 = _QuestionFactory.create(
+            form=form,
+            data_type=QuestionDataType.RADIOS,
+            text="What is the best option?",
+            name="Best option",
+        )
+        q5 = _QuestionFactory.create(
+            form=form, data_type=QuestionDataType.YES_NO, text="Do you like cheese?", name="Like cheese"
+        )
+        q6 = _QuestionFactory.create(
+            form=form, data_type=QuestionDataType.EMAIL, text="What is your email address?", name="Email address"
+        )
+        q7 = _QuestionFactory.create(
+            form=form, data_type=QuestionDataType.URL, text="What is your website address?", name="Website address"
+        )
 
         def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
             for _ in range(0, count):
+                item_choice = faker.Faker().random_int(min=0, max=2) if use_random_data else 0
                 _SubmissionFactory.create(
                     collection=obj,
                     mode=submission_mode,
@@ -242,14 +263,20 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                         str(q3.id): Integer(
                             faker.Faker().random_number(2) if use_random_data else 123
                         ).get_value_for_submission(),
-                        str(q4.id): YesNo(
+                        str(q4.id): SingleChoiceFromList(
+                            key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
+                        ).get_value_for_submission(),
+                        str(q5.id): YesNo(
                             random.choice([True, False]) if use_random_data else True
                         ).get_value_for_submission(),  # ty: ignore[missing-argument]
-                        str(q5.id): SingleChoiceFromList(
-                            key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
+                        str(q6.id): TextSingleLine(
+                            faker.Faker().email() if use_random_data else "test@email.com"
                         ).get_value_for_submission(),
-                        str(q6.id): TextSingleLine(faker.Faker().email()).get_value_for_submission(),
-                        str(q7.id): TextSingleLine(faker.Faker().url()).get_value_for_submission(),
+                        str(q7.id): TextSingleLine(
+                            faker.Faker().url()
+                            if use_random_data
+                            else "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government"
+                        ).get_value_for_submission(),
                     },
                     status=SubmissionStatusEnum.COMPLETED,
                 )

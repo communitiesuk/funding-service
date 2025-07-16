@@ -433,6 +433,9 @@ class TestCollectionHelper:
             "[Export test form] Your quest",
             "[Export test form] Airspeed velocity",
             "[Export test form] Best option",
+            "[Export test form] Like cheese",
+            "[Export test form] Email address",
+            "[Export test form] Website address",
         ]
         expected_question_data = {}
         for _, submission in c_helper.submission_helpers.items():
@@ -506,6 +509,9 @@ class TestCollectionHelper:
             "[Export test form] Your quest",
             "[Export test form] Airspeed velocity",
             "[Export test form] Best option",
+            "[Export test form] Like cheese",
+            "[Export test form] Email address",
+            "[Export test form] Website address",
         ]
         assert rows[1] == [
             c_helper.submissions[0].reference,
@@ -515,4 +521,7 @@ class TestCollectionHelper:
             "Line 1\r\nline2\r\nline 3",
             "123",
             "Option 0",
+            "Yes",
+            "test@email.com",
+            "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
         ]

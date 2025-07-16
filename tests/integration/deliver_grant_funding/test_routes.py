@@ -1175,7 +1175,11 @@ def test_accessing_question_page_with_failing_condition_redirects(
 def test_download_csv_export(authenticated_platform_admin_client, factories, db_session):
     # Create a grant and a collection
     grant = factories.grant.create()
-    collection = factories.collection.create(grant=grant, create_completed_submissions_each_question_type__test=3)
+    collection = factories.collection.create(
+        grant=grant,
+        create_completed_submissions_each_question_type__test=3,
+        create_completed_submissions_each_question_type__use_random_data=True,
+    )
 
     response = authenticated_platform_admin_client.get(
         url_for(
@@ -1201,6 +1205,9 @@ def test_download_csv_export(authenticated_platform_admin_client, factories, db_
         "[Export test form] Your quest",
         "[Export test form] Airspeed velocity",
         "[Export test form] Best option",
+        "[Export test form] Like cheese",
+        "[Export test form] Email address",
+        "[Export test form] Website address",
     ]
     rows = list(reader)
     assert len(rows) == 3
