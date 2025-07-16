@@ -8,7 +8,7 @@ from immutabledict import immutabledict
 from app.common.collections.forms import build_question_form
 from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine, YesNo
 from app.common.data import interfaces
-from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum, TasklistTaskStatusEnum
 from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import (
     CollectionHelper,
@@ -247,6 +247,7 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.NOT_STARTED
+            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.NOT_STARTED
 
             helper.submit_answer_for_question(
                 question_one.id,
@@ -256,6 +257,7 @@ class TestSubmissionHelper:
             )
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.IN_PROGRESS
 
             helper.submit_answer_for_question(
                 question_two.id,
@@ -265,10 +267,12 @@ class TestSubmissionHelper:
             )
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.IN_PROGRESS
 
             helper.toggle_form_completed(form, submission.created_by, True)
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.COMPLETED
 
             # make sure the second form is unaffected by the first forms status
             helper.submit_answer_for_question(
@@ -278,12 +282,14 @@ class TestSubmissionHelper:
                 ),
             )
             assert helper.get_status_for_form(form_two) == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.get_tasklist_status_for_form(form_two) == TasklistTaskStatusEnum.IN_PROGRESS
 
         def test_form_status_with_no_questions(self, db_session, factories):
             form = factories.form.build()
             submission = factories.submission.build(collection=form.section.collection)
             helper = SubmissionHelper(submission)
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.NOT_STARTED
+            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.NO_QUESTIONS
 
         def test_submission_status_based_on_forms(self, db_session, factories):
             question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
@@ -304,6 +310,7 @@ class TestSubmissionHelper:
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
             assert helper.get_status_for_form(question.form) == SubmissionStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(question.form) == TasklistTaskStatusEnum.COMPLETED
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
 
             helper.submit_answer_for_question(
@@ -315,6 +322,7 @@ class TestSubmissionHelper:
             helper.toggle_form_completed(question_two.form, submission.created_by, True)
 
             assert helper.get_status_for_form(question_two.form) == SubmissionStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(question_two.form) == TasklistTaskStatusEnum.COMPLETED
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
 
@@ -344,6 +352,7 @@ class TestSubmissionHelper:
             helper.toggle_form_completed(form, submission.created_by, True)
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.COMPLETED
 
         def test_toggle_form_status_doesnt_change_status_if_already_completed(self, db_session, factories):
             section = factories.section.build()
@@ -367,9 +376,11 @@ class TestSubmissionHelper:
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
             assert helper.get_status_for_form(question.form) == SubmissionStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(question.form) == TasklistTaskStatusEnum.COMPLETED
 
             helper.toggle_form_completed(question.form, submission.created_by, True)
             assert helper.get_status_for_form(question.form) == SubmissionStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(question.form) == TasklistTaskStatusEnum.COMPLETED
             assert len(submission.events) == 1
 
         def test_submit_submission_rejected_if_not_complete(self, db_session, factories):

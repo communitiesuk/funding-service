@@ -68,6 +68,17 @@ class SubmissionStatusEnum(enum.StrEnum):
     COMPLETED = "Completed"
 
 
+class TasklistTaskStatusEnum(enum.StrEnum):
+    NOT_STARTED = SubmissionStatusEnum.NOT_STARTED.value
+    IN_PROGRESS = SubmissionStatusEnum.IN_PROGRESS.value
+    COMPLETED = SubmissionStatusEnum.COMPLETED.value
+
+    if len(SubmissionStatusEnum) != 3:
+        raise RuntimeError("Make sure this enum is updated if we add anything to SubmissionStatusEnum")
+
+    NO_QUESTIONS = "No questions"
+
+
 class SubmissionEventKey(enum.StrEnum):
     FORM_RUNNER_FORM_COMPLETED = "Form completed"
     SUBMISSION_SUBMITTED = "Submission submitted"

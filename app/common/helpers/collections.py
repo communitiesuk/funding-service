@@ -27,6 +27,7 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    TasklistTaskStatusEnum,
 )
 from app.common.expressions import (
     ExpressionContext,
@@ -204,6 +205,12 @@ class SubmissionHelper:
             ]
         )
         return {SubmissionStatusEnum.COMPLETED} == form_statuses
+
+    def get_tasklist_status_for_form(self, form: "Form") -> TasklistTaskStatusEnum:
+        if len(form.questions) == 0:
+            return TasklistTaskStatusEnum.NO_QUESTIONS
+
+        return TasklistTaskStatusEnum(self.get_status_for_form(form))
 
     def get_status_for_form(self, form: "Form") -> str:
         all_questions_answered, answers = self.get_all_questions_are_answered_for_form(form)
