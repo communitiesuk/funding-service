@@ -21,7 +21,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SectionForm,
 )
-from tests.utils import get_h1_text, get_h2_text
+from tests.utils import get_h1_text, get_h2_text, get_soup_text
 
 
 def test_list_grants_as_admin(
@@ -731,11 +731,12 @@ def test_add_text_question_post(authenticated_platform_admin_client, factories, 
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.edit_question",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
         form_id=form.id,
+        question_id=db_session.query(Question).first().id,
     )
 
     form_from_db = db_session.scalars(select(Form).where(Form.id == form.id)).one()
@@ -1132,8 +1133,8 @@ def test_list_users_for_grant_with_not_logged_in_members(
         url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
     )
     soup = BeautifulSoup(response.data, "html.parser")
-    assert "Not yet signed in" in soup.h2.text.strip()
-    assert "test@communities.gov.uk" in soup.td.text.strip()
+    assert "Not yet signed in" in get_h2_text(soup)
+    assert "test@communities.gov.uk" in get_soup_text(soup, "td")
 
 
 def test_list_users_for_grant_with_member(authenticated_grant_member_client, templates_rendered, factories):

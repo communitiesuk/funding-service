@@ -33,12 +33,19 @@ GRANT_ROLES_MAPPING = {
 }
 
 
+class AuthMethodEnum(str, enum.Enum):
+    SSO = "sso"
+    MAGIC_LINK = "magic link"
+
+
 class QuestionDataType(enum.StrEnum):
-    # If adding values here, also update QuestionTypeForm
-    # and manually create a migration to update question_type_enum in the db
+    EMAIL = "An email address"
+    # todo: should we call this "A URL" or "A website address"
+    URL = "A website address"
     TEXT_SINGLE_LINE = "A single line of text"
     TEXT_MULTI_LINE = "Multiple lines of text"
     INTEGER = "A whole number"
+    YES_NO = "Yes or no"
     RADIOS = "Select one from a list of choices"
 
     @staticmethod
@@ -75,6 +82,9 @@ class ManagedExpressionsEnum(enum.StrEnum):
     GREATER_THAN = "Greater than"
     LESS_THAN = "Less than"
     BETWEEN = "Between"
+    IS_YES = "Yes"
+    IS_NO = "No"
+    ANY_OF = "Any of"
 
 
 class FormRunnerState(enum.StrEnum):

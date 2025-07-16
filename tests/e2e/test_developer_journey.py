@@ -1,5 +1,6 @@
 import dataclasses
 import uuid
+from typing import TypedDict
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -19,13 +20,21 @@ class _QuestionResponse:
 
 
 question_text_by_type: dict[QuestionDataType, str] = {
+    QuestionDataType.EMAIL: "Enter an email address",
     QuestionDataType.TEXT_SINGLE_LINE: "Enter a single line of text",
     QuestionDataType.TEXT_MULTI_LINE: "Enter a few lines of text",
     QuestionDataType.INTEGER: "Enter a number",
+    QuestionDataType.YES_NO: "Yes or no",
+    QuestionDataType.RADIOS: "Select one from a list of options",
+    QuestionDataType.URL: "Enter a website address",
 }
 
 
 question_response_data_by_type: dict[QuestionDataType, list[_QuestionResponse]] = {
+    QuestionDataType.EMAIL: [
+        _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
+        _QuestionResponse("name@example.com"),
+    ],
     QuestionDataType.TEXT_SINGLE_LINE: [_QuestionResponse("E2E question text single line")],
     QuestionDataType.TEXT_MULTI_LINE: [_QuestionResponse("E2E question text multi line\nwith a second line")],
     QuestionDataType.INTEGER: [
@@ -33,14 +42,25 @@ question_response_data_by_type: dict[QuestionDataType, list[_QuestionResponse]] 
         _QuestionResponse("101", "The answer must be less than or equal to 100"),
         _QuestionResponse("100"),
     ],
+    QuestionDataType.YES_NO: [_QuestionResponse("Yes")],
+    QuestionDataType.RADIOS: [_QuestionResponse("option 2")],
+    QuestionDataType.URL: [
+        _QuestionResponse("not-a-url", "Enter a website address in the correct format, like https://www.gov.uk"),
+        _QuestionResponse("https://gov.uk"),
+    ],
 }
 
-created_questions_to_test = []
+TCreatedQuestionsToTest = TypedDict(
+    "TCreatedQuestionsToTest",
+    {"question_type": QuestionDataType, "question_text": str, "question_responses": list[_QuestionResponse]},
+)
+created_questions_to_test: list[TCreatedQuestionsToTest] = []
 
 
 def create_question(
     question_type: QuestionDataType,
     manage_form_page: ManageFormPage,
+    data_source_items: list[str] | None = None,
 ) -> None:
     question_type_page = manage_form_page.click_add_question()
     question_type_page.click_question_type(question_type.value)
@@ -52,11 +72,20 @@ def create_question(
     question_details_page.fill_question_text(question_text)
     question_details_page.fill_question_name(f"e2e_question_{question_uuid}")
     question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
-    manage_form_page = question_details_page.click_submit()
-    manage_form_page.check_question_exists(question_text)
+
+    if question_type == QuestionDataType.RADIOS:
+        assert data_source_items
+        question_details_page.fill_data_source_items(data_source_items)
+
+    question_details_page.click_submit()
+    question_details_page.click_back()
 
     created_questions_to_test.append(
-        {"question_text": question_text, "question_responses": question_response_data_by_type[question_type]}
+        {
+            "question_type": question_type,
+            "question_text": question_text,
+            "question_responses": question_response_data_by_type[question_type],
+        }
     )
 
 
@@ -135,9 +164,13 @@ def test_create_and_preview_collection(
 
         # Add a question of each type
         manage_form_page = section_detail_page.click_manage_form(form_name)
+        create_question(QuestionDataType.EMAIL, manage_form_page)
         create_question(QuestionDataType.TEXT_SINGLE_LINE, manage_form_page)
         create_question(QuestionDataType.TEXT_MULTI_LINE, manage_form_page)
         create_question(QuestionDataType.INTEGER, manage_form_page)
+        create_question(QuestionDataType.YES_NO, manage_form_page)
+        create_question(QuestionDataType.RADIOS, manage_form_page, ["option 1", "option 2", "option 3"])
+        create_question(QuestionDataType.URL, manage_form_page)
 
         add_validation(
             manage_form_page,
@@ -170,7 +203,9 @@ def test_create_and_preview_collection(
             expect(question_page.heading).to_be_visible()
 
             for question_response in question["question_responses"]:
-                question_page.respond_to_question(answer=question_response.answer)
+                question_page.respond_to_question(
+                    question_type=question["question_type"], answer=question_response.answer
+                )
                 question_page.click_continue()
 
                 if question_response.error_message:

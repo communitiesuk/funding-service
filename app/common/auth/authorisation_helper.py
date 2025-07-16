@@ -71,3 +71,18 @@ class AuthorisationHelper:
                 return AuthorisationHelper.is_grant_member(grant_id, user)
             case _:
                 raise ValueError(f"Unknown role {role}")
+
+    @staticmethod
+    def is_deliver_grant_funding_user(user: User | AnonymousUserMixin) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
+
+        if AuthorisationHelper.is_platform_admin(user):
+            return True
+
+        # This is the current definition of a Grant team member, but will need updating as more Deliver Grant Funding
+        # roles are introduced
+        if any(role.grant_id is not None and role.organisation_id is None for role in user.roles):
+            return True
+
+        return False

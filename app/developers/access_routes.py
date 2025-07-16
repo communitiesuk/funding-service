@@ -3,7 +3,7 @@ import uuid
 from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
-from app.common.auth.decorators import is_platform_admin, login_required
+from app.common.auth.decorators import access_grant_funding_login_required, is_platform_admin
 from app.common.collections.runner import AGFFormRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import create_submission, get_collection
@@ -56,7 +56,7 @@ def grant_details(grant_id: uuid.UUID) -> ResponseReturnValue:
 #       with sensible permission and integrity checks
 @developers_access_blueprint.get("/submissions/start/<uuid:collection_id>")
 @auto_commit_after_request
-@login_required
+@access_grant_funding_login_required
 def start_submission_redirect(collection_id: uuid.UUID) -> ResponseReturnValue:
     current_user = interfaces.user.get_current_user()
     collection = get_collection(collection_id)
@@ -66,7 +66,7 @@ def start_submission_redirect(collection_id: uuid.UUID) -> ResponseReturnValue:
 
 @developers_access_blueprint.route("/submissions/<uuid:submission_id>", methods=["GET", "POST"])
 @auto_commit_after_request
-@login_required
+@access_grant_funding_login_required
 def submission_tasklist(submission_id: uuid.UUID) -> ResponseReturnValue:
     source = request.args.get("source")
     runner = AGFFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
@@ -83,7 +83,7 @@ def submission_tasklist(submission_id: uuid.UUID) -> ResponseReturnValue:
 
 
 @developers_access_blueprint.route("/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"])
-@login_required
+@access_grant_funding_login_required
 @auto_commit_after_request
 def ask_a_question(submission_id: uuid.UUID, question_id: uuid.UUID) -> ResponseReturnValue:
     source = request.args.get("source")
@@ -105,7 +105,7 @@ def ask_a_question(submission_id: uuid.UUID, question_id: uuid.UUID) -> Response
     "/submissions/<uuid:submission_id>/check-yours-answers/<uuid:form_id>", methods=["GET", "POST"]
 )
 @auto_commit_after_request
-@login_required
+@access_grant_funding_login_required
 def check_your_answers(submission_id: uuid.UUID, form_id: uuid.UUID) -> ResponseReturnValue:
     source = request.args.get("source")
     runner = AGFFormRunner.load(
@@ -120,7 +120,7 @@ def check_your_answers(submission_id: uuid.UUID, form_id: uuid.UUID) -> Response
 
 
 @developers_access_blueprint.route("/submissions/<uuid:submission_id>/confirmation", methods=["GET", "POST"])
-@login_required
+@access_grant_funding_login_required
 def collection_confirmation(submission_id: uuid.UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 

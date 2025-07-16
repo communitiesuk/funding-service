@@ -100,3 +100,20 @@ uv run flask developers export-grants
 ```
 
 Then commit the change, create a PR and get it merged. Developer environments will sync the changes automatically when their app starts up again.
+
+
+# IDE setup
+
+## PyCharm
+
+- If you need a license for PyCharm Pro, contact your line manager.
+
+### Ruff
+
+To enable ruff format on save and linting in PyCharm, you need to install the [Ruff plugin](https://plugins.jetbrains.com/plugin/20574-ruff).
+
+The ruff config file is committed to git at `.idea/ruff.xml` so should be picked up automatically once you install the plugin.
+
+### Unit Tests
+
+The configuration for running unit tests is also committed to git. You should just be able to right click a test file or directory, or use the little green triangle icons on a source file, to run and debug tests.

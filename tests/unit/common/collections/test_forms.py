@@ -9,8 +9,8 @@ from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovTextArea, GovTe
 from werkzeug.datastructures import MultiDict
 from wtforms.fields.choices import RadioField
 from wtforms.fields.numeric import IntegerField
-from wtforms.fields.simple import StringField
-from wtforms.validators import DataRequired, InputRequired
+from wtforms.fields.simple import EmailField, StringField
+from wtforms.validators import URL, DataRequired, Email, InputRequired
 
 from app import create_app
 from app.common.collections.forms import build_question_form
@@ -72,7 +72,7 @@ class TestBuildQuestionForm:
         assert hasattr(form, "submit")
 
     def test_the_next_test_exhausts_QuestionDataType(self):
-        assert len(QuestionDataType) == 4, (
+        assert len(QuestionDataType) == 7, (
             "If this test breaks, tweak the number and update `test_expected_field_types` accordingly."
         )
 
@@ -82,7 +82,10 @@ class TestBuildQuestionForm:
             (QuestionDataType.TEXT_SINGLE_LINE, StringField, GovTextInput, [DataRequired]),
             (QuestionDataType.TEXT_MULTI_LINE, StringField, GovTextArea, [DataRequired]),
             (QuestionDataType.INTEGER, IntegerField, GovTextInput, [InputRequired]),
+            (QuestionDataType.YES_NO, RadioField, GovRadioInput, [InputRequired]),
             (QuestionDataType.RADIOS, RadioField, GovRadioInput, []),
+            (QuestionDataType.EMAIL, EmailField, GovTextInput, [DataRequired, Email]),
+            (QuestionDataType.URL, StringField, GovTextInput, [DataRequired, URL]),
         ),
     )
     def test_expected_field_types(
@@ -97,5 +100,5 @@ class TestBuildQuestionForm:
         assert isinstance(question_field.widget, expected_widget)
         assert question_field.label.text == "Question text"
         assert question_field.description == "Question hint"
-        for validator in expected_validators:
-            assert isinstance(question_field.validators[0], validator)
+        for i, validator in enumerate(expected_validators):
+            assert isinstance(question_field.validators[i], validator)

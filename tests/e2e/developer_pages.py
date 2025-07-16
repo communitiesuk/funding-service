@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, cast
 
 from playwright.sync_api import Locator, Page, expect
 
-from app.common.data.types import ManagedExpressionsEnum
+from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
 
 if TYPE_CHECKING:
@@ -459,8 +459,24 @@ class AddQuestionDetailsPage(GrantDevelopersBasePage):
     def fill_question_hint(self, question_hint: str) -> None:
         self.page.get_by_role("textbox", name="Question hint").fill(question_hint)
 
-    def click_submit(self) -> ManageFormPage:
+    def fill_data_source_items(self, items: list[str]) -> None:
+        self.page.get_by_role("textbox", name="List of options").fill("\n".join(items))
+
+    def click_submit(self) -> "EditQuestionPage":
         self.page.get_by_role("button", name="Submit").click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
+
+    def click_back(self) -> ManageFormPage:
+        self.page.get_by_role("link", name="Back").click()
         manage_form_page = ManageFormPage(
             self.page,
             self.domain,
@@ -590,8 +606,11 @@ class QuestionPage(GrantDevelopersBasePage):
         self.question_name = question_name
         self.continue_button = page.get_by_role("button", name="Continue")
 
-    def respond_to_question(self, answer: str) -> None:
-        self.page.get_by_role("textbox", name=self.question_name).fill(answer)
+    def respond_to_question(self, question_type: QuestionDataType, answer: str) -> None:
+        if question_type == QuestionDataType.YES_NO or question_type == QuestionDataType.RADIOS:
+            self.page.get_by_role("radio", name=answer).click()
+        else:
+            self.page.get_by_role("textbox", name=self.question_name).fill(answer)
 
     def click_continue(
         self,

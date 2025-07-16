@@ -169,8 +169,7 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
         context = ExpressionContext()
     context.expression_context = immutabledict(expression.context or {})
 
-    # May want EvalWithCompoundTypes at some point, but for now simple+very limited is OK.
-    evaluator = simpleeval.SimpleEval(names=context)  # type: ignore[no-untyped-call]
+    evaluator = simpleeval.EvalWithCompoundTypes(names=context)  # type: ignore[no-untyped-call]
 
     # Remove all nodes except those we explicitly allowlist
     evaluator.nodes = {
@@ -190,6 +189,7 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
             ast.Slice,
             ast.Constant,
             ast.Call,
+            ast.Set,
         }
     }
 

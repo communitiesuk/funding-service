@@ -57,7 +57,12 @@
             {{ form.text }}
             {{ form.name }}
             {{ form.hint }}
-            {{ form.submit }}
+
+            {% if question.data_type == enum.question_type.RADIOS %}
+              {{ form.data_source_items }}
+            {% endif %}
+
+            {{ form.submit(params={"text": "Save"}) }}
           </form>
 
           <div class="govuk-form-group">

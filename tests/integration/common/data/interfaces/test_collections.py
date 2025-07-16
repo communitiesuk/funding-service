@@ -33,7 +33,7 @@ from app.common.data.interfaces.collections import (
     update_submission_data,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import Collection, Expression
+from app.common.data.models import Collection, DataSourceItem, Expression
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType, SubmissionEventKey
 from app.common.expressions.managed import GreaterThan, LessThan
 
@@ -280,59 +280,50 @@ def test_get_question(db_session, factories):
 
 
 class TestCreateQuestion:
-    def test_text_single_line(self, db_session, factories):
+    @pytest.mark.parametrize(
+        "question_type",
+        [
+            QuestionDataType.TEXT_SINGLE_LINE,
+            QuestionDataType.EMAIL,
+            QuestionDataType.TEXT_MULTI_LINE,
+            QuestionDataType.INTEGER,
+            QuestionDataType.URL,
+        ],
+    )
+    def test_simple_types(self, db_session, factories, question_type):
         form = factories.form.create()
         question = create_question(
             form=form,
             text="Test Question",
             hint="Test Hint",
             name="Test Question Name",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            data_type=question_type,
         )
         assert question is not None
         assert question.id is not None
         assert question.text == "Test Question"
         assert question.hint == "Test Hint"
         assert question.name == "Test Question Name"
-        assert question.data_type == QuestionDataType.TEXT_SINGLE_LINE
+        assert question.data_type == question_type
         assert question.order == 0
         assert question.slug == "test-question"
         assert question.data_source is None
 
-    def test_text_multi_line(self, db_session, factories):
+    def test_yes_no(self, db_session, factories):
         form = factories.form.create()
         question = create_question(
             form=form,
             text="Test Question",
             hint="Test Hint",
             name="Test Question Name",
-            data_type=QuestionDataType.TEXT_MULTI_LINE,
+            data_type=QuestionDataType.YES_NO,
         )
         assert question is not None
         assert question.id is not None
         assert question.text == "Test Question"
         assert question.hint == "Test Hint"
         assert question.name == "Test Question Name"
-        assert question.data_type == QuestionDataType.TEXT_MULTI_LINE
-        assert question.order == 0
-        assert question.slug == "test-question"
-        assert question.data_source is None
-
-    def test_integer(self, db_session, factories):
-        form = factories.form.create()
-        question = create_question(
-            form=form,
-            text="Test Question",
-            hint="Test Hint",
-            name="Test Question Name",
-            data_type=QuestionDataType.INTEGER,
-        )
-        assert question is not None
-        assert question.id is not None
-        assert question.text == "Test Question"
-        assert question.hint == "Test Hint"
-        assert question.name == "Test Question Name"
-        assert question.data_type == QuestionDataType.INTEGER
+        assert question.data_type == QuestionDataType.YES_NO
         assert question.order == 0
         assert question.slug == "test-question"
         assert question.data_source is None
@@ -359,18 +350,27 @@ class TestCreateQuestion:
         assert [item.key for item in question.data_source.items] == ["one", "two", "three"]
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 4, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 7, "Add a new test above if adding a new question type"
 
 
 class TestUpdateQuestion:
-    def test_text_single_line(self, db_session, factories):
+    @pytest.mark.parametrize(
+        "question_type",
+        [
+            QuestionDataType.TEXT_SINGLE_LINE,
+            QuestionDataType.EMAIL,
+            QuestionDataType.TEXT_MULTI_LINE,
+            QuestionDataType.INTEGER,
+        ],
+    )
+    def test_simple_types(self, db_session, factories, question_type):
         form = factories.form.create()
         question = create_question(
             form=form,
             text="Test Question",
             hint="Test Hint",
             name="Test Question Name",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            data_type=question_type,
         )
         assert question is not None
         assert question.data_source is None
@@ -385,44 +385,18 @@ class TestUpdateQuestion:
         assert updated_question.text == "Updated Question"
         assert updated_question.hint == "Updated Hint"
         assert updated_question.name == "Updated Question Name"
-        assert updated_question.data_type == QuestionDataType.TEXT_SINGLE_LINE
+        assert updated_question.data_type == question_type
         assert updated_question.slug == "updated-question"
         assert updated_question.data_source is None
 
-    def test_text_multi_line(self, db_session, factories):
+    def test_yes_no(self, db_session, factories):
         form = factories.form.create()
         question = create_question(
             form=form,
             text="Test Question",
             hint="Test Hint",
             name="Test Question Name",
-            data_type=QuestionDataType.TEXT_MULTI_LINE,
-        )
-        assert question is not None
-        assert question.data_source is None
-
-        updated_question = update_question(
-            question=question,
-            text="Updated Question",
-            hint="Updated Hint",
-            name="Updated Question Name",
-        )
-
-        assert updated_question.text == "Updated Question"
-        assert updated_question.hint == "Updated Hint"
-        assert updated_question.name == "Updated Question Name"
-        assert updated_question.data_type == QuestionDataType.TEXT_MULTI_LINE
-        assert updated_question.slug == "updated-question"
-        assert updated_question.data_source is None
-
-    def test_integer(self, db_session, factories):
-        form = factories.form.create()
-        question = create_question(
-            form=form,
-            text="Test Question",
-            hint="Test Hint",
-            name="Test Question Name",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.YES_NO,
         )
         assert question is not None
 
@@ -436,12 +410,48 @@ class TestUpdateQuestion:
         assert updated_question.text == "Updated Question"
         assert updated_question.hint == "Updated Hint"
         assert updated_question.name == "Updated Question Name"
-        assert updated_question.data_type == QuestionDataType.INTEGER
+        assert updated_question.data_type == QuestionDataType.YES_NO
         assert updated_question.slug == "updated-question"
 
-    @pytest.mark.xfail(message="not yet implement updated logic for radios question")  # ty: ignore[no-matching-overload]
+    def test_radios(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.RADIOS,
+            items=["option 1", "option 2", "option 3"],
+        )
+        assert question is not None
+        assert question.data_source_items == "option 1\noption 2\noption 3"
+        item_ids = [item.id for item in question.data_source.items]
+
+        updated_question = update_question(
+            question=question,
+            text="Updated Question",
+            hint="Updated Hint",
+            name="Updated Question Name",
+            items=["option 3", "option 4", "option-1"],
+        )
+
+        assert updated_question.text == "Updated Question"
+        assert updated_question.hint == "Updated Hint"
+        assert updated_question.name == "Updated Question Name"
+        assert updated_question.data_type == QuestionDataType.RADIOS
+        assert updated_question.slug == "updated-question"
+        assert updated_question.data_source_items == "option 3\noption 4\noption-1"
+
+        # Test that data source item IDs for existing/updated items are retained; new options are created.
+        assert updated_question.data_source.items[0].id == item_ids[2]
+        assert updated_question.data_source.items[1].id not in item_ids
+        assert updated_question.data_source.items[2].id == item_ids[0]
+
+        # The dropped item has been deleted
+        assert db_session.get(DataSourceItem, item_ids[1]) is None
+
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 3, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 7, "Add a new test above if adding a new question type"
 
 
 def test_move_question_up_down(db_session, factories):

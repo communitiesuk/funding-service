@@ -232,7 +232,11 @@ $RECYCLE.BIN/
 flask_session
 
 # IntelliJ
-.idea
+.idea/*
+!.idea/ruff.xml
+!.run/Template Python tests.run.xml
+!.idea/modules.xml
+!.idea/funding-service.iml
 
 # Mac files
 .bash_profile

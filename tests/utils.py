@@ -109,13 +109,15 @@ def build_db_config(setup_db_container: PostgresContainer | None) -> Dict[str, A
     }
 
 
+def get_soup_text(soup: BeautifulSoup, tag: str) -> str:
+    element = getattr(soup, tag)
+    assert element, f"Could not find <{tag}> on page"
+    return cast(str, element.text).strip()
+
+
 def get_h1_text(soup: BeautifulSoup) -> str:
-    h1 = soup.h1
-    assert h1, "Could not find <h1> on page"
-    return cast(str, h1.text).strip()
+    return get_soup_text(soup, "h1")
 
 
 def get_h2_text(soup: BeautifulSoup) -> str:
-    h2 = soup.h2
-    assert h2, "Could not find <h2> on page"
-    return cast(str, h2.text).strip()
+    return get_soup_text(soup, "h2")

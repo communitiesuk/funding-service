@@ -36,9 +36,6 @@
       {{
         govukSummaryList({
           "rows": [{
-            "key": { "text": "Collection" },
-            "value": { "text": question.form.section.collection.name },
-          }, {
             "key": { "text": "Form" },
             "value": { "text": question.form.title },
           }, {
@@ -55,7 +52,7 @@
           <span class="govuk-visually-hidden">“{{ question.text }}”</span>
           must be
         {% endset %}
-        {{ render_managed_expression_form(form, label_html=label_html) }}
+        {{ render_managed_expression_form(form, label_html=label_html, submit_label=submit_label) }}
 
         {% if expression %}
           <div class="govuk-grid-row govuk-!-margin-top-7">

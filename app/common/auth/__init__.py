@@ -10,6 +10,7 @@ from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import SignInForm
 from app.common.auth.sso import build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
+from app.common.data.types import AuthMethodEnum
 from app.common.forms import GenericSubmitForm
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
@@ -29,11 +30,20 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
     link_expired = request.args.get("link_expired", False)
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
+
+        internal_domains = current_app.config["INTERNAL_DOMAINS"]
+        if email.endswith(internal_domains):
+            session["magic_link_redirect"] = True
+            return redirect(url_for("auth.sso_sign_in"))
+
         user = interfaces.user.get_user_by_email(email_address=email)
+
+        # The default url for access.grants_list is currently restricted to platform admins only, but using here in lieu
+        # of a formal landing page for Access Grant Funding users
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
             email=email,
-            redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("index"))),
+            redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("developers.access.grants_list"))),
         )
 
         notification = notification_service.send_magic_link(
@@ -84,6 +94,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
         if not login_user(user):
             return abort(400)
 
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
         return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
 
     return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
@@ -93,10 +104,11 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
 @redirect_if_authenticated
 def sso_sign_in() -> ResponseReturnValue:
     form = GenericSubmitForm()
+    magic_link_redirect = session.pop("magic_link_redirect", False)
     if form.validate_on_submit():
         session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
         return redirect(session["flow"]["auth_uri"]), 302
-    return render_template("common/auth/sign_in_sso.html", form=form)
+    return render_template("common/auth/sign_in_sso.html", form=form, magic_link_redirect=magic_link_redirect)
 
 
 @auth_blueprint.route("/sso/get-token", methods=["GET"])
@@ -163,6 +175,8 @@ def sso_get_token() -> ResponseReturnValue:
 
     if not login_user(user):
         return abort(400)
+
+    session["auth"] = AuthMethodEnum.SSO
 
     return redirect(redirect_to_path)
 
