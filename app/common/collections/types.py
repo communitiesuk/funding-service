@@ -2,6 +2,8 @@ from typing import Any, Protocol, cast
 
 from pydantic import BaseModel, RootModel
 
+NOT_ASKED = "NOT_ASKED"
+
 
 class SubmissionAnswerProtocol(Protocol):
     # We have to underscore this because of the composition with pydantic's base model meta class

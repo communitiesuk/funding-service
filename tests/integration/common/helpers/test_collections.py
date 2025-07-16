@@ -6,7 +6,7 @@ import pytest
 from immutabledict import immutabledict
 
 from app.common.collections.forms import build_question_form
-from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine, YesNo
+from app.common.collections.types import NOT_ASKED, Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine, YesNo
 from app.common.data import interfaces
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum, TasklistTaskStatusEnum
 from app.common.expressions import ExpressionContext
@@ -498,6 +498,31 @@ class TestCollectionHelper:
         assert line2["[Export test form] Number of cups of tea"] == "20"
         assert line2["[Export test form] Tea bag pack size"] == "NOT_ASKED"
         assert line2["[Export test form] Favourite dunking biscuit"] == "digestive"
+
+    def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
+        collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        question_id = collection.sections[0].forms[0].questions[1].id
+        submission = c_helper.submissions[1]
+        submission.data[str(question_id)] = 120
+        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+
+        assert reader.fieldnames == [
+            "Submission reference",
+            "Created by",
+            "Created time UTC",
+            "[Export test form] Number of cups of tea",
+            "[Export test form] Tea bag pack size",
+            "[Export test form] Favourite dunking biscuit",
+        ]
+        line1 = next(reader)
+        assert line1["[Export test form] Tea bag pack size"] == "80"
+
+        # Check that the second submission says NOT_ASKED for question 2 because based on the value of question 1
+        # it should not be visible
+        line2 = next(reader)
+        assert line2["[Export test form] Tea bag pack size"] == NOT_ASKED
 
     def test_all_question_types_appear_correctly_in_csv_row(self, factories):
         factories.data_source_item.reset_sequence()

@@ -12,6 +12,7 @@ from pydantic import TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.collections.types import (
+    NOT_ASKED,
     Integer,
     SingleChoiceFromList,
     SubmissionAnswerRootModel,
@@ -397,7 +398,7 @@ class CollectionHelper:
             visible_questions = submission.all_visible_questions
             for question_id, header_string in question_headers.items():
                 if question_id not in visible_questions.keys():
-                    submission_csv_data[header_string] = "NOT_ASKED"
+                    submission_csv_data[header_string] = NOT_ASKED
                 else:
                     answer = submission.get_answer_for_question(question_id)
                     submission_csv_data[header_string] = (
