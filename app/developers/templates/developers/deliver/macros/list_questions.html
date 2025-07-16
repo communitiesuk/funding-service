@@ -1,0 +1,74 @@
+{% from "common/macros/move-up-down-table.html" import moveUpDownTable with context %}
+
+{% macro list_questions(all_questions) %}
+
+  {# go through the top level questions (depth 0) and split them into tables we'll need to make #}
+  {# depth 0 groups will need to be in a summary list card with their own table #}
+  {# todo: there may well be a nicer way to do this but working this out up front stops gnarly opening and anticipating the closing of DOM elements #}
+  {# todo: the grouping mechanism can probably just be a property on the form, that will let us unit test it more easily too #}
+  {% set tables = [] %}
+  {% set index = 0 %}
+
+  {% for question in all_questions %}
+    {% if question.is_group %}
+      {# we'll make a new table each time we come across a top level group #}
+      {% do tables.append(question) %}
+    {% else %}
+      {# the question belongs to the current table #}
+      {% if not tables %}{% do tables.append([]) %}{% endif %}
+
+      {# if the last table is a group, we need to start a new table #}
+      {# this is because groups are displayed in a summary card and questions in a table #}
+      {% if (tables | last).is_group %}
+        {% do tables.append([ question ]) %}
+      {% else %}
+        {% do (tables | last).append(question) %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% for table in tables %}
+    {% if table.is_group %}
+      {% set questions = table.questions %}
+      {# {% set questions = [] %} #}
+    {% else %}
+      {% set questions = table %}
+    {% endif %}
+
+    {% set table_rows = [] %}
+    {% for question in questions %}
+      {% set question_link %}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id) }}">
+          {{ question.text }}
+        </a>
+        {% if question.conditions %}
+          {{
+            govukTag({
+              "text": "Conditional",
+              "classes": "govuk-tag--grey govuk-!-margin-left-1",
+            })
+          }}
+        {% endif %}
+      {% endset %}
+      {% set parent = table if table.is_group else db_form %}
+      {%
+        do table_rows.append({
+          "html": question_link,
+          "actions":[{
+              "text":"Move up",
+              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'up'),"disabled": question == (parent.questions | first),
+              "post": True
+            }, {
+              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'down'),
+              "post": True,
+              "text": "Move down","disabled": question == (parent.questions | last)
+            }
+          ]
+        })
+      %}
+    {% endfor %}
+
+    {# fixme: the styling for the border top and tag spacing look broken on tablet and mobile #}
+    {{ moveUpDownTable(table_rows, table.is_group, table.text, table) }}
+  {% endfor %}
+{% endmacro %}

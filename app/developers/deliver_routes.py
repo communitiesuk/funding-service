@@ -703,6 +703,55 @@ def edit_question(
 
 
 @developers_deliver_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/groups/<uuid:group_id>",
+    methods=["GET", "POST"],
+)
+@is_platform_admin
+@auto_commit_after_request
+def edit_group(grant_id: UUID, collection_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    group = get_question_by_id(question_id=group_id)
+
+    confirm_deletion_form = ConfirmDeletionForm()
+    if "delete" in request.args:
+        try:
+            raise_if_question_has_any_dependencies(group)
+
+            if confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
+                delete_question(group)
+                # TODO: Flash message for deletion?
+                return redirect(
+                    url_for(
+                        "developers.deliver.manage_form",
+                        grant_id=grant_id,
+                        collection_id=group.belongs_to_form.section.collection.id,
+                        section_id=group.belongs_to_form.section.id,
+                        form_id=group.belongs_to_form.id,
+                    )
+                )
+        except DependencyOrderException as e:
+            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
+            return redirect(
+                url_for(
+                    "developers.deliver.edit_group",
+                    grant_id=grant_id,
+                    collection_id=group.belongs_to_form.section.collection.id,
+                    group_id=group.id,
+                )
+            )
+
+    return render_template(
+        "developers/deliver/edit_group.html",
+        grant=group.belongs_to_form.section.collection.grant,
+        collection=group.belongs_to_form.section.collection,
+        section=group.belongs_to_form.section,
+        group=group,
+        db_form=group,
+        question=group,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
+
+
+@developers_deliver_blueprint.route(
     "/grants/<uuid:grant_id>/collections/questions/<uuid:question_id>/add-condition",
     methods=["GET", "POST"],
 )
