@@ -21,7 +21,7 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% with errors = get_flashed_messages(with_categories=enum.flash_message_type.DEPENDENCY_ORDER_ERROR) %}
+      {% with errors = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
         {% if errors %}
           {% set type, error = errors[0] %}
           {{ dependency_banner(error, grant.id, collection.id, section.id, db_form.id) }}
