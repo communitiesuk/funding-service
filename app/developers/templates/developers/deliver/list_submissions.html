@@ -31,7 +31,7 @@
     {{
       govukButton({
         "text": "Export as CSV",
-        "href": url_for('developers.deliver.export_submissions_for_collection', submission_mode=submission_mode,collection_id=collection.id, format='csv'),
+        "href": url_for('developers.deliver.export_submissions_for_collection', submission_mode=submission_mode,collection_id=collection.id, export_format='csv'),
         "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
       })
     }}

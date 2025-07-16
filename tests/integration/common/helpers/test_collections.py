@@ -482,7 +482,7 @@ class TestCollectionHelper:
         assert line2["Created by"] == s_helper.created_by_email
         assert line2["Created time UTC"] == s_helper.created_at_utc.isoformat()
         assert line2["[Export test form] Number of cups of tea"] == "20"
-        assert line2["[Export test form] Tea bag pack size"] == "Not required"
+        assert line2["[Export test form] Tea bag pack size"] == "NOT_ASKED"
         assert line2["[Export test form] Favourite dunking biscuit"] == "digestive"
 
     def test_all_question_types_appear_correctly_in_csv_row(self, factories):

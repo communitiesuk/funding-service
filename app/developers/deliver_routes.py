@@ -958,12 +958,13 @@ def list_submissions_for_collection(collection_id: UUID, submission_mode: Submis
 
 
 @developers_deliver_blueprint.route(
-    "/collections/<uuid:collection_id>/submissions/<submission_mode:submission_mode>/export",
+    "/collections/<uuid:collection_id>/submissions/<submission_mode:submission_mode>/export/<export_format>",
     methods=["GET"],
 )
 @is_platform_admin
-def export_submissions_for_collection(collection_id: UUID, submission_mode: SubmissionModeEnum) -> ResponseReturnValue:
-    export_format = request.args.get("format", "")
+def export_submissions_for_collection(
+    collection_id: UUID, submission_mode: SubmissionModeEnum, export_format: str
+) -> ResponseReturnValue:
     collection = interfaces.collections.get_collection(collection_id, with_full_schema=True)
     helper = CollectionHelper(collection=collection, submission_mode=submission_mode)
     if export_format.lower() == "csv":

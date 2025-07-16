@@ -352,7 +352,7 @@ class CollectionHelper:
     def get_submission_helper_by_id(self, submission_id: UUID) -> SubmissionHelper | None:
         return self.submission_helpers.get(submission_id, None)
 
-    def get_submission_helper_by_reference(self, submission_reference: UUID) -> SubmissionHelper | None:
+    def get_submission_helper_by_reference(self, submission_reference: str) -> SubmissionHelper | None:
         for _, submission in self.submission_helpers.items():
             if submission.reference == submission_reference:
                 return submission
@@ -390,7 +390,7 @@ class CollectionHelper:
             visible_questions = submission.all_visible_questions
             for question_id, header_string in question_headers.items():
                 if question_id not in visible_questions.keys():
-                    submission_csv_data[header_string] = "Not required"
+                    submission_csv_data[header_string] = "NOT_ASKED"
                 else:
                     answer = submission.get_answer_for_question(question_id)
                     submission_csv_data[header_string] = (

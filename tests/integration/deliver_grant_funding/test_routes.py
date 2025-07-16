@@ -1182,7 +1182,7 @@ def test_download_csv_export(authenticated_platform_admin_client, factories, db_
             "developers.deliver.export_submissions_for_collection",
             collection_id=collection.id,
             submission_mode=SubmissionModeEnum.TEST,
-            format="csv",
+            export_format="csv",
         )
     )
 
