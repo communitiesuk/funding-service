@@ -12,7 +12,13 @@ from werkzeug.routing import BaseConverter
 from app import logging
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
-from app.common.data.types import FormRunnerState, QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import (
+    FormRunnerState,
+    QuestionDataType,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+    TasklistTaskStatusEnum,
+)
 from app.common.filters import (
     format_date,
     format_date_range,
@@ -162,6 +168,7 @@ def create_app() -> Flask:
                 question_type=QuestionDataType,
                 form_runner_state=FormRunnerState,
                 submission_status=SubmissionStatusEnum,
+                tasklist_task_status=TasklistTaskStatusEnum,
             ),
         )
 

@@ -3,9 +3,10 @@
 {% macro status(status) %}
   {%
     set classMap = {
-        enum.submission_status.NOT_STARTED: "govuk-tag--grey",
-        enum.submission_status.IN_PROGRESS: "govuk-tag--blue",
-        enum.submission_status.COMPLETED: "govuk-tag--green",
+        enum.tasklist_task_status.NOT_STARTED: "govuk-tag--grey",
+        enum.tasklist_task_status.IN_PROGRESS: "govuk-tag--blue",
+        enum.tasklist_task_status.COMPLETED: "govuk-tag--green",
+        enum.tasklist_task_status.NO_QUESTIONS: "govuk-tag--red",
     }
   %}
   {{ govukTag({"text": status, "classes": classMap[status] }) }}

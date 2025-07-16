@@ -130,20 +130,23 @@
         {% else %}
           {% set rows=[] %}
           {% for form in forms %}
+            {% set first_question = submission.get_first_question_for_form(form) %}
             {%
               set link_href = (
-                runner.to_url(enum.form_runner_state.QUESTION, question=submission.get_first_question_for_form(form))
-                if submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED
-                else runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST)
+                ''
+                if not first_question else
+                runner.to_url(enum.form_runner_state.QUESTION, question=first_question)
+                if submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED else
+                runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST)
               )
             %}
             {%
               do rows.append({
                 "title": {
-                  "text": form.title
+                  "text": form.title,
                 },
                 "status": {
-                  "html": status(submission.get_status_for_form(form))
+                  "html": status(submission.get_tasklist_status_for_form(form)) ,
                 },
                 "href": link_href,
               })
