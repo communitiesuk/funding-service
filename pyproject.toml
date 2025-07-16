@@ -106,8 +106,8 @@ type = "layers"
 exhaustive = true
 containers = ["app"]
 layers = [
-  "developers",
-  "common : deliver_grant_funding : extensions : healthcheck : services : config : logging : monkeypatch : sentry : types"
+    "developers",
+    "common : deliver_grant_funding : extensions : healthcheck : services : config : logging : monkeypatch : sentry : types"
 ]
 
 [[tool.importlinter.contracts]]
@@ -212,3 +212,6 @@ filterwarnings = [
     "ignore:cannot collect test class 'TestConfig' because it has a __init__ constructor:pytest.PytestCollectionWarning",
     "ignore:datetime\\.datetime\\.utcnow\\(\\) is deprecated and scheduled for removal in a future version*:DeprecationWarning"
 ]
+[tool.ty.src]
+include = ["app", "tests"]
+exclude = ["tests/**/test_*.py"]
