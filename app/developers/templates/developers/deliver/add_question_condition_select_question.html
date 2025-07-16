@@ -11,7 +11,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.deliver.edit_question", grant_id = grant.id, collection_id = question.form.section.collection.id, section_id = question.form.section.id, form_id = question.form.id, question_id=question.id)
+        "href": url_for("developers.deliver.edit_question", grant_id = grant.id, collection_id =question.belongs_to_form.section.collection.id, section_id =question.belongs_to_form.section.id, form_id =question.belongs_to_form.id, question_id=question.id)
     })
   }}
 {% endblock beforeContent %}

@@ -32,7 +32,7 @@ class TestSubmissionHelper:
     class TestGetAndSubmitAnswerForQuestion:
         def test_submit_valid_data(self, db_session, factories):
             question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
             helper = SubmissionHelper(submission)
 
             assert helper.get_answer_for_question(question.id) is None
@@ -48,7 +48,7 @@ class TestSubmissionHelper:
             question = factories.question.build(
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.INTEGER
             )
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
             helper = SubmissionHelper(submission)
 
             form = build_question_form(question, expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=5)
@@ -60,7 +60,7 @@ class TestSubmissionHelper:
             question = factories.question.build(
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.INTEGER
             )
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
             helper = SubmissionHelper(submission)
 
             form = build_question_form(question, expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=0)
@@ -70,7 +70,7 @@ class TestSubmissionHelper:
 
         def test_cannot_submit_answer_on_submitted_submission(self, db_session, factories):
             question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
             helper = SubmissionHelper(submission)
 
             form = build_question_form(question, expression_context=EC())(
@@ -301,10 +301,10 @@ class TestSubmissionHelper:
 
         def test_submission_status_based_on_forms(self, db_session, factories):
             question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            form_two = factories.form.build(section=question.form.section)
+            form_two = factories.form.build(section=question.belongs_to_form.section)
             question_two = factories.question.build(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
 
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
             helper = SubmissionHelper(submission)
 
             assert helper.status == SubmissionStatusEnum.NOT_STARTED
@@ -393,7 +393,7 @@ class TestSubmissionHelper:
 
         def test_submit_submission_rejected_if_not_complete(self, db_session, factories):
             question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
             helper = SubmissionHelper(submission)
 
             helper.submit_answer_for_question(

@@ -86,22 +86,45 @@ class SubmissionHelper:
 
     @property
     def form_data(self) -> dict[str, Any]:
+        def get_all_questions(ql: list["Question"]) -> list["Question"]:
+                questions = []
+                for question in ql:
+                    if question.is_group:
+
+                        # fixme: get question includes groups for now, this should all be managed consistently from helpers
+                        questions.extend([question, *get_all_questions(question.questions)])
+                    else:
+                        questions.append(question)
+                return questions
         form_data = {
             question.safe_qid: answer.get_value_for_form()
             for section in self.submission.collection.sections
             for form in section.forms
-            for question in form.questions
+            for question in get_all_questions(form.questions)
             if (answer := self.get_answer_for_question(question.id)) is not None
         }
         return form_data
 
     @property
     def expression_context(self) -> ExpressionContext:
+        # fixme: when calculating the answers to populate the expression context we should check if its a group or not
+        #        and treat it appropriately
+        def get_all_questions(ql: list["Question"]) -> list["Question"]:
+                questions = []
+                for question in ql:
+                    if question.is_group:
+
+                        # fixme: get question includes groups for now, this should all be managed consistently from helpers
+                        questions.extend([question, *get_all_questions(question.questions)])
+                    else:
+                        questions.append(question)
+                return questions
+        
         submission_data = {
             question.safe_qid: answer.get_value_for_expression()
             for section in self.submission.collection.sections
             for form in section.forms
-            for question in form.questions
+            for question in get_all_questions(form.questions)
             if (answer := self.get_answer_for_question(question.id)) is not None
         }
         return ExpressionContext(from_submission=immutabledict(submission_data))
@@ -177,16 +200,42 @@ class SubmissionHelper:
         except StopIteration as e:
             raise ValueError(f"Could not find a form with id={form_id} in collection={self.collection.id}") from e
 
+    # todo: this should calculate an index once on initialisation and then reference that
     def get_question(self, question_id: uuid.UUID) -> "Question":
         try:
+            # todo: obvious duplication with above
+            def get_all_questions(ql: list["Question"]) -> list["Question"]:
+                questions = []
+                for question in ql:
+                    if question.is_group:
+
+                        # fixme: get question includes groups for now, this should all be managed consistently from helpers
+                        questions.extend([question, *get_all_questions(question.questions)])
+                    else:
+                        questions.append(question)
+                return questions
+
             return next(
                 filter(
                     lambda q: q.id == question_id,
                     chain.from_iterable(
-                        form.questions for section in self.collection.sections for form in section.forms
+                        get_all_questions(form.questions) for section in self.collection.sections for form in section.forms
                     ),
                 )
             )
+
+            # all_questions = []
+            # for section in self.collection.sections:
+            #     for form in section.forms:
+            #         form_questions = get_all_questions(form.questions)
+            #         all_questions.extend(form_questions)
+            #         for question in form_questions:
+            #             if question.id == question_id:
+            #                 return question
+            
+            # raise ValueError(
+            #     f"Could not find a question with id={question_id} in collection={self.collection.id}"
+            # )
         except StopIteration as e:
             raise ValueError(
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
@@ -242,13 +291,34 @@ class SubmissionHelper:
             # todo: check dependency chain for conditions when undefined variables are encountered to avoid
             #       always suppressing errors and not surfacing issues on misconfigured forms
             return False
+        
+    def get_ordered_visible_questions(self, questions: list["Question"]) -> list["Question"]:
+        ordered_questions = sorted(questions, key=lambda q: q.order)
+        questions = []
+        for question in ordered_questions:
+            if self.is_question_visible(question, self.expression_context):
+                if question.is_group:
+                    # checking if the group should be visible at all should probably be more robust than this but I think
+                    # this should do for now
+                    # todo: _probably_ the question visibility check in itself should check up its groups chain, as well as only
+                    #       checking the questions in the group in the first place here
+                    questions.extend(self.get_ordered_visible_questions(question.questions))
+                else:
+                    # if self.is_question_visible(question, self.expression_context):
+                    questions.append(question)
+        return questions
+        # return [question for question in ordered_questions if self.is_question_visible(question, self.expression_context)] 
 
     def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
-        ordered_questions = sorted(form.questions, key=lambda q: q.order)
-        return [
-            question for question in ordered_questions if self.is_question_visible(question, self.expression_context)
-        ]
+        # ordered_questions = sorted(form.questions, key=lambda q: q.order)
+
+        # todo: not yet factoring in questions that should show on the same page
+        # todo: revise moving away from list comprehension syntax
+        # return [
+        #     question for question in ordered_questions if self.is_question_visible(question, self.expression_context)
+        # ]
+        return self.get_ordered_visible_questions(form.questions)
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
         questions = self.get_ordered_visible_questions_for_form(form)
@@ -263,13 +333,26 @@ class SubmissionHelper:
         return None
 
     def get_form_for_question(self, question_id: UUID) -> "Form":
+        # todo: copied from somewhere else
+        def get_all_questions(ql: list["Question"]) -> list["Question"]:
+            questions = []
+            for question in ql:
+                if question.is_group:
+
+                    # fixme: get question includes groups for now, this should all be managed consistently from helpers
+                    questions.extend([question, *get_all_questions(question.questions)])
+                else:
+                    questions.append(question)
+            return questions
+
         for section in self.collection.sections:
             for form in section.forms:
-                if any(q.id == question_id for q in form.questions):
+                if any(q.id == question_id for q in get_all_questions(form.questions)):
                     return form
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
+    # todo: factor in if we're on a question that shouldn't be answered (i.e group or page)
     def get_answer_for_question(self, question_id: UUID) -> AllAnswerTypes | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))

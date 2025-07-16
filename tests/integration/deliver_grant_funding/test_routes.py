@@ -1150,7 +1150,7 @@ def test_accessing_question_page_with_failing_condition_redirects(
     authenticated_platform_admin_client, factories, templates_rendered
 ):
     question = factories.question.create()
-    submission = factories.submission.create(collection=question.form.section.collection)
+    submission = factories.submission.create(collection=question.belongs_to_form.section.collection)
 
     response = authenticated_platform_admin_client.get(
         url_for("developers.deliver.ask_a_question", submission_id=submission.id, question_id=question.id),
@@ -1165,7 +1165,7 @@ def test_accessing_question_page_with_failing_condition_redirects(
     )
     assert response.status_code == 302
     assert response.location == url_for(
-        "developers.deliver.check_your_answers", submission_id=submission.id, form_id=question.form.id
+        "developers.deliver.check_your_answers", submission_id=submission.id, form_id=question.belongs_to_form.id
     )
 
 

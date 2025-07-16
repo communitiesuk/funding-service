@@ -531,7 +531,7 @@ def test_raise_if_question_has_any_dependencies(db_session, factories):
 
 def test_update_submission_data(db_session, factories):
     question = factories.question.build()
-    submission = factories.submission.build(collection=question.form.section.collection)
+    submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
 
     assert str(question.id) not in submission.data
 

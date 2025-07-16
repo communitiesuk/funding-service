@@ -106,14 +106,14 @@ class TestSubmissionHelper:
     class TestGetQuestion:
         def test_exists(self, db_session, factories):
             question = factories.question.build()
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
 
             helper = SubmissionHelper(submission)
             assert helper.get_question(question.id) == question
 
         def test_does_not_exist(self, db_session, factories):
             question = factories.question.build()
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
 
             helper = SubmissionHelper(submission)
             with pytest.raises(ValueError) as e:
@@ -345,13 +345,13 @@ class TestSubmissionHelper:
     class TestVisibleQuestion:
         def test_is_question_always_visible_with_no_conditions(self, factories):
             question = factories.question.build()
-            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+            helper = SubmissionHelper(factories.submission.build(collection=question.belongs_to_form.section.collection))
 
             assert helper.is_question_visible(question, helper.expression_context) is True
 
         def test_is_question_visible_not_visible_with_failing_condition(self, factories):
             question = factories.question.build()
-            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+            helper = SubmissionHelper(factories.submission.build(collection=question.belongs_to_form.section.collection))
 
             factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="False")
 
@@ -359,7 +359,7 @@ class TestSubmissionHelper:
 
         def test_is_question_visible_visible_with_passing_condition(self, factories):
             question = factories.question.build()
-            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+            helper = SubmissionHelper(factories.submission.build(collection=question.belongs_to_form.section.collection))
 
             factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="True")
 

@@ -47,7 +47,7 @@ class FormRunner:
         self._check_your_answers_form: Optional[CheckYourAnswersForm] = None
 
         if self.question:
-            self.form = self.question.form
+            self.form = self.question.belongs_to_form
             _QuestionForm = build_question_form(self.question, self.submission.expression_context)
             self._question_form = _QuestionForm(data=self.submission.form_data)
 

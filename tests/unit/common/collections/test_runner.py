@@ -11,7 +11,7 @@ from app.common.helpers.collections import SubmissionHelper
 class TestFormRunner:
     def test_form_runner_loads_and_sets_context(self, factories):
         question = factories.question.build()
-        submission = factories.submission.build(collection=question.form.section.collection)
+        submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
         helper = SubmissionHelper(submission)
 
         question_state_context = FormRunner(submission=helper, question=question, source=None)
@@ -32,7 +32,7 @@ class TestFormRunner:
     def test_form_runner_correctly_configures_dynamic_question_form(self, factories):
         question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         submission = factories.submission.build(
-            collection=question.form.section.collection,
+            collection=question.belongs_to_form.section.collection,
             data={str(question.id): TextSingleLineAnswer("An answer").get_value_for_submission()},
         )
         helper = SubmissionHelper(submission)
@@ -44,8 +44,8 @@ class TestFormRunner:
     def test_calls_mapped_urls_with_the_right_information(self, factories):
         question = factories.question.build()
         second_question = factories.question.build(form=question.form)
-        second_form = factories.form.build(section=question.form.section)
-        submission = factories.submission.build(collection=question.form.section.collection)
+        second_form = factories.form.build(section=question.belongs_to_form.section)
+        submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
         helper = SubmissionHelper(submission)
 
         question_mock = Mock(return_value="mock_question_url")
@@ -83,7 +83,7 @@ class TestFormRunner:
     def test_next_url(self, factories, app):
         question = factories.question.build()
         second_question = factories.question.build(form=question.form)
-        submission = factories.submission.build(collection=question.form.section.collection)
+        submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
         helper = SubmissionHelper(submission)
 
         question_mock = Mock(side_effect=lambda r, q, f, s: f"mock_question_url_{str(q.id)}")
@@ -145,7 +145,7 @@ class TestFormRunner:
     def test_back_url(self, factories):
         question = factories.question.build()
         second_question = factories.question.build(form=question.form)
-        submission = factories.submission.build(collection=question.form.section.collection)
+        submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
         helper = SubmissionHelper(submission)
 
         question_mock = Mock(side_effect=lambda r, q, f, s: f"mock_question_url_{str(q.id)}")
@@ -164,7 +164,7 @@ class TestFormRunner:
         @pytest.mark.parametrize("runner_class", FormRunner.__subclasses__())
         def test_runners_url_map_resolves(self, factories, runner_class):
             question = factories.question.build()
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.belongs_to_form.section.collection)
             runner = runner_class(submission=SubmissionHelper(submission), question=question)
             for state in FormRunnerState:
                 assert runner.to_url(state) is not None

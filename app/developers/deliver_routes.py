@@ -725,7 +725,7 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
     return render_template(
         "developers/deliver/add_question_condition_select_question.html",
         question=question,
-        grant=question.form.section.collection.grant,
+        grant=question.belongs_to_form.section.collection.grant,
         form=form,
     )
 
@@ -751,9 +751,9 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
                 url_for(
                     "developers.deliver.edit_question",
                     grant_id=grant_id,
-                    collection_id=question.form.section.collection.id,
-                    section_id=question.form.section.id,
-                    form_id=question.form.id,
+                    collection_id=question.belongs_to_form.section.collection.id,
+                    section_id=question.belongs_to_form.section.id,
+                    form_id=question.belongs_to_form.id,
                     question_id=question.id,
                 )
             )
@@ -764,7 +764,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
         "developers/deliver/manage_question_condition_select_condition_type.html",
         question=question,
         depends_on_question=depends_on_question,
-        grant=question.form.section.collection.grant,
+        grant=question.belongs_to_form.section.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
     )
@@ -792,9 +792,9 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
             url_for(
                 "developers.deliver.edit_question",
                 grant_id=grant_id,
-                collection_id=question.form.section.collection_id,
-                section_id=question.form.section.id,
-                form_id=question.form.id,
+                collection_id=question.belongs_to_form.section.collection_id,
+                section_id=question.belongs_to_form.section.id,
+                form_id=question.belongs_to_form.id,
                 question_id=question.id,
             )
         )
@@ -811,9 +811,9 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
                 url_for(
                     "developers.deliver.edit_question",
                     grant_id=grant_id,
-                    collection_id=question.form.section.collection.id,
-                    section_id=question.form.section.id,
-                    form_id=question.form.id,
+                    collection_id=question.belongs_to_form.section.collection.id,
+                    section_id=question.belongs_to_form.section.id,
+                    form_id=question.belongs_to_form.id,
                     question_id=question.id,
                 )
             )
@@ -825,7 +825,7 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
     return render_template(
         "developers/deliver/manage_question_condition_select_condition_type.html",
         question=question,
-        grant=question.form.section.collection.grant,
+        grant=question.belongs_to_form.section.collection.grant,
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,
@@ -859,9 +859,9 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
                 url_for(
                     "developers.deliver.edit_question",
                     grant_id=grant_id,
-                    collection_id=question.form.section.collection.id,
-                    section_id=question.form.section.id,
-                    form_id=question.form.id,
+                    collection_id=question.belongs_to_form.section.collection.id,
+                    section_id=question.belongs_to_form.section.id,
+                    form_id=question.belongs_to_form.id,
                     question_id=question.id,
                 )
             )
@@ -869,7 +869,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     return render_template(
         "developers/deliver/manage_question_validation.html",
         question=question,
-        grant=question.form.section.collection.grant,
+        grant=question.belongs_to_form.section.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
     )
@@ -896,9 +896,9 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
             url_for(
                 "developers.deliver.edit_question",
                 grant_id=grant_id,
-                collection_id=question.form.section.collection_id,
-                section_id=question.form.section.id,
-                form_id=question.form.id,
+                collection_id=question.belongs_to_form.section.collection_id,
+                section_id=question.belongs_to_form.section.id,
+                form_id=question.belongs_to_form.id,
                 question_id=question.id,
             )
         )
@@ -921,9 +921,9 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
                 url_for(
                     "developers.deliver.edit_question",
                     grant_id=grant_id,
-                    collection_id=question.form.section.collection.id,
-                    section_id=question.form.section.id,
-                    form_id=question.form.id,
+                    collection_id=question.belongs_to_form.section.collection.id,
+                    section_id=question.belongs_to_form.section.id,
+                    form_id=question.belongs_to_form.id,
                     question_id=question.id,
                 )
             )
@@ -931,7 +931,7 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
     return render_template(
         "developers/deliver/manage_question_validation.html",
         question=question,
-        grant=question.form.section.collection.grant,
+        grant=question.belongs_to_form.section.collection.grant,
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,

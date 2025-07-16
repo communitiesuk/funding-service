@@ -14,7 +14,7 @@
 {% set submit_label = "Update condition" if is_editing else "Add condition" %}
 
 {% set back_to_select_question_for_condition = url_for("developers.deliver.add_question_condition_select_question", grant_id = grant.id, question_id=question.id) %}
-{% set back_to_edit_question = url_for("developers.deliver.edit_question", grant_id=grant.id, collection_id=question.form.section.collection.id, section_id=question.form.section.id, form_id=question.form.id, question_id=question.id) %}
+{% set back_to_edit_question = url_for("developers.deliver.edit_question", grant_id=grant.id, collection_id=question.belongs_to_form.section.collection.id, section_id=question.belongs_to_form.section.id, form_id=question.belongs_to_form.id, question_id=question.id) %}
 {% set back_link = back_to_edit_question if is_editing else back_to_select_question_for_condition %}
 
 {% block beforeContent %}

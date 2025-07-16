@@ -273,6 +273,12 @@ class Question(BaseModel, SafeQidMixin):
     def belongs_to_form(self) -> Optional["Form"]:
         # fixme: doesn't deal with further nested groups
         return self.parent.form if self.parent else self.form
+    
+    # fixme: there's a nice way to either fetch depth based on the query or optimise this to calculate once
+    @property
+    def depth_corrected_order(self) -> int:
+        count_depth = lambda q: 0 if not q.parent else 1 + count_depth(q.parent)
+        return (self.order + 1) * (count_depth(self) + 1)
 
     @property
     def is_group(self) -> bool:

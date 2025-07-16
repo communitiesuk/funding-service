@@ -57,5 +57,17 @@ def register_managed_expression(cls: type["ManagedExpression"]) -> type["Managed
 
 
 def get_supported_form_questions(question: "Question") -> list["Question"]:
-    questions = question.form.questions
+    def get_all_questions(ql: list["Question"]) -> list["Question"]:
+        questions = []
+        for question in ql:
+            if question.is_group:
+
+                # fixme: get question includes groups for now, this should all be managed consistently from helpers
+                questions.extend([question, *get_all_questions(question.questions)])
+            else:
+                questions.append(question)
+        return questions
+    # fixme: before we do fetching for a given depth these kind of calls are very expensive, should be
+    #        a commit away
+    questions = get_all_questions(question.belongs_to_form.questions)
     return [q for q in questions if q.data_type in get_registered_data_types() and q.id != question.id]

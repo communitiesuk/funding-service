@@ -21,7 +21,7 @@
     {# GOV.UK Frontend macros don't let you add captions to label/legend-headings that are outside of the <h> element #}
     {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
     {# So we just manually add the caption here. #}
-    <span class="govuk-caption-l">{{ question.form.title }}</span>
+    <span class="govuk-caption-l">{{ question.belongs_to_form.title }}</span>
     {% if question.data_type == enum.question_type.TEXT_SINGLE_LINE or question.data_type == enum.question_type.TEXT_MULTI_LINE or question.data_type == enum.question_type.EMAIL or question.data_type == enum.question_type.URL %}
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
     {% elif question.data_type == enum.question_type.INTEGER %}

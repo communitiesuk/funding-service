@@ -388,27 +388,76 @@ class DependencyOrderException(Exception, FlashableException):
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
 def check_question_order_dependency(question: Question, swap_question: Question) -> None:
-    for condition in question.conditions:
-        if condition.managed and condition.managed.question_id == swap_question.id:
-            raise DependencyOrderException(
-                "You cannot move questions above answers they depend on", question, swap_question
-            )
+    get_all_parents_ids = lambda q: [q.id] + (get_all_parents_ids(q.parent) if q.parent else [])
 
-    for condition in swap_question.conditions:
-        if condition.managed and condition.managed.question_id == question.id:
-            raise DependencyOrderException(
-                "You cannot move answers below questions that depend on them", swap_question, question
-            )
+    def get_all_questions(ql: list["Question"]) -> list["Question"]:
+        questions = []
+        for question in ql:
+            if question.is_group:
+
+                # fixme: get question includes groups for now, this should all be managed consistently from helpers
+                questions.extend([question, *get_all_questions(question.questions)])
+            else:
+                questions.append(question)
+        return questions
+
+    question_flat_questions = get_all_questions([question])
+    swap_question_flat_questions = get_all_questions([swap_question])
+
+    # this will be getting to be a very expensive check
+    for q in question_flat_questions:
+        for condition in q.conditions:
+            for swap_q in swap_question_flat_questions:
+                    if condition.managed and condition.managed.question_id == swap_q.id:
+                        # if condition.managed and condition.managed.question_id == swap_question.id:
+                        # if condition.managed and condition.managed.question_id in get_all_parents_ids(swap_question):
+                        raise DependencyOrderException(
+                            "You cannot move questions above answers they depend on", question, swap_question
+                        )
+
+    for swap_q in swap_question_flat_questions:
+        for condition in swap_q.conditions:
+            for q in question_flat_questions:
+                if condition.managed and condition.managed.question_id == q.id:
+                    raise DependencyOrderException(
+                        "You cannot move answers below questions that depend on them", swap_question, question
+                    )
 
 
 def is_question_dependency_order_valid(question: Question, depends_on_question: Question) -> bool:
-    return question.order > depends_on_question.order
+    def get_all_questions(ql: list["Question"]) -> list["Question"]:
+        questions = []
+        for question in ql:
+            if question.is_group:
+
+                # fixme: get question includes groups for now, this should all be managed consistently from helpers
+                questions.extend([question, *get_all_questions(question.questions)])
+            else:
+                questions.append(question)
+        return questions
+    
+    # this is almost definitely silly
+    flattened_questions = get_all_questions(question.belongs_to_form.questions)
+
+    return flattened_questions.index(question) > flattened_questions.index(depends_on_question)
 
 
 def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
+
+    def get_all_questions(ql: list["Question"]) -> list["Question"]:
+        questions = []
+        for question in ql:
+            if question.is_group:
+
+                # fixme: get question includes groups for now, this should all be managed consistently from helpers
+                questions.extend([question, *get_all_questions(question.questions)])
+            else:
+                questions.append(question)
+        return questions
+    
     # fixme: just changing this doesn't actually make sense it should go through all of the questions
     #        there should be a default way of going through all questions flat - its likely a property on the form
-    for target_question in question.belongs_to_form.questions:
+    for target_question in get_all_questions(question.belongs_to_form.questions):
         for condition in target_question.conditions:
             if condition.managed and condition.managed.question_id == question.id:
                 raise DependencyOrderException(

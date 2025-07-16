@@ -14,6 +14,7 @@ from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.temporary import delete_grant
 from app.common.data.models import Collection, DataSource, DataSourceItem, Expression, Form, Grant, Question, Section
 from app.common.data.models_user import User
+from app.common.data.types import QuestionType
 from app.developers import developers_blueprint
 from app.extensions import db
 
@@ -162,7 +163,7 @@ def seed_grants() -> None:
             db.session.add(form)
 
         for question in grant_data["questions"]:
-            question = Question(**question)
+            question = Question(**question, type=QuestionType.QUESTION)
             db.session.add(question)
 
         for expression in grant_data["expressions"]:
