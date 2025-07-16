@@ -1,3 +1,5 @@
+import csv
+from io import StringIO
 from uuid import UUID
 
 import pytest
@@ -8,7 +10,7 @@ from sqlalchemy import select
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import Collection, Form, Grant, Question, Section
 from app.common.data.models_user import Invitation
-from app.common.data.types import ExpressionType, QuestionDataType, RoleEnum
+from app.common.data.types import ExpressionType, QuestionDataType, RoleEnum, SubmissionModeEnum
 from app.common.forms import GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -1168,3 +1170,44 @@ def test_accessing_question_page_with_failing_condition_redirects(
     assert response.location == url_for(
         "developers.deliver.check_your_answers", submission_id=submission.id, form_id=question.form.id
     )
+
+
+def test_download_csv_export(authenticated_platform_admin_client, factories, db_session):
+    # Create a grant and a collection
+    grant = factories.grant.create()
+    collection = factories.collection.create(
+        grant=grant,
+        create_completed_submissions_each_question_type__test=3,
+        create_completed_submissions_each_question_type__use_random_data=True,
+    )
+
+    response = authenticated_platform_admin_client.get(
+        url_for(
+            "developers.deliver.export_submissions_for_collection",
+            collection_id=collection.id,
+            submission_mode=SubmissionModeEnum.TEST,
+            export_format="csv",
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/csv"
+    assert response.headers["Content-Disposition"] == f'attachment; filename="{collection.name} - TEST.csv"'
+
+    csv_content = response.data.decode("utf-8")
+    reader = csv.DictReader(StringIO(csv_content))
+
+    assert reader.fieldnames == [
+        "Submission reference",
+        "Created by",
+        "Created time UTC",
+        "[Export test form] Your name",
+        "[Export test form] Your quest",
+        "[Export test form] Airspeed velocity",
+        "[Export test form] Best option",
+        "[Export test form] Like cheese",
+        "[Export test form] Email address",
+        "[Export test form] Website address",
+    ]
+    rows = list(reader)
+    assert len(rows) == 3

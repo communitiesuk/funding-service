@@ -1,13 +1,20 @@
+import csv
 import uuid
+from io import StringIO
 
 import pytest
 from immutabledict import immutabledict
 
 from app.common.collections.forms import build_question_form
 from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine, YesNo
-from app.common.data.types import QuestionDataType, SubmissionStatusEnum
+from app.common.data import interfaces
+from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions import ExpressionContext
-from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.collections import (
+    CollectionHelper,
+    SubmissionHelper,
+    _deserialise_question_type,
+)
 from tests.utils import AnyStringMatching
 
 EC = ExpressionContext
@@ -383,3 +390,138 @@ class TestSubmissionHelper:
             assert str(e.value) == AnyStringMatching(
                 r"Could not submit submission id=[a-z0-9-]+ because not all forms are complete."
             )
+
+
+class TestCollectionHelper:
+    def test_init_collection_helper(self, factories):
+        collection = factories.collection.create(create_submissions__test=2, create_submissions__live=3)
+        collection_from_db = interfaces.collections.get_collection(collection.id)
+        assert len(collection_from_db._submissions) == 5
+
+        test_collection_helper = CollectionHelper(
+            collection=collection_from_db, submission_mode=SubmissionModeEnum.TEST
+        )
+        assert test_collection_helper.collection == collection
+        assert test_collection_helper.submission_mode == SubmissionModeEnum.TEST
+        assert len(test_collection_helper.submissions) == 2
+
+        live_collection_helper = CollectionHelper(
+            collection=collection_from_db, submission_mode=SubmissionModeEnum.LIVE
+        )
+        assert live_collection_helper.collection == collection
+        assert live_collection_helper.submission_mode == SubmissionModeEnum.LIVE
+        assert len(live_collection_helper.submissions) == 3
+
+    def test_generate_csv_content_check_correct_rows_for_multiple_simple_submissions_every_question_type(
+        self, factories
+    ):
+        num_test_submissions = 3
+        factories.data_source_item.reset_sequence()
+        collection = factories.collection.create(
+            create_completed_submissions_each_question_type__test=num_test_submissions,
+            create_completed_submissions_each_question_type__use_random_data=True,
+        )
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+
+        assert reader.fieldnames == [
+            "Submission reference",
+            "Created by",
+            "Created time UTC",
+            "[Export test form] Your name",
+            "[Export test form] Your quest",
+            "[Export test form] Airspeed velocity",
+            "[Export test form] Best option",
+            "[Export test form] Like cheese",
+            "[Export test form] Email address",
+            "[Export test form] Website address",
+        ]
+        expected_question_data = {}
+        for _, submission in c_helper.submission_helpers.items():
+            expected_question_data[submission.reference] = {
+                f"[{question.form.title}] {question.name}": _deserialise_question_type(
+                    question, submission.submission.data[str(question.id)]
+                ).get_value_for_text_export()
+                for _, question in submission.all_visible_questions.items()
+            }
+        rows = list(reader)
+        for line in rows:
+            submission_ref = line["Submission reference"]
+            s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+            assert line["Created by"] == s_helper.created_by_email
+            assert line["Created time UTC"] == s_helper.created_at_utc.isoformat()
+            for header, value in expected_question_data[submission_ref].items():
+                assert line[header] == value
+
+        assert len(rows) == num_test_submissions
+
+    def test_generate_csv_content_skipped_questions(self, factories):
+        collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+
+        assert reader.fieldnames == [
+            "Submission reference",
+            "Created by",
+            "Created time UTC",
+            "[Export test form] Number of cups of tea",
+            "[Export test form] Tea bag pack size",
+            "[Export test form] Favourite dunking biscuit",
+        ]
+        line1 = next(reader)
+        submission_ref = line1["Submission reference"]
+        s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+        assert line1["Created by"] == s_helper.created_by_email
+        assert line1["Created time UTC"] == s_helper.created_at_utc.isoformat()
+        assert line1["[Export test form] Number of cups of tea"] == "40"
+        assert line1["[Export test form] Tea bag pack size"] == "80"
+        assert line1["[Export test form] Favourite dunking biscuit"] == "digestive"
+
+        line2 = next(reader)
+        submission_ref = line2["Submission reference"]
+        s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+        assert line2["Created by"] == s_helper.created_by_email
+        assert line2["Created time UTC"] == s_helper.created_at_utc.isoformat()
+        assert line2["[Export test form] Number of cups of tea"] == "20"
+        assert line2["[Export test form] Tea bag pack size"] == "NOT_ASKED"
+        assert line2["[Export test form] Favourite dunking biscuit"] == "digestive"
+
+    def test_all_question_types_appear_correctly_in_csv_row(self, factories):
+        factories.data_source_item.reset_sequence()
+        collection = factories.collection.create(
+            create_completed_submissions_each_question_type__test=1,
+            create_completed_submissions_each_question_type__use_random_data=False,
+        )
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        reader = csv.reader(StringIO(csv_content))
+
+        rows = list(reader)
+        assert len(rows) == 2
+
+        assert rows[0] == [
+            "Submission reference",
+            "Created by",
+            "Created time UTC",
+            "[Export test form] Your name",
+            "[Export test form] Your quest",
+            "[Export test form] Airspeed velocity",
+            "[Export test form] Best option",
+            "[Export test form] Like cheese",
+            "[Export test form] Email address",
+            "[Export test form] Website address",
+        ]
+        assert rows[1] == [
+            c_helper.submissions[0].reference,
+            c_helper.submissions[0].created_by.email,
+            c_helper.submissions[0].created_at_utc.isoformat(),
+            "test name",
+            "Line 1\r\nline2\r\nline 3",
+            "123",
+            "Option 0",
+            "Yes",
+            "test@email.com",
+            "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
+        ]

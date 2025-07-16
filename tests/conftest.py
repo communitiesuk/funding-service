@@ -17,6 +17,8 @@ from app.common.data.models import Grant
 from app.common.data.models_user import User
 from tests.models import (
     _CollectionFactory,
+    _DataSourceFactory,
+    _DataSourceItemFactory,
     _ExpressionFactory,
     _FormFactory,
     _GrantFactory,
@@ -149,6 +151,8 @@ _Factories = namedtuple(
         "submission_event",
         "expression",
         "invitation",
+        "data_source",
+        "data_source_item",
     ],
 )
 
@@ -169,4 +173,6 @@ def factories(db_session: Session) -> _Factories:
         submission_event=_SubmissionEventFactory,
         expression=_ExpressionFactory,
         invitation=_InvitationFactory,
+        data_source=_DataSourceFactory,
+        data_source_item=_DataSourceItemFactory,
     )

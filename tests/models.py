@@ -35,6 +35,7 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.expressions.managed import GreaterThan
 from app.extensions import db
 
 
@@ -137,65 +138,151 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     grant = factory.SubFactory(_GrantFactory)
 
     @factory.post_generation  # type: ignore
-    def create_completed_submissions(  # type: ignore
+    def create_completed_submissions_conditional_question(  # type: ignore
+        obj: Collection,
+        create,
+        extracted,
+        test: bool = False,
+        live: bool = False,
+        **kwargs,
+    ) -> None:
+        if not live and not test:
+            return
+
+        section = _SectionFactory.create(collection=obj)
+        form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
+
+        # Create a conditional branch of questions
+        q1 = _QuestionFactory.create(
+            name="Number of cups of tea",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="How many cups of tea do you drink in a week?",
+        )
+        q2 = _QuestionFactory.create(
+            name="Tea bag pack size",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="What size pack of teabags do you usually buy?",
+            expressions=[
+                Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=30), _UserFactory.create())
+            ],
+        )
+        q3 = _QuestionFactory.create(
+            name="Favourite dunking biscuit",
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="What is your favourite biscuit to dunk?",
+        )
+
+        def _create_submission(mode: SubmissionModeEnum, complete_question_2: bool = False) -> None:
+            response_data: dict[str, Any] = {
+                str(q1.id): Integer(40 if complete_question_2 else 20).get_value_for_submission()
+            }
+            if complete_question_2:
+                response_data[str(q2.id)] = Integer(80).get_value_for_submission()
+
+            response_data[str(q3.id)] = TextSingleLine("digestive").get_value_for_submission()
+
+            _SubmissionFactory.create(
+                collection=obj,
+                mode=mode,
+                data=response_data,
+                status=SubmissionStatusEnum.COMPLETED,
+            )
+
+        if test:
+            _create_submission(SubmissionModeEnum.TEST, complete_question_2=True)
+            _create_submission(SubmissionModeEnum.TEST, complete_question_2=False)
+        if live:
+            _create_submission(SubmissionModeEnum.LIVE, complete_question_2=True)
+            _create_submission(SubmissionModeEnum.LIVE, complete_question_2=False)
+
+    @factory.post_generation  # type: ignore
+    def create_completed_submissions_each_question_type(  # type: ignore
         obj: Collection,
         create,
         extracted,
         test: int = 0,
         live: int = 0,
+        use_random_data: bool = True,
         **kwargs,
     ) -> None:
         if not test and not live:
             return
         section = _SectionFactory.create(collection=obj)
-        form = _FormFactory.create(section=section)
+        form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
 
         # Assertion to remind us to add more question types here when we start supporting them
         assert len(QuestionDataType) == 7, "If you have added a new question type, please update this factory."
 
         # Create a question of each supported type
-        q1 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?")
-        q2 = _QuestionFactory.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE, text="What is your quest?")
-        q3 = _QuestionFactory.create(form=form, data_type=QuestionDataType.INTEGER, text="What is your age?")
-        q4 = _QuestionFactory.create(form=form, data_type=QuestionDataType.YES_NO, text="Do you like cheese?")
-        q5 = _QuestionFactory.create(form=form, data_type=QuestionDataType.RADIOS, text="What is the best option?")
-        q6 = _QuestionFactory.create(form=form, data_type=QuestionDataType.EMAIL, text="What is your email address?")
-        q7 = _QuestionFactory.create(form=form, data_type=QuestionDataType.URL, text="What is your website address?")
+        q1 = _QuestionFactory.create(
+            name="Your name", form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?"
+        )
+        q2 = _QuestionFactory.create(
+            name="Your quest", form=form, data_type=QuestionDataType.TEXT_MULTI_LINE, text="What is your quest?"
+        )
+        q3 = _QuestionFactory.create(
+            name="Airspeed velocity",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="What is the airspeed velocity of an unladen swallow?",
+        )
+        q4 = _QuestionFactory.create(
+            form=form,
+            data_type=QuestionDataType.RADIOS,
+            text="What is the best option?",
+            name="Best option",
+        )
+        q5 = _QuestionFactory.create(
+            form=form, data_type=QuestionDataType.YES_NO, text="Do you like cheese?", name="Like cheese"
+        )
+        q6 = _QuestionFactory.create(
+            form=form, data_type=QuestionDataType.EMAIL, text="What is your email address?", name="Email address"
+        )
+        q7 = _QuestionFactory.create(
+            form=form, data_type=QuestionDataType.URL, text="What is your website address?", name="Website address"
+        )
 
-        for _ in range(0, test):
-            _SubmissionFactory.create(
-                collection=obj,
-                mode=SubmissionModeEnum.TEST,
-                data={
-                    str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
-                    str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
-                    str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
-                    str(q4.id): YesNo(random.choice([True, False])).get_value_for_submission(),  # ty: ignore[missing-argument]
-                    str(q5.id): SingleChoiceFromList(
-                        key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
-                    ).get_value_for_submission(),
-                    str(q6.id): TextSingleLine(faker.Faker().email()).get_value_for_submission(),
-                    str(q7.id): TextSingleLine(faker.Faker().url()).get_value_for_submission(),
-                },
-                status=SubmissionStatusEnum.COMPLETED,
-            )
-        for _ in range(0, live):
-            _SubmissionFactory.create(
-                collection=obj,
-                mode=SubmissionModeEnum.LIVE,
-                data={
-                    str(q1.id): TextSingleLine(faker.Faker().name()).get_value_for_submission(),
-                    str(q2.id): TextMultiLine("\n".join(faker.Faker().sentences(nb=3))).get_value_for_submission(),
-                    str(q3.id): Integer(faker.Faker().random_number(2)).get_value_for_submission(),
-                    str(q4.id): YesNo(random.choice([True, False])).get_value_for_submission(),  # ty: ignore[missing-argument]
-                    str(q5.id): SingleChoiceFromList(
-                        key=q5.data_source.items[0].key, label=q5.data_source.items[0].label
-                    ).get_value_for_submission(),
-                    str(q6.id): TextSingleLine(faker.Faker().email()).get_value_for_submission(),
-                    str(q7.id): TextSingleLine(faker.Faker().url()).get_value_for_submission(),
-                },
-                status=SubmissionStatusEnum.COMPLETED,
-            )
+        def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
+            for _ in range(0, count):
+                item_choice = faker.Faker().random_int(min=0, max=2) if use_random_data else 0
+                _SubmissionFactory.create(
+                    collection=obj,
+                    mode=submission_mode,
+                    data={
+                        str(q1.id): TextSingleLine(
+                            faker.Faker().name() if use_random_data else "test name"
+                        ).get_value_for_submission(),
+                        str(q2.id): TextMultiLine(
+                            "\r\n".join(faker.Faker().sentences(nb=3))
+                            if use_random_data
+                            else "Line 1\r\nline2\r\nline 3"
+                        ).get_value_for_submission(),
+                        str(q3.id): Integer(
+                            faker.Faker().random_number(2) if use_random_data else 123
+                        ).get_value_for_submission(),
+                        str(q4.id): SingleChoiceFromList(
+                            key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
+                        ).get_value_for_submission(),
+                        str(q5.id): YesNo(
+                            random.choice([True, False]) if use_random_data else True
+                        ).get_value_for_submission(),  # ty: ignore[missing-argument]
+                        str(q6.id): TextSingleLine(
+                            faker.Faker().email() if use_random_data else "test@email.com"
+                        ).get_value_for_submission(),
+                        str(q7.id): TextSingleLine(
+                            faker.Faker().url()
+                            if use_random_data
+                            else "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government"
+                        ).get_value_for_submission(),
+                    },
+                    status=SubmissionStatusEnum.COMPLETED,
+                )
+
+        _create_submission_of_type(SubmissionModeEnum.TEST, test)
+        _create_submission_of_type(SubmissionModeEnum.LIVE, live)
 
     @factory.post_generation  # type: ignore
     def create_submissions(  # type: ignore

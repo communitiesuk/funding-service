@@ -1,7 +1,8 @@
+import io
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
 
@@ -50,7 +51,7 @@ from app.common.data.types import (
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericSubmitForm
-from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
     FormForm,
@@ -940,10 +941,8 @@ def list_submissions_for_collection(collection_id: UUID, submission_mode: Submis
 
     # FIXME: optimise this to only _fetch_ the live or test submissions? The relationship will fetch all submissions
     #        at the moment and filter on the python side.
-    _matching_submissions = (
-        collection.test_submissions if submission_mode == SubmissionModeEnum.TEST else collection.live_submissions
-    )
-    submissions = [SubmissionHelper(submission) for submission in _matching_submissions]
+    collection = interfaces.collections.get_collection(collection_id, with_full_schema=True)
+    helper = CollectionHelper(collection=collection, submission_mode=submission_mode)
 
     return render_template(
         "developers/deliver/list_submissions.html",
@@ -952,9 +951,37 @@ def list_submissions_for_collection(collection_id: UUID, submission_mode: Submis
         ),
         grant=collection.grant,
         collection=collection,
-        submissions=submissions,
+        submissions=[submission for _, submission in helper.submission_helpers.items()],
+        submission_mode=submission_mode,
         is_test_mode=submission_mode == SubmissionModeEnum.TEST,
     )
+
+
+@developers_deliver_blueprint.route(
+    "/collections/<uuid:collection_id>/submissions/<submission_mode:submission_mode>/export/<export_format>",
+    methods=["GET"],
+)
+@is_platform_admin
+def export_submissions_for_collection(
+    collection_id: UUID, submission_mode: SubmissionModeEnum, export_format: str
+) -> ResponseReturnValue:
+    collection = interfaces.collections.get_collection(collection_id, with_full_schema=True)
+    helper = CollectionHelper(collection=collection, submission_mode=submission_mode)
+    if export_format.lower() == "csv":
+        csv_data = helper.generate_csv_content_for_all_submissions()
+        csv_buffer = io.StringIO()
+        csv_buffer.write(csv_data)
+        csv_buffer.seek(0)
+        return send_file(
+            io.BytesIO(csv_buffer.getvalue().encode("utf-8")),
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name=f"{collection.name} - {submission_mode.name}.{export_format}",
+            max_age=0,
+        )
+
+    else:
+        abort(400)
 
 
 @developers_deliver_blueprint.route("/submission/<uuid:submission_id>", methods=["GET"])
