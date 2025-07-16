@@ -21,7 +21,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SectionForm,
 )
-from tests.utils import get_h1_text, get_h2_text
+from tests.utils import get_h1_text, get_h2_text, get_soup_text
 
 
 def test_list_grants_as_admin(
@@ -1133,8 +1133,8 @@ def test_list_users_for_grant_with_not_logged_in_members(
         url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
     )
     soup = BeautifulSoup(response.data, "html.parser")
-    assert "Not yet signed in" in soup.h2.text.strip()
-    assert "test@communities.gov.uk" in soup.td.text.strip()
+    assert "Not yet signed in" in get_h2_text(soup)
+    assert "test@communities.gov.uk" in get_soup_text(soup, "td")
 
 
 def test_list_users_for_grant_with_member(authenticated_grant_member_client, templates_rendered, factories):
