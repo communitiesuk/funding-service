@@ -338,7 +338,7 @@ def test_create_section_post(authenticated_platform_admin_client, factories, db_
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.list_sections", grant_id=collection.grant.id, collection_id=collection.id
+        "developers.deliver.manage_collection", grant_id=collection.grant.id, collection_id=collection.id
     )
 
     collection_from_db = db_session.scalars(select(Collection).where(Collection.id == collection.id)).one()
@@ -373,7 +373,7 @@ def test_create_form_get(authenticated_platform_admin_client, factories, templat
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert get_h1_text(soup) == "Add a form"
+    assert get_h1_text(soup) == "Add a task"
 
     result = authenticated_platform_admin_client.get(
         url_for(
@@ -387,7 +387,7 @@ def test_create_form_get(authenticated_platform_admin_client, factories, templat
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert get_h1_text(soup) == "What is the name of the form?"
+    assert get_h1_text(soup) == "What is the name of the task?"
 
 
 def test_create_form_post(authenticated_platform_admin_client, factories, db_session):
@@ -405,10 +405,9 @@ def test_create_form_post(authenticated_platform_admin_client, factories, db_ses
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_section",
+        "developers.deliver.manage_collection",
         grant_id=section.collection.grant.id,
         collection_id=section.collection.id,
-        section_id=section.id,
     )
 
     section_from_db = db_session.scalars(select(Section).where(Section.id == section.id)).one()
@@ -452,7 +451,7 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.list_sections",
+        "developers.deliver.manage_collection",
         grant_id=collection.grant.id,
         collection_id=collection.id,
     )
@@ -474,7 +473,7 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.list_sections",
+        "developers.deliver.manage_collection",
         grant_id=collection.grant.id,
         collection_id=collection.id,
     )
@@ -513,10 +512,9 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_section",
+        "developers.deliver.manage_collection",
         grant_id=section.collection.grant.id,
         collection_id=section.collection.id,
-        section_id=section.id,
     )
 
     form1_from_db = db_session.scalars(select(Form).where(Form.id == form1.id)).one()
@@ -535,10 +533,9 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_section",
+        "developers.deliver.manage_collection",
         grant_id=section.collection.grant.id,
         collection_id=section.collection.id,
-        section_id=section.id,
     )
 
     form1_from_db = db_session.scalars(select(Form).where(Form.id == form1.id)).one()

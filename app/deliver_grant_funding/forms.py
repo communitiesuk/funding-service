@@ -162,8 +162,8 @@ class SectionForm(FlaskForm):
 
 class FormForm(FlaskForm):
     title = StringField(
-        "What is the name of the form?",
-        validators=[DataRequired("Enter a form name")],
+        "What is the name of the task?",
+        validators=[DataRequired("Enter a task name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )

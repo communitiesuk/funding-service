@@ -8,7 +8,7 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for("developers.deliver.manage_section", grant_id=grant.id, collection_id=collection.id, section_id = section.id)
+      "href": url_for("developers.deliver.manage_collection", grant_id=grant.id, collection_id=collection.id)
     })
   }}
 {% endblock %}
@@ -19,7 +19,7 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.title (params={"label": {"isPageHeading": true, "classes": "govuk-label--l" }})}}
-        {{ form.submit }}
+        {{ form.submit(params={"text": "Save"}) }}
       </form>
     </div>
   </div>

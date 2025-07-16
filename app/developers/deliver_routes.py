@@ -1,9 +1,11 @@
 import io
+import uuid
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask.typing import ResponseReturnValue
+from sqlalchemy.exc import NoResultFound
 from wtforms import Field
 
 from app.common.auth.decorators import is_platform_admin
@@ -80,17 +82,29 @@ def grant_developers(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     confirm_deletion_form = ConfirmDeletionForm()
     if (
-        "delete" in request.args
+        "delete_grant" in request.args
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
         delete_grant(grant_id=grant.id)
         return redirect(url_for("deliver_grant_funding.list_grants"))
 
+    try:
+        collection_id = request.args.get("delete_collection")
+        collection = get_collection(uuid.UUID(collection_id))
+    except (TypeError, NoResultFound):
+        collection = None
+    if collection and confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
+        delete_collection(collection.id)
+        # TODO: Flash message for deletion?
+        return redirect(url_for("developers.deliver.grant_developers", grant_id=grant_id, collection_id=collection_id))
+
     return render_template(
         "developers/deliver/grant_developers.html",
         grant=grant,
-        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+        confirm_deletion_form=confirm_deletion_form,
+        delete_grant="delete_grant" in request.args,
+        delete_collection="delete_collection" in request.args and collection,
     )
 
 
@@ -120,14 +134,15 @@ def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValu
 
     form = GenericSubmitForm()
     confirm_deletion_form = ConfirmDeletionForm()
-    if (
-        "delete" in request.args
-        and confirm_deletion_form.validate_on_submit()
-        and confirm_deletion_form.confirm_deletion.data
-    ):
-        delete_collection(collection_id=collection.id)
+    try:
+        section_id = request.args.get("delete_section")
+        section = get_section_by_id(uuid.UUID(section_id))
+    except (TypeError, NoResultFound):
+        section = None
+    if section and confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
+        delete_section(section)
         # TODO: Flash message for deletion?
-        return redirect(url_for("developers.deliver.grant_developers", grant_id=grant_id))
+        return redirect(url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id))
 
     if form.validate_on_submit() and form.submit.data:
         user = interfaces.user.get_current_user()
@@ -140,7 +155,8 @@ def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValu
         grant=collection.grant,
         collection=collection,
         form=form,
-        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+        confirm_deletion_form=confirm_deletion_form,
+        delete_section="delete_section" in request.args and section and section.title,
     )
 
 
@@ -156,9 +172,7 @@ def edit_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
         try:
             assert form.name.data is not None
             update_collection(name=form.name.data, collection=collection)
-            return redirect(
-                url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id)
-            )
+            return redirect(url_for("developers.deliver.grant_developers", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
@@ -186,7 +200,9 @@ def add_section(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
                 title=form.title.data,
                 collection=collection,
             )
-            return redirect(url_for("developers.deliver.list_sections", grant_id=grant_id, collection_id=collection_id))
+            return redirect(
+                url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id)
+            )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
@@ -213,7 +229,7 @@ def list_sections(
 
 @developers_deliver_blueprint.route(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/move/<string:direction>",
-    methods=["POST"],
+    methods=["GET", "POST"],
 )
 @is_platform_admin
 @auto_commit_after_request
@@ -227,7 +243,7 @@ def move_section(grant_id: UUID, collection_id: UUID, section_id: UUID, directio
     else:
         return abort(400)
 
-    return redirect(url_for("developers.deliver.list_sections", grant_id=grant_id, collection_id=collection_id))
+    return redirect(url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id))
 
 
 @developers_deliver_blueprint.route(
@@ -264,7 +280,7 @@ def manage_section(
 
 @developers_deliver_blueprint.route(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/move/<string:direction>",
-    methods=["POST"],
+    methods=["GET", "POST"],
 )
 @is_platform_admin
 @auto_commit_after_request
@@ -282,10 +298,9 @@ def move_form(
 
     return redirect(
         url_for(
-            "developers.deliver.manage_section",
+            "developers.deliver.manage_collection",
             grant_id=grant_id,
             collection_id=collection_id,
-            section_id=section_id,
         )
     )
 
@@ -305,10 +320,9 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
         # TODO: Flash message for deletion?
         return redirect(
             url_for(
-                "developers.deliver.manage_section",
+                "developers.deliver.manage_collection",
                 grant_id=grant_id,
                 collection_id=collection_id,
-                section_id=section_id,
             )
         )
 
@@ -337,10 +351,9 @@ def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> Respo
             update_section(section=section, title=form.title.data)
             return redirect(
                 url_for(
-                    "developers.deliver.manage_section",
+                    "developers.deliver.manage_collection",
                     grant_id=grant_id,
                     collection_id=collection_id,
-                    section_id=section_id,
                 )
             )
         except DuplicateValueError as e:
@@ -380,12 +393,7 @@ def add_form(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseR
             assert form.title.data is not None
             create_form(title=form.title.data, section=section)
             return redirect(
-                url_for(
-                    "developers.deliver.manage_section",
-                    grant_id=grant_id,
-                    collection_id=collection_id,
-                    section_id=section_id,
-                )
+                url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id)
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
@@ -415,11 +423,9 @@ def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UU
             update_form(form=db_form, title=wt_form.title.data)
             return redirect(
                 url_for(
-                    "developers.deliver.manage_form",
+                    "developers.deliver.manage_collection",
                     grant_id=grant_id,
                     collection_id=collection_id,
-                    section_id=section_id,
-                    form_id=form_id,
                 )
             )
         except DuplicateValueError as e:
@@ -946,9 +952,7 @@ def list_submissions_for_collection(collection_id: UUID, submission_mode: Submis
 
     return render_template(
         "developers/deliver/list_submissions.html",
-        back_link=url_for(
-            "developers.deliver.manage_collection", collection_id=collection.id, grant_id=collection.grant.id
-        ),
+        back_link=url_for("developers.deliver.grant_developers", grant_id=collection.grant_id),
         grant=collection.grant,
         collection=collection,
         submissions=[submission for _, submission in helper.submission_helpers.items()],

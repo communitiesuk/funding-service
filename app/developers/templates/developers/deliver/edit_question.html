@@ -68,107 +68,107 @@
               {{ form.data_source_items }}
             {% endif %}
 
-            {{ form.submit(params={"text": "Save"}) }}
-          </form>
-
-          <div class="govuk-form-group">
-            <h2 class="govuk-heading-m">Conditions</h2>
-            <p class="govuk-body">Use answers from other questions to decide if your users should be asked this question.</p>
-            {% set rows = [] %}
-            {% for condition in question.conditions %}
-              {% set managed = condition.managed %}
-              {% set depends_on = managed.referenced_question %}
-
-
-              {% set key_html %}
-                {# todo: would users find it useful to be able to link to the question being depended on from here? #}
-                <span>{{ depends_on.text }}</span>
-              {% endset %}
-
-
-              {% set value_html %}
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
-                  <span class="govuk-visually-hidden">Change condition for</span>
-                  {{ condition.managed.message }}
-                </a>
-              {% endset %}
-              {%
-                do rows.append({
-                  "key": { "html": key_html },
-                  "value": { "html": value_html },
-                })
-              %}
-            {% endfor %}
-
-            {{
-              govukSummaryList({
-                "rows": rows,
-                "classes": "app-tasklist-builder"
-              })
-            }}
-
-            {{
-              govukButton({
-                "text": "Add condition",
-                "href": url_for('developers.deliver.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
-                "classes": "govuk-button--secondary"
-              })
-            }}
-          </div>
-          <div class="govuk-form-group">
-            <h2 class="govuk-heading-m">Validations</h2>
-            {% if managed_validation_available %}
-              <p class="govuk-body">Add validation to help users provide the correct answer to the question. The answer will be validated in the order listed.</p>
+            <div class="govuk-form-group">
+              <h2 class="govuk-heading-m">Conditions</h2>
+              <p class="govuk-body">Use answers from other questions to decide if your users should be asked this question.</p>
               {% set rows = [] %}
-              {% for validation in question.validations %}
-                {% set managed = validation.managed %}
+              {% for condition in question.conditions %}
+                {% set managed = condition.managed %}
+                {% set depends_on = managed.referenced_question %}
 
-                {# TODO: think more about what info to include in this summary list and how to lay it out #}
+
                 {% set key_html %}
-                  {{ to_ordinal(loop.index) | capitalize }}
-                  <span class="govuk-visually-hidden">validation</span>
+                  {# todo: would users find it useful to be able to link to the question being depended on from here? #}
+                  <span>{{ depends_on.text }}</span>
                 {% endset %}
+
+
                 {% set value_html %}
-                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}">
-                    <span class="govuk-visually-hidden">Change validation for</span>
-                    {{ validation.managed.message }}
+                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
+                    <span class="govuk-visually-hidden">Change condition for</span>
+                    {{ condition.managed.message }}
                   </a>
                 {% endset %}
                 {%
                   do rows.append({
-                    "key": { "html": key_html, "classes": "govuk-!-width-one-quarter" },
+                    "key": { "html": key_html },
                     "value": { "html": value_html },
                   })
                 %}
               {% endfor %}
 
-              {{
-                govukSummaryList({
-                  "rows": rows,
-                  "classes": "app-tasklist-builder"
-                })
-              }}
+              {% if rows %}
+                {{
+                  govukSummaryList({
+                    "rows": rows,
+                    "classes": "app-tasklist-builder"
+                  })
+                }}
+              {% endif %}
 
               {{
                 govukButton({
-                  "text": "Add more validation" if question.validations else "Add validation",
-                  "href": url_for("developers.deliver.add_question_validation", grant_id=grant.id, question_id=question.id),
+                  "text": "Add condition",
+                  "href": url_for('developers.deliver.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
                   "classes": "govuk-button--secondary"
                 })
               }}
-            {% else %}
-              <p class="govuk-body">Validation is not available for this kind of question.</p>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-      <div class="govuk-grid-row govuk-!-margin-top-7">
-        <div class="govuk-grid-column-two-thirds">
-          <p class="govuk-body">
-            <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=question.id, delete='') }}">
-              Delete this question
-            </a>
-          </p>
+            </div>
+            <div class="govuk-form-group">
+              <h2 class="govuk-heading-m">Validations</h2>
+              {% if managed_validation_available %}
+                <p class="govuk-body">Add validation to help users provide the correct answer to the question. The answer will be validated in the order listed.</p>
+                {% set rows = [] %}
+                {% for validation in question.validations %}
+                  {% set managed = validation.managed %}
+
+                  {# TODO: think more about what info to include in this summary list and how to lay it out #}
+                  {% set key_html %}
+                    {{ to_ordinal(loop.index) | capitalize }}
+                    <span class="govuk-visually-hidden">validation</span>
+                  {% endset %}
+                  {% set value_html %}
+                    <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}">
+                      <span class="govuk-visually-hidden">Change validation for</span>
+                      {{ validation.managed.message }}
+                    </a>
+                  {% endset %}
+                  {%
+                    do rows.append({
+                      "key": { "html": key_html, "classes": "govuk-!-width-one-quarter" },
+                      "value": { "html": value_html },
+                    })
+                  %}
+                {% endfor %}
+
+                {{
+                  govukSummaryList({
+                    "rows": rows,
+                    "classes": "app-tasklist-builder"
+                  })
+                }}
+
+                {{
+                  govukButton({
+                    "text": "Add more validation" if question.validations else "Add validation",
+                    "href": url_for("developers.deliver.add_question_validation", grant_id=grant.id, question_id=question.id),
+                    "classes": "govuk-button--secondary govuk-!-margin-bottom-3"
+                  })
+                }}
+              {% else %}
+                <p class="govuk-body">Validation is not available for this kind of question.</p>
+              {% endif %}
+            </div>
+
+            {{ form.submit(params={"text": "Save", "classes": "govuk-!-margin-top-3"}) }}
+            <p class="govuk-body">
+              <a
+                class="govuk-link app-link--destructive"
+                href="{{ url_for('developers.deliver.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=question.id, delete='') }}">
+                Delete this question
+              </a>
+            </p>
+          </form>
         </div>
       </div>
     </div>

@@ -51,10 +51,6 @@
                 "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'down'),
                 "disabled":(loop.index >= collection.sections | length),
                 "post": True
-              }, {
-                "href": url_for('developers.deliver.manage_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id),
-                "text": "Manage",
-                "post": False
               }]
             })
           %}
@@ -67,9 +63,9 @@
 
       {{
         govukButton({
-        "text": "Add a section",
+        "text": "Back to collection",
         "classes": "govuk-button--secondary",
-        "href": url_for("developers.deliver.add_section", grant_id = grant.id, collection_id=collection.id)
+        "href": url_for("developers.deliver.manage_collection", grant_id = grant.id, collection_id=collection.id)
         })
       }}
     </div>

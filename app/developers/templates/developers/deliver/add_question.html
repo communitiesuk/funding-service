@@ -39,7 +39,7 @@
           {{ form.data_source_items }}
         {% endif %}
 
-        {{ form.submit }}
+        {{ form.submit(params={"text": "Add question"}) }}
       </form>
     </div>
   </div>
