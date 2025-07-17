@@ -17,6 +17,7 @@ from app.common.collections.forms import build_question_form
 from app.common.data.models import Question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext
+from app.common.forms.fields import MHCLGRadioInput
 from app.common.forms.validators import URLWithoutProtocol
 from tests.conftest import FundingServiceTestClient
 from tests.utils import build_db_config
@@ -84,7 +85,7 @@ class TestBuildQuestionForm:
             (QuestionDataType.TEXT_MULTI_LINE, StringField, GovTextArea, [DataRequired]),
             (QuestionDataType.INTEGER, IntegerField, GovTextInput, [InputRequired]),
             (QuestionDataType.YES_NO, RadioField, GovRadioInput, [InputRequired]),
-            (QuestionDataType.RADIOS, RadioField, GovRadioInput, []),
+            (QuestionDataType.RADIOS, RadioField, MHCLGRadioInput, []),
             (QuestionDataType.EMAIL, EmailField, GovTextInput, [DataRequired, Email]),
             (QuestionDataType.URL, StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
         ),

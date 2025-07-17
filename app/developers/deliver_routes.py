@@ -47,6 +47,7 @@ from app.common.data.types import (
     ExpressionType,
     FormRunnerState,
     QuestionDataType,
+    QuestionOptions,
     SubmissionModeEnum,
 )
 from app.common.expressions.forms import build_managed_expression_form
@@ -488,9 +489,10 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
                 data_type=question_data_type_enum,
-                items=[item.strip() for item in wt_form.data_source_items.data.split("\n") if item.strip()]
-                if question_data_type_enum == QuestionDataType.RADIOS and wt_form.data_source_items.data is not None
-                else None,
+                items=wt_form.normalised_data_source_items,
+                options=QuestionOptions(
+                    last_data_source_item_is_distinct_from_others=wt_form.separate_option_if_no_items_match.data
+                ),
             )
             flash("Question created", FlashMessageType.QUESTION_CREATED)
             return redirect(
@@ -603,9 +605,10 @@ def edit_question(
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
-                items=[item.strip() for item in wt_form.data_source_items.data.split("\n") if item.strip()]
-                if question.data_type == QuestionDataType.RADIOS and wt_form.data_source_items.data is not None
-                else None,
+                items=wt_form.normalised_data_source_items,
+                options=QuestionOptions(
+                    last_data_source_item_is_distinct_from_others=wt_form.separate_option_if_no_items_match.data
+                ),
             )
             return redirect(
                 url_for(

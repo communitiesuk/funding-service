@@ -15,7 +15,7 @@ from wtforms.validators import DataRequired, Email, InputRequired, Optional, Val
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
 from app.common.expressions import ExpressionContext, evaluate
-from app.common.forms.fields import MHCLGAccessibleAutocomplete
+from app.common.forms.fields import MHCLGAccessibleAutocomplete, MHCLGRadioInput
 from app.common.forms.validators import URLWithoutProtocol
 
 _accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField
@@ -164,11 +164,14 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                     validators=[DataRequired("Select an option")],
                 )
             else:
+                choices = [(item.key, item.label) for item in question.data_source.items]
                 field = RadioField(
                     label=question.text,
                     description=question.hint or "",
-                    widget=GovRadioInput(),
-                    choices=[(item.key, item.label) for item in question.data_source.items],
+                    widget=MHCLGRadioInput(
+                        insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
+                    ),
+                    choices=choices,
                 )
         case QuestionDataType.URL:
             field = StringField(

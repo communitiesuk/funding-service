@@ -25,6 +25,7 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     ExpressionType,
     QuestionDataType,
+    QuestionOptions,
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -277,6 +278,12 @@ def _create_data_source(question: Question, items: list[str]) -> None:
     data_source = DataSource(id=uuid.uuid4(), question_id=question.id)
     db.session.add(data_source)
 
+    if len(set(slugify(item) for item in items)) != len(items):
+        # If this error occurs, it's probably because QuestionForm does not check for duplication between the
+        # main options and the 'none of the above' option. Might need to add that if this has triggered; but avoiding
+        # now because I consider it unlikely. This will protect us even if it's not the best UX.
+        raise ValueError("No duplicate data source items are allowed")
+
     data_source_items = []
     for choice in items:
         data_source_items.append(DataSourceItem(data_source_id=data_source.id, key=slugify(choice), label=choice))
@@ -290,6 +297,12 @@ def _update_data_source(question: Question, items: list[str]) -> None:
     for item in items:
         if slugify(item) in existing_choices_map:
             existing_choices_map[slugify(item)].label = item
+
+    if len(set(slugify(item) for item in items)) != len(items):
+        # If this error occurs, it's probably because QuestionForm does not check for duplication between the
+        # main options and the 'none of the above' option. Might need to add that if this has triggered; but avoiding
+        # now because I consider it unlikely. This will protect us even if it's not the best UX.
+        raise ValueError("No duplicate data source items are allowed")
 
     new_choices = [
         existing_choices_map.get(
@@ -331,9 +344,18 @@ def _update_data_source_references(
 
 
 def create_question(
-    form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType, items: list[str] | None = None
+    form: Form,
+    *,
+    text: str,
+    hint: str,
+    name: str,
+    data_type: QuestionDataType,
+    items: list[str] | None = None,
+    options: QuestionOptions | None = None,
 ) -> Question:
-    question = Question(text=text, form_id=form.id, slug=slugify(text), hint=hint, name=name, data_type=data_type)
+    question = Question(
+        text=text, form_id=form.id, slug=slugify(text), hint=hint, name=name, data_type=data_type, options=options
+    )
     form.questions.append(question)  # type: ignore[no-untyped-call]
     db.session.add(question)
 
@@ -474,12 +496,19 @@ def move_question_down(question: Question) -> Question:
 
 
 def update_question(
-    question: Question, *, text: str, hint: str | None, name: str, items: list[str] | None = None
+    question: Question,
+    *,
+    text: str,
+    hint: str | None,
+    name: str,
+    items: list[str] | None = None,
+    options: QuestionOptions | None = None,
 ) -> Question:
     question.text = text
     question.hint = hint
     question.name = name
     question.slug = slugify(text)
+    question.options = options
 
     if items is not None:
         _update_data_source(question, items)

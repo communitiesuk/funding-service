@@ -490,6 +490,14 @@ class AddQuestionDetailsPage(GrantDevelopersBasePage):
     def fill_data_source_items(self, items: list[str]) -> None:
         self.page.get_by_role("textbox", name="List of options").fill("\n".join(items))
 
+    def click_fallback_option_checkbox(self) -> None:
+        self.page.get_by_role(
+            "checkbox", name="Include a final answer for users if none of the options are appropriate"
+        ).click()
+
+    def enter_fallback_option_text(self, text: str = "None of the above") -> None:
+        self.page.get_by_role("textbox", name="Fallback option").fill(text)
+
     def click_submit(self) -> "EditQuestionPage":
         self.page.get_by_role("button", name="Add question").click()
         edit_question_page = EditQuestionPage(

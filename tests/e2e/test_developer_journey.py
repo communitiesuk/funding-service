@@ -5,7 +5,7 @@ from typing import TypedDict
 import pytest
 from playwright.sync_api import Page, expect
 
-from app.common.data.types import QuestionDataType
+from app.common.data.types import QuestionDataType, QuestionOptions
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
 from app.constants import DEFAULT_SECTION_NAME
 from tests.e2e.config import EndToEndTestSecrets
@@ -62,6 +62,7 @@ def create_question(
     question_type: QuestionDataType,
     manage_form_page: ManageFormPage,
     data_source_items: list[str] | None = None,
+    options: QuestionOptions | None = None,
 ) -> None:
     question_type_page = manage_form_page.click_add_question()
     question_type_page.click_question_type(question_type.value)
@@ -77,6 +78,10 @@ def create_question(
     if question_type == QuestionDataType.RADIOS:
         assert data_source_items
         question_details_page.fill_data_source_items(data_source_items)
+
+        if options is not None and options.last_data_source_item_is_distinct_from_others is not None:
+            question_details_page.click_fallback_option_checkbox()
+            question_details_page.enter_fallback_option_text()
 
     question_details_page.click_submit()
     question_details_page.click_back()
@@ -167,7 +172,12 @@ def test_create_and_preview_collection(
         create_question(QuestionDataType.YES_NO, manage_form_page)
         create_question(QuestionDataType.RADIOS, manage_form_page, ["option 1", "option 2", "option 3"])
         # radios gets enhanced to autocomplete >x options
-        create_question(QuestionDataType.RADIOS, manage_form_page, [f"option {x}" for x in range(25)])
+        create_question(
+            QuestionDataType.RADIOS,
+            manage_form_page,
+            [f"option {x}" for x in range(25)],
+            options=QuestionOptions(last_data_source_item_is_distinct_from_others=True),
+        )
         create_question(QuestionDataType.URL, manage_form_page)
 
         add_validation(
