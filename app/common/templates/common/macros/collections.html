@@ -29,7 +29,15 @@
     {% elif question.data_type == enum.question_type.YES_NO %}
       {{ form.render_question(question, params={"fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true} }, "classes": "govuk-radios--inline" }) }}
     {% elif question.data_type == enum.question_type.RADIOS %}
-      {{ form.render_question(question, params={"fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true} } }) }}
+      {% if form.get_question_field(question).widget.is_accessible_autocomplete %}
+        {#
+          `govuk-!-width-full` override here to line up with the default width of the accessible autocomplete component. We could potentially do something smarter, like copy the class
+          from here to the enhanced autocomplete, but leaving that for a future increment.
+        #}
+        {{ form.render_question(question, params={"label": {"text": question.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true}, "classes": "govuk-!-width-full" }) }}
+      {% else %}
+        {{ form.render_question(question, params={"fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true} } }) }}
+      {% endif %}
     {% endif %}
 
     {{ form.submit }}

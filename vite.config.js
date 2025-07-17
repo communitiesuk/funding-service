@@ -15,7 +15,7 @@ export default defineConfig({
         /assets\/images\/.*\.svg$/,
       ],
     },
-    emptyOutDir: true
+    emptyOutDir: true,
   },
   css: {
     preprocessorOptions: {

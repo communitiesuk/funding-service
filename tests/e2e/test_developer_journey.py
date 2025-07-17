@@ -169,6 +169,8 @@ def test_create_and_preview_collection(
         create_question(QuestionDataType.INTEGER, manage_form_page)
         create_question(QuestionDataType.YES_NO, manage_form_page)
         create_question(QuestionDataType.RADIOS, manage_form_page, ["option 1", "option 2", "option 3"])
+        # radios gets enhanced to autocomplete >x options
+        create_question(QuestionDataType.RADIOS, manage_form_page, [f"option {x}" for x in range(25)])
         create_question(QuestionDataType.URL, manage_form_page)
 
         add_validation(

@@ -635,7 +635,15 @@ class QuestionPage(GrantDevelopersBasePage):
 
     def respond_to_question(self, question_type: QuestionDataType, answer: str) -> None:
         if question_type == QuestionDataType.YES_NO or question_type == QuestionDataType.RADIOS:
-            self.page.get_by_role("radio", name=answer).click()
+            # once we start having multiple of these on a page - enjoy the refactor =]
+            accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
+            if accessible_autocomplete:
+                element = self.page.get_by_role("combobox")
+                element.click()
+                element.fill(answer)
+                element.press("Enter")
+            else:
+                self.page.get_by_role("radio", name=answer).click()
         else:
             self.page.get_by_role("textbox", name=self.question_name).fill(answer)
 
