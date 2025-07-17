@@ -43,7 +43,7 @@ class TestSignInView:
 
         assert response.status_code == 200
         assert "Deliver grant funding" in get_h1_text(soup)
-        assert "Sign in with Microsoft" in get_h2_text(soup)
+        assert "Sign in with your MHCLG account" in get_h2_text(soup)
         with anonymous_client.session_transaction() as session:
             assert "magic_link_redirect" not in session
 
