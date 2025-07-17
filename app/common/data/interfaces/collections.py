@@ -342,13 +342,19 @@ def create_question(
     return question
 
 
-def create_group(form: Form, *, name: str) -> Question:
+def create_group(form: Form,  parent_group: Question, *, name: str) -> Question:
+    if form is None and parent_group is None:
+        raise ValueError("Specify either form or parent_group")
+    
     # todo: you probably want to have a user presentable name for the group (the text)
     #       and a data export name for the group (the name)
     group = Question(
-        text=name, form=form, slug=slugify(name), name=name, data_type=QuestionDataType.PAGE, type=QuestionType.GROUP
+        text=name, form=form if form else None, parent=parent_group if parent_group else None, slug=slugify(name), name=name, data_type=QuestionDataType.PAGE, type=QuestionType.GROUP
     )
-    form.questions.append(group)  # type: ignore[no-untyped-call]
+    if form:
+        form.questions.append(group)  # type: ignore[no-untyped-call]
+    elif parent_group:
+        parent_group.questions.append(group)  # type: ignore[no-untyped-call]
     db.session.add(group)
 
     try:

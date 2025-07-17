@@ -309,7 +309,7 @@ class Question(BaseModel, SafeQidMixin):
             raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
 
     __table_args__ = (
-        UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
+        UniqueConstraint("order", "parent_id", "form_id", name="uq_question_order_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
         UniqueConstraint("text", "form_id", name="uq_question_text_form"),
         UniqueConstraint("name", "form_id", name="uq_question_name_form"),

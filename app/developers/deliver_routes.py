@@ -446,12 +446,16 @@ def add_group(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     # this will just need a name to get started, managing a group will then have quite a few more configurations
     # we can like the add/edit/manage process up when we start to have precedent with questions
     db_form = get_form_by_id(form_id)
-    form = AddGroupForm()
 
+    group_id = request.args.get("group", None)
+    group = get_question_by_id(group_id) if group_id else None
+
+    form = AddGroupForm(group=group.id if group else None)
+    
     if form.validate_on_submit():
         try:
             assert form.name.data is not None
-            interfaces.collections.create_group(db_form, name=form.name.data)
+            interfaces.collections.create_group(form = db_form if not group else None, parent_group = group if group else None, name=form.name.data)
             return redirect(
                 url_for(
                     "developers.deliver.manage_form",

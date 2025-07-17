@@ -177,6 +177,10 @@ class AddGroupForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
+    group = HiddenField(
+        "Group",
+        description="The group this question will be added to. If not set, the question will be added to the form directly.",
+    )
     submit = SubmitField(widget=GovSubmitInput())
 
 
