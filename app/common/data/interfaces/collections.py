@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, Any, Never, Protocol
+from typing import TYPE_CHECKING, Any, Never, Protocol, Sequence
 from uuid import UUID
 
 from sqlalchemy import ScalarResult, select, text
@@ -12,6 +12,7 @@ from app.common.data.models import (
     Collection,
     DataSource,
     DataSourceItem,
+    DataSourceItemReference,
     Expression,
     Form,
     Grant,
@@ -28,6 +29,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
+from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.utils import slugify
 from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
@@ -313,6 +315,21 @@ def _update_data_source(question: Question, items: list[str]) -> None:
         raise e
 
 
+def _update_data_source_references(
+    expression: "Expression", managed_expression: "BaseDataSourceManagedExpression"
+) -> Expression:
+    referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
+        managed_expression=managed_expression
+    )
+    for dsir in expression.data_source_item_references:
+        db.session.delete(dsir)
+    expression.data_source_item_references = [
+        DataSourceItemReference(expression_id=expression.id, data_source_item_id=referenced_data_source_item.id)
+        for referenced_data_source_item in referenced_data_source_items
+    ]
+    return expression
+
+
 def create_question(
     form: Form, *, text: str, hint: str, name: str, data_type: QuestionDataType, items: list[str] | None = None
 ) -> Question:
@@ -435,6 +452,18 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
     return submission
 
 
+def get_referenced_data_source_items_by_managed_expression(
+    managed_expression: "BaseDataSourceManagedExpression",
+) -> Sequence[DataSourceItem]:
+    referenced_data_source_items = db.session.scalars(
+        select(DataSourceItem).where(
+            DataSourceItem.data_source == managed_expression.referenced_question.data_source,
+            DataSourceItem.key.in_([item["key"] for item in managed_expression.referenced_data_source_items]),
+        )
+    ).all()
+    return referenced_data_source_items
+
+
 def add_question_condition(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
     if not is_question_dependency_order_valid(question, managed_expression.referenced_question):
         raise DependencyOrderException(
@@ -445,6 +474,13 @@ def add_question_condition(question: Question, user: User, managed_expression: "
 
     expression = Expression.from_managed(managed_expression, user)
     question.expressions.append(expression)
+
+    if (
+        isinstance(managed_expression, BaseDataSourceManagedExpression)
+        and managed_expression.referenced_question.data_source
+    ):
+        expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
+
     try:
         db.session.flush()
     except IntegrityError as e:
@@ -484,6 +520,13 @@ def update_question_expression(expression: Expression, managed_expression: "Mana
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key
+
+    if (
+        isinstance(managed_expression, BaseDataSourceManagedExpression)
+        and managed_expression.referenced_question.data_source
+    ):
+        expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
+
     try:
         db.session.flush()
     except IntegrityError as e:
