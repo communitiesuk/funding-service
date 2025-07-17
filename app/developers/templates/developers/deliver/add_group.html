@@ -21,12 +21,17 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.collection_id }}
+        {# todo: on the select same page or one question per page include hint text on the radio option #}
+        {#       saying that the group name will be used as the page heading #}
         {{
           form.name(params={
             "label": {
               "classes": "govuk-label--l",
-              "isPageHeading": true
-            }
+              "isPageHeading": true 
+            },
+            "hint": {
+                "text": "The group name should be a statement, like “Passport details”",
+              }
           })
         }}
         {{ form.group }}

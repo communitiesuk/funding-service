@@ -302,6 +302,11 @@ class SubmissionHelper:
                     # this should do for now
                     # todo: _probably_ the question visibility check in itself should check up its groups chain, as well as only
                     #       checking the questions in the group in the first place here
+
+                    # thinking through showing the questions for a group on the same page
+                    # - the group will need to be included in the visible questions so the ask a question page can decide what to do with it
+                    # - the ask a question page will also need to check if the question is in a group when routed to and see if it should
+                    # - show the whole group or just the question
                     questions.extend(self.get_ordered_visible_questions(question.questions))
                 else:
                     # if self.is_question_visible(question, self.expression_context):
@@ -364,7 +369,7 @@ class SubmissionHelper:
                 f"Could not submit answer for question_id={question_id} "
                 f"because submission id={self.id} is already submitted."
             )
-
+                
         question = self.get_question(question_id)
         data = _form_data_to_question_type(question, form)
         interfaces.collections.update_submission_data(self.submission, question, data)

@@ -15,17 +15,17 @@ class TestFormRunner:
         helper = SubmissionHelper(submission)
 
         question_state_context = FormRunner(submission=helper, question=question, source=None)
-        assert question_state_context.question == question
+        assert question_state_context.questions == question
         assert question_state_context.form == question.form
         assert question_state_context.question_form is not None
 
         check_your_answers_context = FormRunner(submission=helper, form=question.form, source=None)
-        assert check_your_answers_context.question is None
+        assert check_your_answers_context.questions is None
         assert check_your_answers_context.form == question.form
         assert check_your_answers_context.check_your_answers_form is not None
 
         tasklist_context = FormRunner(submission=helper, source=None)
-        assert tasklist_context.question is None
+        assert tasklist_context.questions is None
         assert tasklist_context.form is None
         assert tasklist_context.tasklist_form is not None
 

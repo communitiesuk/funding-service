@@ -1024,15 +1024,36 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
     )
 
 
+# does it feel OK for _any_ question within a group to be routed to and then it appropriately loads the group page?
+# I think this needs to be possible because you might click "change" on a question in the middle of that group
+# with this method it should just route to the question at the end of this group and groups should still not
+# explicitly be in the visible questions
 @developers_deliver_blueprint.route("/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"])
 @is_platform_admin
 @auto_commit_after_request
 def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
+
+    # todo: reason about where this is happening
+    # if we're in a group that should be presented on the same page, we should be building the form based on that
+    # todo: when the answer is submitted/ saved this will also have to do a similar check
+    question = get_question_by_id(question_id)
+    # todo: check the context/ layout configuration assuming its a group/ page type question - we can then decide
+    #       if it should show on the same page - for now we'll default to everything being set up like that
+    # fixem: this is where we're defaulting all groups to show up on the same page it can be commented out and should still work
+    if question.parent and question.parent.is_same_page:
+        question = question.parent
+
+    # todo: decide where to put this logic
+    # - if this question is a group, then 
     runner = DGFFormRunner.load(
-        submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
+        submission_id=submission_id, question_id=question.id, source=FormRunnerState(source) if source else None
     )
 
+    # fixme: is it hacky to extend this interface which could make the decision that if its a group
+    #        that isn't show on the same page it should pass you on to the next questions
+    #        -- ideally that logic could have been worked out when working out the next question itself but
+    #        you have to anticipate users showing up on pages you wouldn't expect
     if not runner.validate_can_show_question_page():
         return redirect(runner.next_url)
 

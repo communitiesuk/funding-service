@@ -33,7 +33,7 @@ class FormRunner:
         source: Optional["FormRunnerState"] = None,
     ):
         if question and form:
-            raise ValueError("Expected only one of question or form")
+            raise ValueError("Expected only one of questions or form")
 
         self.submission = submission
         self.question = question
@@ -48,7 +48,13 @@ class FormRunner:
 
         if self.question:
             self.form = self.question.belongs_to_form
-            _QuestionForm = build_question_form(self.question, self.submission.expression_context)
+            
+            # pass in all of the questions belonging to the group, this will need to be thought through
+            if self.question.is_group:
+                _QuestionForm = build_question_form(self.question.questions, self.submission.expression_context)
+            else:
+                _QuestionForm = build_question_form([ self.question ], self.submission.expression_context)
+
             self._question_form = _QuestionForm(data=self.submission.form_data)
 
         if self.form:
@@ -75,8 +81,14 @@ class FormRunner:
         submission = SubmissionHelper.load(submission_id)
         question, form = None, None
 
+        # todo: for now we'll just show all groups on the same page to prove the concept
+        #       can add a configuration for this later
         if question_id:
             question = submission.get_question(question_id)
+
+            # todo: if its a group and _isn't_ same page the router has failed us, we should either 
+            #       throw or recommmend in the validate question page that it moves on to the first 
+            #       question in the group (the valid next question)
         elif form_id:
             form = submission.get_form(form_id)
 
@@ -102,7 +114,16 @@ class FormRunner:
         if not self.question:
             raise RuntimeError("Question context not set")
 
-        self.submission.submit_answer_for_question(self.question.id, self.question_form)
+        # todo: we could do this in a batch
+        # todo: also need to think through if this is the right place to do this
+        # todo: this should also _only_ be if the group is same page!
+        if self.question.is_group:
+            for question in self.question.questions:
+                self.submission.submit_answer_for_question(question.id, self.question_form)
+        else:
+            self.submission.submit_answer_for_question(self.question.id, self.question_form)
+
+
 
     def save_is_form_completed(self, user: "User") -> bool:
         if not self.form:
@@ -141,20 +162,27 @@ class FormRunner:
 
     @property
     def next_url(self) -> str:
+        # todo: just have a view that includes groups for navigation purposes this is probably a hack?
+        question = self.question
+        if question and question.is_group:
+            # go back from the first question in the group
+            question = question.questions[-1]
+
         # if we're in the context of a question page, decide if we should go to the next question
         # or back to check your answers based on if the integrity checks pass
         if self.question:
             if not self._valid:
                 return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
-            next_question = self.submission.get_next_question(self.question.id)
+            # todo: oh we'll probably need to keep track of the group question as well as building the form with its questions
+            next_question = self.submission.get_next_question(question.id)
 
             # Regardless of where they're from (eg even check-your-answers), take them to the next unanswered question
             # this will let users stay in a data-submitting flow if they've changed a conditional answer which has
             # unlocked more questions.
             while next_question and self.submission.get_answer_for_question(next_question.id) is not None:
                 next_question = self.submission.get_next_question(next_question.id)
-
+            
             return (
                 self.to_url(FormRunnerState.QUESTION, question=next_question)
                 if next_question
@@ -183,6 +211,12 @@ class FormRunner:
 
     @property
     def back_url(self) -> str:
+        # todo: just have a view that includes groups for navigation purposes this is probably a hack?
+        question = self.question
+        if question.is_group:
+            # go back from the first question in the group
+            question = question.questions[0]
+        
         # todo: persist the "tasklist" source when going "back" to check your answers
         if self.source == FormRunnerState.TASKLIST:
             return self.to_url(FormRunnerState.TASKLIST)
@@ -190,7 +224,9 @@ class FormRunner:
             return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
         if self.question:
-            previous_question = self.submission.get_previous_question(self.question.id)
+
+
+            previous_question = self.submission.get_previous_question(question.id)
         elif self.form:
             previous_question = self.submission.get_last_question_for_form(self.form)
         else:

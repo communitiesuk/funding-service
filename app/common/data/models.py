@@ -285,6 +285,11 @@ class Question(BaseModel, SafeQidMixin):
         return self.type == QuestionType.GROUP
 
     @property
+    def is_same_page(self) -> bool:
+        # fixme: both is group _and_ has the layout configuration set to same page
+        return self.is_group
+
+    @property
     def conditions(self) -> list["Expression"]:
         return [expression for expression in self.expressions if expression.type == ExpressionType.CONDITION]
 
