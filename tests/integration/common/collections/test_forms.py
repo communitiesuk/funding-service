@@ -2,12 +2,18 @@ import uuid
 
 import pytest
 from werkzeug.datastructures import MultiDict
+from wtforms.fields.choices import SelectField
+from wtforms.validators import DataRequired
 
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
+from app.common.data.interfaces.collections import create_question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan, LessThan
+from app.common.forms.fields import MHCLGAccessibleAutocomplete
+
+EC = ExpressionContext
 
 
 @pytest.mark.parametrize(
@@ -73,3 +79,24 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
         assert error_message in form.errors["q_e4bd98ab41ef4d23b1e59c0404891e7a"]
     else:
         assert valid is True
+
+
+def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_session):
+    form = factories.form.create()
+    q = create_question(
+        form=form,
+        text="Question text",
+        hint="Question hint",
+        name="question",
+        data_type=QuestionDataType.RADIOS,
+        items=[str(i) for i in range(25)],
+    )
+    form = build_question_form(q, expression_context=EC())()
+
+    question_field = form.get_question_field(q)
+    assert isinstance(question_field, SelectField)
+    assert isinstance(question_field.widget, MHCLGAccessibleAutocomplete)
+    assert question_field.label.text == "Question text"
+    assert question_field.description == "Question hint"
+    assert len(question_field.validators) == 1
+    assert isinstance(question_field.validators[0], DataRequired)
