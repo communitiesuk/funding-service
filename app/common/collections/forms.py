@@ -2,10 +2,12 @@ from collections import defaultdict
 from functools import partial
 from typing import Any, Callable, Mapping, cast
 
+from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from immutabledict import immutabledict
 from wtforms import Field, Form, RadioField
+from wtforms.fields.choices import SelectField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField, SubmitField
 from wtforms.validators import URL, DataRequired, Email, InputRequired, Optional, ValidationError
@@ -13,8 +15,9 @@ from wtforms.validators import URL, DataRequired, Email, InputRequired, Optional
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
 from app.common.expressions import ExpressionContext, evaluate
+from app.common.forms.fields import MHCLGAccessibleAutocomplete
 
-_accepted_fields = EmailField | StringField | IntegerField | RadioField
+_accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField
 
 
 # FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
@@ -151,12 +154,21 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                 coerce=lambda val: bool(int(val)),
             )
         case QuestionDataType.RADIOS:
-            field = RadioField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovRadioInput(),
-                choices=[(item.key, item.label) for item in question.data_source.items],
-            )
+            if len(question.data_source.items) > current_app.config["ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS"]:
+                field = SelectField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=MHCLGAccessibleAutocomplete(),
+                    choices=[("", "")] + [(item.key, item.label) for item in question.data_source.items],
+                    validators=[DataRequired("Select an option")],
+                )
+            else:
+                field = RadioField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=GovRadioInput(),
+                    choices=[(item.key, item.label) for item in question.data_source.items],
+                )
         case QuestionDataType.URL:
             field = StringField(
                 label=question.text,

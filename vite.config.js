@@ -15,7 +15,7 @@ export default defineConfig({
         /assets\/images\/.*\.svg$/,
       ],
     },
-    emptyOutDir: true
+    emptyOutDir: true,
   },
   css: {
     preprocessorOptions: {
@@ -35,6 +35,10 @@ export default defineConfig({
         {
           src: "node_modules/govuk-frontend/dist/govuk/assets/*",
           dest: "./assets",
+        },
+        {
+          src: "node_modules/accessible-autocomplete/dist/*",
+          dest: "./assets/accessible-autocomplete",
         },
         {
           src: "app/assets/images",

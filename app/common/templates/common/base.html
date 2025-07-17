@@ -13,6 +13,7 @@
     <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
   {% endif %}
   <link rel="stylesheet" href="{{ vite_asset('app/assets/main.scss') }}" type="text/css" />
+  <link nonce="{{ cspNonce }}" rel="stylesheet" href="{{ url_for('static', filename='assets/accessible-autocomplete/accessible-autocomplete.min.css') }}" type="text/css" />
 {% endblock head %}
 
 {% block header %}
@@ -54,6 +55,24 @@
 
 {% block bodyEnd %}
   <script type="module" src="{{ vite_asset('app/assets/main.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='assets/accessible-autocomplete/accessible-autocomplete.min.js') }}"></script>
+  <script nonce="{{ cspNonce }}">
+    // Wait for the script to load
+    window.addEventListener("load", function () {
+      if (typeof accessibleAutocomplete !== "undefined") {
+        for (let el of document.querySelectorAll("[data-accessible-autocomplete]")) {
+          accessibleAutocomplete.enhanceSelectElement({
+            selectElement: el,
+            showAllValues: true,
+            confirmOnBlur: false,
+            displayMenu: "overlay",
+          });
+        }
+      } else {
+        console.error("accessibleAutocomplete is not available");
+      }
+    });
+  </script>
 {% endblock %}
 
 {% block footer %}

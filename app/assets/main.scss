@@ -171,3 +171,13 @@ $app-destructive-link-active-colour: $govuk-text-colour;
     background-color: #f47738;
     color: white;
 }
+
+// Fix for GOV.UK Accessible Autocomplete arrown ot being visible: https://github.com/alphagov/accessible-autocomplete/issues/351
+.autocomplete__wrapper {
+    z-index: 1;
+}
+
+.autocomplete__dropdown-arrow-down {
+  z-index: 1 !important;
+  pointer-events: none;
+}
