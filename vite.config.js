@@ -37,10 +37,6 @@ export default defineConfig({
           dest: "./assets",
         },
         {
-          src: "node_modules/accessible-autocomplete/dist/*",
-          dest: "./assets/accessible-autocomplete",
-        },
-        {
           src: "app/assets/images",
           dest: "./assets"
         }
