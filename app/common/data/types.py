@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import enum
+import typing
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from immutabledict import immutabledict
+from pydantic import BaseModel
+from sqlalchemy import TypeDecorator
+from sqlalchemy.dialects.postgresql import JSONB
 
 if TYPE_CHECKING:
     from app.common.collections.runner import FormRunner
@@ -102,3 +106,26 @@ class FormRunnerState(enum.StrEnum):
     TASKLIST = "tasklist"
     QUESTION = "question"
     CHECK_YOUR_ANSWERS = "check-your-answers"
+
+
+class QuestionOptions(BaseModel):
+    # This is for radios (and maybe checkboxes) question types; the last item will be separated from the rest of the
+    # data source items, visually by an 'or' break. It is meant to indicate that none of the above options are
+    # appropriate and the user needs to fallback to some kind of 'not known' / 'none of the above' instead.
+    last_data_source_item_is_distinct_from_others: bool | None = None
+
+
+class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
+    impl = JSONB
+
+    cache_ok = False
+
+    def process_bind_param(self, value: BaseModel, dialect: Any) -> Any:  # type: ignore[override]
+        if value is None:
+            return None
+        return value.model_dump(mode="json")
+
+    def process_result_value(self, value: typing.Any, dialect: Any) -> QuestionOptions | None:
+        if value is None:
+            return None
+        return QuestionOptions(**value)  # ty: ignore[missing-argument]
