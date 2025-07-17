@@ -7,6 +7,8 @@ from wtforms import Field
 class MHCLGAccessibleAutocomplete(GovSelect):
     is_accessible_autocomplete: bool = True
 
+    template = "common/fields/accessible-autocomplete.html"
+
     def __call__(self, field: Field, **kwargs: Any) -> Any:
         # Set `data-accessible-autocomplete` on select field, which our JS will pick up and enhance automatically.
         params = kwargs.get("params", {})
