@@ -3,7 +3,7 @@ import uuid
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from sqlalchemy.exc import NoResultFound
 from wtforms import Field
@@ -17,7 +17,6 @@ from app.common.data.interfaces.collections import (
     create_form,
     create_question,
     create_section,
-    create_submission,
     get_collection,
     get_form_by_id,
     get_question_by_id,
@@ -42,7 +41,6 @@ from app.common.data.interfaces.temporary import (
     delete_grant,
     delete_question,
     delete_section,
-    delete_submissions_created_by_user,
 )
 from app.common.data.types import (
     ExpressionType,
@@ -65,6 +63,7 @@ from app.developers.forms import (
     ConditionSelectQuestionForm,
     ConfirmDeletionForm,
 )
+from app.developers.helpers import start_testing_submission
 from app.extensions import auto_commit_after_request
 from app.types import FlashMessageType
 
@@ -131,7 +130,6 @@ def setup_collection(grant_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id)  # TODO: handle collection versioning; this just grabs latest.
-
     form = GenericSubmitForm()
     confirm_deletion_form = ConfirmDeletionForm()
     try:
@@ -145,10 +143,7 @@ def manage_collection(grant_id: UUID, collection_id: UUID) -> ResponseReturnValu
         return redirect(url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id))
 
     if form.validate_on_submit() and form.submit.data:
-        user = interfaces.user.get_current_user()
-        delete_submissions_created_by_user(grant_id=collection.grant_id, created_by_id=user.id)
-        submission = create_submission(collection=collection, created_by=user, mode=SubmissionModeEnum.TEST)
-        return redirect(url_for("developers.deliver.submission_tasklist", submission_id=submission.id))
+        return start_testing_submission(collection)
 
     return render_template(
         "developers/deliver/manage_collection.html",
@@ -314,17 +309,14 @@ def move_form(
 def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, with_all_questions=True)
 
-    form = ConfirmDeletionForm()
-    if "delete" in request.args and form.validate_on_submit() and form.confirm_deletion.data:
+    delete_wt_form = ConfirmDeletionForm()
+    if "delete" in request.args and delete_wt_form.validate_on_submit() and delete_wt_form.confirm_deletion.data:
         delete_form(db_form)
-        # TODO: Flash message for deletion?
-        return redirect(
-            url_for(
-                "developers.deliver.manage_collection",
-                grant_id=grant_id,
-                collection_id=collection_id,
-            )
-        )
+        return redirect(url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id))
+
+    form = GenericSubmitForm()
+    if form.validate_on_submit() and form.submit.data:
+        return start_testing_submission(db_form.section.collection, form=db_form)
 
     return render_template(
         "developers/deliver/manage_form.html",
@@ -332,7 +324,8 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
         section=db_form.section,
         collection=db_form.section.collection,
         db_form=db_form,
-        form=form if "delete" in request.args else None,
+        form=form,
+        delete_form="delete" in request.args and delete_wt_form,
     )
 
 
@@ -886,6 +879,15 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
 
     if runner.tasklist_form.validate_on_submit():
         if runner.complete_submission(interfaces.user.get_current_user()):
+            if runner.submission.is_test:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.return_from_test_submission",
+                        collection_id=runner.submission.collection.id,
+                        finished=1,
+                    )
+                )
+
             return redirect(
                 url_for(
                     "developers.deliver.manage_collection",
@@ -932,6 +934,15 @@ def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValu
 
     if runner.check_your_answers_form.validate_on_submit():
         if runner.save_is_form_completed(interfaces.user.get_current_user()):
+            if form_id == session.get("test_submission_form_id", None):
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.return_from_test_submission",
+                        collection_id=runner.submission.collection.id,
+                        finished=1,
+                    )
+                )
+
             return redirect(runner.next_url)
 
     return render_template("developers/deliver/check_your_answers.html", runner=runner)

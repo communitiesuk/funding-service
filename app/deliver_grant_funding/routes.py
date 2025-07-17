@@ -9,6 +9,7 @@ from wtforms.fields.core import Field
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_grant_role, is_mhclg_user, is_platform_admin
 from app.common.data import interfaces
+from app.common.data.interfaces.collections import get_collection, get_form_by_id
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.types import RoleEnum
 from app.common.forms import GenericSubmitForm
@@ -22,6 +23,7 @@ from app.deliver_grant_funding.forms import (
 )
 from app.deliver_grant_funding.session_models import GrantSetupSession
 from app.extensions import auto_commit_after_request, notification_service
+from app.types import FlashMessageType
 
 deliver_grant_funding_blueprint = Blueprint(name="deliver_grant_funding", import_name=__name__)
 
@@ -342,4 +344,32 @@ def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
         form=form,
         back_link_href=url_for("deliver_grant_funding.grant_details", grant_id=grant_id),
         grant=grant,
+    )
+
+
+@deliver_grant_funding_blueprint.get("/_internal/redirect-after-test-submission/<uuid:collection_id>")
+def return_from_test_submission(collection_id: UUID) -> ResponseReturnValue:
+    finished = "finished" in request.args
+
+    if form_id := session.pop("test_submission_form_id", None):
+        if finished:
+            flash("You’ve been returned to the form builder", FlashMessageType.SUBMISSION_TESTING_COMPLETE.value)
+
+        form = get_form_by_id(form_id)
+        return redirect(
+            url_for(
+                "developers.deliver.manage_form",
+                grant_id=form.section.collection.grant.id,
+                collection_id=form.section.collection.id,
+                section_id=form.section.id,
+                form_id=form_id,
+            )
+        )
+
+    if finished:
+        flash("You’ve been returned to the form builder", FlashMessageType.SUBMISSION_TESTING_COMPLETE.value)
+
+    collection = get_collection(collection_id)
+    return redirect(
+        url_for("developers.deliver.manage_collection", grant_id=collection.grant.id, collection_id=collection.id)
     )

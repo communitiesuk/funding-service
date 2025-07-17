@@ -14,6 +14,7 @@ NOT_PROVIDED = TNotProvided.token
 
 class FlashMessageType(Enum):
     DEPENDENCY_ORDER_ERROR = "dependency_order_error"
+    SUBMISSION_TESTING_COMPLETE = "submission_testing_complete"
 
 
 TRadioItem = TypedDict("TRadioItem", {"key": str, "label": str})
