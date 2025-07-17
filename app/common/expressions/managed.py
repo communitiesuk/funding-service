@@ -360,8 +360,15 @@ class Between(ManagedExpression):
         )
 
 
+class BaseDataSourceManagedExpression(ManagedExpression):
+    @property
+    @abc.abstractmethod  # todo: decorator does nothing here because ABCMeta cant be used
+    def referenced_data_source_items(self) -> list["TRadioItem"]:
+        raise NotImplementedError
+
+
 @register_managed_expression
-class AnyOf(ManagedExpression):
+class AnyOf(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.ANY_OF
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
@@ -420,6 +427,10 @@ class AnyOf(ManagedExpression):
             question_id=question.id,
             items=items,  # ty: ignore[unresolved-attribute]
         )
+
+    @property
+    def referenced_data_source_items(self) -> list["TRadioItem"]:
+        return self.items
 
 
 @register_managed_expression
