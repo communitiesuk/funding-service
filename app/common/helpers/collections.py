@@ -15,13 +15,12 @@ from app.common.collections.types import (
     NOT_ASKED,
     AllAnswerTypes,
     EmailAnswer,
-    Integer,
-    SingleChoiceFromList,
-    SubmissionAnswerRootModel,
-    TextMultiLine,
-    TextSingleLine,
+    IntegerAnswer,
+    SingleChoiceFromListAnswer,
+    TextMultiLineAnswer,
+    TextSingleLineAnswer,
     UrlAnswer,
-    YesNo,
+    YesNoAnswer,
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_submission
@@ -267,9 +266,7 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
-    def get_answer_for_question(
-        self, question_id: UUID
-    ) -> SubmissionAnswerRootModel[Any] | SingleChoiceFromList | None:
+    def get_answer_for_question(self, question_id: UUID) -> AllAnswerTypes | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
@@ -418,16 +415,16 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
 
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE | QuestionDataType.EMAIL | QuestionDataType.URL:
-            return TextSingleLine(answer)
+            return TextSingleLineAnswer(answer)  # ty: ignore[missing-argument]
         case QuestionDataType.TEXT_MULTI_LINE:
-            return TextMultiLine(answer)
+            return TextMultiLineAnswer(answer)  # ty: ignore[missing-argument]
         case QuestionDataType.INTEGER:
-            return Integer(answer)
+            return IntegerAnswer(answer)  # ty: ignore[missing-argument]
         case QuestionDataType.YES_NO:
-            return YesNo(answer)  # ty: ignore[missing-argument]
+            return YesNoAnswer(answer)  # ty: ignore[missing-argument]
         case QuestionDataType.RADIOS:
             label = next(item.label for item in question.data_source.items if item.key == answer)
-            return SingleChoiceFromList(key=answer, label=label)
+            return SingleChoiceFromListAnswer(key=answer, label=label)
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
@@ -435,18 +432,18 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
 def _deserialise_question_type(question: "Question", serialised_data: str | int | float | bool) -> AllAnswerTypes:
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
-            return TypeAdapter(TextSingleLine).validate_python(serialised_data)
+            return TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)
         case QuestionDataType.URL:
             return TypeAdapter(UrlAnswer).validate_python(serialised_data)
         case QuestionDataType.EMAIL:
             return TypeAdapter(EmailAnswer).validate_python(serialised_data)
         case QuestionDataType.TEXT_MULTI_LINE:
-            return TypeAdapter(TextMultiLine).validate_python(serialised_data)
+            return TypeAdapter(TextMultiLineAnswer).validate_python(serialised_data)
         case QuestionDataType.INTEGER:
-            return TypeAdapter(Integer).validate_python(serialised_data)
+            return TypeAdapter(IntegerAnswer).validate_python(serialised_data)
         case QuestionDataType.YES_NO:
-            return TypeAdapter(YesNo).validate_python(serialised_data)
+            return TypeAdapter(YesNoAnswer).validate_python(serialised_data)
         case QuestionDataType.RADIOS:
-            return TypeAdapter(SingleChoiceFromList).validate_python(serialised_data)
+            return TypeAdapter(SingleChoiceFromListAnswer).validate_python(serialised_data)
 
     raise ValueError(f"Could not deserialise data for question type={question.data_type}")

@@ -6,7 +6,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.common.collections.types import SingleChoiceFromList, SubmissionAnswerRootModel
+from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
@@ -80,9 +80,7 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
     return collection
 
 
-def update_submission_data(
-    submission: Submission, question: Question, data: SubmissionAnswerRootModel[Any] | SingleChoiceFromList
-) -> Submission:
+def update_submission_data(submission: Submission, question: Question, data: AllAnswerTypes) -> Submission:
     submission.data[str(question.id)] = data.get_value_for_submission()
     db.session.flush()
     return submission

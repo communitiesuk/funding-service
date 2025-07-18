@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from app.common.collections.runner import FormRunner
-from app.common.collections.types import TextSingleLine
+from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.types import FormRunnerState, QuestionDataType
 from app.common.helpers.collections import SubmissionHelper
 
@@ -33,7 +33,7 @@ class TestFormRunner:
         question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         submission = factories.submission.build(
             collection=question.form.section.collection,
-            data={str(question.id): TextSingleLine("An answer").get_value_for_submission()},
+            data={str(question.id): TextSingleLineAnswer("An answer").get_value_for_submission()},
         )
         helper = SubmissionHelper(submission)
 

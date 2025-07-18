@@ -1,4 +1,5 @@
-from typing import Any, Protocol, cast, Union
+import abc
+from typing import Any, Protocol, Union, cast
 
 from pydantic import BaseModel, RootModel
 
@@ -6,8 +7,10 @@ NOT_ASKED = "NOT_ASKED"
 
 
 class SubmissionAnswerProtocol(Protocol):
-    # We have to underscore this because of the composition with pydantic's base model meta class
-    # pydantic models don't let you have non-underscores properties defined outright on classes.
+    # All classes in this module must implement this protocol. For now, we can't tie this up to type hinting nicely -
+    # waiting on Python to support type intersections so that we say that all answers must be BaseModel &
+    # AnswerProtocol. So for now - developers will need to manually keep this lined up.
+
     _render_answer_template: str
 
     def get_value_for_submission(self) -> Any: ...
@@ -34,9 +37,30 @@ class SubmissionAnswerRootModel[T](RootModel[T]):
         return str(self.root)
 
 
-TextSingleLine = SubmissionAnswerRootModel[str]
-TextMultiLine = SubmissionAnswerRootModel[str]
-Integer = SubmissionAnswerRootModel[int]
+class SubmissionAnswerBaseModel(BaseModel, abc.ABC):
+    @property
+    @abc.abstractmethod
+    def _render_answer_template(self) -> str: ...
+    @abc.abstractmethod
+    def get_value_for_submission(self) -> Any: ...
+    @abc.abstractmethod
+    def get_value_for_form(self) -> Any: ...
+    @abc.abstractmethod
+    def get_value_for_expression(self) -> Any: ...
+    @abc.abstractmethod
+    def get_value_for_text_export(self) -> str: ...
+
+
+class TextSingleLineAnswer(SubmissionAnswerRootModel[str]):
+    pass
+
+
+class TextMultiLineAnswer(SubmissionAnswerRootModel[str]):
+    pass
+
+
+class IntegerAnswer(SubmissionAnswerRootModel[int]):
+    pass
 
 
 class EmailAnswer(SubmissionAnswerRootModel[str]):
@@ -44,38 +68,14 @@ class EmailAnswer(SubmissionAnswerRootModel[str]):
     def _render_answer_template(self) -> str:
         return "common/partials/answers/email.html"
 
-    def get_value_for_submission(self) -> str:
-        return cast(str, self.model_dump(mode="json"))
-
-    def get_value_for_form(self) -> str:
-        return self.root
-
-    def get_value_for_expression(self) -> str:
-        return self.root
-
-    def get_value_for_text_export(self) -> str:
-        return self.root
-
 
 class UrlAnswer(SubmissionAnswerRootModel[str]):
     @property
     def _render_answer_template(self) -> str:
         return "common/partials/answers/url.html"
 
-    def get_value_for_submission(self) -> str:
-        return cast(str, self.model_dump(mode="json"))
 
-    def get_value_for_form(self) -> str:
-        return self.root
-
-    def get_value_for_expression(self) -> str:
-        return self.root
-
-    def get_value_for_text_export(self) -> str:
-        return self.root
-
-
-class YesNo(SubmissionAnswerRootModel[bool]):
+class YesNoAnswer(SubmissionAnswerRootModel[bool]):
     @property
     def _render_answer_template(self) -> str:
         return "common/partials/answers/yes_no.html"
@@ -83,17 +83,11 @@ class YesNo(SubmissionAnswerRootModel[bool]):
     def get_value_for_submission(self) -> bool:
         return cast(bool, self.model_dump(mode="json"))
 
-    def get_value_for_form(self) -> bool:
-        return self.root
-
-    def get_value_for_expression(self) -> bool:
-        return self.root
-
     def get_value_for_text_export(self) -> str:
         return "Yes" if self.root else "No"
 
 
-class SingleChoiceFromList(BaseModel):
+class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):
     key: str
     label: str
 
@@ -115,5 +109,11 @@ class SingleChoiceFromList(BaseModel):
 
 
 AllAnswerTypes = Union[
-    TextSingleLine | TextMultiLine | Integer | EmailAnswer | UrlAnswer | YesNo | SingleChoiceFromList
+    TextSingleLineAnswer
+    | TextMultiLineAnswer
+    | IntegerAnswer
+    | EmailAnswer
+    | UrlAnswer
+    | YesNoAnswer
+    | SingleChoiceFromListAnswer
 ]
