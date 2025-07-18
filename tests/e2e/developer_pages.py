@@ -675,7 +675,7 @@ class CheckYourAnswersPage(GrantDevelopersBasePage):
             heading=page.get_by_role("heading", name="Check your answers"),
         )
         self.save_and_continue_button = page.get_by_role("button", name="Save and continue")
-        self.mark_as_complete_yes = page.get_by_role("radio", name="Yes, I’ve completed this section")
+        self.mark_as_complete_yes = page.get_by_role("radio", name="Yes, I’ve completed this task")
 
     def click_mark_as_complete_yes(self) -> None:
         self.mark_as_complete_yes.click()
