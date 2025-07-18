@@ -222,7 +222,7 @@ def test_create_and_preview_collection(
                 question["question_responses"][-1].answer
             )
 
-        expect(check_your_answers.page.get_by_text("Have you completed this section?", exact=True)).to_be_visible()
+        expect(check_your_answers.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
 
         check_your_answers.click_mark_as_complete_yes()
         tasklist_page = check_your_answers.click_save_and_continue(collection_name=new_collection_name)
