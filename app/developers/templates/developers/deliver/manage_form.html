@@ -21,17 +21,16 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% with errors = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
-        {% if errors %}
-          {{ govukNotificationBanner(params={"titleText": "Testing complete", "text": errors[0]}) }}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
+        {% if flashes %}
+          {{ govukNotificationBanner(params={"titleText": "Testing complete", "text": flashes[0]}) }}
         {% endif %}
         {% set errors = None %}
       {% endwith %}
 
-      {% with errors = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
-        {% if errors %}
-          {% set error = errors[0] %}
-          {{ dependency_banner(error, grant.id, collection.id, section.id, db_form.id) }}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
+        {% if flashes %}
+          {{ dependency_banner(flashes[0], grant.id, collection.id, section.id, db_form.id) }}
         {% endif %}
       {% endwith %}
 
