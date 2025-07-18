@@ -20,7 +20,7 @@ jobs:
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
     - name: Install the latest version of uv
-      uses: astral-sh/setup-uv@05273c154d09957eb9a2377d9c988fbda431d1c5 # v6
+      uses: astral-sh/setup-uv@7edac99f961f18b581bbd960d59d049f04c0002f # v6
       with:
         enable-cache: true
     - name: Check DB is up to date
@@ -47,7 +47,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@05273c154d09957eb9a2377d9c988fbda431d1c5 # v6
+        uses: astral-sh/setup-uv@7edac99f961f18b581bbd960d59d049f04c0002f # v6
         with:
           enable-cache: true
       - name: install dependencies
@@ -67,7 +67,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@05273c154d09957eb9a2377d9c988fbda431d1c5 # v6
+        uses: astral-sh/setup-uv@7edac99f961f18b581bbd960d59d049f04c0002f # v6
         with:
           enable-cache: true
       - name: run type checking
@@ -79,7 +79,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@05273c154d09957eb9a2377d9c988fbda431d1c5 # v6
+        uses: astral-sh/setup-uv@7edac99f961f18b581bbd960d59d049f04c0002f # v6
         with:
           enable-cache: true
       - name: run type checking
@@ -109,7 +109,7 @@ jobs:
       - name: checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@05273c154d09957eb9a2377d9c988fbda431d1c5 # v6
+        uses: astral-sh/setup-uv@7edac99f961f18b581bbd960d59d049f04c0002f # v6
         with:
           enable-cache: true
       - name: install dependencies
