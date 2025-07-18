@@ -3,7 +3,7 @@ import uuid
 import pytest
 from sqlalchemy.exc import NoResultFound
 
-from app.common.collections.types import TextSingleLine
+from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.collections import (
     DependencyOrderException,
     add_question_condition,
@@ -535,7 +535,7 @@ def test_update_submission_data(db_session, factories):
 
     assert str(question.id) not in submission.data
 
-    data = TextSingleLine("User submitted data")
+    data = TextSingleLineAnswer("User submitted data")
     updated_submission = update_submission_data(submission, question, data)
 
     assert updated_submission.data[str(question.id)] == "User submitted data"

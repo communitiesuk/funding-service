@@ -6,7 +6,14 @@ import pytest
 from immutabledict import immutabledict
 
 from app.common.collections.forms import build_question_form
-from app.common.collections.types import NOT_ASKED, Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine, YesNo
+from app.common.collections.types import (
+    NOT_ASKED,
+    IntegerAnswer,
+    SingleChoiceFromListAnswer,
+    TextMultiLineAnswer,
+    TextSingleLineAnswer,
+    YesNoAnswer,
+)
 from app.common.data import interfaces
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum, TasklistTaskStatusEnum
 from app.common.expressions import ExpressionContext
@@ -34,7 +41,7 @@ class TestSubmissionHelper:
             )
             helper.submit_answer_for_question(question.id, form)
 
-            assert helper.get_answer_for_question(question.id) == TextSingleLine("User submitted data")
+            assert helper.get_answer_for_question(question.id) == TextSingleLineAnswer("User submitted data")
 
         def test_get_data_maps_type(self, db_session, factories):
             question = factories.question.build(
@@ -46,7 +53,7 @@ class TestSubmissionHelper:
             form = build_question_form(question, expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=5)
             helper.submit_answer_for_question(question.id, form)
 
-            assert helper.get_answer_for_question(question.id) == Integer(5)
+            assert helper.get_answer_for_question(question.id) == IntegerAnswer(5)
 
         def test_can_get_falsey_answers(self, db_session, factories):
             question = factories.question.build(
@@ -58,7 +65,7 @@ class TestSubmissionHelper:
             form = build_question_form(question, expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=0)
             helper.submit_answer_for_question(question.id, form)
 
-            assert helper.get_answer_for_question(question.id) == Integer(0)
+            assert helper.get_answer_for_question(question.id) == IntegerAnswer(0)
 
         def test_cannot_submit_answer_on_submitted_submission(self, db_session, factories):
             question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
@@ -133,13 +140,13 @@ class TestSubmissionHelper:
             submission = factories.submission.build(
                 collection=form.section.collection,
                 data={
-                    str(q1.id): TextSingleLine("answer").get_value_for_submission(),
-                    str(q2.id): TextMultiLine("answer\nthis").get_value_for_submission(),
-                    str(q3.id): Integer(50).get_value_for_submission(),
-                    str(q4.id): YesNo(True).get_value_for_submission(),  # ty: ignore[missing-argument]
-                    str(q5.id): SingleChoiceFromList(key="my-key", label="My label").get_value_for_submission(),
-                    str(q6.id): TextSingleLine("name@example.com").get_value_for_submission(),
-                    str(q7.id): TextSingleLine("https://example.com").get_value_for_submission(),
+                    str(q1.id): TextSingleLineAnswer("answer").get_value_for_submission(),
+                    str(q2.id): TextMultiLineAnswer("answer\nthis").get_value_for_submission(),
+                    str(q3.id): IntegerAnswer(50).get_value_for_submission(),
+                    str(q4.id): YesNoAnswer(True).get_value_for_submission(),  # ty: ignore[missing-argument]
+                    str(q5.id): SingleChoiceFromListAnswer(key="my-key", label="My label").get_value_for_submission(),
+                    str(q6.id): TextSingleLineAnswer("name@example.com").get_value_for_submission(),
+                    str(q7.id): TextSingleLineAnswer("https://example.com").get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -208,13 +215,13 @@ class TestSubmissionHelper:
             submission = factories.submission.build(
                 collection=form.section.collection,
                 data={
-                    str(q1.id): TextSingleLine("answer").get_value_for_submission(),
-                    str(q2.id): TextMultiLine("answer\nthis").get_value_for_submission(),
-                    str(q3.id): Integer(50).get_value_for_submission(),
-                    str(q4.id): YesNo(True).get_value_for_submission(),  # ty: ignore[missing-argument]
-                    str(q5.id): SingleChoiceFromList(key="my-key", label="My label").get_value_for_submission(),
-                    str(q6.id): TextSingleLine("name@example.com").get_value_for_submission(),
-                    str(q7.id): TextSingleLine("https://example.com").get_value_for_submission(),
+                    str(q1.id): TextSingleLineAnswer("answer").get_value_for_submission(),
+                    str(q2.id): TextMultiLineAnswer("answer\nthis").get_value_for_submission(),
+                    str(q3.id): IntegerAnswer(50).get_value_for_submission(),
+                    str(q4.id): YesNoAnswer(True).get_value_for_submission(),  # ty: ignore[missing-argument]
+                    str(q5.id): SingleChoiceFromListAnswer(key="my-key", label="My label").get_value_for_submission(),
+                    str(q6.id): TextSingleLineAnswer("name@example.com").get_value_for_submission(),
+                    str(q7.id): TextSingleLineAnswer("https://example.com").get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)

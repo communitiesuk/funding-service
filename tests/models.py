@@ -19,7 +19,13 @@ import faker
 from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 
-from app.common.collections.types import Integer, SingleChoiceFromList, TextMultiLine, TextSingleLine, YesNo
+from app.common.collections.types import (
+    IntegerAnswer,
+    SingleChoiceFromListAnswer,
+    TextMultiLineAnswer,
+    TextSingleLineAnswer,
+    YesNoAnswer,
+)
 from app.common.data.models import (
     Collection,
     DataSource,
@@ -177,12 +183,12 @@ class _CollectionFactory(SQLAlchemyModelFactory):
 
         def _create_submission(mode: SubmissionModeEnum, complete_question_2: bool = False) -> None:
             response_data: dict[str, Any] = {
-                str(q1.id): Integer(40 if complete_question_2 else 20).get_value_for_submission()
+                str(q1.id): IntegerAnswer(40 if complete_question_2 else 20).get_value_for_submission()  # ty: ignore[missing-argument]
             }
             if complete_question_2:
-                response_data[str(q2.id)] = Integer(80).get_value_for_submission()
+                response_data[str(q2.id)] = IntegerAnswer(80).get_value_for_submission()  # ty: ignore[missing-argument]
 
-            response_data[str(q3.id)] = TextSingleLine("digestive").get_value_for_submission()
+            response_data[str(q3.id)] = TextSingleLineAnswer("digestive").get_value_for_submission()  # ty: ignore[missing-argument]
 
             _SubmissionFactory.create(
                 collection=obj,
@@ -252,27 +258,27 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     collection=obj,
                     mode=submission_mode,
                     data={
-                        str(q1.id): TextSingleLine(
+                        str(q1.id): TextSingleLineAnswer(  # ty: ignore[missing-argument]
                             faker.Faker().name() if use_random_data else "test name"
                         ).get_value_for_submission(),
-                        str(q2.id): TextMultiLine(
+                        str(q2.id): TextMultiLineAnswer(  # ty: ignore[missing-argument]
                             "\r\n".join(faker.Faker().sentences(nb=3))
                             if use_random_data
                             else "Line 1\r\nline2\r\nline 3"
                         ).get_value_for_submission(),
-                        str(q3.id): Integer(
+                        str(q3.id): IntegerAnswer(  # ty: ignore[missing-argument]
                             faker.Faker().random_number(2) if use_random_data else 123
                         ).get_value_for_submission(),
-                        str(q4.id): SingleChoiceFromList(
+                        str(q4.id): SingleChoiceFromListAnswer(  # ty: ignore[missing-argument]
                             key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
                         ).get_value_for_submission(),
-                        str(q5.id): YesNo(
+                        str(q5.id): YesNoAnswer(  # ty: ignore[missing-argument]
                             random.choice([True, False]) if use_random_data else True
                         ).get_value_for_submission(),  # ty: ignore[missing-argument]
-                        str(q6.id): TextSingleLine(
+                        str(q6.id): TextSingleLineAnswer(  # ty: ignore[missing-argument]
                             faker.Faker().email() if use_random_data else "test@email.com"
                         ).get_value_for_submission(),
-                        str(q7.id): TextSingleLine(
+                        str(q7.id): TextSingleLineAnswer(  # ty: ignore[missing-argument]
                             faker.Faker().url()
                             if use_random_data
                             else "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government"
