@@ -14,6 +14,7 @@ NOT_PROVIDED = TNotProvided.token
 
 class FlashMessageType(StrEnum):
     DEPENDENCY_ORDER_ERROR = "dependency_order_error"
+    DATA_SOURCE_ITEM_DEPENDENCY_ERROR = "data_source_item_dependency_error"
     SUBMISSION_TESTING_COMPLETE = "submission_testing_complete"
     QUESTION_CREATED = "question_created"
 
