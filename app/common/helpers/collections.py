@@ -13,11 +13,14 @@ from pydantic import TypeAdapter
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.collections.types import (
     NOT_ASKED,
+    AllAnswerTypes,
+    EmailAnswer,
     Integer,
     SingleChoiceFromList,
     SubmissionAnswerRootModel,
     TextMultiLine,
     TextSingleLine,
+    UrlAnswer,
     YesNo,
 )
 from app.common.data import interfaces
@@ -190,9 +193,7 @@ class SubmissionHelper:
         """Returns the visible, ordered sections based upon the current state of this submission."""
         return sorted(self.sections, key=lambda s: s.order)
 
-    def get_all_questions_are_answered_for_form(
-        self, form: "Form"
-    ) -> tuple[bool, list[TextSingleLine | TextMultiLine | Integer | YesNo | SingleChoiceFromList]]:
+    def get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
         visible_questions = self.get_ordered_visible_questions_for_form(form)
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
         return len(visible_questions) == len(answers), answers
@@ -410,9 +411,7 @@ class CollectionHelper:
         return csv_output.getvalue()
 
 
-def _form_data_to_question_type(
-    question: "Question", form: DynamicQuestionForm
-) -> TextSingleLine | TextMultiLine | Integer | YesNo | SingleChoiceFromList:
+def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm) -> AllAnswerTypes:
     _QuestionModel: type[PydanticBaseModel]
 
     answer = form.get_answer_to_question(question)
@@ -433,12 +432,14 @@ def _form_data_to_question_type(
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
 
-def _deserialise_question_type(
-    question: "Question", serialised_data: str | int | float | bool
-) -> TextSingleLine | TextMultiLine | Integer | YesNo | SingleChoiceFromList:
+def _deserialise_question_type(question: "Question", serialised_data: str | int | float | bool) -> AllAnswerTypes:
     match question.data_type:
-        case QuestionDataType.TEXT_SINGLE_LINE | QuestionDataType.EMAIL | QuestionDataType.URL:
+        case QuestionDataType.TEXT_SINGLE_LINE:
             return TypeAdapter(TextSingleLine).validate_python(serialised_data)
+        case QuestionDataType.URL:
+            return TypeAdapter(UrlAnswer).validate_python(serialised_data)
+        case QuestionDataType.EMAIL:
+            return TypeAdapter(EmailAnswer).validate_python(serialised_data)
         case QuestionDataType.TEXT_MULTI_LINE:
             return TypeAdapter(TextMultiLine).validate_python(serialised_data)
         case QuestionDataType.INTEGER:

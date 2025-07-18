@@ -1,4 +1,4 @@
-from typing import Any, Protocol, cast
+from typing import Any, Protocol, cast, Union
 
 from pydantic import BaseModel, RootModel
 
@@ -39,6 +39,42 @@ TextMultiLine = SubmissionAnswerRootModel[str]
 Integer = SubmissionAnswerRootModel[int]
 
 
+class EmailAnswer(SubmissionAnswerRootModel[str]):
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/email.html"
+
+    def get_value_for_submission(self) -> str:
+        return cast(str, self.model_dump(mode="json"))
+
+    def get_value_for_form(self) -> str:
+        return self.root
+
+    def get_value_for_expression(self) -> str:
+        return self.root
+
+    def get_value_for_text_export(self) -> str:
+        return self.root
+
+
+class UrlAnswer(SubmissionAnswerRootModel[str]):
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/url.html"
+
+    def get_value_for_submission(self) -> str:
+        return cast(str, self.model_dump(mode="json"))
+
+    def get_value_for_form(self) -> str:
+        return self.root
+
+    def get_value_for_expression(self) -> str:
+        return self.root
+
+    def get_value_for_text_export(self) -> str:
+        return self.root
+
+
 class YesNo(SubmissionAnswerRootModel[bool]):
     @property
     def _render_answer_template(self) -> str:
@@ -76,3 +112,8 @@ class SingleChoiceFromList(BaseModel):
 
     def get_value_for_text_export(self) -> str:
         return self.label
+
+
+AllAnswerTypes = Union[
+    TextSingleLine | TextMultiLine | Integer | EmailAnswer | UrlAnswer | YesNo | SingleChoiceFromList
+]
