@@ -489,29 +489,33 @@ class TestCollectionHelper:
             "[Export test form] Tea bag pack size",
             "[Export test form] Favourite dunking biscuit",
         ]
-        line1 = next(reader)
-        submission_ref = line1["Submission reference"]
-        s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
-        assert line1["Created by"] == s_helper.created_by_email
-        assert line1["Created time UTC"] == s_helper.created_at_utc.isoformat()
-        assert line1["[Export test form] Number of cups of tea"] == "40"
-        assert line1["[Export test form] Tea bag pack size"] == "80"
-        assert line1["[Export test form] Favourite dunking biscuit"] == "digestive"
-
-        line2 = next(reader)
-        submission_ref = line2["Submission reference"]
-        s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
-        assert line2["Created by"] == s_helper.created_by_email
-        assert line2["Created time UTC"] == s_helper.created_at_utc.isoformat()
-        assert line2["[Export test form] Number of cups of tea"] == "20"
-        assert line2["[Export test form] Tea bag pack size"] == "NOT_ASKED"
-        assert line2["[Export test form] Favourite dunking biscuit"] == "digestive"
+        for _ in range(2):
+            line = next(reader)
+            submission_ref = line["Submission reference"]
+            s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+            assert line["Created by"] == s_helper.created_by_email
+            assert line["Created time UTC"] == s_helper.created_at_utc.isoformat()
+            number_of_cups_of_tea = line["[Export test form] Number of cups of tea"]
+            if number_of_cups_of_tea == "40":
+                assert line["[Export test form] Tea bag pack size"] == "80"
+            elif number_of_cups_of_tea == "20":
+                assert line["[Export test form] Tea bag pack size"] == NOT_ASKED
+            else:
+                pytest.fail("Unexpected number of cups of tea value: {number_of_cups_of_tea}")
+            assert line["[Export test form] Favourite dunking biscuit"] == "digestive"
 
     def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
         c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        dependant_question_id = collection.sections[0].forms[0].questions[0].id
         conditional_question_id = collection.sections[0].forms[0].questions[1].id
-        submission = c_helper.submissions[1]
+        # Find the submission where question 2 is not expected to be answered it and store some data as though it has
+        # previously been answered
+        submission = next(
+            helper.submission
+            for _, helper in c_helper.submission_helpers.items()
+            if helper.get_answer_for_question(dependant_question_id).get_value_for_text_export() == "20"
+        )
         submission.data[str(conditional_question_id)] = 120
         csv_content = c_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
@@ -524,13 +528,17 @@ class TestCollectionHelper:
             "[Export test form] Tea bag pack size",
             "[Export test form] Favourite dunking biscuit",
         ]
-        line1 = next(reader)
-        assert line1["[Export test form] Tea bag pack size"] == "80"
-
-        # Check that the second submission says NOT_ASKED for question 2 because based on the value of question 1
-        # it should not be visible
-        line2 = next(reader)
-        assert line2["[Export test form] Tea bag pack size"] == NOT_ASKED
+        for _ in range(2):
+            line = next(reader)
+            number_of_cups_of_tea = line["[Export test form] Number of cups of tea"]
+            # Check that one submission says NOT_ASKED for question 2 because based on the value of question 1
+            # it should not be visible
+            if number_of_cups_of_tea == "40":
+                assert line["[Export test form] Tea bag pack size"] == "80"
+            elif number_of_cups_of_tea == "20":
+                assert line["[Export test form] Tea bag pack size"] == NOT_ASKED
+            else:
+                pytest.fail("Unexpected number of cups of tea value: {number_of_cups_of_tea}")
 
     def test_all_question_types_appear_correctly_in_csv_row(self, factories):
         factories.data_source_item.reset_sequence()

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 from uuid import UUID
 
 from immutabledict import immutabledict
@@ -345,6 +345,11 @@ class SubmissionHelper:
 
 
 class CollectionHelper:
+    collection: "Collection"
+    submission_mode: SubmissionModeEnum
+    submissions: List["Submission"]
+    submission_helpers: dict[UUID, SubmissionHelper]
+
     def __init__(self, collection: "Collection", submission_mode: SubmissionModeEnum):
         self.collection = collection
         self.submission_mode = submission_mode

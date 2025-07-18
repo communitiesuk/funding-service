@@ -263,17 +263,17 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         def _create_submission(mode: SubmissionModeEnum, count: int = 0) -> None:
             for _ in range(count):
                 response_data: dict[str, Any] = {
-                    str(q1.id): Integer(faker.Faker().random_int(min=0, max=60)).get_value_for_submission()
+                    str(q1.id): IntegerAnswer(faker.Faker().random_int(min=0, max=60)).get_value_for_submission()  # ty: ignore[missing-argument]
                 }
-                response_data[str(q2.id)] = YesNo(random.choice([True, False])).get_value_for_submission()
+                response_data[str(q2.id)] = YesNoAnswer(random.choice([True, False])).get_value_for_submission()  # ty: ignore[missing-argument]
 
-                response_data[str(q3.id)] = TextSingleLine(faker.Faker().word()).get_value_for_submission()
+                response_data[str(q3.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()  # ty: ignore[missing-argument]
                 item_choice = faker.Faker().random_int(min=0, max=2)
-                response_data[str(q4.id)] = SingleChoiceFromList(
+                response_data[str(q4.id)] = SingleChoiceFromListAnswer(
                     key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
                 ).get_value_for_submission()
 
-                response_data[str(q5.id)] = TextSingleLine(faker.Faker().word()).get_value_for_submission()
+                response_data[str(q5.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()  # ty: ignore[missing-argument]
 
                 _SubmissionFactory.create(
                     collection=obj,

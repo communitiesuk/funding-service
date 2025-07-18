@@ -105,7 +105,7 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
             .selectinload(Section.forms)
             .selectinload(Form.questions)
             .selectinload(Question.expressions),
-            joinedload(Submission.events),
+            selectinload(Submission.events),
             joinedload(Submission.created_by),
         )
     ).unique()
