@@ -104,6 +104,44 @@ class TestFormRunner:
         end_of_form = MappedFormRunner(submission=helper, question=second_question, source=None)
         assert end_of_form.validate_can_show_question_page() and end_of_form.next_url == "mock_check_answers_url"
 
+    @pytest.mark.parametrize("source", [FormRunnerState.QUESTION, FormRunnerState.CHECK_YOUR_ANSWERS])
+    def test_next_url_skips_answered_questions_and_always_goes_to_next_unanswered_question(
+        self, factories, app, source
+    ):
+        question = factories.question.build()
+        second_question = factories.question.build(form=question.form)
+        third_question = factories.question.build(form=question.form)
+        submission = factories.submission.build(
+            collection=question.form.section.collection,
+            data={
+                str(second_question.id): TextSingleLineAnswer("hi").get_value_for_submission(),
+            },
+        )
+        helper = SubmissionHelper(submission)
+
+        question_mock = Mock(side_effect=lambda r, q, f, s: f"mock_question_url_{str(q.id)}")
+        check_your_answers_mock = Mock(return_value="mock_check_answers_url")
+
+        class MappedFormRunner(FormRunner):
+            url_map = {
+                FormRunnerState.QUESTION: question_mock,
+                FormRunnerState.CHECK_YOUR_ANSWERS: check_your_answers_mock,
+            }
+
+        runner = MappedFormRunner(submission=helper, question=question, source=source)
+        runner.validate_can_show_question_page()
+        assert runner.next_url == f"mock_question_url_{str(third_question.id)}", (
+            "should skip over 2nd question as it has an answer"
+        )
+
+        runner = MappedFormRunner(submission=helper, question=second_question, source=source)
+        runner.validate_can_show_question_page()
+        assert runner.next_url == f"mock_question_url_{str(third_question.id)}"
+
+        runner = MappedFormRunner(submission=helper, question=third_question, source=source)
+        runner.validate_can_show_question_page()
+        assert runner.next_url == "mock_check_answers_url"
+
     def test_back_url(self, factories):
         question = factories.question.build()
         second_question = factories.question.build(form=question.form)
