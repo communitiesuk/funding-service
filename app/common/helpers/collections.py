@@ -23,7 +23,10 @@ from app.common.collections.types import (
     YesNoAnswer,
 )
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import get_submission
+from app.common.data.interfaces.collections import (
+    get_all_submissions_with_mode_for_collection_with_full_schema,
+    get_submission,
+)
 from app.common.data.models_user import User
 from app.common.data.types import (
     QuestionDataType,
@@ -346,12 +349,7 @@ class CollectionHelper:
         self.collection = collection
         self.submission_mode = submission_mode
         self.submissions = [
-            s
-            for s in (
-                collection.test_submissions
-                if submission_mode == SubmissionModeEnum.TEST
-                else collection.live_submissions
-            )
+            s for s in (get_all_submissions_with_mode_for_collection_with_full_schema(collection.id, submission_mode))
         ]
         self.submission_helpers = {s.id: SubmissionHelper(s) for s in self.submissions}
 

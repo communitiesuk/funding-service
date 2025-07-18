@@ -1,5 +1,6 @@
 import csv
 import uuid
+from datetime import datetime
 from io import StringIO
 
 import pytest
@@ -509,9 +510,9 @@ class TestCollectionHelper:
     def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
         c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        question_id = collection.sections[0].forms[0].questions[1].id
+        conditional_question_id = collection.sections[0].forms[0].questions[1].id
         submission = c_helper.submissions[1]
-        submission.data[str(question_id)] = 120
+        submission.data[str(conditional_question_id)] = 120
         csv_content = c_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
@@ -568,3 +569,81 @@ class TestCollectionHelper:
             "test@email.com",
             "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
         ]
+
+    @pytest.mark.skip(reason="performance")
+    @pytest.mark.parametrize("num_test_submissions", [1, 2, 3, 5, 12, 60, 100, 500])
+    def test_multiple_submission_export_non_conditional(self, factories, track_sql_queries, num_test_submissions):
+        """
+        This test and the one below create a collection with a number of test submissions, then time how long it takes
+        to generate the CSV content for all submissions. It also tracks the number of SQL queries made and their total
+        duration.
+
+        It is skipped as now we have improved the performance of the queries to generate the CSV file, the test doesn't
+        record any queries as everything is already cached by the factory. Leaving it in the code for reference and
+        future use. See 'Seeding for performance testing' in the README for more details.
+        """
+        factory_start = datetime.now()
+        collection = factories.collection.create(
+            create_completed_submissions_each_question_type__test=num_test_submissions
+        )
+        factory_duration = datetime.now() - factory_start
+        # FIXME Can we clear out the session cache here so we actually generate some queries?
+        create_collection_helper_start = datetime.now()
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        create_collection_helper_duration = datetime.now() - create_collection_helper_start
+        with track_sql_queries() as queries:
+            start = datetime.now()
+            c_helper.generate_csv_content_for_all_submissions()
+            end = datetime.now()
+            generate_csv_content_for_all_submissions_duration = end - start
+        total_query_duration = sum(query.duration for query in queries)
+        results = {
+            "num_test_submissions": num_test_submissions,
+            "num_sql_queries": len(queries),
+            "factory_duration": str(factory_duration.total_seconds()),
+            "create_collection_helper_duration": str(create_collection_helper_duration.total_seconds()),
+            "total_query_duration": str(total_query_duration),
+            "generate_csv_content_for_all_submissions_duration": str(
+                generate_csv_content_for_all_submissions_duration.total_seconds()
+            ),
+        }
+        header_string = ",".join(results.keys())
+        print(header_string)
+        result_string = ",".join([str(results.get(header)) for header in header_string.split(",")])
+        print(result_string)
+
+        assert len(queries) == 12
+
+    @pytest.mark.skip(reason="performance")
+    @pytest.mark.parametrize("num_test_submissions", [1, 2, 3, 5, 12, 60, 100, 500])
+    def test_multiple_submission_export_conditional(self, factories, track_sql_queries, num_test_submissions):
+        factory_start = datetime.now()
+        collection = factories.collection.create(
+            create_completed_submissions_conditional_question_random__test=num_test_submissions
+        )
+        factory_duration = datetime.now() - factory_start
+        create_collection_helper_start = datetime.now()
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        create_collection_helper_duration = datetime.now() - create_collection_helper_start
+        with track_sql_queries() as queries:
+            start = datetime.now()
+            c_helper.generate_csv_content_for_all_submissions()
+            end = datetime.now()
+            generate_csv_content_for_all_submissions_duration = end - start
+        total_query_duration = sum(query.duration for query in queries)
+        results = {
+            "num_test_submissions": num_test_submissions,
+            "num_sql_queries": len(queries),
+            "factory_duration": str(factory_duration.total_seconds()),
+            "create_collection_helper_duration": str(create_collection_helper_duration.total_seconds()),
+            "total_query_duration": str(total_query_duration),
+            "generate_csv_content_for_all_submissions_duration": str(
+                generate_csv_content_for_all_submissions_duration.total_seconds()
+            ),
+        }
+        header_string = ",".join(results.keys())
+        print(header_string)
+        result_string = ",".join([str(results.get(header)) for header in header_string.split(",")])
+        print(result_string)
+
+        assert len(queries) == 12

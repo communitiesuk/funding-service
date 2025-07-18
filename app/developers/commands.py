@@ -179,3 +179,43 @@ def seed_grants() -> None:
 
     db.session.commit()
     click.echo(f"Loaded/synced {len(export_data['grants'])} grant(s) into the database.")
+
+
+@developers_blueprint.cli.command(
+    "seed-grants-many-submissions", help="Load grants with 100 random submissions into the database"
+)
+def seed_grants_many_submissions() -> None:
+    """
+    This uses the test factories to seed 100 submissions for each of two test grants - one with conditional questions,
+    and one without. This is useful for testing the performance of the application with a large number of submissions.
+
+    Note: It may fail due to conflicts on the user email in the database, as faker seems to have a fixed set of
+    possible emails and the more there are, the more likely we are to hit a conflict. If this happens, you can clear
+    down your local database and run this command again to create the grants.
+    """
+    from tests.models import _CollectionFactory, _GrantFactory
+
+    grant_names = [
+        "Test Grant with 100 submissions - non-conditional questions",
+        "Test Grant with 100 submissions - conditional questions",
+    ]
+    for name in grant_names:
+        try:
+            grant = db.session.query(Grant).filter(Grant.name == name).one()
+            delete_grant(grant.id)
+            db.session.commit()
+        except NoResultFound:
+            pass
+
+    grant = _GrantFactory.create(name="Test Grant with 100 submissions - non-conditional questions")
+    _CollectionFactory.create(
+        grant=grant,
+        name="Test Collection with 100 submissions",
+        create_completed_submissions_each_question_type__test=100,
+    )
+    grant = _GrantFactory.create(name="Test Grant with 100 submissions - conditional questions")
+    _CollectionFactory.create(
+        grant=grant,
+        name="Test Collection with 100 submissions",
+        create_completed_submissions_conditional_question_random__test=100,
+    )

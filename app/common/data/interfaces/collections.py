@@ -2,7 +2,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, Never, Protocol
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import ScalarResult, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -84,6 +84,31 @@ def update_submission_data(submission: Submission, question: Question, data: All
     submission.data[str(question.id)] = data.get_value_for_submission()
     db.session.flush()
     return submission
+
+
+def get_all_submissions_with_mode_for_collection_with_full_schema(
+    collection_id: UUID, submission_mode: SubmissionModeEnum
+) -> ScalarResult[Submission]:
+    """
+    Use this function to get all submission data for a collection - it
+    loads all the question/expression/user data at once to optimise
+    performance and reduce the number of queries compared to looping
+    through them all individually.
+    """
+    return db.session.scalars(
+        select(Submission)
+        .where(Submission.collection_id == collection_id)
+        .where(Submission.mode == submission_mode)
+        .options(
+            joinedload(Submission.collection)
+            .selectinload(Collection.sections)
+            .selectinload(Section.forms)
+            .selectinload(Form.questions)
+            .selectinload(Question.expressions),
+            joinedload(Submission.events),
+            joinedload(Submission.created_by),
+        )
+    ).unique()
 
 
 def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submission:
