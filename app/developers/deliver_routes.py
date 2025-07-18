@@ -493,6 +493,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
                 if question_data_type_enum == QuestionDataType.RADIOS and wt_form.data_source_items.data is not None
                 else None,
             )
+            flash("Question created", FlashMessageType.QUESTION_CREATED)
             return redirect(
                 url_for(
                     "developers.deliver.edit_question",
