@@ -10,10 +10,9 @@ for transactional isolation.
 import datetime
 import random
 import secrets
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
-import factory
 import factory.fuzzy
 import faker
 from factory.alchemy import SQLAlchemyModelFactory
@@ -41,8 +40,9 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.expressions.managed import GreaterThan
+from app.common.expressions.managed import AnyOf, GreaterThan
 from app.extensions import db
+from app.types import TRadioItem
 
 
 def _required() -> None:
@@ -203,6 +203,87 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         if live:
             _create_submission(SubmissionModeEnum.LIVE, complete_question_2=True)
             _create_submission(SubmissionModeEnum.LIVE, complete_question_2=False)
+
+    @factory.post_generation  # type: ignore
+    def create_completed_submissions_conditional_question_random(  # type: ignore
+        obj: Collection,
+        create,
+        extracted,
+        test: int = 0,
+        live: int = 0,
+        **kwargs,
+    ) -> None:
+        if not live and not test:
+            return
+
+        section = _SectionFactory.create(collection=obj)
+        form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
+
+        # Create a conditional branch of questions
+        q1 = _QuestionFactory.create(
+            name="Number of cups of tea",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="How many cups of tea do you drink in a week?",
+        )
+        q2 = _QuestionFactory.create(
+            name="Buy teabags in bulk",
+            form=form,
+            data_type=QuestionDataType.YES_NO,
+            text="Do you buy teabags in bulk?",
+            expressions=[
+                Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=30), _UserFactory.create())
+            ],
+        )
+        q3 = _QuestionFactory.create(
+            name="Favourite dunking biscuit",
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="What is your favourite biscuit to dunk?",
+        )
+        q4 = _QuestionFactory.create(
+            name="Favourite brand of teabags",
+            form=form,
+            data_type=QuestionDataType.RADIOS,
+            text="What is your favourite brand of teabags?",
+        )
+        q5 = _QuestionFactory.create(
+            name="Favourite brand of teabags (Other)",
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="What is your favourite brand of teabags (Other)?",
+            expressions=[
+                Expression.from_managed(
+                    AnyOf(question_id=q4.id, items=[cast(TRadioItem, ({"key": "other", "label": "Other"}))]),
+                    _UserFactory.create(),
+                )
+            ],
+        )
+
+        def _create_submission(mode: SubmissionModeEnum, count: int = 0) -> None:
+            for _ in range(count):
+                response_data: dict[str, Any] = {
+                    str(q1.id): IntegerAnswer(faker.Faker().random_int(min=0, max=60)).get_value_for_submission()  # ty: ignore[missing-argument]
+                }
+                response_data[str(q2.id)] = YesNoAnswer(random.choice([True, False])).get_value_for_submission()  # ty: ignore[missing-argument]
+
+                response_data[str(q3.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()  # ty: ignore[missing-argument]
+                item_choice = faker.Faker().random_int(min=0, max=2)
+                response_data[str(q4.id)] = SingleChoiceFromListAnswer(
+                    key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
+                ).get_value_for_submission()
+
+                response_data[str(q5.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()  # ty: ignore[missing-argument]
+
+                _SubmissionFactory.create(
+                    collection=obj,
+                    mode=mode,
+                    data=response_data,
+                    status=SubmissionStatusEnum.COMPLETED,
+                )
+
+        _create_submission(SubmissionModeEnum.TEST, test)
+        _create_submission(SubmissionModeEnum.LIVE, live)
 
     @factory.post_generation  # type: ignore
     def create_completed_submissions_each_question_type(  # type: ignore

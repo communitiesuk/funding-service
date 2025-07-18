@@ -101,6 +101,27 @@ uv run flask developers export-grants
 
 Then commit the change, create a PR and get it merged. Developer environments will sync the changes automatically when their app starts up again.
 
+### Seeding for performance testing
+
+If you need a large amount of submissions in a grant to test performance, you can use the
+`seed-grants-many-submissions` command:
+
+```bash
+uv run flask developers seed-grants-many-submissions
+```
+
+This creates 2 grants with 100 submissions each - one with conditional questions, one with one question of each existing type in the database. The responses use the
+`Faker` module to generate random answers.
+
+Using this in conjunction with the flask debug toolbar allows you to see the number and timing of queries for operations in the tool.
+
+For routes that don't result in a template render, eg Export to CSV, hack that route to return any template after generating the csv, and then the flask debug toolbar still shows you the performance data.
+
+The following tests are skipped, but were also developed to help test performance. They are skipped at the moment because the factory setup caches the data, so there are actually no wueries executed when generating the CSV file. TODO: See if we can clear out the session between factory creation and CSV export to stop this happening.
+
+- tests.integration.common.helpers.test_collections::test_multiple_submission_export_non_conditional
+- tests.integration.common.helpers.test_collections::test_multiple_submission_export_conditional
+
 
 # IDE setup
 
