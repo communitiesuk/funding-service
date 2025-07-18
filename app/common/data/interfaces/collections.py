@@ -1,7 +1,8 @@
 import uuid
-from typing import TYPE_CHECKING, Any, Never, Protocol
+from typing import TYPE_CHECKING, Any, Never, Optional, Protocol
 from uuid import UUID
 
+from pydantic import BaseModel
 from sqlalchemy import ScalarResult, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
@@ -341,15 +342,28 @@ def create_question(
 
     return question
 
+# could be extended with things like rows/ columns of question layouts
+# sub-headings between questions, etc.
+# todo: this context system could be extended as a data type -> layout configuration
+#       map so any question type can store its specific configuration and layout options
+class GroupLayoutOptions(BaseModel):
+    is_same_page: bool = False
 
-def create_group(form: Form,  parent_group: Question, *, name: str) -> Question:
+def create_group(form: Form,  parent_group: Question, *, name: str, options: Optional[GroupLayoutOptions] = None) -> Question:
     if form is None and parent_group is None:
         raise ValueError("Specify either form or parent_group")
     
     # todo: you probably want to have a user presentable name for the group (the text)
     #       and a data export name for the group (the name)
     group = Question(
-        text=name, form=form if form else None, parent=parent_group if parent_group else None, slug=slugify(name), name=name, data_type=QuestionDataType.PAGE, type=QuestionType.GROUP
+        text=name,
+        form=form if form else None,
+        parent=parent_group if parent_group else None,
+        slug=slugify(name),
+        name=name,
+        data_type=QuestionDataType.PAGE,
+        type=QuestionType.GROUP,
+        context=options.model_dump(mode="json") if options else {}
     )
     if form:
         form.questions.append(group)  # type: ignore[no-untyped-call]
@@ -363,6 +377,18 @@ def create_group(form: Form,  parent_group: Question, *, name: str) -> Question:
         db.session.rollback()
         raise DuplicateValueError(e) from e
 
+    return group
+
+def update_group(
+    group: Question, *, options: "GroupLayoutOptions"
+) -> Question:
+    group.context = options.model_dump(mode="json") if options else {}
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
     return group
 
 

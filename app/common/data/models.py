@@ -257,6 +257,8 @@ class Question(BaseModel, SafeQidMixin):
         cascade="all, save-update, merge",
     )
 
+    context: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True), default={})  # type: ignore[no-untyped-call]
+
     # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
     expressions: Mapped[list["Expression"]] = relationship(
         "Expression", back_populates="question", cascade="all, delete-orphan", order_by="Expression.created_at_utc"
