@@ -16,6 +16,9 @@
       Depends on the answer to:
       <a class="govuk-notification-banner__link" href="{{ depends_on_link }}">{{ error.depends_on_question_text }}</a>
     </p>
+    {% if "depends_on_items_text" in error %}
+      <p class="govuk-body govuk-!-font-weight-bold">Depends on the options: {{ error.depends_on_items_text }}</p>
+    {% endif %}
   {% endset %}
 
   {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
