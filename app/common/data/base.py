@@ -6,7 +6,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.common.data.types import json_flat_scalars, json_scalars
+from app.common.data.types import QuestionOptions, QuestionOptionsPostgresType, json_flat_scalars, json_scalars
 
 convention = {
     "ix": "ix_%(column_0_label)s",
@@ -25,6 +25,7 @@ class BaseModel(DeclarativeBase):
     type_annotation_map = {
         json_scalars: postgresql.JSONB,
         json_flat_scalars: postgresql.JSONB,
+        QuestionOptions: QuestionOptionsPostgresType,
         CIStr: CITEXT,
     }
 
