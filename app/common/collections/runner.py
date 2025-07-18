@@ -144,12 +144,17 @@ class FormRunner:
         # if we're in the context of a question page, decide if we should go to the next question
         # or back to check your answers based on if the integrity checks pass
         if self.question:
-            if self.source == FormRunnerState.CHECK_YOUR_ANSWERS or not self._valid:
-                # todo: even if we came from check your answers, move to the next question
-                #       if it hasn't been answered
+            if not self._valid:
                 return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
             next_question = self.submission.get_next_question(self.question.id)
+
+            # Regardless of where they're from (eg even check-your-answers), take them to the next unanswered question
+            # this will let users stay in a data-submitting flow if they've changed a conditional answer which has
+            # unlocked more questions.
+            while next_question and self.submission.get_answer_for_question(next_question.id) is not None:
+                next_question = self.submission.get_next_question(next_question.id)
+
             return (
                 self.to_url(FormRunnerState.QUESTION, question=next_question)
                 if next_question
