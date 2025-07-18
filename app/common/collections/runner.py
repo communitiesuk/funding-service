@@ -117,7 +117,7 @@ class FormRunner:
             return True
         except ValueError:
             self.check_your_answers_form.section_completed.errors.append(  # type:ignore[attr-defined]
-                "You must complete all questions before marking this section as complete"
+                "You must complete all questions before marking this task as complete"
             )
             return False
 
@@ -126,7 +126,7 @@ class FormRunner:
             self.submission.submit(user)
             return True
         except ValueError:
-            self._tasklist_form.submit.errors.append("You must complete all forms before submitting the collection")  # type:ignore[attr-defined]
+            self._tasklist_form.submit.errors.append("You must complete all tasks before submitting")  # type:ignore[attr-defined]
             return False
 
     def to_url(

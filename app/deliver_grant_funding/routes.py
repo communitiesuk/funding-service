@@ -353,7 +353,7 @@ def return_from_test_submission(collection_id: UUID) -> ResponseReturnValue:
 
     if form_id := session.pop("test_submission_form_id", None):
         if finished:
-            flash("You’ve been returned to the form builder", FlashMessageType.SUBMISSION_TESTING_COMPLETE.value)
+            flash("You’ve been returned to the task builder", FlashMessageType.SUBMISSION_TESTING_COMPLETE.value)
 
         form = get_form_by_id(form_id)
         return redirect(

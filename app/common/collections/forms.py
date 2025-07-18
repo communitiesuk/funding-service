@@ -192,8 +192,8 @@ def build_question_form(question: Question, expression_context: ExpressionContex
 
 class CheckYourAnswersForm(FlaskForm):
     section_completed = RadioField(
-        "Have you completed this section?",
-        choices=[("yes", "Yes, I’ve completed this section"), ("no", "No, I’ll come back to it later")],
+        "Have you completed this task?",
+        choices=[("yes", "Yes, I’ve completed this task"), ("no", "No, I’ll come back to it later")],
         widget=GovRadioInput(),
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
@@ -203,6 +203,6 @@ class CheckYourAnswersForm(FlaskForm):
 
         # the form should be validly optional unless all questions in the section have been answered
         if all_questions_answered:
-            self.section_completed.validators = [DataRequired("Select if you have completed this section")]
+            self.section_completed.validators = [DataRequired("Select if you have completed this task")]
         else:
             self.section_completed.validators = [Optional()]
