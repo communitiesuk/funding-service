@@ -18,9 +18,9 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% with errors = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
-        {% if errors %}
-          {{ govukNotificationBanner(params={"titleText": "Testing complete", "text": errors[0]}) }}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
+        {% if flashes %}
+          {{ govukNotificationBanner(params={"titleText": "Testing complete", "text": flashes[0]}) }}
         {% endif %}
         {% set errors = None %}
       {% endwith %}

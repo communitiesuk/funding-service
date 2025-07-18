@@ -11,11 +11,11 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% with messages = get_flashed_messages() %}
-        {% if messages %}
+      {% with flashes = get_flashed_messages() %}
+        {% if flashes %}
           {% set user_add_success_message %}
             <h3 class="govuk-notification-banner__heading">Grant team member added</h3>
-            <p class="govuk-body">{{ messages[0] }}</p>
+            <p class="govuk-body">{{ flashes[0] }}</p>
           {% endset %}
           {{
             govukNotificationBanner({
