@@ -302,9 +302,9 @@ def _update_data_source(question: Question, items: list[str]) -> None:
     db.session.execute(text("SET CONSTRAINTS uq_data_source_id_order DEFERRED"))
 
     to_delete = [item for item in question.data_source.items if item not in new_choices]
+    raise_if_data_source_item_reference_dependency(question, to_delete)
     for item_to_delete in to_delete:
         db.session.delete(item_to_delete)
-
     question.data_source.items = new_choices
     question.data_source.items.reorder()  # type: ignore[attr-defined]
 
@@ -375,6 +375,40 @@ class DependencyOrderException(Exception, FlashableException):
         }
 
 
+class DataSourceItemReferenceDependencyException(Exception, FlashableException):
+    def __init__(
+        self,
+        message: str,
+        question_being_edited: Question,
+        data_source_item_dependency_map: dict[Question, set[DataSourceItem]],
+    ):
+        super().__init__(message)
+        self.message = message
+        self.question_being_edited = question_being_edited
+        self.data_source_item_dependency_map = data_source_item_dependency_map
+
+    def as_flash_context(self) -> dict[str, str]:
+        contexts = self.as_flash_contexts()
+        return contexts[0] if contexts else {}
+
+    def as_flash_contexts(self) -> list[dict[str, str]]:
+        flash_contexts = []
+        for dependent_question, data_source_items in self.data_source_item_dependency_map.items():
+            flash_contexts.append(
+                {
+                    "message": self.message,
+                    "question_id": str(dependent_question.id),
+                    "question_text": dependent_question.text,
+                    "depends_on_question_id": str(self.question_being_edited.id),
+                    "depends_on_question_text": self.question_being_edited.text,
+                    "depends_on_items_text": ", ".join(
+                        data_source_item.label for data_source_item in data_source_items
+                    ),
+                }
+            )
+        return flash_contexts
+
+
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
 def check_question_order_dependency(question: Question, swap_question: Question) -> None:
@@ -402,6 +436,26 @@ def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
                 raise DependencyOrderException(
                     "You cannot delete an answer that other questions depend on", target_question, question
                 )
+    return None
+
+
+def raise_if_data_source_item_reference_dependency(
+    question: Question, items_to_delete: Sequence[DataSourceItem]
+) -> Never | None:
+    data_source_item_dependency_map: dict[Question, set[DataSourceItem]] = {}
+    for data_source_item in items_to_delete:
+        for reference in data_source_item.references:
+            dependent_question = reference.expression.question
+            if dependent_question not in data_source_item_dependency_map:
+                data_source_item_dependency_map[dependent_question] = set()
+            data_source_item_dependency_map[dependent_question].add(data_source_item)
+
+    if data_source_item_dependency_map:
+        raise DataSourceItemReferenceDependencyException(
+            "You cannot delete or change an option that other questions depend on.",
+            question_being_edited=question,
+            data_source_item_dependency_map=data_source_item_dependency_map,
+        )
     return None
 
 
