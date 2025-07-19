@@ -29,7 +29,6 @@ routes_with_expected_platform_admin_only_access = [
     "developers.deliver.add_section",
     "developers.deliver.list_sections",
     "developers.deliver.move_section",
-    "developers.deliver.manage_section",
     "developers.deliver.move_form",
     "developers.deliver.manage_form",
     "developers.deliver.edit_section",
