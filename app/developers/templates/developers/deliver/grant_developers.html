@@ -68,6 +68,16 @@
             {% endtrans %}
           {% endset %}
 
+
+          {% set formSectionsAndTasksText %}
+            {% if collection.has_non_default_sections %}
+              {{ collection.sections | length }}
+              {% trans count=collection.sections|length %}section{% pluralize %}sections{% endtrans %},
+            {% endif %}
+            {{ collection.forms | length }}
+            {% trans count=collection.forms|length %}task{% pluralize %}tasks{% endtrans %}
+          {% endset %}
+
           {{
             govukSummaryList({
               "card": {
@@ -82,7 +92,7 @@
               "rows": [
                 {
                   "key": {"text": "Form"},
-                  "value": {"text": collection.sections|length ~ " sections, " ~ collection.forms|length ~ " tasks"},
+                  "value": {"text": formSectionsAndTasksText},
                   "actions": {
                     "items": [
                       {"text": "Manage", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.manage_collection", grant_id=grant.id, collection_id=collection.id), "classes": "govuk-link--no-visited-state" },

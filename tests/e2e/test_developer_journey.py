@@ -7,6 +7,7 @@ from playwright.sync_api import Page, expect
 
 from app.common.data.types import QuestionDataType
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
+from app.constants import DEFAULT_SECTION_NAME
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.developer_pages import CheckYourAnswersPage, CollectionDetailPage, ManageFormPage, QuestionPage
@@ -142,27 +143,23 @@ def test_create_and_preview_collection(
         developers_page = add_collection_page.click_submit(new_grant_name)
         developers_page.check_collection_exists(new_collection_name)
 
-        # Add a new section
         collection_detail_page = developers_page.click_manage_form(
             collection_name=new_collection_name, grant_name=new_grant_name
         )
-        add_section_page = collection_detail_page.click_add_section()
-        new_section_name = f"E2E section {uuid.uuid4()}"
-        add_section_page.fill_in_section_title(new_section_name)
-        collection_detail_page = add_section_page.click_submit(collection_name=new_collection_name)
-        collection_detail_page.check_section_exists(new_section_name)
 
         # Add a new form
-        form_type_page = collection_detail_page.click_add_form(new_section_name)
+        form_type_page = collection_detail_page.click_add_form(DEFAULT_SECTION_NAME)
         form_type_page.click_add_empty_task()
         form_details_page = form_type_page.click_continue()
         form_name = f"E2E form {uuid.uuid4()}"
         form_details_page.fill_in_task_name(form_name)
         collection_detail_page = form_details_page.click_add_task()
-        collection_detail_page.check_task_exists(new_section_name, form_name)
+        collection_detail_page.check_task_exists(DEFAULT_SECTION_NAME, form_name)
 
         # Add a question of each type
-        manage_form_page = collection_detail_page.click_manage_form(section_title=new_section_name, form_name=form_name)
+        manage_form_page = collection_detail_page.click_manage_form(
+            section_title=DEFAULT_SECTION_NAME, form_name=form_name
+        )
         create_question(QuestionDataType.EMAIL, manage_form_page)
         create_question(QuestionDataType.TEXT_SINGLE_LINE, manage_form_page)
         create_question(QuestionDataType.TEXT_MULTI_LINE, manage_form_page)
@@ -190,7 +187,6 @@ def test_create_and_preview_collection(
         tasklist_page = collection_detail_page.click_test_form()
 
         # Check the tasklist has loaded
-        expect(tasklist_page.page.get_by_role("heading", name=new_section_name)).to_be_visible()
         expect(
             tasklist_page.collection_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
         ).to_be_visible()

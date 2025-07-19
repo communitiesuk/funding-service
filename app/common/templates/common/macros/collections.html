@@ -130,7 +130,9 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {% for section in submission.get_ordered_visible_sections() %}
-        <h2 class="govuk-heading-m">{{ section.title }}</h2>
+        {% if submission.collection.has_non_default_sections %}
+          <h2 class="govuk-heading-m">{{ section.title }}</h2>
+        {% endif %}
 
         {% set forms = submission.get_ordered_visible_forms_for_section(section) %}
         {% if not forms %}

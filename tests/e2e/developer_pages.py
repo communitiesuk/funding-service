@@ -112,9 +112,9 @@ class CollectionDetailPage(GrantDevelopersBasePage):
         )
         self.collection_name = collection_name
         self.test_form_button = self.page.get_by_role("button", name="Test this form")
-        self.add_section_button = self.page.get_by_role("link", name="Add a section to the form").or_(
-            self.page.get_by_role("link", name="Add another section to the form")
-        )
+        self.add_section_button = self.page.get_by_role(
+            "link", name="Split the form into sections of related tasks"
+        ).or_(self.page.get_by_role("link", name="Add another section to the form"))
         self.back_link = self.page.get_by_role("link", name="Back")
 
     def click_back(self) -> "GrantDevelopersPage":

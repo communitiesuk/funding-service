@@ -254,6 +254,7 @@ class _SharedConfig(_BaseConfig):
 
     # Form rendering options
     ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS: int = 20
+    ENABLE_FORM_SECTIONS_AFTER_X_TASKS: int = 5
 
     # Grant setup
     GGIS_TEAM_EMAIL: str = "ggis@communities.gov.uk"
