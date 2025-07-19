@@ -254,27 +254,17 @@ def manage_section(
     collection_id: UUID,
     section_id: UUID,
 ) -> ResponseReturnValue:
+    # TODO: delete this, unused now?
     section = get_section_by_id(section_id)
     if section.is_default_section:
         # Do not let users manage (eg rename, delete) a system-managed default section.
         return abort(400)
-
-    confirm_deletion_form = ConfirmDeletionForm()
-    if (
-        "delete" in request.args
-        and confirm_deletion_form.validate_on_submit()
-        and confirm_deletion_form.confirm_deletion.data
-    ):
-        delete_section(section)
-        # TODO: Flash message for deletion?
-        return redirect(url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id))
 
     return render_template(
         "developers/deliver/manage_section.html",
         grant=section.collection.grant,
         collection=section.collection,
         section=section,
-        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
 
@@ -338,6 +328,17 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
 def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
     form = SectionForm(obj=section)
+
+    confirm_deletion_form = ConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        delete_section(section)
+        # TODO: Flash message for deletion?
+        return redirect(url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id))
+
     if form.validate_on_submit():
         try:
             assert form.title.data is not None
@@ -359,6 +360,7 @@ def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> Respo
         collection=section.collection,
         section=section,
         form=form,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
 
