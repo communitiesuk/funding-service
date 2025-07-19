@@ -1,1 +1,1 @@
-DEFAULT_SECTION_NAME = "All tasks"
+DEFAULT_SECTION_NAME = "Tasks"
