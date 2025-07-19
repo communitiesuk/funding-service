@@ -41,6 +41,7 @@ from app.common.data.models import (
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.expressions.managed import AnyOf, GreaterThan
+from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 from app.types import TRadioItem
 
@@ -142,6 +143,20 @@ class _CollectionFactory(SQLAlchemyModelFactory):
 
     grant_id = factory.LazyAttribute(lambda o: "o.grant.id")
     grant = factory.SubFactory(_GrantFactory)
+
+    @factory.post_generation  # type: ignore
+    def default_section(obj: Collection, create, extracted: bool = True, **kwargs):  # type: ignore
+        # Our system automatically creates a default section for every collection that exists, so to closely match
+        # the real system behaviour, our collection factory should do the same thing by default.
+
+        if extracted is False:
+            return
+
+        if len(obj.sections) == 0:
+            if create:
+                obj.sections = [_SectionFactory.create(collection=obj, title=DEFAULT_SECTION_NAME)]
+            else:
+                obj.sections = [_SectionFactory.build(collection=obj, title=DEFAULT_SECTION_NAME)]  # type: ignore
 
     @factory.post_generation  # type: ignore
     def create_completed_submissions_conditional_question(  # type: ignore

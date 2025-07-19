@@ -105,7 +105,7 @@ def test_get_submission(db_session, factories):
 
 
 def test_get_submission_with_full_schema(db_session, factories, track_sql_queries):
-    submission = factories.submission.create()
+    submission = factories.submission.create(collection__default_section=False)
     submission_id = submission.id
     sections = factories.section.create_batch(3, collection=submission.collection)
     for section in sections:
@@ -136,7 +136,7 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
 
 
 def test_get_section(db_session, factories):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=False)
     section = factories.section.create(collection=collection)
     from_db = get_section_by_id(section.id)
     assert from_db is not None
@@ -146,7 +146,7 @@ def test_get_section(db_session, factories):
 
 
 def test_create_section(db_session, factories):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=False)
     section = create_section(title="test_section", collection=collection)
     assert section
 
@@ -160,7 +160,7 @@ def test_create_section(db_session, factories):
 
 
 def test_section_ordering(db_session, factories):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=False)
     section = create_section(title="test_section_1", collection=collection)
     assert section
     assert section.order == 0
@@ -180,7 +180,7 @@ def test_section_name_unique_in_collection(db_session, factories):
 
 
 def test_move_section_up_down(db_session, factories):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=False)
     section1 = create_section(title="test_section_1", collection=collection)
     section2 = create_section(title="test_section_2", collection=collection)
     assert section1
@@ -594,7 +594,7 @@ def test_clear_events_from_submission(db_session, factories):
 
 
 def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=False)
     sections = factories.section.create_batch(3, collection=collection)
     for section in sections:
         forms = factories.form.create_batch(3, section=section)

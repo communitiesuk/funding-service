@@ -16,20 +16,43 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {{ form.collection_id }}
-        {{
-          form.title (params={"label": {
-          "classes": "govuk-label--l",
-          "isPageHeading": true
-        }})}}
-        {{
-          form.submit(params={
-              "text": "Add section"
-          })
-        }}
-      </form>
+      {% if not collection.has_non_default_sections %}
+        <span class="govuk-caption-l">{{ collection.name }}</span>
+        <h1 class="govuk-heading-l">Split form into sections</h1>
+        <p class="govuk-body">When the form has a lot of tasks, grouping related ones together can help users understand what you're asking of them.</p>
+        <p class="govuk-body">When you split the form, all tasks will need to go into one section or another. You will not be able to have tasks that are not in a section.</p>
+        <p class="govuk-body">This form currently has the following tasks:</p>
+        <ul class="govuk-list govuk-list--bullet">
+          {% for db_form in collection.forms %}
+            <li>{{ db_form.title }}</li>
+          {% endfor %}
+        </ul>
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.collection_id }}
+          {{ form.title(params={"label": {"text": "Name of the first section"} }) }}
+          {{
+            form.submit(params={
+            		"text": "Create section"
+            })
+          }}
+        </form>
+      {% else %}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.collection_id }}
+          {{
+            form.title (params={"label": {
+            "classes": "govuk-label--l",
+            "isPageHeading": true
+          }})}}
+          {{
+            form.submit(params={
+                "text": "Add section"
+            })
+          }}
+        </form>
+      {% endif %}
     </div>
   </div>
 {% endblock content %}

@@ -319,18 +319,18 @@ def test_create_collection_post_duplicate_name(authenticated_platform_admin_clie
 
 
 def test_create_section_get(authenticated_platform_admin_client, factories, templates_rendered):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=True)
     result = authenticated_platform_admin_client.get(
         url_for("developers.deliver.add_section", grant_id=collection.grant.id, collection_id=collection.id),
     )
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert get_h1_text(soup) == "What is the name of the section?"
+    assert get_h1_text(soup) == "Split form into sections"
 
 
 def test_create_section_post(authenticated_platform_admin_client, factories, db_session):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=True)
     section_form = SectionForm(title="My test section")
     result = authenticated_platform_admin_client.post(
         url_for("developers.deliver.add_section", grant_id=collection.grant.id, collection_id=collection.id),
@@ -436,7 +436,7 @@ def test_create_form_post_duplicate_name(authenticated_platform_admin_client, fa
 
 
 def test_move_section(authenticated_platform_admin_client, factories, db_session):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=False)
     section1 = factories.section.create(collection=collection, order=0)
     section2 = factories.section.create(collection=collection, order=1)
 

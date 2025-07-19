@@ -13,7 +13,7 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
-from app.common.data.interfaces.collections import raise_if_question_has_any_dependencies
+from app.common.data.interfaces.collections import create_section, raise_if_question_has_any_dependencies
 from app.common.data.models import (
     Collection,
     Form,
@@ -70,10 +70,10 @@ def delete_section(section: Section) -> None:
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )
 
-    # If we're only left with 1 section, then it should fall back to being the default section - which we handle with
-    # special cases in the UI to effectively act as if there are no sections.
-    if len(collection.sections) == 1:
-        collection.sections[0].title = DEFAULT_SECTION_NAME
+    # If we're deleting the last section, automatically add the default section back. We should never end up with a
+    # collection that has zero sections.
+    if len(collection.sections) == 0:
+        create_section(title=DEFAULT_SECTION_NAME, collection=collection)
 
     db.session.flush()
 

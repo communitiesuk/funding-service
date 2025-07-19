@@ -52,7 +52,6 @@ from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
-from app.constants import DEFAULT_SECTION_NAME
 from app.deliver_grant_funding.forms import (
     CollectionForm,
     FormForm,
@@ -118,8 +117,7 @@ def setup_collection(grant_id: UUID) -> ResponseReturnValue:
         try:
             assert form.name.data is not None
             user = interfaces.user.get_current_user()
-            collection = create_collection(name=form.name.data, user=user, grant=grant)
-            create_section(title=DEFAULT_SECTION_NAME, collection=collection)
+            create_collection(name=form.name.data, user=user, grant=grant)
             return redirect(url_for("developers.deliver.grant_developers", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
@@ -191,12 +189,17 @@ def add_section(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id)  # TODO: handle collection versioning; this just grabs latest.
     form = SectionForm()
     if form.validate_on_submit():
+        assert form.title.data is not None
+
         try:
-            assert form.title.data is not None
-            create_section(
-                title=form.title.data,
-                collection=collection,
-            )
+            if not collection.has_non_default_sections:
+                # 'Create' the first section by renaming the default section
+                update_section(collection.sections[0], title=form.title.data)
+            else:
+                create_section(
+                    title=form.title.data,
+                    collection=collection,
+                )
             return redirect(
                 url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id)
             )
