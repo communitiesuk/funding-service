@@ -57,7 +57,7 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full govuk-!-margin-top-5">
+    <div class="govuk-grid-column-full govuk-!-margin-top-5 fs-draggable-container">
       <h2 class="govuk-heading-m">Sections</h2>
       {% for section in collection.sections %}
         {% set rows=[] %}
@@ -72,29 +72,14 @@
             {% endtrans %}
           {% endset %}
           {% set form_link %}
+            <span class="fs-flex">
+              <svg width="15" height="25" viewBox="0 0 60 104" fill="none" xmlns="http://www.w3.org/2000/svg" class="govuk-!-margin-right-2 fs-draggable-handle-task">
+                <path d="M31.7678 1.23223C30.7915 0.255922 29.2085 0.255922 28.2322 1.23223L12.3223 17.1421C11.346 18.1184 11.346 19.7014 12.3223 20.6777C13.2986 21.654 14.8816 21.654 15.8579 20.6777L30 6.53553L44.1421 20.6777C45.1184 21.654 46.7014 21.654 47.6777 20.6777C48.654 19.7014 48.654 18.1184 47.6777 17.1421L31.7678 1.23223ZM28.2322 102.768C29.2085 103.744 30.7915 103.744 31.7678 102.768L47.6777 86.8579C48.654 85.8816 48.654 84.2986 47.6777 83.3223C46.7014 82.346 45.1184 82.346 44.1421 83.3223L30 97.4645L15.8579 83.3223C14.8816 82.346 13.2986 82.346 12.3223 83.3223C11.346 84.2986 11.346 85.8816 12.3223 86.8579L28.2322 102.768ZM30 41L32.5 41L32.5 3L30 3L27.5 3L27.5 41L30 41ZM30 63L27.5 63L27.5 101L30 101L32.5 101L32.5 63L30 63ZM0 43.5V46H60V43.5V41H0V43.5ZM0 60.5V63H60V60.5V58H0V60.5Z" fill="#000000"/>
+              </svg>
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id) }}">{{ form.title }}</a>
+          </span>
           {% endset %}
           {% set actions = [] %}
-          {% if form.order != 0 %}
-            {%
-              do actions.append( {
-              	"text":"Move up",
-                       "classes": "govuk-link--no-visited-state",
-              	"href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1),
-              	"post": True
-              })
-            %}
-          {% endif %}
-          {% if not loop.last %}
-            {%
-              do actions.append( {
-                "text":"Move down",
-                "classes": "govuk-link--no-visited-state",
-                "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'down'),"disabled":(loop.index <= 1),
-                "post": True
-              })
-            %}
-          {% endif %}
           {% do actions.append({"text": "Rename", "visuallyHiddenText": form.title, "href": url_for("developers.deliver.edit_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id), "classes": "govuk-link--no-visited-state" }) %}
           {%
             do rows.append({
@@ -108,10 +93,10 @@
                   "classes": "govuk-!-width-one-third",
                   "items": actions
                 },
+                "classes": "fs-draggable-item-task",
             })
           %}
         {% endfor %}
-
 
         {% set add_task_html %}
           <a class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" href="{{ url_for("developers.deliver.add_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id) }}">
@@ -120,46 +105,37 @@
         {% endset %}
         {% do rows.append({"key": {"html": add_task_html, "classes": "govuk-!-padding-top-5" if section.forms else ""}, "value": {} }) %}
         {% set actions = [] %}
-        {% if section.order != 0 %}
-          {%
-            do actions.append( {
-              "text":"Move up",
-              "classes": "govuk-link--no-visited-state",
-              "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1),
-              "post": True
-            })
-          %}
-        {% endif %}
-        {% if not loop.last %}
-          {%
-            do actions.append( {
-              "text":"Move down",
-              "classes": "govuk-link--no-visited-state",
-              "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'down'),"disabled":(loop.index <= 1),
-              "post": True
-            })
-          %}
-        {% endif %}
         {% do actions.append({"text": "Manage", "visuallyHiddenText": section.title, "href": url_for("developers.deliver.manage_section", grant_id=grant.id, collection_id=collection.id, section_id=section.id), "classes": "govuk-link--no-visited-state" }) %}
+        {% set titleText %}
+          <span class="fs-flex">
+            <svg width="15" height="25" viewBox="0 0 60 104" fill="none" xmlns="http://www.w3.org/2000/svg" class="govuk-!-margin-right-2 fs-draggable-handle-section">
+              <path d="M31.7678 1.23223C30.7915 0.255922 29.2085 0.255922 28.2322 1.23223L12.3223 17.1421C11.346 18.1184 11.346 19.7014 12.3223 20.6777C13.2986 21.654 14.8816 21.654 15.8579 20.6777L30 6.53553L44.1421 20.6777C45.1184 21.654 46.7014 21.654 47.6777 20.6777C48.654 19.7014 48.654 18.1184 47.6777 17.1421L31.7678 1.23223ZM28.2322 102.768C29.2085 103.744 30.7915 103.744 31.7678 102.768L47.6777 86.8579C48.654 85.8816 48.654 84.2986 47.6777 83.3223C46.7014 82.346 45.1184 82.346 44.1421 83.3223L30 97.4645L15.8579 83.3223C14.8816 82.346 13.2986 82.346 12.3223 83.3223C11.346 84.2986 11.346 85.8816 12.3223 86.8579L28.2322 102.768ZM30 41L32.5 41L32.5 3L30 3L27.5 3L27.5 41L30 41ZM30 63L27.5 63L27.5 101L30 101L32.5 101L32.5 63L30 63ZM0 43.5V46H60V43.5V41H0V43.5ZM0 60.5V63H60V60.5V58H0V60.5Z" fill="#000000"/>
+            </svg>
+            <span>{{ section.title }}</span>
+          </span>
+        {% endset %}
         {{
           govukSummaryList({
             "card": {
-              "title": {"text": section.title, "headingLevel": 3},
-              "actions": {"items": actions } },
+              "title": {"html": titleText, "headingLevel": 3},
+              "actions": {"items": actions },
+              "classes": "fs-draggable-item",
+            },
             "rows": rows,
-            "classes": "app-tasklist-builder",
+            "classes": "app-tasklist-builder fs-draggable-container-task",
           })
         }}
       {% else %}
         <p class="govuk-body">This form has no sections.</p>
         <a class="govuk-button" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add a section to the form</a>
       {% endfor %}
-
-      {% if collection.sections %}
-        <div class="govuk-!-margin-top-7">
-          <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add another section to the form</a>
-        </div>
-      {% endif %}
     </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% if collection.sections %}
+        <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add another section to the form</a>
+      {% endif %}
+      </div>
   </div>
 {% endblock content %}

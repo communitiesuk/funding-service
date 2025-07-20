@@ -8,6 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@shopify/draggable": "^1.1.4",
     "accessible-autocomplete": "3.0.1",
     "govuk-frontend": "5.9.0"
   },

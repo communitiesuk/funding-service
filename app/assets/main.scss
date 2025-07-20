@@ -184,3 +184,11 @@ $app-destructive-link-active-colour: $govuk-text-colour;
   position: absolute;
   right: 20px;
 }
+
+.fs-draggable-handle-section, .fs-draggable-handle-task {
+  cursor: move;
+}
+
+.fs-flex {
+  display: flex;
+}
