@@ -244,31 +244,6 @@ def move_section(grant_id: UUID, collection_id: UUID, section_id: UUID, directio
 
 
 @developers_deliver_blueprint.route(
-    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/manage",
-    methods=["GET", "POST"],
-)
-@is_platform_admin
-@auto_commit_after_request
-def manage_section(
-    grant_id: UUID,
-    collection_id: UUID,
-    section_id: UUID,
-) -> ResponseReturnValue:
-    # TODO: delete this, unused now?
-    section = get_section_by_id(section_id)
-    if section.is_default_section:
-        # Do not let users manage (eg rename, delete) a system-managed default section.
-        return abort(400)
-
-    return render_template(
-        "developers/deliver/manage_section.html",
-        grant=section.collection.grant,
-        collection=section.collection,
-        section=section,
-    )
-
-
-@developers_deliver_blueprint.route(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/move/<string:direction>",
     methods=["GET", "POST"],
 )
@@ -302,7 +277,6 @@ def move_form(
 @is_platform_admin
 @auto_commit_after_request
 def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
-    # TODO: delete this; unused now?
     db_form = get_form_by_id(form_id, with_all_questions=True)
 
     form = GenericSubmitForm()
@@ -320,12 +294,12 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
 
 
 @developers_deliver_blueprint.route(
-    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/edit",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/manage",
     methods=["GET", "POST"],
 )
 @is_platform_admin
 @auto_commit_after_request
-def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseReturnValue:
+def manage_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
     form = SectionForm(obj=section)
 
@@ -355,7 +329,7 @@ def edit_section(grant_id: UUID, collection_id: UUID, section_id: UUID) -> Respo
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "developers/deliver/edit_section.html",
+        "developers/deliver/manage_section.html",
         grant=section.collection.grant,
         collection=section.collection,
         section=section,

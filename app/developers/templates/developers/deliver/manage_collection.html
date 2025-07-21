@@ -143,7 +143,7 @@
           %}
         {% endif %}
         {% if not section.is_default_section %}
-          {% do actions.append({"text": "Manage", "visuallyHiddenText": section.title, "href": url_for("developers.deliver.edit_section", grant_id=grant.id, collection_id=collection.id, section_id=section.id), "classes": "govuk-link--no-visited-state" }) %}
+          {% do actions.append({"text": "Manage", "visuallyHiddenText": section.title, "href": url_for("developers.deliver.manage_section", grant_id=grant.id, collection_id=collection.id, section_id=section.id), "classes": "govuk-link--no-visited-state" }) %}
         {% endif %}
         {{
           govukSummaryList({
