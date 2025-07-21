@@ -1,7 +1,7 @@
 services:
   # use Caddy for SSL termination
   proxy:
-    image: caddy:2@sha256:f880657326733fb266a317b4ee31d6a3090a6bbff3dcb0c97833093810d59b46
+    image: caddy:2@sha256:e23538fceb12f3f8cc97a174844aa99bdea7715023d6e088028850fd0601e2e2
     restart: unless-stopped
     command: "caddy run --config /etc/caddy/Caddyfile"
     depends_on:
