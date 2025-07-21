@@ -10,13 +10,14 @@ from werkzeug.datastructures import MultiDict
 from wtforms.fields.choices import RadioField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField
-from wtforms.validators import URL, DataRequired, Email, InputRequired
+from wtforms.validators import DataRequired, Email, InputRequired
 
 from app import create_app
 from app.common.collections.forms import build_question_form
 from app.common.data.models import Question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext
+from app.common.forms.validators import URLWithoutProtocol
 from tests.conftest import FundingServiceTestClient
 from tests.utils import build_db_config
 
@@ -85,7 +86,7 @@ class TestBuildQuestionForm:
             (QuestionDataType.YES_NO, RadioField, GovRadioInput, [InputRequired]),
             (QuestionDataType.RADIOS, RadioField, GovRadioInput, []),
             (QuestionDataType.EMAIL, EmailField, GovTextInput, [DataRequired, Email]),
-            (QuestionDataType.URL, StringField, GovTextInput, [DataRequired, URL]),
+            (QuestionDataType.URL, StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
         ),
     )
     def test_expected_field_types(
