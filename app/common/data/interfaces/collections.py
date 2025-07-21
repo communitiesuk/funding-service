@@ -30,6 +30,7 @@ from app.common.data.types import (
 )
 from app.common.utils import slugify
 from app.extensions import db
+from app.types import NOT_PROVIDED, TNotProvided
 
 if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
@@ -244,9 +245,18 @@ def move_form_down(form: Form) -> Form:
     return form
 
 
-def update_form(form: Form, *, title: str) -> Form:
+def update_form(form: Form, *, title: str, section_id: uuid.UUID | TNotProvided = NOT_PROVIDED) -> Form:
     form.title = title
     form.slug = slugify(title)
+
+    if section_id is not NOT_PROVIDED:
+        db.session.execute(text("SET CONSTRAINTS uq_form_order_section DEFERRED"))
+        new_section = get_section_by_id(section_id)  # ty: ignore[invalid-argument-type]
+        original_section = form.section
+        form.section = new_section
+
+        new_section.forms.reorder()
+        original_section.forms.reorder()
 
     try:
         db.session.flush()

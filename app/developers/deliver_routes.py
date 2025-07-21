@@ -312,12 +312,8 @@ def move_form(
 @is_platform_admin
 @auto_commit_after_request
 def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    # TODO: delete this; unused now?
     db_form = get_form_by_id(form_id, with_all_questions=True)
-
-    delete_wt_form = ConfirmDeletionForm()
-    if "delete" in request.args and delete_wt_form.validate_on_submit() and delete_wt_form.confirm_deletion.data:
-        delete_form(db_form)
-        return redirect(url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id))
 
     form = GenericSubmitForm()
     if form.validate_on_submit() and form.submit.data:
@@ -330,7 +326,6 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
         collection=db_form.section.collection,
         db_form=db_form,
         form=form,
-        delete_form="delete" in request.args and delete_wt_form,
     )
 
 
@@ -415,10 +410,16 @@ def add_form(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseR
 def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = FormForm(obj=db_form)
+
+    delete_wt_form = ConfirmDeletionForm()
+    if "delete" in request.args and delete_wt_form.validate_on_submit() and delete_wt_form.confirm_deletion.data:
+        delete_form(db_form)
+        return redirect(url_for("developers.deliver.manage_collection", grant_id=grant_id, collection_id=collection_id))
+
     if wt_form.validate_on_submit():
         try:
             assert wt_form.title.data is not None
-            update_form(form=db_form, title=wt_form.title.data)
+            update_form(form=db_form, title=wt_form.title.data, section_id=wt_form.section_id.data)
             return redirect(
                 url_for(
                     "developers.deliver.manage_collection",
@@ -437,6 +438,7 @@ def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UU
         section=db_form.section,
         db_form=db_form,
         form=wt_form,
+        delete_form="delete" in request.args and delete_wt_form,
     )
 
 
