@@ -32,7 +32,7 @@ on:
           required: true
       SERVICE_ACCOUNT_PASSWORD:
           required: true
-          
+
 jobs:
   deploy:
     environment: ${{ inputs.environment }}
@@ -76,7 +76,7 @@ jobs:
           ECR_IMAGE_LOCATION=$ECR_REPO:${{ github.sha }}
 
           echo "ecr_image_location=$ECR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
-  
+
       - name: Deploy image to App Runner
         id: deploy
         uses: awslabs/amazon-app-runner-deploy@main
@@ -89,7 +89,7 @@ jobs:
           cpu: 1
           memory: 2
           wait-for-service-stability-seconds: 600
-  
+
   e2e_tests:
     name: Python E2E tests
     if: ${{ inputs.run_e2e_tests == true }}

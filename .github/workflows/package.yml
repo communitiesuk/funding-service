@@ -5,7 +5,7 @@ permissions:
   packages: write
   contents: read  # This is required for actions/checkout
   id-token: write  # This is required for authenticating with aws
-  
+
 on:
   workflow_call:
     secrets:
@@ -80,7 +80,7 @@ jobs:
           if [ "${{ github.ref_name }}" == "main" ]; then
             LATEST_TAG="--tag $IMAGE_ID:latest"
           fi
-          
+
           uv export --format requirements-txt --no-hashes > requirements.txt
 
           pack build "$GHCR_IMAGE_LOCATION" $LATEST_TAG \
@@ -114,11 +114,11 @@ jobs:
         run: |
           GHCR_IMAGE_URI="ghcr.io/${{ github.repository }}:${{ github.sha }}"
           ECR_IMAGE_URI="${{ secrets.CI_AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/funding-service-ci-shared-app:${{ github.sha }}"
-      
+
           echo "::add-mask::$ECR_IMAGE_URI"
           echo "ghcr_image_location=$GHCR_IMAGE_URI" >> $GITHUB_OUTPUT
           echo "ecr_image_location=$ECR_IMAGE_URI" >> $GITHUB_OUTPUT
-          
+
   notify_slack:
       needs:
         - paketo_build
