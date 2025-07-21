@@ -371,5 +371,5 @@ def return_from_test_submission(collection_id: UUID) -> ResponseReturnValue:
 
     collection = get_collection(collection_id)
     return redirect(
-        url_for("developers.deliver.manage_collection", grant_id=collection.grant.id, collection_id=collection.id)
+        url_for("developers.deliver.manage_collection_tasks", grant_id=collection.grant.id, collection_id=collection.id)
     )
