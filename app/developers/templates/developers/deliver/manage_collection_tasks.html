@@ -76,9 +76,9 @@
               {% trans count=form.questions | length %}{{ count }} question {% pluralize %} {{ count }} questions{% endtrans %}
             {% endset %}
             {% set form_link %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_form_questions', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id) }}"
-                >{{ form.title }}</a
-              >
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_form_questions', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id) }}">
+                {{ form.title }}
+              </a>
             {% endset %}
             {% set actions = [] %}
             {% if not loop.first %}
@@ -86,7 +86,8 @@
                 do actions.append( {
                   "text":"Move up",
                          "classes": "govuk-link--no-visited-state",
-                  "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1),
+                  "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'up'),
+                  "disabled": (loop.index <= 1),
                   "post": True
                 })
               %}
@@ -96,7 +97,8 @@
                 do actions.append( {
                   "text":"Move down",
                   "classes": "govuk-link--no-visited-state",
-                  "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'down'),"disabled":(loop.index <= 1),
+                  "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'down'),
+                  "disabled": (loop.index <= 1),
                   "post": True
                 })
               %}
@@ -165,13 +167,10 @@
           <a class="govuk-button" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add a section to the form</a>
         {% endfor %}
 
-        {% if collection.sections and (collection.has_non_default_sections or collection.forms | length >= config.ENABLE_FORM_SECTIONS_AFTER_X_TASKS) %}
+        {% if collection.has_non_default_sections or collection.forms | length >= config.ENABLE_FORM_SECTIONS_AFTER_X_TASKS %}
+          {% set new_section_label = "Add another section to the form" if collection.has_non_default_sections else "Split the form into sections of related tasks" %}
           <div class="govuk-!-margin-top-7">
-            {% if not collection.has_non_default_sections %}
-              <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Split the form into sections of related tasks</a>
-            {% else %}
-              <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add another section to the form</a>
-            {% endif %}
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">{{ new_section_label }}</a>
           </div>
         {% endif %}
       {% endif %}
