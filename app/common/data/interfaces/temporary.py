@@ -23,6 +23,7 @@ from app.common.data.models import (
     Submission,
 )
 from app.common.data.models_user import User
+from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 
 
@@ -60,6 +61,7 @@ def delete_section(section: Section) -> None:
     # correctly.
     # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
     # definitely has a few quirks.
+    collection = section.collection
     db.session.delete(section)
     if section in section.collection.sections:
         section.collection.sections.remove(section)  # type: ignore[no-untyped-call]
@@ -67,6 +69,12 @@ def delete_section(section: Section) -> None:
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )
+
+    # If we're only left with 1 section, then it should fall back to being the default section - which we handle with
+    # special cases in the UI to effectively act as if there are no sections.
+    if len(collection.sections) == 1:
+        collection.sections[0].title = DEFAULT_SECTION_NAME
+
     db.session.flush()
 
 

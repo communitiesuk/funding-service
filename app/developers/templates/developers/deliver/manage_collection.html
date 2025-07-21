@@ -49,16 +49,16 @@
 
       <h1 class="govuk-heading-l">{{ collection.name }}</h1>
     </div>
+    {% set testThisFormIsPrimaryAction = (collection.sections | map(attribute='forms') | map('length') | select('lt', 1) | first) is undefined %}
     <div class="govuk-grid-column-one-third govuk-!-text-align-right">
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Test this form", "classes": "govuk-button--secondary" if not collection.sections else ""}) }}
+        {{ form.submit(params={"text": "Test this form", "classes": "" if testThisFormIsPrimaryAction else "govuk-button--secondary"}) }}
       </form>
     </div>
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full govuk-!-margin-top-5">
-      <h2 class="govuk-heading-m">Sections</h2>
       {% for section in collection.sections %}
         {% set rows=[] %}
 
@@ -114,7 +114,9 @@
 
 
         {% set add_task_html %}
-          <a class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" href="{{ url_for("developers.deliver.add_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id) }}">
+          <a
+            class="govuk-button {% if section.forms | length > 0 %}govuk-button--secondary{% endif %} govuk-!-margin-bottom-0"
+            href="{{ url_for("developers.deliver.add_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id) }}">
             {{ "Add another task" if section.forms else "Add a task" }}<span class="govuk-visually-hidden">to the “{{ section.title }}” section</span>
           </a>
         {% endset %}
@@ -140,11 +142,13 @@
             })
           %}
         {% endif %}
-        {% do actions.append({"text": "Manage", "visuallyHiddenText": section.title, "href": url_for("developers.deliver.manage_section", grant_id=grant.id, collection_id=collection.id, section_id=section.id), "classes": "govuk-link--no-visited-state" }) %}
+        {% if not section.is_default_section %}
+          {% do actions.append({"text": "Manage", "visuallyHiddenText": section.title, "href": url_for("developers.deliver.manage_section", grant_id=grant.id, collection_id=collection.id, section_id=section.id), "classes": "govuk-link--no-visited-state" }) %}
+        {% endif %}
         {{
           govukSummaryList({
             "card": {
-              "title": {"text": section.title, "headingLevel": 3},
+              "title": {"text": section.title, "headingLevel": 2},
               "actions": {"items": actions } },
             "rows": rows,
             "classes": "app-tasklist-builder",
@@ -155,9 +159,13 @@
         <a class="govuk-button" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add a section to the form</a>
       {% endfor %}
 
-      {% if collection.sections %}
+      {% if collection.sections and collection.forms | length >= config.ENABLE_FORM_SECTIONS_AFTER_X_TASKS %}
         <div class="govuk-!-margin-top-7">
-          <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add another section to the form</a>
+          {% if collection.sections[0].is_default_section %}
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Split the form into sections of related tasks</a>
+          {% else %}
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add another section to the form</a>
+          {% endif %}
         </div>
       {% endif %}
     </div>

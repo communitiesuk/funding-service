@@ -22,6 +22,7 @@ from app.common.data.types import (
 )
 from app.common.expressions.managed import get_managed_expression
 from app.common.qid import SafeQidMixin
+from app.constants import DEFAULT_SECTION_NAME
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
@@ -111,7 +112,17 @@ class Collection(BaseModel):
 
     @property
     def forms(self) -> list["Form"]:
+        if not self.sections:
+            raise RuntimeError("We expect all collections to have at least 1 section now")
+
         return [form for section in self.sections for form in section.forms]
+
+    @property
+    def has_non_default_sections(self) -> bool:
+        if not self.sections:
+            raise RuntimeError("We expect all collections to have at least 1 section now")
+
+        return len(self.sections) > 1 or self.sections[0].title != DEFAULT_SECTION_NAME
 
 
 class Submission(BaseModel):
@@ -183,6 +194,10 @@ class Section(BaseModel):
         UniqueConstraint("collection_id", "collection_version", "slug", name="uq_section_slug_collection"),
         ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
     )
+
+    @property
+    def is_default_section(self) -> bool:
+        return len(self.collection.sections) == 1
 
 
 class Form(BaseModel):

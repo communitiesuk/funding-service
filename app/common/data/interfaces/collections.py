@@ -154,6 +154,7 @@ def create_section(*, title: str, collection: Collection) -> Section:
     section = Section(title=title, collection_id=collection.id, slug=slugify(title))
     collection.sections.append(section)  # type: ignore[no-untyped-call]
     db.session.add(section)
+
     try:
         db.session.flush()
     except IntegrityError as e:

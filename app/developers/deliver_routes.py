@@ -52,6 +52,7 @@ from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
+from app.constants import DEFAULT_SECTION_NAME
 from app.deliver_grant_funding.forms import (
     CollectionForm,
     FormForm,
@@ -117,7 +118,8 @@ def setup_collection(grant_id: UUID) -> ResponseReturnValue:
         try:
             assert form.name.data is not None
             user = interfaces.user.get_current_user()
-            create_collection(name=form.name.data, user=user, grant=grant)
+            collection = create_collection(name=form.name.data, user=user, grant=grant)
+            create_section(title=DEFAULT_SECTION_NAME, collection=collection)
             return redirect(url_for("developers.deliver.grant_developers", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
@@ -253,6 +255,9 @@ def manage_section(
     section_id: UUID,
 ) -> ResponseReturnValue:
     section = get_section_by_id(section_id)
+    if section.is_default_section:
+        # Do not let users manage (eg rename, delete) a system-managed default section.
+        return abort(400)
 
     confirm_deletion_form = ConfirmDeletionForm()
     if (
