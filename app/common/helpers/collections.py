@@ -12,6 +12,7 @@ from pydantic import TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.collections.types import (
+    NOT_ANSWERED,
     NOT_ASKED,
     AllAnswerTypes,
     EmailAnswer,
@@ -402,9 +403,7 @@ class CollectionHelper:
                     submission_csv_data[header_string] = NOT_ASKED
                 else:
                     answer = submission.get_answer_for_question(question_id)
-                    submission_csv_data[header_string] = (
-                        answer.get_value_for_text_export() if answer else "Not answered"
-                    )
+                    submission_csv_data[header_string] = answer.get_value_for_text_export() if answer else NOT_ANSWERED
 
             csv_writer.writerow(submission_csv_data)
 
