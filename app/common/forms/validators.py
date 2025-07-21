@@ -1,8 +1,11 @@
+import re
+
 from email_validator import EmailNotValidError, validate_email
 from flask import current_app
+from wtforms import StringField
 from wtforms.fields.core import Field
 from wtforms.form import BaseForm
-from wtforms.validators import Email, ValidationError
+from wtforms.validators import Email, HostnameValidation, Regexp, ValidationError
 
 
 class WordRange:
@@ -69,3 +72,31 @@ class CommunitiesEmail(Email):
 
         if allowed_domains and domain.lower() not in [d.lower() for d in allowed_domains]:
             raise ValidationError(f"Email address must end with {' or '.join(allowed_domains)}")
+
+
+class URLWithoutProtocol(Regexp):
+    """
+    Based off the `URL` validator from WTForms, except we specifically allow no protocol (eg https://) to be provided.
+    """
+
+    def __init__(self, require_tld: bool = True, allow_ip: bool = True, message: str | None = None) -> None:
+        regex = (
+            r"^(?P<protocol>https?://)?"
+            r"(?P<host>[^\/\?:]+)"
+            r"(?P<port>:[0-9]+)?"
+            r"(?P<path>\/.*?)?"
+            r"(?P<query>\?.*)?$"
+        )
+        super().__init__(regex, re.IGNORECASE, message)
+        self.validate_hostname = HostnameValidation(require_tld=require_tld, allow_ip=allow_ip)
+
+    def __call__(self, form: BaseForm, field: StringField, message: str | None = None) -> re.Match[str]:
+        message = self.message
+        if message is None:
+            message = field.gettext("Invalid URL.")
+
+        match = super().__call__(form, field, message)
+        if not self.validate_hostname(match.group("host")):
+            raise ValidationError(message)
+
+        return match

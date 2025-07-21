@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 import pytest
 from wtforms.validators import ValidationError
 
-from app.common.forms.validators import CommunitiesEmail, WordRange
+from app.common.forms.validators import CommunitiesEmail, URLWithoutProtocol, WordRange
 
 
 class TestWordRange:
@@ -125,3 +125,28 @@ class TestCommunitiesEmailValidator:
         with pytest.raises(KeyError), patch.dict(app.config, {}, clear=True):
             self.field.data = "user@anywhere.com"
             self.validator(self.form, self.field)
+
+
+class TestURLWithoutProtocol:
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "www.google.com",
+            "http://www.google.com",
+            "https://www.google.com",
+            "https://gov.uk",
+            "https://gov.uk/blog/foo",
+            "https://gov.uk/blog/foo?hmmm",
+            "https://gov.uk/blog/foo?hmmm=something",
+            pytest.param("blah", marks=pytest.mark.xfail()),
+            pytest.param("http://", marks=pytest.mark.xfail()),
+            pytest.param("blah-foo", marks=pytest.mark.xfail()),
+        ],
+    )
+    def test_urls(self, url):
+        form = Mock()
+        field = Mock()
+        field.data = url
+        validator = URLWithoutProtocol()
+
+        assert validator(form, field)

@@ -45,7 +45,7 @@ question_response_data_by_type: dict[QuestionDataType, list[_QuestionResponse]] 
     QuestionDataType.YES_NO: [_QuestionResponse("Yes")],
     QuestionDataType.RADIOS: [_QuestionResponse("option 2")],
     QuestionDataType.URL: [
-        _QuestionResponse("not-a-url", "Enter a website address in the correct format, like https://www.gov.uk"),
+        _QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
         _QuestionResponse("https://gov.uk"),
     ],
 }

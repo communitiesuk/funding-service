@@ -10,12 +10,13 @@ from wtforms import Field, Form, RadioField
 from wtforms.fields.choices import SelectField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField, SubmitField
-from wtforms.validators import URL, DataRequired, Email, InputRequired, Optional, ValidationError
+from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
 from app.common.expressions import ExpressionContext, evaluate
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
+from app.common.forms.validators import URLWithoutProtocol
 
 _accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField
 
@@ -176,8 +177,8 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                 widget=GovTextInput(),
                 validators=[
                     DataRequired(f"Enter the {question.name}"),
-                    URL(
-                        message="Enter a website address in the correct format, like https://www.gov.uk",
+                    URLWithoutProtocol(
+                        message="Enter a website address in the correct format, like www.gov.uk",
                         require_tld=True,
                     ),
                 ],
