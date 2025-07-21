@@ -5,7 +5,7 @@ permissions:
   packages: write
   contents: read  # This is required for actions/checkout
   id-token: write  # This is required for authenticating with aws
-
+  
 on:
   workflow_call:
     secrets:
