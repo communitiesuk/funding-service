@@ -20,14 +20,6 @@ jobs:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
-    
-  paketo_build_ecr:
-    name: Build
-    uses: ./.github/workflows/package_push_ci.yml
-    secrets:
-      CI_AWS_ACCOUNT: ${{ secrets.CI_AWS_ACCOUNT }}
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
 
   run_e2e_tests_docker_compose:
     name: Run E2E tests against docker compose
@@ -37,13 +29,13 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
 
-  ci_ecr_deploy_dev:
-    name: Deploy to dev from CI ECR
+  deploy_dev:
+    name: Deploy to dev
     needs:
-      - paketo_build_ecr
-    uses: ./.github/workflows/ci_ecr_deploy.yml
+      - paketo_build
+    uses: ./.github/workflows/deploy.yml
     concurrency:
-      group: fs-deploy-dev-ecr
+      group: fs-deploy-dev
       cancel-in-progress: false
     with:
       environment: dev
@@ -55,17 +47,19 @@ jobs:
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
       SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
       SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
-  
-  ci_ecr_deploy_test:
-    name: Deploy to test from CI ECR
+
+  deploy_test:
+    name: Deploy to test
+    # TODO: Strip this condition when we have dev/test/prod envs; for now, if we trigger the pipeline manually then
+    #       it should only deploy to the dev env. Test env will only be deployed to on a merge (push) to main.
     if: github.event_name == 'push'
     needs:
-      - paketo_build_ecr
-      - ci_ecr_deploy_dev
+      - paketo_build
+      - deploy_dev
       - run_e2e_tests_docker_compose
-    uses: ./.github/workflows/ci_ecr_deploy.yml
+    uses: ./.github/workflows/deploy.yml
     concurrency:
-      group: fs-deploy-test-ecr
+      group: fs-deploy-test
       cancel-in-progress: false
     with:
       environment: test
