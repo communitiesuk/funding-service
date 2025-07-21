@@ -156,10 +156,13 @@ def build_question_form(question: Question, expression_context: ExpressionContex
             )
         case QuestionDataType.RADIOS:
             if len(question.data_source.items) > current_app.config["ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS"]:
+                fallback_option = (
+                    question.data_source.items[-1].label if question.separate_option_if_no_items_match else None
+                )
                 field = SelectField(
                     label=question.text,
                     description=question.hint or "",
-                    widget=MHCLGAccessibleAutocomplete(),
+                    widget=MHCLGAccessibleAutocomplete(fallback_option=fallback_option),
                     choices=[("", "")] + [(item.key, item.label) for item in question.data_source.items],
                     validators=[DataRequired("Select an option")],
                 )

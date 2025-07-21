@@ -10,11 +10,19 @@ class MHCLGAccessibleAutocomplete(GovSelect):
 
     template = "common/fields/accessible-autocomplete.html"
 
+    def __init__(self, *args: Any, fallback_option: str | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fallback_option = fallback_option
+
     def __call__(self, field: Field, **kwargs: Any) -> Any:
         # Set `data-accessible-autocomplete` on select field, which our JS will pick up and enhance automatically.
         params = kwargs.get("params", {})
         attributes = params.get("attributes", {})
         attributes.setdefault("data-accessible-autocomplete", "1")
+
+        if self.fallback_option:
+            attributes["data-accessible-autocomplete-fallback-option"] = self.fallback_option
+
         params["attributes"] = attributes
         return super().__call__(field, **kwargs)
 
