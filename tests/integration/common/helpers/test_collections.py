@@ -18,6 +18,7 @@ from app.common.collections.types import (
 from app.common.data import interfaces
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum, TasklistTaskStatusEnum
 from app.common.expressions import ExpressionContext
+from app.common.filters import format_datetime
 from app.common.helpers.collections import (
     CollectionHelper,
     SubmissionHelper,
@@ -447,7 +448,7 @@ class TestCollectionHelper:
         assert reader.fieldnames == [
             "Submission reference",
             "Created by",
-            "Created time UTC",
+            "Created at",
             "[Export test form] Your name",
             "[Export test form] Your quest",
             "[Export test form] Airspeed velocity",
@@ -469,7 +470,7 @@ class TestCollectionHelper:
             submission_ref = line["Submission reference"]
             s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
             assert line["Created by"] == s_helper.created_by_email
-            assert line["Created time UTC"] == s_helper.created_at_utc.isoformat()
+            assert line["Created at"] == format_datetime(s_helper.created_at_utc)
             for header, value in expected_question_data[submission_ref].items():
                 assert line[header] == value
 
@@ -484,7 +485,7 @@ class TestCollectionHelper:
         assert reader.fieldnames == [
             "Submission reference",
             "Created by",
-            "Created time UTC",
+            "Created at",
             "[Export test form] Number of cups of tea",
             "[Export test form] Tea bag pack size",
             "[Export test form] Favourite dunking biscuit",
@@ -494,7 +495,7 @@ class TestCollectionHelper:
             submission_ref = line["Submission reference"]
             s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
             assert line["Created by"] == s_helper.created_by_email
-            assert line["Created time UTC"] == s_helper.created_at_utc.isoformat()
+            assert line["Created at"] == format_datetime(s_helper.created_at_utc)
             number_of_cups_of_tea = line["[Export test form] Number of cups of tea"]
             if number_of_cups_of_tea == "40":
                 assert line["[Export test form] Tea bag pack size"] == "80"
@@ -523,7 +524,7 @@ class TestCollectionHelper:
         assert reader.fieldnames == [
             "Submission reference",
             "Created by",
-            "Created time UTC",
+            "Created at",
             "[Export test form] Number of cups of tea",
             "[Export test form] Tea bag pack size",
             "[Export test form] Favourite dunking biscuit",
@@ -556,7 +557,7 @@ class TestCollectionHelper:
         assert rows[0] == [
             "Submission reference",
             "Created by",
-            "Created time UTC",
+            "Created at",
             "[Export test form] Your name",
             "[Export test form] Your quest",
             "[Export test form] Airspeed velocity",
@@ -568,7 +569,7 @@ class TestCollectionHelper:
         assert rows[1] == [
             c_helper.submissions[0].reference,
             c_helper.submissions[0].created_by.email,
-            c_helper.submissions[0].created_at_utc.isoformat(),
+            format_datetime(c_helper.submissions[0].created_at_utc),
             "test name",
             "Line 1\r\nline2\r\nline 3",
             "123",

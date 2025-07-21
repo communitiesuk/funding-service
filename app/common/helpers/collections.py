@@ -41,6 +41,7 @@ from app.common.expressions import (
     UndefinedVariableInExpression,
     evaluate,
 )
+from app.common.filters import format_datetime
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Form, Grant, Question, Section, Submission
@@ -381,7 +382,7 @@ class CollectionHelper:
         ]
 
     def generate_csv_content_for_all_submissions(self) -> str:
-        metadata_headers = ["Submission reference", "Created by", "Created time UTC"]
+        metadata_headers = ["Submission reference", "Created by", "Created at"]
         question_headers = {
             question.id: f"[{question.form.title}] {question.name}"
             for question in self.get_all_possible_questions_for_collection()
@@ -395,7 +396,7 @@ class CollectionHelper:
             submission_csv_data = {
                 "Submission reference": submission.reference,
                 "Created by": submission.created_by_email,
-                "Created time UTC": submission.created_at_utc.isoformat(),
+                "Created at": format_datetime(submission.created_at_utc),
             }
             visible_questions = submission.all_visible_questions
             for question_id, header_string in question_headers.items():

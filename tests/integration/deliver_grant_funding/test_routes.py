@@ -1197,7 +1197,7 @@ def test_download_csv_export(authenticated_platform_admin_client, factories, db_
     assert reader.fieldnames == [
         "Submission reference",
         "Created by",
-        "Created time UTC",
+        "Created at",
         "[Export test form] Your name",
         "[Export test form] Your quest",
         "[Export test form] Airspeed velocity",
