@@ -358,7 +358,7 @@ def return_from_test_submission(collection_id: UUID) -> ResponseReturnValue:
         form = get_form_by_id(form_id)
         return redirect(
             url_for(
-                "developers.deliver.manage_form",
+                "developers.deliver.manage_form_questions",
                 grant_id=form.section.collection.grant.id,
                 collection_id=form.section.collection.id,
                 section_id=form.section.id,

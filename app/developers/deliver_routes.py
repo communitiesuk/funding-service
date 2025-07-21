@@ -274,12 +274,12 @@ def move_form(
 
 
 @developers_deliver_blueprint.route(
-    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/manage",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions",
     methods=["GET", "POST"],
 )
 @is_platform_admin
 @auto_commit_after_request
-def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def manage_form_questions(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, with_all_questions=True)
 
     form = GenericSubmitForm()
@@ -287,7 +287,7 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
         return start_testing_submission(db_form.section.collection, form=db_form)
 
     return render_template(
-        "developers/deliver/manage_form.html",
+        "developers/deliver/manage_form_questions.html",
         grant=db_form.section.collection.grant,
         section=db_form.section,
         collection=db_form.section.collection,
@@ -381,12 +381,12 @@ def add_form(grant_id: UUID, collection_id: UUID, section_id: UUID) -> ResponseR
 
 
 @developers_deliver_blueprint.route(
-    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/edit",
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/manage",
     methods=["GET", "POST"],
 )
 @is_platform_admin
 @auto_commit_after_request
-def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = FormForm(obj=db_form)
 
@@ -411,7 +411,7 @@ def edit_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UU
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "developers/deliver/edit_form.html",
+        "developers/deliver/manage_form.html",
         grant=db_form.section.collection.grant,
         collection=db_form.section.collection,
         section=db_form.section,
@@ -529,7 +529,7 @@ def move_question(
 
     return redirect(
         url_for(
-            "developers.deliver.manage_form",
+            "developers.deliver.manage_form_questions",
             grant_id=grant_id,
             collection_id=collection_id,
             section_id=section_id,
@@ -560,7 +560,7 @@ def edit_question(
                 # TODO: Flash message for deletion?
                 return redirect(
                     url_for(
-                        "developers.deliver.manage_form",
+                        "developers.deliver.manage_form_questions",
                         grant_id=grant_id,
                         collection_id=collection_id,
                         section_id=section_id,
@@ -596,7 +596,7 @@ def edit_question(
             )
             return redirect(
                 url_for(
-                    "developers.deliver.manage_form",
+                    "developers.deliver.manage_form_questions",
                     grant_id=grant_id,
                     collection_id=collection_id,
                     section_id=section_id,

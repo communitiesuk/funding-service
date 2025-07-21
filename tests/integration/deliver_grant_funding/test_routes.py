@@ -573,7 +573,7 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.manage_form_questions",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
@@ -598,7 +598,7 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.manage_form_questions",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
@@ -809,7 +809,7 @@ def test_edit_question_post(authenticated_platform_admin_client, factories, db_s
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.manage_form_questions",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
