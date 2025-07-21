@@ -10,7 +10,7 @@ from tests.utils import AnyStringMatching
 class TestSubmissionHelper:
     class TestGetOrderedVisibleSections:
         def test_ordering(self, db_session, factories):
-            submission = factories.submission.build()
+            submission = factories.submission.build(collection__default_section=False)
             _section_2 = factories.section.build(order=2, collection=submission.collection)
             _section_0 = factories.section.build(order=0, collection=submission.collection)
             _section_1 = factories.section.build(order=1, collection=submission.collection)
@@ -25,7 +25,7 @@ class TestSubmissionHelper:
     class TestGetOrderedVisibleForms:
         def test_ordering(self, db_session, factories):
             submission = factories.submission.build()
-            section = factories.section.build(collection=submission.collection)
+            section = submission.collection.sections[0]
             _form_0 = factories.form.build(order=0, section=section)
             _form_2 = factories.form.build(order=2, section=section)
             _form_3 = factories.form.build(order=3, section=section)
@@ -39,7 +39,7 @@ class TestSubmissionHelper:
     class TestGetOrderedVisibleQuestions:
         def test_ordering(self, db_session, factories):
             submission = factories.submission.build()
-            section = factories.section.build(collection=submission.collection)
+            section = submission.collection.sections[0]
             form = factories.form.build(order=0, section=section)
             _question_2 = factories.question.build(order=2, form=form)
             _question_0 = factories.question.build(order=0, form=form)

@@ -152,8 +152,7 @@ class CollectionForm(GrantSetupForm):
 
 class SectionForm(FlaskForm):
     title = StringField(
-        "What is the name of the section?",
-        description="A section is a group of related tasks, and a task is a group of related questions",
+        "What is the name of the new section?",
         validators=[DataRequired("Enter a section title")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),

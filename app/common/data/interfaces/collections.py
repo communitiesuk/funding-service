@@ -29,6 +29,7 @@ from app.common.data.types import (
     SubmissionStatusEnum,
 )
 from app.common.utils import slugify
+from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
@@ -45,6 +46,10 @@ def create_collection(*, name: str, user: User, grant: Grant, version: int = 1) 
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
+
+    # All collections must have at least 1 section; we provide a default to get started with.
+    create_section(title=DEFAULT_SECTION_NAME, collection=collection)
+
     return collection
 
 

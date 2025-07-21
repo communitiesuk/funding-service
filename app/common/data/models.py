@@ -197,7 +197,7 @@ class Section(BaseModel):
 
     @property
     def is_default_section(self) -> bool:
-        return len(self.collection.sections) == 1
+        return len(self.collection.sections) == 1 and self.title == DEFAULT_SECTION_NAME
 
 
 class Form(BaseModel):
