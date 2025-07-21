@@ -19,9 +19,9 @@
       {% if not collection.has_non_default_sections %}
         <span class="govuk-caption-l">{{ collection.name }}</span>
         <h1 class="govuk-heading-l">Split form into sections</h1>
-        <p class="govuk-body">When the form has a lot of tasks, grouping related ones together can help users understand what you're asking of them.</p>
-        <p class="govuk-body">When you split the form, all tasks will need to go into one section or another. You will not be able to have tasks that are not in a section.</p>
-        <p class="govuk-body">This form currently has the following tasks:</p>
+        <p class="govuk-body">You can group related tasks together when your form has many of them. This can help users understand what you're asking them to do.</p>
+        <p class="govuk-body">If you split your form, every task must go into a section. You cannot have tasks outside of sections.</p>
+        <p class="govuk-body">This form currently has these tasks:</p>
         <ul class="govuk-list govuk-list--bullet">
           {% for db_form in collection.forms %}
             <li>{{ db_form.title }}</li>
