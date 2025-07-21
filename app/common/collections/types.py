@@ -4,6 +4,7 @@ from typing import Any, Protocol, Union, cast
 from pydantic import BaseModel, RootModel
 
 NOT_ASKED = "NOT_ASKED"
+NOT_ANSWERED = "NOT_ANSWERED"
 
 
 class SubmissionAnswerProtocol(Protocol):
