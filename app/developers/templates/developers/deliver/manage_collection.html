@@ -59,29 +59,80 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full govuk-!-margin-top-5">
-      {% for section in collection.sections %}
-        {% set rows=[] %}
+      {% if not collection.has_non_default_sections and collection.forms | length == 0 %}
+        <h2 class="govuk-heading-m">Tasks</h2>
+        <p class="govuk-body">Add tasks to create your form.</p>
+        <p class="govuk-body">Tasks are groups of questions with a common theme.</p>
+        {% set section = collection.sections[0] %}
+        <a class="govuk-button govuk-!-margin-bottom-0" href="{{ url_for("developers.deliver.add_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id) }}">
+          Add a task <span class="govuk-visually-hidden">to the “{{ section.title }}” section</span>
+        </a>
+      {% else %}
+        {% for section in collection.sections %}
+          {% set rows=[] %}
 
-        {% for form in section.forms %}
-          {% set question_text %}
-            {% trans count=form.questions | length %}
-              {{ count }}
-              question {% pluralize %}
-              {{ count }}
-              questions
-            {% endtrans %}
+          {% for form in section.forms %}
+            {% set question_text %}
+              {% trans count=form.questions | length %}{{ count }} question {% pluralize %} {{ count }} questions{% endtrans %}
+            {% endset %}
+            {% set form_link %}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id) }}">{{ form.title }}</a>
+            {% endset %}
+            {% set actions = [] %}
+            {% if not loop.first %}
+              {%
+                do actions.append( {
+                  "text":"Move up",
+                         "classes": "govuk-link--no-visited-state",
+                  "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1),
+                  "post": True
+                })
+              %}
+            {% endif %}
+            {% if not loop.last %}
+              {%
+                do actions.append( {
+                  "text":"Move down",
+                  "classes": "govuk-link--no-visited-state",
+                  "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'down'),"disabled":(loop.index <= 1),
+                  "post": True
+                })
+              %}
+            {% endif %}
+            {% do actions.append({"text": "Manage", "visuallyHiddenText": form.title, "href": url_for("developers.deliver.edit_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id), "classes": "govuk-link--no-visited-state" }) %}
+            {%
+              do rows.append({
+                  "key": {
+                    "html": form_link,
+                  },
+                  "value": {
+                    "text": question_text
+                  },
+                  "actions": {
+                    "classes": "govuk-!-width-one-third",
+                    "items": actions
+                  },
+              })
+            %}
+          {% endfor %}
+
+
+          {% set add_task_html %}
+            <a
+              class="govuk-button {% if section.forms | length > 0 %}govuk-button--secondary{% endif %} govuk-!-margin-bottom-0"
+              href="{{ url_for("developers.deliver.add_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id) }}">
+              {{ "Add another task" if section.forms else "Add a task" }}<span class="govuk-visually-hidden">to the “{{ section.title }}” section</span>
+            </a>
           {% endset %}
-          {% set form_link %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id) }}">{{ form.title }}</a>
-          {% endset %}
+          {% do rows.append({"key": {"html": add_task_html, "classes": "govuk-!-padding-top-5" if section.forms else ""}, "value": {} }) %}
           {% set actions = [] %}
-          {% if form.order != 0 %}
+          {% if not loop.first %}
             {%
               do actions.append( {
-              	"text":"Move up",
-                       "classes": "govuk-link--no-visited-state",
-              	"href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'up'),"disabled":(loop.index <= 1),
-              	"post": True
+                "text":"Move up",
+                "classes": "govuk-link--no-visited-state",
+                "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1),
+                "post": True
               })
             %}
           {% endif %}
@@ -90,83 +141,37 @@
               do actions.append( {
                 "text":"Move down",
                 "classes": "govuk-link--no-visited-state",
-                "href": url_for('developers.deliver.move_form', grant_id = grant.id, collection_id=collection.id, section_id = section.id, form_id=form.id, direction = 'down'),"disabled":(loop.index <= 1),
+                "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'down'),"disabled":(loop.index <= 1),
                 "post": True
               })
             %}
           {% endif %}
-          {% do actions.append({"text": "Manage", "visuallyHiddenText": form.title, "href": url_for("developers.deliver.edit_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id), "classes": "govuk-link--no-visited-state" }) %}
-          {%
-            do rows.append({
-                "key": {
-                  "html": form_link,
-                },
-                "value": {
-                  "text": question_text
-                },
-                "actions": {
-                  "classes": "govuk-!-width-one-third",
-                  "items": actions
-                },
+          {% if not section.is_default_section %}
+            {% do actions.append({"text": "Manage", "visuallyHiddenText": section.title, "href": url_for("developers.deliver.manage_section", grant_id=grant.id, collection_id=collection.id, section_id=section.id), "classes": "govuk-link--no-visited-state" }) %}
+          {% endif %}
+          {{
+            govukSummaryList({
+              "card": {
+                "title": {"text": section.title, "headingLevel": 2},
+                "actions": {"items": actions } },
+              "rows": rows,
+              "classes": "app-tasklist-builder",
             })
-          %}
+          }}
+        {% else %}
+          <p class="govuk-body">This form has no sections.</p>
+          <a class="govuk-button" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add a section to the form</a>
         {% endfor %}
 
-
-        {% set add_task_html %}
-          <a
-            class="govuk-button {% if section.forms | length > 0 %}govuk-button--secondary{% endif %} govuk-!-margin-bottom-0"
-            href="{{ url_for("developers.deliver.add_form", grant_id=grant.id, collection_id=collection.id, section_id=section.id) }}">
-            {{ "Add another task" if section.forms else "Add a task" }}<span class="govuk-visually-hidden">to the “{{ section.title }}” section</span>
-          </a>
-        {% endset %}
-        {% do rows.append({"key": {"html": add_task_html, "classes": "govuk-!-padding-top-5" if section.forms else ""}, "value": {} }) %}
-        {% set actions = [] %}
-        {% if section.order != 0 %}
-          {%
-            do actions.append( {
-              "text":"Move up",
-              "classes": "govuk-link--no-visited-state",
-              "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'up'),"disabled":(loop.index <= 1),
-              "post": True
-            })
-          %}
+        {% if collection.sections and (collection.has_non_default_sections or collection.forms | length >= config.ENABLE_FORM_SECTIONS_AFTER_X_TASKS) %}
+          <div class="govuk-!-margin-top-7">
+            {% if not collection.has_non_default_sections %}
+              <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Split the form into sections of related tasks</a>
+            {% else %}
+              <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add another section to the form</a>
+            {% endif %}
+          </div>
         {% endif %}
-        {% if not loop.last %}
-          {%
-            do actions.append( {
-              "text":"Move down",
-              "classes": "govuk-link--no-visited-state",
-              "href": url_for('developers.deliver.move_section', grant_id = grant.id, collection_id=collection.id, section_id = section.id, direction = 'down'),"disabled":(loop.index <= 1),
-              "post": True
-            })
-          %}
-        {% endif %}
-        {% if not section.is_default_section %}
-          {% do actions.append({"text": "Manage", "visuallyHiddenText": section.title, "href": url_for("developers.deliver.manage_section", grant_id=grant.id, collection_id=collection.id, section_id=section.id), "classes": "govuk-link--no-visited-state" }) %}
-        {% endif %}
-        {{
-          govukSummaryList({
-            "card": {
-              "title": {"text": section.title, "headingLevel": 2},
-              "actions": {"items": actions } },
-            "rows": rows,
-            "classes": "app-tasklist-builder",
-          })
-        }}
-      {% else %}
-        <p class="govuk-body">This form has no sections.</p>
-        <a class="govuk-button" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add a section to the form</a>
-      {% endfor %}
-
-      {% if collection.sections and (collection.has_non_default_sections or collection.forms | length >= config.ENABLE_FORM_SECTIONS_AFTER_X_TASKS) %}
-        <div class="govuk-!-margin-top-7">
-          {% if not collection.has_non_default_sections %}
-            <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Split the form into sections of related tasks</a>
-          {% else %}
-            <a class="govuk-button govuk-button--secondary" href="{{ url_for('developers.deliver.add_section', grant_id = grant.id, collection_id=collection.id) }}">Add another section to the form</a>
-          {% endif %}
-        </div>
       {% endif %}
     </div>
   </div>
