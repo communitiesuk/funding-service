@@ -30,20 +30,20 @@
 
     {% for q in questions %}
       {% if q.data_type == enum.question_type.TEXT_SINGLE_LINE or q.data_type == enum.question_type.TEXT_MULTI_LINE or q.data_type == enum.question_type.EMAIL or q.data_type == enum.question_type.URL %}
-        {{ form.render_question(q, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
+        {{ form.render_question(q, params={"label": {"classes": "govuk-label--l" if not question.is_group else "govuk-label--m", "isPageHeading": true if not question.is_group else false } }) }}
       {% elif q.data_type == enum.question_type.INTEGER %}
-        {{ form.render_question(q, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
+        {{ form.render_question(q, params={"label": {"classes": "govuk-label--l" if not question.is_group else "govuk-label--m", "isPageHeading": true if not question.is_group else false }, "inputmode": "numeric", "spellcheck": false }) }}
       {% elif q.data_type == enum.question_type.YES_NO %}
-        {{ form.render_question(q, params={"fieldset": {"legend": {"text": q.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true} }, "classes": "govuk-radios--inline" }) }}
+        {{ form.render_question(q, params={"fieldset": {"legend": {"text": q.text, "classes": "govuk-fieldset__legend--l" if not question.is_group else "govuk-fieldset__legend--m", "isPageHeading": true if not question.is_group else false } }, "classes": "govuk-radios--inline" }) }}
       {% elif q.data_type == enum.question_type.RADIOS %}
         {% if form.get_question_field(q).widget.is_accessible_autocomplete %}
           {#
             `govuk-!-width-full` override here to line up with the default width of the accessible autocomplete component. We could potentially do something smarter, like copy the class
             from here to the enhanced autocomplete, but leaving that for a future increment.
           #}
-          {{ form.render_question(q, params={"label": {"text": q.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true}, "classes": "govuk-!-width-full" }) }}
+          {{ form.render_question(q, params={"label": {"text": q.text, "classes": "govuk-fieldset__legend--l" if not question.is_group else "govuk-label--m", "isPageHeading": true if not question.is_group else false }, "classes": "govuk-!-width-full" }) }}
         {% else %}
-          {{ form.render_question(q, params={"fieldset": {"legend": {"text": q.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true} } }) }}
+          {{ form.render_question(q, params={"fieldset": {"legend": {"text": q.text, "classes": "govuk-fieldset__legend--l" if not question.is_group else "govuk-fieldset__legend--m", "isPageHeading": true if not question.is_group else false } } }) }}
         {% endif %}
       {% endif %}
     {% endfor %}
