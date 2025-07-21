@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovSelect, GovSubmitInput
-from wtforms import Field, SelectField, SubmitField, ValidationError
+from govuk_frontend_wtf.wtforms_widgets import GovSelect, GovSubmitInput, GovRadioInput
+from wtforms import Field, RadioField, SelectField, SubmitField, ValidationError
 from wtforms.validators import DataRequired
 
 from app.common.data.interfaces.collections import get_question_by_id, is_question_dependency_order_valid
@@ -40,3 +40,12 @@ class ConditionSelectQuestionForm(FlaskForm):
         depends_on_question = get_question_by_id(self.question.data)
         if not is_question_dependency_order_valid(self.target_question, depends_on_question):
             raise ValidationError("Select an answer that comes before this question in the form")
+
+class UpdateGroupPageLayoutForm(FlaskForm):
+    page_layout = RadioField(
+        label="Page layout",
+        description="Choose how the questions in this group will be displayed",
+        widget=GovRadioInput(),
+        choices=[ (False, "One question per page"), (True, "Show all questions on one page") ],
+    )
+    submit = SubmitField("Update page layout", widget=GovSubmitInput())

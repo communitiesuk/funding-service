@@ -13,6 +13,7 @@ from app.common.collections.runner import DGFFormRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     DependencyOrderException,
+    GroupLayoutOptions,
     create_collection,
     create_form,
     create_question,
@@ -63,6 +64,7 @@ from app.deliver_grant_funding.forms import (
 from app.developers.forms import (
     ConditionSelectQuestionForm,
     ConfirmDeletionForm,
+    UpdateGroupPageLayoutForm,
 )
 from app.developers.helpers import start_testing_submission
 from app.extensions import auto_commit_after_request
@@ -752,6 +754,36 @@ def edit_group(grant_id: UUID, collection_id: UUID, group_id: UUID) -> ResponseR
         db_form=group,
         question=group,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
+
+@developers_deliver_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/groups/<uuid:group_id>/page_layout",
+    methods=["GET", "POST"],
+)
+@is_platform_admin
+@auto_commit_after_request
+def edit_group_page_layout(grant_id: UUID, collection_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    group = get_question_by_id(question_id=group_id)
+
+    # todo: ignore serialise/ deserialise for speed, accessor should think about it
+    form = UpdateGroupPageLayoutForm(page_layout=group.is_same_page)
+
+    if form.validate_on_submit():
+        interfaces.collections.update_group(group, options=GroupLayoutOptions(is_same_page=form.page_layout.data))
+        return redirect(url_for(
+            "developers.deliver.edit_group",
+            grant_id=grant_id,
+            collection_id=collection_id,
+            group_id=group_id,
+        ))
+    
+    return render_template(
+        "developers/deliver/edit_group_page_layout.html",
+        grant=group.belongs_to_form.section.collection.grant,
+        collection=group.belongs_to_form.section.collection,
+        section=group.belongs_to_form.section,
+        group=group,
+        form=form,
     )
 
 

@@ -289,7 +289,8 @@ class Question(BaseModel, SafeQidMixin):
     @property
     def is_same_page(self) -> bool:
         # fixme: both is group _and_ has the layout configuration set to same page
-        return self.is_group
+        # todo: serialise etc.
+        return self.is_group and self.context.get("is_same_page", False)
 
     @property
     def conditions(self) -> list["Expression"]:

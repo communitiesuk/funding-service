@@ -87,11 +87,11 @@
         govukSummaryList({
           "rows": [{
               "key": {"text": "Page layout"},
-              "value":{"text": "One question per page" },
+              "value":{"text": "One question per page" if not group.is_same_page else "All questions on one page" },
               "actions": {
                   "items": [
                       {
-                        "href": "#",
+                        "href": url_for("developers.deliver.edit_group_page_layout", grant_id=grant.id, collection_id=collection.id, group_id=group.id),
                         "text": "Change",
                         "classes": "govuk-link govuk-link--no-visited-state"
                       }
