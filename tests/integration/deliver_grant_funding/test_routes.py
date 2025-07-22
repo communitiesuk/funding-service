@@ -326,7 +326,7 @@ def test_create_section_get(authenticated_platform_admin_client, factories, temp
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert get_h1_text(soup) == "What is the name of the section?"
+    assert get_h1_text(soup) == "Split form into sections"
 
 
 def test_create_section_post(authenticated_platform_admin_client, factories, db_session):
@@ -338,7 +338,7 @@ def test_create_section_post(authenticated_platform_admin_client, factories, db_
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection", grant_id=collection.grant.id, collection_id=collection.id
+        "developers.deliver.manage_collection_tasks", grant_id=collection.grant.id, collection_id=collection.id
     )
 
     collection_from_db = db_session.scalars(select(Collection).where(Collection.id == collection.id)).one()
@@ -405,7 +405,7 @@ def test_create_form_post(authenticated_platform_admin_client, factories, db_ses
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=section.collection.grant.id,
         collection_id=section.collection.id,
     )
@@ -436,7 +436,7 @@ def test_create_form_post_duplicate_name(authenticated_platform_admin_client, fa
 
 
 def test_move_section(authenticated_platform_admin_client, factories, db_session):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=False)
     section1 = factories.section.create(collection=collection, order=0)
     section2 = factories.section.create(collection=collection, order=1)
 
@@ -451,7 +451,7 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=collection.grant.id,
         collection_id=collection.id,
     )
@@ -473,7 +473,7 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=collection.grant.id,
         collection_id=collection.id,
     )
@@ -512,7 +512,7 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=section.collection.grant.id,
         collection_id=section.collection.id,
     )
@@ -533,7 +533,7 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=section.collection.grant.id,
         collection_id=section.collection.id,
     )
@@ -573,7 +573,7 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.manage_form_questions",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
@@ -598,7 +598,7 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.manage_form_questions",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
@@ -809,7 +809,7 @@ def test_edit_question_post(authenticated_platform_admin_client, factories, db_s
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.manage_form_questions",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,

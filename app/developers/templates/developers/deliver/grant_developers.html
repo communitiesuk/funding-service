@@ -19,16 +19,6 @@
         {% endset %}
 
         {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
-      {% elif delete_collection %}
-        {% set banner_html %}
-          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the “{{ delete_collection.name }}” collection?</p>
-          <form method="post" novalidate>
-            {{ confirm_deletion_form.csrf_token }}
-            {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
-          </form>
-        {% endset %}
-
-        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
       {% endif %}
 
       <h1 class="govuk-heading-l">
@@ -47,7 +37,7 @@
       {% else %}
         {% for collection in grant.collections %}
           {% set collection_link %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_collection', grant_id=grant.id, collection_id=collection.id) }}">{{ collection.name }}</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_collection_tasks', grant_id=grant.id, collection_id=collection.id) }}">{{ collection.name }}</a>
           {% endset %}
 
 
@@ -68,24 +58,33 @@
             {% endtrans %}
           {% endset %}
 
+
+          {% set formSectionsAndTasksText %}
+            {% if collection.has_non_default_sections %}
+              {{ collection.sections | length }}
+              {% trans count=collection.sections|length %}section{% pluralize %}sections{% endtrans %},
+            {% endif %}
+            {{ collection.forms | length }}
+            {% trans count=collection.forms|length %}task{% pluralize %}tasks{% endtrans %}
+          {% endset %}
+
           {{
             govukSummaryList({
               "card": {
                 "title": {"text": collection.name, "headingLevel": 3},
                 "actions": {
                   "items": [
-                    {"text": "Rename", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.edit_collection", grant_id=grant.id, collection_id=collection.id), "classes": "govuk-link--no-visited-state" },
-                    {"text": "Delete", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.grant_developers", grant_id=grant.id, delete_collection=collection.id), "classes": "govuk-link--no-visited-state" },
+                    {"text": "Manage", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.manage_collection", grant_id=grant.id, collection_id=collection.id), "classes": "govuk-link--no-visited-state" },
                   ],
                 },
               },
               "rows": [
                 {
                   "key": {"text": "Form"},
-                  "value": {"text": collection.sections|length ~ " sections, " ~ collection.forms|length ~ " tasks"},
+                  "value": {"text": formSectionsAndTasksText},
                   "actions": {
                     "items": [
-                      {"text": "Manage", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.manage_collection", grant_id=grant.id, collection_id=collection.id), "classes": "govuk-link--no-visited-state" },
+                      {"text": "Build form", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.manage_collection_tasks", grant_id=grant.id, collection_id=collection.id), "classes": "govuk-link--no-visited-state" },
                     ],
                   },
                 },

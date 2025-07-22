@@ -13,7 +13,7 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
-from app.common.data.interfaces.collections import raise_if_question_has_any_dependencies
+from app.common.data.interfaces.collections import create_section, raise_if_question_has_any_dependencies
 from app.common.data.models import (
     Collection,
     Form,
@@ -23,6 +23,7 @@ from app.common.data.models import (
     Submission,
 )
 from app.common.data.models_user import User
+from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 
 
@@ -60,6 +61,7 @@ def delete_section(section: Section) -> None:
     # correctly.
     # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
     # definitely has a few quirks.
+    collection = section.collection
     db.session.delete(section)
     if section in section.collection.sections:
         section.collection.sections.remove(section)  # type: ignore[no-untyped-call]
@@ -67,6 +69,12 @@ def delete_section(section: Section) -> None:
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )
+
+    # If we're deleting the last section, automatically add the default section back. We should never end up with a
+    # collection that has zero sections.
+    if len(collection.sections) == 0:
+        create_section(title=DEFAULT_SECTION_NAME, collection=collection)
+
     db.session.flush()
 
 
