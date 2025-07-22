@@ -77,7 +77,7 @@ def update_repository_url(cluster_name, service_name, container_name, new_reposi
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python update-task-v2.py <new_repository_url>")
+        print("Usage: python update-ecs-task-image.py <new_repository_url>")
         sys.exit(1)
 
     cluster_name = "task-runner-cluster"
