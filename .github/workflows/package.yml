@@ -15,21 +15,23 @@ on:
         required: true
       TEMP_SLACK_CHANNEL_ID:
         required: true
-    outputs:
-      ghcr_image_location:
-        description: "A URI pointing to the paketo-built image"
-        value: ${{ jobs.paketo_build.outputs.ghcr_image_location }}
+      CI_AWS_ACCOUNT:
+        required: true
 
 jobs:
   paketo_build:
     runs-on: ubuntu-latest
     name: Paketo
-    outputs:
-      ghcr_image_location: ${{ steps.build_and_publish.outputs.ghcr_image_location }}
 
     steps:
       - uses: buildpacks/github-actions/setup-pack@bc04fbfd78e903050bab17a2dcf907e71e3c4afa # v5.9.2
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.CI_AWS_ACCOUNT }}:role/terraform-developer
+          aws-region: eu-west-2  # adjust as needed
 
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -49,43 +51,42 @@ jobs:
           npm ci
           npm run build
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076
 
-      - name: Build and publish app image
+      - name: Build and publish to ECR
         id: build_and_publish
         run: |
-          IMAGE_ID=ghcr.io/${{ github.repository }}
-          VERSION=${{ github.sha }}
-          GHCR_IMAGE_LOCATION="$IMAGE_ID:$VERSION"
+          AWS_ACCOUNT_ID=${{ secrets.CI_AWS_ACCOUNT}}
+          AWS_REGION="eu-west-2"
+          REPO_NAME="funding-service-ci-shared-app"
+          IMAGE_TAG=${{ github.sha }}
+
+          ECR_IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$IMAGE_TAG"
+          echo "::add-mask::$ECR_IMAGE_URI"
+
           LATEST_TAG=""
-          if [ ${{ github.ref_name }} == "main" ]; then
-            LATEST_TAG="--tag $IMAGE_ID:latest"
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            LATEST_TAG="--tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:latest"
           fi
 
           uv export --format requirements-txt --no-hashes > requirements.txt
 
-          pack build $GHCR_IMAGE_LOCATION $LATEST_TAG \
+          pack build "$ECR_IMAGE_URI" $LATEST_TAG \
             --builder paketobuildpacks/builder-jammy-full \
             --publish
 
-          echo "ghcr_image_location=$GHCR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
-
   notify_slack:
-    needs:
-      - paketo_build
-    if: ${{ always() && needs.paketo_build.result == 'failure' && github.ref_name == 'main'}}
-    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
-    with:
-      app_name: FS Paketo
-      env_name: 'build'
-      github_username: ${{ github.actor }}
-      workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
-    secrets:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+      needs:
+        - paketo_build
+      if: ${{ always() && needs.paketo_build.result == 'failure' && github.ref_name == 'main'}}
+      uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
+      with:
+        app_name: FS Paketo
+        env_name: 'build'
+        github_username: ${{ github.actor }}
+        workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
+      secrets:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}

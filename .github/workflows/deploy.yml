@@ -14,10 +14,6 @@ on:
         type: string
         required: true
         default: dev
-      ghcr_image_location:
-        description: "Location of the image to deploy."
-        type: string
-        required: true
       run_e2e_tests:
           description: "Run end-to-end tests?"
           type: boolean
@@ -25,6 +21,8 @@ on:
           required: true
     secrets:
       AWS_ACCOUNT:
+        required: true
+      CI_AWS_ACCOUNT:
         required: true
       SLACK_BOT_TOKEN:
         required: true
@@ -42,18 +40,6 @@ jobs:
     name: Deploy
 
     steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull image from GHCR
-        id: pull_image
-        run: |
-          docker pull ${{ inputs.ghcr_image_location }}
-
       - name: Get current date
         shell: bash
         id: currentdatetime
@@ -66,29 +52,23 @@ jobs:
           role-session-name: "funding-service_deploy_${{ inputs.environment }}_${{ steps.currentdatetime.outputs.datetime }}"
           aws-region: eu-west-2
 
-      - name: Login to ECR
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
-        with:
-          registry: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com
+      - name: Checkout repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - name: Push image to ECR
-        id: push_image
+      - name: Set ECR repo variable and construct image URI
+        id: ecr_info
         run: |
-          ECR_REPO=${{ secrets.AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/${{ inputs.environment }}-funding-service
-
-          docker image tag ${{ inputs.ghcr_image_location }} $ECR_REPO:${{ github.sha }}
-          docker image tag ${{ inputs.ghcr_image_location }} $ECR_REPO:latest
-          docker push $ECR_REPO:${{ github.sha }}
-          docker push $ECR_REPO:latest
-
+          # Set ECR repo based on account and environment
+          ECR_REPO=${{ secrets.CI_AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/funding-service-ci-shared-app
+          # Construct final image URI using provided image tag
           ECR_IMAGE_LOCATION=$ECR_REPO:${{ github.sha }}
 
           echo "ecr_image_location=$ECR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
 
-      - name: checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Update ECS image location
+        run: ./scripts/update-ecs-task-image.py "${{ steps.ecr_info.outputs.ecr_image_location }}"
 
-      - name: check if changeset includes migrations
+      - name: Check for migrations
         uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         id: changes
         with:
@@ -96,29 +76,28 @@ jobs:
             alembic-head:
               - 'app/common/data/migrations/.current-alembic-head'
 
-
       - name: Run Database Migrations
         if: steps.changes.outputs.alembic-head == 'true'
         uses: ./.github/workflows/run-database-migrations
 
-      - name: Deploy image to AppRunner
+
+      - name: Deploy image to App Runner
         id: deploy
         uses: awslabs/amazon-app-runner-deploy@main
         with:
           service: ${{ inputs.environment }}-funding-service
-          image: ${{ steps.push_image.outputs.ecr_image_location }}
+          image: ${{ steps.ecr_info.outputs.ecr_image_location }}
           access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
           region: eu-west-2
           port: 8080
-          cpu : 1
-          memory : 2
+          cpu: 1
+          memory: 2
           wait-for-service-stability-seconds: 600
 
   e2e_tests:
     name: Python E2E tests
     if: ${{ inputs.run_e2e_tests == true }}
-    needs:
-      - deploy
+    needs: [deploy]
     uses: ./.github/workflows/run_e2e_tests.yml
     with:
       environment: ${{ inputs.environment }}
@@ -126,14 +105,13 @@ jobs:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
       SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
       SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
+
   notify_slack:
-    needs:
-      - deploy
-      - e2e_tests
-    if: ${{ always() && (needs.deploy.result == 'failure' || needs.e2e_tests.result == 'failure') && github.ref_name == 'main'}}
+    needs: [deploy, e2e_tests]
+    if: ${{ always() && (needs.deploy.result == 'failure' || needs.e2e_tests.result == 'failure') && github.ref_name == 'main' }}
     uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
     with:
-      app_name: FS Deploy & Build
+      app_name: FS Deploy CI ECR
       env_name: ${{ inputs.environment }}
       github_username: ${{ github.actor }}
       workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
