@@ -75,3 +75,9 @@ class TestAppErrorHandlers:
         assert response.status_code == 404
         assert "Page not found" in response.text
         assert app.config["SERVICE_DESK_URL"] in response.text
+
+    def test_app_500_on_internal_server_error(self, app, client):
+        response = client.get("/_testing/500")
+        assert response.status_code == 500
+        assert "Sorry, there is a problem with the service" in response.text
+        assert app.config["SERVICE_DESK_URL"] in response.text

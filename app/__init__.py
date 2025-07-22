@@ -63,6 +63,10 @@ def _register_global_error_handlers(app: Flask) -> None:
     def handle_404(error: Literal[404]) -> ResponseReturnValue:
         return render_template("common/errors/404.html", service_desk_url=app.config["SERVICE_DESK_URL"]), 404
 
+    @app.errorhandler(500)
+    def handle_500(error: Literal[500]) -> ResponseReturnValue:
+        return render_template("common/errors/500.html", service_desk_url=app.config["SERVICE_DESK_URL"]), 500
+
 
 def _register_custom_converters(app: Flask) -> None:
     """
