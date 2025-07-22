@@ -1,7 +1,7 @@
 import pytest
 
 from app import QuestionDataType
-from app.common.data.types import ExpressionType, QuestionOptions, SubmissionModeEnum
+from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
 
 
 class TestSubmissionModel:
@@ -48,7 +48,7 @@ class TestQuestionModel:
         factories.data_source_item.reset_sequence()
         question = factories.question.create(
             data_type=QuestionDataType.RADIOS,
-            options=QuestionOptions(last_data_source_item_is_distinct_from_others=False),
+            presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=False),
         )
         other_question = factories.question.create()
 
@@ -66,7 +66,7 @@ class TestQuestionModel:
         factories.data_source_item.reset_sequence()
         question = factories.question.create(
             data_type=QuestionDataType.RADIOS,
-            options=QuestionOptions(last_data_source_item_is_distinct_from_others=True),
+            presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
         )
         assert question.data_source_items == "Option 0\nOption 1"
         assert question.separate_option_if_no_items_match is True

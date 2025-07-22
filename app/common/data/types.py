@@ -108,7 +108,7 @@ class FormRunnerState(enum.StrEnum):
     CHECK_YOUR_ANSWERS = "check-your-answers"
 
 
-class QuestionOptions(BaseModel):
+class QuestionPresentationOptions(BaseModel):
     # This is for radios (and maybe checkboxes) question types; the last item will be separated from the rest of the
     # data source items, visually by an 'or' break. It is meant to indicate that none of the above options are
     # appropriate and the user needs to fallback to some kind of 'not known' / 'none of the above' instead.
@@ -125,7 +125,7 @@ class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
             return None
         return value.model_dump(mode="json")
 
-    def process_result_value(self, value: typing.Any, dialect: Any) -> QuestionOptions | None:
+    def process_result_value(self, value: typing.Any, dialect: Any) -> QuestionPresentationOptions | None:
         if value is None:
             return None
-        return QuestionOptions(**value)  # ty: ignore[missing-argument]
+        return QuestionPresentationOptions(**value)  # ty: ignore[missing-argument]

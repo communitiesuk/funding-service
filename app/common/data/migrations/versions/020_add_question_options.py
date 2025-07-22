@@ -18,9 +18,9 @@ depends_on = None
 
 def upgrade() -> None:
     with op.batch_alter_table("question", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("options", postgresql.JSONB(astext_type=sa.Text()), nullable=True))
+        batch_op.add_column(sa.Column("presentation_options", postgresql.JSONB(astext_type=sa.Text()), nullable=True))
 
 
 def downgrade() -> None:
     with op.batch_alter_table("question", schema=None) as batch_op:
-        batch_op.drop_column("options")
+        batch_op.drop_column("presentation_options")

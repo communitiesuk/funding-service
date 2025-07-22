@@ -42,7 +42,7 @@ from app.common.data.models import (
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import (
     QuestionDataType,
-    QuestionOptions,
+    QuestionPresentationOptions,
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -525,7 +525,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
         no_declaration=None,
     )
 
-    options = factory.LazyFunction(lambda: QuestionOptions())
+    presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
 
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:

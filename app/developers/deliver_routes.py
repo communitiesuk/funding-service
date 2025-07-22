@@ -47,7 +47,7 @@ from app.common.data.types import (
     ExpressionType,
     FormRunnerState,
     QuestionDataType,
-    QuestionOptions,
+    QuestionPresentationOptions,
     SubmissionModeEnum,
 )
 from app.common.expressions.forms import build_managed_expression_form
@@ -490,7 +490,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
                 name=wt_form.name.data,
                 data_type=question_data_type_enum,
                 items=wt_form.normalised_data_source_items,
-                options=QuestionOptions(
+                presentation_options=QuestionPresentationOptions(
                     last_data_source_item_is_distinct_from_others=wt_form.separate_option_if_no_items_match.data
                 ),
             )
@@ -606,7 +606,7 @@ def edit_question(
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
                 items=wt_form.normalised_data_source_items,
-                options=QuestionOptions(
+                presentation_options=QuestionPresentationOptions(
                     last_data_source_item_is_distinct_from_others=wt_form.separate_option_if_no_items_match.data
                 ),
             )

@@ -14,7 +14,7 @@ from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
-    QuestionOptions,
+    QuestionPresentationOptions,
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -248,7 +248,9 @@ class Question(BaseModel, SafeQidMixin):
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
     form: Mapped[Form] = relationship("Form", back_populates="questions")
 
-    options: Mapped[QuestionOptions | None] = mapped_column(default=QuestionOptions, server_default="{}")
+    presentation_options: Mapped[QuestionPresentationOptions | None] = mapped_column(
+        default=QuestionPresentationOptions, server_default="{}"
+    )
 
     # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
     expressions: Mapped[list["Expression"]] = relationship(
@@ -291,7 +293,10 @@ class Question(BaseModel, SafeQidMixin):
         if self.data_type != QuestionDataType.RADIOS:
             return None
 
-        if self.options is not None and self.options.last_data_source_item_is_distinct_from_others:
+        if (
+            self.presentation_options is not None
+            and self.presentation_options.last_data_source_item_is_distinct_from_others
+        ):
             return "\n".join(item.label for item in self.data_source.items[:-1])
 
         return "\n".join([item.label for item in self.data_source.items])
@@ -307,7 +312,11 @@ class Question(BaseModel, SafeQidMixin):
         if self.data_type != QuestionDataType.RADIOS:
             return None
 
-        return self.options.last_data_source_item_is_distinct_from_others if self.options is not None else None
+        return (
+            self.presentation_options.last_data_source_item_is_distinct_from_others
+            if self.presentation_options is not None
+            else None
+        )
 
     @property
     def none_of_the_above_item_text(self) -> str | None:
@@ -323,7 +332,10 @@ class Question(BaseModel, SafeQidMixin):
         if self.data_type != QuestionDataType.RADIOS:
             return None
 
-        if self.options is not None and self.options.last_data_source_item_is_distinct_from_others:
+        if (
+            self.presentation_options is not None
+            and self.presentation_options.last_data_source_item_is_distinct_from_others
+        ):
             return self.data_source.items[-1].label
 
         return "None of the above"

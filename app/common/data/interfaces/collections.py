@@ -25,7 +25,7 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     ExpressionType,
     QuestionDataType,
-    QuestionOptions,
+    QuestionPresentationOptions,
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -351,10 +351,16 @@ def create_question(
     name: str,
     data_type: QuestionDataType,
     items: list[str] | None = None,
-    options: QuestionOptions | None = None,
+    presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:
     question = Question(
-        text=text, form_id=form.id, slug=slugify(text), hint=hint, name=name, data_type=data_type, options=options
+        text=text,
+        form_id=form.id,
+        slug=slugify(text),
+        hint=hint,
+        name=name,
+        data_type=data_type,
+        presentation_options=presentation_options,
     )
     form.questions.append(question)  # type: ignore[no-untyped-call]
     db.session.add(question)
@@ -502,13 +508,13 @@ def update_question(
     hint: str | None,
     name: str,
     items: list[str] | None = None,
-    options: QuestionOptions | None = None,
+    presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:
     question.text = text
     question.hint = hint
     question.name = name
     question.slug = slugify(text)
-    question.options = options
+    question.presentation_options = presentation_options
 
     if items is not None:
         _update_data_source(question, items)

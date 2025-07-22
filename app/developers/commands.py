@@ -25,7 +25,7 @@ from app.common.data.models import (
     Section,
 )
 from app.common.data.models_user import User
-from app.common.data.types import QuestionOptions
+from app.common.data.types import QuestionPresentationOptions
 from app.developers import developers_blueprint
 from app.extensions import db
 
@@ -183,8 +183,8 @@ def seed_grants() -> None:  # noqa: C901
             db.session.add(form)
 
         for question in grant_data["questions"]:
-            if "options" in question:
-                question["options"] = QuestionOptions(**question["options"])
+            if "presentation_options" in question:
+                question["presentation_options"] = QuestionPresentationOptions(**question["presentation_options"])
 
             question = Question(**question)
             db.session.add(question)

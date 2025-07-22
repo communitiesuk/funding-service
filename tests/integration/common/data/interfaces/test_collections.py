@@ -42,7 +42,7 @@ from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
-    QuestionOptions,
+    QuestionPresentationOptions,
     SubmissionEventKey,
 )
 from app.common.expressions.managed import AnyOf, GreaterThan, LessThan
@@ -356,7 +356,7 @@ class TestCreateQuestion:
             name="Test Question Name",
             data_type=QuestionDataType.RADIOS,
             items=["one", "two", "three"],
-            options=QuestionOptions(last_data_source_item_is_distinct_from_others=True),
+            presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
         )
         assert question is not None
         assert question.id is not None
@@ -368,7 +368,7 @@ class TestCreateQuestion:
         assert question.slug == "test-question"
         assert question.data_source is not None
         assert [item.key for item in question.data_source.items] == ["one", "two", "three"]
-        assert question.options.last_data_source_item_is_distinct_from_others is True
+        assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
 
     def test_break_if_new_question_types_added(self):
         assert len(QuestionDataType) == 7, "Add a new test above if adding a new question type"
@@ -443,12 +443,12 @@ class TestUpdateQuestion:
             name="Test Question Name",
             data_type=QuestionDataType.RADIOS,
             items=["option 1", "option 2", "option 3"],
-            options=QuestionOptions(last_data_source_item_is_distinct_from_others=False),
+            presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=False),
         )
         assert question is not None
         assert question.data_source_items == "option 1\noption 2\noption 3"
         item_ids = [item.id for item in question.data_source.items]
-        assert question.options.last_data_source_item_is_distinct_from_others is False
+        assert question.presentation_options.last_data_source_item_is_distinct_from_others is False
 
         updated_question = update_question(
             question=question,
@@ -456,7 +456,7 @@ class TestUpdateQuestion:
             hint="Updated Hint",
             name="Updated Question Name",
             items=["option 3", "option 4", "option-1"],
-            options=QuestionOptions(last_data_source_item_is_distinct_from_others=True),
+            presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
         )
 
         assert updated_question.text == "Updated Question"
@@ -476,7 +476,7 @@ class TestUpdateQuestion:
         # The dropped item has been deleted
         assert db_session.get(DataSourceItem, item_ids[1]) is None
 
-        assert question.options.last_data_source_item_is_distinct_from_others is True
+        assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
 
     def test_update_question_options_errors_on_referenced_data_items(db_session, factories):
         form = factories.form.create()

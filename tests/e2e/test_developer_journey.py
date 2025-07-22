@@ -5,7 +5,7 @@ from typing import NotRequired, TypedDict
 import pytest
 from playwright.sync_api import Page, expect
 
-from app.common.data.types import QuestionDataType, QuestionOptions
+from app.common.data.types import QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
 from app.constants import DEFAULT_SECTION_NAME
 from tests.e2e.config import EndToEndTestSecrets
@@ -27,7 +27,7 @@ TQuestionToTest = TypedDict(
         "text": str,  # this is mutated by the test runner to store the unique (uuid'd) question name
         "answers": list[_QuestionResponse],
         "choices": NotRequired[list[str]],
-        "options": NotRequired[QuestionOptions],
+        "options": NotRequired[QuestionPresentationOptions],
     },
 )
 
@@ -82,7 +82,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "answers": [
             _QuestionResponse("None of the above"),
         ],
-        "options": QuestionOptions(last_data_source_item_is_distinct_from_others=True),
+        "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
     },
     "url": {
         "type": QuestionDataType.URL,
