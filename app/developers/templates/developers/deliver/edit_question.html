@@ -83,6 +83,12 @@
 
             {% if question.data_type == enum.question_type.RADIOS %}
               {{ form.data_source_items }}
+
+
+              {% set conditionalHtml %}
+                {{ form.none_of_the_above_item_text }}
+              {% endset %}
+              {{ form.separate_option_if_no_items_match(params={"items": [{"conditional": {"html": conditionalHtml} }]}) }}
             {% endif %}
 
             <div class="govuk-form-group">

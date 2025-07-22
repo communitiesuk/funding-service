@@ -14,6 +14,7 @@ from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
+    QuestionPresentationOptions,
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -247,6 +248,10 @@ class Question(BaseModel, SafeQidMixin):
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
     form: Mapped[Form] = relationship("Form", back_populates="questions")
 
+    presentation_options: Mapped[QuestionPresentationOptions | None] = mapped_column(
+        default=QuestionPresentationOptions, server_default="{}"
+    )
+
     # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
     expressions: Mapped[list["Expression"]] = relationship(
         "Expression", back_populates="question", cascade="all, delete-orphan", order_by="Expression.created_at_utc"
@@ -268,16 +273,72 @@ class Question(BaseModel, SafeQidMixin):
         """A small proxy to support SafeQidMixin so that logic can be centralised."""
         return self.id
 
-    @property
-    def data_source_items(self) -> str:
-        # This is just used to help (re)populate the QuestionForm nicely.
-        return "\n".join([item.label for item in self.data_source.items])
-
     def get_expression(self, id: uuid.UUID) -> "Expression":
         try:
             return next(expression for expression in self.expressions if expression.id == id)
         except StopIteration as e:
             raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
+
+    @property
+    def data_source_items(self) -> str | None:
+        """Helper property that helps pre-fill the QuestionForm for editing a question instance
+
+        Responsible for taking all of the data source items and converting them to a newline-separated string, suitable
+        for populating a textarea with the list of radio choices.
+
+        This also needs to handle extraction of the last data source item, *if* the form designer has said that this
+        question should show a "None of the above"-style answer. When that setting is enabled, the last item in the
+        data source needs to render into a separate form field.
+        """
+        if self.data_type != QuestionDataType.RADIOS:
+            return None
+
+        if (
+            self.presentation_options is not None
+            and self.presentation_options.last_data_source_item_is_distinct_from_others
+        ):
+            return "\n".join(item.label for item in self.data_source.items[:-1])
+
+        return "\n".join([item.label for item in self.data_source.items])
+
+    @property
+    def separate_option_if_no_items_match(self) -> bool | None:
+        """Helper property that helps pre-fill the QuestionForm for editing a question instance
+
+        This setting records whether or not the radio question should render with an 'or' divider before the last
+        option. The last option would be something semantically unrelated to all of the other answers, for example,
+        "None of the above".
+        """
+        if self.data_type != QuestionDataType.RADIOS:
+            return None
+
+        return (
+            self.presentation_options.last_data_source_item_is_distinct_from_others
+            if self.presentation_options is not None
+            else None
+        )
+
+    @property
+    def none_of_the_above_item_text(self) -> str | None:
+        """Helper property that helps pre-fill the QuestionForm for editing a question instance
+
+        If the form designer has said that radios should render with an 'or' divider before the last item, then
+        we need to extract the last data source item. That item is semantically unrelated to all of the other options,
+        for example "None of the above".
+
+        We provide a default fallback value to populate the 'Add question' form which doesn't yet have a question
+        instance to pull from.
+        """
+        if self.data_type != QuestionDataType.RADIOS:
+            return None
+
+        if (
+            self.presentation_options is not None
+            and self.presentation_options.last_data_source_item_is_distinct_from_others
+        ):
+            return self.data_source.items[-1].label
+
+        return "None of the above"
 
     __table_args__ = (
         UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),

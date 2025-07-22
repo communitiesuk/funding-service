@@ -1,11 +1,11 @@
 import dataclasses
 import uuid
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 import pytest
 from playwright.sync_api import Page, expect
 
-from app.common.data.types import QuestionDataType
+from app.common.data.types import QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
 from app.constants import DEFAULT_SECTION_NAME
 from tests.e2e.config import EndToEndTestSecrets
@@ -20,74 +20,107 @@ class _QuestionResponse:
     error_message: str | None = None
 
 
-question_text_by_type: dict[QuestionDataType, str] = {
-    QuestionDataType.EMAIL: "Enter an email address",
-    QuestionDataType.TEXT_SINGLE_LINE: "Enter a single line of text",
-    QuestionDataType.TEXT_MULTI_LINE: "Enter a few lines of text",
-    QuestionDataType.INTEGER: "Enter a number",
-    QuestionDataType.YES_NO: "Yes or no",
-    QuestionDataType.RADIOS: "Select one from a list of options",
-    QuestionDataType.URL: "Enter a website address",
-}
-
-
-question_response_data_by_type: dict[QuestionDataType, list[_QuestionResponse]] = {
-    QuestionDataType.EMAIL: [
-        _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
-        _QuestionResponse("name@example.com"),
-    ],
-    QuestionDataType.TEXT_SINGLE_LINE: [_QuestionResponse("E2E question text single line")],
-    QuestionDataType.TEXT_MULTI_LINE: [_QuestionResponse("E2E question text multi line\nwith a second line")],
-    QuestionDataType.INTEGER: [
-        _QuestionResponse("0", "The answer must be greater than 1"),
-        _QuestionResponse("101", "The answer must be less than or equal to 100"),
-        _QuestionResponse("100"),
-    ],
-    QuestionDataType.YES_NO: [_QuestionResponse("Yes")],
-    QuestionDataType.RADIOS: [_QuestionResponse("option 2")],
-    QuestionDataType.URL: [
-        _QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
-        _QuestionResponse("https://gov.uk"),
-    ],
-}
-
-TCreatedQuestionsToTest = TypedDict(
-    "TCreatedQuestionsToTest",
-    {"question_type": QuestionDataType, "question_text": str, "question_responses": list[_QuestionResponse]},
+TQuestionToTest = TypedDict(
+    "TQuestionToTest",
+    {
+        "type": QuestionDataType,
+        "text": str,  # this is mutated by the test runner to store the unique (uuid'd) question name
+        "answers": list[_QuestionResponse],
+        "choices": NotRequired[list[str]],
+        "options": NotRequired[QuestionPresentationOptions],
+    },
 )
-created_questions_to_test: list[TCreatedQuestionsToTest] = []
+
+
+questions_to_test: dict[str, TQuestionToTest] = {
+    "email": {
+        "type": QuestionDataType.EMAIL,
+        "text": "Enter an email address",
+        "answers": [
+            _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
+            _QuestionResponse("name@example.com"),
+        ],
+    },
+    "text-single-line": {
+        "type": QuestionDataType.TEXT_SINGLE_LINE,
+        "text": "Enter a single line of text",
+        "answers": [_QuestionResponse("E2E question text single line")],
+    },
+    "text-multi-line": {
+        "type": QuestionDataType.TEXT_MULTI_LINE,
+        "text": "Enter a few lines of text",
+        "answers": [_QuestionResponse("E2E question text multi line\nwith a second line")],
+    },
+    "integer": {
+        "type": QuestionDataType.INTEGER,
+        "text": "Enter a number",
+        "answers": [
+            _QuestionResponse("0", "The answer must be greater than 1"),
+            _QuestionResponse("101", "The answer must be less than or equal to 100"),
+            _QuestionResponse("100"),
+        ],
+    },
+    "yes-no": {
+        "type": QuestionDataType.YES_NO,
+        "text": "Yes or no",
+        "answers": [
+            _QuestionResponse("Yes"),
+        ],
+    },
+    "radio": {
+        "type": QuestionDataType.RADIOS,
+        "text": "Select an option",
+        "choices": ["option 1", "option 2", "option 3"],
+        "answers": [
+            _QuestionResponse("option 2"),
+        ],
+    },
+    "autocomplete": {
+        "type": QuestionDataType.RADIOS,
+        "text": "Select an option from the accessible autocomplete",
+        "choices": [f"option {x}" for x in range(1, 30)],
+        "answers": [
+            _QuestionResponse("None of the above"),
+        ],
+        "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
+    },
+    "url": {
+        "type": QuestionDataType.URL,
+        "text": "Enter a website address",
+        "answers": [
+            _QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
+            _QuestionResponse("https://gov.uk"),
+        ],
+    },
+}
 
 
 def create_question(
-    question_type: QuestionDataType,
+    question_definition: TQuestionToTest,
     manage_form_page: ManageFormPage,
-    data_source_items: list[str] | None = None,
 ) -> None:
     question_type_page = manage_form_page.click_add_question()
-    question_type_page.click_question_type(question_type.value)
+    question_type_page.click_question_type(question_definition["type"])
     question_details_page = question_type_page.click_continue()
 
-    expect(question_details_page.page.get_by_text(question_type.value, exact=True)).to_be_visible()
+    expect(question_details_page.page.get_by_text(question_definition["type"].value, exact=True)).to_be_visible()
     question_uuid = uuid.uuid4()
-    question_text = f"{question_text_by_type[question_type]} - {question_uuid}"
+    question_text = f"{question_definition['text']} - {question_uuid}"
+    question_definition["text"] = question_text
     question_details_page.fill_question_text(question_text)
     question_details_page.fill_question_name(f"e2e_question_{question_uuid}")
     question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
 
-    if question_type == QuestionDataType.RADIOS:
-        assert data_source_items
-        question_details_page.fill_data_source_items(data_source_items)
+    if question_definition["type"] == QuestionDataType.RADIOS:
+        question_details_page.fill_data_source_items(question_definition["choices"])
+
+        options = question_definition.get("options")
+        if options is not None and options.last_data_source_item_is_distinct_from_others is not None:
+            question_details_page.click_fallback_option_checkbox()
+            question_details_page.enter_fallback_option_text()
 
     question_details_page.click_submit()
     question_details_page.click_back()
-
-    created_questions_to_test.append(
-        {
-            "question_type": question_type,
-            "question_text": question_text,
-            "question_responses": question_response_data_by_type[question_type],
-        }
-    )
 
 
 def add_validation(manage_form_page: ManageFormPage, question_text: str, validation: ManagedExpression) -> None:
@@ -160,25 +193,19 @@ def test_create_and_preview_collection(
         manage_form_page = collection_detail_page.click_manage_form(
             section_title=DEFAULT_SECTION_NAME, form_name=form_name
         )
-        create_question(QuestionDataType.EMAIL, manage_form_page)
-        create_question(QuestionDataType.TEXT_SINGLE_LINE, manage_form_page)
-        create_question(QuestionDataType.TEXT_MULTI_LINE, manage_form_page)
-        create_question(QuestionDataType.INTEGER, manage_form_page)
-        create_question(QuestionDataType.YES_NO, manage_form_page)
-        create_question(QuestionDataType.RADIOS, manage_form_page, ["option 1", "option 2", "option 3"])
-        # radios gets enhanced to autocomplete >x options
-        create_question(QuestionDataType.RADIOS, manage_form_page, [f"option {x}" for x in range(25)])
-        create_question(QuestionDataType.URL, manage_form_page)
+        for question_to_test in questions_to_test.values():
+            create_question(question_to_test, manage_form_page)
 
+        # TODO: move this into `question_to_test` definition as well
         add_validation(
             manage_form_page,
-            question_text_by_type[QuestionDataType.INTEGER],
+            questions_to_test["integer"]["text"],
             GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),  # question_id does not matter here
         )
 
         add_validation(
             manage_form_page,
-            question_text_by_type[QuestionDataType.INTEGER],
+            questions_to_test["integer"]["text"],
             LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),  # question_id does not matter here
         )
 
@@ -195,13 +222,13 @@ def test_create_and_preview_collection(
 
         # Complete the first form
         tasklist_page.click_on_form(form_name=form_name)
-        for question in created_questions_to_test:
-            question_page = QuestionPage(page, domain, new_grant_name, question["question_text"])
+        for question_to_test in questions_to_test.values():
+            question_page = QuestionPage(page, domain, new_grant_name, question_to_test["text"])
             expect(question_page.heading).to_be_visible()
 
-            for question_response in question["question_responses"]:
+            for question_response in question_to_test["answers"]:
                 question_page.respond_to_question(
-                    question_type=question["question_type"], answer=question_response.answer
+                    question_type=question_to_test["type"], answer=question_response.answer
                 )
                 question_page.click_continue()
 
@@ -211,11 +238,11 @@ def test_create_and_preview_collection(
         # Check the answers page
         check_your_answers = CheckYourAnswersPage(page, domain, new_grant_name)
 
-        for question in created_questions_to_test:
-            question_heading = check_your_answers.page.get_by_text(question["question_text"], exact=True)
+        for question in questions_to_test.values():
+            question_heading = check_your_answers.page.get_by_text(question["text"], exact=True)
             expect(question_heading).to_be_visible()
-            expect(check_your_answers.page.get_by_test_id(f"answer-{question['question_text']}")).to_have_text(
-                question["question_responses"][-1].answer
+            expect(check_your_answers.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+                question["answers"][-1].answer
             )
 
         expect(check_your_answers.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
@@ -240,10 +267,8 @@ def test_create_and_preview_collection(
 
         answers_list = view_collection_page.get_questions_list_for_form(form_name)
         expect(answers_list).to_be_visible()
-        for question in created_questions_to_test:
-            expect(
-                answers_list.get_by_text(f"{question['question_text']} {question['question_responses'][-1].answer}")
-            ).to_be_visible()
+        for question in questions_to_test.values():
+            expect(answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}")).to_be_visible()
 
     finally:
         # Tidy up by deleting the grant, which will cascade to all related entities

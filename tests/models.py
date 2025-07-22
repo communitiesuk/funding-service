@@ -40,7 +40,13 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
-from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import (
+    QuestionDataType,
+    QuestionPresentationOptions,
+    SubmissionEventKey,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
 from app.common.expressions.managed import AnyOf, BaseDataSourceManagedExpression, GreaterThan
 from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
@@ -518,6 +524,8 @@ class _QuestionFactory(SQLAlchemyModelFactory):
         yes_declaration=factory.RelatedFactory(_DataSourceFactory, factory_related_name="question"),
         no_declaration=None,
     )
+
+    presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
 
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:

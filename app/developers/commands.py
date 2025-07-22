@@ -7,6 +7,7 @@ from typing import Any, TypedDict
 import click
 from faker import Faker
 from flask import current_app
+from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.exc import NoResultFound
 
 from app.common.data.base import BaseModel
@@ -24,6 +25,7 @@ from app.common.data.models import (
     Section,
 )
 from app.common.data.models_user import User
+from app.common.data.types import QuestionPresentationOptions
 from app.developers import developers_blueprint
 from app.extensions import db
 
@@ -31,7 +33,11 @@ export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
 
 def to_dict(instance: BaseModel) -> dict[str, Any]:
-    return {col.name: getattr(instance, col.name) for col in instance.__table__.columns}
+    return {
+        col.name: (field.model_dump(mode="json") if isinstance(field, PydanticBaseModel) else field)
+        for col in instance.__table__.columns
+        if (field := getattr(instance, col.name)) is not None
+    }
 
 
 GrantExport = TypedDict(
@@ -145,7 +151,7 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
 
 
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
-def seed_grants() -> None:
+def seed_grants() -> None:  # noqa: C901
     with open(export_path) as infile:
         export_data = json.load(infile)
 
@@ -177,6 +183,9 @@ def seed_grants() -> None:
             db.session.add(form)
 
         for question in grant_data["questions"]:
+            if "presentation_options" in question:
+                question["presentation_options"] = QuestionPresentationOptions(**question["presentation_options"])
+
             question = Question(**question)
             db.session.add(question)
 

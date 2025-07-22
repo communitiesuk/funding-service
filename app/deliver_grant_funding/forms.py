@@ -1,10 +1,11 @@
-from typing import Any, Callable
+from typing import Any, Callable, cast
 from uuid import UUID
 
 from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
+    GovCheckboxInput,
     GovRadioInput,
     GovSubmitInput,
     GovTextArea,
@@ -12,7 +13,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 )
 from wtforms import Field
 from wtforms.fields.choices import RadioField
-from wtforms.fields.simple import StringField, SubmitField, TextAreaField
+from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
@@ -233,6 +234,9 @@ class QuestionForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
+
+    # Note: the next three fields all read from properties on the `Question` model because the names match. This
+    # implicit connection needs to be maintained.
     data_source_items = StringField(
         "List of options",
         validators=[Optional()],
@@ -240,10 +244,23 @@ class QuestionForm(FlaskForm):
         filters=[strip_string_if_not_empty, lambda val: val.replace("\r", "") if val else val],
         widget=GovTextArea(),
     )
+    separate_option_if_no_items_match = BooleanField(
+        "Include a final answer for users if none of the options are appropriate",
+        validators=[Optional()],
+        widget=GovCheckboxInput(),
+    )
+    none_of_the_above_item_text = StringField(
+        "Fallback option",
+        validators=[Optional()],
+        widget=GovTextInput(),
+    )
     submit = SubmitField(widget=GovSubmitInput())
 
     def __init__(self, *args: Any, question_type: QuestionDataType, **kwargs: Any) -> None:
         super(QuestionForm, self).__init__(*args, **kwargs)
+
+        self._question_type = question_type
+        self._original_separate_option_if_no_items_match = self.separate_option_if_no_items_match.data
 
         if question_type in [QuestionDataType.RADIOS]:
             self.data_source_items.validators = [
@@ -252,6 +269,35 @@ class QuestionForm(FlaskForm):
                 _validate_no_duplicates,
                 _validate_max_list_length(max_length=current_app.config["MAX_DATA_SOURCE_ITEMS"]),
             ]
+
+            if self.separate_option_if_no_items_match.raw_data:
+                self.none_of_the_above_item_text.validators = [
+                    DataRequired("Enter the text to show for the fallback option")
+                ]
+
+    @property
+    def normalised_data_source_items(self) -> list[str] | None:
+        """For radios questions, we might want to display a final item beneath an 'or' divider, to signify that
+        the choice is semantically unrelated to all of the other answers. The most common usecase for this is something
+        like a "None of the above" answer.
+
+        This answer is stored in the data source like a normal item. We store it as the last item and then record on
+        the question that the last item in the data source should be presented distinctly.
+
+        This form is essentially just responsible for appending the "None of the above" item to the data source items
+        explicitly set by the form builder.
+        """
+        if self._question_type is not QuestionDataType.RADIOS:
+            return None
+
+        data_source_items: list[str] = []
+        if self.data_source_items.data is not None:
+            data_source_items.extend(item.strip() for item in self.data_source_items.data.split("\n") if item.strip())
+
+            if self.separate_option_if_no_items_match.data is True:
+                data_source_items.append(cast(str, self.none_of_the_above_item_text.data))
+
+        return data_source_items
 
 
 class GrantAddUserForm(FlaskForm):
