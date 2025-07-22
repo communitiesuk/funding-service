@@ -65,14 +65,9 @@ jobs:
           ECR_IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$IMAGE_TAG"
           echo "::add-mask::$ECR_IMAGE_URI"
 
-          LATEST_TAG=""
-          if [ "${{ github.ref_name }}" == "main" ]; then
-            LATEST_TAG="--tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:latest"
-          fi
-
           uv export --format requirements-txt --no-hashes > requirements.txt
 
-          pack build "$ECR_IMAGE_URI" $LATEST_TAG \
+          pack build "$ECR_IMAGE_URI" \
             --builder paketobuildpacks/builder-jammy-full \
             --publish
 
