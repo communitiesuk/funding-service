@@ -37,9 +37,11 @@
         {% endif %}
       {% endwith %}
 
-      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value, enum.flash_message_type.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value]) %}
         {% if flashes %}
-          {{ dependency_banner(flashes[0], grant.id, collection.id, section.id, db_form.id) }}
+          {% for error in flashes %}
+            {{ dependency_banner(error, grant.id, collection.id, section.id, db_form.id) }}
+          {% endfor %}
         {% endif %}
       {% endwith %}
 

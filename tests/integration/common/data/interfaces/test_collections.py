@@ -1,10 +1,12 @@
 import uuid
+from typing import cast
 
 import pytest
 from sqlalchemy.exc import NoResultFound
 
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.collections import (
+    DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     add_question_condition,
     add_question_validation,
@@ -18,6 +20,7 @@ from app.common.data.interfaces.collections import (
     get_expression,
     get_form_by_id,
     get_question_by_id,
+    get_referenced_data_source_items_by_managed_expression,
     get_section_by_id,
     get_submission,
     move_form_down,
@@ -26,6 +29,7 @@ from app.common.data.interfaces.collections import (
     move_question_up,
     move_section_down,
     move_section_up,
+    raise_if_data_source_item_reference_dependency,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
     update_question,
@@ -35,7 +39,8 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import Collection, DataSourceItem, Expression
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType, SubmissionEventKey
-from app.common.expressions.managed import GreaterThan, LessThan
+from app.common.expressions.managed import AnyOf, GreaterThan, LessThan
+from app.types import TRadioItem
 
 
 def test_get_collection(db_session, factories):
@@ -458,6 +463,46 @@ class TestUpdateQuestion:
         # The dropped item has been deleted
         assert db_session.get(DataSourceItem, item_ids[1]) is None
 
+    def test_update_question_options_errors_on_referenced_data_items(db_session, factories):
+        form = factories.form.create()
+        user = factories.user.create()
+        referenced_question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.RADIOS,
+            items=["option 1", "option 2", "option 3"],
+        )
+        assert referenced_question is not None
+        assert referenced_question.data_source_items == "option 1\noption 2\noption 3"
+
+        items = referenced_question.data_source.items
+        anyof_expression = AnyOf(
+            question_id=referenced_question.id,
+            items=[cast(TRadioItem, {"key": items[1].key, "label": items[1].label})],
+        )
+
+        first_dependent_question = factories.question.create(form=form)
+        add_question_condition(first_dependent_question, user, anyof_expression)
+
+        second_dependent_question = factories.question.create(form=form)
+        add_question_condition(second_dependent_question, user, anyof_expression)
+
+        with pytest.raises(DataSourceItemReferenceDependencyException) as error:
+            update_question(
+                question=referenced_question,
+                text="Updated Question",
+                hint="Updated Hint",
+                name="Updated Question Name",
+                items=["option 3", "option 4", "option-1"],
+            )
+        assert referenced_question == error.value.question_being_edited
+        assert len(error.value.data_source_item_dependency_map) == 2
+        assert (
+            first_dependent_question and second_dependent_question in error.value.data_source_item_dependency_map.keys()
+        )
+
     def test_break_if_new_question_types_added(self):
         assert len(QuestionDataType) == 7, "Add a new test above if adding a new question type"
 
@@ -535,6 +580,34 @@ def test_raise_if_question_has_any_dependencies(db_session, factories):
         raise_if_question_has_any_dependencies(q1)
     assert e.value.question == q2  # ty: ignore[unresolved-attribute]
     assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+
+
+def test_raise_if_data_source_item_reference_dependency(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    referenced_question = create_question(
+        form=form,
+        text="Test Question",
+        hint="Test Hint",
+        name="Test Question Name",
+        data_type=QuestionDataType.RADIOS,
+        items=["option 1", "option 2", "option 3"],
+    )
+    items = referenced_question.data_source.items
+    anyof_expression = AnyOf(
+        question_id=referenced_question.id,
+        items=[cast(TRadioItem, {"key": items[0].key, "label": items[0].label})],
+    )
+
+    dependent_question = factories.question.create(form=form)
+    add_question_condition(dependent_question, user, anyof_expression)
+    items_to_delete = [referenced_question.data_source.items[0], referenced_question.data_source.items[1]]
+    with pytest.raises(DataSourceItemReferenceDependencyException) as error:
+        raise_if_data_source_item_reference_dependency(referenced_question, items_to_delete)
+
+    assert referenced_question == error.value.question_being_edited
+    assert len(error.value.data_source_item_dependency_map) == 1
+    assert dependent_question in error.value.data_source_item_dependency_map.keys()
 
 
 def test_update_submission_data(db_session, factories):
@@ -631,121 +704,194 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     assert queries == []
 
 
-def test_add_question_condition(db_session, factories):
-    q0 = factories.question.create()
-    question = factories.question.create(form=q0.form)
-    user = factories.user.create()
+class TestExpressions:
+    def test_add_question_condition(db_session, factories):
+        q0 = factories.question.create()
+        question = factories.question.create(form=q0.form)
+        user = factories.user.create()
 
-    # configured by the user interface
-    managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
+        # configured by the user interface
+        managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
 
-    add_question_condition(question, user, managed_expression)
-
-    # check the serialisation and deserialisation is as expected
-    from_db = get_question_by_id(question.id)
-
-    assert len(from_db.expressions) == 1
-    assert from_db.expressions[0].type == ExpressionType.CONDITION
-    assert from_db.expressions[0].statement == f"{q0.safe_qid} > 3000"
-
-    # check the serialised context lines up with the values in the managed expression
-    assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
-
-    with pytest.raises(DuplicateValueError):
         add_question_condition(question, user, managed_expression)
 
+        # check the serialisation and deserialisation is as expected
+        from_db = get_question_by_id(question.id)
 
-def test_add_question_condition_blocks_on_order(db_session, factories):
-    user = factories.user.create()
-    q1 = factories.question.create()
-    q2 = factories.question.create(form=q1.form)
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].statement == f"{q0.safe_qid} > 3000"
 
-    with pytest.raises(DependencyOrderException) as e:
-        add_question_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
-    assert str(e.value) == "Cannot add managed condition that depends on a later question"
+        # check the serialised context lines up with the values in the managed expression
+        assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
+        with pytest.raises(DuplicateValueError):
+            add_question_condition(question, user, managed_expression)
 
-def test_add_question_validation(db_session, factories):
-    question = factories.question.create()
-    user = factories.user.create()
+    def test_add_radios_question_condition(db_session, factories):
+        q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
+        question = factories.question.create(form=q0.form)
+        items = q0.data_source.items
+        user = factories.user.create()
 
-    # configured by the user interface
-    managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+        # configured by the user interface
+        managed_expression = AnyOf(
+            question_id=q0.id,
+            items=[
+                cast(TRadioItem, {"key": items[0].key, "label": items[0].label}),
+                cast(TRadioItem, {"key": items[1].key, "label": items[1].label}),
+            ],
+        )
 
-    add_question_validation(question, user, managed_expression)
+        add_question_condition(question, user, managed_expression)
 
-    # check the serialisation and deserialisation is as expected
-    from_db = get_question_by_id(question.id)
+        from_db = get_question_by_id(question.id)
 
-    assert len(from_db.expressions) == 1
-    assert from_db.expressions[0].type == ExpressionType.VALIDATION
-    assert from_db.expressions[0].statement == f"{question.safe_qid} > 3000"
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.ANY_OF
+        assert q0.safe_qid and items[0].key and items[1].key in from_db.expressions[0].statement
 
-    # check the serialised context lines up with the values in the managed expression
-    assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
+        assert len(from_db.expressions[0].data_source_item_references) == 2
+        assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[0].id
+        assert from_db.expressions[0].data_source_item_references[1].data_source_item_id == q0.data_source.items[1].id
 
+    def test_add_question_condition_blocks_on_order(db_session, factories):
+        user = factories.user.create()
+        q1 = factories.question.create()
+        q2 = factories.question.create(form=q1.form)
 
-def test_update_expression(db_session, factories):
-    q0 = factories.question.create()
-    question = factories.question.create(form=q0.form)
-    user = factories.user.create()
-    managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
+        with pytest.raises(DependencyOrderException) as e:
+            add_question_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+        assert str(e.value) == "Cannot add managed condition that depends on a later question"
 
-    add_question_condition(question, user, managed_expression)
+    def test_add_question_validation(db_session, factories):
+        question = factories.question.create()
+        user = factories.user.create()
 
-    updated_expression = GreaterThan(minimum_value=5000, question_id=q0.id)
+        # configured by the user interface
+        managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
 
-    update_question_expression(question.expressions[0], updated_expression)
+        add_question_validation(question, user, managed_expression)
 
-    assert question.expressions[0].statement == f"{q0.safe_qid} > 5000"
+        # check the serialisation and deserialisation is as expected
+        from_db = get_question_by_id(question.id)
 
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type == ExpressionType.VALIDATION
+        assert from_db.expressions[0].statement == f"{question.safe_qid} > 3000"
 
-def test_update_expression_errors_on_validation_overlap(db_session, factories):
-    question = factories.question.create()
-    user = factories.user.create()
-    gt_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+        # check the serialised context lines up with the values in the managed expression
+        assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
-    add_question_validation(question, user, gt_expression)
+    def test_update_expression(db_session, factories):
+        q0 = factories.question.create()
+        question = factories.question.create(form=q0.form)
+        user = factories.user.create()
+        managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
 
-    lt_expression = LessThan(maximum_value=5000, question_id=question.id)
+        add_question_condition(question, user, managed_expression)
 
-    add_question_validation(question, user, lt_expression)
-    lt_db_expression = next(db_expr for db_expr in question.expressions if db_expr.managed_name == lt_expression._key)
+        updated_expression = GreaterThan(minimum_value=5000, question_id=q0.id)
 
-    with pytest.raises(DuplicateValueError):
-        update_question_expression(lt_db_expression, gt_expression)
+        update_question_expression(question.expressions[0], updated_expression)
 
+        assert question.expressions[0].statement == f"{q0.safe_qid} > 5000"
 
-def test_remove_expression(db_session, factories):
-    qid = uuid.uuid4()
-    user = factories.user.create()
-    question = factories.question.create(
-        id=qid,
-        expressions=[
-            Expression.from_managed(GreaterThan(question_id=qid, minimum_value=3000), user),
-        ],
-    )
+    def test_update_anyof_expression(db_session, factories):
+        q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
+        question = factories.question.create(form=q0.form)
+        items = q0.data_source.items
+        user = factories.user.create()
 
-    assert len(question.expressions) == 1
-    expression_id = question.expressions[0].id
+        managed_expression = AnyOf(
+            question_id=q0.id,
+            items=[
+                cast(TRadioItem, {"key": items[0].key, "label": items[0].label}),
+                cast(TRadioItem, {"key": items[1].key, "label": items[1].label}),
+            ],
+        )
 
-    remove_question_expression(question, question.expressions[0])
+        add_question_condition(question, user, managed_expression)
 
-    assert len(question.expressions) == 0
+        updated_expression = AnyOf(
+            question_id=q0.id,
+            items=[
+                cast(TRadioItem, {"key": items[2].key, "label": items[2].label}),
+            ],
+        )
 
-    with pytest.raises(NoResultFound, match="No row was found when one was required"):
-        get_expression(expression_id)
+        update_question_expression(question.expressions[0], updated_expression)
 
+        from_db = get_question_by_id(question.id)
 
-def test_get_expression(db_session, factories):
-    expression = factories.expression.create(statement="", type=ExpressionType.VALIDATION)
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.ANY_OF
+        assert q0.safe_qid and items[2].key in from_db.expressions[0].statement
 
-    db_expr = get_expression(expression.id)
-    assert db_expr is expression
+        assert len(from_db.expressions[0].data_source_item_references) == 1
+        assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[2].id
 
+    def test_update_expression_errors_on_validation_overlap(db_session, factories):
+        question = factories.question.create()
+        user = factories.user.create()
+        gt_expression = GreaterThan(minimum_value=3000, question_id=question.id)
 
-def test_get_expression_missing(db_session, factories):
-    factories.expression.create(statement="", type=ExpressionType.VALIDATION)
+        add_question_validation(question, user, gt_expression)
 
-    with pytest.raises(NoResultFound):
-        get_expression(uuid.uuid4())
+        lt_expression = LessThan(maximum_value=5000, question_id=question.id)
+
+        add_question_validation(question, user, lt_expression)
+        lt_db_expression = next(
+            db_expr for db_expr in question.expressions if db_expr.managed_name == lt_expression._key
+        )
+
+        with pytest.raises(DuplicateValueError):
+            update_question_expression(lt_db_expression, gt_expression)
+
+    def test_remove_expression(db_session, factories):
+        qid = uuid.uuid4()
+        user = factories.user.create()
+        question = factories.question.create(
+            id=qid,
+            expressions=[
+                Expression.from_managed(GreaterThan(question_id=qid, minimum_value=3000), user),
+            ],
+        )
+
+        assert len(question.expressions) == 1
+        expression_id = question.expressions[0].id
+
+        remove_question_expression(question, question.expressions[0])
+
+        assert len(question.expressions) == 0
+
+        with pytest.raises(NoResultFound, match="No row was found when one was required"):
+            get_expression(expression_id)
+
+    def test_get_expression(db_session, factories):
+        expression = factories.expression.create(statement="", type=ExpressionType.VALIDATION)
+
+        db_expr = get_expression(expression.id)
+        assert db_expr is expression
+
+    def test_get_expression_missing(db_session, factories):
+        factories.expression.create(statement="", type=ExpressionType.VALIDATION)
+
+        with pytest.raises(NoResultFound):
+            get_expression(uuid.uuid4())
+
+    def test_get_referenced_data_source_items_by_managed_expression(db_session, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.RADIOS)
+        items = referenced_question.data_source.items
+        managed_expression = AnyOf(
+            question_id=referenced_question.id,
+            items=[
+                cast(TRadioItem, {"key": items[0].key, "label": items[0].label}),
+                cast(TRadioItem, {"key": items[1].key, "label": items[1].label}),
+            ],
+        )
+        referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(managed_expression)
+        assert len(referenced_data_source_items) == 2
+        assert referenced_data_source_items[0] == referenced_question.data_source.items[0]

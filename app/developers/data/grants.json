@@ -13,6 +13,15 @@
           "version": 1
         }
       ],
+      "data_source_item_references": [
+        {
+          "created_at_utc": "Mon, 21 Jul 2025 15:02:07 GMT",
+          "data_source_item_id": "ec7bcf8a-d271-4ede-8f9b-7a3f7eff742e",
+          "expression_id": "a360e91c-9bf9-4097-a97b-985f9879e8e5",
+          "id": "a78fa3e8-0dd8-46b5-b0ea-0b74dac58826",
+          "updated_at_utc": "Mon, 21 Jul 2025 15:02:07 GMT"
+        }
+      ],
       "data_source_items": [
         {
           "created_at_utc": "Mon, 14 Jul 2025 10:01:21 GMT",
@@ -1227,6 +1236,7 @@
           "version": 1
         }
       ],
+      "data_source_item_references": [],
       "data_source_items": [],
       "data_sources": [],
       "expressions": [],
@@ -1355,6 +1365,7 @@
           "version": 1
         }
       ],
+      "data_source_item_references": [],
       "data_source_items": [],
       "data_sources": [],
       "expressions": [],
@@ -1497,15 +1508,6 @@
   ],
   "users": [
     {
-      "azure_ad_subject_id": "40e16bf9d02fa7f67c6bb767b197e544",
-      "created_at_utc": "Thu, 03 Jul 2025 15:18:06 GMT",
-      "email": "sclark@test.communities.gov.uk",
-      "id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
-      "last_logged_in_at_utc": "Mon, 14 Jul 2025 10:00:46 GMT",
-      "name": "Willie Brown",
-      "updated_at_utc": "Mon, 14 Jul 2025 10:00:46 GMT"
-    },
-    {
       "azure_ad_subject_id": "mDLVWMQVmvxRxPNKpKUFODrcU",
       "created_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT",
       "email": "johnsonlori@test.communities.gov.uk",
@@ -1513,6 +1515,15 @@
       "last_logged_in_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT",
       "name": "Margaret Ballard",
       "updated_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT"
+    },
+    {
+      "azure_ad_subject_id": "40e16bf9d02fa7f67c6bb767b197e544",
+      "created_at_utc": "Thu, 03 Jul 2025 15:18:06 GMT",
+      "email": "sclark@test.communities.gov.uk",
+      "id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
+      "last_logged_in_at_utc": "Mon, 14 Jul 2025 10:00:46 GMT",
+      "name": "Willie Brown",
+      "updated_at_utc": "Mon, 14 Jul 2025 10:00:46 GMT"
     },
     {
       "azure_ad_subject_id": "GLLNgipKjLFCQjLaXVVeUjNyH",

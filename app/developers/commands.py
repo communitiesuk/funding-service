@@ -12,7 +12,17 @@ from sqlalchemy.exc import NoResultFound
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.temporary import delete_grant
-from app.common.data.models import Collection, DataSource, DataSourceItem, Expression, Form, Grant, Question, Section
+from app.common.data.models import (
+    Collection,
+    DataSource,
+    DataSourceItem,
+    DataSourceItemReference,
+    Expression,
+    Form,
+    Grant,
+    Question,
+    Section,
+)
 from app.common.data.models_user import User
 from app.developers import developers_blueprint
 from app.extensions import db
@@ -35,6 +45,7 @@ GrantExport = TypedDict(
         "expressions": list[Any],
         "data_sources": list[Any],
         "data_source_items": list[Any],
+        "data_source_item_references": list[Any],
     },
 )
 ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list[Any]})
@@ -80,6 +91,7 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
             "expressions": [],
             "data_sources": [],
             "data_source_items": [],
+            "data_source_item_references": [],
         }
 
         export_data["grants"].append(grant_export)
@@ -107,6 +119,9 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
 
                             for data_source_item in question.data_source.items:
                                 grant_export["data_source_items"].append(to_dict(data_source_item))
+
+                                for reference in data_source_item.references:
+                                    grant_export["data_source_item_references"].append(to_dict(reference))
 
         for user in users:
             if user.id in [u["id"] for u in export_data["users"]]:
@@ -176,6 +191,10 @@ def seed_grants() -> None:
         for data_source_item in grant_data["data_source_items"]:
             data_source_item = DataSourceItem(**data_source_item)
             db.session.add(data_source_item)
+
+        for data_source_item_reference in grant_data["data_source_item_references"]:
+            data_source_item_reference = DataSourceItemReference(**data_source_item_reference)
+            db.session.add(data_source_item_reference)
 
     db.session.commit()
     click.echo(f"Loaded/synced {len(export_data['grants'])} grant(s) into the database.")

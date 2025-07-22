@@ -12,6 +12,7 @@ from app.common.auth.decorators import is_platform_admin
 from app.common.collections.runner import DGFFormRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     create_collection,
     create_form,
@@ -618,6 +619,19 @@ def edit_question(
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+        except DataSourceItemReferenceDependencyException as e:
+            for flash_context in e.as_flash_contexts():
+                flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]
+            return redirect(
+                url_for(
+                    "developers.deliver.edit_question",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                    question_id=question_id,
+                )
+            )
 
     return render_template(
         "developers/deliver/edit_question.html",

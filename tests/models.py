@@ -29,6 +29,7 @@ from app.common.data.models import (
     Collection,
     DataSource,
     DataSourceItem,
+    DataSourceItemReference,
     Expression,
     Form,
     Grant,
@@ -40,7 +41,7 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import QuestionDataType, SubmissionEventKey, SubmissionModeEnum, SubmissionStatusEnum
-from app.common.expressions.managed import AnyOf, GreaterThan
+from app.common.expressions.managed import AnyOf, BaseDataSourceManagedExpression, GreaterThan
 from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 from app.types import TRadioItem
@@ -269,7 +270,14 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             text="What is your favourite brand of teabags (Other)?",
             expressions=[
                 Expression.from_managed(
-                    AnyOf(question_id=q4.id, items=[cast(TRadioItem, ({"key": "other", "label": "Other"}))]),
+                    AnyOf(
+                        question_id=q4.id,
+                        items=[
+                            cast(
+                                TRadioItem, {"key": q4.data_source.items[0].key, "label": q4.data_source.items[0].label}
+                            )
+                        ],
+                    ),
                     _UserFactory.create(),
                 )
             ],
@@ -515,9 +523,30 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:
             return
-
         for expression in extracted:
             expression.question_id = self.id
+
+            if (
+                isinstance(expression.managed, BaseDataSourceManagedExpression)
+                and expression.managed.referenced_question.data_source
+            ):
+                # Longwindedly doing this via ORM to avoid additional DB queries when we switch the data export
+                # performance tests back on
+                all_referenced_question_data_source_items = expression.managed.referenced_question.data_source.items
+                expression_referenced_data_source_items = expression.managed.referenced_data_source_items
+                referenced_items = [
+                    item
+                    for item in all_referenced_question_data_source_items
+                    if any(
+                        item.key == expression_ref_item["key"]
+                        for expression_ref_item in expression_referenced_data_source_items
+                    )
+                ]
+                expression.data_source_item_references = [
+                    DataSourceItemReference(expression_id=expression.id, data_source_item_id=item.id)
+                    for item in referenced_items
+                ]
+
             db.session.add(expression)
             self.expressions.append(expression)
 
