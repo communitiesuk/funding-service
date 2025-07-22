@@ -1,6 +1,7 @@
 import pytest
 
-from app.common.data.types import ExpressionType, SubmissionModeEnum
+from app import QuestionDataType
+from app.common.data.types import ExpressionType, QuestionOptions, SubmissionModeEnum
 
 
 class TestSubmissionModel:
@@ -42,3 +43,31 @@ class TestQuestionModel:
             str(e.value)
             == f"Could not find an expression with id={expression_on_other_question.id} in question={question.id}"
         )
+
+    def test_data_source_items(self, factories):
+        factories.data_source_item.reset_sequence()
+        question = factories.question.create(
+            data_type=QuestionDataType.RADIOS,
+            options=QuestionOptions(last_data_source_item_is_distinct_from_others=False),
+        )
+        other_question = factories.question.create()
+
+        assert question.data_source_items == "Option 0\nOption 1\nOption 2"
+        assert other_question.data_source_items is None
+
+        assert question.separate_option_if_no_items_match is False
+        assert other_question.separate_option_if_no_items_match is None
+
+        # This is not shown, but pre-fills the form
+        assert question.none_of_the_above_item_text == "None of the above"
+        assert other_question.none_of_the_above_item_text is None
+
+    def test_data_source_items_last_item_is_distinct(self, factories):
+        factories.data_source_item.reset_sequence()
+        question = factories.question.create(
+            data_type=QuestionDataType.RADIOS,
+            options=QuestionOptions(last_data_source_item_is_distinct_from_others=True),
+        )
+        assert question.data_source_items == "Option 0\nOption 1"
+        assert question.separate_option_if_no_items_match is True
+        assert question.none_of_the_above_item_text == "Option 2"

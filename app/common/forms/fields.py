@@ -33,7 +33,7 @@ class MHCLGDividableIterableBase(GovIterableBase):
     last radio item.
     """
 
-    def __init__(self, *args: Any, insert_divider_before_last_item: bool = True, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, insert_divider_before_last_item: bool = False, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.insert_divider_before_last_item = insert_divider_before_last_item
 

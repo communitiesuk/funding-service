@@ -151,7 +151,7 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
 
 
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
-def seed_grants() -> None:
+def seed_grants() -> None:  # noqa: C901
     with open(export_path) as infile:
         export_data = json.load(infile)
 
