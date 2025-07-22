@@ -64,38 +64,46 @@ def test_get_collection_version_latest_by_default(db_session, factories):
     assert from_db.version == 4
 
 
-def test_create_collection(db_session, factories):
-    g = factories.grant.create()
-    u = factories.user.create()
-    collection = create_collection(name="test collection", user=u, grant=g)
-    assert collection is not None
-    assert collection.id is not None
-    assert collection.slug == "test-collection"
+class TestCreateCollection:
+    def test_create_collection(self, db_session, factories):
+        g = factories.grant.create()
+        u = factories.user.create()
+        collection = create_collection(name="test collection", user=u, grant=g)
+        assert collection is not None
+        assert collection.id is not None
+        assert collection.slug == "test-collection"
 
-    from_db = db_session.get(Collection, [collection.id, collection.version])
-    assert from_db is not None
+        from_db = db_session.get(Collection, [collection.id, collection.version])
+        assert from_db is not None
 
+    def test_create_collection_name_is_unique_per_grant(self, db_session, factories):
+        grants = factories.grant.create_batch(2)
+        u = factories.user.create()
 
-def test_create_collection_name_is_unique_per_grant(db_session, factories):
-    grants = factories.grant.create_batch(2)
-    u = factories.user.create()
-
-    # Check collection created initially
-    create_collection(name="test_collection", user=u, grant=grants[0])
-
-    # Check same name in a different grant is allowed
-    collection_same_name_different_grant = create_collection(name="test_collection", user=u, grant=grants[1])
-    assert collection_same_name_different_grant.id is not None
-
-    # Check same name in the same grant is allowed with a different version
-    collection_same_name_different_version = create_collection(
-        name="test_collection", user=u, grant=grants[0], version=2
-    )
-    assert collection_same_name_different_version.id is not None
-
-    # Check same name in the same grant is not allowed with the same version
-    with pytest.raises(DuplicateValueError):
+        # Check collection created initially
         create_collection(name="test_collection", user=u, grant=grants[0])
+
+        # Check same name in a different grant is allowed
+        collection_same_name_different_grant = create_collection(name="test_collection", user=u, grant=grants[1])
+        assert collection_same_name_different_grant.id is not None
+
+        # Check same name in the same grant is allowed with a different version
+        collection_same_name_different_version = create_collection(
+            name="test_collection", user=u, grant=grants[0], version=2
+        )
+        assert collection_same_name_different_version.id is not None
+
+        # Check same name in the same grant is not allowed with the same version
+        with pytest.raises(DuplicateValueError):
+            create_collection(name="test_collection", user=u, grant=grants[0])
+
+    def test_creates_default_section(self, db_session, factories):
+        g = factories.grant.create()
+        u = factories.user.create()
+        collection = create_collection(name="test collection", user=u, grant=g)
+        assert collection.has_non_default_sections is False
+        assert len(collection.sections) == 1
+        assert collection.sections[0].title == "Tasks"
 
 
 def test_get_submission(db_session, factories):
