@@ -67,13 +67,6 @@ def update_repository_url(cluster_name, service_name, container_name, new_reposi
         ecs_client.update_service(cluster=cluster_name, service=service_name, taskDefinition=new_task_definition_arn)
 
         print(f"Service {service_name} updated successfully!")
-
-        # Wait for the service to stabilize (optional)
-        print("Waiting for service to stabilize...")
-        waiter = ecs_client.get_waiter("services_stable")
-        waiter.wait(cluster=cluster_name, services=[service_name])
-
-        print("Service is now stable with the new repository URL.")
         return True
 
     except Exception as e:
