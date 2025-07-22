@@ -20,7 +20,7 @@
     <div class="govuk-grid-column-two-thirds">
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
         {% if flashes %}
-          {{ govukNotificationBanner(params={"titleText": "Testing complete", "text": flashes[0]}) }}
+          {{ govukNotificationBanner(params={"titleText": "Preview complete", "text": flashes[0]}) }}
         {% endif %}
         {% set errors = None %}
       {% endwith %}
@@ -53,7 +53,7 @@
     <div class="govuk-grid-column-one-third govuk-!-text-align-right">
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Test this form", "classes": "" if testThisFormIsPrimaryAction else "govuk-button--secondary"}) }}
+        {{ form.submit(params={"text": "Preview this form", "classes": "" if testThisFormIsPrimaryAction else "govuk-button--secondary"}) }}
       </form>
     </div>
   </div>
