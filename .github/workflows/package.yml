@@ -76,14 +76,6 @@ jobs:
             --builder paketobuildpacks/builder-jammy-full \
             --publish
 
-      - name: Export image URI
-        id: export_uris
-        run: |
-          ECR_IMAGE_URI="${{ secrets.CI_AWS_ACCOUNT }}.dkr.ecr.eu-west-2.amazonaws.com/funding-service-ci-shared-app:${{ github.sha }}"
-
-          echo "::add-mask::$ECR_IMAGE_URI"
-          echo "ecr_image_location=$ECR_IMAGE_URI" >> $GITHUB_OUTPUT
-
   notify_slack:
       needs:
         - paketo_build
