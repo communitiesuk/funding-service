@@ -101,7 +101,7 @@ def build_db_config(setup_db_container: PostgresContainer | None) -> Dict[str, A
         }
     return {
         "DATABASE_HOST": setup_db_container.get_container_host_ip(),
-        "DATABASE_PORT": setup_db_container.get_exposed_port(5432),
+        "DATABASE_PORT": str(setup_db_container.get_exposed_port(5432)),
         "DATABASE_NAME": setup_db_container.dbname,
         "DATABASE_SECRET": json.dumps(
             {"username": setup_db_container.username, "password": setup_db_container.password}
