@@ -22,6 +22,7 @@ from app.common.data.types import (
 )
 from app.common.expressions.managed import get_managed_expression
 from app.common.qid import SafeQidMixin
+from app.constants import DEFAULT_SECTION_NAME
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
@@ -111,7 +112,17 @@ class Collection(BaseModel):
 
     @property
     def forms(self) -> list["Form"]:
+        if not self.sections:
+            raise RuntimeError("We expect all collections to have at least 1 section now")
+
         return [form for section in self.sections for form in section.forms]
+
+    @property
+    def has_non_default_sections(self) -> bool:
+        if not self.sections:
+            raise RuntimeError("We expect all collections to have at least 1 section now")
+
+        return len(self.sections) > 1 or self.sections[0].title != DEFAULT_SECTION_NAME
 
 
 class Submission(BaseModel):
@@ -183,6 +194,10 @@ class Section(BaseModel):
         UniqueConstraint("collection_id", "collection_version", "slug", name="uq_section_slug_collection"),
         ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
     )
+
+    @property
+    def is_default_section(self) -> bool:
+        return len(self.collection.sections) == 1 and self.title == DEFAULT_SECTION_NAME
 
 
 class Form(BaseModel):
@@ -310,6 +325,10 @@ class Expression(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
+    data_source_item_references: Mapped[list["DataSourceItemReference"]] = relationship(
+        "DataSourceItemReference", back_populates="expression", cascade="all, delete-orphan"
+    )
+
     __table_args__ = (
         Index(
             "uq_type_validation_unique_key",
@@ -378,8 +397,21 @@ class DataSourceItem(BaseModel):
     label: Mapped[str]
 
     data_source: Mapped[DataSource] = relationship("DataSource", back_populates="items", uselist=False)
+    references: Mapped[list["DataSourceItemReference"]] = relationship(
+        "DataSourceItemReference", back_populates="data_source_item"
+    )
 
     __table_args__ = (
         UniqueConstraint("data_source_id", "order", name="uq_data_source_id_order", deferrable=True),
         UniqueConstraint("data_source_id", "key", name="uq_data_source_id_key"),
     )
+
+
+class DataSourceItemReference(BaseModel):
+    __tablename__ = "data_source_item_reference"
+
+    data_source_item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_source_item.id"))
+    expression_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("expression.id"))
+
+    data_source_item: Mapped[DataSourceItem] = relationship("DataSourceItem", back_populates="references")
+    expression: Mapped[Expression] = relationship("Expression", back_populates="data_source_item_references")

@@ -1,5 +1,6 @@
 import csv
 from io import StringIO
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -8,9 +9,10 @@ from flask import url_for
 from sqlalchemy import select
 
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.models import Collection, Form, Grant, Question, Section
+from app.common.data.models import Collection, Expression, Form, Grant, Question, Section
 from app.common.data.models_user import Invitation
 from app.common.data.types import ExpressionType, QuestionDataType, RoleEnum, SubmissionModeEnum
+from app.common.expressions.managed import AnyOf
 from app.common.forms import GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     CollectionForm,
@@ -23,6 +25,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SectionForm,
 )
+from app.types import TRadioItem
 from tests.utils import get_h1_text, get_h2_text, get_soup_text
 
 
@@ -326,7 +329,7 @@ def test_create_section_get(authenticated_platform_admin_client, factories, temp
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert get_h1_text(soup) == "What is the name of the section?"
+    assert get_h1_text(soup) == "Split form into sections"
 
 
 def test_create_section_post(authenticated_platform_admin_client, factories, db_session):
@@ -338,7 +341,7 @@ def test_create_section_post(authenticated_platform_admin_client, factories, db_
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection", grant_id=collection.grant.id, collection_id=collection.id
+        "developers.deliver.manage_collection_tasks", grant_id=collection.grant.id, collection_id=collection.id
     )
 
     collection_from_db = db_session.scalars(select(Collection).where(Collection.id == collection.id)).one()
@@ -405,7 +408,7 @@ def test_create_form_post(authenticated_platform_admin_client, factories, db_ses
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=section.collection.grant.id,
         collection_id=section.collection.id,
     )
@@ -436,7 +439,7 @@ def test_create_form_post_duplicate_name(authenticated_platform_admin_client, fa
 
 
 def test_move_section(authenticated_platform_admin_client, factories, db_session):
-    collection = factories.collection.create()
+    collection = factories.collection.create(default_section=False)
     section1 = factories.section.create(collection=collection, order=0)
     section2 = factories.section.create(collection=collection, order=1)
 
@@ -451,7 +454,7 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=collection.grant.id,
         collection_id=collection.id,
     )
@@ -473,7 +476,7 @@ def test_move_section(authenticated_platform_admin_client, factories, db_session
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=collection.grant.id,
         collection_id=collection.id,
     )
@@ -512,7 +515,7 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=section.collection.grant.id,
         collection_id=section.collection.id,
     )
@@ -533,7 +536,7 @@ def test_move_form(authenticated_platform_admin_client, factories, db_session):
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_collection",
+        "developers.deliver.manage_collection_tasks",
         grant_id=section.collection.grant.id,
         collection_id=section.collection.id,
     )
@@ -573,7 +576,7 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.manage_form_questions",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
@@ -598,7 +601,7 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.manage_form_questions",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
@@ -809,7 +812,7 @@ def test_edit_question_post(authenticated_platform_admin_client, factories, db_s
     )
     assert result.status_code == 302
     assert result.location == url_for(
-        "developers.deliver.manage_form",
+        "developers.deliver.manage_form_questions",
         grant_id=form.section.collection.grant.id,
         collection_id=form.section.collection.id,
         section_id=form.section.id,
@@ -1208,3 +1211,60 @@ def test_download_csv_export(authenticated_platform_admin_client, factories, db_
     ]
     rows = list(reader)
     assert len(rows) == 3
+
+
+def test_edit_question_post_raises_referenced_data_items_exception(
+    authenticated_platform_admin_client, factories, db_session
+):
+    form = factories.form.create()
+    referenced_question = factories.question.create(form=form, data_type=QuestionDataType.RADIOS)
+    dependent_question = factories.question.create(
+        form=form,
+        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        expressions=[
+            Expression.from_managed(
+                AnyOf(
+                    question_id=referenced_question.id,
+                    items=[
+                        cast(
+                            TRadioItem,
+                            {
+                                "key": referenced_question.data_source.items[0].key,
+                                "label": referenced_question.data_source.items[0].label,
+                            },
+                        )
+                    ],
+                ),
+                factories.user.create(),
+            )
+        ],
+    )
+    wt_form = QuestionForm(
+        question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        text="Updated Question",
+        hint="Updated Hint",
+        name="Updated Question Name",
+        data_source_items="New option 1\nUpdated option 2\nChanged option 3",
+    )
+    result = authenticated_platform_admin_client.post(
+        url_for(
+            "developers.deliver.edit_question",
+            grant_id=form.section.collection.grant.id,
+            collection_id=form.section.collection.id,
+            section_id=form.section.id,
+            form_id=form.id,
+            question_id=referenced_question.id,
+        ),
+        data=wt_form.data,
+        follow_redirects=True,
+    )
+
+    assert result.status_code == 200
+
+    soup = BeautifulSoup(result.data, "html.parser")
+    assert get_h2_text(soup) == "Warning"
+    assert "You cannot delete or change an option that other questions depend on" in get_soup_text(soup, "p")
+    assert f"Depends on the options: {referenced_question.data_source.items[0].label}" in [
+        p.text for p in soup.find_all("p")
+    ]
+    assert soup.find_all("a", class_="govuk-notification-banner__link")[0].text.strip() == dependent_question.text

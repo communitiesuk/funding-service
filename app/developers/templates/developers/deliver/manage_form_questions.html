@@ -1,0 +1,108 @@
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+{% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
+{% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set page_title = collection.name ~ " - " ~ grant.name %}
+{% set active_item_identifier = "developers" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("developers.deliver.manage_collection_tasks", grant_id = grant.id, collection_id= collection.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
+        {% if flashes %}
+          {{ govukNotificationBanner(params={"titleText": "Testing complete", "text": flashes[0]}) }}
+        {% endif %}
+        {% set errors = None %}
+      {% endwith %}
+
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
+        {% if flashes %}
+          {{ dependency_banner(flashes[0], grant.id, collection.id, section.id, db_form.id) }}
+        {% endif %}
+      {% endwith %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ section.title }}</span>
+        {{ db_form.title }}
+      </h1>
+    </div>
+    <div class="govuk-grid-column-one-third govuk-!-text-align-right">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.submit(params={"text": "Test this task", "classes": "govuk-button--secondary" if not db_form.questions else "", "disabled": db_form.questions | length == 0}) }}
+      </form>
+    </div>
+  </div>
+  <div class="govuk-grid-row govuk-!-margin-top-5">
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m">Questions</h2>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% set table_rows = [] %}
+      {% for question in db_form.questions %}
+        {% set question_link %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id) }}">
+            {{ question.text }}
+          </a>
+          {% if question.conditions %}
+            {{
+              govukTag({
+                "text": "Conditional",
+                "classes": "govuk-tag--grey govuk-!-margin-left-1 govuk-!-margin-top-1",
+              })
+            }}
+          {% endif %}
+        {% endset %}
+        {%
+          do table_rows.append({
+            "html": question_link,
+            "actions":[{
+                "text":"Move up",
+                "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1),
+                "post": True
+              }, {
+                "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'down'),
+                "post": True,
+                "text": "Move down","disabled":(loop.index >= db_form.questions | length)
+              }
+            ]
+          })
+        %}
+      {% endfor %}
+
+      {% if db_form.questions %}
+        <p class="govuk-body">This task has {% trans count=db_form.questions | length %}{{ count }} question{% pluralize %}{{ count }} questions{% endtrans %}.</p>
+        {# fixme: the styling for the border top and tag spacing look broken on tablet and mobile #}
+        {{ moveUpDownTable(table_rows) }}
+      {% else %}
+        <p class="govuk-body">This task has no questions.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="govuk-grid-row govuk-!-margin-top-5">
+    <div class="govuk-grid-column-two-thirds">
+      {{
+        govukButton({
+            "text": "Add question",
+            "classes": "govuk-button--secondary" if db_form.questions else '',
+            "href": url_for("developers.deliver.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id),
+        })
+      }}
+    </div>
+  </div>
+{% endblock content %}

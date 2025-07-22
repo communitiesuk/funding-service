@@ -1,6 +1,7 @@
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
 
+from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
@@ -35,6 +36,14 @@ def _validate_no_duplicates(form: FlaskForm, field: Field) -> None:
     choices = [choice.strip() for choice in field.data.split("\n")]
     if len(choices) != len(set(choices)):
         raise ValidationError("Remove duplicate options from the list")
+
+
+def _validate_max_list_length(max_length: int) -> Callable[[Any, Any], None]:
+    def validator(form: FlaskForm, field: Field) -> None:
+        if len(field.data.split("\n")) > max_length:
+            raise ValidationError(f"You have entered too many options. The maximum is {max_length}")
+
+    return validator
 
 
 class GrantSetupForm(FlaskForm):
@@ -152,7 +161,7 @@ class CollectionForm(GrantSetupForm):
 
 class SectionForm(FlaskForm):
     title = StringField(
-        "What is the name of the section?",
+        "What is the name of the new section?",
         validators=[DataRequired("Enter a section title")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
@@ -167,7 +176,25 @@ class FormForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
+    section_id = RadioField(
+        "Task section",
+        description="A section is a group of related tasks",
+        widget=GovRadioInput(),
+        choices=[],
+        validators=[Optional()],
+    )
     submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.show_section_field = False
+
+        if (obj := kwargs.get("obj")) and not obj.section.is_default_section:
+            self.show_section_field = True
+            sections = obj.section.collection.sections
+            self.section_id.choices = [(str(section.id), section.title) for section in sections]
+            self.section_forms = [[form for form in section.forms] for section in sections]
+            self.section_id.validators = [DataRequired("Select a section for the task")]
 
 
 class QuestionTypeForm(FlaskForm):
@@ -223,6 +250,7 @@ class QuestionForm(FlaskForm):
                 DataRequired("Enter the options for your list"),
                 _validate_no_blank_lines,
                 _validate_no_duplicates,
+                _validate_max_list_length(max_length=current_app.config["MAX_DATA_SOURCE_ITEMS"]),
             ]
 
 

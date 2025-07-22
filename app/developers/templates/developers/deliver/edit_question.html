@@ -13,7 +13,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.deliver.manage_form", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
+        "href": url_for("developers.deliver.manage_form_questions", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
     })
   }}
 {% endblock beforeContent %}
@@ -24,7 +24,7 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.QUESTION_CREATED]) %}
         {% if flashes %}
           {% set question_created_content %}
-            <a class="govuk-notification-banner__link" href="{{ url_for('developers.deliver.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}">Return to the task</a>
+            <a class="govuk-notification-banner__link" href="{{ url_for('developers.deliver.manage_form_questions', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}">Return to the task</a>
             to create other questions, or stay here to add conditions and validation to this question.
           {% endset %}
           {{
@@ -37,9 +37,11 @@
         {% endif %}
       {% endwith %}
 
-      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value, enum.flash_message_type.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value]) %}
         {% if flashes %}
-          {{ dependency_banner(flashes[0], grant.id, collection.id, section.id, db_form.id) }}
+          {% for error in flashes %}
+            {{ dependency_banner(error, grant.id, collection.id, section.id, db_form.id) }}
+          {% endfor %}
         {% endif %}
       {% endwith %}
 

@@ -506,7 +506,9 @@ class TestCollectionHelper:
             assert line["[Export test form] Favourite dunking biscuit"] == "digestive"
 
     def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
-        collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
+        collection = factories.collection.create(
+            create_completed_submissions_conditional_question__test=True, default_section=False
+        )
         c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
         dependant_question_id = collection.sections[0].forms[0].questions[0].id
         conditional_question_id = collection.sections[0].forms[0].questions[1].id
@@ -626,6 +628,15 @@ class TestCollectionHelper:
     @pytest.mark.skip(reason="performance")
     @pytest.mark.parametrize("num_test_submissions", [1, 2, 3, 5, 12, 60, 100, 500])
     def test_multiple_submission_export_conditional(self, factories, track_sql_queries, num_test_submissions):
+        """
+        As with the test above, this test create a collection with a number of test submissions, then times how long it
+        takes to generate the CSV content for all submissions. It also tracks the number of SQL queries made and their
+        total duration.
+
+        It is skipped as now we have improved the performance of the queries to generate the CSV file, the test doesn't
+        record any queries as everything is already cached by the factory. Leaving it in the code for reference and
+        future use. See 'Seeding for performance testing' in the README for more details.
+        """
         factory_start = datetime.now()
         collection = factories.collection.create(
             create_completed_submissions_conditional_question_random__test=num_test_submissions

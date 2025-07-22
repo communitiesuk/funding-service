@@ -3,13 +3,15 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask, request
+from werkzeug.datastructures import MultiDict
 from wtforms import ValidationError
 
-from app.common.data.types import RoleEnum
+from app.common.data.types import QuestionDataType, RoleEnum
 from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
     GrantGGISForm,
     GrantNameForm,
+    QuestionForm,
     _validate_no_blank_lines,
     _validate_no_duplicates,
     strip_string_if_not_empty,
@@ -104,3 +106,43 @@ def test_user_already_platform_admin(app: Flask, factories):
     with patch("app.deliver_grant_funding.forms.get_user_by_email", return_value=user):
         assert form.validate() is False
         assert "already exists as a Funding Service admin user" in form.user_email.errors[0]
+
+
+class TestQuestionForm:
+    def test_max_data_source_items(self, app):
+        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS"]
+        form = QuestionForm(question_type=QuestionDataType.RADIOS)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("data_source_items", "\n".join(str(x) for x in range(max_data_source_items))),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is True
+        assert form.errors == {}
+
+    def test_too_many_data_source_items(self, app):
+        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS"]
+        form = QuestionForm(question_type=QuestionDataType.RADIOS)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("data_source_items", "\n".join(str(x) for x in range(max_data_source_items + 1))),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is False
+        assert form.errors == {
+            "data_source_items": [f"You have entered too many options. The maximum is {max_data_source_items}"]
+        }

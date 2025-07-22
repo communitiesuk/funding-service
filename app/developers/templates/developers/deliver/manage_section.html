@@ -1,19 +1,18 @@
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
-{% set page_title = section.title ~ " - " ~ collection.name %}
+{% set page_title = "Edit section - " ~ collection.name %}
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
   {{
     govukBackLink({
-        "text": "Back",
-        "href": url_for("developers.deliver.manage_collection", grant_id = grant.id, collection_id=collection.id)
+      "text": "Back",
+      "href": url_for("developers.deliver.manage_collection_tasks", grant_id=grant.id, collection_id=collection.id)
     })
   }}
-{% endblock beforeContent %}
+{% endblock %}
 
 {% block content %}
   <div class="govuk-grid-row">
@@ -30,29 +29,13 @@
         {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ collection.name }}</span>
-        {{ section.title }}
-      </h1>
-    </div>
-  </div>
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds govuk-!-margin-bottom-5">
-      {{
-        govukSummaryList({
-          "rows": [{
-            "key": {"text": "Title"},
-            "value":{"text": section.title},
-            "actions": {
-              "items": [{
-                "href": url_for("developers.deliver.edit_section", grant_id = grant.id, collection_id = collection.id, section_id = section.id),
-                "text": "Change",
-                "classes": "govuk-link--no-visited-state"
-              }]
-            }
-          }]
-        })
-      }}
+      <h1 class="govuk-heading-l">Manage section</h1>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.title(params={"label": {"text": "Section name"} }) }}
+        {{ form.submit(params={"text": "Save"}) }}
+      </form>
     </div>
   </div>
   <div class="govuk-grid-row govuk-!-margin-top-7">
@@ -60,4 +43,4 @@
       <p class="govuk-body"><a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.manage_section', grant_id=grant.id, collection_id=collection.id, section_id=section.id, delete='') }}">Delete this section</a></p>
     </div>
   </div>
-{% endblock content %}
+{% endblock %}

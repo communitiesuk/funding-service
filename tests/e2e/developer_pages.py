@@ -63,7 +63,7 @@ class GrantDevelopersPage(GrantDevelopersBasePage):
         expect(self.page.get_by_role("heading", name=collection_name)).to_be_visible()
 
     def click_manage_form(self, collection_name: str, grant_name: str) -> CollectionDetailPage:
-        self.page.get_by_role("link", name=f"Manage ({collection_name})").click()
+        self.page.get_by_role("link", name=f"Build form ({collection_name})").click()
         collection_detail_page = CollectionDetailPage(
             self.page, self.domain, grant_name=grant_name, collection_name=collection_name
         )
@@ -112,9 +112,9 @@ class CollectionDetailPage(GrantDevelopersBasePage):
         )
         self.collection_name = collection_name
         self.test_form_button = self.page.get_by_role("button", name="Test this form")
-        self.add_section_button = self.page.get_by_role("link", name="Add a section to the form").or_(
-            self.page.get_by_role("link", name="Add another section to the form")
-        )
+        self.add_section_button = self.page.get_by_role(
+            "link", name="Split the form into sections of related tasks"
+        ).or_(self.page.get_by_role("link", name="Add another section to the form"))
         self.back_link = self.page.get_by_role("link", name="Back")
 
     def click_back(self) -> "GrantDevelopersPage":

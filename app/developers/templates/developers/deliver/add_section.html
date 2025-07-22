@@ -8,7 +8,7 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for("developers.deliver.manage_collection", grant_id=grant.id, collection_id=collection.id)
+      "href": url_for("developers.deliver.manage_collection_tasks", grant_id=grant.id, collection_id=collection.id)
     })
   }}
 {% endblock beforeContent %}
@@ -16,20 +16,43 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {{ form.collection_id }}
-        {{
-          form.title (params={"label": {
-          "classes": "govuk-label--l",
-          "isPageHeading": true
-        }})}}
-        {{
-          form.submit(params={
-              "text": "Add section"
-          })
-        }}
-      </form>
+      {% if not collection.has_non_default_sections %}
+        <span class="govuk-caption-l">{{ collection.name }}</span>
+        <h1 class="govuk-heading-l">Split form into sections</h1>
+        <p class="govuk-body">You can group related tasks together when your form has many of them. This can help users understand what you're asking them to do.</p>
+        <p class="govuk-body">If you split your form, every task must go into a section. You cannot have tasks outside of sections.</p>
+        <p class="govuk-body">This form currently has these tasks:</p>
+        <ul class="govuk-list govuk-list--bullet">
+          {% for db_form in collection.forms %}
+            <li>{{ db_form.title }}</li>
+          {% endfor %}
+        </ul>
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.collection_id }}
+          {{ form.title(params={"label": {"text": "Name of the first section"} }) }}
+          {{
+            form.submit(params={
+            		"text": "Create section"
+            })
+          }}
+        </form>
+      {% else %}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.collection_id }}
+          {{
+            form.title (params={"label": {
+            "classes": "govuk-label--l",
+            "isPageHeading": true
+          }})}}
+          {{
+            form.submit(params={
+                "text": "Add section"
+            })
+          }}
+        </form>
+      {% endif %}
     </div>
   </div>
 {% endblock content %}

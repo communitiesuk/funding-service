@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, Any, Never, Protocol
+from typing import TYPE_CHECKING, Any, Never, Protocol, Sequence
 from uuid import UUID
 
 from sqlalchemy import ScalarResult, select, text
@@ -12,6 +12,7 @@ from app.common.data.models import (
     Collection,
     DataSource,
     DataSourceItem,
+    DataSourceItemReference,
     Expression,
     Form,
     Grant,
@@ -28,8 +29,11 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
+from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.utils import slugify
+from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
+from app.types import NOT_PROVIDED, TNotProvided
 
 if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
@@ -44,6 +48,10 @@ def create_collection(*, name: str, user: User, grant: Grant, version: int = 1) 
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
+
+    # All collections must have at least 1 section; we provide a default to get started with.
+    create_section(title=DEFAULT_SECTION_NAME, collection=collection)
+
     return collection
 
 
@@ -154,6 +162,7 @@ def create_section(*, title: str, collection: Collection) -> Section:
     section = Section(title=title, collection_id=collection.id, slug=slugify(title))
     collection.sections.append(section)  # type: ignore[no-untyped-call]
     db.session.add(section)
+
     try:
         db.session.flush()
     except IntegrityError as e:
@@ -243,9 +252,18 @@ def move_form_down(form: Form) -> Form:
     return form
 
 
-def update_form(form: Form, *, title: str) -> Form:
+def update_form(form: Form, *, title: str, section_id: uuid.UUID | TNotProvided = NOT_PROVIDED) -> Form:
     form.title = title
     form.slug = slugify(title)
+
+    if section_id is not NOT_PROVIDED:
+        db.session.execute(text("SET CONSTRAINTS uq_form_order_section DEFERRED"))
+        new_section = get_section_by_id(section_id)  # ty: ignore[invalid-argument-type]
+        original_section = form.section
+        form.section = new_section
+
+        new_section.forms.reorder()
+        original_section.forms.reorder()
 
     try:
         db.session.flush()
@@ -284,9 +302,9 @@ def _update_data_source(question: Question, items: list[str]) -> None:
     db.session.execute(text("SET CONSTRAINTS uq_data_source_id_order DEFERRED"))
 
     to_delete = [item for item in question.data_source.items if item not in new_choices]
+    raise_if_data_source_item_reference_dependency(question, to_delete)
     for item_to_delete in to_delete:
         db.session.delete(item_to_delete)
-
     question.data_source.items = new_choices
     question.data_source.items.reorder()  # type: ignore[attr-defined]
 
@@ -295,6 +313,21 @@ def _update_data_source(question: Question, items: list[str]) -> None:
     except IntegrityError as e:
         db.session.rollback()
         raise e
+
+
+def _update_data_source_references(
+    expression: "Expression", managed_expression: "BaseDataSourceManagedExpression"
+) -> Expression:
+    referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
+        managed_expression=managed_expression
+    )
+    for dsir in expression.data_source_item_references:
+        db.session.delete(dsir)
+    expression.data_source_item_references = [
+        DataSourceItemReference(expression_id=expression.id, data_source_item_id=referenced_data_source_item.id)
+        for referenced_data_source_item in referenced_data_source_items
+    ]
+    return expression
 
 
 def create_question(
@@ -342,6 +375,40 @@ class DependencyOrderException(Exception, FlashableException):
         }
 
 
+class DataSourceItemReferenceDependencyException(Exception, FlashableException):
+    def __init__(
+        self,
+        message: str,
+        question_being_edited: Question,
+        data_source_item_dependency_map: dict[Question, set[DataSourceItem]],
+    ):
+        super().__init__(message)
+        self.message = message
+        self.question_being_edited = question_being_edited
+        self.data_source_item_dependency_map = data_source_item_dependency_map
+
+    def as_flash_context(self) -> dict[str, str]:
+        contexts = self.as_flash_contexts()
+        return contexts[0] if contexts else {}
+
+    def as_flash_contexts(self) -> list[dict[str, str]]:
+        flash_contexts = []
+        for dependent_question, data_source_items in self.data_source_item_dependency_map.items():
+            flash_contexts.append(
+                {
+                    "message": self.message,
+                    "question_id": str(dependent_question.id),
+                    "question_text": dependent_question.text,
+                    "depends_on_question_id": str(self.question_being_edited.id),
+                    "depends_on_question_text": self.question_being_edited.text,
+                    "depends_on_items_text": ", ".join(
+                        data_source_item.label for data_source_item in data_source_items
+                    ),
+                }
+            )
+        return flash_contexts
+
+
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
 def check_question_order_dependency(question: Question, swap_question: Question) -> None:
@@ -369,6 +436,26 @@ def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
                 raise DependencyOrderException(
                     "You cannot delete an answer that other questions depend on", target_question, question
                 )
+    return None
+
+
+def raise_if_data_source_item_reference_dependency(
+    question: Question, items_to_delete: Sequence[DataSourceItem]
+) -> Never | None:
+    data_source_item_dependency_map: dict[Question, set[DataSourceItem]] = {}
+    for data_source_item in items_to_delete:
+        for reference in data_source_item.references:
+            dependent_question = reference.expression.question
+            if dependent_question not in data_source_item_dependency_map:
+                data_source_item_dependency_map[dependent_question] = set()
+            data_source_item_dependency_map[dependent_question].add(data_source_item)
+
+    if data_source_item_dependency_map:
+        raise DataSourceItemReferenceDependencyException(
+            "You cannot delete or change an option that other questions depend on.",
+            question_being_edited=question,
+            data_source_item_dependency_map=data_source_item_dependency_map,
+        )
     return None
 
 
@@ -419,6 +506,18 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
     return submission
 
 
+def get_referenced_data_source_items_by_managed_expression(
+    managed_expression: "BaseDataSourceManagedExpression",
+) -> Sequence[DataSourceItem]:
+    referenced_data_source_items = db.session.scalars(
+        select(DataSourceItem).where(
+            DataSourceItem.data_source == managed_expression.referenced_question.data_source,
+            DataSourceItem.key.in_([item["key"] for item in managed_expression.referenced_data_source_items]),
+        )
+    ).all()
+    return referenced_data_source_items
+
+
 def add_question_condition(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
     if not is_question_dependency_order_valid(question, managed_expression.referenced_question):
         raise DependencyOrderException(
@@ -429,6 +528,13 @@ def add_question_condition(question: Question, user: User, managed_expression: "
 
     expression = Expression.from_managed(managed_expression, user)
     question.expressions.append(expression)
+
+    if (
+        isinstance(managed_expression, BaseDataSourceManagedExpression)
+        and managed_expression.referenced_question.data_source
+    ):
+        expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
+
     try:
         db.session.flush()
     except IntegrityError as e:
@@ -468,6 +574,13 @@ def update_question_expression(expression: Expression, managed_expression: "Mana
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key
+
+    if (
+        isinstance(managed_expression, BaseDataSourceManagedExpression)
+        and managed_expression.referenced_question.data_source
+    ):
+        expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
+
     try:
         db.session.flush()
     except IntegrityError as e:
