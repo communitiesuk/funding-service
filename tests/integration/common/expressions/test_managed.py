@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from app.common.data.interfaces.collections import get_question_by_id
-from app.common.data.models import Expression
+from app.common.data.models import DataSourceItemReference, Expression
 from app.common.expressions import evaluate
 from app.common.expressions.managed import AnyOf, Between, GreaterThan, IsNo, IsYes, LessThan
 from app.types import TRadioItem
@@ -94,9 +94,21 @@ class TestAnyOfExpression:
             ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], "green", False),
         ),
     )
-    def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool):
-        expr = AnyOf(question_id=uuid.uuid4(), items=items)
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+    def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool, factories):
+        managed_expr = AnyOf(question_id=uuid.uuid4(), items=items)
+        expression = Expression(
+            statement=managed_expr.statement,
+            context={managed_expr.safe_qid: answer},
+        )
+        question = factories.question.create()
+        data_source = factories.data_source.create(question=question, items=[])
+        for item in items:
+            factories.data_source_item.create(key=item["key"], label=item["label"], data_source=data_source)
+        expression.data_source_item_references = [
+            DataSourceItemReference(expression=expression, data_source_item=item) for item in data_source.items
+        ]
+
+        assert evaluate(expression) is expected_result
 
 
 class TestIsYesExpression:

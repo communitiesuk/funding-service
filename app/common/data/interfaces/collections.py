@@ -30,14 +30,13 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
-from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.utils import slugify
 from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
 if TYPE_CHECKING:
-    from app.common.expressions.managed import ManagedExpression
+    from app.common.expressions.managed import AnyOf, ManagedExpression
 
 
 def create_collection(*, name: str, user: User, grant: Grant, version: int = 1) -> Collection:
@@ -328,9 +327,11 @@ def _update_data_source(question: Question, items: list[str]) -> None:
         raise e
 
 
-def _update_data_source_references(
-    expression: "Expression", managed_expression: "BaseDataSourceManagedExpression"
-) -> Expression:
+def _update_data_source_references(expression: "Expression", managed_expression: "ManagedExpression") -> Expression:
+    from app.common.expressions.managed import AnyOf
+
+    if not isinstance(managed_expression, AnyOf):
+        raise ValueError("Can only deal with managed expressions that have a data source")
     referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
         managed_expression=managed_expression
     )
@@ -542,12 +543,12 @@ def clear_submission_events(submission: Submission, key: SubmissionEventKey, for
 
 
 def get_referenced_data_source_items_by_managed_expression(
-    managed_expression: "BaseDataSourceManagedExpression",
+    managed_expression: "AnyOf",
 ) -> Sequence[DataSourceItem]:
     referenced_data_source_items = db.session.scalars(
         select(DataSourceItem).where(
             DataSourceItem.data_source == managed_expression.referenced_question.data_source,
-            DataSourceItem.key.in_([item["key"] for item in managed_expression.referenced_data_source_items]),
+            DataSourceItem.key.in_([item["key"] for item in managed_expression.items]),
         )
     ).all()
     return referenced_data_source_items
@@ -564,10 +565,7 @@ def add_question_condition(question: Question, user: User, managed_expression: "
     expression = Expression.from_managed(managed_expression, user)
     question.expressions.append(expression)
 
-    if (
-        isinstance(managed_expression, BaseDataSourceManagedExpression)
-        and managed_expression.referenced_question.data_source
-    ):
+    if managed_expression.referenced_question.data_source:
         expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
 
     try:
@@ -609,14 +607,13 @@ def update_question_expression(expression: Expression, managed_expression: "Mana
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key
-
-    if (
-        isinstance(managed_expression, BaseDataSourceManagedExpression)
-        and managed_expression.referenced_question.data_source
-    ):
-        expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
-
     try:
+        # This if statement is in the try/except block because when the managed expression is a validation the
+        # referenced question is the same as the expression.question and the updates above make that referenced question
+        # dirty in the current session so SQLAlchemy tries to flush the changes and the DuplicateValueError would be
+        # raised at that point
+        if managed_expression.referenced_question.data_source:
+            expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()

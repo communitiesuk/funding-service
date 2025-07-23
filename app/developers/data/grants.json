@@ -15,7 +15,17 @@
         {
           "data_source_item_id": "ec7bcf8a-d271-4ede-8f9b-7a3f7eff742e",
           "expression_id": "a360e91c-9bf9-4097-a97b-985f9879e8e5",
-          "id": "a78fa3e8-0dd8-46b5-b0ea-0b74dac58826"
+          "id": "57e12230-a356-467b-b605-201a58c4aed0"
+        },
+        {
+          "data_source_item_id": "819b2684-b5d9-4141-b397-e657121d9e5e",
+          "expression_id": "4c912286-fe91-4299-bad9-dc177509032f",
+          "id": "c802c0ba-40a7-4a7f-8413-fb16385f3fd1"
+        },
+        {
+          "data_source_item_id": "181c333c-725c-487b-aa4a-1ccf24a4e36d",
+          "expression_id": "70e7b389-5d94-4b0f-8eb5-f2f7140175b7",
+          "id": "79a573b8-ccae-4423-b6df-a80d34df1e0a"
         }
       ],
       "data_source_items": [
@@ -669,7 +679,7 @@
           "id": "a360e91c-9bf9-4097-a97b-985f9879e8e5",
           "managed_name": "Any of",
           "question_id": "77cd348d-e2ee-4c98-ba6a-0a699670bdcc",
-          "statement": "q_826587e0a1034e8fbdf0d9024f2c4607 in {'data-certifier-eg-section-151-officer'}",
+          "statement": "q_826587e0a1034e8fbdf0d9024f2c4607 in data_source",
           "type": "CONDITION"
         },
         {
@@ -686,7 +696,7 @@
           "id": "4c912286-fe91-4299-bad9-dc177509032f",
           "managed_name": "Any of",
           "question_id": "17a224fa-7731-44f4-9b93-35e14f7f6de8",
-          "statement": "q_826587e0a1034e8fbdf0d9024f2c4607 in {'none-of-the-above'}",
+          "statement": "q_826587e0a1034e8fbdf0d9024f2c4607 in data_source",
           "type": "CONDITION"
         },
         {
@@ -781,7 +791,7 @@
           "id": "70e7b389-5d94-4b0f-8eb5-f2f7140175b7",
           "managed_name": "Any of",
           "question_id": "677b317f-37cd-456c-905f-f3324f905e4a",
-          "statement": "q_f57fd75366574681884769278300134d in {'yes'}",
+          "statement": "q_f57fd75366574681884769278300134d in data_source",
           "type": "CONDITION"
         },
         {
@@ -924,7 +934,7 @@
           "name": "kind of data certifier",
           "order": 3,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "what-kind-of-data-certifier-is-the-lead-contact",
           "text": "What kind of data certifier is the lead contact?"
@@ -1171,7 +1181,7 @@
           "name": "management of risk to life",
           "order": 6,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "how-are-you-managing-the-risk-to-life",
           "text": "How are you managing the risk to life?"

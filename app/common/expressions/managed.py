@@ -10,6 +10,7 @@ from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovCheckboxesInput, GovCheckboxInput, GovTextInput
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
+from pydantic import Field as PydanticField
 from wtforms import BooleanField, IntegerField, SelectMultipleField
 from wtforms.fields.core import Field
 from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
@@ -360,15 +361,8 @@ class Between(ManagedExpression):
         )
 
 
-class BaseDataSourceManagedExpression(ManagedExpression):
-    @property
-    @abc.abstractmethod  # todo: decorator does nothing here because ABCMeta cant be used
-    def referenced_data_source_items(self) -> list["TRadioItem"]:
-        raise NotImplementedError
-
-
 @register_managed_expression
-class AnyOf(BaseDataSourceManagedExpression):
+class AnyOf(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.ANY_OF
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
@@ -376,7 +370,7 @@ class AnyOf(BaseDataSourceManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    items: list["TRadioItem"]
+    items: list["TRadioItem"] = PydanticField(serialization_alias=None)
 
     @property
     def description(self) -> str:
@@ -391,8 +385,8 @@ class AnyOf(BaseDataSourceManagedExpression):
 
     @property
     def statement(self) -> str:
-        item_keys = {str(item["key"]) for item in self.items}
-        return f"{self.safe_qid} in {item_keys}"
+        # This variable is set in _evaluate_expression_with_context() when the expression is evaluated
+        return f"{self.safe_qid} in data_source"
 
     @staticmethod
     def get_form_fields(
@@ -404,7 +398,9 @@ class AnyOf(BaseDataSourceManagedExpression):
         return {
             "any_of": SelectMultipleField(
                 "Choose from the list of options",
-                default=[item["key"] for item in expression.context["items"]] if expression else None,  # type: ignore[index, union-attr]
+                default=[reference.data_source_item.key for reference in expression.data_source_item_references]
+                if expression
+                else None,
                 widget=GovCheckboxesInput(),
                 choices=[(item.key, item.label) for item in referenced_question.data_source.items],
                 validators=[Optional()],
@@ -427,10 +423,6 @@ class AnyOf(BaseDataSourceManagedExpression):
             question_id=question.id,
             items=items,  # ty: ignore[unresolved-attribute]
         )
-
-    @property
-    def referenced_data_source_items(self) -> list["TRadioItem"]:
-        return self.items
 
 
 @register_managed_expression

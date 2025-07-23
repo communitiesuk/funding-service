@@ -765,7 +765,7 @@ class TestExpressions:
         assert len(from_db.expressions) == 1
         assert from_db.expressions[0].type == ExpressionType.CONDITION
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.ANY_OF
-        assert q0.safe_qid and items[0].key and items[1].key in from_db.expressions[0].statement
+        assert q0.safe_qid in from_db.expressions[0].statement
 
         assert len(from_db.expressions[0].data_source_item_references) == 2
         assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[0].id
@@ -843,7 +843,7 @@ class TestExpressions:
         assert len(from_db.expressions) == 1
         assert from_db.expressions[0].type == ExpressionType.CONDITION
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.ANY_OF
-        assert q0.safe_qid and items[2].key in from_db.expressions[0].statement
+        assert q0.safe_qid in from_db.expressions[0].statement
 
         assert len(from_db.expressions[0].data_source_item_references) == 1
         assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[2].id

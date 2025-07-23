@@ -47,7 +47,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
-from app.common.expressions.managed import AnyOf, BaseDataSourceManagedExpression, GreaterThan
+from app.common.expressions.managed import AnyOf, GreaterThan
 from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 from app.types import TRadioItem
@@ -534,14 +534,11 @@ class _QuestionFactory(SQLAlchemyModelFactory):
         for expression in extracted:
             expression.question_id = self.id
 
-            if (
-                isinstance(expression.managed, BaseDataSourceManagedExpression)
-                and expression.managed.referenced_question.data_source
-            ):
+            if expression.managed.referenced_question.data_source:
                 # Longwindedly doing this via ORM to avoid additional DB queries when we switch the data export
                 # performance tests back on
                 all_referenced_question_data_source_items = expression.managed.referenced_question.data_source.items
-                expression_referenced_data_source_items = expression.managed.referenced_data_source_items
+                expression_referenced_data_source_items = expression.managed.items
                 referenced_items = [
                     item
                     for item in all_referenced_question_data_source_items

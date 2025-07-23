@@ -167,7 +167,13 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     """
     if context is None:
         context = ExpressionContext()
-    context.expression_context = immutabledict(expression.context or {})
+
+    # This section isn't lovely but as the context will be an immutable dict we need to add our data_source variable
+    # before this is created and then pop it out afterwards to not duplicate the info in the database
+    expression_context = (expression.context or {}) | {
+        "data_source": [reference.data_source_item.key for reference in expression.data_source_item_references]
+    }
+    context.expression_context = immutabledict(expression_context)
 
     evaluator = simpleeval.EvalWithCompoundTypes(names=context)  # type: ignore[no-untyped-call]
 
