@@ -36,7 +36,7 @@ def to_dict(instance: BaseModel) -> dict[str, Any]:
     return {
         col.name: (field.model_dump(mode="json") if isinstance(field, PydanticBaseModel) else field)
         for col in instance.__table__.columns
-        if (field := getattr(instance, col.name)) is not None
+        if (field := getattr(instance, col.name)) is not None and col.name not in {"created_at_utc", "updated_at_utc"}
     }
 
 
@@ -142,6 +142,7 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
             user_data["name"] = faker.name()
 
             export_data["users"].append(user_data)
+        export_data["users"].sort(key=lambda u: u["email"])
 
     export_json = current_app.json.dumps(export_data, indent=2)
     with open(export_path, "w") as outfile:
@@ -171,18 +172,22 @@ def seed_grants() -> None:  # noqa: C901
         db.session.add(grant)
 
         for collection in grant_data["collections"]:
+            collection["id"] = uuid.UUID(collection["id"])
             collection = Collection(**collection)
             db.session.add(collection)
 
         for section in grant_data["sections"]:
+            section["id"] = uuid.UUID(section["id"])
             section = Section(**section)
             db.session.add(section)
 
         for form in grant_data["forms"]:
+            form["id"] = uuid.UUID(form["id"])
             form = Form(**form)
             db.session.add(form)
 
         for question in grant_data["questions"]:
+            question["id"] = uuid.UUID(question["id"])
             if "presentation_options" in question:
                 question["presentation_options"] = QuestionPresentationOptions(**question["presentation_options"])
 
@@ -190,18 +195,22 @@ def seed_grants() -> None:  # noqa: C901
             db.session.add(question)
 
         for expression in grant_data["expressions"]:
+            expression["id"] = uuid.UUID(expression["id"])
             expression = Expression(**expression)
             db.session.add(expression)
 
         for data_source in grant_data["data_sources"]:
+            data_source["id"] = uuid.UUID(data_source["id"])
             data_source = DataSource(**data_source)
             db.session.add(data_source)
 
         for data_source_item in grant_data["data_source_items"]:
+            data_source_item["id"] = uuid.UUID(data_source_item["id"])
             data_source_item = DataSourceItem(**data_source_item)
             db.session.add(data_source_item)
 
         for data_source_item_reference in grant_data["data_source_item_references"]:
+            data_source_item_reference["id"] = uuid.UUID(data_source_item_reference["id"])
             data_source_item_reference = DataSourceItemReference(**data_source_item_reference)
             db.session.add(data_source_item_reference)
 
