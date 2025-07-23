@@ -251,6 +251,7 @@ class QuestionForm(FlaskForm):
     )
     none_of_the_above_item_text = StringField(
         "Fallback option",
+        default="None of the above",
         validators=[Optional()],
         widget=GovTextInput(),
     )

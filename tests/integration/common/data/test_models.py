@@ -57,9 +57,7 @@ class TestQuestionModel:
 
         assert question.separate_option_if_no_items_match is False
         assert other_question.separate_option_if_no_items_match is None
-
-        # This is not shown, but pre-fills the form
-        assert question.none_of_the_above_item_text == "None of the above"
+        assert question.none_of_the_above_item_text is None
         assert other_question.none_of_the_above_item_text is None
 
     def test_data_source_items_last_item_is_distinct(self, factories):
