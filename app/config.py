@@ -254,7 +254,12 @@ class _SharedConfig(_BaseConfig):
 
     # Form rendering options
     ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS: int = 20
-    ENABLE_FORM_SECTIONS_AFTER_X_TASKS: int = 5
+
+    # note: temporarily setting this to a very high value to effectively 'disable' our section functionality;
+    #       there is a feeling that sections are not useful for monitoring reports. This disables sections globally
+    #       but until we are thinking about anything other than monitoring reports, this is a very quick change that
+    #       does what we need.
+    ENABLE_FORM_SECTIONS_AFTER_X_TASKS: int = 1000
     MAX_DATA_SOURCE_ITEMS: int = 100
 
     # Grant setup
