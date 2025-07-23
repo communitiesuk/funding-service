@@ -370,7 +370,7 @@ class AnyOf(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    items: list["TRadioItem"] = PydanticField(serialization_alias=None)
+    items: list["TRadioItem"] = PydanticField(exclude=True)
 
     @property
     def description(self) -> str:
@@ -508,4 +508,15 @@ def get_managed_expression(expression: "Expression") -> ManagedExpression:
     # TODO: for AnyOf, do we want to pull the list of items from the DB rather than denormalising into the `context`
     #       blob? We need to have hardlink references between expressions and the radio items they rely on first (this
     #       would be done in FSPT-673).
+    if ExpressionType._type is AnyOf:
+        return ExpressionType.validate_python(
+            expression.context
+            | {
+                "items": [
+                    {"key": ref.data_source_item.key, "label": ref.data_source_item.label}
+                    for ref in expression.data_source_item_references
+                ]
+            }
+        )
+
     return ExpressionType.validate_python(expression.context)
