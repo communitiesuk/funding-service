@@ -195,18 +195,20 @@ class TestRedirectIfAuthenticated:
 
         response = test_authenticated_redirect()
         assert response.status_code == 302
+        assert response.location == url_for("deliver_grant_funding.list_grants")
 
-    def test_external_authenticated_user_gets_403(self, app, factories):
+    def test_external_authenticated_user_gets_redirected(self, app, factories):
         @redirect_if_authenticated
         def test_authenticated_redirect():
             return "OK"
 
         user = factories.user.create(email="test@anything.com")
 
-        with pytest.raises(InternalServerError):
-            login_user(user)
-            session["auth"] = AuthMethodEnum.SSO
-            test_authenticated_redirect()
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        response = test_authenticated_redirect()
+        assert response.status_code == 302
+        assert response.location == url_for("developers.access.grants_list")
 
     def test_anonymous_user_gets_response(self, app):
         @redirect_if_authenticated

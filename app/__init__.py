@@ -1,7 +1,7 @@
 import typing as t
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
-from flask import Flask, Response, redirect, render_template, url_for
+from flask import Flask, Response, current_app, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 from flask_babel import Babel
 from govuk_frontend_wtf.main import WTFormsHelpers
@@ -65,6 +65,7 @@ def _register_global_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(500)
     def handle_500(error: Literal[500]) -> ResponseReturnValue:
+        current_app.logger.error("Internal server error", exc_info=True)
         return render_template("common/errors/500.html", service_desk_url=app.config["SERVICE_DESK_URL"]), 500
 
 
