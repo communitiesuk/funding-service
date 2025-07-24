@@ -607,6 +607,7 @@ def test_raise_if_data_source_item_reference_dependency(db_session, factories):
         name="Test Question Name",
         data_type=QuestionDataType.RADIOS,
         items=["option 1", "option 2", "option 3"],
+        presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
     )
     items = referenced_question.data_source.items
     anyof_expression = AnyOf(
@@ -623,6 +624,7 @@ def test_raise_if_data_source_item_reference_dependency(db_session, factories):
     assert referenced_question == error.value.question_being_edited
     assert len(error.value.data_source_item_dependency_map) == 1
     assert dependent_question in error.value.data_source_item_dependency_map.keys()
+    assert referenced_question.presentation_options.last_data_source_item_is_distinct_from_others is True
 
 
 def test_update_submission_data(db_session, factories):
