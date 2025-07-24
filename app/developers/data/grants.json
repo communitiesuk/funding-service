@@ -440,20 +440,6 @@
           "order": 5
         },
         {
-          "data_source_id": "91c2b73d-dc7c-4680-9a49-d2c0ecef11bc",
-          "id": "181c333c-725c-487b-aa4a-1ccf24a4e36d",
-          "key": "yes",
-          "label": "Yes",
-          "order": 0
-        },
-        {
-          "data_source_id": "91c2b73d-dc7c-4680-9a49-d2c0ecef11bc",
-          "id": "a30d4652-756d-41ff-a63e-3bc0da8a9ae7",
-          "key": "no",
-          "label": "No",
-          "order": 1
-        },
-        {
           "data_source_id": "2936076d-8f1b-47b6-acb4-06290564e8b8",
           "id": "9245d18d-c238-44c4-ae61-1e4ca23bd950",
           "key": "1",
@@ -630,10 +616,6 @@
           "question_id": "591f6895-0b97-4cdb-ab12-63da263551a4"
         },
         {
-          "id": "91c2b73d-dc7c-4680-9a49-d2c0ecef11bc",
-          "question_id": "f57fd753-6657-4681-8847-69278300134d"
-        },
-        {
           "id": "2936076d-8f1b-47b6-acb4-06290564e8b8",
           "question_id": "aead29df-25ba-4f46-ba0f-5f0617c14996"
         },
@@ -769,19 +751,13 @@
         },
         {
           "context": {
-            "items": [
-              {
-                "key": "yes",
-                "label": "Yes"
-              }
-            ],
-            "question_id": "f57fd753-6657-4681-8847-69278300134d"
+            "question_id": "897480b2-794d-416b-a827-2f4f2e8f5843"
           },
           "created_by_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
-          "id": "70e7b389-5d94-4b0f-8eb5-f2f7140175b7",
-          "managed_name": "Any of",
+          "id": "327ce841-a7ee-4ac3-b0be-f0d791b0f89e",
+          "managed_name": "Yes",
           "question_id": "677b317f-37cd-456c-905f-f3324f905e4a",
-          "statement": "q_f57fd75366574681884769278300134d in {'yes'}",
+          "statement": "q_897480b2794d416ba8272f4f2e8f5843 is True",
           "type": "CONDITION"
         },
         {
@@ -1151,14 +1127,14 @@
           "text": "Who is the risk owner?"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Yes or no",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
-          "id": "f57fd753-6657-4681-8847-69278300134d",
+          "id": "897480b2-794d-416b-a827-2f4f2e8f5843",
           "name": "risk to life",
           "order": 5,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "is-there-a-risk-to-life",
           "text": "Is there a risk to life?"
@@ -1171,7 +1147,7 @@
           "name": "management of risk to life",
           "order": 6,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "how-are-you-managing-the-risk-to-life",
           "text": "How are you managing the risk to life?"
