@@ -101,8 +101,9 @@ def delete_question(question: Question) -> None:
     # definitely has a few quirks.
     db.session.delete(question)
     if question in question.form.questions:
-        question.form.questions.remove(question)  # type: ignore[no-untyped-call]
-    question.form.questions.reorder()
+        # todo: this will need to remove from the appropriate place in the nested heirarchy
+        question.form.components.remove(question)  # type: ignore[no-untyped-call]
+    question.form.components.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
     )

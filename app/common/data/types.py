@@ -102,3 +102,8 @@ class FormRunnerState(enum.StrEnum):
     TASKLIST = "tasklist"
     QUESTION = "question"
     CHECK_YOUR_ANSWERS = "check-your-answers"
+
+
+class ComponentType(enum.StrEnum):
+    QUESTION = "QUESTION"
+    GROUP = "GROUP"

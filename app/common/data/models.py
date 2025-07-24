@@ -1,8 +1,8 @@
 import uuid
 from typing import TYPE_CHECKING, Optional
 
+from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -11,6 +11,7 @@ from sqlalchemy_json import mutable_json_type
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
+    ComponentType,
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -217,35 +218,41 @@ class Form(BaseModel):
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
     )
 
-    questions: Mapped[OrderingList["Question"]] = relationship(
-        "Question",
+    components: Mapped[OrderingList["Component"]] = relationship(
+        "Component",
         lazy=True,
-        order_by="Question.order",
+        order_by="Component.order",
         collection_class=ordering_list("order"),
-        # Importantly we don't `delete-orphan` here; when we move questions up/down, we remove them from the collection,
-        # which would trigger the delete-orphan rule
+        primaryjoin="and_(Form.id == Component.form_id, Component.parent_id.is_(None))",
         cascade="all, save-update, merge",
     )
 
+    @property
+    def questions(self) -> list["Question"]:
+        """Consistently returns all questions in the form, respecting order any level of nesting"""
+        # todo: digging into nested components
+        return [component for component in self.components if isinstance(component, Question)]
 
-class Question(BaseModel, SafeQidMixin):
-    __tablename__ = "question"
+
+class Component(BaseModel, SafeQidMixin):
+    __tablename__ = "component"
 
     text: Mapped[str]
     slug: Mapped[str]
     order: Mapped[int]
     hint: Mapped[Optional[str]]
-    data_type: Mapped[QuestionDataType] = mapped_column(
-        SqlEnum(
-            QuestionDataType,
-            name="question_data_type_enum",
-            validate_strings=True,
-        )
-    )
+
     name: Mapped[str]
 
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
-    form: Mapped[Form] = relationship("Form", back_populates="questions")
+
+    # todo: doesn't strictly back populate components for form in particular (if it has a parent)
+    #       pull that thread is there an issue there
+    form: Mapped[Form] = relationship("Form", back_populates="components")
+
+    type: Mapped[ComponentType] = mapped_column(
+        SqlEnum(ComponentType, name="component_type_enum", validate_strings=True)
+    )
 
     # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
     expressions: Mapped[list["Expression"]] = relationship(
@@ -253,6 +260,19 @@ class Question(BaseModel, SafeQidMixin):
     )
     data_source: Mapped["DataSource"] = relationship(
         "DataSource", cascade="all, delete-orphan", back_populates="question"
+    )
+
+    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("component.id"))
+    parent: Mapped[Optional["Component"]] = relationship(
+        "Component", remote_side="Component.id", back_populates="components"
+    )
+
+    components: Mapped[list["Component"]] = relationship(
+        "Component",
+        back_populates="parent",
+        cascade="all, save-update, merge",
+        order_by="Component.order",
+        collection_class=ordering_list("order"),
     )
 
     @property
@@ -280,11 +300,35 @@ class Question(BaseModel, SafeQidMixin):
             raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
 
     __table_args__ = (
-        UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
+        UniqueConstraint("order", "parent_id", "form_id", name="uq_question_order_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
         UniqueConstraint("text", "form_id", name="uq_question_text_form"),
         UniqueConstraint("name", "form_id", name="uq_question_name_form"),
+        # todo: check this actually gets applied, its not migrating to add it and its a bit weird how it cant be
+        #       put on the inherited table
+        CheckConstraint(
+            f"type != '{ComponentType.QUESTION}' or data_type IS NOT NULL",
+            name="ck_component_question_data_type_not_null",
+        ),
     )
+
+    __mapper_args__ = {
+        "polymorphic_on": type,
+    }
+
+
+class Question(Component):
+    # todo: verify its happy to generate SQL with this split across multiple inherited instances
+    data_type: Mapped[QuestionDataType] = mapped_column(
+        SqlEnum(
+            QuestionDataType,
+            name="question_data_type_enum",
+            validate_strings=True,
+        ),
+        nullable=True,
+    )
+
+    __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
 
 
 class SubmissionEvent(BaseModel):
@@ -319,7 +363,7 @@ class Expression(BaseModel):
         SqlEnum(ManagedExpressionsEnum, name="managed_expression_enum", validate_strings=True, nullable=True)
     )
 
-    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
     question: Mapped[Question] = relationship("Question", back_populates="expressions")
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
@@ -371,7 +415,7 @@ class Expression(BaseModel):
 class DataSource(BaseModel):
     __tablename__ = "data_source"
 
-    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
     question: Mapped[Question] = relationship("Question", back_populates="data_source", uselist=False)
 
     items: Mapped[list["DataSourceItem"]] = relationship(
