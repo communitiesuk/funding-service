@@ -90,6 +90,10 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
     def raise_403() -> ResponseReturnValue:
         return abort(403)
 
+    @app.route("/_testing/500")
+    def raise_500() -> ResponseReturnValue:
+        return abort(500)
+
     @app.route("/_testing/sqlalchemy-not-found")
     def raise_sqlalchemy_not_found() -> ResponseReturnValue:
         # get a thing that doesn't exist
