@@ -440,20 +440,6 @@
           "order": 5
         },
         {
-          "data_source_id": "91c2b73d-dc7c-4680-9a49-d2c0ecef11bc",
-          "id": "181c333c-725c-487b-aa4a-1ccf24a4e36d",
-          "key": "yes",
-          "label": "Yes",
-          "order": 0
-        },
-        {
-          "data_source_id": "91c2b73d-dc7c-4680-9a49-d2c0ecef11bc",
-          "id": "a30d4652-756d-41ff-a63e-3bc0da8a9ae7",
-          "key": "no",
-          "label": "No",
-          "order": 1
-        },
-        {
           "data_source_id": "2936076d-8f1b-47b6-acb4-06290564e8b8",
           "id": "9245d18d-c238-44c4-ae61-1e4ca23bd950",
           "key": "1",
@@ -630,10 +616,6 @@
           "question_id": "591f6895-0b97-4cdb-ab12-63da263551a4"
         },
         {
-          "id": "91c2b73d-dc7c-4680-9a49-d2c0ecef11bc",
-          "question_id": "f57fd753-6657-4681-8847-69278300134d"
-        },
-        {
           "id": "2936076d-8f1b-47b6-acb4-06290564e8b8",
           "question_id": "aead29df-25ba-4f46-ba0f-5f0617c14996"
         },
@@ -769,19 +751,13 @@
         },
         {
           "context": {
-            "items": [
-              {
-                "key": "yes",
-                "label": "Yes"
-              }
-            ],
-            "question_id": "f57fd753-6657-4681-8847-69278300134d"
+            "question_id": "897480b2-794d-416b-a827-2f4f2e8f5843"
           },
           "created_by_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
-          "id": "70e7b389-5d94-4b0f-8eb5-f2f7140175b7",
-          "managed_name": "Any of",
+          "id": "327ce841-a7ee-4ac3-b0be-f0d791b0f89e",
+          "managed_name": "Yes",
           "question_id": "677b317f-37cd-456c-905f-f3324f905e4a",
-          "statement": "q_f57fd75366574681884769278300134d in {'yes'}",
+          "statement": "q_897480b2794d416ba8272f4f2e8f5843 is True",
           "type": "CONDITION"
         },
         {
@@ -834,36 +810,36 @@
         },
         {
           "id": "9cf64797-461d-467c-8834-470051899da7",
-          "order": 0,
-          "section_id": "73112adc-8ab9-4e7c-8634-987b0508c307",
+          "order": 1,
+          "section_id": "93f068c3-1ed0-41a6-b89d-930c96bd690e",
           "slug": "programme-progress",
           "title": "Programme progress"
         },
         {
           "id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
-          "order": 1,
-          "section_id": "73112adc-8ab9-4e7c-8634-987b0508c307",
+          "order": 2,
+          "section_id": "93f068c3-1ed0-41a6-b89d-930c96bd690e",
           "slug": "outputs-and-outcomes",
           "title": "Outputs and outcomes"
         },
         {
           "id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
-          "order": 2,
-          "section_id": "73112adc-8ab9-4e7c-8634-987b0508c307",
+          "order": 3,
+          "section_id": "93f068c3-1ed0-41a6-b89d-930c96bd690e",
           "slug": "main-risk-to-delivery",
           "title": "Main risk to delivery"
         },
         {
           "id": "8506d7ef-2421-40d5-b120-daf870e09968",
-          "order": 0,
-          "section_id": "edd318d2-64c9-4fac-bfbd-b4b7126fc395",
+          "order": 4,
+          "section_id": "93f068c3-1ed0-41a6-b89d-930c96bd690e",
           "slug": "spend-in-the-last-reporting-period",
           "title": "Spend in the last reporting period"
         },
         {
           "id": "e2546f96-3655-483b-8531-0bbfd49a2631",
-          "order": 1,
-          "section_id": "edd318d2-64c9-4fac-bfbd-b4b7126fc395",
+          "order": 5,
+          "section_id": "93f068c3-1ed0-41a6-b89d-930c96bd690e",
           "slug": "estimated-future-spend",
           "title": "Estimated future spend"
         }
@@ -1151,14 +1127,14 @@
           "text": "Who is the risk owner?"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Yes or no",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
-          "id": "f57fd753-6657-4681-8847-69278300134d",
+          "id": "897480b2-794d-416b-a827-2f4f2e8f5843",
           "name": "risk to life",
           "order": 5,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "is-there-a-risk-to-life",
           "text": "Is there a risk to life?"
@@ -1171,7 +1147,7 @@
           "name": "management of risk to life",
           "order": 6,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "how-are-you-managing-the-risk-to-life",
           "text": "How are you managing the risk to life?"
@@ -1365,24 +1341,8 @@
           "collection_version": 1,
           "id": "93f068c3-1ed0-41a6-b89d-930c96bd690e",
           "order": 0,
-          "slug": "your-organisation",
-          "title": "Your organisation"
-        },
-        {
-          "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
-          "collection_version": 1,
-          "id": "73112adc-8ab9-4e7c-8634-987b0508c307",
-          "order": 1,
-          "slug": "programme-information",
-          "title": "Programme information"
-        },
-        {
-          "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
-          "collection_version": 1,
-          "id": "edd318d2-64c9-4fac-bfbd-b4b7126fc395",
-          "order": 2,
-          "slug": "finances",
-          "title": "Finances"
+          "slug": "tasks",
+          "title": "Tasks"
         }
       ]
     },
@@ -1418,9 +1378,9 @@
         },
         {
           "id": "6ba3aac0-b30b-0b4d-06a6-84ed632f4f84",
-          "order": 0,
-          "section_id": "b08331e5-7567-0d0b-e30f-b5f11272ea39",
-          "slug": "form-5",
+          "order": 2,
+          "section_id": "5ddd7671-d127-0bfb-b955-a870ce1f82cc",
+          "slug": "public-feedback-on-picnic-areas",
           "title": "Public Feedback on Picnic Areas"
         }
       ],
@@ -1492,16 +1452,8 @@
           "collection_version": 1,
           "id": "5ddd7671-d127-0bfb-b955-a870ce1f82cc",
           "order": 0,
-          "slug": "park-overview",
-          "title": "Park Overview"
-        },
-        {
-          "collection_id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
-          "collection_version": 1,
-          "id": "b08331e5-7567-0d0b-e30f-b5f11272ea39",
-          "order": 1,
-          "slug": "feedback",
-          "title": "Feedback"
+          "slug": "tasks",
+          "title": "Tasks"
         }
       ]
     },
@@ -1530,16 +1482,16 @@
         },
         {
           "id": "7ebb5886-bbc3-14b7-38fa-e16a09e053f7",
-          "order": 0,
-          "section_id": "e420512f-0a96-0b55-8a6d-b64605f54bb1",
-          "slug": "form-7",
+          "order": 1,
+          "section_id": "24be7d83-09b5-53aa-0984-0070fd5c902a",
+          "slug": "usage-statistics",
           "title": "Usage Statistics"
         },
         {
           "id": "08b95b3e-2ac8-234a-4c1d-666a9694e549",
-          "order": 1,
-          "section_id": "e420512f-0a96-0b55-8a6d-b64605f54bb1",
-          "slug": "form-8",
+          "order": 2,
+          "section_id": "24be7d83-09b5-53aa-0984-0070fd5c902a",
+          "slug": "maintenance-notes",
           "title": "Maintenance Notes"
         }
       ],
@@ -1637,16 +1589,8 @@
           "collection_version": 1,
           "id": "24be7d83-09b5-53aa-0984-0070fd5c902a",
           "order": 0,
-          "slug": "playground-overview",
-          "title": "Playground Overview"
-        },
-        {
-          "collection_id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
-          "collection_version": 1,
-          "id": "e420512f-0a96-0b55-8a6d-b64605f54bb1",
-          "order": 1,
-          "slug": "usage-maintenance",
-          "title": "Usage & Maintenance"
+          "slug": "tasks",
+          "title": "Tasks"
         }
       ]
     }
