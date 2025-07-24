@@ -1,5 +1,4 @@
 from flask import Flask
-from flask_debugtoolbar import DebugToolbarExtension
 from flask_login import LoginManager, user_logged_in
 from flask_migrate import Migrate
 from flask_sqlalchemy_lite import SQLAlchemy
@@ -14,12 +13,18 @@ from app.services.notify import NotificationService
 db = SQLAlchemy(engine_options={"echo": False})
 auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
 migrate = Migrate()
-toolbar = DebugToolbarExtension()
 notification_service = NotificationService()
 talisman = Talisman()
 flask_assets_vite = FlaskAssetsViteExtension()
 login_manager = LoginManager()
 record_sqlalchemy_queries = RecordSqlalchemyQueriesExtension()
+
+try:
+    from flask_debugtoolbar import DebugToolbarExtension
+
+    toolbar = DebugToolbarExtension()
+except ModuleNotFoundError:
+    toolbar = None  # type: ignore[assignment]
 
 
 def register_signals(app: Flask) -> None:

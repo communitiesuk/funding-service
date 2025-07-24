@@ -118,7 +118,8 @@ def create_app() -> Flask:
         metadatas=BaseModel.metadata,
     )
     flask_assets_vite.init_app(app)
-    toolbar.init_app(app)
+    if toolbar:
+        toolbar.init_app(app)
     notification_service.init_app(app)
     talisman.init_app(app, **app.config["TALISMAN_SETTINGS"])
     login_manager.init_app(app)
