@@ -479,6 +479,7 @@ def raise_if_data_source_item_reference_dependency(
             data_source_item_dependency_map[dependent_question].add(data_source_item)
 
     if data_source_item_dependency_map:
+        db.session.rollback()
         raise DataSourceItemReferenceDependencyException(
             "You cannot delete or change an option that other questions depend on.",
             question_being_edited=question,
