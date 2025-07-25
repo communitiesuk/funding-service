@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 import click
-from faker import Faker
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.exc import NoResultFound
@@ -60,6 +59,8 @@ ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
 @click.argument("grant_ids", nargs=-1, type=click.UUID)
 def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
+    from faker import Faker
+
     if not export_path.exists():
         raise RuntimeError(
             f"Could not find the exported data at {export_path}. "
