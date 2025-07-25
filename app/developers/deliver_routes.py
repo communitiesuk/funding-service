@@ -48,6 +48,7 @@ from app.common.data.types import (
     FormRunnerState,
     QuestionDataType,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionModeEnum,
 )
 from app.common.expressions.forms import build_managed_expression_form
@@ -62,6 +63,7 @@ from app.deliver_grant_funding.forms import (
     SectionForm,
 )
 from app.developers.forms import (
+    BecomeGrantTeamMemberForm,
     ConditionSelectQuestionForm,
     ConfirmDeletionForm,
 )
@@ -82,6 +84,7 @@ developers_deliver_blueprint = Blueprint("deliver", __name__, url_prefix="/deliv
 def grant_developers(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     confirm_deletion_form = ConfirmDeletionForm()
+    become_grant_team_member_form = BecomeGrantTeamMemberForm()
     if (
         "delete_grant" in request.args
         and confirm_deletion_form.validate_on_submit()
@@ -90,10 +93,16 @@ def grant_developers(grant_id: UUID) -> ResponseReturnValue:
         delete_grant(grant_id=grant.id)
         return redirect(url_for("deliver_grant_funding.list_grants"))
 
+    if become_grant_team_member_form.validate_on_submit():
+        interfaces.user.remove_platform_admin_role_from_user(interfaces.user.get_current_user())
+        interfaces.user.set_grant_team_role_for_user(interfaces.user.get_current_user(), grant, RoleEnum.MEMBER)
+        return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
+
     return render_template(
         "developers/deliver/grant_developers.html",
         grant=grant,
         confirm_deletion_form=confirm_deletion_form,
+        become_grant_team_member_form=become_grant_team_member_form,
         delete_grant="delete_grant" in request.args,
     )
 

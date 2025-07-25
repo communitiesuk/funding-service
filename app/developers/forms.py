@@ -18,6 +18,10 @@ class ConfirmDeletionForm(FlaskForm):
     confirm_deletion = SubmitField("Confirm deletion", widget=GovSubmitInput())
 
 
+class BecomeGrantTeamMemberForm(FlaskForm):
+    submit = SubmitField("Become grant team member", widget=GovSubmitInput())
+
+
 class ConditionSelectQuestionForm(FlaskForm):
     question = SelectField(
         "Which answer should the condition check?",

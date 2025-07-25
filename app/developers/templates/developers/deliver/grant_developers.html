@@ -27,6 +27,12 @@
       </h1>
       <p class="govuk-body">You can try out tech and designs that are work in progress.</p>
     </div>
+    <div class="govuk-grid-column-one-third govuk-!-text-align-right">
+      <form method="post" novalidate>
+        {{ become_grant_team_member_form.csrf_token }}
+        {{ become_grant_team_member_form.submit(params={"classes": "govuk-button--secondary"}) }}
+      </form>
+    </div>
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
