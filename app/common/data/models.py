@@ -277,6 +277,17 @@ class Component(BaseModel):
         SqlEnum(ComponentType, name="component_type_enum", validate_strings=True), default=ComponentType.QUESTION
     )
 
+    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("component.id"))
+    parent: Mapped["Group"] = relationship("Component", remote_side="Component.id", back_populates="components")
+
+    components: Mapped[list["Component"]] = relationship(
+        "Component",
+        back_populates="parent",
+        cascade="all, save-update, merge",
+        order_by="Component.order",
+        collection_class=ordering_list("order"),
+    )
+
     @property
     def conditions(self) -> list["Expression"]:
         return [expression for expression in self.expressions if expression.type == ExpressionType.CONDITION]
@@ -369,6 +380,10 @@ class Question(Component, SafeQidMixin):
             return self.data_source.items[-1].label
 
         return "None of the above"
+
+
+class Group(Component):
+    __mapper_args__ = {"polymorphic_identity": ComponentType.GROUP}
 
 
 class SubmissionEvent(BaseModel):

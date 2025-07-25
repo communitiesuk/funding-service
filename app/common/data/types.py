@@ -139,3 +139,4 @@ class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
 
 class ComponentType(enum.StrEnum):
     QUESTION = "QUESTION"
+    GROUP = "GROUP"
