@@ -185,7 +185,6 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
             ast.Compare,
             ast.Subscript,
             ast.Attribute,
-            ast.Index,
             ast.Slice,
             ast.Constant,
             ast.Call,
