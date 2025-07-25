@@ -49,7 +49,7 @@ dev = [
     "pytest-flask==1.3.0",
     "pytest-xdist==3.8.0",
     "responses==0.25.7",
-    "ruff==0.12.4",
+    "ruff==0.12.5",
     "sqlalchemy-utils==0.41.2",
     "testcontainers[postgres]==4.12.0",
     "types-flask-migrate==4.1.0.20250112",
