@@ -18,9 +18,9 @@ class DuplicateValueError(Exception):
         "uq_form_slug_section": "title",
         "uq_section_slug_collection": "title",
         "uq_collection_slug_grant_id": "name",
-        "uq_question_slug_form": "text",
-        "uq_question_text_form": "text",
-        "uq_question_name_form": "name",
+        "uq_component_slug_form": "text",
+        "uq_component_text_form": "text",
+        "uq_component_name_form": "name",
         "uq_type_validation_unique_key": "question_id",
         "uq_type_condition_unique_question": "question_id",
     }

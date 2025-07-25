@@ -12,6 +12,7 @@ from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
     CollectionType,
+    ComponentType,
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -225,19 +226,24 @@ class Form(BaseModel):
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
     )
 
-    questions: Mapped[OrderingList["Question"]] = relationship(
-        "Question",
+    components: Mapped[OrderingList["Component"]] = relationship(
+        "Component",
         lazy=True,
-        order_by="Question.order",
+        order_by="Component.order",
         collection_class=ordering_list("order"),
         # Importantly we don't `delete-orphan` here; when we move questions up/down, we remove them from the collection,
         # which would trigger the delete-orphan rule
         cascade="all, save-update, merge",
     )
 
+    @property
+    def questions(self) -> list["Question"]:
+        """Consistently returns all questions in the form, respecting order and any level of nesting."""
+        return [component for component in self.components if isinstance(component, Question)]
 
-class Question(BaseModel, SafeQidMixin):
-    __tablename__ = "question"
+
+class Component(BaseModel):
+    __tablename__ = "component"
 
     text: Mapped[str]
     slug: Mapped[str]
@@ -253,7 +259,7 @@ class Question(BaseModel, SafeQidMixin):
     name: Mapped[str]
 
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
-    form: Mapped[Form] = relationship("Form", back_populates="questions")
+    form: Mapped[Form] = relationship("Form", back_populates="components")
 
     presentation_options: Mapped[QuestionPresentationOptions | None] = mapped_column(
         default=QuestionPresentationOptions, server_default="{}"
@@ -267,6 +273,10 @@ class Question(BaseModel, SafeQidMixin):
         "DataSource", cascade="all, delete-orphan", back_populates="question"
     )
 
+    type: Mapped[ComponentType] = mapped_column(
+        SqlEnum(ComponentType, name="component_type_enum", validate_strings=True), default=ComponentType.QUESTION
+    )
+
     @property
     def conditions(self) -> list["Expression"]:
         return [expression for expression in self.expressions if expression.type == ExpressionType.CONDITION]
@@ -275,16 +285,29 @@ class Question(BaseModel, SafeQidMixin):
     def validations(self) -> list["Expression"]:
         return [expression for expression in self.expressions if expression.type == ExpressionType.VALIDATION]
 
-    @property
-    def question_id(self) -> uuid.UUID:  # type: ignore[override]
-        """A small proxy to support SafeQidMixin so that logic can be centralised."""
-        return self.id
-
     def get_expression(self, id: uuid.UUID) -> "Expression":
         try:
             return next(expression for expression in self.expressions if expression.id == id)
         except StopIteration as e:
             raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
+
+    __table_args__ = (
+        UniqueConstraint("order", "form_id", name="uq_component_order_form", deferrable=True),
+        UniqueConstraint("slug", "form_id", name="uq_component_slug_form"),
+        UniqueConstraint("text", "form_id", name="uq_component_text_form"),
+        UniqueConstraint("name", "form_id", name="uq_component_name_form"),
+    )
+
+    __mapper_args__ = {"polymorphic_on": type}
+
+
+class Question(Component, SafeQidMixin):
+    __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
+
+    @property
+    def question_id(self) -> uuid.UUID:  # type: ignore[override]
+        """A small proxy to support SafeQidMixin so that logic can be centralised."""
+        return self.id
 
     @property
     def data_source_items(self) -> str | None:
@@ -347,13 +370,6 @@ class Question(BaseModel, SafeQidMixin):
 
         return "None of the above"
 
-    __table_args__ = (
-        UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),
-        UniqueConstraint("slug", "form_id", name="uq_question_slug_form"),
-        UniqueConstraint("text", "form_id", name="uq_question_text_form"),
-        UniqueConstraint("name", "form_id", name="uq_question_name_form"),
-    )
-
 
 class SubmissionEvent(BaseModel):
     __tablename__ = "submission_event"
@@ -387,7 +403,7 @@ class Expression(BaseModel):
         SqlEnum(ManagedExpressionsEnum, name="managed_expression_enum", validate_strings=True, nullable=True)
     )
 
-    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
     question: Mapped[Question] = relationship("Question", back_populates="expressions")
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
@@ -439,7 +455,7 @@ class Expression(BaseModel):
 class DataSource(BaseModel):
     __tablename__ = "data_source"
 
-    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("question.id"))
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
     question: Mapped[Question] = relationship("Question", back_populates="data_source", uselist=False)
 
     items: Mapped[list["DataSourceItem"]] = relationship(

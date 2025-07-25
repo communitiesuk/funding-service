@@ -67,7 +67,7 @@ def delete_section(section: Section) -> None:
         section.collection.sections.remove(section)
     section.collection.sections.reorder()
     db.session.execute(
-        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_component_order_form DEFERRED")
     )
 
     # If we're deleting the last section, automatically add the default section back. We should never end up with a
@@ -88,7 +88,7 @@ def delete_form(form: Form) -> None:
         form.section.forms.remove(form)
     form.section.forms.reorder()
     db.session.execute(
-        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_component_order_form DEFERRED")
     )
     db.session.flush()
 
@@ -101,10 +101,10 @@ def delete_question(question: Question) -> None:
     # definitely has a few quirks.
     db.session.delete(question)
     if question in question.form.questions:
-        question.form.questions.remove(question)
-    question.form.questions.reorder()
+        question.form.components.remove(question)
+    question.form.components.reorder()
     db.session.execute(
-        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_component_order_form DEFERRED")
     )
     db.session.flush()
 
