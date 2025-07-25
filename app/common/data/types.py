@@ -129,3 +129,7 @@ class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
         if value is None:
             return None
         return QuestionPresentationOptions(**value)  # ty: ignore[missing-argument]
+
+
+class ComponentType(enum.StrEnum):
+    QUESTION = "QUESTION"
