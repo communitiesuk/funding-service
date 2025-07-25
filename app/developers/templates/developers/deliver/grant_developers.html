@@ -30,10 +30,10 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      <h2 class="govuk-heading-m govuk-!-margin-top-4">Collections</h2>
+      <h2 class="govuk-heading-m govuk-!-margin-top-4">Reports</h2>
 
       {% if not grant.collections %}
-        <p class="govuk-body">This grant has no collections.</p>
+        <p class="govuk-body">This grant has no monitoring reports.</p>
       {% else %}
         {% for collection in grant.collections %}
           {% set collection_link %}
@@ -49,23 +49,36 @@
               sections
             {% endtrans %}
           {% endset %}
-          {% set submissions_text %}
+          {% set submissionsText %}
+            Review
             {% trans count=collection.test_submissions | length %}
               {{ count }}
               test submission {% pluralize %}
               {{ count }}
               test submissions
             {% endtrans %}
+            <span class="govuk-visually-hidden">for {{ collection.name }}</span>
+          {% endset %}
+
+
+          {% set submissionsHtml %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.deliver.list_submissions_for_collection", collection_id=collection.id, submission_mode=enum.submission_mode.TEST) }}"> {{ submissionsText }} </a>
           {% endset %}
 
 
           {% set formSectionsAndTasksText %}
-            {% if collection.has_non_default_sections %}
-              {{ collection.sections | length }}
-              {% trans count=collection.sections|length %}section{% pluralize %}sections{% endtrans %},
+            {% if collection.forms | length == 0 %}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.deliver.add_form", grant_id=grant.id, collection_id=collection.id, section_id=collection.sections[0].id) }}"
+                >Add tasks <span class="govuk-visually-hidden">to {{ collection.name }}</span></a
+              >
+              to create your report
+              <br />
+              Tasks are groups of questions with a common theme
+            {% else %}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.deliver.manage_collection_tasks", grant_id=grant.id, collection_id=collection.id) }}"
+                >Build form <span class="govuk-visually-hidden">for {{ collection.name }}</span></a
+              >
             {% endif %}
-            {{ collection.forms | length }}
-            {% trans count=collection.forms|length %}task{% pluralize %}tasks{% endtrans %}
           {% endset %}
 
           {{
@@ -80,28 +93,14 @@
               },
               "rows": [
                 {
-                  "key": {"text": "Form"},
+                  "key": {"text": "Report"},
                   "value": {"text": formSectionsAndTasksText},
-                  "actions": {
-                    "items": [
-                      {"text": "Build form", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.manage_collection_tasks", grant_id=grant.id, collection_id=collection.id), "classes": "govuk-link--no-visited-state" },
-                    ],
-                  },
                 },
                 {
                   "key": {"text": "Submissions"},
-                  "value":{"text": submissions_text},
-                  "actions": {
-                    "items": [
-                      {
-                        "href": url_for("developers.deliver.list_submissions_for_collection", collection_id=collection.id, submission_mode=enum.submission_mode.TEST),
-                        "text": "View",
-                        "classes": "govuk-link govuk-link--no-visited-state"
-                      }
-                    ]
-                  }
+                  "value":{"html": submissionsHtml},
                 },
-                {"key": {"text": "Created by"}, "value": {"text": collection.created_by.name ~ " on " ~ format_date(collection.created_at_utc)} },
+                {"key": {"text": "Created by"}, "value": {"text": collection.created_by.email} },
                 {"key": {"text": "Last updated"}, "value": {"text": format_date(collection.updated_at_utc)} },
               ],
             })
@@ -111,8 +110,8 @@
 
       {{
         govukButton({
-          "text": "Add collection",
-          "classes": "govuk-button--secondary",
+          "text": "Add a monitoring report" if not grant.collections else "Add another monitoring report",
+          "classes": "" if not grant.collections else "govuk-button--secondary",
           "href": url_for("developers.deliver.setup_collection", grant_id = grant.id)
         })
       }}

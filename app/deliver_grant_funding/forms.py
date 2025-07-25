@@ -153,8 +153,8 @@ class GrantContactForm(GrantSetupForm):
 
 class CollectionForm(GrantSetupForm):
     name = StringField(
-        "What is the name of the collection?",
-        validators=[DataRequired("Enter a collection name")],
+        "What is the name of this monitoring report?",
+        validators=[DataRequired("Enter a monitoring report name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
