@@ -1,5 +1,6 @@
 import functools
-from typing import Callable
+import uuid
+from typing import Callable, cast
 
 from flask import abort, current_app, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
@@ -144,7 +145,7 @@ def has_grant_role[**P](
             if AuthorisationHelper.is_platform_admin(user=user):
                 return func(*args, **kwargs)
 
-            if "grant_id" not in kwargs or (grant_id := kwargs["grant_id"]) is None:
+            if "grant_id" not in kwargs or (grant_id := cast(uuid.UUID, kwargs["grant_id"])) is None:
                 raise ValueError("Grant ID required.")
 
             # raises a 404 if the grant doesn't exist; more appropriate than 403 on non-existent entity

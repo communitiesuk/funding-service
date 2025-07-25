@@ -3,16 +3,26 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import Grant
+from app.common.data.models import Collection, Grant, Section
 from app.common.data.models_user import User
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
 
 def get_grant(grant_id: UUID) -> Grant:
-    return db.session.get_one(Grant, grant_id)
+    return db.session.get_one(
+        Grant,
+        grant_id,
+        options=[
+            selectinload(Grant.collections).options(
+                joinedload(Collection.created_by),
+                selectinload(Collection.sections).selectinload(Section.forms),
+            ),
+        ],
+    )
 
 
 def grant_name_exists(name: str, exclude_grant_id: UUID | None = None) -> bool:
