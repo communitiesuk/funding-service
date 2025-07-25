@@ -19,7 +19,7 @@
     <div class="govuk-grid-column-two-thirds">
       {% if delete_collection %}
         {% set banner_html %}
-          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this collection?</p>
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this report?</p>
           <form method="post" novalidate>
             {{ confirm_deletion_form.csrf_token }}
             {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
@@ -29,11 +29,11 @@
         {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">Manage collection</h1>
+      <h1 class="govuk-heading-l">Manage report</h1>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.name(params={"label": {"text": "Collection name"} }) }}
+        {{ form.name(params={"label": {"text": "Report name"} }) }}
         {{ form.submit(params={"text": "Save"}) }}
       </form>
     </div>
@@ -43,7 +43,7 @@
       <div class="govuk-grid-row govuk-!-margin-top-7">
         <div class="govuk-grid-column-two-thirds">
           <p class="govuk-body">
-            <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.manage_collection', grant_id=grant.id, collection_id=collection.id, delete='') }}">Delete this collection</a>
+            <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.manage_collection', grant_id=grant.id, collection_id=collection.id, delete='') }}">Delete report</a>
           </p>
         </div>
       </div>

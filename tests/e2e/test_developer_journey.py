@@ -138,7 +138,7 @@ def navigate_to_collection_detail_page(
     all_grants_page.navigate()
     grant_dashboard_page = all_grants_page.click_grant(grant_name)
     developers_page = grant_dashboard_page.click_developers(grant_name)
-    collection_detail_page = developers_page.click_manage_form(grant_name=grant_name, collection_name=collection_name)
+    collection_detail_page = developers_page.click_build_form(grant_name=grant_name, collection_name=collection_name)
     return collection_detail_page
 
 
@@ -176,12 +176,9 @@ def test_create_and_preview_collection(
         developers_page = add_collection_page.click_submit(new_grant_name)
         developers_page.check_collection_exists(new_collection_name)
 
-        collection_detail_page = developers_page.click_manage_form(
-            collection_name=new_collection_name, grant_name=new_grant_name
-        )
+        form_type_page = developers_page.click_add_task(collection_name=new_collection_name, grant_name=new_grant_name)
 
         # Add a new form
-        form_type_page = collection_detail_page.click_add_form(DEFAULT_SECTION_NAME)
         form_type_page.click_add_empty_task()
         form_details_page = form_type_page.click_continue()
         form_name = f"E2E form {uuid.uuid4()}"

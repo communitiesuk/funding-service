@@ -288,7 +288,7 @@ def test_create_collection_get(authenticated_platform_admin_client, factories, t
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert get_h1_text(soup) == "What is the name of the collection?"
+    assert get_h1_text(soup) == "What is the name of this monitoring report?"
 
 
 def test_create_collection_post(authenticated_platform_admin_client, factories, db_session):
