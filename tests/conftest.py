@@ -108,10 +108,7 @@ class FundingServiceTestClient(FlaskClient):
                 location, error, _extra_info = html5parser.errors[-1]
                 line_number, character_number = location
                 line_with_context = "\n".join(html.splitlines()[line_number - 10 : line_number])
-
-                # TODO: remove this when https://github.com/communitiesuk/funding-service/pull/36 has been merged.
-                if "FLASK_VITE_HEADER" not in line_with_context and "^ unexpected-end-tag" not in line_with_context:
-                    raise ParseError(f"\n\n{line_with_context}\n{' ' * (character_number - 1)}^ {error}")
+                raise ParseError(f"\n\n{line_with_context}\n{' ' * (character_number - 1)}^ {error}")
 
         return response
 
