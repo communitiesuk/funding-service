@@ -1,7 +1,7 @@
 import uuid
 
 import pytest
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.collections import (
@@ -13,6 +13,7 @@ from app.common.data.interfaces.collections import (
     clear_submission_events,
     create_collection,
     create_form,
+    create_group,
     create_question,
     create_section,
     delete_collection,
@@ -337,6 +338,18 @@ def test_get_question(db_session, factories):
     assert from_db is not None
 
 
+class TestCreateGroup:
+    def test_create_group(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test Group",
+        )
+
+        assert group is not None
+        assert form.components[0] == group
+
+
 class TestCreateQuestion:
     @pytest.mark.parametrize(
         "question_type",
@@ -434,6 +447,18 @@ class TestCreateQuestion:
 
     def test_break_if_new_question_types_added(self):
         assert len(QuestionDataType) == 8, "Add a new test above if adding a new question type"
+
+    def test_question_requires_data_type(self, db_session, factories):
+        form = factories.form.create()
+        with pytest.raises(IntegrityError) as e:
+            create_question(
+                form=form,
+                text="Test Question",
+                hint="Test Hint",
+                name="Test Question Name",
+                data_type=None,
+            )
+        assert "ck_component_type_question_requires_data_type" in str(e.value)
 
 
 class TestUpdateQuestion:
