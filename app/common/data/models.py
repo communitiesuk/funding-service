@@ -1,8 +1,8 @@
 import uuid
 from typing import TYPE_CHECKING, Optional
 
+from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -249,7 +249,7 @@ class Component(BaseModel):
     slug: Mapped[str]
     order: Mapped[int]
     hint: Mapped[Optional[str]]
-    data_type: Mapped[QuestionDataType] = mapped_column(
+    data_type: Mapped[Optional[QuestionDataType]] = mapped_column(
         SqlEnum(
             QuestionDataType,
             name="question_data_type_enum",
@@ -303,10 +303,14 @@ class Component(BaseModel):
             raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
 
     __table_args__ = (
-        UniqueConstraint("order", "form_id", name="uq_component_order_form", deferrable=True),
+        UniqueConstraint("order", "parent_id", "form_id", name="uq_component_order_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_component_slug_form"),
         UniqueConstraint("text", "form_id", name="uq_component_text_form"),
         UniqueConstraint("name", "form_id", name="uq_component_name_form"),
+        CheckConstraint(
+            f"data_type IS NOT NULL OR type != '{ComponentType.QUESTION.value}'",
+            name="ck_component_type_question_requires_data_type",
+        ),
     )
 
     __mapper_args__ = {"polymorphic_on": type}
@@ -314,6 +318,11 @@ class Component(BaseModel):
 
 class Question(Component, SafeQidMixin):
     __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
+
+    if TYPE_CHECKING:
+        # database constraints ensure the question component will have a data_type
+        # we reflect that its required on the question component but don't hook in a competing migration
+        data_type: QuestionDataType
 
     @property
     def question_id(self) -> uuid.UUID:  # type: ignore[override]
@@ -384,6 +393,10 @@ class Question(Component, SafeQidMixin):
 
 class Group(Component):
     __mapper_args__ = {"polymorphic_identity": ComponentType.GROUP}
+
+    if TYPE_CHECKING:
+        # reflect that groups will never have a data type but don't hook in a competing migration
+        data_type: None
 
 
 class SubmissionEvent(BaseModel):

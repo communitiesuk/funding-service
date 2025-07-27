@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, Any, Never, Protocol, Sequence
+from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
 from uuid import UUID
 
 from sqlalchemy import ScalarResult, delete, select, text
@@ -17,6 +17,7 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
+    Group,
     Question,
     Section,
     Submission,
@@ -395,13 +396,34 @@ def create_question(
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
-        raise DuplicateValueError(e) from e
+
+        # todo: check devs view on this, this is because other constraints (like the check constraint introduced here)
+        #       are not because of duplicated values - the convention based method doesn't feel ideal but this setup
+        #       is already working on a few assumptions of things lining up in different places. This just raises
+        #       the ORM error if we're not guessing its a duplicate value error based on it being a unique constraint
+        if e.orig.diag and e.orig.diag.constraint_name and e.orig.diag.constraint_name.startswith("uq_"):  # type: ignore[union-attr]
+            raise DuplicateValueError(e) from e
+        raise e
 
     if items is not None:
         _create_data_source(question, items)
         db.session.flush()
 
     return question
+
+
+def create_group(form: Form, *, text: str, name: Optional[str] = None) -> Group:
+    group = Group(text=text, name=name or text, slug=slugify(text), form_id=form.id)
+    form.components.append(group)
+    db.session.add(group)
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+
+    return group
 
 
 def get_question_by_id(question_id: UUID) -> Question:
