@@ -1,6 +1,5 @@
 import functools
 from typing import Callable
-from uuid import UUID
 
 from flask import abort, current_app, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
@@ -8,6 +7,7 @@ from flask_login import logout_user
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
+from app.common.data.interfaces.grants import get_grant
 from app.common.data.types import AuthMethodEnum, RoleEnum
 
 
@@ -144,10 +144,12 @@ def has_grant_role[**P](
             if AuthorisationHelper.is_platform_admin(user=user):
                 return func(*args, **kwargs)
 
-            if "grant_id" not in kwargs or kwargs["grant_id"] is None:
+            if "grant_id" not in kwargs or (grant_id := kwargs["grant_id"]) is None:
                 raise ValueError("Grant ID required.")
 
-            if not AuthorisationHelper.has_grant_role(grant_id=UUID(str(kwargs["grant_id"])), role=role, user=user):
+            # raises a 404 if the grant doesn't exist; more appropriate than 403 on non-existent entity
+            grant = get_grant(grant_id)
+            if not AuthorisationHelper.has_grant_role(grant_id=grant.id, role=role, user=user):
                 return abort(403, description="Access denied")
 
             return func(*args, **kwargs)
