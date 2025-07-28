@@ -121,3 +121,23 @@ def get_h1_text(soup: BeautifulSoup) -> str:
 
 def get_h2_text(soup: BeautifulSoup) -> str:
     return get_soup_text(soup, "h2")
+
+
+def page_has_link(soup: BeautifulSoup, link_text: str) -> Tag | None:
+    links = soup.select("a")
+
+    for link in links:
+        if link_text in link.text:
+            return link
+
+    return None
+
+
+def page_has_button(soup: BeautifulSoup, button_text: str) -> Tag | None:
+    buttons = soup.select("button")
+
+    for button in buttons:
+        if button_text in button.text:
+            return button
+
+    return None
