@@ -46,7 +46,7 @@ from app.common.expressions import (
 from app.common.filters import format_datetime
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Form, Grant, Question, Section, Submission
+    from app.common.data.models import Collection, Component, Expression, Form, Grant, Question, Section, Submission
 
 
 class SubmissionHelper:
@@ -236,9 +236,21 @@ class SubmissionHelper:
         """Returns the visible, ordered forms for a given section based upon the current state of this collection."""
         return sorted(section.forms, key=lambda f: f.order)
 
+    # todo: rename is component visible
     def is_question_visible(self, question: "Question", context: "ExpressionContext") -> bool:
+        # we can optimise this to exit early and do this in a sensible order if we switch
+        # to going through questions in a nested way rather than flat
+        def get_all_conditions(question: "Component") -> list["Expression"]:
+            conditions = []
+
+            # start outside and move in from top level conditions to innermost
+            if question.parent:
+                conditions.extend(get_all_conditions(question.parent))
+            conditions.extend(question.conditions)
+            return conditions
+
         try:
-            return all(evaluate(condition, context) for condition in question.conditions)
+            return all(evaluate(condition, context) for condition in get_all_conditions(question))
         except UndefinedVariableInExpression:
             # todo: fail open for now - this method should accept an optional bool that allows this condition to fail
             #       or not- checking visibility on the question page itself should never fail - the summary page could
