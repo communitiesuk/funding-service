@@ -50,6 +50,7 @@ from app.common.data.models import (
     Submission,
     SubmissionEvent,
 )
+from app.common.data.models import Collection, DataSourceItem, Expression, Form, Group, Question, Section, Submission, SubmissionEvent
 from app.common.data.types import (
     CollectionType,
     ExpressionType,
@@ -169,7 +170,8 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
     # * Load the collection with the nested relationships attached
     # * Load the sections
     # * Load the forms
-    # * Load the question
+    # * Load the questions (components)
+    # * Load any recursive questions (components)
     assert len(queries) == 4
 
     # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
@@ -348,6 +350,71 @@ class TestCreateGroup:
 
         assert group is not None
         assert form.components[0] == group
+
+    def test_create_nested_components(self, db_session, factories, track_sql_queries):
+        form = factories.form.create()
+
+        group = create_group(
+            form=form,
+            text="Test Group",
+        )
+
+        create_question(
+            form=form,
+            text="Top Level Question",
+            hint="Top Level Question Hint",
+            name="Top Level Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        depth = 2
+
+        def add_sub_group(parent, current_depth):
+            # todo: separate tests to only cover one thing - the separate read from db here should be
+            #       covered separately where a create_batch can be used to keep the tests fast
+            for i in range(2):
+                create_question(
+                    form=form,
+                    text=f"Sub Question {current_depth} {i}",
+                    hint=f"Sub Question Hint {current_depth} {i}",
+                    name=f"Sub Question Name {current_depth} {i}",
+                    data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                    parent=parent,
+                )
+            sub_group = create_group(form=form, text=f"Sub Group {current_depth}", parent=parent)
+            if current_depth < depth:
+                add_sub_group(sub_group, current_depth + 1)
+
+        add_sub_group(group, 1)
+
+        assert group is not None
+
+        with track_sql_queries() as queries:
+            from_db = get_form_by_id(form_id=form.id, with_all_questions=True)
+
+        # we can get information on all the expressions and questions in the form with
+        # no subsequent queries (at any level of nesting)
+        qids = []
+        eids = []
+        with track_sql_queries() as queries:
+
+            def iterate_components(components):
+                for component in components:
+                    for expression in component.expressions:
+                        eids.append(expression.id)
+                    if isinstance(component, Question):
+                        qids.append(component.id)
+                    elif isinstance(component, Group):
+                        qids.append(component.id)
+                        iterate_components(component.components)
+
+            iterate_components(from_db.components)
+
+        assert queries == []
+
+        # the forms components are limited to ones with a direct relationship and no parents
+        assert len(from_db.components) == 2
+        assert len(from_db.questions) == 5
 
 
 class TestCreateQuestion:
@@ -903,8 +970,9 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     # Expected queries:
     # * Initial queries for collection and user
     # * Load the forms
-    # * Load the question
-    assert len(queries) == 4
+    # * Load the question (component)
+    # * Load any of the questions questions (components)
+    assert len(queries) == 5
 
     # No additional queries when inspecting the ORM model
     count = 0
