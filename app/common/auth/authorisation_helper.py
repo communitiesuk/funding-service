@@ -30,6 +30,8 @@ class AuthorisationHelper:
     def is_grant_admin(grant_id: UUID, user: User | AnonymousUserMixin) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False
+        if AuthorisationHelper.is_platform_admin(user=user):
+            return True
         return any(
             role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id == grant_id
             for role in user.roles
