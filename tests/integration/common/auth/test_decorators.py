@@ -1,8 +1,10 @@
+import uuid
 from uuid import UUID
 
 import pytest
 from flask import session, url_for
 from flask_login import login_user
+from sqlalchemy.exc import NoResultFound
 from werkzeug.exceptions import Forbidden, InternalServerError
 
 from app.common.auth.decorators import (
@@ -248,6 +250,19 @@ class TestHasGrantRole:
 
         response = view_func(grant_id="abc")
         assert response == "OK"
+
+    def test_no_result_on_non_existent_grant(self, factories):
+        user = factories.user.create(email="test.member2@communities.gov.uk")
+
+        @has_grant_role(role=RoleEnum.ADMIN)
+        def view_func(grant_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        with pytest.raises(NoResultFound):
+            view_func(grant_id=uuid.uuid4())
 
     def test_without_grant_id(self, factories):
         user = factories.user.create(email="test.member2@communities.gov.uk")

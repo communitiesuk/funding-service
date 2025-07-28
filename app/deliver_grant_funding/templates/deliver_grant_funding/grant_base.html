@@ -11,6 +11,12 @@
           "current": active_item_identifier == "details"
       },
       {
+          "text": "Reports",
+          "key": "reports",
+          "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id),
+          "current": active_item_identifier == "reports"
+      },
+      {
           "text": "Grant team",
           "key": "grant_users",
           "href": url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id),

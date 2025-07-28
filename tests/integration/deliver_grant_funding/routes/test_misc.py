@@ -35,7 +35,7 @@ class TestListGrants:
         soup = BeautifulSoup(result.data, "html.parser")
 
         nav_items = [item.text.strip() for item in soup.select(".govuk-service-navigation__item")]
-        assert nav_items == ["Grant details", "Grant team"]
+        assert nav_items == ["Grant details", "Reports", "Grant team"]
         assert len(queries) == 3  # 1) select user, 2) select user_role, 3) select grants
 
     def test_list_grants_as_member_with_multiple_grants(
