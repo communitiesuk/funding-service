@@ -16,6 +16,7 @@ from app.common.data.interfaces.collections import (
     create_form,
     create_question,
     create_section,
+    delete_collection,
     get_collection,
     get_expression,
     get_form_by_id,
@@ -37,7 +38,7 @@ from app.common.data.interfaces.collections import (
     update_submission_data,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import Collection, DataSourceItem, Expression
+from app.common.data.models import Collection, DataSourceItem, Expression, Form, Question, Section
 from app.common.data.types import (
     CollectionType,
     ExpressionType,
@@ -50,30 +51,44 @@ from app.common.expressions.managed import AnyOf, GreaterThan, LessThan
 from app.types import TRadioItem
 
 
-def test_get_collection(db_session, factories):
-    collection = factories.collection.create()
-    from_db = get_collection(collection_id=collection.id)
-    assert from_db is not None
+class TestGetCollection:
+    def test_get_collection(self, db_session, factories):
+        collection = factories.collection.create()
+        from_db = get_collection(collection_id=collection.id)
+        assert from_db is not None
 
+    def test_get_collection_version(self, db_session, factories):
+        collection = factories.collection.create()
+        _ = factories.collection.create(id=collection.id, version=2)
 
-def test_get_collection_version(db_session, factories):
-    collection = factories.collection.create()
-    _ = factories.collection.create(id=collection.id, version=2)
+        from_db = get_collection(collection_id=collection.id, version=1)
+        from_db_v2 = get_collection(collection_id=collection.id, version=2)
+        assert from_db.version == 1
+        assert from_db_v2.version == 2
 
-    from_db = get_collection(collection_id=collection.id, version=1)
-    from_db_v2 = get_collection(collection_id=collection.id, version=2)
-    assert from_db.version == 1
-    assert from_db_v2.version == 2
+    def test_get_collection_version_latest_by_default(self, db_session, factories):
+        collection = factories.collection.create()
+        _ = factories.collection.create(id=collection.id, version=2)
+        _ = factories.collection.create(id=collection.id, version=3)
+        _ = factories.collection.create(id=collection.id, version=4)
 
+        from_db = get_collection(collection_id=collection.id)
+        assert from_db.version == 4
 
-def test_get_collection_version_latest_by_default(db_session, factories):
-    collection = factories.collection.create()
-    _ = factories.collection.create(id=collection.id, version=2)
-    _ = factories.collection.create(id=collection.id, version=3)
-    _ = factories.collection.create(id=collection.id, version=4)
+    def test_get_collection_with_grant_id(self, db_session, factories):
+        collection = factories.collection.create()
 
-    from_db = get_collection(collection_id=collection.id)
-    assert from_db.version == 4
+        assert get_collection(collection_id=collection.id, grant_id=collection.grant_id) is not None
+
+        with pytest.raises(NoResultFound):
+            get_collection(collection_id=collection.id, grant_id=uuid.uuid4())
+
+    def test_get_collection_with_type(self, db_session, factories):
+        collection = factories.collection.create()
+
+        assert get_collection(collection_id=collection.id, type_=CollectionType.MONITORING_REPORT) is collection
+
+        # TODO: Extend with a test on another collection type when we extend the CollectionType enum.
 
 
 class TestCreateCollection:
@@ -915,3 +930,47 @@ class TestExpressions:
         referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(managed_expression)
         assert len(referenced_data_source_items) == 2
         assert referenced_data_source_items[0] == referenced_question.data_source.items[0]
+
+
+class TestDeleteCollection:
+    def test_delete(self, db_session, factories):
+        collection = factories.collection.create()
+        assert db_session.get(Collection, (collection.id, collection.version)) is not None
+
+        delete_collection(collection)
+
+        assert db_session.get(Collection, (collection.id, collection.version)) is None
+
+    def test_delete_cascades_downstream(self, db_session, factories):
+        collection = factories.collection.create()
+        section = collection.sections[0]
+        forms = factories.form.create_batch(2, section=section)
+        questions = []
+        for form in forms:
+            questions.extend(factories.question.create_batch(2, form=form))
+
+        delete_collection(collection)
+
+        assert db_session.get(Section, section.id) is None
+        for form in forms:
+            assert db_session.get(Form, form.id) is None
+
+        for question in questions:
+            assert db_session.get(Question, question.id) is None
+
+    def test_can_delete_with_test_submissions(self, db_session, factories):
+        collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
+
+        assert collection.test_submissions
+        assert not collection.live_submissions
+
+        delete_collection(collection)
+
+    def test_cannot_delete_if_live_submissions(self, db_session, factories):
+        collection = factories.collection.create(create_completed_submissions_conditional_question__live=True)
+
+        assert not collection.test_submissions
+        assert collection.live_submissions
+
+        with pytest.raises(ValueError):
+            delete_collection(collection)
