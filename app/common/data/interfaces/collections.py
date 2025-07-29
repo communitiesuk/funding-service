@@ -23,6 +23,7 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import User
 from app.common.data.types import (
+    CollectionType,
     ExpressionType,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -40,8 +41,8 @@ if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
 
 
-def create_collection(*, name: str, user: User, grant: Grant, version: int = 1) -> Collection:
-    collection = Collection(name=name, created_by=user, grant=grant, version=version, slug=slugify(name))
+def create_collection(*, name: str, user: User, grant: Grant, version: int = 1, type_: CollectionType) -> Collection:
+    collection = Collection(name=name, created_by=user, grant=grant, version=version, slug=slugify(name), type=type_)
     db.session.add(collection)
 
     try:

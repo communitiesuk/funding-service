@@ -44,6 +44,7 @@ from app.common.data.interfaces.temporary import (
     delete_section,
 )
 from app.common.data.types import (
+    CollectionType,
     ExpressionType,
     FormRunnerState,
     QuestionDataType,
@@ -117,7 +118,7 @@ def setup_collection(grant_id: UUID) -> ResponseReturnValue:
         try:
             assert form.name.data is not None
             user = interfaces.user.get_current_user()
-            create_collection(name=form.name.data, user=user, grant=grant)
+            create_collection(name=form.name.data, user=user, grant=grant, type_=CollectionType.MONITORING_REPORT)
             return redirect(url_for("developers.deliver.grant_developers", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)

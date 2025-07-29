@@ -41,6 +41,7 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import (
+    CollectionType,
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionEventKey,
@@ -144,6 +145,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     name = factory.Sequence(lambda n: "Collection %d" % n)
     slug = factory.Sequence(lambda n: "collection-%d" % n)
+    type = CollectionType.MONITORING_REPORT
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)

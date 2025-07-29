@@ -8,6 +8,7 @@
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
           "name": "Report on cheeseboards in parks",
           "slug": "report-on-cheeseboards-in-parks",
+          "type": "monitoring report",
           "version": 1
         }
       ],
@@ -1354,6 +1355,7 @@
           "id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
           "name": "Report on picnic areas in parks",
           "slug": "report-on-picnic-areas-in-parks",
+          "type": "monitoring report",
           "version": 1
         }
       ],
@@ -1465,6 +1467,7 @@
           "id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
           "name": "Report on playgrounds in parks",
           "slug": "report-on-playgrounds-in-parks",
+          "type": "monitoring report",
           "version": 1
         }
       ],
@@ -1621,7 +1624,7 @@
       "azure_ad_subject_id": "40e16bf9d02fa7f67c6bb767b197e544",
       "email": "sclark@test.communities.gov.uk",
       "id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
-      "last_logged_in_at_utc": "Mon, 14 Jul 2025 10:00:46 GMT",
+      "last_logged_in_at_utc": "Mon, 28 Jul 2025 21:50:10 GMT",
       "name": "Willie Brown"
     }
   ]

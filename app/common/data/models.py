@@ -11,6 +11,7 @@ from sqlalchemy_json import mutable_json_type
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
+    CollectionType,
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -54,6 +55,10 @@ class Grant(BaseModel):
         viewonly=True,
     )
 
+    @property
+    def reports(self) -> list["Collection"]:
+        return [collection for collection in self.collections if collection.type == CollectionType.MONITORING_REPORT]
+
 
 class Organisation(BaseModel):
     __tablename__ = "organisation"
@@ -70,6 +75,8 @@ class Collection(BaseModel):
     # NOTE: The ID provided by the BaseModel should *NOT CHANGE* when incrementing the version. That part is a stable
     #       identifier for linked collection/versioning.
     version: Mapped[int] = mapped_column(default=1, primary_key=True)
+
+    type: Mapped[CollectionType] = mapped_column(SqlEnum(CollectionType, name="collection_type", validate_strings=True))
 
     # Name will be superseded by domain specific application contexts but allows us to
     # try out different collections and scenarios
