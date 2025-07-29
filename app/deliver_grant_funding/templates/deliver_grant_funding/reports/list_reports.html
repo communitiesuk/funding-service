@@ -17,11 +17,10 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {% if not grant.collections %}
+      {% if not grant.reports %}
         <p class="govuk-body">This grant has no monitoring reports.</p>
       {% else %}
-        {# TODO: Add a `reports` property to the grant which filters this down based on a (to be added) CollectionType enum #}
-        {% for report in grant.collections %}
+        {% for report in grant.reports %}
           {% set formSectionsAndTasksText %}
             {% if grant_admin %}
               {% if report.forms | length == 0 %}
@@ -63,8 +62,8 @@
       {% if grant_admin %}
         {{
           govukButton({
-            "text": "Add a monitoring report" if not grant.collections else "Add another monitoring report",
-            "classes": "" if not grant.collections else "govuk-button--secondary",
+            "text": "Add a monitoring report" if not grant.reports else "Add another monitoring report",
+            "classes": "" if not grant.reports else "govuk-button--secondary",
             "href": "#"
           })
         }}

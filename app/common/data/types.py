@@ -88,6 +88,10 @@ class SubmissionEventKey(enum.StrEnum):
     SUBMISSION_SUBMITTED = "Submission submitted"
 
 
+class CollectionType(enum.StrEnum):
+    MONITORING_REPORT = "monitoring report"
+
+
 class ExpressionType(enum.StrEnum):
     CONDITION = "CONDITION"
     VALIDATION = "VALIDATION"

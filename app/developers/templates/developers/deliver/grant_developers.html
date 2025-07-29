@@ -38,10 +38,10 @@
     <div class="govuk-grid-column-full">
       <h2 class="govuk-heading-m govuk-!-margin-top-4">Reports</h2>
 
-      {% if not grant.collections %}
+      {% if not grant.reports %}
         <p class="govuk-body">This grant has no monitoring reports.</p>
       {% else %}
-        {% for collection in grant.collections %}
+        {% for collection in grant.reports %}
           {% set collection_link %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_collection_tasks', grant_id=grant.id, collection_id=collection.id) }}">{{ collection.name }}</a>
           {% endset %}
@@ -116,8 +116,8 @@
 
       {{
         govukButton({
-          "text": "Add a monitoring report" if not grant.collections else "Add another monitoring report",
-          "classes": "" if not grant.collections else "govuk-button--secondary",
+          "text": "Add a monitoring report" if not grant.reports else "Add another monitoring report",
+          "classes": "" if not grant.reports else "govuk-button--secondary",
           "href": url_for("developers.deliver.setup_collection", grant_id = grant.id)
         })
       }}
