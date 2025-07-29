@@ -29,10 +29,10 @@
                 <br />
                 Tasks are groups of questions with a common theme
               {% else %}
-                <a class="govuk-link govuk-link--no-visited-state" href="#">{{ report.tasks | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span></a>
+                <a class="govuk-link govuk-link--no-visited-state" href="#">{{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span></a>
               {% endif %}
             {% else %}
-              <a class="govuk-link govuk-link--no-visited-state" href="#">{{ report.tasks | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span></a>
+              <a class="govuk-link govuk-link--no-visited-state" href="#">{{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span></a>
             {% endif %}
           {% endset %}
 
@@ -64,7 +64,7 @@
           govukButton({
             "text": "Add a monitoring report" if not grant.reports else "Add another monitoring report",
             "classes": "" if not grant.reports else "govuk-button--secondary",
-            "href": "#"
+            "href": url_for('deliver_grant_funding.set_up_report', grant_id=grant.id)
           })
         }}
       {% endif %}
