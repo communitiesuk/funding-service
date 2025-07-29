@@ -339,3 +339,13 @@ class GrantAddUserForm(FlaskForm):
                 return False
 
         return True
+
+
+class SetUpReportForm(FlaskForm):
+    name = StringField(
+        "What is the name of the monitoring report?",
+        widget=GovTextInput(),
+        validators=[DataRequired("Enter a name for the monitoring report")],
+    )
+
+    submit = SubmitField("Continue and set up report", widget=GovSubmitInput())
