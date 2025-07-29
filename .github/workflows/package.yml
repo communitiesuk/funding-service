@@ -24,7 +24,7 @@ jobs:
     name: Paketo
 
     steps:
-      - uses: buildpacks/github-actions/setup-pack@bc04fbfd78e903050bab17a2dcf907e71e3c4afa # v5.9.2
+      - uses: buildpacks/github-actions/setup-pack@8203df0b7ac31e358daa391b1949da5650e7f4f0 # v5.9.3
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Configure AWS credentials using OIDC
