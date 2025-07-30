@@ -8,8 +8,8 @@ from flask import url_for
 from app.common.data.models import Collection
 from app.common.data.types import SubmissionModeEnum
 from app.common.forms import GenericConfirmDeletionForm
-from app.deliver_grant_funding.forms import SetUpReportForm
-from tests.utils import AnyStringMatching, page_has_button, page_has_error, page_has_link
+from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
+from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_error, page_has_link
 
 
 class TestListReports:
@@ -68,7 +68,7 @@ class TestListReports:
 
         expected_links = [
             ("Add another monitoring report", AnyStringMatching(r"/grant/[a-z0-9-]{36}/set-up-report")),
-            ("Add tasks", "#"),
+            ("Add tasks", AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")),
             ("Manage", AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/manage")),
         ]
         for expected_link in expected_links:
@@ -338,3 +338,76 @@ class TestManageReport:
         updated_report = db_session.get(Collection, (report.id, report.version))
         assert updated_report is not None
         assert updated_report.name == "Updated Name"
+
+
+class TestAddTask:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.add_task", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant)
+
+        response = client.get(url_for("deliver_grant_funding.add_task", grant_id=client.grant.id, report_id=report.id))
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "What is the name of the task?"
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_post(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant)
+
+        form = AddTaskForm(data={"title": "Organisation information"})
+        response = client.post(
+            url_for("deliver_grant_funding.add_task", grant_id=client.grant.id, report_id=report.id),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 302
+            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/reports")
+
+            assert len(report.sections[0].forms) == 1
+            assert report.sections[0].forms[0].title == "Organisation information"
+
+    def test_post_duplicate_form_name(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Monitoring report")
+        factories.form.create(section=report.sections[0], title="Organisation information")
+
+        form = AddTaskForm(data={"title": "Organisation information"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_task",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data=form.data,
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert response.status_code == 200
+        assert page_has_error(soup, "A task with this name already exists")

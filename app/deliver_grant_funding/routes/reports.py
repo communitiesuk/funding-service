@@ -7,6 +7,7 @@ from app.common.auth.decorators import has_grant_role
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     create_collection,
+    create_form,
     delete_collection,
     get_collection,
     update_collection,
@@ -15,7 +16,7 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.types import CollectionType, RoleEnum
 from app.common.forms import GenericConfirmDeletionForm
-from app.deliver_grant_funding.forms import SetUpReportForm
+from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
 
@@ -84,3 +85,31 @@ def manage_report(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         delete_form=delete_form,
         form=form,
     )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/add-task", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    if report.has_non_default_sections:
+        raise RuntimeError(f"Report {report_id} has non-default sections - `add_task` needs updating to handle this.")
+
+    form = AddTaskForm(obj=report)
+    if form.validate_on_submit():
+        assert form.title.data
+        try:
+            create_form(
+                title=form.title.data,
+                section=report.sections[0],
+            )
+            # TODO: Redirect to the 'view report' page when we've added it.
+            return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
+
+        except DuplicateValueError:
+            form.title.errors.append("A task with this name already exists")  # type: ignore[attr-defined]
+
+    return render_template("deliver_grant_funding/reports/add_task.html", grant=report.grant, report=report, form=form)

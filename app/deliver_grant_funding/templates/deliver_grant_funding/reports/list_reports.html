@@ -24,7 +24,7 @@
           {% set formSectionsAndTasksText %}
             {% if grant_admin %}
               {% if report.forms | length == 0 %}
-                <a class="govuk-link govuk-link--no-visited-state" href="#">Add tasks<span class="govuk-visually-hidden"> to {{ report.name }}</span></a>
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_task', grant_id=grant.id, report_id=report.id) }}">Add tasks<span class="govuk-visually-hidden"> to {{ report.name }}</span></a>
                 to create your report
                 <br />
                 Tasks are groups of questions with a common theme
