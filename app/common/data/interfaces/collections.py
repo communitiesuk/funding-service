@@ -57,7 +57,13 @@ def create_collection(*, name: str, user: User, grant: Grant, version: int = 1, 
     return collection
 
 
-def get_collection(collection_id: UUID, version: int | None = None, with_full_schema: bool = False) -> Collection:
+def get_collection(
+    collection_id: UUID,
+    grant_id: UUID | None = None,
+    type_: CollectionType | None = None,
+    version: int | None = None,
+    with_full_schema: bool = False,
+) -> Collection:
     """Get a collection by ID and optionally version.
 
     If you do not pass a version, it will retrieve the latest version (ie highest version number).
@@ -67,16 +73,18 @@ def get_collection(collection_id: UUID, version: int | None = None, with_full_sc
     options = []
     if with_full_schema:
         options.append(selectinload(Collection.sections).selectinload(Section.forms).selectinload(Form.questions))
-    if version is None:
-        return db.session.scalars(
-            select(Collection)
-            .where(Collection.id == collection_id)
-            .order_by(Collection.version.desc())
-            .options(*options)
-            .limit(1)
-        ).one()
 
-    return db.session.get_one(Collection, [collection_id, version], options=options)
+    filters = [Collection.id == collection_id]
+    if grant_id:
+        filters.append(Collection.grant_id == grant_id)
+    if type_:
+        filters.append(Collection.type == type_)
+    if version is not None:
+        filters.append(Collection.version == version)
+
+    return db.session.scalars(
+        select(Collection).where(*filters).order_by(Collection.version.desc()).options(*options).limit(1)
+    ).one()
 
 
 def update_collection(collection: Collection, *, name: str) -> Collection:
@@ -624,3 +632,12 @@ def update_question_expression(expression: Expression, managed_expression: "Mana
         db.session.rollback()
         raise DuplicateValueError(e) from e
     return expression
+
+
+def delete_collection(collection: Collection) -> None:
+    if collection.live_submissions:
+        db.session.rollback()
+        raise ValueError("Cannot delete collection with live submissions")
+
+    db.session.delete(collection)
+    db.session.flush()

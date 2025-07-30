@@ -42,7 +42,7 @@
             		"title": {"text": report.name},
             		"actions": {
             			"items": [
-            				{"text": "Manage", "visuallyHiddenText": report.title, "href": "#", "classes": "govuk-link--no-visited-state" },
+            				{"text": "Manage", "visuallyHiddenText": report.title, "href": url_for("deliver_grant_funding.manage_report", grant_id=grant.id, report_id=report.id), "classes": "govuk-link--no-visited-state" },
             			] if grant_admin else [],
             		},
             	},
