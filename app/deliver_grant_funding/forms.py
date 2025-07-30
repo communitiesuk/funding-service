@@ -263,18 +263,28 @@ class QuestionForm(FlaskForm):
         self._question_type = question_type
         self._original_separate_option_if_no_items_match = self.separate_option_if_no_items_match.data
 
-        if question_type in [QuestionDataType.RADIOS]:
+        if question_type in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
+            max_length = (
+                current_app.config["MAX_DATA_SOURCE_ITEMS_RADIOS"]
+                if question_type == QuestionDataType.RADIOS
+                else current_app.config["MAX_DATA_SOURCE_ITEMS_CHECKBOXES"]
+            )
             self.data_source_items.validators = [
                 DataRequired("Enter the options for your list"),
                 _validate_no_blank_lines,
                 _validate_no_duplicates,
-                _validate_max_list_length(max_length=current_app.config["MAX_DATA_SOURCE_ITEMS"]),
+                _validate_max_list_length(max_length=max_length),
             ]
 
             if self.separate_option_if_no_items_match.raw_data:
                 self.none_of_the_above_item_text.validators = [
                     DataRequired("Enter the text to show for the fallback option")
                 ]
+
+        if question_type == QuestionDataType.CHECKBOXES:
+            self.data_source_items.description = (
+                "Each option must be on its own line. You can add a maximum of 10 options"
+            )
 
     @property
     def normalised_data_source_items(self) -> list[str] | None:
@@ -288,7 +298,7 @@ class QuestionForm(FlaskForm):
         This form is essentially just responsible for appending the "None of the above" item to the data source items
         explicitly set by the form builder.
         """
-        if self._question_type is not QuestionDataType.RADIOS:
+        if self._question_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
         data_source_items: list[str] = []

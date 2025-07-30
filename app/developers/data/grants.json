@@ -308,6 +308,62 @@
           "order": 33
         },
         {
+          "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
+          "id": "fdbbe4b2-3619-4396-bdb7-b3f2186754ba",
+          "key": "monday",
+          "label": "Monday",
+          "order": 0
+        },
+        {
+          "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
+          "id": "4efe2829-7f9b-4cc9-8913-fac72a3c581e",
+          "key": "tuesday",
+          "label": "Tuesday",
+          "order": 1
+        },
+        {
+          "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
+          "id": "efd4ff75-3404-4442-9e90-20e4015061a7",
+          "key": "wednesday",
+          "label": "Wednesday",
+          "order": 2
+        },
+        {
+          "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
+          "id": "0073990c-0f8b-48f9-82e3-7cacc6dabf2e",
+          "key": "thursday",
+          "label": "Thursday",
+          "order": 3
+        },
+        {
+          "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
+          "id": "153c5de7-64e9-4d63-8c73-651172bd1c43",
+          "key": "friday",
+          "label": "Friday",
+          "order": 4
+        },
+        {
+          "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
+          "id": "cf065fc0-e4e5-4e71-aecb-8c322ba58de7",
+          "key": "saturday",
+          "label": "Saturday",
+          "order": 5
+        },
+        {
+          "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
+          "id": "bba61438-1925-41aa-a328-f15a120b2d5a",
+          "key": "sunday",
+          "label": "Sunday",
+          "order": 6
+        },
+        {
+          "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
+          "id": "625963b4-06f8-44fe-bcc6-afde03b20040",
+          "key": "none-of-the-above",
+          "label": "None of the above",
+          "order": 7
+        },
+        {
           "data_source_id": "9cb18bb1-b9a5-4a57-9111-24ccb3f75a2a",
           "id": "f58dbb63-90f7-4bdb-9f5a-24a1ca09ce65",
           "key": "arms-length-bodies",
@@ -607,6 +663,10 @@
         {
           "id": "5aff6096-1020-4a2e-aa95-1ead3dcc174e",
           "question_id": "25a083f6-3c97-4e3b-bc18-375a4bed65da"
+        },
+        {
+          "id": "2266f194-4977-40c7-a2da-9aca01511a9f",
+          "question_id": "e5ef3248-6c32-4554-b4a7-4d286cdb3f6a"
         },
         {
           "id": "9cb18bb1-b9a5-4a57-9111-24ccb3f75a2a",
@@ -937,13 +997,26 @@
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "25a083f6-3c97-4e3b-bc18-375a4bed65da",
-          "name": "lead contact's favourite London borough",
+          "name": "lead contact's London borough",
           "order": 6,
           "presentation_options": {
             "last_data_source_item_is_distinct_from_others": true
           },
-          "slug": "what-is-the-lead-contacts-favourite-london-borough",
-          "text": "What is the lead contact's favourite London borough?"
+          "slug": "in-which-london-borough-is-the-lead-contact-based",
+          "text": "In which London borough is the lead contact based?"
+        },
+        {
+          "data_type": "Select one or more from a list of choices",
+          "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
+          "hint": "",
+          "id": "e5ef3248-6c32-4554-b4a7-4d286cdb3f6a",
+          "name": "lead contact's days of the week based in London",
+          "order": 7,
+          "presentation_options": {
+            "last_data_source_item_is_distinct_from_others": true
+          },
+          "slug": "on-which-days-of-the-week-is-the-lead-contact-based-in-london",
+          "text": "On which days of the week is the lead contact based in London?"
         },
         {
           "data_type": "Multiple lines of text",

@@ -260,7 +260,8 @@ class _SharedConfig(_BaseConfig):
     #       but until we are thinking about anything other than monitoring reports, this is a very quick change that
     #       does what we need.
     ENABLE_FORM_SECTIONS_AFTER_X_TASKS: int = 1000
-    MAX_DATA_SOURCE_ITEMS: int = 100
+    MAX_DATA_SOURCE_ITEMS_RADIOS: int = 100
+    MAX_DATA_SOURCE_ITEMS_CHECKBOXES: int = 10
 
     # Grant setup
     GGIS_TEAM_EMAIL: str = "ggis@communities.gov.uk"

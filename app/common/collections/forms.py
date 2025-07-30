@@ -4,10 +4,15 @@ from typing import Any, Callable, Mapping, cast
 
 from flask import current_app
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import (
+    GovRadioInput,
+    GovSubmitInput,
+    GovTextArea,
+    GovTextInput,
+)
 from immutabledict import immutabledict
 from wtforms import Field, Form, RadioField
-from wtforms.fields.choices import SelectField
+from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
@@ -15,10 +20,10 @@ from wtforms.validators import DataRequired, Email, InputRequired, Optional, Val
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
 from app.common.expressions import ExpressionContext, evaluate
-from app.common.forms.fields import MHCLGAccessibleAutocomplete, MHCLGRadioInput
+from app.common.forms.fields import MHCLGAccessibleAutocomplete, MHCLGCheckboxesInput, MHCLGRadioInput
 from app.common.forms.validators import URLWithoutProtocol
 
-_accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField
+_accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField | SelectMultipleField
 
 
 # FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
@@ -189,6 +194,18 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                     ),
                 ],
             )
+        case QuestionDataType.CHECKBOXES:
+            choices = [(item.key, item.label) for item in question.data_source.items]
+            field = SelectMultipleField(
+                label=question.text,
+                description=question.hint or "",
+                widget=MHCLGCheckboxesInput(
+                    insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
+                ),
+                choices=choices,
+                validators=[DataRequired("Select one or more options")],
+            )
+
         case _:
             raise Exception("Unable to generate dynamic form for question type {_}")
 

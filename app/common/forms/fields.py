@@ -81,3 +81,36 @@ class MHCLGRadioInput(MHCLGDividableIterableBase):
             },
         )
         return params
+
+
+class MHCLGCheckboxesInput(MHCLGDividableIterableBase):
+    # An exact copy of govuk-frontend-wtf's `GovCheckboxesInput`, just with our own IterableBase override and an
+    # addition for enabling the govuk 'exclusive' behaviour on the final checkbox if it's an "other".
+    """Multiple checkboxes, from a SelectMultipleField
+
+    This widget type doesn't exist in WTForms - the recommendation
+    there is to use a combination of the list and checkbox widgets.
+    However in the GOV.UK macros this type of field is not simply
+    a list of smaller widgets - multiple checkboxes are a single
+    construct of their own.
+    """
+
+    template = "govuk_frontend_wtf/checkboxes.html"
+    input_type = "checkbox"
+
+    def map_gov_params(self, field, **kwargs):  # type: ignore
+        params = super().map_gov_params(field, **kwargs)
+
+        # This is the only bit of additional logic to uncheck all other checkboxes when the user the final option
+        if self.insert_divider_before_last_item:
+            params["items"][-1]["behaviour"] = "exclusive"
+
+        params.setdefault(
+            "fieldset",
+            {
+                "legend": {
+                    "text": field.label.text,
+                },
+            },
+        )
+        return params

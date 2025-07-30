@@ -110,7 +110,7 @@ def test_user_already_platform_admin(app: Flask, factories):
 
 class TestQuestionForm:
     def test_max_data_source_items(self, app):
-        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS"]
+        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS_RADIOS"]
         form = QuestionForm(question_type=QuestionDataType.RADIOS)
 
         formdata = MultiDict(
@@ -128,7 +128,7 @@ class TestQuestionForm:
         assert form.errors == {}
 
     def test_too_many_data_source_items(self, app):
-        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS"]
+        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS_RADIOS"]
         form = QuestionForm(question_type=QuestionDataType.RADIOS)
 
         formdata = MultiDict(
