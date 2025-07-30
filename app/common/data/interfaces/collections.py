@@ -170,7 +170,7 @@ def create_submission(*, collection: Collection, created_by: User, mode: Submiss
 
 def create_section(*, title: str, collection: Collection) -> Section:
     section = Section(title=title, collection_id=collection.id, slug=slugify(title))
-    collection.sections.append(section)  # type: ignore[no-untyped-call]
+    collection.sections.append(section)
     db.session.add(section)
 
     try:
@@ -241,7 +241,7 @@ def get_form_by_id(form_id: UUID, with_all_questions: bool = False) -> Form:
 
 def create_form(*, title: str, section: Section) -> Form:
     form = Form(title=title, section_id=section.id, slug=slugify(title))
-    section.forms.append(form)  # type: ignore[no-untyped-call]
+    section.forms.append(form)
     db.session.add(form)
 
     try:
@@ -371,7 +371,7 @@ def create_question(
         data_type=data_type,
         presentation_options=presentation_options,
     )
-    form.questions.append(question)  # type: ignore[no-untyped-call]
+    form.questions.append(question)
     db.session.add(question)
 
     try:
