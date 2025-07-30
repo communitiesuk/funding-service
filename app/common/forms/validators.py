@@ -1,8 +1,10 @@
 import re
+from typing import List, Tuple, cast
 
 from email_validator import EmailNotValidError, validate_email
 from flask import current_app
 from wtforms import StringField
+from wtforms.fields.choices import SelectMultipleField
 from wtforms.fields.core import Field
 from wtforms.form import BaseForm
 from wtforms.validators import Email, HostnameValidation, Regexp, ValidationError
@@ -100,3 +102,32 @@ class URLWithoutProtocol(Regexp):
             raise ValidationError(message)
 
         return match
+
+
+class FinalOptionExclusive:
+    """
+    Validates that the user cannot select one or more checkbox options plus the final "Other" option, which should be
+    exclusive.
+
+    The GOV.UK Checkbox component does cater for this with an 'exclusive' property for the final option which will
+    uncheck all options. This relies on Javascript however so we need some validation as a fallback should the user have
+    Javascript disabled.
+
+    This validator should only be used if the checkbox question type has been used with a separate final option.
+    """
+
+    def __init__(self, question_name: str, message: str | None = None) -> None:
+        self.question_name = question_name
+        self.message = message
+
+    def __call__(self, form: BaseForm, field: SelectMultipleField) -> None:
+        if not field.data:
+            return  # Don't validate empty fields - use DataRequired for that
+
+        checkbox_choices = field.data
+        # MyPy expects field.choices to be a dict[str, Any] but in our implementation with wtforms it's a list of tuples
+        form_choices = cast(List[Tuple[str, str]], field.choices)
+        final_option_key, final_option_label, *_ = form_choices[-1]
+        if final_option_key in checkbox_choices and len(checkbox_choices) > 1:
+            message = self.message or f"Select {self.question_name}, or select {final_option_label}"
+            raise ValidationError(message)

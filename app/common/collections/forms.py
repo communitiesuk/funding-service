@@ -21,7 +21,7 @@ from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
 from app.common.expressions import ExpressionContext, evaluate
 from app.common.forms.fields import MHCLGAccessibleAutocomplete, MHCLGCheckboxesInput, MHCLGRadioInput
-from app.common.forms.validators import URLWithoutProtocol
+from app.common.forms.validators import FinalOptionExclusive, URLWithoutProtocol
 
 _accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField | SelectMultipleField
 
@@ -196,6 +196,12 @@ def build_question_form(question: Question, expression_context: ExpressionContex
             )
         case QuestionDataType.CHECKBOXES:
             choices = [(item.key, item.label) for item in question.data_source.items]
+            validators: list[Callable[[Any, Any], None]] = [DataRequired(f"Select {question.name}")]
+            if question.separate_option_if_no_items_match:
+                # This is a fallback validator in case JS is disabled, to prevent the user selecting both the
+                # separated final checkbox option and another checkbox
+                validators.append(FinalOptionExclusive(question_name=question.name))
+
             field = SelectMultipleField(
                 label=question.text,
                 description=question.hint or "",
@@ -203,7 +209,7 @@ def build_question_form(question: Question, expression_context: ExpressionContex
                     insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
                 ),
                 choices=choices,
-                validators=[DataRequired("Select one or more options")],
+                validators=validators,
             )
 
         case _:
