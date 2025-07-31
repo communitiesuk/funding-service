@@ -17,6 +17,7 @@ from app.common.data.interfaces.collections import (
     create_question,
     create_section,
     delete_collection,
+    delete_form,
     get_collection,
     get_expression,
     get_form_by_id,
@@ -239,32 +240,43 @@ def test_move_section_up_down(db_session, factories):
     assert section2.order == 1
 
 
-def test_get_form(db_session, factories, track_sql_queries):
-    form = factories.form.create()
+class TestGetFormById:
+    def test_get_form(db_session, factories, track_sql_queries):
+        form = factories.form.create()
 
-    # fetching the form directly
-    from_db = get_form_by_id(form_id=form.id)
-    assert from_db.id == form.id
+        # fetching the form directly
+        from_db = get_form_by_id(form_id=form.id)
+        assert from_db.id == form.id
 
+    def test_get_form_with_all_questions(db_session, factories, track_sql_queries):
+        form = factories.form.create()
+        question_one = factories.question.create(form=form)
+        question_two = factories.question.create(form=form)
+        factories.expression.create_batch(5, question=question_one, type=ExpressionType.CONDITION, statement="")
+        factories.expression.create_batch(5, question=question_two, type=ExpressionType.CONDITION, statement="")
 
-def test_get_form_with_all_questions(db_session, factories, track_sql_queries):
-    form = factories.form.create()
-    question_one = factories.question.create(form=form)
-    question_two = factories.question.create(form=form)
-    factories.expression.create_batch(5, question=question_one, type=ExpressionType.CONDITION, statement="")
-    factories.expression.create_batch(5, question=question_two, type=ExpressionType.CONDITION, statement="")
+        # fetching the form and eagerly loading all questions and their expressions
+        from_db = get_form_by_id(form_id=form.id, with_all_questions=True)
 
-    # fetching the form and eagerly loading all questions and their expressions
-    from_db = get_form_by_id(form_id=form.id, with_all_questions=True)
+        # check we're not sending off more round trips to the database when interacting with the ORM
+        count = 0
+        with track_sql_queries() as queries:
+            for q in from_db.questions:
+                for _e in q.expressions:
+                    count += 1
 
-    # check we're not sending off more round trips to the database when interacting with the ORM
-    count = 0
-    with track_sql_queries() as queries:
-        for q in from_db.questions:
-            for _e in q.expressions:
-                count += 1
+        assert count == 10 and queries == []
 
-    assert count == 10 and queries == []
+    def test_get_form_with_grant(self, db_session, factories, track_sql_queries):
+        form = factories.form.create()
+
+        from_db = get_form_by_id(form_id=form.id, grant_id=form.section.collection.grant_id)
+
+        with track_sql_queries() as queries:
+            # access the grant; should be no more queries as eagerly loaded
+            _ = from_db.section.collection.grant
+
+        assert len(queries) == 0
 
 
 def test_create_form(db_session, factories):
@@ -1040,3 +1052,31 @@ class TestDeleteCollection:
 
         with pytest.raises(ValueError):
             delete_collection(collection)
+
+
+class TestDeleteForm:
+    def test_delete(self, db_session, factories):
+        section = factories.section.create()
+        form1 = factories.form.create(section=section)
+        question1 = factories.question.create(form=form1)
+        form2 = factories.form.create(section=section)
+        question2 = factories.question.create(form=form2)
+
+        delete_form(form1)
+
+        assert db_session.get(Form, form1.id) is None
+        assert db_session.get(Question, question1.id) is None
+        assert db_session.get(Form, form2.id) is form2
+        assert db_session.get(Question, question2.id) is question2
+
+    def test_form_reordering(self, db_session, factories):
+        section = factories.section.create()
+        forms = factories.form.create_batch(5, section=section)
+
+        assert [f.order for f in section.forms] == [0, 1, 2, 3, 4]
+        assert section.forms == [forms[0], forms[1], forms[2], forms[3], forms[4]]
+
+        delete_form(forms[2])
+
+        assert [f.order for f in section.forms] == [0, 1, 2, 3]
+        assert section.forms == [forms[0], forms[1], forms[3], forms[4]]

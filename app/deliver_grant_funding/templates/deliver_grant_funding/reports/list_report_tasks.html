@@ -55,7 +55,7 @@
           {% endset %}
           {% set actions = [] %}
           {% if grant_admin %}
-            {% do actions.append({"text": "Manage", "visuallyHiddenText": form.title, "href": "#", "classes": "govuk-link--no-visited-state"}) %}
+            {% do actions.append({"text": "Manage", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.manage_form', grant_id=grant.id, form_id=form.id), "classes": "govuk-link--no-visited-state"}) %}
           {% else %}
             {# Append some empty actions in order to keep the layout visually the same - might need to think about this more when we have examples #}
             {% do actions.append({}) %}
