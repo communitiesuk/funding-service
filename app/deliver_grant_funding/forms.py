@@ -349,3 +349,12 @@ class SetUpReportForm(FlaskForm):
     )
 
     submit = SubmitField("Continue and set up report", widget=GovSubmitInput())
+
+
+class AddTaskForm(FlaskForm):
+    title = StringField(
+        "Task name",
+        widget=GovTextInput(),
+        validators=[DataRequired("Enter a name for the task")],
+    )
+    submit = SubmitField("Add task", widget=GovSubmitInput())
