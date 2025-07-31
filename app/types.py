@@ -1,3 +1,4 @@
+from collections import namedtuple
 from enum import Enum, StrEnum
 from typing import Literal, TypedDict
 
@@ -20,3 +21,6 @@ class FlashMessageType(StrEnum):
 
 
 TRadioItem = TypedDict("TRadioItem", {"key": str, "label": str})
+
+
+ResolvedEndpoint = namedtuple("ResolvedEndpoint", ["name", "kwargs"])

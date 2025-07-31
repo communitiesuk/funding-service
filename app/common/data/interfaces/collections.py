@@ -72,7 +72,7 @@ def get_collection(
     """
     options = []
     if with_full_schema:
-        options.append(selectinload(Collection.sections).selectinload(Section.forms).selectinload(Form.questions))
+        options.append(joinedload(Collection.sections).selectinload(Section.forms).selectinload(Form.questions))
 
     filters = [Collection.id == collection_id]
     if grant_id:
@@ -82,9 +82,13 @@ def get_collection(
     if version is not None:
         filters.append(Collection.version == version)
 
-    return db.session.scalars(
-        select(Collection).where(*filters).order_by(Collection.version.desc()).options(*options).limit(1)
-    ).one()
+    return (
+        db.session.scalars(
+            select(Collection).where(*filters).order_by(Collection.version.desc()).options(*options).limit(1)
+        )
+        .unique()
+        .one()
+    )
 
 
 def update_collection(collection: Collection, *, name: str) -> Collection:

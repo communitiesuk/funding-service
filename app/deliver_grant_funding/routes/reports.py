@@ -87,6 +87,17 @@ def manage_report(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     )
 
 
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/report/<uuid:report_id>", methods=["GET"])
+@has_grant_role(RoleEnum.MEMBER)
+def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
+
+    if report.has_non_default_sections:
+        raise RuntimeError(f"Report {report_id} has non-default sections - `add_task` needs updating to handle this.")
+
+    return render_template("deliver_grant_funding/reports/list_report_tasks.html", grant=report.grant, report=report)
+
+
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/add-task", methods=["GET", "POST"]
 )
@@ -94,6 +105,16 @@ def manage_report(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    # Technically this isn't going to be always correct; if users create a report, add a first task, then delete that
+    # task, they will be able to add a task from the 'list report tasks' page - but the backlink will take them to the
+    # 'list reports' page. This is an edge case I'm not handling right now because: 1) rare, 2) backlinks that are
+    # perfect are hard and it doesn't feel worth it yet.
+    back_link = (
+        url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=report_id)
+        if report.forms
+        else url_for("deliver_grant_funding.list_reports", grant_id=grant_id)
+    )
 
     if report.has_non_default_sections:
         raise RuntimeError(f"Report {report_id} has non-default sections - `add_task` needs updating to handle this.")
@@ -106,10 +127,11 @@ def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
                 title=form.title.data,
                 section=report.sections[0],
             )
-            # TODO: Redirect to the 'view report' page when we've added it.
-            return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
+            return redirect(url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=report.id))
 
         except DuplicateValueError:
             form.title.errors.append("A task with this name already exists")  # type: ignore[attr-defined]
 
-    return render_template("deliver_grant_funding/reports/add_task.html", grant=report.grant, report=report, form=form)
+    return render_template(
+        "deliver_grant_funding/reports/add_task.html", grant=report.grant, report=report, form=form, back_link=back_link
+    )

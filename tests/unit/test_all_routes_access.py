@@ -71,6 +71,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_users_for_grant",
     "deliver_grant_funding.grant_details",
     "deliver_grant_funding.list_reports",
+    "deliver_grant_funding.list_report_tasks",
 ]
 routes_with_expected_access_grant_funding_logged_in_access = [
     "developers.access.start_submission_redirect",

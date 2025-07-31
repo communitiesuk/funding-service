@@ -389,7 +389,7 @@ class TestAddTask:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/reports")
+            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
 
             assert len(report.sections[0].forms) == 1
             assert report.sections[0].forms[0].title == "Organisation information"
@@ -411,3 +411,63 @@ class TestAddTask:
 
         assert response.status_code == 200
         assert page_has_error(soup, "A task with this name already exists")
+
+
+class TestListReportTasks:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.list_report_tasks", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_edit",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_no_tasks(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+
+        response = client.get(
+            url_for("deliver_grant_funding.list_report_tasks", grant_id=client.grant.id, report_id=report.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "This monitoring report has no tasks." in soup.text
+
+        add_task_link = page_has_link(soup, "Add a task")
+        assert (add_task_link is not None) is can_edit
+
+        if add_task_link:
+            expected_href = AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")
+            assert add_task_link.get("href") == expected_href
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_edit",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_with_tasks(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        factories.form.create(section=report.sections[0], title="Organisation information")
+
+        response = client.get(
+            url_for("deliver_grant_funding.list_report_tasks", grant_id=client.grant.id, report_id=report.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Organisation information" in soup.text
+
+        add_questions_link = page_has_link(soup, "Add questions")
+        manage_link = page_has_link(soup, "Manage")
+
+        assert (add_questions_link is not None) is can_edit
+        assert (manage_link is not None) is can_edit

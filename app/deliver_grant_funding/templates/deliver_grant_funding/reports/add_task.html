@@ -8,7 +8,7 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for('deliver_grant_funding.list_reports', grant_id=grant.id),
+      "href": back_link
     })
   }}
 {% endblock %}
@@ -28,7 +28,7 @@
 
         <div class="govuk-button-group">
           {{ form.submit }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.list_reports", grant_id=grant.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link }}">Cancel</a>
         </div>
       </form>
     </div>
