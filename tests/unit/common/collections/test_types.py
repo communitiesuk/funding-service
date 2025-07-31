@@ -21,7 +21,7 @@ def test_all_answer_types_tested():
     )
     base_model_types = list(SubmissionAnswerBaseModel.__subclasses__())
 
-    assert len(root_model_types + base_model_types) == 7, (
+    assert len(root_model_types + base_model_types) == 8, (
         "If adding a new answer type, update the appropriate test below"
     )
 

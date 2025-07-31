@@ -619,6 +619,7 @@ def test_download_csv_export(authenticated_platform_admin_client, factories, db_
         "[Export test form] Like cheese",
         "[Export test form] Email address",
         "[Export test form] Website address",
+        "[Export test form] Favourite cheeses",
     ]
     rows = list(reader)
     assert len(rows) == 3
