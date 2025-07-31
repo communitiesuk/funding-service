@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from flask import abort, redirect, render_template, request, url_for
+from flask import abort, current_app, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.decorators import has_grant_role
@@ -9,8 +9,11 @@ from app.common.data.interfaces.collections import (
     create_collection,
     create_form,
     delete_collection,
+    delete_form,
     get_collection,
+    get_form_by_id,
     update_collection,
+    update_form,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant
@@ -134,4 +137,57 @@ def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/add_task.html", grant=report.grant, report=report, form=form, back_link=back_link
+    )
+
+
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/task/<uuid:form_id>/manage", methods=["GET", "POST"])
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def manage_form(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    # NOTE: this fetches the _latest version_ of the collection with this ID
+    db_form = get_form_by_id(form_id, grant_id=grant_id)
+
+    if db_form.section.collection.live_submissions:
+        # Prevent changes to the task if it has any live submissions; this is very coarse layer of protection. We might
+        # want to do something more fine-grained to give a better user experience at some point. And/or we might need
+        # to allow _some_ people (eg platform admins) to make changes, at their own peril.
+        # TODO: flash and redirect back to 'list report tasks'?
+        current_app.logger.info(
+            "Blocking access to manage form %(form_id)s because related collection has live submissions",
+            dict(form_id=form_id),
+        )
+        return abort(403)
+
+    delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
+    if delete_wtform and delete_wtform.validate_on_submit():
+        delete_form(db_form)
+
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=db_form.section.collection_id
+            )
+        )
+
+    form = AddTaskForm(obj=db_form)
+    if form.validate_on_submit():
+        assert form.title.data
+        try:
+            update_form(db_form, title=form.title.data)
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_report_tasks",
+                    grant_id=grant_id,
+                    report_id=db_form.section.collection_id,
+                )
+            )
+        except DuplicateValueError:
+            # FIXME: standardise+consolidate how we handle form errors raised from interfaces
+            form.title.errors.append("A task with this name already exists")  # type: ignore[attr-defined]
+
+    return render_template(
+        "deliver_grant_funding/reports/manage_form.html",
+        grant=db_form.section.collection.grant,
+        db_form=db_form,
+        delete_form=delete_wtform,
+        form=form,
     )
