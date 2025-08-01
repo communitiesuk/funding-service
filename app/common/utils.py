@@ -17,6 +17,7 @@ def slugify(text: str) -> str:
     # Remove non-alphanumeric characters except spaces
     text = re.sub(r"[^a-zA-Z0-9\s\-]", "", text)
     # Convert to lowercase
+
     text = text.lower()
     # Replace spaces (one or more) with a single hyphen
     text = re.sub(r"\s+", "-", text.strip())

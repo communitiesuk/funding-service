@@ -790,10 +790,9 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
 
     # Expected queries:
     # * Initial queries for collection and user
-    # * Load the sections
     # * Load the forms
     # * Load the question
-    assert len(queries) == 5
+    assert len(queries) == 4
 
     # No additional queries when inspecting the ORM model
     count = 0
