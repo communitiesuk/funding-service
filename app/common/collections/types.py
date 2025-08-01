@@ -127,8 +127,8 @@ class MultipleChoiceFromListAnswer(SubmissionAnswerBaseModel):
     def get_value_for_form(self) -> list[str]:
         return [choice["key"] for choice in self.choices]
 
-    def get_value_for_expression(self) -> list[str]:
-        return [choice["key"] for choice in self.choices]
+    def get_value_for_expression(self) -> set[str]:
+        return {choice["key"] for choice in self.choices}
 
     def get_value_for_text_export(self) -> str:
         return "\n".join(choice["label"] for choice in self.choices)

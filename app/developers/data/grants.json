@@ -17,6 +17,11 @@
           "data_source_item_id": "ec7bcf8a-d271-4ede-8f9b-7a3f7eff742e",
           "expression_id": "a360e91c-9bf9-4097-a97b-985f9879e8e5",
           "id": "a78fa3e8-0dd8-46b5-b0ea-0b74dac58826"
+        },
+        {
+          "data_source_item_id": "625963b4-06f8-44fe-bcc6-afde03b20040",
+          "expression_id": "28687a63-37b5-44f6-94a6-aa81d6310b7d",
+          "id": "d4ddbbcd-0c2b-4533-ab57-f2efccb9a6a0"
         }
       ],
       "data_source_items": [
@@ -734,6 +739,21 @@
         },
         {
           "context": {
+            "item": {
+              "key": "none-of-the-above",
+              "label": "None of the above"
+            },
+            "question_id": "e5ef3248-6c32-4554-b4a7-4d286cdb3f6a"
+          },
+          "created_by_id": "78371bda-d2e5-4113-8cee-3daad6dd55ab",
+          "id": "28687a63-37b5-44f6-94a6-aa81d6310b7d",
+          "managed_name": "Specifically",
+          "question_id": "233960c6-2eac-4bef-bccd-0f0bee3a94e8",
+          "statement": "'none-of-the-above' in q_e5ef32486c324554b4a74d286cdb3f6a",
+          "type": "CONDITION"
+        },
+        {
+          "context": {
             "question_id": "d99b94c3-66fa-4449-b4c4-ac5a2caeb8c9"
           },
           "created_by_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
@@ -1017,6 +1037,19 @@
           },
           "slug": "on-which-days-of-the-week-is-the-lead-contact-based-in-london",
           "text": "On which days of the week is the lead contact based in London?"
+        },
+        {
+          "data_type": "Yes or no",
+          "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
+          "hint": "",
+          "id": "233960c6-2eac-4bef-bccd-0f0bee3a94e8",
+          "name": "lead contact works remotely",
+          "order": 8,
+          "presentation_options": {
+            "last_data_source_item_is_distinct_from_others": false
+          },
+          "slug": "does-the-lead-contact-work-remotely",
+          "text": "Does the lead contact work remotely?"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1692,6 +1725,13 @@
       "id": "1d652fdb-31df-479c-a39d-55300834eb8e",
       "last_logged_in_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT",
       "name": "Christy Peck"
+    },
+    {
+      "azure_ad_subject_id": "789779cf9692b89ab3fd5e4d725e44c5",
+      "email": "nancy45@test.communities.gov.uk",
+      "id": "78371bda-d2e5-4113-8cee-3daad6dd55ab",
+      "last_logged_in_at_utc": "Mon, 04 Aug 2025 09:36:18 GMT",
+      "name": "Leah Hobbs"
     },
     {
       "azure_ad_subject_id": "40e16bf9d02fa7f67c6bb767b197e544",
