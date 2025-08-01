@@ -1,6 +1,7 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
 {% set page_title = "Reports" %}
 {% set active_item_identifier = "reports" %}
@@ -9,6 +10,21 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% if delete_form %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the report “{{ delete_report.name }}”?</p>
+          <form method="post" novalidate>
+            {{ delete_form.csrf_token }}
+            <div class="govuk-button-group govuk-!-margin-bottom-0">
+              {{ delete_form.confirm_deletion(params={"text": "Yes, delete this report", "classes": "govuk-button--secondary govuk-!-margin-bottom-0"}) }}
+              <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_reports', grant_id=grant.id) }}">Cancel</a>
+            </div>
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Important", "html": banner_html}) }}
+      {% endif %}
+
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Reports
@@ -29,25 +45,31 @@
                 <br />
                 Tasks are groups of questions with a common theme
               {% else %}
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_tasks', grant_id=grant.id, report_id=report.id) }}"
-                  >{{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span></a
-                >
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_tasks', grant_id=grant.id, report_id=report.id) }}">
+                  Manage {{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
+                </a>
               {% endif %}
             {% else %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_tasks', grant_id=grant.id, report_id=report.id) }}"
-                >{{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span></a
-              >
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_tasks', grant_id=grant.id, report_id=report.id) }}">
+                {{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
+              </a>
             {% endif %}
           {% endset %}
+
+          {% set actions = [] %}
+          {% if grant_admin %}
+            {% do actions.append({"text": "Change name", "visuallyHiddenText": report.title, "href": url_for("deliver_grant_funding.change_report_name", grant_id=grant.id, report_id=report.id), "classes": "govuk-link--no-visited-state" }) %}
+            {% if not report.live_submissions %}
+              {% do actions.append({"text": "Delete", "visuallyHiddenText": report.title, "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id, delete=report.id), "classes": "govuk-link--no-visited-state" }) %}
+            {% endif %}
+          {% endif %}
 
           {{
             govukSummaryList({
             	"card": {
             		"title": {"text": report.name},
             		"actions": {
-            			"items": [
-            				{"text": "Manage", "visuallyHiddenText": report.title, "href": url_for("deliver_grant_funding.manage_report", grant_id=grant.id, report_id=report.id), "classes": "govuk-link--no-visited-state" },
-            			] if grant_admin else [],
+            			"items": actions,
             		},
             	},
             	"rows": [

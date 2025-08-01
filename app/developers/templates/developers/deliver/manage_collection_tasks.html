@@ -34,7 +34,7 @@
           </form>
         {% endset %}
 
-        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "", "html": banner_html}) }}
       {% elif delete_section %}
         {% set banner_html %}
           <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the “{{ delete_section }}” section?</p>
@@ -44,7 +44,7 @@
           </form>
         {% endset %}
 
-        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "", "html": banner_html}) }}
       {% endif %}
 
       <h1 class="govuk-heading-l">{{ collection.name }}</h1>

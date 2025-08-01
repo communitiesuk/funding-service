@@ -1,8 +1,10 @@
+import uuid
 from uuid import UUID
 
 from flask import abort, current_app, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
+from app import AuthorisationHelper
 from app.common.auth.decorators import has_grant_role
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
@@ -17,6 +19,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant
+from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import CollectionType, RoleEnum
 from app.common.forms import GenericConfirmDeletionForm
 from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
@@ -24,11 +27,37 @@ from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports", methods=["GET", "POST"])
 @has_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
 def list_reports(grant_id: UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id, with_all_collections=True)
-    return render_template("deliver_grant_funding/reports/list_reports.html", grant=grant)
+
+    delete_wtform, delete_report = None, None
+    if delete_report_id := request.args.get("delete"):
+        if not AuthorisationHelper.has_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
+            return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
+
+        delete_report = get_collection(
+            uuid.UUID(delete_report_id), grant_id=grant_id, type_=CollectionType.MONITORING_REPORT
+        )
+        if delete_report.live_submissions:
+            abort(400)
+
+        if delete_report and not delete_report.live_submissions:
+            delete_wtform = GenericConfirmDeletionForm()
+
+            if delete_wtform and delete_wtform.validate_on_submit():
+                delete_collection(delete_report)
+
+                return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
+
+    return render_template(
+        "deliver_grant_funding/reports/list_reports.html",
+        grant=grant,
+        delete_form=delete_wtform,
+        delete_report=delete_report,
+    )
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/set-up-report", methods=["GET", "POST"])
@@ -55,21 +84,14 @@ def set_up_report(grant_id: UUID) -> ResponseReturnValue:
     return render_template("deliver_grant_funding/reports/set_up_report.html", grant=grant, form=form)
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/report/<uuid:report_id>/manage", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/change-name", methods=["GET", "POST"]
+)
 @has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def manage_report(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     # NOTE: this fetches the _latest version_ of the collection with this ID
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
-
-    delete_form = GenericConfirmDeletionForm() if "delete" in request.args and not report.live_submissions else None
-    if delete_form and delete_form.validate_on_submit():
-        if report.live_submissions:
-            abort(400)
-
-        delete_collection(report)
-
-        return redirect(url_for("deliver_grant_funding.list_reports", grant_id=report.grant_id))
 
     form = SetUpReportForm(obj=report)
     if form.validate_on_submit():
@@ -82,10 +104,9 @@ def manage_report(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
             form.name.errors.append("A report with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
-        "deliver_grant_funding/reports/manage.html",
+        "deliver_grant_funding/reports/change_report_name.html",
         grant=report.grant,
         report=report,
-        delete_form=delete_form,
         form=form,
     )
 
@@ -140,10 +161,12 @@ def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/task/<uuid:form_id>/manage", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/task/<uuid:form_id>/change-name", methods=["GET", "POST"]
+)
 @has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def manage_form(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     # NOTE: this fetches the _latest version_ of the collection with this ID
     db_form = get_form_by_id(form_id, grant_id=grant_id)
 
@@ -185,7 +208,7 @@ def manage_form(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             form.title.errors.append("A task with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
-        "deliver_grant_funding/reports/manage_form.html",
+        "deliver_grant_funding/reports/change_form_name.html",
         grant=db_form.section.collection.grant,
         db_form=db_form,
         delete_form=delete_wtform,
