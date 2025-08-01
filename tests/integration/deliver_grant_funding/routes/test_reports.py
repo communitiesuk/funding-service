@@ -468,6 +468,8 @@ class TestListReportTasks:
 
         add_questions_link = page_has_link(soup, "Add questions")
         manage_link = page_has_link(soup, "Manage")
+        add_another_task_list = page_has_link(soup, "Add another task")
 
         assert (add_questions_link is not None) is can_edit
         assert (manage_link is not None) is can_edit
+        assert (add_another_task_list is not None) is can_edit

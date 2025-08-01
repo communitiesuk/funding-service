@@ -80,7 +80,7 @@
               "actions": {
                 "items": [
                   {"text": "Add another task", "href": url_for("deliver_grant_funding.add_task", grant_id=grant.id, report_id=report.id), "classes": "govuk-link--no-visited-state"}
-                ],
+                ] if grant_admin else [],
                }
             },
             "rows": rows
