@@ -297,7 +297,7 @@ class Question(BaseModel, SafeQidMixin):
         question should show a "None of the above"-style answer. When that setting is enabled, the last item in the
         data source needs to render into a separate form field.
         """
-        if self.data_type != QuestionDataType.RADIOS:
+        if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
         if (
@@ -316,7 +316,7 @@ class Question(BaseModel, SafeQidMixin):
         option. The last option would be something semantically unrelated to all of the other answers, for example,
         "None of the above".
         """
-        if self.data_type != QuestionDataType.RADIOS:
+        if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
         return (
@@ -336,7 +336,7 @@ class Question(BaseModel, SafeQidMixin):
         We provide a default fallback value to populate the 'Add question' form which doesn't yet have a question
         instance to pull from.
         """
-        if self.data_type != QuestionDataType.RADIOS:
+        if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
         if (

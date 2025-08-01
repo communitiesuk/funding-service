@@ -15,8 +15,10 @@ from app.common.collections.types import (
     NOT_ANSWERED,
     NOT_ASKED,
     AllAnswerTypes,
+    ChoiceDict,
     EmailAnswer,
     IntegerAnswer,
+    MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
     TextMultiLineAnswer,
     TextSingleLineAnswer,
@@ -428,6 +430,13 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
         case QuestionDataType.RADIOS:
             label = next(item.label for item in question.data_source.items if item.key == answer)
             return SingleChoiceFromListAnswer(key=answer, label=label)
+        case QuestionDataType.CHECKBOXES:
+            choices = [
+                ChoiceDict({"key": item.key, "label": item.label})
+                for item in question.data_source.items
+                if item.key in answer
+            ]
+            return MultipleChoiceFromListAnswer(choices=choices)
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
@@ -448,5 +457,7 @@ def _deserialise_question_type(question: "Question", serialised_data: str | int 
             return TypeAdapter(YesNoAnswer).validate_python(serialised_data)
         case QuestionDataType.RADIOS:
             return TypeAdapter(SingleChoiceFromListAnswer).validate_python(serialised_data)
+        case QuestionDataType.CHECKBOXES:
+            return TypeAdapter(MultipleChoiceFromListAnswer).validate_python(serialised_data)
 
     raise ValueError(f"Could not deserialise data for question type={question.data_type}")

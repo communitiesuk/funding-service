@@ -388,8 +388,31 @@ class TestCreateQuestion:
         assert [item.key for item in question.data_source.items] == ["one", "two", "three"]
         assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
 
+    def test_checkboxes(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.CHECKBOXES,
+            items=["one", "two", "three"],
+            presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
+        )
+        assert question is not None
+        assert question.id is not None
+        assert question.text == "Test Question"
+        assert question.hint == "Test Hint"
+        assert question.name == "Test Question Name"
+        assert question.data_type == QuestionDataType.CHECKBOXES
+        assert question.order == 0
+        assert question.slug == "test-question"
+        assert question.data_source is not None
+        assert [item.key for item in question.data_source.items] == ["one", "two", "three"]
+        assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
+
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 7, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 8, "Add a new test above if adding a new question type"
 
 
 class TestUpdateQuestion:
@@ -536,8 +559,52 @@ class TestUpdateQuestion:
             first_dependent_question and second_dependent_question in error.value.data_source_item_dependency_map.keys()
         )
 
+    def test_checkboxes(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.CHECKBOXES,
+            items=["option 1", "option 2", "option 3"],
+            presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=False),
+        )
+        assert question is not None
+        assert question.data_source_items == "option 1\noption 2\noption 3"
+        item_ids = [item.id for item in question.data_source.items]
+        assert question.presentation_options.last_data_source_item_is_distinct_from_others is False
+
+        updated_question = update_question(
+            question=question,
+            text="Updated Question",
+            hint="Updated Hint",
+            name="Updated Question Name",
+            items=["option 3", "option 4", "option-1"],
+            presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
+        )
+
+        assert updated_question.text == "Updated Question"
+        assert updated_question.hint == "Updated Hint"
+        assert updated_question.name == "Updated Question Name"
+        assert updated_question.data_type == QuestionDataType.CHECKBOXES
+        assert updated_question.slug == "updated-question"
+
+        # last data source item setting removes it from this helper property
+        assert updated_question.data_source_items == "option 3\noption 4"
+
+        # Test that data source item IDs for existing/updated items are retained; new options are created.
+        assert updated_question.data_source.items[0].id == item_ids[2]
+        assert updated_question.data_source.items[1].id not in item_ids
+        assert updated_question.data_source.items[2].id == item_ids[0]
+
+        # The dropped item has been deleted
+        assert db_session.get(DataSourceItem, item_ids[1]) is None
+
+        assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
+
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 7, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 8, "Add a new test above if adding a new question type"
 
 
 def test_move_question_up_down(db_session, factories):

@@ -7,7 +7,7 @@ import pytest
 from flask import Flask
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovTextArea, GovTextInput
 from werkzeug.datastructures import MultiDict
-from wtforms.fields.choices import RadioField
+from wtforms.fields.choices import RadioField, SelectMultipleField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField
 from wtforms.validators import DataRequired, Email, InputRequired
@@ -17,7 +17,7 @@ from app.common.collections.forms import build_question_form
 from app.common.data.models import Question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext
-from app.common.forms.fields import MHCLGRadioInput
+from app.common.forms.fields import MHCLGCheckboxesInput, MHCLGRadioInput
 from app.common.forms.validators import URLWithoutProtocol
 from tests.conftest import FundingServiceTestClient
 from tests.utils import build_db_config
@@ -74,7 +74,7 @@ class TestBuildQuestionForm:
         assert hasattr(form, "submit")
 
     def test_the_next_test_exhausts_QuestionDataType(self):
-        assert len(QuestionDataType) == 7, (
+        assert len(QuestionDataType) == 8, (
             "If this test breaks, tweak the number and update `test_expected_field_types` accordingly."
         )
 
@@ -88,6 +88,7 @@ class TestBuildQuestionForm:
             (QuestionDataType.RADIOS, RadioField, MHCLGRadioInput, []),
             (QuestionDataType.EMAIL, EmailField, GovTextInput, [DataRequired, Email]),
             (QuestionDataType.URL, StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
+            (QuestionDataType.CHECKBOXES, SelectMultipleField, MHCLGCheckboxesInput, [DataRequired]),
         ),
     )
     def test_expected_field_types(
@@ -104,3 +105,6 @@ class TestBuildQuestionForm:
         assert question_field.description == "Question hint"
         for i, validator in enumerate(expected_validators):
             assert isinstance(question_field.validators[i], validator)
+
+    def test_break_if_new_question_types_added(self):
+        assert len(QuestionDataType) == 8, "Add a new parameter option above if adding a new question type"

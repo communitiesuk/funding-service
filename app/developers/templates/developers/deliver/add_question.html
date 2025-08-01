@@ -35,7 +35,7 @@
         {{ form.name }}
         {{ form.hint }}
 
-        {% if chosen_question_data_type == enum.question_type.RADIOS %}
+        {% if chosen_question_data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
           {{ form.data_source_items }}
 
 

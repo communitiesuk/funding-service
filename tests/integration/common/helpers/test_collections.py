@@ -10,6 +10,7 @@ from app.common.collections.forms import build_question_form
 from app.common.collections.types import (
     NOT_ASKED,
     IntegerAnswer,
+    MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
     TextMultiLineAnswer,
     TextSingleLineAnswer,
@@ -103,7 +104,7 @@ class TestSubmissionHelper:
             assert helper.form_data == {}
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 7, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 8, "Update this test if adding new questions"
 
             form = factories.form.build()
             form_two = factories.form.build(section=form.section)
@@ -138,6 +139,17 @@ class TestSubmissionHelper:
             q7 = factories.question.build(
                 form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429a"), data_type=QuestionDataType.URL
             )
+            q8 = factories.question.build(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429b"),
+                data_type=QuestionDataType.CHECKBOXES,
+                data_source__items=[],
+            )
+
+            q8.data_source.items = [
+                factories.data_source_item.build(data_source=q8.data_source, key=key, label=label)
+                for key, label in [("cheddar", "Cheddar"), ("brie", "Brie"), ("stilton", "Stilton")]
+            ]
 
             submission = factories.submission.build(
                 collection=form.section.collection,
@@ -149,6 +161,9 @@ class TestSubmissionHelper:
                     str(q5.id): SingleChoiceFromListAnswer(key="my-key", label="My label").get_value_for_submission(),
                     str(q6.id): TextSingleLineAnswer("name@example.com").get_value_for_submission(),
                     str(q7.id): TextSingleLineAnswer("https://example.com").get_value_for_submission(),
+                    str(q8.id): MultipleChoiceFromListAnswer(
+                        choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
+                    ).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -161,6 +176,7 @@ class TestSubmissionHelper:
                 "q_d696aebc49d24170a92fb6ef42994298": "my-key",
                 "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
                 "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
+                "q_d696aebc49d24170a92fb6ef4299429b": ["cheddar", "stilton"],
             }
 
     class TestExpressionContext:
@@ -177,7 +193,7 @@ class TestSubmissionHelper:
             assert helper.expression_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 7, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 8, "Update this test if adding new questions"
 
             form = factories.form.build()
             form_two = factories.form.build(section=form.section)
@@ -214,6 +230,18 @@ class TestSubmissionHelper:
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429a"),
                 data_type=QuestionDataType.URL,
             )
+            q8 = factories.question.build(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429b"),
+                data_type=QuestionDataType.CHECKBOXES,
+                data_source__items=[],
+            )
+
+            q8.data_source.items = [
+                factories.data_source_item.build(data_source=q8.data_source, key=key, label=label)
+                for key, label in [("cheddar", "Cheddar"), ("brie", "Brie"), ("stilton", "Stilton")]
+            ]
+
             submission = factories.submission.build(
                 collection=form.section.collection,
                 data={
@@ -224,6 +252,9 @@ class TestSubmissionHelper:
                     str(q5.id): SingleChoiceFromListAnswer(key="my-key", label="My label").get_value_for_submission(),
                     str(q6.id): TextSingleLineAnswer("name@example.com").get_value_for_submission(),
                     str(q7.id): TextSingleLineAnswer("https://example.com").get_value_for_submission(),
+                    str(q8.id): MultipleChoiceFromListAnswer(
+                        choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
+                    ).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -238,6 +269,7 @@ class TestSubmissionHelper:
                         "q_d696aebc49d24170a92fb6ef42994298": "my-key",
                         "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
                         "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
+                        "q_d696aebc49d24170a92fb6ef4299429b": ["cheddar", "stilton"],
                     }
                 )
             )
@@ -456,6 +488,7 @@ class TestCollectionHelper:
             "[Export test form] Like cheese",
             "[Export test form] Email address",
             "[Export test form] Website address",
+            "[Export test form] Favourite cheeses",
         ]
         expected_question_data = {}
         for _, submission in c_helper.submission_helpers.items():
@@ -567,6 +600,7 @@ class TestCollectionHelper:
             "[Export test form] Like cheese",
             "[Export test form] Email address",
             "[Export test form] Website address",
+            "[Export test form] Favourite cheeses",
         ]
         assert rows[1] == [
             c_helper.submissions[0].reference,
@@ -579,6 +613,7 @@ class TestCollectionHelper:
             "Yes",
             "test@email.com",
             "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
+            "Cheddar\nStilton",
         ]
 
     @pytest.mark.skip(reason="performance")

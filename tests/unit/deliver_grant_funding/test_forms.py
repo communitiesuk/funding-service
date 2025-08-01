@@ -109,8 +109,8 @@ def test_user_already_platform_admin(app: Flask, factories):
 
 
 class TestQuestionForm:
-    def test_max_data_source_items(self, app):
-        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS"]
+    def test_max_data_source_items_radios(self, app):
+        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS_RADIOS"]
         form = QuestionForm(question_type=QuestionDataType.RADIOS)
 
         formdata = MultiDict(
@@ -127,9 +127,47 @@ class TestQuestionForm:
         assert form.validate() is True
         assert form.errors == {}
 
-    def test_too_many_data_source_items(self, app):
-        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS"]
+    def test_too_many_data_source_items_radios(self, app):
+        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS_RADIOS"]
         form = QuestionForm(question_type=QuestionDataType.RADIOS)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("data_source_items", "\n".join(str(x) for x in range(max_data_source_items + 1))),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is False
+        assert form.errors == {
+            "data_source_items": [f"You have entered too many options. The maximum is {max_data_source_items}"]
+        }
+
+    def test_max_data_source_items_checkboxes(self, app):
+        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS_CHECKBOXES"]
+        form = QuestionForm(question_type=QuestionDataType.CHECKBOXES)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("data_source_items", "\n".join(str(x) for x in range(max_data_source_items))),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is True
+        assert form.errors == {}
+
+    def test_too_many_data_source_items_checkboxes(self, app):
+        max_data_source_items = app.config["MAX_DATA_SOURCE_ITEMS_CHECKBOXES"]
+        form = QuestionForm(question_type=QuestionDataType.CHECKBOXES)
 
         formdata = MultiDict(
             [

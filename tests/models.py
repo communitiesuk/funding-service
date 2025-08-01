@@ -20,6 +20,7 @@ from flask import url_for
 
 from app.common.collections.types import (
     IntegerAnswer,
+    MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
     TextMultiLineAnswer,
     TextSingleLineAnswer,
@@ -332,7 +333,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
 
         # Assertion to remind us to add more question types here when we start supporting them
-        assert len(QuestionDataType) == 7, "If you have added a new question type, please update this factory."
+        assert len(QuestionDataType) == 8, "If you have added a new question type, please update this factory."
 
         # Create a question of each supported type
         q1 = _QuestionFactory.create(
@@ -362,6 +363,18 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         q7 = _QuestionFactory.create(
             form=form, data_type=QuestionDataType.URL, text="What is your website address?", name="Website address"
         )
+        q8 = _QuestionFactory.create(
+            form=form,
+            data_type=QuestionDataType.CHECKBOXES,
+            text="What are your favourite cheeses?",
+            name="Favourite cheeses",
+            data_source__items=[],
+        )
+
+        q8.data_source.items = [
+            _DataSourceItemFactory.build(data_source=q8.data_source, key=key, label=label)
+            for key, label in [("cheddar", "Cheddar"), ("brie", "Brie"), ("stilton", "Stilton")]
+        ]
 
         def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
             for _ in range(0, count):
@@ -394,6 +407,12 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                             faker.Faker().url()
                             if use_random_data
                             else "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government"
+                        ).get_value_for_submission(),
+                        str(q8.id): MultipleChoiceFromListAnswer(
+                            choices=[
+                                {"key": q8.data_source.items[0].key, "label": q8.data_source.items[0].label},
+                                {"key": q8.data_source.items[-1].key, "label": q8.data_source.items[-1].label},
+                            ]
                         ).get_value_for_submission(),
                     },
                     status=SubmissionStatusEnum.COMPLETED,
@@ -527,7 +546,9 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)
 
-    needs_data_source = factory.LazyAttribute(lambda o: o.data_type == QuestionDataType.RADIOS)
+    needs_data_source = factory.LazyAttribute(
+        lambda o: o.data_type in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]
+    )
     data_source = factory.Maybe(
         "needs_data_source",
         yes_declaration=factory.RelatedFactory(_DataSourceFactory, factory_related_name="question"),
