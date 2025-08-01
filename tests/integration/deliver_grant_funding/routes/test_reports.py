@@ -5,7 +5,7 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.models import Collection
+from app.common.data.models import Collection, Form
 from app.common.data.types import SubmissionModeEnum
 from app.common.forms import GenericConfirmDeletionForm
 from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
@@ -473,3 +473,144 @@ class TestListReportTasks:
         assert (add_questions_link is not None) is can_edit
         assert (manage_link is not None) is can_edit
         assert (add_another_task_list is not None) is can_edit
+
+
+class TestManageForm:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.manage_form", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        response = client.get(url_for("deliver_grant_funding.manage_form", grant_id=client.grant.id, form_id=form.id))
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "Organisation information" in soup.text
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_blocked_if_live_submissiosn(self, request, client_fixture, factories, can_access):
+        client = request.getfixturevalue(client_fixture)
+        form = factories.form.create(section__collection__grant=client.grant, title="Organisation information")
+
+        response = client.get(url_for("deliver_grant_funding.manage_form", grant_id=client.grant.id, form_id=form.id))
+
+        if can_access:
+            assert response.status_code == 200
+        else:
+            assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_post_update_name(
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session
+    ):
+        client = request.getfixturevalue(client_fixture)
+        db_form = factories.form.create(section__collection__grant=client.grant, title="Organisation information")
+
+        form = AddTaskForm(data={"title": "Updated Name"})
+        response = client.post(
+            url_for("deliver_grant_funding.manage_form", grant_id=client.grant.id, form_id=db_form.id),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 302
+            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
+
+            updated_form = db_session.get(Form, db_form.id)
+            assert updated_form.title == "Updated Name"
+
+    def test_post_update_name_duplicate(self, authenticated_grant_admin_client, factories):
+        db_form = factories.form.create(
+            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_form2 = factories.form.create(section=db_form.section, title="Project information")
+
+        form = AddTaskForm(data={"title": "Organisation information"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_form",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=db_form2.id,
+            ),
+            data=form.data,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "A task with this name already exists")
+
+    def test_post_delete(self, authenticated_grant_admin_client, factories, db_session):
+        db_form = factories.form.create(section__collection__grant=authenticated_grant_admin_client.grant)
+
+        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_form",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=db_form.id,
+                delete="",
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
+
+        deleted_form = db_session.get(Form, db_form.id)
+        assert deleted_form is None
+
+    def test_update_name_when_delete_banner_showing_does_not_delete(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_form = factories.form.create(section__collection__grant=authenticated_grant_admin_client.grant)
+
+        form = AddTaskForm(data={"title": "Updated Name"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_form",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=db_form.id,
+                delete="",
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
+
+        updated_form = db_session.get(Form, db_form.id)
+        assert updated_form is not None
+        assert updated_form.title == "Updated Name"
