@@ -39,7 +39,7 @@
       <h2 class="govuk-heading-m govuk-!-margin-top-4">Reports</h2>
 
       {% if not grant.reports %}
-        <p class="govuk-body">This grant has no monitoring reports.</p>
+        <p class="govuk-body">There are no monitoring reports for {{ grant.name }}.</p>
       {% else %}
         {% for collection in grant.reports %}
           {% set collection_link %}
