@@ -7,10 +7,10 @@ from typing import Optional as TOptional
 from uuid import UUID
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovCheckboxesInput, GovCheckboxInput, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovCheckboxesInput, GovCheckboxInput, GovRadioInput, GovTextInput
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
-from wtforms import BooleanField, IntegerField, SelectMultipleField
+from wtforms import BooleanField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.core import Field
 from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
 
@@ -422,7 +422,7 @@ class AnyOf(BaseDataSourceManagedExpression):
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "AnyOf":
         item_labels = {choice.key: choice.label for choice in question.data_source.items}
 
-        items = [cast(TRadioItem, {"key": key, "label": item_labels[key]}) for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
+        items: list[TRadioItem] = [{"key": key, "label": item_labels[key]} for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
         return AnyOf(
             question_id=question.id,
             items=items,  # ty: ignore[unresolved-attribute]
@@ -505,6 +505,64 @@ class IsNo(ManagedExpression):
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsNo":
         return IsNo(question_id=question.id)
+
+
+@register_managed_expression
+class Specifically(BaseDataSourceManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.SPECIFICALLY
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.CHECKBOXES}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    item: "TRadioItem"
+
+    @property
+    def description(self) -> str:
+        return "specifically"
+
+    @property
+    def message(self) -> str:
+        return f"The answer is “{self.item['label']}”"
+
+    @property
+    def statement(self) -> str:
+        # TODO: This a bit fragile - another reason for referencing a data source item?
+        return f"{self.item['key']!r} in {self.safe_qid}"
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        if referenced_question is None or referenced_question.data_source is None:
+            raise ValueError("The question for the Specifically expression must have a data source")
+
+        return {
+            "specifically": SelectField(
+                "Choose from the list of options",
+                default=expression.context["item"]["key"] if expression else None,  # type: ignore[index]
+                widget=GovRadioInput(),
+                choices=[(item.key, item.label) for item in referenced_question.data_source.items],
+                validators=[DataRequired("Choose one option")],
+                render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        pass
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "Specifically":
+        item_labels = {item.key: item.label for item in question.data_source.items}
+        selected_key = form.specifically.data  # ty: ignore[unresolved-attribute]
+        item: TRadioItem = {"key": selected_key, "label": item_labels[selected_key]}
+        return Specifically(question_id=question.id, item=item)
+
+    @property
+    def referenced_data_source_items(self) -> list["TRadioItem"]:
+        return [self.item]
 
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:

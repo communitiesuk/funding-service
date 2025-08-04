@@ -1,6 +1,5 @@
 import csv
 from io import StringIO
-from typing import cast
 
 from bs4 import BeautifulSoup
 from flask import url_for
@@ -11,7 +10,6 @@ from app.common.data.models import Collection, Expression, Form, Grant, Question
 from app.common.data.types import ExpressionType
 from app.common.expressions.managed import AnyOf
 from app.deliver_grant_funding.forms import CollectionForm, FormForm, QuestionForm, QuestionTypeForm, SectionForm
-from app.types import TRadioItem
 from tests.utils import get_h1_text, get_h2_text, get_soup_text
 
 
@@ -638,13 +636,10 @@ def test_edit_question_post_raises_referenced_data_items_exception(
                 AnyOf(
                     question_id=referenced_question.id,
                     items=[
-                        cast(
-                            TRadioItem,
-                            {
-                                "key": referenced_question.data_source.items[0].key,
-                                "label": referenced_question.data_source.items[0].label,
-                            },
-                        )
+                        {
+                            "key": referenced_question.data_source.items[0].key,
+                            "label": referenced_question.data_source.items[0].label,
+                        }
                     ],
                 ),
                 factories.user.create(),

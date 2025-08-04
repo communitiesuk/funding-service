@@ -269,7 +269,7 @@ class TestSubmissionHelper:
                         "q_d696aebc49d24170a92fb6ef42994298": "my-key",
                         "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
                         "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
-                        "q_d696aebc49d24170a92fb6ef4299429b": ["cheddar", "stilton"],
+                        "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
                     }
                 )
             )

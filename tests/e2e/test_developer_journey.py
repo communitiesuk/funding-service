@@ -16,7 +16,7 @@ from tests.e2e.pages import AllGrantsPage
 
 @dataclasses.dataclass
 class _QuestionResponse:
-    answer: str
+    answer: str | list[str]
     error_message: str | None = None
 
 
@@ -92,6 +92,15 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("https://gov.uk"),
         ],
     },
+    "checkboxes": {
+        "type": QuestionDataType.CHECKBOXES,
+        "text": "Select one or more options",
+        "choices": ["option 1", "option 2", "option 3", "option 4"],
+        "answers": [
+            _QuestionResponse(["option 2", "option 3"]),
+        ],
+        "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
+    },
 }
 
 
@@ -111,7 +120,7 @@ def create_question(
     question_details_page.fill_question_name(f"e2e_question_{question_uuid}")
     question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
 
-    if question_definition["type"] == QuestionDataType.RADIOS:
+    if question_definition["type"] in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
         question_details_page.fill_data_source_items(question_definition["choices"])
 
         options = question_definition.get("options")
@@ -238,9 +247,15 @@ def test_create_and_preview_collection(
         for question in questions_to_test.values():
             question_heading = check_your_answers.page.get_by_text(question["text"], exact=True)
             expect(question_heading).to_be_visible()
-            expect(check_your_answers.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
-                question["answers"][-1].answer
-            )
+            if question["type"] == QuestionDataType.CHECKBOXES:
+                checkbox_answers_list = check_your_answers.page.get_by_test_id(f"answer-{question['text']}").locator(
+                    "li"
+                )
+                expect(checkbox_answers_list).to_have_text(question["answers"][-1].answer)
+            else:
+                expect(check_your_answers.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+                    question["answers"][-1].answer
+                )
 
         expect(check_your_answers.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
 
@@ -265,7 +280,12 @@ def test_create_and_preview_collection(
         answers_list = view_collection_page.get_questions_list_for_form(form_name)
         expect(answers_list).to_be_visible()
         for question in questions_to_test.values():
-            expect(answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}")).to_be_visible()
+            if question["type"] == QuestionDataType.CHECKBOXES:
+                expect(
+                    answers_list.get_by_text(f"{question['text']} {' '.join(question['answers'][-1].answer)}")
+                ).to_be_visible()
+            else:
+                expect(answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}")).to_be_visible()
 
     finally:
         # Tidy up by deleting the grant, which will cascade to all related entities

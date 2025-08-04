@@ -1,5 +1,4 @@
 import uuid
-from typing import cast
 
 import pytest
 from sqlalchemy.exc import NoResultFound
@@ -48,8 +47,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionEventKey,
 )
-from app.common.expressions.managed import AnyOf, GreaterThan, LessThan
-from app.types import TRadioItem
+from app.common.expressions.managed import AnyOf, GreaterThan, LessThan, Specifically
 
 
 class TestGetCollection:
@@ -531,7 +529,7 @@ class TestUpdateQuestion:
 
         assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
 
-    def test_update_question_options_errors_on_referenced_data_items(db_session, factories):
+    def test_update_radios_question_options_errors_on_referenced_data_items(db_session, factories):
         form = factories.form.create()
         user = factories.user.create()
         referenced_question = create_question(
@@ -547,8 +545,7 @@ class TestUpdateQuestion:
 
         items = referenced_question.data_source.items
         anyof_expression = AnyOf(
-            question_id=referenced_question.id,
-            items=[cast(TRadioItem, {"key": items[1].key, "label": items[1].label})],
+            question_id=referenced_question.id, items=[{"key": items[1].key, "label": items[1].label}]
         )
 
         first_dependent_question = factories.question.create(form=form)
@@ -556,6 +553,46 @@ class TestUpdateQuestion:
 
         second_dependent_question = factories.question.create(form=form)
         add_question_condition(second_dependent_question, user, anyof_expression)
+
+        with pytest.raises(DataSourceItemReferenceDependencyException) as error:
+            update_question(
+                question=referenced_question,
+                text="Updated Question",
+                hint="Updated Hint",
+                name="Updated Question Name",
+                items=["option 3", "option 4", "option-1"],
+            )
+        assert referenced_question == error.value.question_being_edited
+        assert len(error.value.data_source_item_dependency_map) == 2
+        assert (
+            first_dependent_question and second_dependent_question in error.value.data_source_item_dependency_map.keys()
+        )
+
+    def test_update_checkboxes_question_options_errors_on_referenced_data_items(db_session, factories):
+        form = factories.form.create()
+        user = factories.user.create()
+        referenced_question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.CHECKBOXES,
+            items=["option 1", "option 2", "option 3"],
+        )
+        assert referenced_question is not None
+        assert referenced_question.data_source_items == "option 1\noption 2\noption 3"
+
+        items = referenced_question.data_source.items
+        specifically_expression = Specifically(
+            question_id=referenced_question.id,
+            item={"key": items[1].key, "label": items[1].label},
+        )
+
+        first_dependent_question = factories.question.create(form=form)
+        add_question_condition(first_dependent_question, user, specifically_expression)
+
+        second_dependent_question = factories.question.create(form=form)
+        add_question_condition(second_dependent_question, user, specifically_expression)
 
         with pytest.raises(DataSourceItemReferenceDependencyException) as error:
             update_question(
@@ -694,7 +731,7 @@ def test_raise_if_question_has_any_dependencies(db_session, factories):
     assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
 
 
-def test_raise_if_data_source_item_reference_dependency(db_session, factories):
+def test_raise_if_radios_data_source_item_reference_dependency(db_session, factories):
     form = factories.form.create()
     user = factories.user.create()
     referenced_question = create_question(
@@ -707,13 +744,40 @@ def test_raise_if_data_source_item_reference_dependency(db_session, factories):
         presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
     )
     items = referenced_question.data_source.items
-    anyof_expression = AnyOf(
-        question_id=referenced_question.id,
-        items=[cast(TRadioItem, {"key": items[0].key, "label": items[0].label})],
-    )
+    anyof_expression = AnyOf(question_id=referenced_question.id, items=[{"key": items[0].key, "label": items[0].label}])
 
     dependent_question = factories.question.create(form=form)
     add_question_condition(dependent_question, user, anyof_expression)
+    items_to_delete = [referenced_question.data_source.items[0], referenced_question.data_source.items[1]]
+    with pytest.raises(DataSourceItemReferenceDependencyException) as error:
+        raise_if_data_source_item_reference_dependency(referenced_question, items_to_delete)
+
+    assert referenced_question == error.value.question_being_edited
+    assert len(error.value.data_source_item_dependency_map) == 1
+    assert dependent_question in error.value.data_source_item_dependency_map.keys()
+    assert referenced_question.presentation_options.last_data_source_item_is_distinct_from_others is True
+
+
+def test_raise_if_checkboxes_data_source_item_reference_dependency(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    referenced_question = create_question(
+        form=form,
+        text="Test Question",
+        hint="Test Hint",
+        name="Test Question Name",
+        data_type=QuestionDataType.CHECKBOXES,
+        items=["option 1", "option 2", "option 3"],
+        presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
+    )
+    items = referenced_question.data_source.items
+    specifically_expression = Specifically(
+        question_id=referenced_question.id,
+        item={"key": items[0].key, "label": items[0].label},
+    )
+
+    dependent_question = factories.question.create(form=form)
+    add_question_condition(dependent_question, user, specifically_expression)
     items_to_delete = [referenced_question.data_source.items[0], referenced_question.data_source.items[1]]
     with pytest.raises(DataSourceItemReferenceDependencyException) as error:
         raise_if_data_source_item_reference_dependency(referenced_question, items_to_delete)
@@ -850,10 +914,7 @@ class TestExpressions:
         # configured by the user interface
         managed_expression = AnyOf(
             question_id=q0.id,
-            items=[
-                cast(TRadioItem, {"key": items[0].key, "label": items[0].label}),
-                cast(TRadioItem, {"key": items[1].key, "label": items[1].label}),
-            ],
+            items=[{"key": items[0].key, "label": items[0].label}, {"key": items[1].key, "label": items[1].label}],
         )
 
         add_question_condition(question, user, managed_expression)
@@ -868,6 +929,27 @@ class TestExpressions:
         assert len(from_db.expressions[0].data_source_item_references) == 2
         assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[0].id
         assert from_db.expressions[0].data_source_item_references[1].data_source_item_id == q0.data_source.items[1].id
+
+    def test_add_checkboxes_question_condition(db_session, factories):
+        q0 = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
+        question = factories.question.create(form=q0.form)
+        items = q0.data_source.items
+        user = factories.user.create()
+
+        # configured by the user interface
+        managed_expression = Specifically(question_id=q0.id, item={"key": items[0].key, "label": items[0].label})
+
+        add_question_condition(question, user, managed_expression)
+
+        from_db = get_question_by_id(question.id)
+
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.SPECIFICALLY
+        assert q0.safe_qid and items[0].key in from_db.expressions[0].statement
+
+        assert len(from_db.expressions[0].data_source_item_references) == 1
+        assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[0].id
 
     def test_add_question_condition_blocks_on_order(db_session, factories):
         user = factories.user.create()
@@ -919,20 +1001,12 @@ class TestExpressions:
 
         managed_expression = AnyOf(
             question_id=q0.id,
-            items=[
-                cast(TRadioItem, {"key": items[0].key, "label": items[0].label}),
-                cast(TRadioItem, {"key": items[1].key, "label": items[1].label}),
-            ],
+            items=[{"key": items[0].key, "label": items[0].label}, {"key": items[1].key, "label": items[1].label}],
         )
 
         add_question_condition(question, user, managed_expression)
 
-        updated_expression = AnyOf(
-            question_id=q0.id,
-            items=[
-                cast(TRadioItem, {"key": items[2].key, "label": items[2].label}),
-            ],
-        )
+        updated_expression = AnyOf(question_id=q0.id, items=[{"key": items[2].key, "label": items[2].label}])
 
         update_question_expression(question.expressions[0], updated_expression)
 
@@ -945,6 +1019,33 @@ class TestExpressions:
 
         assert len(from_db.expressions[0].data_source_item_references) == 1
         assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[2].id
+
+    def test_update_specifically_expression(db_session, factories):
+        q0 = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
+        question = factories.question.create(form=q0.form)
+        items = q0.data_source.items
+        user = factories.user.create()
+
+        managed_expression = Specifically(question_id=q0.id, item={"key": items[0].key, "label": items[0].label})
+
+        add_question_condition(question, user, managed_expression)
+
+        updated_expression = Specifically(
+            question_id=q0.id,
+            item={"key": items[1].key, "label": items[1].label},
+        )
+
+        update_question_expression(question.expressions[0], updated_expression)
+
+        from_db = get_question_by_id(question.id)
+
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.SPECIFICALLY
+        assert q0.safe_qid and items[1].key in from_db.expressions[0].statement
+
+        assert len(from_db.expressions[0].data_source_item_references) == 1
+        assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[1].id
 
     def test_update_expression_errors_on_validation_overlap(db_session, factories):
         question = factories.question.create()
@@ -995,18 +1096,25 @@ class TestExpressions:
         with pytest.raises(NoResultFound):
             get_expression(uuid.uuid4())
 
-    def test_get_referenced_data_source_items_by_managed_expression(db_session, factories):
+    def test_get_referenced_data_source_items_by_anyof_managed_expression(db_session, factories):
         referenced_question = factories.question.create(data_type=QuestionDataType.RADIOS)
         items = referenced_question.data_source.items
         managed_expression = AnyOf(
             question_id=referenced_question.id,
-            items=[
-                cast(TRadioItem, {"key": items[0].key, "label": items[0].label}),
-                cast(TRadioItem, {"key": items[1].key, "label": items[1].label}),
-            ],
+            items=[{"key": items[0].key, "label": items[0].label}, {"key": items[1].key, "label": items[1].label}],
         )
         referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(managed_expression)
         assert len(referenced_data_source_items) == 2
+        assert referenced_data_source_items[0] == referenced_question.data_source.items[0]
+
+    def test_get_referenced_data_source_items_by_specifically_managed_expression(db_session, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
+        items = referenced_question.data_source.items
+        managed_expression = Specifically(
+            question_id=referenced_question.id, item={"key": items[0].key, "label": items[0].label}
+        )
+        referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(managed_expression)
+        assert len(referenced_data_source_items) == 1
         assert referenced_data_source_items[0] == referenced_question.data_source.items[0]
 
 

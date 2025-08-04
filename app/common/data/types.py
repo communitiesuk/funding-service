@@ -105,6 +105,7 @@ class ManagedExpressionsEnum(enum.StrEnum):
     IS_YES = "Yes"
     IS_NO = "No"
     ANY_OF = "Any of"
+    SPECIFICALLY = "Specifically"
 
 
 class FormRunnerState(enum.StrEnum):

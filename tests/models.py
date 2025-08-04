@@ -49,7 +49,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
-from app.common.expressions.managed import AnyOf, BaseDataSourceManagedExpression, GreaterThan
+from app.common.expressions.managed import AnyOf, BaseDataSourceManagedExpression, GreaterThan, Specifically
 from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 from app.types import TRadioItem
@@ -291,6 +291,29 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 )
             ],
         )
+        q6 = _QuestionFactory.create(
+            name="Favourite types of cheese",
+            form=form,
+            data_type=QuestionDataType.CHECKBOXES,
+            text="What are your favourite types of cheese?",
+        )
+        q7 = _QuestionFactory.create(
+            name="Favourite type of cheese (Other)",
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="What is your type of cheese (Other)?",
+            expressions=[
+                Expression.from_managed(
+                    Specifically(
+                        question_id=q4.id,
+                        item=cast(
+                            TRadioItem, {"key": q4.data_source.items[0].key, "label": q4.data_source.items[0].label}
+                        ),
+                    ),
+                    _UserFactory.create(),
+                )
+            ],
+        )
 
         def _create_submission(mode: SubmissionModeEnum, count: int = 0) -> None:
             for _ in range(count):
@@ -306,6 +329,13 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 ).get_value_for_submission()
 
                 response_data[str(q5.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()  # ty: ignore[missing-argument]
+                response_data[str(q6.id)] = MultipleChoiceFromListAnswer(
+                    choices=[
+                        {"key": q6.data_source.items[0].key, "label": q6.data_source.items[0].label},
+                        {"key": q6.data_source.items[-1].key, "label": q6.data_source.items[-1].label},
+                    ]
+                ).get_value_for_submission()  # ty: ignore[missing-argument]
+                response_data[str(q7.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()  # ty: ignore[missing-argument]
 
                 _SubmissionFactory.create(
                     collection=obj,
