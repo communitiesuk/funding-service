@@ -154,7 +154,7 @@ def manage_form(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         # TODO: flash and redirect back to 'list report tasks'?
         current_app.logger.info(
             "Blocking access to manage form %(form_id)s because related collection has live submissions",
-            dict(form_id=form_id),
+            dict(form_id=str(form_id)),
         )
         return abort(403)
 

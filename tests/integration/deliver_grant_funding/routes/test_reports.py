@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 import pytest
@@ -503,23 +504,29 @@ class TestManageForm:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "Organisation information" in soup.text
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get_blocked_if_live_submissiosn(self, request, client_fixture, factories, can_access):
-        client = request.getfixturevalue(client_fixture)
-        form = factories.form.create(section__collection__grant=client.grant, title="Organisation information")
+    def test_get_blocked_if_live_submissions(self, authenticated_grant_admin_client, factories, caplog):
+        form = factories.form.create(
+            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        factories.submission.create(mode=SubmissionModeEnum.LIVE, collection=form.section.collection)
 
-        response = client.get(url_for("deliver_grant_funding.manage_form", grant_id=client.grant.id, form_id=form.id))
+        with caplog.at_level(logging.INFO):
+            response = authenticated_grant_admin_client.get(
+                url_for(
+                    "deliver_grant_funding.manage_form",
+                    grant_id=authenticated_grant_admin_client.grant.id,
+                    form_id=form.id,
+                )
+            )
 
-        if can_access:
-            assert response.status_code == 200
-        else:
-            assert response.status_code == 403
+        assert response.status_code == 403
+        assert any(
+            message
+            == AnyStringMatching(
+                r"^Blocking access to manage form [a-z0-9-]{36} because related collection has live submissions"
+            )
+            for message in caplog.messages
+        )
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
