@@ -657,7 +657,10 @@ class QuestionPage(GrantDevelopersBasePage):
         self.continue_button = page.get_by_role("button", name="Continue")
 
     def respond_to_question(self, question_type: QuestionDataType, answer: str) -> None:
-        if question_type == QuestionDataType.YES_NO or question_type == QuestionDataType.RADIOS:
+        if question_type == QuestionDataType.CHECKBOXES:
+            for choice in answer:
+                self.page.get_by_role("checkbox", name=choice).click()
+        elif question_type == QuestionDataType.YES_NO or question_type == QuestionDataType.RADIOS:
             # once we start having multiple of these on a page - enjoy the refactor =]
             accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
             if accessible_autocomplete:

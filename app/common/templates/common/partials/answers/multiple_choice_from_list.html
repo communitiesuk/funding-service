@@ -1,4 +1,4 @@
-<ul class="govuk-list govuk-list--bullet">
+<ul data-testid="answer-{{ question.text }}" class="govuk-list govuk-list--bullet">
   {% for choice in answer["choices"] %}
     <li data-testid="{{ choice['label'] }}-{{ question.text }}">{{ choice["label"] }}</li>
   {% endfor %}
