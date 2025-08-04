@@ -235,12 +235,23 @@ def move_section_down(section: Section) -> Section:
     return section
 
 
-def get_form_by_id(form_id: UUID, with_all_questions: bool = False) -> Form:
-    options = []
+def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questions: bool = False) -> Form:
+    query = select(Form).where(Form.id == form_id)
+
+    if grant_id:
+        query = (
+            query.join(Form.section)
+            .join(Section.collection)
+            .join(Collection.grant)
+            .options(joinedload(Form.section).joinedload(Section.collection).joinedload(Collection.grant))
+            .where(Collection.grant_id == grant_id)
+        )
+
     if with_all_questions:
         # todo: this will need refining again when we have different levels of grouped questions
-        options.append(selectinload(Form.questions).joinedload(Question.expressions))
-    return db.session.query(Form).options(*options).where(Form.id == form_id).one()
+        query = query.options(selectinload(Form.questions).joinedload(Question.expressions))
+
+    return db.session.execute(query).scalar_one()
 
 
 def create_form(*, title: str, section: Section) -> Form:
@@ -644,4 +655,12 @@ def delete_collection(collection: Collection) -> None:
         raise ValueError("Cannot delete collection with live submissions")
 
     db.session.delete(collection)
+    db.session.flush()
+
+
+def delete_form(form: Form) -> None:
+    db.session.delete(form)
+    form.section.forms = [f for f in form.section.forms if f.id != form.id]  # type: ignore[assignment]
+    form.section.forms.reorder()  # Force all other forms to update their `order` attribute
+    db.session.execute(text("SET CONSTRAINTS uq_form_order_section DEFERRED"))
     db.session.flush()
