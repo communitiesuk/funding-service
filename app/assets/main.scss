@@ -131,15 +131,6 @@ $app-destructive-link-active-colour: $govuk-text-colour;
   @include app-link-style-destructive-no-visited-state;
 }
 
-.app-notification-banner--destructive {
-    border-color: $govuk-error-colour;
-    background-color: $govuk-error-colour;
-
-    .app-notification-banner__link {
-        @include govuk-link-style-error;
-    }
-}
-
 .app-service-navigation__wrapper--sectional {
   flex: 1;
 
@@ -183,4 +174,8 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 .app-test-data-banner__action {
   position: absolute;
   right: 20px;
+}
+
+.move-up-down-link-hidden {
+  visibility: hidden;
 }

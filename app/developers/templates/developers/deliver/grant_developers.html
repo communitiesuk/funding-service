@@ -18,7 +18,7 @@
           </form>
         {% endset %}
 
-        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "", "html": banner_html}) }}
       {% endif %}
 
       <h1 class="govuk-heading-l">
@@ -81,9 +81,9 @@
               <br />
               Tasks are groups of questions with a common theme
             {% else %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.deliver.manage_collection_tasks", grant_id=grant.id, collection_id=collection.id) }}"
-                >Build form <span class="govuk-visually-hidden">for {{ collection.name }}</span></a
-              >
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("developers.deliver.manage_collection_tasks", grant_id=grant.id, collection_id=collection.id) }}">
+                Manage {{ collection.sections[0].forms | length }} tasks <span class="govuk-visually-hidden">for {{ collection.name }}</span>
+              </a>
             {% endif %}
           {% endset %}
 
@@ -93,7 +93,8 @@
                 "title": {"text": collection.name, "headingLevel": 3},
                 "actions": {
                   "items": [
-                    {"text": "Manage", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.manage_collection", grant_id=grant.id, collection_id=collection.id), "classes": "govuk-link--no-visited-state" },
+                    {"text": "Change name", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.manage_collection", grant_id=grant.id, collection_id=collection.id), "classes": "govuk-link--no-visited-state" },
+                    {"text": "Delete", "visuallyHiddenText": collection.title, "href": url_for("developers.deliver.manage_collection", grant_id=grant.id, collection_id=collection.id), "classes": "govuk-link--no-visited-state" },
                   ],
                 },
               },

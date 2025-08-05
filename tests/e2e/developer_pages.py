@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, cast
 
 from playwright.sync_api import Locator, Page, expect
@@ -77,8 +78,8 @@ class GrantDevelopersPage(GrantDevelopersBasePage):
         expect(form_type_page.heading).to_be_visible()
         return form_type_page
 
-    def click_build_form(self, collection_name: str, grant_name: str) -> CollectionDetailPage:
-        self.page.get_by_role("link", name=f"Build form for {collection_name}").click()
+    def click_manage_tasks(self, collection_name: str, grant_name: str) -> CollectionDetailPage:
+        self.page.get_by_role("link", name=re.compile(rf"Manage \d+ tasks for {collection_name}")).click()
         collection_detail_page = CollectionDetailPage(
             self.page, self.domain, grant_name=grant_name, collection_name=collection_name
         )

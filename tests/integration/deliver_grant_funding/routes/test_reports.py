@@ -70,7 +70,8 @@ class TestListReports:
         expected_links = [
             ("Add another monitoring report", AnyStringMatching(r"/grant/[a-z0-9-]{36}/set-up-report")),
             ("Add tasks", AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")),
-            ("Manage", AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/manage")),
+            ("Change name", AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/change-name")),
+            ("Delete", AnyStringMatching(r"/grant/[a-z0-9-]{36}/reports\?delete")),
         ]
         for expected_link in expected_links:
             link = page_has_link(soup, expected_link[0])
@@ -78,6 +79,61 @@ class TestListReports:
 
             if can_edit:
                 assert link.get("href") == expected_link[1]
+
+    def test_get_hides_delete_link_with_submissions(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        factories.submission.create(collection=report, mode=SubmissionModeEnum.LIVE)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_report_name",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert not page_has_link(soup, "Delete")
+
+    def test_get_with_delete_parameter_no_submissions(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_reports",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                delete=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Yes, delete this report")
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_delete",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_post_delete(self, request: FixtureRequest, client_fixture: str, can_delete: bool, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+
+        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = client.post(
+            url_for("deliver_grant_funding.list_reports", grant_id=client.grant.id, delete=report.id),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/reports")
+
+        deleted_report = db_session.get(Collection, (report.id, report.version))
+        assert (deleted_report is None) == can_delete
 
 
 class TestSetUpReport:
@@ -149,10 +205,10 @@ class TestSetUpReport:
         assert page_has_error(soup, "A report with this name already exists")
 
 
-class TestManageReport:
+class TestChangeReportName:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.manage_report", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for("deliver_grant_funding.change_report_name", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
         )
         assert response.status_code == 404
 
@@ -168,7 +224,7 @@ class TestManageReport:
         report = factories.collection.create(grant=client.grant, name="Test Report")
 
         response = client.get(
-            url_for("deliver_grant_funding.manage_report", grant_id=client.grant.id, report_id=report.id)
+            url_for("deliver_grant_funding.change_report_name", grant_id=client.grant.id, report_id=report.id)
         )
 
         if not can_access:
@@ -178,60 +234,13 @@ class TestManageReport:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "Test Report" in soup.text
 
-    def test_get_shows_delete_link_no_submissions(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.manage_report",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_link(soup, "Delete report")
-
-    def test_get_hides_delete_link_with_submissions(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        factories.submission.create(collection=report, mode=SubmissionModeEnum.LIVE)
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.manage_report",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert not page_has_link(soup, "Delete report")
-
-    def test_get_with_delete_parameter_no_submissions(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.manage_report",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-                delete="",
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_button(soup, "Yes, delete this report")
-
     def test_get_with_delete_parameter_with_live_submissions(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         factories.submission.create(collection=report, mode=SubmissionModeEnum.LIVE)
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.manage_report",
+                "deliver_grant_funding.change_report_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report.id,
                 delete="",
@@ -257,7 +266,7 @@ class TestManageReport:
 
         form = SetUpReportForm(data={"name": "Updated Name"})
         response = client.post(
-            url_for("deliver_grant_funding.manage_report", grant_id=client.grant.id, report_id=report.id),
+            url_for("deliver_grant_funding.change_report_name", grant_id=client.grant.id, report_id=report.id),
             data=form.data,
             follow_redirects=False,
         )
@@ -278,7 +287,7 @@ class TestManageReport:
         form = SetUpReportForm(data={"name": "Existing Report"})
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.manage_report",
+                "deliver_grant_funding.change_report_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report2.id,
             ),
@@ -289,33 +298,6 @@ class TestManageReport:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "A report with this name already exists")
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_delete(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-
-        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
-        response = client.post(
-            url_for("deliver_grant_funding.manage_report", grant_id=client.grant.id, report_id=report.id, delete=""),
-            data=form.data,
-            follow_redirects=False,
-        )
-
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 302
-            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/reports")
-
-            deleted_report = db_session.get(Collection, (report.id, report.version))
-            assert deleted_report is None
-
     def test_update_name_when_delete_banner_showing_does_not_delete(
         self, authenticated_grant_admin_client, factories, db_session
     ):
@@ -324,7 +306,7 @@ class TestManageReport:
         form = SetUpReportForm(data={"name": "Updated Name"})
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.manage_report",
+                "deliver_grant_funding.change_report_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report.id,
                 delete="",
@@ -467,19 +449,18 @@ class TestListReportTasks:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Organisation information" in soup.text
 
-        add_questions_link = page_has_link(soup, "Add questions")
-        manage_link = page_has_link(soup, "Manage")
+        manage_task_link = page_has_link(soup, "Organisation information")
         add_another_task_list = page_has_link(soup, "Add another task")
 
-        assert (add_questions_link is not None) is can_edit
-        assert (manage_link is not None) is can_edit
+        assert manage_task_link is not None
         assert (add_another_task_list is not None) is can_edit
 
 
+# TODO: will become 'change form name' shortly
 class TestManageForm:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.manage_form", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+            url_for("deliver_grant_funding.change_form_name", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
         )
         assert response.status_code == 404
 
@@ -495,7 +476,9 @@ class TestManageForm:
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(section=report.sections[0], title="Organisation information")
 
-        response = client.get(url_for("deliver_grant_funding.manage_form", grant_id=client.grant.id, form_id=form.id))
+        response = client.get(
+            url_for("deliver_grant_funding.change_form_name", grant_id=client.grant.id, form_id=form.id)
+        )
 
         if not can_access:
             assert response.status_code == 403
@@ -513,7 +496,7 @@ class TestManageForm:
         with caplog.at_level(logging.INFO):
             response = authenticated_grant_admin_client.get(
                 url_for(
-                    "deliver_grant_funding.manage_form",
+                    "deliver_grant_funding.change_form_name",
                     grant_id=authenticated_grant_admin_client.grant.id,
                     form_id=form.id,
                 )
@@ -543,7 +526,7 @@ class TestManageForm:
 
         form = AddTaskForm(data={"title": "Updated Name"})
         response = client.post(
-            url_for("deliver_grant_funding.manage_form", grant_id=client.grant.id, form_id=db_form.id),
+            url_for("deliver_grant_funding.change_form_name", grant_id=client.grant.id, form_id=db_form.id),
             data=form.data,
             follow_redirects=False,
         )
@@ -566,7 +549,7 @@ class TestManageForm:
         form = AddTaskForm(data={"title": "Organisation information"})
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.manage_form",
+                "deliver_grant_funding.change_form_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=db_form2.id,
             ),
@@ -576,48 +559,3 @@ class TestManageForm:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "A task with this name already exists")
-
-    def test_post_delete(self, authenticated_grant_admin_client, factories, db_session):
-        db_form = factories.form.create(section__collection__grant=authenticated_grant_admin_client.grant)
-
-        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.manage_form",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                form_id=db_form.id,
-                delete="",
-            ),
-            data=form.data,
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
-
-        deleted_form = db_session.get(Form, db_form.id)
-        assert deleted_form is None
-
-    def test_update_name_when_delete_banner_showing_does_not_delete(
-        self, authenticated_grant_admin_client, factories, db_session
-    ):
-        db_form = factories.form.create(section__collection__grant=authenticated_grant_admin_client.grant)
-
-        form = AddTaskForm(data={"title": "Updated Name"})
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.manage_form",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                form_id=db_form.id,
-                delete="",
-            ),
-            data=form.data,
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
-
-        updated_form = db_session.get(Form, db_form.id)
-        assert updated_form is not None
-        assert updated_form.title == "Updated Name"

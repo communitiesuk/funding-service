@@ -147,7 +147,7 @@ def navigate_to_collection_detail_page(
     all_grants_page.navigate()
     grant_dashboard_page = all_grants_page.click_grant(grant_name)
     developers_page = grant_dashboard_page.click_developers(grant_name)
-    collection_detail_page = developers_page.click_build_form(grant_name=grant_name, collection_name=collection_name)
+    collection_detail_page = developers_page.click_manage_tasks(grant_name=grant_name, collection_name=collection_name)
     return collection_detail_page
 
 
