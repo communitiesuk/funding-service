@@ -4,7 +4,7 @@ from uuid import UUID
 from flask import abort, current_app, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
-from app import AuthorisationHelper
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_grant_role
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (

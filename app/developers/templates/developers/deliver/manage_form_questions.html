@@ -94,7 +94,7 @@
       {% endif %}
     </div>
   </div>
-  <div class="govuk-grid-row govuk-!-margin-top-5">
+  <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {{
         govukButton({
@@ -103,6 +103,15 @@
             "href": url_for("developers.deliver.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id),
         })
       }}
+    </div>
+  </div>
+  <div class="govuk-grid-row govuk-!-margin-top-5">
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m">Manage task</h2>
+      <ul class="govuk-list govuk-list--spaced">
+        <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}">Change task name</a></li>
+        <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.manage_form', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}">Delete task</a></li>
+      </ul>
     </div>
   </div>
 {% endblock content %}
