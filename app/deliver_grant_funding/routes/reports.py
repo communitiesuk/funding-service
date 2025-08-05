@@ -11,7 +11,6 @@ from app.common.data.interfaces.collections import (
     create_collection,
     create_form,
     delete_collection,
-    delete_form,
     get_collection,
     get_form_by_id,
     update_collection,
@@ -181,16 +180,6 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         )
         return abort(403)
 
-    delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
-    if delete_wtform and delete_wtform.validate_on_submit():
-        delete_form(db_form)
-
-        return redirect(
-            url_for(
-                "deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=db_form.section.collection_id
-            )
-        )
-
     form = AddTaskForm(obj=db_form)
     if form.validate_on_submit():
         assert form.title.data
@@ -211,6 +200,5 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/reports/change_form_name.html",
         grant=db_form.section.collection.grant,
         db_form=db_form,
-        delete_form=delete_wtform,
         form=form,
     )
