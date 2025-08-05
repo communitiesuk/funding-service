@@ -930,6 +930,9 @@ class TestExpressions:
         assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[0].id
         assert from_db.expressions[0].data_source_item_references[1].data_source_item_id == q0.data_source.items[1].id
 
+        with pytest.raises(DuplicateValueError):
+            add_question_condition(question, user, managed_expression)
+
     def test_add_checkboxes_question_condition(db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
         question = factories.question.create(form=q0.form)
@@ -950,6 +953,9 @@ class TestExpressions:
 
         assert len(from_db.expressions[0].data_source_item_references) == 1
         assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[0].id
+
+        with pytest.raises(DuplicateValueError):
+            add_question_condition(question, user, managed_expression)
 
     def test_add_question_condition_blocks_on_order(db_session, factories):
         user = factories.user.create()
