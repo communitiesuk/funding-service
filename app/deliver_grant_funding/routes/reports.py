@@ -11,6 +11,7 @@ from app.common.data.interfaces.collections import (
     create_collection,
     create_form,
     delete_collection,
+    delete_form,
     get_collection,
     get_form_by_id,
     update_collection,
@@ -41,7 +42,7 @@ def list_reports(grant_id: UUID) -> ResponseReturnValue:
             uuid.UUID(delete_report_id), grant_id=grant_id, type_=CollectionType.MONITORING_REPORT
         )
         if delete_report.live_submissions:
-            abort(400)
+            abort(403)
 
         if delete_report and not delete_report.live_submissions:
             delete_wtform = GenericConfirmDeletionForm()
@@ -187,9 +188,9 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             update_form(db_form, title=form.title.data)
             return redirect(
                 url_for(
-                    "deliver_grant_funding.list_report_tasks",
+                    "deliver_grant_funding.list_task_questions",
                     grant_id=grant_id,
-                    report_id=db_form.section.collection_id,
+                    form_id=db_form.id,
                 )
             )
         except DuplicateValueError:
@@ -201,4 +202,45 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         grant=db_form.section.collection.grant,
         db_form=db_form,
         form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/task/<uuid:form_id>/questions", methods=["GET", "POST"])
+@has_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id, grant_id=grant_id, with_all_questions=True)
+
+    delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
+    if delete_wtform:
+        if not AuthorisationHelper.has_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
+            return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=form_id))
+
+        if db_form.section.collection.live_submissions:
+            # Prevent changes to the task if it has any live submissions; this is very coarse layer of protection. We
+            # might want to do something more fine-grained to give a better user experience at some point. And/or we
+            # might need to allow _some_ people (eg platform admins) to make changes, at their own peril.
+            # TODO: flash and redirect back to 'list report tasks'?
+            current_app.logger.info(
+                "Blocking access to delete form %(form_id)s because related collection has live submissions",
+                dict(form_id=str(form_id)),
+            )
+            abort(403)
+
+        if delete_wtform.validate_on_submit():
+            delete_form(db_form)
+
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_report_tasks",
+                    grant_id=grant_id,
+                    report_id=db_form.section.collection_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/list_task_questions.html",
+        grant=db_form.section.collection.grant,
+        db_form=db_form,
+        delete_form=delete_wtform,
     )
