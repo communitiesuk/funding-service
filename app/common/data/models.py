@@ -345,7 +345,7 @@ class Question(BaseModel, SafeQidMixin):
         ):
             return self.data_source.items[-1].label
 
-        return None
+        return "None of the above"
 
     __table_args__ = (
         UniqueConstraint("order", "form_id", name="uq_question_order_form", deferrable=True),

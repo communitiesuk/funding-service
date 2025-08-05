@@ -50,14 +50,14 @@ class TestQuestionModel:
             data_type=QuestionDataType.RADIOS,
             presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=False),
         )
-        other_question = factories.question.create()
+        other_question = factories.question.create(data_type=QuestionDataType.TEXT_MULTI_LINE)
 
         assert question.data_source_items == "Option 0\nOption 1\nOption 2"
         assert other_question.data_source_items is None
 
         assert question.separate_option_if_no_items_match is False
         assert other_question.separate_option_if_no_items_match is None
-        assert question.none_of_the_above_item_text is None
+        assert question.none_of_the_above_item_text == "None of the above"
         assert other_question.none_of_the_above_item_text is None
 
     def test_data_source_items_last_item_is_distinct(self, factories):
