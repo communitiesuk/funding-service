@@ -179,3 +179,12 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 .move-up-down-link-hidden {
   visibility: hidden;
 }
+
+.app-notification-banner--destructive {
+  border-color: $govuk-error-colour;
+  background-color: $govuk-error-colour;
+
+  .app-notification-banner__link {
+    @include govuk-link-style-error;
+  }
+}
