@@ -65,7 +65,7 @@
             questions<span class="govuk-visually-hidden"> in {{ form.title }}</span>
           {% endset %}
           {% set actions = [] %}
-          {% if grant_admin %}
+          {% if grant_admin and report.forms|length > 1 %}
             {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": "#", "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
             {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": "#", "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
           {% else %}
