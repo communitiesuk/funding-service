@@ -456,8 +456,7 @@ class TestListReportTasks:
         assert (add_another_task_list is not None) is can_edit
 
 
-# TODO: will become 'change form name' shortly
-class TestManageForm:
+class TestChangeFormName:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
             url_for("deliver_grant_funding.change_form_name", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
@@ -535,7 +534,7 @@ class TestManageForm:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
+            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
 
             updated_form = db_session.get(Form, db_form.id)
             assert updated_form.title == "Updated Name"
@@ -559,3 +558,85 @@ class TestManageForm:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "A task with this name already exists")
+
+
+class TestListTaskQuestions:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.list_task_questions", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_edit",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_admin_actions(self, request, client_fixture, can_edit, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        factories.question.create_batch(2, form=form)
+
+        response = client.get(
+            url_for("deliver_grant_funding.list_task_questions", grant_id=client.grant.id, form_id=form.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Organisation information"
+
+        change_task_name_link = page_has_link(soup, "Change task name")
+        delete_task_link = page_has_link(soup, "Delete task")
+
+        assert (change_task_name_link is not None) is can_edit
+        assert (delete_task_link is not None) is can_edit
+
+        if can_edit:
+            assert change_task_name_link.get("href") == AnyStringMatching(
+                "/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/change-name"
+            )
+            assert delete_task_link.get("href") == AnyStringMatching(r"\?delete")
+
+    def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_task_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Yes, delete this task")
+
+    def test_cannot_delete_with_live_submissions(self, authenticated_grant_admin_client, factories, db_session, caplog):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        factories.submission.create(collection=report, mode=SubmissionModeEnum.LIVE)
+
+        with caplog.at_level(logging.INFO):
+            response = authenticated_grant_admin_client.post(
+                url_for(
+                    "deliver_grant_funding.list_task_questions",
+                    grant_id=authenticated_grant_admin_client.grant.id,
+                    form_id=form.id,
+                    delete="",
+                )
+            )
+
+        assert response.status_code == 403
+        assert any(
+            message
+            == AnyStringMatching(
+                r"^Blocking access to delete form [a-z0-9-]{36} because related collection has live submissions"
+            )
+            for message in caplog.messages
+        )
