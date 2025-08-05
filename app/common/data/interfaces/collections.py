@@ -589,13 +589,12 @@ def add_question_condition(question: Question, user: User, managed_expression: "
     expression = Expression.from_managed(managed_expression, user)
     question.expressions.append(expression)
 
-    if (
-        isinstance(managed_expression, BaseDataSourceManagedExpression)
-        and managed_expression.referenced_question.data_source
-    ):
-        expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
-
     try:
+        if (
+            isinstance(managed_expression, BaseDataSourceManagedExpression)
+            and managed_expression.referenced_question.data_source
+        ):
+            expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
