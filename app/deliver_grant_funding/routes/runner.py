@@ -3,7 +3,7 @@ from uuid import UUID
 from flask import redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
-from app.common.auth.decorators import has_grant_role, is_platform_admin
+from app.common.auth.decorators import has_grant_role
 from app.common.collections.runner import DGFFormRunner
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, RoleEnum
@@ -11,10 +11,12 @@ from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
 
 
-@deliver_grant_funding_blueprint.route("/submissions/<uuid:submission_id>", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>", methods=["GET", "POST"]
+)
 @auto_commit_after_request
 @has_grant_role(RoleEnum.MEMBER)
-def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
+def submission_tasklist(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
     runner = DGFFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
 
@@ -43,10 +45,12 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"])
-@is_platform_admin
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
-def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
+def ask_a_question(grant_id: UUID, submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
     runner = DGFFormRunner.load(
         submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
@@ -63,11 +67,12 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
 
 
 @deliver_grant_funding_blueprint.route(
-    "/submissions/<uuid:submission_id>/check-yours-answers/<uuid:form_id>", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/check-yours-answers/<uuid:form_id>",
+    methods=["GET", "POST"],
 )
 @auto_commit_after_request
-@is_platform_admin
-def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValue:
+@has_grant_role(RoleEnum.MEMBER)
+def check_your_answers(grant_id: UUID, submission_id: UUID, form_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
     runner = DGFFormRunner.load(
         submission_id=submission_id, form_id=form_id, source=FormRunnerState(source) if source else None
