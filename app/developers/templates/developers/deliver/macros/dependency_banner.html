@@ -2,6 +2,7 @@
 
 {# todo: its not nice that we have to pass around so much contexts - we shouldnt need this much to route #}
 {% macro dependency_banner(error, grant_id, collection_id, section_id, form_id) %}
+  {# TODO: point these at deliver_grant_funding endpoints when we build them #}
   {% set question_link = url_for("developers.deliver.edit_question", grant_id=grant_id, collection_id=collection_id, section_id=section_id, form_id=form_id, question_id=error.question_id) %}
   {% set depends_on_link = url_for("developers.deliver.edit_question", grant_id=grant_id, collection_id=collection_id, section_id=section_id, form_id=form_id, question_id=error.depends_on_question_id) %}
 
@@ -21,5 +22,5 @@
     {% endif %}
   {% endset %}
 
-  {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+  {{ govukNotificationBanner(params={"role": "alert", "titleText": "Error", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
 {% endmacro %}

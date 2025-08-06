@@ -3,6 +3,7 @@
 {% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
 
 {% set page_title = "Reports" %}
 {% set active_item_identifier = "reports" %}
@@ -44,6 +45,12 @@
         {{ govukNotificationBanner(params={"role": "alert", "titleText": "Important", "classes": "", "html": banner_html}) }}
       {% endif %}
 
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
+        {% if flashes %}
+          {{ dependency_banner(flashes[0], grant.id, db_form.section.collection.id, db_form.section.id, db_form.id) }}
+        {% endif %}
+      {% endwith %}
+
       <h1 class="govuk-heading-l">{{ db_form.title }}</h1>
     </div>
     <div class="govuk-grid-column-one-third govuk-!-text-align-right">
@@ -80,11 +87,8 @@
 
           {% set actions = [] %}
           {% if grant_admin and db_form.questions|length > 1 %}
-            {# TODO: implement this #}
-            {#
             {% do actions.append({"text": "Move up", "visuallyHiddenText": db_form.title, "href": url_for('deliver_grant_funding.move_question', grant_id=grant.id, question_id=question.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
             {% do actions.append({"text": "Move down", "visuallyHiddenText": db_form.title, "href": url_for('deliver_grant_funding.move_question', grant_id=grant.id, question_id=question.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
-            #}
           {% endif %}
           {%
             do rows.append(

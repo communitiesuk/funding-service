@@ -67,6 +67,8 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.change_report_name",
     "deliver_grant_funding.add_task",
     "deliver_grant_funding.change_form_name",
+    "deliver_grant_funding.move_task",
+    "deliver_grant_funding.move_question",
 ]
 routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_users_for_grant",

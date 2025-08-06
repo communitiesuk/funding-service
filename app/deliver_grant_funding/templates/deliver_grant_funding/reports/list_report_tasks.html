@@ -75,8 +75,8 @@
           {% endset %}
           {% set actions = [] %}
           {% if grant_admin and report.forms|length > 1 %}
-            {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": "#", "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
-            {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": "#", "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
+            {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_task', grant_id=grant.id, form_id=form.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
+            {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_task', grant_id=grant.id, form_id=form.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
           {% else %}
             {# Append some empty actions in order to keep the layout visually the same - might need to think about this more when we have examples #}
             {% do actions.append({}) %}
