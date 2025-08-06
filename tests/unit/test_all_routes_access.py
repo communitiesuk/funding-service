@@ -77,7 +77,10 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.ask_a_question",
     "deliver_grant_funding.submission_tasklist",
     "deliver_grant_funding.check_your_answers",
+    "deliver_grant_funding.list_submissions",
+    "deliver_grant_funding.view_submission",
 ]
+
 routes_with_expected_access_grant_funding_logged_in_access = [
     "developers.access.start_submission_redirect",
     "developers.access.submission_tasklist",

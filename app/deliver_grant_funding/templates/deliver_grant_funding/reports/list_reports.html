@@ -56,6 +56,26 @@
             {% endif %}
           {% endset %}
 
+
+          {% set submissionsText %}
+            {# TODO: Once reports have a draft/live status, this should also take that into account (ie if live, only show live submissions) #}
+            {% if report.live_submissions %}
+              View {% trans count=report.live_submissions | length %}{{ count }} submission{% pluralize %}{{ count }} submissions{% endtrans %}
+            {% else %}
+              View {% trans count=report.test_submissions | length %}{{ count }} test submission{% pluralize %}{{ count }} test submissions{% endtrans %}
+            {% endif %}
+            <span class="govuk-visually-hidden">for {{ report.name }}</span>
+          {% endset %}
+
+
+          {% set submissionsHtml %}
+            <a
+              class="govuk-link govuk-link--no-visited-state"
+              href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=report.id, submission_mode=enum.submission_mode.LIVE if report.live_submissions else enum.submission_mode.TEST) }}">
+              {{ submissionsText }}
+            </a>
+          {% endset %}
+
           {% set actions = [] %}
           {% if grant_admin %}
             {% do actions.append({"text": "Change name", "visuallyHiddenText": report.title, "href": url_for("deliver_grant_funding.change_report_name", grant_id=grant.id, report_id=report.id), "classes": "govuk-link--no-visited-state" }) %}
@@ -77,6 +97,7 @@
             			"key": {"text": "Report"},
             			"value": {"text": formSectionsAndTasksText},
             		},
+            		{"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} },
             		{"key": {"text": "Created by"}, "value": {"text": report.created_by.email} },
             		{"key": {"text": "Last updated"}, "value": {"text": format_date(report.updated_at_utc)} },
             	],

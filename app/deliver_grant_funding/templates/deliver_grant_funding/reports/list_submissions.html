@@ -1,0 +1,91 @@
+{% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+{% from "common/macros/status.html" import status with context %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set page_title = "Submissions - " ~ report.name %}
+{% set active_item_identifier = "reports" %}
+
+{% block beforeContent %}
+  {% if helper.is_test_mode %}
+    {{ mhclgTestBanner("Test submissions") }}
+  {% endif %}
+
+  {{
+    govukBreadcrumbs(params={
+      "items": [
+        {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
+        {"text": report.name},
+        {"text": "Submissions"},
+      ],
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ report.name }}</span>
+        Monitoring reports
+      </h1>
+      <p class="govuk-body">View the information that has been provided by grant recipients in their monitoring reports.</p>
+      <p class="govuk-body">
+        {{
+          govukButton({
+            "text": "Export as CSV",
+            "href": "#",
+            "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
+            "disabled": true
+          })
+        }}
+      </p>
+    </div>
+    <div class="govuk-grid-column-full">
+      {% set rows=[] %}
+      {% for submission in helper.submissions %}
+        {# TODO: We should show the organisation/recipient name instead of the user's email address #}
+        {% set link_to_submission %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.id) }}" data-submission-link>{{ submission.created_by.email }}</a>
+        {% endset %}
+        {%
+          do rows.append([
+            {
+              "html": link_to_submission,
+            }, {
+              "html": status(submission.status)
+            }, {
+              "text": format_date_short(submission.updated_at_utc)
+            }
+          ])
+        %}
+      {% else %}
+        {% set no_collections_text %}
+          <span><i>No submissions found for this monitoring report</i></span>
+        {% endset %}
+        {%
+          do rows.append([
+            {
+              "html": no_collections_text,
+              "colspan": 3
+            }
+          ])
+        %}
+      {% endfor %}
+
+      {{
+        govukTable({
+          "captionClasses": "govuk-table__caption--m",
+          "head": [
+            { "text": "Recipient", "classes": "govuk-!-width-one-half" },
+            { "text": "Status" },
+            { "text": "Last updated" }
+          ],
+          "rows": rows
+        })
+      }}
+    </div>
+  </div>
+{% endblock content %}

@@ -141,7 +141,8 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
                 joinedload(Submission.collection)
                 .selectinload(Collection.sections)
                 .selectinload(Section.forms)
-                .selectinload(Form.questions),
+                .selectinload(Form.questions)
+                .joinedload(Question.expressions),
                 joinedload(Submission.events),
             ]
         )

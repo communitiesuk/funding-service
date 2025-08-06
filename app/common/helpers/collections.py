@@ -362,6 +362,10 @@ class CollectionHelper:
         ]
         self.submission_helpers = {s.id: SubmissionHelper(s) for s in self.submissions}
 
+    @property
+    def is_test_mode(self) -> bool:
+        return self.submission_mode == SubmissionModeEnum.TEST
+
     def get_submission_helper_by_id(self, submission_id: UUID) -> SubmissionHelper | None:
         return self.submission_helpers.get(submission_id, None)
 
