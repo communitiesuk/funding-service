@@ -180,7 +180,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         if not live and not test:
             return
 
-        section = _SectionFactory.create(collection=obj)
+        section = obj.sections[0]
         form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
 
         # Create a conditional branch of questions
@@ -241,7 +241,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         if not live and not test:
             return
 
-        section = _SectionFactory.create(collection=obj)
+        section = obj.sections[0]
         form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
 
         # Create a conditional branch of questions
@@ -359,7 +359,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     ) -> None:
         if not test and not live:
             return
-        section = _SectionFactory.create(collection=obj)
+        section = obj.sections[0]
         form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
 
         # Assertion to remind us to add more question types here when we start supporting them

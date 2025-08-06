@@ -119,7 +119,6 @@ def test_collection_factory_completed_submissions(db_session, factories):
     collection = factories.collection.create(
         create_completed_submissions_each_question_type__test=3,
         create_completed_submissions_each_question_type__live=2,
-        default_section=False,
     )
 
     collection_from_db = db_session.get(Collection, (collection.id, 1))
