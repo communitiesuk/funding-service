@@ -205,17 +205,20 @@ class DGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
         FormRunnerState.QUESTION: lambda runner, question, _form, source: url_for(
             "deliver_grant_funding.ask_a_question",
+            grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
             question_id=question.id if question else None,
             source=source,
         ),
         FormRunnerState.TASKLIST: lambda runner, _question, _form, _source: url_for(
             "deliver_grant_funding.submission_tasklist",
+            grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
             form_id=runner.form.id if runner.form else None,
         ),
         FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source: url_for(
             "deliver_grant_funding.check_your_answers",
+            grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
             form_id=form.id if form else runner.form.id if runner.form else None,
             source=source,
