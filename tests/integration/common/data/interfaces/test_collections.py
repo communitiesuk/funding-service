@@ -16,6 +16,7 @@ from app.common.data.interfaces.collections import (
     create_question,
     create_section,
     delete_collection,
+    delete_collection_test_submissions_created_by_user,
     delete_form,
     get_collection,
     get_expression,
@@ -38,7 +39,16 @@ from app.common.data.interfaces.collections import (
     update_submission_data,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import Collection, DataSourceItem, Expression, Form, Question, Section
+from app.common.data.models import (
+    Collection,
+    DataSourceItem,
+    Expression,
+    Form,
+    Question,
+    Section,
+    Submission,
+    SubmissionEvent,
+)
 from app.common.data.types import (
     CollectionType,
     ExpressionType,
@@ -46,6 +56,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionEventKey,
+    SubmissionModeEnum,
 )
 from app.common.expressions.managed import AnyOf, GreaterThan, LessThan, Specifically
 
@@ -1194,3 +1205,52 @@ class TestDeleteForm:
 
         assert [f.order for f in section.forms] == [0, 1, 2, 3]
         assert section.forms == [forms[0], forms[1], forms[3], forms[4]]
+
+
+class TestDeleteCollectionSubmissions:
+    def test_delete_test_collection_submissions_created_by_user(self, db_session, factories):
+        collection = factories.collection.create(
+            create_completed_submissions_each_question_type__test=3,
+            create_completed_submissions_each_question_type__live=3,
+        )
+        user = collection.test_submissions[0].created_by
+
+        for submission in collection.test_submissions:
+            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+        for submission in collection.live_submissions:
+            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+
+        collection.live_submissions[0].created_by = user
+        collection.live_submissions[0].events[0].created_by = user
+
+        collection.test_submissions[1].created_by = user
+        collection.test_submissions[1].events[0].created_by = user
+
+        factories.submission_event.create(submission=collection.test_submissions[0], created_by=user)
+
+        test_submissions_from_db = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.TEST).all()
+        live_submissions_from_db = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.LIVE).all()
+        users_submissions_from_db = db_session.query(Submission).where(Submission.created_by == user).all()
+        submission_events_from_db = db_session.query(SubmissionEvent).all()
+
+        assert len(test_submissions_from_db) == 3
+        assert len(live_submissions_from_db) == 3
+        assert len(users_submissions_from_db) == 3
+        assert len(submission_events_from_db) == 7
+
+        delete_collection_test_submissions_created_by_user(collection=collection, created_by_user=user)
+
+        test_submissions_from_db = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.TEST).all()
+        live_submissions_from_db = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.LIVE).all()
+        users_submissions_from_db = db_session.query(Submission).where(Submission.created_by == user).all()
+        submission_events_from_db = db_session.query(SubmissionEvent).all()
+
+        # Check that only the specified user's two test submissions & associated SubmissionEvents for that user were
+        # deleted, and no live submission was deleted
+        assert len(test_submissions_from_db) == 1
+        assert len(live_submissions_from_db) == 3
+        assert len(users_submissions_from_db) == 1
+        assert len(submission_events_from_db) == 4
+
+        for submission in test_submissions_from_db:
+            assert submission.created_by is not user

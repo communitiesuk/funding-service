@@ -74,6 +74,9 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_reports",
     "deliver_grant_funding.list_report_tasks",
     "deliver_grant_funding.list_task_questions",
+    "deliver_grant_funding.ask_a_question",
+    "deliver_grant_funding.submission_tasklist",
+    "deliver_grant_funding.check_your_answers",
 ]
 routes_with_expected_access_grant_funding_logged_in_access = [
     "developers.access.start_submission_redirect",
@@ -92,6 +95,7 @@ routes_with_no_expected_access_restrictions = [
     "auth.sso_sign_in",
     "auth.sso_get_token",
     "auth.sign_out",
+    "developers.deliver.developers_return_from_test_submission",  # the target endpoints have auth and this is temp
     "deliver_grant_funding.return_from_test_submission",  # the target endpoints have auth
     "static",
     "healthcheck.healthcheck",
