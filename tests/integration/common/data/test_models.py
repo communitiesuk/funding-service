@@ -69,3 +69,31 @@ class TestQuestionModel:
         assert question.data_source_items == "Option 0\nOption 1"
         assert question.separate_option_if_no_items_match is True
         assert question.none_of_the_above_item_text == "Option 2"
+
+
+class TestFormModel:
+    def test_questions_property_filters_nested_questions(self, factories):
+        form = factories.form.create()
+        # asserting to a depth of 2
+        question1 = factories.question.create(form=form, order=0)
+        question2 = factories.question.create(form=form, order=1)
+        group = factories.group.create(form=form, order=2)
+        question3 = factories.question.create(form_id=form.id, parent=group, order=0)
+        sub_group = factories.group.create(form_id=form.id, parent=group, order=1)
+        question4 = factories.question.create(form_id=form.id, parent=sub_group, order=0)
+
+        assert form.questions == [question1, question2, question3, question4]
+
+
+class TestGroupModel:
+    def test_questions_property_filters_nested_questions(self, factories):
+        form = factories.form.create()
+        _question1 = factories.question.create(form=form, order=0)
+        group = factories.group.create(form_id=form.id, order=1)
+        question2 = factories.question.create(form_id=group.form_id, parent=group, order=0)
+        question3 = factories.question.create(form_id=group.form_id, parent=group, order=1)
+        sub_group = factories.group.create(form_id=group.form_id, parent=group, order=2)
+        question4 = factories.question.create(form_id=group.form_id, parent=sub_group, order=0)
+
+        assert group.questions == [question2, question3, question4]
+        assert sub_group.questions == [question4]
