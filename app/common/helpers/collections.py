@@ -388,6 +388,7 @@ class CollectionHelper:
         ]
 
     def generate_csv_content_for_all_submissions(self) -> str:
+        # TODO: make me generate rows (yield) rather than hold everything in memory
         metadata_headers = ["Submission reference", "Created by", "Created at"]
         question_headers = {
             question.id: f"[{question.form.title}] {question.name}"

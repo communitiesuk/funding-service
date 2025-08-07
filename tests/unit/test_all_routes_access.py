@@ -81,6 +81,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.check_your_answers",
     "deliver_grant_funding.list_submissions",
     "deliver_grant_funding.view_submission",
+    "deliver_grant_funding.export_report_submissions",
 ]
 
 routes_with_expected_access_grant_funding_logged_in_access = [
