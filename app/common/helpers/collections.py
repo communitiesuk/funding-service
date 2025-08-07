@@ -260,10 +260,9 @@ class SubmissionHelper:
 
     def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
-        ordered_questions = sorted(form.questions, key=lambda q: q.order)
-        return [
-            question for question in ordered_questions if self.is_question_visible(question, self.expression_context)
-        ]
+        # todo: this probably no longer works without an additional property to factor in depth for global order
+        # calculating that on the fly might get expensive
+        return [question for question in form.questions if self.is_question_visible(question, self.expression_context)]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
         questions = self.get_ordered_visible_questions_for_form(form)
