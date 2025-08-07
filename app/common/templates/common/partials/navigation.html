@@ -3,7 +3,6 @@
 {% macro accessGrantFundingServiceNavigation(nav_items=[], right_nav_items=[]) %}
   {{
     govukServiceNavigation({
-    "serviceName": "Access grant funding",
     "serviceUrl": "#",
     "navigation": nav_items + right_nav_items,
     "navigationClasses": "app-service-navigation__wrapper--sectional" if right_nav_items else "",
@@ -14,7 +13,6 @@
 {% macro deliverGrantFundingServiceNavigation(nav_items=[], right_nav_items=[]) %}
   {{
     govukServiceNavigation({
-    "serviceName": "Deliver grant funding",
     "serviceUrl": url_for("deliver_grant_funding.list_grants"),
     "navigation": nav_items + right_nav_items,
     "navigationClasses": "app-service-navigation__wrapper--sectional" if right_nav_items else "",
