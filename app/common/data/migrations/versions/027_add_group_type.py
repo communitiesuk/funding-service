@@ -24,7 +24,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("parent_id", sa.Uuid(), nullable=True))
         batch_op.create_foreign_key(batch_op.f("fk_component_parent_id_component"), "component", ["parent_id"], ["id"])
 
-    op.sync_enum_values(
+    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="component_type_enum",
         new_values=["QUESTION", "GROUP"],
@@ -59,7 +59,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.sync_enum_values(
+    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="component_type_enum",
         new_values=["QUESTION"],
