@@ -9,7 +9,7 @@ from sqlalchemy.exc import NoResultFound
 from wtforms import Field
 
 from app.common.auth.decorators import is_platform_admin
-from app.common.collections.runner import DGFFormRunner
+from app.common.collections.runner import DevelopersFormRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
@@ -901,14 +901,14 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
 @is_platform_admin
 def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    runner = DGFFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
+    runner = DevelopersFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
 
     if runner.tasklist_form.validate_on_submit():
         if runner.complete_submission(interfaces.user.get_current_user()):
             if runner.submission.is_test:
                 return redirect(
                     url_for(
-                        "deliver_grant_funding.return_from_test_submission",
+                        "developers.deliver.developers_return_from_test_submission",
                         collection_id=runner.submission.collection.id,
                         finished=1,
                     )
@@ -933,7 +933,7 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    runner = DGFFormRunner.load(
+    runner = DevelopersFormRunner.load(
         submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
     )
 
@@ -954,7 +954,7 @@ def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValu
 @is_platform_admin
 def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    runner = DGFFormRunner.load(
+    runner = DevelopersFormRunner.load(
         submission_id=submission_id, form_id=form_id, source=FormRunnerState(source) if source else None
     )
 
@@ -963,7 +963,7 @@ def check_your_answers(submission_id: UUID, form_id: UUID) -> ResponseReturnValu
             if form_id == session.get("test_submission_form_id", None):
                 return redirect(
                     url_for(
-                        "deliver_grant_funding.return_from_test_submission",
+                        "developers.deliver.developers_return_from_test_submission",
                         collection_id=runner.submission.collection.id,
                         finished=1,
                     )
@@ -1040,4 +1040,35 @@ def manage_submission(submission_id: UUID) -> ResponseReturnValue:
         submission_helper=submission_helper,
         grant=submission_helper.collection.grant,
         collection=submission_helper.collection,
+    )
+
+
+# TODO: This is a temporary duplication of the endpoint in misc.py to keep previews from the developers tab within that
+# tab during test submissions. Once the Reports tab has the full create & edit form functionality, we can probably drop
+# this as we drop the rest of the developers tab. For now it's useful to keep, especially for e2e tests.
+@developers_deliver_blueprint.get("/_internal/redirect-after-test-submission/<uuid:collection_id>")
+def developers_return_from_test_submission(collection_id: UUID) -> ResponseReturnValue:
+    finished = "finished" in request.args
+
+    if form_id := session.pop("test_submission_form_id", None):
+        if finished:
+            flash("You’ve been returned to the task builder", FlashMessageType.SUBMISSION_TESTING_COMPLETE.value)
+
+        form = get_form_by_id(form_id)
+        return redirect(
+            url_for(
+                "developers.deliver.manage_form_questions",
+                grant_id=form.section.collection.grant.id,
+                form_id=form_id,
+                collection_id=form.section.collection.id,
+                section_id=form.section.id,
+            )
+        )
+
+    if finished:
+        flash("You’ve been returned to the form builder", FlashMessageType.SUBMISSION_TESTING_COMPLETE.value)
+
+    collection = get_collection(collection_id)
+    return redirect(
+        url_for("developers.deliver.manage_collection_tasks", grant_id=collection.grant.id, collection_id=collection.id)
     )

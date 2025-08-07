@@ -2,7 +2,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, Never, Protocol, Sequence
 from uuid import UUID
 
-from sqlalchemy import ScalarResult, select, text
+from sqlalchemy import ScalarResult, delete, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -662,4 +662,29 @@ def delete_form(form: Form) -> None:
     form.section.forms = [f for f in form.section.forms if f.id != form.id]  # type: ignore[assignment]
     form.section.forms.reorder()  # Force all other forms to update their `order` attribute
     db.session.execute(text("SET CONSTRAINTS uq_form_order_section DEFERRED"))
+    db.session.flush()
+
+
+def delete_collection_test_submissions_created_by_user(collection: Collection, created_by_user: User) -> None:
+    # We're trying to rely less on ORM relationships and cascades in delete queries so here we explicitly delete all
+    # SubmissionEvents related to the `created_by_user`'s test submissions for that collection version, and then
+    # subsequently delete the submissions.
+
+    submission_ids = db.session.scalars(
+        select(Submission.id).where(
+            Submission.collection_id == collection.id,
+            Submission.collection_version == collection.version,
+            Submission.created_by_id == created_by_user.id,
+            Submission.mode == SubmissionModeEnum.TEST,
+        )
+    ).all()
+
+    db.session.execute(delete(SubmissionEvent).where(SubmissionEvent.submission_id.in_(submission_ids)))
+
+    db.session.execute(
+        delete(Submission).where(
+            Submission.id.in_(submission_ids),
+        )
+    )
+
     db.session.flush()

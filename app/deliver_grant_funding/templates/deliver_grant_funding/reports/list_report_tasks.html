@@ -21,6 +21,12 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
+        {% if flashes %}
+          {{ govukNotificationBanner(params={"titleText": "Preview complete", "text": flashes[0]}) }}
+        {% endif %}
+        {% set errors = None %}
+      {% endwith %}
       {% if delete_form %}
         {% set banner_html %}
           <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the task “{{ delete_task.title }}”?</p>
@@ -42,7 +48,10 @@
       </h1>
     </div>
     <div class="govuk-grid-column-one-third govuk-!-text-align-right">
-      <button class="govuk-button govuk-button--secondary">Preview report</button>
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
+      </form>
     </div>
   </div>
   <div class="govuk-grid-row">

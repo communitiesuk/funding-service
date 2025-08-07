@@ -21,8 +21,9 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import CollectionType, RoleEnum
-from app.common.forms import GenericConfirmDeletionForm
+from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
+from app.deliver_grant_funding.helpers import start_testing_submission
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
 
@@ -111,15 +112,25 @@ def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/report/<uuid:report_id>", methods=["GET"])
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/report/<uuid:report_id>", methods=["GET", "POST"])
 @has_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
 def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
+    form = GenericSubmitForm()
 
     if report.has_non_default_sections:
         raise RuntimeError(f"Report {report_id} has non-default sections - `add_task` needs updating to handle this.")
 
-    return render_template("deliver_grant_funding/reports/list_report_tasks.html", grant=report.grant, report=report)
+    if form.validate_on_submit() and form.submit.data:
+        return start_testing_submission(collection=report)
+
+    return render_template(
+        "deliver_grant_funding/reports/list_report_tasks.html",
+        grant=report.grant,
+        report=report,
+        form=form,
+    )
 
 
 @deliver_grant_funding_blueprint.route(
@@ -211,6 +222,10 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, grant_id=grant_id, with_all_questions=True)
 
+    preview_form = GenericSubmitForm()
+    if preview_form.validate_on_submit() and preview_form.submit.data:
+        return start_testing_submission(db_form.section.collection, form=db_form)
+
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
         if not AuthorisationHelper.has_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
@@ -243,4 +258,5 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         grant=db_form.section.collection.grant,
         db_form=db_form,
         delete_form=delete_wtform,
+        form=preview_form,
     )
