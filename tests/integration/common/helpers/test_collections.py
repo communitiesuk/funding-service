@@ -539,9 +539,7 @@ class TestCollectionHelper:
             assert line["[Export test form] Favourite dunking biscuit"] == "digestive"
 
     def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
-        collection = factories.collection.create(
-            create_completed_submissions_conditional_question__test=True, default_section=False
-        )
+        collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
         c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
         dependant_question_id = collection.sections[0].forms[0].questions[0].id
         conditional_question_id = collection.sections[0].forms[0].questions[1].id

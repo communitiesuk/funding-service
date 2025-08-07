@@ -1,0 +1,68 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+{% from "common/macros/status.html" import status with context %}
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set page_title = "Submission - " ~ helper.submission.collection.name %}
+{% set active_item_identifier = "reports" %}
+
+{% block beforeContent %}
+  {% if helper.is_test %}
+    {{ mhclgTestBanner("Test submission") }}
+  {% endif %}
+
+  {{
+    govukBreadcrumbs(params={
+      "items": [
+        {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
+        {"text": helper.submission.collection.name},
+        {"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, report_id=helper.submission.collection.id, submission_mode=helper.submission.mode)},
+        {"text": helper.submission.created_by.email},
+      ],
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <span class="govuk-caption-l">{{ helper.submission.created_by.email }}</span>
+  <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
+    <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
+    {{ status(helper.status) }}
+  </div>
+
+  {% set section = helper.get_ordered_visible_sections()[0] %}
+  {% for form in helper.get_ordered_visible_forms_for_section(section) %}
+    <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>
+    {% set rows = [] %}
+    {% for question in helper.get_ordered_visible_questions_for_form(form) %}
+
+      {% set answer = helper.get_answer_for_question(question.id) %}
+      {% set value_html %}
+        {% if answer %}
+          {% include answer._render_answer_template %}
+        {% else %}
+          (Not answered)
+        {% endif %}
+      {% endset %}
+      {%
+        do rows.append({
+          "key": {
+            "text": question.text,
+            "classes": "govuk-!-font-weight-regular",
+          },
+          "value": {
+            "text": value_html
+          }
+        })
+      %}
+    {% endfor %}
+
+    {{
+      govukSummaryList({
+        "rows": rows,
+        "attributes":{"data-testid":form.title}
+      })
+    }}
+  {% endfor %}
+{% endblock content %}

@@ -20,8 +20,9 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.types import CollectionType, RoleEnum
+from app.common.data.types import CollectionType, RoleEnum, SubmissionModeEnum
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
+from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
 from app.deliver_grant_funding.helpers import start_testing_submission
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
@@ -259,4 +260,31 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         db_form=db_form,
         delete_form=delete_wtform,
         form=preview_form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/submissions/<submission_mode:submission_mode>"
+)
+@has_grant_role(RoleEnum.MEMBER)
+def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: SubmissionModeEnum) -> ResponseReturnValue:
+    report = interfaces.collections.get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    helper = CollectionHelper(collection=report, submission_mode=submission_mode)
+
+    return render_template(
+        "deliver_grant_funding/reports/list_submissions.html",
+        grant=report.grant,
+        report=report,
+        helper=helper,
+    )
+
+
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/submission/<uuid:submission_id>")
+@has_grant_role(RoleEnum.MEMBER)
+def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    helper = SubmissionHelper.load(submission_id)
+    return render_template(
+        "deliver_grant_funding/reports/view_submission.html",
+        grant=helper.grant,
+        helper=helper,
     )

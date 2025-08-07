@@ -67,6 +67,12 @@ class TestListReports:
         soup = BeautifulSoup(response.data, "html.parser")
         assert grant.name in soup.text
 
+        review_submissions_links = page_has_link(soup, "View 0 test submissions")
+        assert review_submissions_links is not None
+        assert review_submissions_links.get("href") == AnyStringMatching(
+            r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/test"
+        )
+
         expected_links = [
             ("Add another monitoring report", AnyStringMatching(r"/grant/[a-z0-9-]{36}/set-up-report")),
             ("Add tasks", AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")),
@@ -640,3 +646,123 @@ class TestListTaskQuestions:
             )
             for message in caplog.messages
         )
+
+
+class TestListSubmissions:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=uuid.uuid4(),
+                report_id=uuid.uuid4(),
+                submission_mode=SubmissionModeEnum.TEST,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_no_submissions(self, authenticated_grant_member_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.TEST,
+            )
+        )
+        assert response.status_code == 200
+        assert "No submissions found for this monitoring report" in response.text
+
+    def test_based_on_submission_mode(self, authenticated_grant_member_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        factories.submission.create(
+            collection=report, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
+        )
+        factories.submission.create(
+            collection=report, mode=SubmissionModeEnum.LIVE, created_by__email="submitter-live@recipient.org"
+        )
+
+        test_response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.TEST,
+            )
+        )
+        live_response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+        test_soup = BeautifulSoup(test_response.data, "html.parser")
+        live_soup = BeautifulSoup(live_response.data, "html.parser")
+        assert test_response.status_code == 200
+        assert live_response.status_code == 200
+
+        # TODO: this should be an organisation name, when we have that concept
+        test_recipient_link = page_has_link(test_soup, "submitter-test@recipient.org")
+        live_recipient_link = page_has_link(live_soup, "submitter-live@recipient.org")
+        assert test_recipient_link.get("href") == AnyStringMatching("/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}")
+        assert live_recipient_link.get("href") == AnyStringMatching("/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}")
+
+
+class TestViewSubmission:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.view_submission", grant_id=uuid.uuid4(), submission_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    def test_forms_and_questions_and_answers_displayed(self, authenticated_grant_member_client, factories, db_session):
+        factories.data_source_item.reset_sequence()
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_completed_submissions_each_question_type__test=1,
+            create_completed_submissions_each_question_type__use_random_data=False,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_member_client.grant.id,
+                submission_id=report.test_submissions[0].id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert "Export test form" in soup.text
+        assert len(report.sections[0].forms[0].questions) == 8, "If more questions added, check+update this test"
+
+        assert "What is your name?" in soup.text
+        assert "test name" in soup.text
+
+        assert "What is your quest?" in soup.text
+        assert "Line 1\r\nline2\r\nline 3" in soup.text
+
+        assert "What is the airspeed velocity of an unladen swallow?" in soup.text
+        assert "123" in soup.text
+
+        assert "What is the best option?" in soup.text
+        assert "Option 0" in soup.text
+
+        assert "Do you like cheese?" in soup.text
+        assert "Yes" in soup.text
+
+        assert "What is your email address?" in soup.text
+        assert "test@email.com" in soup.text
+
+        assert "What is your website address?" in soup.text
+        assert (
+            "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government" in soup.text
+        )
+        assert "What are your favourite cheeses?" in soup.text
+        assert "Cheddar" in soup.text
+        assert "Stilton" in soup.text
