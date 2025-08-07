@@ -1,19 +1,25 @@
 import uuid
 from uuid import UUID
 
-from flask import abort, current_app, redirect, render_template, request, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_grant_role
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    DependencyOrderException,
     create_collection,
     create_form,
     delete_collection,
     delete_form,
     get_collection,
     get_form_by_id,
+    get_question_by_id,
+    move_form_down,
+    move_form_up,
+    move_question_down,
+    move_question_up,
     update_collection,
     update_form,
 )
@@ -27,6 +33,7 @@ from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
 from app.deliver_grant_funding.helpers import start_testing_submission
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
+from app.types import FlashMessageType
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports", methods=["GET", "POST"])
@@ -131,6 +138,28 @@ def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         grant=report.grant,
         report=report,
         form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/form/<uuid:form_id>/move-<direction>")
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def move_task(grant_id: UUID, form_id: UUID, direction: str) -> ResponseReturnValue:
+    form = get_form_by_id(form_id)
+
+    try:
+        match direction:
+            case "up":
+                move_form_up(form)
+            case "down":
+                move_form_down(form)
+            case _:
+                return abort(400)
+    except DependencyOrderException as e:
+        flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
+
+    return redirect(
+        url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=form.section.collection_id)
     )
 
 
@@ -261,6 +290,26 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         delete_form=delete_wtform,
         form=preview_form,
     )
+
+
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/question/<uuid:question_id>/move-<direction>")
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def move_question(grant_id: UUID, question_id: UUID, direction: str) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+
+    try:
+        match direction:
+            case "up":
+                move_question_up(question)
+            case "down":
+                move_question_down(question)
+            case _:
+                return abort(400)
+    except DependencyOrderException as e:
+        flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
+
+    return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=question.form_id))
 
 
 @deliver_grant_funding_blueprint.route(

@@ -669,7 +669,7 @@ def test_edit_question_post_raises_referenced_data_items_exception(
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert get_h2_text(soup) == "Warning"
+    assert get_h2_text(soup) == "Error"
     assert "You cannot delete or change an option that other questions depend on" in get_soup_text(soup, "p")
     assert f"Depends on the options: {referenced_question.data_source.items[0].label}" in [
         p.text for p in soup.find_all("p")

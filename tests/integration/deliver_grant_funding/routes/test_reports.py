@@ -462,6 +462,58 @@ class TestListReportTasks:
         assert (add_another_task_list is not None) is can_edit
 
 
+class TestMoveTask:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_task",
+                grant_id=uuid.uuid4(),
+                form_id=uuid.uuid4(),
+                direction="up",
+            )
+        )
+        assert response.status_code == 404
+
+    def test_400(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        forms = factories.form.create_batch(3, section=report.sections[0])
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_task",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=forms[0].id,
+                direction="blah",
+            )
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.parametrize(
+        "direction",
+        ["up", "down"],
+    )
+    def test_move(self, authenticated_grant_admin_client, factories, db_session, direction):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        factories.form.reset_sequence()
+        forms = factories.form.create_batch(3, section=report.sections[0])
+        assert forms[1].title == "Form 1"
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_task",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=forms[1].id,
+                direction=direction,
+            )
+        )
+        assert response.status_code == 302
+
+        if direction == "up":
+            assert report.sections[0].forms[0].title == "Form 1"
+        else:
+            assert report.sections[0].forms[2].title == "Form 1"
+
+
 class TestChangeFormName:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
@@ -646,6 +698,75 @@ class TestListTaskQuestions:
             )
             for message in caplog.messages
         )
+
+
+class TestMoveQuestion:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_question",
+                grant_id=uuid.uuid4(),
+                question_id=uuid.uuid4(),
+                direction="up",
+            )
+        )
+        assert response.status_code == 404
+
+    def test_no_access_for_grant_members(self, authenticated_grant_member_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        questions = factories.question.create_batch(3, form=form)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.move_question",
+                grant_id=authenticated_grant_member_client.grant.id,
+                question_id=questions[0].id,
+                direction="blah",
+            )
+        )
+        assert response.status_code == 403
+
+    def test_400(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        questions = factories.question.create_batch(3, form=form)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=questions[0].id,
+                direction="blah",
+            )
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.parametrize(
+        "direction",
+        ["up", "down"],
+    )
+    def test_move(self, authenticated_grant_admin_client, factories, db_session, direction):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        factories.question.reset_sequence()
+        questions = factories.question.create_batch(3, form=form)
+        assert form.questions[1].text == "Question 1"
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=questions[1].id,
+                direction=direction,
+            )
+        )
+        assert response.status_code == 302
+
+        if direction == "up":
+            assert form.questions[0].text == "Question 1"
+        else:
+            assert form.questions[2].text == "Question 1"
 
 
 class TestListSubmissions:
