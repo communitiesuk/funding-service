@@ -63,6 +63,22 @@ class TestSubmissionHelper:
             assert len(helper_questions) == 1
             assert helper_questions[0].id == visible_question.id
 
+        def test_visible_questions_filtered_in_group(self, factories):
+            form = factories.form.build()
+            submission = factories.submission.build(collection=form.section.collection)
+            visible_question = factories.question.build(form=form)
+
+            invisible_group = factories.group.build(form=form)
+            factories.question.build(form_id=form.id, parent=invisible_group)
+            factories.question.build(form_id=form.id, parent=invisible_group)
+            factories.question.build(form_id=form.id, parent=invisible_group)
+            factories.expression.build(question=invisible_group, type=ExpressionType.CONDITION, statement="False")
+
+            helper = SubmissionHelper(submission)
+            helper_questions = helper.get_ordered_visible_questions_for_form(form)
+            assert len(helper_questions) == 1
+            assert helper_questions[0].id == visible_question.id
+
     class TestGetSection:
         def test_exists(self, db_session, factories):
             section = factories.section.build()

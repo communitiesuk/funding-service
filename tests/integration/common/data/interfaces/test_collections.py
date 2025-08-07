@@ -45,12 +45,12 @@ from app.common.data.models import (
     DataSourceItem,
     Expression,
     Form,
+    Group,
     Question,
     Section,
     Submission,
     SubmissionEvent,
 )
-from app.common.data.models import Collection, DataSourceItem, Expression, Form, Group, Question, Section, Submission, SubmissionEvent
 from app.common.data.types import (
     CollectionType,
     ExpressionType,

@@ -251,7 +251,8 @@ class Form(BaseModel):
 def get_ordered_nested_questions_for_components(components: list["Component"]) -> list["Question"]:
     """Recursively collects all questions from a list of components, including nested components."""
     questions = []
-    for component in components:
+    ordered_components = sorted(components, key=lambda c: c.order)
+    for component in ordered_components:
         if isinstance(component, Question):
             questions.append(component)
         elif isinstance(component, Group):
@@ -420,7 +421,7 @@ class Group(Component):
     if TYPE_CHECKING:
         # reflect that groups will never have a data type but don't hook in a competing migration
         data_type: None
-    
+
     @property
     def questions(self) -> list["Question"]:
         return get_ordered_nested_questions_for_components(self.components)
