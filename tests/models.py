@@ -679,6 +679,7 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     key = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
     submission = factory.SubFactory(_SubmissionFactory)
+    form = factory.SubFactory(_FormFactory)
     created_by = factory.SubFactory(_UserFactory)
 
 
