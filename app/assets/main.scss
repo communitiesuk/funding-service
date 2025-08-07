@@ -188,3 +188,29 @@ $app-destructive-link-active-colour: $govuk-text-colour;
     @include govuk-link-style-error;
   }
 }
+
+
+.app-grant-navigation {
+  @include govuk-font(19);
+  background-color: govuk-colour('light-grey');
+
+  .app-grant-navigation__container {
+    @include govuk-width-container();
+    @extend %govuk-section-break--m;
+    @extend %govuk-section-break--visible;
+    @include govuk-responsive-margin(0);
+    @include govuk-responsive-padding(2, 'top');
+    @include govuk-responsive-padding(2, 'bottom');
+
+    display: flex;
+    flex-direction: row;
+
+    .app-grant-navigation__name {
+      margin-right: auto;
+    }
+
+    .app-grant-navigation__action {
+
+    }
+  }
+}
