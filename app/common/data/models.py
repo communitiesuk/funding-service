@@ -461,7 +461,7 @@ class DataSourceItem(BaseModel):
 
     data_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_source.id"))
     order: Mapped[int]
-    key: Mapped[str]
+    key: Mapped[CIStr]
     label: Mapped[str]
 
     data_source: Mapped[DataSource] = relationship("DataSource", back_populates="items", uselist=False)
