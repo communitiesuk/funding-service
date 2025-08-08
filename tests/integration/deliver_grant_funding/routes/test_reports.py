@@ -6,11 +6,12 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.models import Collection, Form
+from app import QuestionDataType
+from app.common.data.models import Collection, Form, Question
 from app.common.data.types import SubmissionModeEnum
 from app.common.forms import GenericConfirmDeletionForm
-from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
-from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_error, page_has_link
+from app.deliver_grant_funding.forms import AddTaskForm, QuestionForm, QuestionTypeForm, SetUpReportForm
+from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_button, page_has_error, page_has_link
 
 
 class TestListReports:
@@ -767,6 +768,211 @@ class TestMoveQuestion:
             assert form.questions[0].text == "Question 1"
         else:
             assert form.questions[2].text == "Question 1"
+
+
+class TestChooseQuestionType:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.choose_question_type", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ["authenticated_grant_member_client", False],
+            ["authenticated_grant_admin_client", True],
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        response = client.get(
+            url_for("deliver_grant_funding.choose_question_type", grant_id=client.grant.id, form_id=form.id)
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "What is the type of question?"
+
+            assert len(soup.select("input[type=radio]")) == 8, "Should show an option for each kind of question"
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        form = QuestionTypeForm(data={"question_data_type": QuestionDataType.TEXT_SINGLE_LINE.name})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.choose_question_type",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=db_form.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            r"/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions/add\?question_data_type=TEXT_SINGLE_LINE"
+        )
+
+
+class TestAddQuestion:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.add_question", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ["authenticated_grant_member_client", False],
+            ["authenticated_grant_admin_client", True],
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        response = client.get(url_for("deliver_grant_funding.add_question", grant_id=client.grant.id, form_id=form.id))
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Add question"
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        form = QuestionForm(
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+
+        # Stretching the test case a little but validates the flash message
+        response = authenticated_grant_admin_client.get(response.location)
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Edit question"
+        assert get_h2_text(soup) == "Question created"
+
+
+class TestEditQuestion:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.edit_question", grant_id=uuid.uuid4(), question_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ["authenticated_grant_member_client", False],
+            ["authenticated_grant_admin_client", True],
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        response = client.get(
+            url_for("deliver_grant_funding.edit_question", grant_id=client.grant.id, question_id=question.id)
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Edit question"
+
+            db_question = db_session.get(Question, question.id)
+            assert db_question.text == "My question"
+            assert db_question.name == "Question name"
+            assert db_question.hint == "Question hint"
+            assert db_question.data_type == QuestionDataType.TEXT_SINGLE_LINE
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        form = QuestionForm(
+            data={
+                "text": "Updated question",
+                "hint": "Updated hint",
+                "name": "Updated name",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
+
+    @pytest.mark.xfail
+    def test_post_dependency_order_errors(self):
+        # TODO: write me, followup PR, sorry
+        # If you're a dev and you're looking at this please consider doing a kindness and taking 10 mins to write a nice
+        # test here.
+        raise AssertionError()
+
+    @pytest.mark.xfail
+    def test_post_data_source_item_errors(self):
+        # TODO: write me, followup PR, sorry
+        # If you're a dev and you're looking at this please consider doing a kindness and taking 10 mins to write a nice
+        # test here.
+        raise AssertionError()
 
 
 class TestListSubmissions:
