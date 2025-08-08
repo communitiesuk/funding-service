@@ -16,9 +16,11 @@ from app.common.data.interfaces.collections import (
     DependencyOrderException,
     create_collection,
     create_form,
+    create_group,
     create_question,
     create_section,
     get_collection,
+    get_component_by_id,
     get_form_by_id,
     get_question_by_id,
     get_section_by_id,
@@ -59,6 +61,7 @@ from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
     FormForm,
+    GroupForm,
     QuestionForm,
     QuestionTypeForm,
     SectionForm,
@@ -452,7 +455,11 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
 @is_platform_admin
 def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
-    wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
+    parent_id = request.args.get("parent", None)
+    parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+    wt_form = QuestionTypeForm(
+        question_data_type=request.args.get("question_data_type", None), parent=parent.id if parent else None
+    )
     if wt_form.validate_on_submit():
         question_data_type = wt_form.question_data_type.data
         return redirect(
@@ -463,6 +470,7 @@ def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, 
                 section_id=section_id,
                 form_id=form_id,
                 question_data_type=question_data_type,
+                parent=wt_form.parent.data if wt_form.parent.data else None,
             )
         )
     return render_template(
@@ -486,6 +494,9 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
 
+    parent_id = request.args.get("parent", None)
+    parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+
     wt_form = QuestionForm(question_type=question_data_type_enum)
     if wt_form.validate_on_submit():
         try:
@@ -495,6 +506,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
 
             question = create_question(
                 form=form,
+                parent=parent if parent else None,
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
@@ -530,6 +542,54 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
     )
 
 
+# todo: we don't need our URLs to be exhaustive like this - use the URL to give devs confidence we're in the right
+#       context and have the right permissions but then only include the ID of the thing we're working on
+@developers_deliver_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/groups/add",
+    methods=["GET", "POST"],
+)
+@is_platform_admin
+@auto_commit_after_request
+def add_group(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    form = get_form_by_id(form_id)
+
+    wt_form = GroupForm()
+    if wt_form.validate_on_submit():
+        try:
+            assert wt_form.name.data is not None
+            create_group(
+                form=form,
+                text=wt_form.name.data,
+            )
+
+            # todo: either group created flash message type or have a more generic created question flash which can
+            #       include text here
+            flash("Group created", FlashMessageType.QUESTION_CREATED)
+            return redirect(
+                url_for(
+                    # "developers.deliver.edit_group",
+                    "developers.deliver.manage_form_questions",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    # group_id=group.id,
+                    form_id=form_id,
+                )
+            )
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "developers/deliver/add_group.html",
+        grant=form.section.collection.grant,
+        collection=form.section.collection,
+        section=form.section,
+        db_form=form,
+        form=wt_form,
+    )
+
+
 @developers_deliver_blueprint.route(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/<uuid:question_id>/move/<string:direction>",
     methods=["POST"],
@@ -539,7 +599,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
 def move_question(
     grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, question_id: UUID, direction: str
 ) -> ResponseReturnValue:
-    question = get_question_by_id(question_id=question_id)
+    question = get_component_by_id(component_id=question_id)
 
     if direction not in ["up", "down"]:
         return abort(400)
