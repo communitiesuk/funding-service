@@ -570,7 +570,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     text = factory.Sequence(lambda n: "Question %d" % n)
     name = factory.Sequence(lambda n: "Question name %d" % n)
     slug = factory.Sequence(lambda n: "question-%d" % n)
-    order = factory.LazyAttribute(lambda o: len(o.form.questions))
+    order = factory.LazyAttribute(lambda o: len(o.form.components))
     data_type = QuestionDataType.TEXT_SINGLE_LINE
 
     form = factory.SubFactory(_FormFactory)

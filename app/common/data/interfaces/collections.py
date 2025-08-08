@@ -10,6 +10,7 @@ from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.models import (
     Collection,
+    Component,
     DataSource,
     DataSourceItem,
     DataSourceItemReference,
@@ -72,7 +73,7 @@ def get_collection(
     """
     options = []
     if with_full_schema:
-        options.append(joinedload(Collection.sections).selectinload(Section.forms).selectinload(Form.questions))
+        options.append(joinedload(Collection.sections).selectinload(Section.forms).selectinload(Form.components))
 
     filters = [Collection.id == collection_id]
     if grant_id:
@@ -125,8 +126,8 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
             joinedload(Submission.collection)
             .selectinload(Collection.sections)
             .selectinload(Section.forms)
-            .selectinload(Form.questions)
-            .selectinload(Question.expressions),
+            .selectinload(Form.components)
+            .selectinload(Component.expressions),
             selectinload(Submission.events),
             joinedload(Submission.created_by),
         )
@@ -141,8 +142,8 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
                 joinedload(Submission.collection)
                 .selectinload(Collection.sections)
                 .selectinload(Section.forms)
-                .selectinload(Form.questions)
-                .joinedload(Question.expressions),
+                .selectinload(Form.components)
+                .joinedload(Component.expressions),
                 joinedload(Submission.events),
             ]
         )
@@ -217,7 +218,7 @@ def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, in
     if 0 <= index_a < len(containing_list) and 0 <= index_b < len(containing_list):
         containing_list[index_a], containing_list[index_b] = containing_list[index_b], containing_list[index_a]
     db.session.execute(
-        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_question_order_form DEFERRED")
+        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_component_order_form DEFERRED")
     )
     db.session.flush()
     return containing_list
@@ -250,7 +251,7 @@ def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questio
 
     if with_all_questions:
         # todo: this will need refining again when we have different levels of grouped questions
-        query = query.options(selectinload(Form.questions).joinedload(Question.expressions))
+        query = query.options(selectinload(Form.components).joinedload(Component.expressions))
 
     return db.session.execute(query).scalar_one()
 
@@ -387,7 +388,7 @@ def create_question(
         data_type=data_type,
         presentation_options=presentation_options,
     )
-    form.questions.append(question)
+    form.components.append(question)
     db.session.add(question)
 
     try:
@@ -516,14 +517,14 @@ def raise_if_data_source_item_reference_dependency(
 def move_question_up(question: Question) -> Question:
     swap_question = question.form.questions[question.order - 1]
     check_question_order_dependency(question, swap_question)
-    swap_elements_in_list_and_flush(question.form.questions, question.order, swap_question.order)
+    swap_elements_in_list_and_flush(question.form.components, question.order, swap_question.order)
     return question
 
 
 def move_question_down(question: Question) -> Question:
     swap_question = question.form.questions[question.order + 1]
     check_question_order_dependency(question, swap_question)
-    swap_elements_in_list_and_flush(question.form.questions, question.order, swap_question.order)
+    swap_elements_in_list_and_flush(question.form.components, question.order, swap_question.order)
     return question
 
 
