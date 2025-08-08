@@ -4,7 +4,7 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
 {# todo: ideally this just passes in what it needs but this gets us going for now #}
-{% from "developers/deliver/macros/component_table.html" import component_table with context %}
+{% from "developers/deliver/macros/component_table.html" import component_table %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = collection.name ~ " - " ~ grant.name %}
@@ -53,7 +53,12 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">{{ component_table(db_form.components) }}</div>
+    {% if db_form.components %}
+      <p class="govuk-body">This task has {% trans count=db_form.questions | length %}{{ count }} question{% pluralize %}{{ count }} questions{% endtrans %}.</p>
+      <div class="govuk-grid-column-full">{{ component_table(db_form) }}</div>
+    {% else %}
+      <p class="govuk-body">This task has no questions.</p>
+    {% endif %}
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
