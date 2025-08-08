@@ -209,6 +209,16 @@ class QuestionTypeForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
+class GroupForm(FlaskForm):
+    name = StringField(
+        "Group name",
+        validators=[DataRequired("Enter the group name")],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
 class QuestionForm(FlaskForm):
     text = StringField(
         "What is the question?",

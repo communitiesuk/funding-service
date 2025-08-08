@@ -1,0 +1,74 @@
+{% from "common/macros/move-up-down-table.html" import moveUpDownTable with context %}
+{# todo: the historic logic is weirdly split out between the template and a macro, move all #}
+{#       of the presentation decisions into the macro (including links etc.) #}
+
+{# todo: an accurate question count - I think that could be dervied from form_db.questions | length for now #}
+{% macro component_table(components) %}
+
+  {# we put any components that aren't already grouped together into a top level group to let us use a uniform #}
+  {# component and not have conditional logic that opens tags and we can't guarantee will close them later #}
+
+  {# todo: we probably shouldn't call these "groups" as that could also refer to the group component #}
+
+  {% if components %}
+    <p class="govuk-body">This task has {% trans count=db_form.questions | length %}{{ count }} question{% pluralize %}{{ count }} questions{% endtrans %}.</p>
+
+    {% set groups = [] %}
+
+    {% for component in components %}
+      {% if component.is_group %}
+        {% do groups.append(component) %}
+      {% else %}
+        {# if the last entry was already a group or doesn't exist, we should start a new one #}
+        {% if not groups or (groups | last).is_group %}
+          {% do groups.append([ component ]) %}
+        {% else %}
+          {% do (groups | last).append(component) %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+
+    {% for group in groups %}
+      {# we treat flat components and grouped up components differently so we keep track of that #}
+      {% set table_components = group.components if group.is_group else group %}
+      {% set table_rows = [] %}
+      {% for component in table_components %}
+        {% set question_link %}
+          <a
+            class="govuk-link govuk-link--no-visited-state"
+            href="{{ url_for('developers.deliver.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=component.id) }}">
+            {{ component.text }}
+          </a>
+          {% if component.conditions %}
+            {{
+              govukTag({
+              "text": "Conditional",
+              "classes": "govuk-tag--grey govuk-!-margin-left-1 govuk-!-margin-top-1",
+              })
+            }}
+          {% endif %}
+        {% endset %}
+        {%
+          do table_rows.append({
+            "html": question_link,
+            "actions":[{
+                "text":"Move up",
+                "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=component.id, direction = 'up'),"disabled": component == db_form.components | first,
+                "post": True
+                }, {
+                "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=component.id, direction = 'down'),
+                "post": True,
+                "text": "Move down","disabled": component == db_form.components | last
+                }
+            ]
+          })
+        %}
+      {% endfor %}
+
+      {# fixme: the styling for the border top and tag spacing look broken on tablet and mobile #}
+      {{ moveUpDownTable(table_rows, group) }}
+    {% endfor %}
+  {% else %}
+    <p class="govuk-body">This task has no questions.</p>
+  {% endif %}
+{% endmacro %}

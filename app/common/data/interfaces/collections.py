@@ -492,8 +492,13 @@ def create_group(form: Form, *, text: str, name: Optional[str] = None, parent: O
     return group
 
 
+# todo: rename
 def get_question_by_id(question_id: UUID) -> Question:
     return db.session.get_one(Question, question_id)
+
+
+def get_component_by_id(component_id: UUID) -> Component:
+    return db.session.get_one(Component, component_id)
 
 
 class FlashableException(Protocol):
@@ -501,7 +506,7 @@ class FlashableException(Protocol):
 
 
 class DependencyOrderException(Exception, FlashableException):
-    def __init__(self, message: str, question: Question, depends_on_question: Question):
+    def __init__(self, message: str, question: Component, depends_on_question: Component):
         super().__init__(message)
         self.message = message
         self.question = question
@@ -553,7 +558,7 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
 
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
-def check_question_order_dependency(question: Question, swap_question: Question) -> None:
+def check_question_order_dependency(question: Component, swap_question: Component) -> None:
     for condition in question.conditions:
         if condition.managed and condition.managed.question_id == swap_question.id:
             raise DependencyOrderException(
@@ -567,11 +572,11 @@ def check_question_order_dependency(question: Question, swap_question: Question)
             )
 
 
-def is_question_dependency_order_valid(question: Question, depends_on_question: Question) -> bool:
+def is_question_dependency_order_valid(question: Component, depends_on_question: Component) -> bool:
     return question.order > depends_on_question.order
 
 
-def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
+def raise_if_question_has_any_dependencies(question: Component) -> Never | None:
     for target_question in question.form.questions:
         for condition in target_question.conditions:
             if condition.managed and condition.managed.question_id == question.id:
@@ -602,16 +607,16 @@ def raise_if_data_source_item_reference_dependency(
     return None
 
 
-def move_question_up(question: Question) -> Question:
-    swap_question = question.form.questions[question.order - 1]
+def move_question_up(question: Component) -> Component:
+    swap_question = question.contained_by.components[question.order - 1]
     check_question_order_dependency(question, swap_question)
     swap_elements_in_list_and_flush(question.contained_by.components, question.order, swap_question.order)
     return question
 
 
 # todo: rename to move components
-def move_question_down(question: Question) -> Question:
-    swap_question = question.form.questions[question.order + 1]
+def move_question_down(question: Component) -> Component:
+    swap_question = question.contained_by.components[question.order + 1]
     check_question_order_dependency(question, swap_question)
     swap_elements_in_list_and_flush(question.contained_by.components, question.order, swap_question.order)
     return question
