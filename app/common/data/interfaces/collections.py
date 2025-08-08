@@ -488,8 +488,13 @@ def create_group(form: Form, *, text: str, name: Optional[str] = None, parent: O
     return group
 
 
+# todo: rename
 def get_question_by_id(question_id: UUID) -> Question:
     return db.session.get_one(Question, question_id)
+
+
+def get_component_by_id(component_id: UUID) -> Component:
+    return db.session.get_one(Component, component_id)
 
 
 class FlashableException(Protocol):
