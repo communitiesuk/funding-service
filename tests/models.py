@@ -47,7 +47,6 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionEventKey,
     SubmissionModeEnum,
-    SubmissionStatusEnum,
 )
 from app.common.expressions.managed import AnyOf, BaseDataSourceManagedExpression, GreaterThan, Specifically
 from app.constants import DEFAULT_SECTION_NAME
@@ -219,7 +218,6 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 collection=obj,
                 mode=mode,
                 data=response_data,
-                status=SubmissionStatusEnum.COMPLETED,
             )
 
         if test:
@@ -341,7 +339,6 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     collection=obj,
                     mode=mode,
                     data=response_data,
-                    status=SubmissionStatusEnum.COMPLETED,
                 )
 
         _create_submission(SubmissionModeEnum.TEST, test)
@@ -445,7 +442,6 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                             ]
                         ).get_value_for_submission(),
                     },
-                    status=SubmissionStatusEnum.COMPLETED,
                 )
 
         _create_submission_of_type(SubmissionModeEnum.TEST, test)
@@ -493,7 +489,6 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     mode = SubmissionModeEnum.TEST
     data = factory.LazyFunction(dict)
-    status = SubmissionStatusEnum.NOT_STARTED
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)
