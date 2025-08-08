@@ -44,6 +44,10 @@
 {# knows how to diplay a summary card or flat list of components #}
 {% macro moveUpDownTable(table_rows, component=None) %}
   {% if component.is_group %}
+    {% set form = component.form %}
+    {% set section = form.section %}
+    {% set collection = section.collection %}
+    {% set grant = collection.grant %}
     <div class="govuk-summary-card">
       <div class="govuk-summary-card__title-wrapper">
         <h2 class="govuk-summary-card__title">
@@ -62,20 +66,19 @@
             <a class="app-link-button" href="#">Manage group</a>
           </li>
           <li class="govuk-summary-card__action">
-            {# todo: this is based on the template context again, there's a way of generically passing down context #}
-            {% if component == db_form.components | first %}
+            {% if component == component.contained_by.components | first %}
               <span class="govuk-body app-move-up-down-table__action--disabled">Move up</span>
             {% else %}
-              <form method="POST" action="{{ url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=component.id, direction = 'up') }}">
+              <form method="POST" action="{{ url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'up') }}">
                 <button type="submit" class="app-link-button">Move up</button>
               </form>
             {% endif %}
           </li>
           <li class="govuk-summary-card__action">
-            {% if component == db_form.components | last %}
+            {% if component == component.contained_by.components | last %}
               <span class="govuk-body app-move-up-down-table__action--disabled">Move down</span>
             {% else %}
-              <form method="POST" action="{{ url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=component.id, direction = 'down') }}">
+              <form method="POST" action="{{ url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'down') }}">
                 <button type="submit" class="app-link-button">Move down</button>
               </form>
             {% endif %}
