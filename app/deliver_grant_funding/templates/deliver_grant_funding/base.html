@@ -6,18 +6,32 @@
 {% set nav_items = nav_items or [] %}
 {% set right_nav_items = right_nav_items or [] %}
 
-{% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
+{% block pageTitle %}{{ page_title }} - Deliver grant funding{% endblock pageTitle %}
 
 {% block header %}
   {{
     mhclgHeader(
       params={
+        "productName": "Deliver grant funding",
         "homepageUrl": url_for("deliver_grant_funding.list_grants"),
         "assetPath": assetPath
       },
       currentUser=current_user,
     )
   }}
+
+  {% if grant %}
+    <div class="app-grant-navigation">
+      <div class="app-grant-navigation__container">
+        <span class="app-grant-navigation__name govuk-!-font-weight-bold">{{ grant.name }}</span>
+        {% if authorisation_helper.is_platform_admin(current_user) %}
+          {# We also need to show this is a grant team member has access to >1 grant #}
+          <span class="app-grant-navigation__action"><a class="govuk-link govuk-link--no-visited-state govuk-link--no-underline" href="{{ url_for('deliver_grant_funding.list_grants') }}">Change grant</a></span>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
   {{ deliverGrantFundingServiceNavigation(nav_items, right_nav_items) }}
 {% endblock header %}
 
