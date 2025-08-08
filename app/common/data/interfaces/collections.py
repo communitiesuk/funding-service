@@ -26,7 +26,6 @@ from app.common.data.models import (
 from app.common.data.models_user import User
 from app.common.data.types import (
     CollectionType,
-    ComponentType,
     ExpressionType,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -84,7 +83,8 @@ def get_collection(
                 joinedload(Collection.sections)
                 .joinedload(Section.forms)
                 .selectinload(Form._all_components)
-                .selectinload(Component.components.and_(Component.type == ComponentType.GROUP)),
+                # .selectinload(Component.components.and_(Component.type == ComponentType.GROUP)),
+                .selectinload(Component.components),
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
                 joinedload(Collection.sections).joinedload(Section.forms).selectinload(Form.components),
@@ -155,7 +155,8 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
             .joinedload(Collection.sections)
             .joinedload(Section.forms)
             .selectinload(Form._all_components)
-            .selectinload(Component.components.and_(Component.type == ComponentType.GROUP))
+            # .selectinload(Component.components.and_(Component.type == ComponentType.GROUP))
+            .selectinload(Component.components)
             .joinedload(Component.expressions),
             # eagerly populate the forms top level components - this is a redundant query but
             # leaves as much as possible with the ORM
@@ -186,7 +187,8 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
                 .joinedload(Collection.sections)
                 .joinedload(Section.forms)
                 .selectinload(Form._all_components)
-                .selectinload(Component.components.and_(Component.type == ComponentType.GROUP)),
+                # .selectinload(Component.components.and_(Component.type == ComponentType.GROUP)),
+                .selectinload(Component.components),
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
                 joinedload(Submission.collection)
@@ -307,7 +309,9 @@ def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questio
             selectinload(Form._all_components).joinedload(Component.expressions),
             # get any nested components in one go
             selectinload(Form._all_components)
-            .selectinload(Component.components.and_(Component.type == ComponentType.GROUP))
+            # todo: this was checked working before - have a look at why this isn't lining up
+            # .selectinload(Component.components.and_(Component.type == ComponentType.GROUP))
+            .selectinload(Component.components)
             .joinedload(Component.expressions),
             # eagerly populate the forms top level components - this is a redundant query but leaves as much as possible
             # with the ORM
@@ -437,7 +441,7 @@ def create_question(
     hint: str,
     name: str,
     data_type: QuestionDataType,
-    parent: Optional[Group] = None,
+    parent: Optional[Component] = None,
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:
