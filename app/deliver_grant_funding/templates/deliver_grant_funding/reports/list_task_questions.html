@@ -70,8 +70,7 @@
         {% for question in db_form.questions %}
           {% set keyHtml %}
             {% if grant_admin %}
-              {# TODO: link it up #}
-              {{ question.text }}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=question.id) }}">{{ question.text }}</a>
             {% else %}
               {{ question.text }}
             {% endif %}
@@ -109,7 +108,7 @@
         }}
       {% endif %}
 
-      {# TODO: add a[nother] question #}
+      <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id) }}">{{ "Add another question" if db_form.questions else "Add a question" }}</a>
     </div>
     {% if grant_admin %}
       <div class="govuk-grid-column-full">

@@ -19,6 +19,7 @@ from app.common.data.interfaces.collections import (
     delete_collection,
     delete_collection_test_submissions_created_by_user,
     delete_form,
+    delete_question,
     get_collection,
     get_expression,
     get_form_by_id,
@@ -1298,6 +1299,34 @@ class TestDeleteForm:
 
         assert [f.order for f in section.forms] == [0, 1, 2, 3]
         assert section.forms == [forms[0], forms[1], forms[3], forms[4]]
+
+
+class TestDeleteQuestion:
+    def test_delete(self, db_session, factories):
+        section = factories.section.create()
+        form = factories.form.create(section=section)
+        question1 = factories.question.create(form=form)
+        question2 = factories.question.create(form=form)
+        question3 = factories.question.create(form=form)
+
+        delete_question(question2)
+
+        assert db_session.get(Question, question1.id) is question1
+        assert db_session.get(Question, question2.id) is None
+        assert db_session.get(Question, question3.id) is question3
+
+    def test_form_reordering(self, db_session, factories):
+        section = factories.section.create()
+        form = factories.form.create(section=section)
+        questions = factories.question.create_batch(5, form=form)
+
+        assert [q.order for q in form.questions] == [0, 1, 2, 3, 4]
+        assert form.questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
+
+        delete_question(questions[2])
+
+        assert [q.order for q in form.questions] == [0, 1, 2, 3]
+        assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
 
 
 class TestDeleteCollectionSubmissions:

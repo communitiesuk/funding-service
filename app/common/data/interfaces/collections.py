@@ -762,6 +762,16 @@ def delete_form(form: Form) -> None:
     db.session.flush()
 
 
+def delete_question(question: Question) -> None:
+    raise_if_question_has_any_dependencies(question)
+    db.session.delete(question)
+    if question in question.form.questions:
+        question.form.components.remove(question)
+    question.form.components.reorder()
+    db.session.execute(text("SET CONSTRAINTS uq_component_order_form DEFERRED"))
+    db.session.flush()
+
+
 def delete_collection_test_submissions_created_by_user(collection: Collection, created_by_user: User) -> None:
     # We're trying to rely less on ORM relationships and cascades in delete queries so here we explicitly delete all
     # SubmissionEvents related to the `created_by_user`'s test submissions for that collection version, and then

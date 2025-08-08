@@ -453,7 +453,7 @@ class SelectQuestionTypePage(GrantDevelopersBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name="What is the type of the question?"),
+            heading=page.get_by_role("heading", name="What is the type of question?"),
         )
         self.section_title = section_title
         self.collection_name = collection_name
@@ -498,7 +498,7 @@ class AddQuestionDetailsPage(GrantDevelopersBasePage):
         self.page.get_by_role("textbox", name="What is the question?").fill(question_text)
 
     def fill_question_name(self, question_name: str) -> None:
-        self.page.get_by_role("textbox", name="Question name").fill(question_name)
+        self.page.get_by_role("textbox", name="Question reference").fill(question_name)
 
     def fill_question_hint(self, question_hint: str) -> None:
         self.page.get_by_role("textbox", name="Question hint").fill(question_hint)

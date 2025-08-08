@@ -4,16 +4,20 @@ from uuid import UUID
 
 from flask import abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask.typing import ResponseReturnValue
+from wtforms import Field
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_grant_role
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     create_collection,
     create_form,
+    create_question,
     delete_collection,
     delete_form,
+    delete_question,
     get_collection,
     get_form_by_id,
     get_question_by_id,
@@ -21,16 +25,25 @@ from app.common.data.interfaces.collections import (
     move_component_up,
     move_form_down,
     move_form_up,
+    raise_if_question_has_any_dependencies,
     update_collection,
     update_form,
+    update_question,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.types import CollectionType, RoleEnum, SubmissionModeEnum
+from app.common.data.types import (
+    CollectionType,
+    QuestionDataType,
+    QuestionPresentationOptions,
+    RoleEnum,
+    SubmissionModeEnum,
+)
+from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
-from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
+from app.deliver_grant_funding.forms import AddTaskForm, QuestionForm, QuestionTypeForm, SetUpReportForm
 from app.deliver_grant_funding.helpers import start_testing_submission
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
@@ -311,6 +324,170 @@ def move_question(grant_id: UUID, question_id: UUID, direction: str) -> Response
         flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
 
     return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=question.form_id))
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/task/<uuid:form_id>/questions/add/choose-type",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id)
+    wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
+    if wt_form.validate_on_submit():
+        question_data_type = wt_form.question_data_type.data
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=grant_id,
+                form_id=form_id,
+                question_data_type=question_data_type,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/choose_question_type.html",
+        grant=db_form.section.collection.grant,
+        db_form=db_form,
+        form=wt_form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/task/<uuid:form_id>/questions/add",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    form = get_form_by_id(form_id)
+    question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
+    question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
+
+    wt_form = QuestionForm(question_type=question_data_type_enum)
+    if wt_form.validate_on_submit():
+        try:
+            assert wt_form.text.data is not None
+            assert wt_form.hint.data is not None
+            assert wt_form.name.data is not None
+
+            question = create_question(
+                form=form,
+                text=wt_form.text.data,
+                hint=wt_form.hint.data,
+                name=wt_form.name.data,
+                data_type=question_data_type_enum,
+                items=wt_form.normalised_data_source_items,
+                presentation_options=QuestionPresentationOptions(
+                    last_data_source_item_is_distinct_from_others=wt_form.separate_option_if_no_items_match.data
+                ),
+            )
+            flash("Question created", FlashMessageType.QUESTION_CREATED)
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=question.id,
+                )
+            )
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "developers/deliver/add_question.html",
+        grant=form.section.collection.grant,
+        collection=form.section.collection,
+        section=form.section,
+        db_form=form,
+        chosen_question_data_type=question_data_type_enum,
+        form=wt_form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:question_id>",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    # FIXME: It would be better if the add_question and edit_question endpoints were an all-in-one. The complication
+    #        for doing this is around adding conditions and validations when creating a new question. At the moment
+    #        both of those endpoints expect to attach it to an existing question in the DB, but through an
+    #        'add question' flow that question record doesn't exist yet. We'd need to cache info about
+    #        validation+conditions that need to be added to the question, when the question itself is created.
+    question = get_question_by_id(question_id=question_id)
+    wt_form = QuestionForm(obj=question, question_type=question.data_type)
+
+    confirm_deletion_form = GenericConfirmDeletionForm()
+    if "delete" in request.args:
+        try:
+            raise_if_question_has_any_dependencies(question)
+
+            if confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
+                delete_question(question)
+                return redirect(
+                    url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=question.form_id)
+                )
+
+        except DependencyOrderException as e:
+            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    form_id=question.form_id,
+                    question_id=question_id,
+                )
+            )
+
+    if wt_form.validate_on_submit():
+        try:
+            assert wt_form.text.data is not None
+            assert wt_form.hint.data is not None
+            assert wt_form.name.data is not None
+            update_question(
+                question=question,
+                text=wt_form.text.data,
+                hint=wt_form.hint.data,
+                name=wt_form.name.data,
+                items=wt_form.normalised_data_source_items,
+                presentation_options=QuestionPresentationOptions(
+                    last_data_source_item_is_distinct_from_others=wt_form.separate_option_if_no_items_match.data
+                ),
+            )
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_task_questions",
+                    grant_id=grant_id,
+                    form_id=question.form_id,
+                )
+            )
+        except DuplicateValueError as e:
+            field_with_error: Field = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+        except DataSourceItemReferenceDependencyException as e:
+            for flash_context in e.as_flash_contexts():
+                flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    form_id=question.form_id,
+                    question_id=question_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/edit_question.html",
+        grant=question.form.section.collection.grant,
+        db_form=question.form,
+        question=question,
+        form=wt_form,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+        managed_validation_available=get_managed_validators_by_data_type(question.data_type),
+    )
 
 
 @deliver_grant_funding_blueprint.route(

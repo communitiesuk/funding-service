@@ -11,7 +11,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextArea,
     GovTextInput,
 )
-from wtforms import Field, HiddenField
+from wtforms import Field
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
@@ -200,11 +200,10 @@ class FormForm(FlaskForm):
 
 class QuestionTypeForm(FlaskForm):
     question_data_type = RadioField(
-        "What is the type of the question?",
+        "What is the type of question?",
         choices=[(qdt.name, qdt.value) for qdt in QuestionDataType],
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
-        name="question type",
     )
     parent = HiddenField(
         "Parent",
@@ -240,10 +239,10 @@ class QuestionForm(FlaskForm):
         render_kw={"params": {"rows": 2}},
     )
     name = StringField(
-        "Question name",
-        validators=[DataRequired("Enter the question name")],
+        "Question reference",
+        validators=[DataRequired("Enter the question reference")],
         description=(
-            "A short description of the answer in lower case, for example “risk category” or “contact email address”"
+            "A short name for the answer in lower case, for example “risk category” or “contact email address”"
         ),
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),

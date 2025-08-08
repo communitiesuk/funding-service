@@ -374,7 +374,7 @@ def test_create_question_choose_type_get(authenticated_platform_admin_client, fa
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert get_h1_text(soup) == "What is the type of the question?"
+    assert get_h1_text(soup) == "What is the type of question?"
 
 
 def test_create_question_choose_type_post(authenticated_platform_admin_client, factories):
@@ -418,8 +418,8 @@ def test_create_question_choose_type_post_error(authenticated_platform_admin_cli
     assert result.status_code == 200
     soup = BeautifulSoup(result.data, "html.parser")
     assert get_h2_text(soup) == "There is a problem"
-    assert len(soup.find_all("a", href="#question type")) == 1
-    assert soup.find_all("a", href="#question type")[0].text.strip() == "Select a question type"
+    assert len(soup.find_all("a", href="#question_data_type")) == 1
+    assert soup.find_all("a", href="#question_data_type")[0].text.strip() == "Select a question type"
 
 
 def test_add_text_question_get(authenticated_platform_admin_client, factories):
