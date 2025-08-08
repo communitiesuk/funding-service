@@ -35,7 +35,11 @@ def upgrade() -> None:
         )
 
     with op.batch_alter_table("component", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("type", type_enum, nullable=False))
+        batch_op.add_column(sa.Column("type", type_enum, nullable=True))
+
+    with op.batch_alter_table("component", schema=None) as batch_op:
+        batch_op.execute(sa.text("UPDATE component SET type = 'QUESTION'"))
+        batch_op.alter_column("type", nullable=False)
 
     with op.batch_alter_table("component", schema=None) as batch_op:
         batch_op.drop_constraint("uq_question_order_form", type_="unique")
