@@ -1,7 +1,8 @@
+import io
 import uuid
 from uuid import UUID
 
-from flask import abort, current_app, flash, redirect, render_template, request, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
@@ -325,7 +326,39 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
         grant=report.grant,
         report=report,
         helper=helper,
+        submission_mode=submission_mode,
     )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/submissions/<submission_mode:submission_mode>/export/<export_format>",
+    methods=["GET"],
+)
+@has_grant_role(RoleEnum.MEMBER)
+def export_report_submissions(
+    grant_id: UUID, report_id: UUID, submission_mode: SubmissionModeEnum, export_format: str
+) -> ResponseReturnValue:
+    report = interfaces.collections.get_collection(
+        report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True
+    )
+    helper = CollectionHelper(collection=report, submission_mode=submission_mode)
+
+    match export_format.lower():
+        case "csv":
+            csv_data = helper.generate_csv_content_for_all_submissions()
+            csv_buffer = io.StringIO()
+            csv_buffer.write(csv_data)
+            csv_buffer.seek(0)
+            return send_file(
+                io.BytesIO(csv_buffer.getvalue().encode("utf-8")),
+                mimetype="text/csv",
+                as_attachment=True,
+                download_name=f"{report.name} - {submission_mode.name.lower()}.csv",
+                max_age=0,
+            )
+
+        case _:
+            abort(400)
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/submission/<uuid:submission_id>")
