@@ -31,7 +31,6 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionEventKey,
     SubmissionModeEnum,
-    SubmissionStatusEnum,
 )
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.utils import slugify
@@ -168,7 +167,6 @@ def create_submission(*, collection: Collection, created_by: User, mode: Submiss
         created_by=created_by,
         mode=mode,
         data={},
-        status=SubmissionStatusEnum.NOT_STARTED,
     )
     db.session.add(submission)
     db.session.flush()
