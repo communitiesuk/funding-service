@@ -394,6 +394,10 @@ class Question(Component, SafeQidMixin):
 class Group(Component):
     __mapper_args__ = {"polymorphic_identity": ComponentType.GROUP}
 
+    if TYPE_CHECKING:
+        # reflect that groups will never have a data type but don't hook in a competing migration
+        data_type: None
+
 
 class SubmissionEvent(BaseModel):
     __tablename__ = "submission_event"
