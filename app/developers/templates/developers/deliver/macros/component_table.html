@@ -1,3 +1,4 @@
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
 
 {# todo: the historic logic is weirdly split out between the template and a macro, move all #}
@@ -49,12 +50,12 @@
           "html": question_link,
           "actions":[{
               "text":"Move up",
-              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'up'),"disabled": component == component.contained_by.components | first,
+              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'up'),"disabled": component == component.container.components | first,
               "post": True
               }, {
               "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'down'),
               "post": True,
-              "text": "Move down","disabled": component == component.contained_by.components | last
+              "text": "Move down","disabled": component == component.container.components | last
               }
           ]
         })

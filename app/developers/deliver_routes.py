@@ -455,7 +455,11 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
 @is_platform_admin
 def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
-    wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
+    parent_id = request.args.get("parent", None)
+    parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+    wt_form = QuestionTypeForm(
+        question_data_type=request.args.get("question_data_type", None), parent=parent.id if parent else None
+    )
     if wt_form.validate_on_submit():
         question_data_type = wt_form.question_data_type.data
         return redirect(
@@ -466,6 +470,7 @@ def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, 
                 section_id=section_id,
                 form_id=form_id,
                 question_data_type=question_data_type,
+                parent=wt_form.parent.data if wt_form.parent.data else None,
             )
         )
     return render_template(
@@ -489,6 +494,9 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
 
+    parent_id = request.args.get("parent", None)
+    parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+
     wt_form = QuestionForm(question_type=question_data_type_enum)
     if wt_form.validate_on_submit():
         try:
@@ -498,6 +506,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
 
             question = create_question(
                 form=form,
+                parent=parent if parent else None,
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,

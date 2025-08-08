@@ -1,6 +1,6 @@
 {# todo: I think all of this can be accomplished by overriding some design system classes #}
 {#       which would allow us to use the standard summary list macro with a few style changes #}
-{% macro table(table_rows) %}
+{% macro table(table_rows, component=None) %}
   <dl class="govuk-summary-list app-move-up-down-table">
     {% for row in table_rows %}
       <div class="govuk-summary-list__row app-move-up-down-table__row">
@@ -38,10 +38,30 @@
         </dd>
       </div>
     {% endfor %}
+
+    {% if component %}
+      {% set form = component.form %}
+      {% set section = form.section %}
+      {% set collection = section.collection %}
+      {% set grant = collection.grant %}
+      {% set link %}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.choose_question_type', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=form.id, parent=component.id) }}">
+          Add question
+        </a>
+      {% endset %}
+
+      {% if table_rows %}
+        <div class="govuk-summary-list__row app-move-up-down-table__row">
+          <dt class="govuk-summary-list__value">{{ link }}</dt>
+        </div>
+      {% else %}
+        <p class="govuk-body">{{ link }}</p>
+      {% endif %}
+    {% endif %}
   </dl>
 {% endmacro %}
 
-{# knows how to diplay a summary card or flat list of components #}
+{# knows how to display a summary card or flat list of components #}
 {% macro moveUpDownTable(table_rows, component=None) %}
   {% if component.is_group %}
     {% set form = component.form %}
@@ -66,7 +86,7 @@
             <a class="app-link-button" href="#">Manage group</a>
           </li>
           <li class="govuk-summary-card__action">
-            {% if component == component.contained_by.components | first %}
+            {% if component == component.container.components | first %}
               <span class="govuk-body app-move-up-down-table__action--disabled">Move up</span>
             {% else %}
               <form method="POST" action="{{ url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'up') }}">
@@ -75,7 +95,7 @@
             {% endif %}
           </li>
           <li class="govuk-summary-card__action">
-            {% if component == component.contained_by.components | last %}
+            {% if component == component.container.components | last %}
               <span class="govuk-body app-move-up-down-table__action--disabled">Move down</span>
             {% else %}
               <form method="POST" action="{{ url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'down') }}">
@@ -87,7 +107,7 @@
       </div>
 
       {# todo: actions etc. should be calculated here not in the top level template #}
-      <div class="govuk-summary-card__content">{{ table(table_rows) }}</div>
+      <div class="govuk-summary-card__content">{{ table(table_rows, component) }}</div>
     </div>
   {% else %}
     {{ table(table_rows) }}

@@ -11,7 +11,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextArea,
     GovTextInput,
 )
-from wtforms import Field
+from wtforms import Field, HiddenField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
@@ -205,6 +205,10 @@ class QuestionTypeForm(FlaskForm):
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
         name="question type",
+    )
+    parent = HiddenField(
+        "Parent",
+        description="The parent this question will belong to. If not set the question belongs to the form directly",
     )
     submit = SubmitField(widget=GovSubmitInput())
 
