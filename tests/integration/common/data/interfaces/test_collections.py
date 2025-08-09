@@ -22,6 +22,7 @@ from app.common.data.interfaces.collections import (
     delete_question,
     get_collection,
     get_expression,
+    get_expression_by_id,
     get_form_by_id,
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
@@ -1206,6 +1207,37 @@ class TestExpressions:
 
         with pytest.raises(NoResultFound):
             get_expression(uuid.uuid4())
+
+    def test_get_expression_by_id(self, db_session, factories, track_sql_queries):
+        question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        user = factories.user.create()
+        managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
+        add_question_validation(question, user, managed_expression)
+
+        expression_id = question.expressions[0].id
+        db_session.expunge_all()  # Clear SQLAlchemy cache to force queries to be emitted again
+        with track_sql_queries() as queries:
+            retrieved_expression = get_expression_by_id(expression_id)
+
+        assert len(queries) == 1
+
+        assert retrieved_expression.id == expression_id
+        assert retrieved_expression.type == ExpressionType.VALIDATION
+        assert retrieved_expression.managed_name == "Greater than"
+
+        with track_sql_queries() as queries:
+            assert retrieved_expression.question.form.section.collection.grant is not None
+
+        assert len(queries) == 0
+
+    def test_get_expression_by_id_missing(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        user = factories.user.create()
+        managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
+        add_question_validation(question, user, managed_expression)
+
+        with pytest.raises(NoResultFound):
+            get_expression_by_id(uuid.uuid4())
 
     def test_get_referenced_data_source_items_by_anyof_managed_expression(db_session, factories):
         referenced_question = factories.question.create(data_type=QuestionDataType.RADIOS)

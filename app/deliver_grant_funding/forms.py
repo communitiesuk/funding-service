@@ -1,4 +1,4 @@
-from typing import Any, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 from uuid import UUID
 
 from flask import current_app
@@ -7,20 +7,26 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovCheckboxInput,
     GovRadioInput,
+    GovSelect,
     GovSubmitInput,
     GovTextArea,
     GovTextInput,
 )
-from wtforms import Field
+from wtforms import Field, HiddenField, SelectField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.data.interfaces.collections import get_question_by_id, is_component_dependency_order_valid
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import QuestionDataType
+from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
+
+if TYPE_CHECKING:
+    from app.common.data.models import Question
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
@@ -381,3 +387,27 @@ class AddTaskForm(FlaskForm):
         validators=[DataRequired("Enter a name for the task")],
     )
     submit = SubmitField("Add task", widget=GovSubmitInput())
+
+
+class ConditionSelectQuestionForm(FlaskForm):
+    question = SelectField(
+        "Which answer should the condition check?",
+        choices=[],
+        validators=[DataRequired("Select a question")],
+        widget=GovSelect(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, *args, question: "Question", **kwargs):  # type: ignore[no-untyped-def]
+        super().__init__(*args, **kwargs)
+
+        self.target_question = question
+
+        self.question.choices = [
+            (question.id, f"{question.text} ({question.name})") for question in get_supported_form_questions(question)
+        ]
+
+    def validate_question(self: "ConditionSelectQuestionForm", field: "Field") -> None:
+        depends_on_question = get_question_by_id(self.question.data)
+        if not is_component_dependency_order_valid(self.target_question, depends_on_question):
+            raise ValidationError("Select an answer that comes before this question in the form")

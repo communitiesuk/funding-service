@@ -490,7 +490,30 @@ def create_group(form: Form, *, text: str, name: Optional[str] = None, parent: O
 
 # todo: rename
 def get_question_by_id(question_id: UUID) -> Question:
-    return db.session.get_one(Question, question_id)
+    return db.session.get_one(
+        Question,
+        question_id,
+        options=[
+            joinedload(Question.form)
+            .joinedload(Form.section)
+            .joinedload(Section.collection)
+            .joinedload(Collection.grant),
+        ],
+    )
+
+
+def get_expression_by_id(expression_id: UUID) -> Expression:
+    return db.session.get_one(
+        Expression,
+        expression_id,
+        options=[
+            joinedload(Expression.question)
+            .joinedload(Question.form)
+            .joinedload(Form.section)
+            .joinedload(Section.collection)
+            .joinedload(Collection.grant)
+        ],
+    )
 
 
 def get_component_by_id(component_id: UUID) -> Component:
@@ -511,6 +534,7 @@ class DependencyOrderException(Exception, FlashableException):
     def as_flash_context(self) -> dict[str, str]:
         return {
             "message": self.message,
+            "grant_id": str(self.question.form.section.collection.grant_id),  # Required for URL routing
             "question_id": str(self.question.id),
             "question_text": self.question.text,
             # currently you can't depend on the outcome to a generic component (like a group)

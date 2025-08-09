@@ -19,6 +19,7 @@ from app.common.data.interfaces.collections import (
     delete_form,
     delete_question,
     get_collection,
+    get_expression_by_id,
     get_form_by_id,
     get_question_by_id,
     move_component_down,
@@ -26,6 +27,7 @@ from app.common.data.interfaces.collections import (
     move_form_down,
     move_form_up,
     raise_if_question_has_any_dependencies,
+    remove_question_expression,
     update_collection,
     update_form,
     update_question,
@@ -35,15 +37,23 @@ from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
     CollectionType,
+    ExpressionType,
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
     SubmissionModeEnum,
 )
+from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
-from app.deliver_grant_funding.forms import AddTaskForm, QuestionForm, QuestionTypeForm, SetUpReportForm
+from app.deliver_grant_funding.forms import (
+    AddTaskForm,
+    ConditionSelectQuestionForm,
+    QuestionForm,
+    QuestionTypeForm,
+    SetUpReportForm,
+)
 from app.deliver_grant_funding.helpers import start_testing_submission
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
@@ -487,6 +497,225 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         managed_validation_available=get_managed_validators_by_data_type(question.data_type),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:question_id>/add-condition",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+    form = ConditionSelectQuestionForm(question=question)
+
+    if form.validate_on_submit():
+        depends_on_question = get_question_by_id(form.question.data)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=grant_id,
+                question_id=question_id,
+                depends_on_question_id=depends_on_question.id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_question_condition_select_question.html",
+        question=question,
+        grant=question.form.section.collection.grant,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:question_id>/add-condition/<uuid:depends_on_question_id>",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+    depends_on_question = get_question_by_id(depends_on_question_id)
+
+    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+    form = ConditionForm() if ConditionForm else None
+    if form and form.validate_on_submit():
+        expression = form.get_expression(depends_on_question)
+
+        try:
+            interfaces.collections.add_component_condition(question, interfaces.user.get_current_user(), expression)
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=question.id,
+                )
+            )
+        except DuplicateValueError:
+            form.form_errors.append(f"“{expression.description}” condition based on this question already exists.")
+
+    return render_template(
+        "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
+        question=question,
+        depends_on_question=depends_on_question,
+        grant=question.form.section.collection.grant,
+        form=form,
+        QuestionDataType=QuestionDataType,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/condition/<uuid:expression_id>",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
+    expression = get_expression_by_id(expression_id)
+    question = expression.question
+    depends_on_question = expression.managed.referenced_question
+
+    confirm_deletion_form = GenericConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        remove_question_expression(question=question, expression=expression)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant_id,
+                question_id=question.id,
+            )
+        )
+
+    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question, expression)
+    form = ConditionForm() if ConditionForm else None
+
+    if form and form.validate_on_submit():
+        updated_managed_expression = form.get_expression(depends_on_question)
+
+        try:
+            interfaces.collections.update_question_expression(expression, updated_managed_expression)
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=question.id,
+                )
+            )
+        except DuplicateValueError:
+            form.form_errors.append(
+                f"“{updated_managed_expression.description}” condition based on this question already exists."
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
+        question=question,
+        grant=question.form.section.collection.grant,
+        form=form,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+        expression=expression,
+        QuestionDataType=QuestionDataType,
+        depends_on_question=depends_on_question,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:question_id>/add-validation",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+
+    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+    form = ValidationForm() if ValidationForm else None
+    if form and form.validate_on_submit():
+        expression = form.get_expression(question)
+
+        try:
+            interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        except DuplicateValueError:
+            # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
+            #        complain to us about it before we think about a better way of handling it.
+            form.form_errors.append(f"“{expression.description}” validation already exists on the question.")
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=question.id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/manage_question_validation.html",
+        question=question,
+        grant=question.form.section.collection.grant,
+        form=form,
+        QuestionDataType=QuestionDataType,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/validation/<uuid:expression_id>",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
+    expression = get_expression_by_id(expression_id)
+    question = expression.question
+
+    confirm_deletion_form = GenericConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        remove_question_expression(question=question, expression=expression)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant_id,
+                question_id=question.id,
+            )
+        )
+
+    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question, expression)
+    form = ValidationForm() if ValidationForm else None
+
+    if form and form.validate_on_submit():
+        updated_managed_expression = form.get_expression(question)
+        try:
+            interfaces.collections.update_question_expression(expression, updated_managed_expression)
+        except DuplicateValueError:
+            # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
+            #        complain to us about it before we think about a better way of handling it.
+            form.form_errors.append(
+                f"“{updated_managed_expression.description}” validation already exists on the question."
+            )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=question.id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/manage_question_validation.html",
+        question=question,
+        grant=question.form.section.collection.grant,
+        form=form,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+        expression=expression,
+        QuestionDataType=QuestionDataType,
     )
 
 

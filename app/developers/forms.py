@@ -5,7 +5,10 @@ from govuk_frontend_wtf.wtforms_widgets import GovSelect, GovSubmitInput
 from wtforms import Field, SelectField, SubmitField, ValidationError
 from wtforms.validators import DataRequired
 
-from app.common.data.interfaces.collections import get_question_by_id, is_component_dependency_order_valid
+from app.common.data.interfaces.collections import (
+    get_question_by_id,
+    is_component_dependency_order_valid,
+)
 from app.common.expressions.registry import get_supported_form_questions
 
 if TYPE_CHECKING:
