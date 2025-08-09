@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
+{% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
 {% set page_title = "Edit question - " ~ db_form.title %}
@@ -40,7 +40,7 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value, enum.flash_message_type.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value]) %}
         {% if flashes %}
           {% for error in flashes %}
-            {{ dependency_banner(error, grant.id, collection.id, section.id, db_form.id) }}
+            {{ dependency_banner(error) }}
           {% endfor %}
         {% endif %}
       {% endwith %}
@@ -105,7 +105,7 @@
 
 
             {% set value_html %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
                 <span class="govuk-visually-hidden">Change condition for</span>
                 {{ condition.managed.message }}
               </a>
@@ -120,7 +120,7 @@
           {{
             govukButton({
               "text": "Add condition",
-              "href": url_for('developers.deliver.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
+              "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
               "classes": "govuk-button--secondary",
             })
           }}
@@ -139,7 +139,7 @@
                 <span class="govuk-visually-hidden">validation</span>
               {% endset %}
               {% set value_html %}
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}" disabled>
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}" disabled>
                   <span class="govuk-visually-hidden">Change validation for</span>
                   {{ validation.managed.message }}
                 </a>
@@ -157,7 +157,7 @@
             {{
               govukButton({
                 "text": "Add more validation" if question.validations else "Add validation",
-                "href": url_for("developers.deliver.add_question_validation", grant_id=grant.id, question_id=question.id),
+                "href": url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=question.id),
                 "classes": "govuk-button--secondary govuk-!-margin-bottom-3"
               })
             }}

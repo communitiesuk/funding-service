@@ -73,6 +73,11 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.choose_question_type",
     "deliver_grant_funding.add_question",
     "deliver_grant_funding.edit_question",
+    "deliver_grant_funding.add_question_condition_select_question",
+    "deliver_grant_funding.add_question_condition",
+    "deliver_grant_funding.edit_question_condition",
+    "deliver_grant_funding.add_question_validation",
+    "deliver_grant_funding.edit_question_validation",
 ]
 routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_users_for_grant",
