@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
-{% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
+{% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 
 {% set page_title = "Reports" %}
 {% set active_item_identifier = "reports" %}
@@ -47,7 +47,7 @@
 
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
         {% if flashes %}
-          {{ dependency_banner(flashes[0], grant.id, db_form.section.collection.id, db_form.section.id, db_form.id) }}
+          {{ dependency_banner(flashes[0]) }}
         {% endif %}
       {% endwith %}
 
@@ -70,8 +70,7 @@
         {% for question in db_form.questions %}
           {% set keyHtml %}
             {% if grant_admin %}
-              {# TODO: link it up #}
-              {{ question.text }}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=question.id) }}">{{ question.text }}</a>
             {% else %}
               {{ question.text }}
             {% endif %}
@@ -109,7 +108,7 @@
         }}
       {% endif %}
 
-      {# TODO: add a[nother] question #}
+      <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id) }}">{{ "Add another question" if db_form.questions else "Add a question" }}</a>
     </div>
     {% if grant_admin %}
       <div class="govuk-grid-column-full">

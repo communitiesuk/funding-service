@@ -498,7 +498,30 @@ def create_group(form: Form, *, text: str, name: Optional[str] = None, parent: O
 
 # todo: rename
 def get_question_by_id(question_id: UUID) -> Question:
-    return db.session.get_one(Question, question_id)
+    return db.session.get_one(
+        Question,
+        question_id,
+        options=[
+            joinedload(Question.form)
+            .joinedload(Form.section)
+            .joinedload(Section.collection)
+            .joinedload(Collection.grant),
+        ],
+    )
+
+
+def get_expression_by_id(expression_id: UUID) -> Expression:
+    return db.session.get_one(
+        Expression,
+        expression_id,
+        options=[
+            joinedload(Expression.question)
+            .joinedload(Question.form)
+            .joinedload(Form.section)
+            .joinedload(Section.collection)
+            .joinedload(Collection.grant)
+        ],
+    )
 
 
 def get_component_by_id(component_id: UUID) -> Component:
@@ -519,6 +542,7 @@ class DependencyOrderException(Exception, FlashableException):
     def as_flash_context(self) -> dict[str, str]:
         return {
             "message": self.message,
+            "grant_id": str(self.question.form.section.collection.grant_id),  # Required for URL routing
             "question_id": str(self.question.id),
             "question_text": self.question.text,
             "depends_on_question_id": str(self.depends_on_question.id),
@@ -762,6 +786,16 @@ def delete_form(form: Form) -> None:
     form.section.forms = [f for f in form.section.forms if f.id != form.id]  # type: ignore[assignment]
     form.section.forms.reorder()  # Force all other forms to update their `order` attribute
     db.session.execute(text("SET CONSTRAINTS uq_form_order_section DEFERRED"))
+    db.session.flush()
+
+
+def delete_question(question: Question) -> None:
+    raise_if_question_has_any_dependencies(question)
+    db.session.delete(question)
+    if question in question.form.questions:
+        question.form.components.remove(question)
+    question.form.components.reorder()
+    db.session.execute(text("SET CONSTRAINTS uq_component_order_form DEFERRED"))
     db.session.flush()
 
 

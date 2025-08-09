@@ -1,0 +1,14 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+<h2 class="govuk-heading-m">Condition</h2>
+{{
+  govukSummaryList({
+    "rows": [{
+      "key": { "text": "The question" },
+      "value": { "text": question.text },
+    }, {
+      "key": { "text": "Depends on the answer to" },
+      "value": { "text": "(Not selected)" if not depends_on_question else depends_on_question.text },
+    }],
+    "classes": "app-!-border-top-line govuk-!-margin-bottom-8"
+  })
+}}
