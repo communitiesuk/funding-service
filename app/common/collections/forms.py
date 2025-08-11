@@ -5,6 +5,7 @@ from typing import Any, Callable, Mapping, cast
 from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
+    GovCharacterCount,
     GovRadioInput,
     GovSubmitInput,
     GovTextArea,
@@ -21,7 +22,7 @@ from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
 from app.common.expressions import ExpressionContext, evaluate
 from app.common.forms.fields import MHCLGAccessibleAutocomplete, MHCLGCheckboxesInput, MHCLGRadioInput
-from app.common.forms.validators import FinalOptionExclusive, URLWithoutProtocol
+from app.common.forms.validators import FinalOptionExclusive, URLWithoutProtocol, WordRange
 
 _accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField | SelectMultipleField
 
@@ -140,8 +141,13 @@ def build_question_form(question: Question, expression_context: ExpressionContex
             field = StringField(
                 label=question.text,
                 description=question.hint or "",
-                widget=GovTextArea(),
-                validators=[DataRequired(f"Enter the {question.name}")],
+                widget=GovCharacterCount() if question.presentation_options.word_limit else GovTextArea(),
+                validators=[DataRequired(f"Enter the {question.name}")]
+                + (
+                    [WordRange(max_words=question.presentation_options.word_limit, field_display_name=question.name)]
+                    if question.presentation_options.word_limit
+                    else []
+                ),
             )
         case QuestionDataType.INTEGER:
             field = IntegerField(

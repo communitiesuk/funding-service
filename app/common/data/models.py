@@ -281,7 +281,7 @@ class Component(BaseModel):
     #       back populate the join condition
     form: Mapped[Form] = relationship("Form", back_populates="components")
 
-    presentation_options: Mapped[QuestionPresentationOptions | None] = mapped_column(
+    presentation_options: Mapped[QuestionPresentationOptions] = mapped_column(
         default=QuestionPresentationOptions, server_default="{}"
     )
 
@@ -357,17 +357,9 @@ class Question(Component, SafeQidMixin):
         """A small proxy to support SafeQidMixin so that logic can be centralised."""
         return self.id
 
+    # START: Helper properties for populating `QuestionForm` instances
     @property
     def data_source_items(self) -> str | None:
-        """Helper property that helps pre-fill the QuestionForm for editing a question instance
-
-        Responsible for taking all of the data source items and converting them to a newline-separated string, suitable
-        for populating a textarea with the list of radio choices.
-
-        This also needs to handle extraction of the last data source item, *if* the form designer has said that this
-        question should show a "Other"-style answer. When that setting is enabled, the last item in the
-        data source needs to render into a separate form field.
-        """
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
@@ -381,12 +373,6 @@ class Question(Component, SafeQidMixin):
 
     @property
     def separate_option_if_no_items_match(self) -> bool | None:
-        """Helper property that helps pre-fill the QuestionForm for editing a question instance
-
-        This setting records whether or not the radio question should render with an 'or' divider before the last
-        option. The last option would be something semantically unrelated to all of the other answers, for example,
-        "Other".
-        """
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
@@ -398,15 +384,6 @@ class Question(Component, SafeQidMixin):
 
     @property
     def none_of_the_above_item_text(self) -> str | None:
-        """Helper property that helps pre-fill the QuestionForm for editing a question instance
-
-        If the form designer has said that radios should render with an 'or' divider before the last item, then
-        we need to extract the last data source item. That item is semantically unrelated to all of the other options,
-        for example "Other".
-
-        We provide a default fallback value to populate the 'Add question' form which doesn't yet have a question
-        instance to pull from.
-        """
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
@@ -417,6 +394,36 @@ class Question(Component, SafeQidMixin):
             return self.data_source.items[-1].label
 
         return "Other"
+
+    @property
+    def rows(self) -> int | None:
+        return (
+            self.presentation_options.rows.value
+            if self.data_type == QuestionDataType.TEXT_MULTI_LINE and self.presentation_options.rows
+            else None
+        )
+
+    @property
+    def word_limit(self) -> int | None:
+        return self.presentation_options.word_limit if self.data_type == QuestionDataType.TEXT_MULTI_LINE else None
+
+    @property
+    def prefix(self) -> str | None:
+        return self.presentation_options.prefix if self.data_type == QuestionDataType.INTEGER else None
+
+    @property
+    def suffix(self) -> str | None:
+        return self.presentation_options.suffix if self.data_type == QuestionDataType.INTEGER else None
+
+    @property
+    def width(self) -> str | None:
+        return (
+            self.presentation_options.width.value
+            if self.data_type == QuestionDataType.INTEGER and self.presentation_options.width
+            else None
+        )
+
+    # END: Helper properties for populating `QuestionForm` instances
 
 
 class Group(Component):

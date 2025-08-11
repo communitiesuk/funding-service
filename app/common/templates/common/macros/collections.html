@@ -22,10 +22,24 @@
     {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
     {# So we just manually add the caption here. #}
     <span class="govuk-caption-l">{{ question.form.title }}</span>
-    {% if question.data_type == enum.question_type.TEXT_SINGLE_LINE or question.data_type == enum.question_type.TEXT_MULTI_LINE or question.data_type == enum.question_type.EMAIL or question.data_type == enum.question_type.URL %}
+    {% if question.data_type == enum.question_type.TEXT_MULTI_LINE %}
+      {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "maxwords": question.presentation_options.word_limit, "rows": question.presentation_options.rows }) }}
+    {% elif question.data_type == enum.question_type.TEXT_SINGLE_LINE or question.data_type == enum.question_type.EMAIL or question.data_type == enum.question_type.URL %}
       {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true} }) }}
     {% elif question.data_type == enum.question_type.INTEGER %}
-      {{ form.render_question(question, params={"label": {"classes": "govuk-label--l", "isPageHeading": true}, "inputmode": "numeric", "spellcheck": false }) }}
+      {{
+        form.render_question(
+          question,
+          params={
+            "label": {"classes": "govuk-label--l" ,"isPageHeading": true},
+            "inputmode": "numeric",
+            "spellcheck": false,
+            "classes": question.presentation_options.width or '',
+            "prefix": {"text": question.presentation_options.prefix or ''},
+            "suffix": {"text": question.presentation_options.suffix or ''}
+          }
+        )
+      }}
     {% elif question.data_type == enum.question_type.YES_NO %}
       {{ form.render_question(question, params={"fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l", "isPageHeading": true} }, "classes": "govuk-radios--inline" }) }}
     {% elif question.data_type == enum.question_type.CHECKBOXES %}

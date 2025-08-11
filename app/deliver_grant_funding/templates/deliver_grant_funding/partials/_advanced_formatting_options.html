@@ -1,0 +1,23 @@
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+
+{% macro advancedFormattingOptions(form, data_type, enum) %}
+  {% set advancedFormattingOptionsHtml %}
+    {% if data_type == enum.question_type.TEXT_MULTI_LINE %}
+      {{ form.rows(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+      {{ form.word_limit(params={"classes": "govuk-input--width-5", "label": {"classes": "govuk-!-font-weight-bold"} }) }}
+    {% elif data_type == enum.question_type.INTEGER %}
+      {{ form.prefix(params={"classes": "govuk-input--width-10", "label": {"classes": "govuk-!-font-weight-bold"} }) }}
+      {{ form.suffix(params={"classes": "govuk-input--width-10", "label": {"classes": "govuk-!-font-weight-bold"} }) }}
+      {{ form.width(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+    {% endif %}
+  {% endset %}
+
+  {% if advancedFormattingOptionsHtml.strip() %}
+    {{
+      govukDetails({
+      	"summaryText": "Advanced formatting options",
+      	"html": advancedFormattingOptionsHtml,
+      })
+    }}
+  {% endif %}
+{% endmacro %}

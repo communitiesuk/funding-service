@@ -660,7 +660,7 @@ def update_question(
     question.hint = hint
     question.name = name
     question.slug = slugify(text)
-    question.presentation_options = presentation_options
+    question.presentation_options = presentation_options or QuestionPresentationOptions()
 
     if items is not None:
         _update_data_source(question, items)
