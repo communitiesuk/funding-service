@@ -20,7 +20,7 @@
       <h1 class="govuk-heading-l">Change the name for this monitoring report</h1>
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.name(params={"label": {"text": "Report name"} }) }}
+        {{ form.name(params={"label": {"text": "Report name", "classes": "govuk-visually-hidden"} }) }}
 
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Update report name"}) }}
