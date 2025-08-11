@@ -26,10 +26,10 @@ from app.common.data.interfaces.collections import (
     get_referenced_data_source_items_by_managed_expression,
     get_section_by_id,
     get_submission,
+    move_component_down,
+    move_component_up,
     move_form_down,
     move_form_up,
-    move_question_down,
-    move_question_up,
     move_section_down,
     move_section_up,
     raise_if_data_source_item_reference_dependency,
@@ -773,13 +773,13 @@ def test_move_question_up_down(db_session, factories):
     assert q2.order == 1
     assert q3.order == 2
 
-    move_question_up(q2)
+    move_component_up(q2)
 
     assert q1.order == 1
     assert q2.order == 0
     assert q3.order == 2
 
-    move_question_down(q1)
+    move_component_down(q1)
 
     assert q1.order == 2
     assert q2.order == 0
@@ -797,24 +797,24 @@ def test_move_question_with_dependencies(db_session, factories):
 
     # q3 can't move above its dependency q2
     with pytest.raises(DependencyOrderException) as e:
-        move_question_up(q3)
+        move_component_up(q3)
     assert e.value.question == q3  # ty: ignore[unresolved-attribute]
     assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
 
     # q2 can't move below q3 which depends on it
     with pytest.raises(DependencyOrderException) as e:
-        move_question_down(q2)
+        move_component_down(q2)
     assert e.value.question == q3  # ty: ignore[unresolved-attribute]
     assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
 
     # q1 can freely move up and down as it has no dependencies
-    move_question_down(q1)
-    move_question_down(q1)
-    move_question_up(q1)
-    move_question_up(q1)
+    move_component_down(q1)
+    move_component_down(q1)
+    move_component_up(q1)
+    move_component_up(q1)
 
     # q2 can move up as q3 can still depend on it
-    move_question_up(q2)
+    move_component_up(q2)
 
 
 def test_raise_if_question_has_any_dependencies(db_session, factories):

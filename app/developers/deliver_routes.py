@@ -22,10 +22,10 @@ from app.common.data.interfaces.collections import (
     get_form_by_id,
     get_question_by_id,
     get_section_by_id,
+    move_component_down,
+    move_component_up,
     move_form_down,
     move_form_up,
-    move_question_down,
-    move_question_up,
     move_section_down,
     move_section_up,
     raise_if_question_has_any_dependencies,
@@ -546,9 +546,9 @@ def move_question(
 
     try:
         if direction == "up":
-            move_question_up(question)
+            move_component_up(question)
         elif direction == "down":
-            move_question_down(question)
+            move_component_down(question)
     except DependencyOrderException as e:
         flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
 

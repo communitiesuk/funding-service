@@ -497,17 +497,20 @@ class FlashableException(Protocol):
 
 
 class DependencyOrderException(Exception, FlashableException):
-    def __init__(self, message: str, question: Question, depends_on_question: Question):
+    def __init__(self, message: str, component: Component, depends_on_component: Component):
         super().__init__(message)
         self.message = message
-        self.question = question
-        self.depends_on_question = depends_on_question
+        self.question = component
+        self.depends_on_question = depends_on_component
 
     def as_flash_context(self) -> dict[str, str]:
         return {
             "message": self.message,
             "question_id": str(self.question.id),
             "question_text": self.question.text,
+            # currently you can't depend on the outcome to a generic component (like a group)
+            # so question continues to make sense here - we should review that naming if that
+            # functionality changes
             "depends_on_question_id": str(self.depends_on_question.id),
             "depends_on_question_text": self.depends_on_question.text,
         }
@@ -549,17 +552,17 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
 
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
-def check_question_order_dependency(question: Question, swap_question: Question) -> None:
-    for condition in question.conditions:
-        if condition.managed and condition.managed.question_id == swap_question.id:
+def check_component_order_dependency(component: Component, swap_component: Component) -> None:
+    for condition in component.conditions:
+        if condition.managed and condition.managed.question_id == swap_component.id:
             raise DependencyOrderException(
-                "You cannot move questions above answers they depend on", question, swap_question
+                "You cannot move questions above answers they depend on", component, swap_component
             )
 
-    for condition in swap_question.conditions:
-        if condition.managed and condition.managed.question_id == question.id:
+    for condition in swap_component.conditions:
+        if condition.managed and condition.managed.question_id == component.id:
             raise DependencyOrderException(
-                "You cannot move answers below questions that depend on them", swap_question, question
+                "You cannot move answers below questions that depend on them", swap_component, component
             )
 
 
@@ -598,19 +601,18 @@ def raise_if_data_source_item_reference_dependency(
     return None
 
 
-def move_question_up(question: Question) -> Question:
-    swap_question = question.form.questions[question.order - 1]
-    check_question_order_dependency(question, swap_question)
-    swap_elements_in_list_and_flush(question.container.components, question.order, swap_question.order)
-    return question
+def move_component_up(component: Component) -> Component:
+    swap_component = component.container.components[component.order - 1]
+    check_component_order_dependency(component, swap_component)
+    swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
+    return component
 
 
-# todo: rename to move components
-def move_question_down(question: Question) -> Question:
-    swap_question = question.form.questions[question.order + 1]
-    check_question_order_dependency(question, swap_question)
-    swap_elements_in_list_and_flush(question.container.components, question.order, swap_question.order)
-    return question
+def move_component_down(component: Component) -> Component:
+    swap_component = component.container.components[component.order + 1]
+    check_component_order_dependency(component, swap_component)
+    swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
+    return component
 
 
 def update_question(
