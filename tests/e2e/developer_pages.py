@@ -498,7 +498,7 @@ class AddQuestionDetailsPage(GrantDevelopersBasePage):
         self.page.get_by_role("textbox", name="What is the question?").fill(question_text)
 
     def fill_question_name(self, question_name: str) -> None:
-        self.page.get_by_role("textbox", name="Question reference").fill(question_name)
+        self.page.get_by_role("textbox", name="Question name").fill(question_name)
 
     def fill_question_hint(self, question_hint: str) -> None:
         self.page.get_by_role("textbox", name="Question hint").fill(question_hint)

@@ -245,10 +245,10 @@ class QuestionForm(FlaskForm):
         render_kw={"params": {"rows": 2}},
     )
     name = StringField(
-        "Question reference",
-        validators=[DataRequired("Enter the question reference")],
+        "Question name",
+        validators=[DataRequired("Enter the question name")],
         description=(
-            "A short name for the answer in lower case, for example “risk category” or “contact email address”"
+            "A short name for this question that will be used for reference in monitoring reports (use lower-case text)"
         ),
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),

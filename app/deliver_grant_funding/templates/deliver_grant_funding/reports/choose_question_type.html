@@ -22,7 +22,11 @@
         {{ form.form_id }}
 
         {{ form.question_data_type(params={"fieldset": {"legend": {"text": form.question_data_type.label, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} } }) }}
-        {{ form.submit(params={"text": "Continue"}) }}
+
+        <span class="govuk-button-group">
+          {{ form.submit(params={"text": "Continue"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) }}">Cancel</a>
+        </span>
       </form>
     </div>
   </div>

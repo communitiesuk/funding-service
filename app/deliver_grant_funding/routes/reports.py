@@ -405,7 +405,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
 
     return render_template(
-        "developers/deliver/add_question.html",
+        "deliver_grant_funding/reports/add_question.html",
         grant=form.section.collection.grant,
         collection=form.section.collection,
         section=form.section,

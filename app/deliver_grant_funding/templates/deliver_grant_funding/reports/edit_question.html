@@ -2,7 +2,6 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
@@ -66,25 +65,21 @@
       {% endif %}
 
       <h1 class="govuk-heading-l">Edit question</h1>
-      {{
-        govukSummaryList({
-          "rows": [{
-            "key": {"text": "Question type"},
-            "value":{"text": question.data_type.value},
-            "classes": "govuk-summary-list__row--no-border"
-          }]
-        })
-      }}
+
+      <div class="govuk-body govuk-form-group">
+        <p id="question-type-label" class="govuk-!-font-weight-bold govuk-!-margin-bottom-1">Question type</p>
+        <p class="govuk-body" aria-labelledby="question-type-label">{{ question.data_type.value }}</p>
+      </div>
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.form_id }}
-        {{ form.question_data_type }}
-        {{ form.text }}
-        {{ form.name }}
-        {{ form.hint }}
+        {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+        {{ form.name(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+        {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
 
         {% if question.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
-          {{ form.data_source_items }}
+          {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
 
 
           {% set conditionalHtml %}
