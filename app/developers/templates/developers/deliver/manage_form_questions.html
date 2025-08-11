@@ -1,9 +1,10 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
-{% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
 {% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+
+{# todo: ideally this just passes in what it needs but this gets us going for now #}
+{% from "developers/deliver/macros/component_table.html" import component_table %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = collection.name ~ " - " ~ grant.name %}
@@ -53,42 +54,9 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {% set table_rows = [] %}
-      {% for question in db_form.questions %}
-        {% set question_link %}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id) }}">
-            {{ question.text }}
-          </a>
-          {% if question.conditions %}
-            {{
-              govukTag({
-                "text": "Conditional",
-                "classes": "govuk-tag--grey govuk-!-margin-left-1 govuk-!-margin-top-1",
-              })
-            }}
-          {% endif %}
-        {% endset %}
-        {%
-          do table_rows.append({
-            "html": question_link,
-            "actions":[{
-                "text":"Move up",
-                "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'up'),"disabled":(loop.index <= 1),
-                "post": True
-              }, {
-                "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=db_form.id, question_id=question.id, direction = 'down'),
-                "post": True,
-                "text": "Move down","disabled":(loop.index >= db_form.questions | length)
-              }
-            ]
-          })
-        %}
-      {% endfor %}
-
-      {% if db_form.questions %}
+      {% if db_form.components %}
         <p class="govuk-body">This task has {% trans count=db_form.questions | length %}{{ count }} question{% pluralize %}{{ count }} questions{% endtrans %}.</p>
-        {# fixme: the styling for the border top and tag spacing look broken on tablet and mobile #}
-        {{ moveUpDownTable(table_rows) }}
+        {{ component_table(db_form) }}
       {% else %}
         <p class="govuk-body">This task has no questions.</p>
       {% endif %}
@@ -96,13 +64,24 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {{
-        govukButton({
-            "text": "Add question",
-            "classes": "govuk-button--secondary" if db_form.questions else '',
-            "href": url_for("developers.deliver.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id),
-        })
-      }}
+      <div class="govuk-button-group">
+        {{
+          govukButton({
+              "text": "Add question",
+              "classes": "govuk-button--secondary" if db_form.questions else '',
+              "href": url_for("developers.deliver.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id),
+          })
+        }}
+
+        {# for now this is only shown on the manage form page #}
+        {{
+          govukButton({
+            "text": "Add group",
+            "classes": "govuk-button--secondary",
+            "href": url_for("developers.deliver.add_group", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id)
+          })
+        }}
+      </div>
     </div>
   </div>
   <div class="govuk-grid-row govuk-!-margin-top-5">

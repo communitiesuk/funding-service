@@ -1,0 +1,68 @@
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+{% from "common/macros/move-up-down-table.html" import moveUpDownTable %}
+
+{# todo: the historic logic is weirdly split out between the template and a macro, move all #}
+{#       of the presentation decisions into the macro (including links etc.) #}
+{% macro component_table(parent) %}
+  {% set table_sections = [] %}
+
+  {# we put any components that aren't already grouped together into top level sections to let us use a uniform #}
+  {# component and not have conditional logic that opens tags and we can't guarantee will close them later #}
+  {% for component in parent.components %}
+    {% if component.is_group %}
+      {% do table_sections.append(component) %}
+    {% else %}
+      {# if the last entry was already a group or doesn't exist, we should start a new one #}
+      {% if not table_sections or (table_sections | last).is_group %}
+        {% do table_sections.append([ component ]) %}
+      {% else %}
+        {% do (table_sections | last).append(component) %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% for section in table_sections %}
+    {# we treat flat components and grouped up components differently so we keep track of that #}
+    {% set components = section.components if section.is_group else section %}
+    {% set table_rows = [] %}
+    {% for component in components %}
+      {% set form = component.form %}
+      {% set section = form.section %}
+      {% set collection = section.collection %}
+      {% set grant = collection.grant %}
+
+
+      {% set question_link %}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id) }}">
+          {{ component.text }}
+        </a>
+        {% if component.conditions %}
+          {{
+            govukTag({
+            "text": "Conditional",
+            "classes": "govuk-tag--grey govuk-!-margin-left-1 govuk-!-margin-top-1",
+            })
+          }}
+        {% endif %}
+      {% endset %}
+      {%
+        do table_rows.append({
+          "html": question_link,
+          "actions":[{
+              "text":"Move up",
+              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'up'),"disabled": component == component.container.components | first,
+              "post": True
+              }, {
+              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'down'),
+              "post": True,
+              "text": "Move down","disabled": component == component.container.components | last
+              }
+          ]
+        })
+      %}
+    {% endfor %}
+
+    {# fixme: the styling for the border top and tag spacing look broken on tablet and mobile #}
+    {{ moveUpDownTable(table_rows, section) }}
+  {% endfor %}
+{% endmacro %}

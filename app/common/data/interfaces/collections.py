@@ -26,7 +26,6 @@ from app.common.data.models import (
 from app.common.data.models_user import User
 from app.common.data.types import (
     CollectionType,
-    ComponentType,
     ExpressionType,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -83,7 +82,8 @@ def get_collection(
                 joinedload(Collection.sections)
                 .joinedload(Section.forms)
                 .selectinload(Form._all_components)
-                .selectinload(Component.components.and_(Component.type == ComponentType.GROUP)),
+                # .selectinload(Component.components.and_(Component.type == ComponentType.GROUP)),
+                .selectinload(Component.components),
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
                 joinedload(Collection.sections).joinedload(Section.forms).selectinload(Form.components),
@@ -433,7 +433,7 @@ def create_question(
     hint: str,
     name: str,
     data_type: QuestionDataType,
-    parent: Optional[Group] = None,
+    parent: Optional[Component] = None,
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:
@@ -488,8 +488,13 @@ def create_group(form: Form, *, text: str, name: Optional[str] = None, parent: O
     return group
 
 
+# todo: rename
 def get_question_by_id(question_id: UUID) -> Question:
     return db.session.get_one(Question, question_id)
+
+
+def get_component_by_id(component_id: UUID) -> Component:
+    return db.session.get_one(Component, component_id)
 
 
 class FlashableException(Protocol):

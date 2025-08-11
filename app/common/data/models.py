@@ -326,6 +326,10 @@ class Component(BaseModel):
     def container(self) -> Union["Group", "Form"]:
         return self.parent or self.form
 
+    @property
+    def is_group(self) -> bool:
+        return isinstance(self, Group)
+
     __table_args__ = (
         UniqueConstraint("order", "parent_id", "form_id", name="uq_component_order_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_component_slug_form"),
