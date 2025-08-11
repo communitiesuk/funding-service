@@ -14,17 +14,19 @@ from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.temporary import delete_grant
 from app.common.data.models import (
     Collection,
+    Component,
     DataSource,
     DataSourceItem,
     DataSourceItemReference,
     Expression,
     Form,
     Grant,
+    Group,
     Question,
     Section,
 )
 from app.common.data.models_user import User
-from app.common.data.types import QuestionPresentationOptions
+from app.common.data.types import ComponentType, QuestionPresentationOptions
 from app.developers import developers_blueprint
 from app.extensions import db
 
@@ -46,6 +48,9 @@ GrantExport = TypedDict(
         "collections": list[Any],
         "sections": list[Any],
         "forms": list[Any],
+        # intentionally leaving this as questions for now to avoid
+        # transitioning to a new schema, we can change this to components for
+        # clarity when everything is settled if we need to
         "questions": list[Any],
         "expressions": list[Any],
         "data_sources": list[Any],
@@ -112,23 +117,10 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
                 grant_export["sections"].append(to_dict(section))
 
                 for form in section.forms:
-                    grant_export["forms"].append(to_dict(form))
+                    grant_export["forms"].append(to_dict(form))                    
 
-                    for question in form.questions:
-                        grant_export["questions"].append(to_dict(question))
-
-                        for expression in question.expressions:
-                            grant_export["expressions"].append(to_dict(expression))
-                            users.add(expression.created_by)
-
-                        if question.data_source:
-                            grant_export["data_sources"].append(to_dict(question.data_source))
-
-                            for data_source_item in question.data_source.items:
-                                grant_export["data_source_items"].append(to_dict(data_source_item))
-
-                                for reference in data_source_item.references:
-                                    grant_export["data_source_item_references"].append(to_dict(reference))
+                    for component in form.components:
+                        add_all_components_flat(component, users, grant_export)
 
         for user in users:
             if user.id in [u["id"] for u in export_data["users"]]:
@@ -187,13 +179,19 @@ def seed_grants() -> None:  # noqa: C901
             form = Form(**form)
             db.session.add(form)
 
-        for question in grant_data["questions"]:
-            question["id"] = uuid.UUID(question["id"])
-            if "presentation_options" in question:
-                question["presentation_options"] = QuestionPresentationOptions(**question["presentation_options"])
+        for component in grant_data["questions"]:
+            component["id"] = uuid.UUID(component["id"])
+            if "presentation_options" in component:
+                component["presentation_options"] = QuestionPresentationOptions(**component["presentation_options"])
 
-            question = Question(**question)
-            db.session.add(question)
+            match component["type"]:
+                case ComponentType.QUESTION:
+                    component = Question(**component)
+                case ComponentType.GROUP:
+                    component = Group(**component)
+                case _:
+                    raise Exception(f"Seed command does not know the type {component.type}")
+            db.session.add(component)
 
         for expression in grant_data["expressions"]:
             expression["id"] = uuid.UUID(expression["id"])
@@ -257,3 +255,25 @@ def seed_grants_many_submissions() -> None:
         name="Test Collection with 100 submissions",
         create_completed_submissions_conditional_question_random__test=100,
     )
+
+def add_all_components_flat(
+    component: Component, users: set[User], grant_export: GrantExport
+) -> None:
+    grant_export["questions"].append(to_dict(component))
+
+    for expression in component.expressions:
+        grant_export["expressions"].append(to_dict(expression))
+        users.add(expression.created_by)
+
+    if component.data_source:
+        grant_export["data_sources"].append(to_dict(component.data_source))
+
+        for data_source_item in component.data_source.items:
+            grant_export["data_source_items"].append(to_dict(data_source_item))
+
+            for reference in data_source_item.references:
+                grant_export["data_source_item_references"].append(to_dict(reference))
+
+    if component.is_group:
+        for sub_component in component.components:
+            add_all_components_flat(sub_component, users, grant_export)
