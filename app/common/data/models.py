@@ -323,7 +323,7 @@ class Component(BaseModel):
             raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
 
     @property
-    def contained_by(self) -> Union["Group", "Form"]:
+    def container(self) -> Union["Group", "Form"]:
         return self.parent or self.form
 
     __table_args__ = (

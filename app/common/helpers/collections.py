@@ -236,21 +236,20 @@ class SubmissionHelper:
         """Returns the visible, ordered forms for a given section based upon the current state of this collection."""
         return sorted(section.forms, key=lambda f: f.order)
 
-    # todo: rename is component visible
-    def is_question_visible(self, question: "Question", context: "ExpressionContext") -> bool:
+    def is_component_visible(self, component: "Component", context: "ExpressionContext") -> bool:
         # we can optimise this to exit early and do this in a sensible order if we switch
         # to going through questions in a nested way rather than flat
-        def get_all_conditions(question: "Component") -> list["Expression"]:
+        def get_all_conditions(component: "Component") -> list["Expression"]:
             conditions = []
 
             # start outside and move in from top level conditions to innermost
-            if question.parent:
-                conditions.extend(get_all_conditions(question.parent))
-            conditions.extend(question.conditions)
+            if component.parent:
+                conditions.extend(get_all_conditions(component.parent))
+            conditions.extend(component.conditions)
             return conditions
 
         try:
-            return all(evaluate(condition, context) for condition in get_all_conditions(question))
+            return all(evaluate(condition, context) for condition in get_all_conditions(component))
         except UndefinedVariableInExpression:
             # todo: fail open for now - this method should accept an optional bool that allows this condition to fail
             #       or not- checking visibility on the question page itself should never fail - the summary page could
@@ -262,7 +261,7 @@ class SubmissionHelper:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
         # todo: this probably no longer works without an additional property to factor in depth for global order
         # calculating that on the fly might get expensive
-        return [question for question in form.questions if self.is_question_visible(question, self.expression_context)]
+        return [question for question in form.questions if self.is_component_visible(question, self.expression_context)]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
         questions = self.get_ordered_visible_questions_for_form(form)

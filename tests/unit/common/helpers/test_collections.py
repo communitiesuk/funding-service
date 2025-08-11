@@ -363,20 +363,43 @@ class TestSubmissionHelper:
             question = factories.question.build()
             helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
 
-            assert helper.is_question_visible(question, helper.expression_context) is True
+            assert helper.is_component_visible(question, helper.expression_context) is True
 
-        def test_is_question_visible_not_visible_with_failing_condition(self, factories):
+        def test_is_component_visible_not_visible_with_failing_condition(self, factories):
             question = factories.question.build()
             helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
 
             factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="False")
 
-            assert helper.is_question_visible(question, helper.expression_context) is False
+            assert helper.is_component_visible(question, helper.expression_context) is False
 
-        def test_is_question_visible_visible_with_passing_condition(self, factories):
+        def test_is_component_visible_visible_with_passing_condition(self, factories):
             question = factories.question.build()
             helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
 
             factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="True")
 
-            assert helper.is_question_visible(question, helper.expression_context) is True
+            assert helper.is_component_visible(question, helper.expression_context) is True
+
+        def test_is_component_visible_not_visible_with_nested_conditions(self, factories):
+            group = factories.group.build()
+            sub_group = factories.group.build(parent=group)
+            question = factories.question.build(form=group.form)
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+
+            expression = factories.expression.build(question=group, type=ExpressionType.CONDITION, statement="False")
+
+            assert helper.is_component_visible(question, helper.expression_context) is True
+            assert helper.is_component_visible(group, helper.expression_context) is False
+
+            # when nested sub-components inherit the property of their parents
+            question.parent = group
+            assert helper.is_component_visible(question, helper.expression_context) is False
+
+            # when further nested this still applies
+            question.parent = sub_group
+            assert helper.is_component_visible(question, helper.expression_context) is False
+
+            # if the parents condition changes this is reflected
+            expression.statement = "True"
+            assert helper.is_component_visible(question, helper.expression_context) is True
