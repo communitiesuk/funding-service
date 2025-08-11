@@ -1,6 +1,6 @@
 import dataclasses
 import uuid
-from typing import NotRequired, TypedDict
+from typing import NotRequired, Optional, TypedDict
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -28,6 +28,7 @@ TQuestionToTest = TypedDict(
         "answers": list[_QuestionResponse],
         "choices": NotRequired[list[str]],
         "options": NotRequired[QuestionPresentationOptions],
+        "is_in_group": NotRequired[bool],
     },
 )
 
@@ -101,14 +102,25 @@ questions_to_test: dict[str, TQuestionToTest] = {
         ],
         "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
     },
+    "question-in-group": dict(
+        type=QuestionDataType.TEXT_SINGLE_LINE,
+        text="Enter a single line of text within a group",
+        answers=[_QuestionResponse("E2E nested question")],
+        is_in_group=True,
+    ),
 }
 
 
+def create_group(group_name: str, manage_form_page: ManageFormPage) -> None:
+    add_group_page = manage_form_page.click_add_group()
+    add_group_page.fill_group_name(group_name)
+    add_group_page.click_submit()
+
+
 def create_question(
-    question_definition: TQuestionToTest,
-    manage_form_page: ManageFormPage,
+    question_definition: TQuestionToTest, manage_form_page: ManageFormPage, parent_name: Optional[str] = None
 ) -> None:
-    question_type_page = manage_form_page.click_add_question()
+    question_type_page = manage_form_page.click_add_question(parent_name=parent_name if parent_name else None)
     question_type_page.click_question_type(question_definition["type"])
     question_details_page = question_type_page.click_continue()
 
@@ -195,12 +207,17 @@ def test_create_and_preview_collection(
         collection_detail_page = form_details_page.click_add_task()
         collection_detail_page.check_task_exists(DEFAULT_SECTION_NAME, form_name)
 
-        # Add a question of each type
         manage_form_page = collection_detail_page.click_manage_form(
             section_title=DEFAULT_SECTION_NAME, form_name=form_name
         )
+
+        # Add a question of each type
         for question_to_test in questions_to_test.values():
-            create_question(question_to_test, manage_form_page)
+            group_name = f"E2E Group - {uuid.uuid4()}" if question_to_test.get("is_in_group") else None
+            if question_to_test.get("is_in_group"):
+                create_group(group_name, manage_form_page)
+
+            create_question(question_to_test, manage_form_page, parent_name=group_name)
 
         # TODO: move this into `question_to_test` definition as well
         add_validation(

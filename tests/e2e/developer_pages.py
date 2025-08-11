@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 from playwright.sync_api import Locator, Page, expect
 
@@ -296,6 +296,7 @@ class ManageFormPage(GrantDevelopersBasePage):
     collection_name: str
     form_name: str
     add_question_button: Locator
+    add_group_button: Locator
 
     def __init__(
         self, page: Page, domain: str, grant_name: str, collection_name: str, section_title: str, form_name: str
@@ -310,9 +311,14 @@ class ManageFormPage(GrantDevelopersBasePage):
         self.collection_name = collection_name
         self.form_name = form_name
         self.add_question_button = self.page.get_by_role("button", name="Add question")
+        self.add_group_button = self.page.get_by_role("button", name="Add group")
 
-    def click_add_question(self) -> SelectQuestionTypePage:
-        self.add_question_button.click()
+    def click_add_question(self, parent_name: Optional[str]) -> SelectQuestionTypePage:
+        if parent_name:
+            self.page.get_by_test_id(f"add-question-{parent_name}").click()
+        else:
+            self.add_question_button.click()
+
         select_question_type_page = SelectQuestionTypePage(
             self.page,
             self.domain,
@@ -323,6 +329,19 @@ class ManageFormPage(GrantDevelopersBasePage):
         )
         expect(select_question_type_page.heading).to_be_visible()
         return select_question_type_page
+
+    def click_add_group(self) -> AddGroupPage:
+        self.add_group_button.click()
+        add_group_page = AddGroupPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
+        expect(add_group_page.heading).to_be_visible()
+        return add_group_page
 
     def check_question_exists(self, question_name: str) -> None:
         expect(self.page.get_by_role("term").filter(has_text=question_name)).to_be_visible()
@@ -536,6 +555,40 @@ class AddQuestionDetailsPage(GrantDevelopersBasePage):
             form_name=self.form_name,
         )
         expect(manage_form_page.heading).to_be_visible()
+        return manage_form_page
+
+
+class AddGroupPage(GrantDevelopersBasePage):
+    section_title: str
+    collection_name: str
+    form_name: str
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, collection_name: str, section_title: str, form_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Add Group"),
+        )
+        self.section_title = section_title
+        self.collection_name = collection_name
+        self.form_name = form_name
+
+    def fill_group_name(self, group_name: str) -> None:
+        self.page.get_by_role("textbox", name="Group name").fill(group_name)
+
+    def click_submit(self) -> "ManageFormPage":
+        self.page.get_by_role("button", name="Add group").click()
+        manage_form_page = ManageFormPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            collection_name=self.collection_name,
+            section_title=self.section_title,
+            form_name=self.form_name,
+        )
         return manage_form_page
 
 
