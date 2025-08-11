@@ -72,7 +72,7 @@ jobs:
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
       SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
       SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
-  
+
   deploy_prod:
     name: Deploy to prod
     # TODO: Strip this condition when we have dev/test/prod envs; for now, if we trigger the pipeline manually then
