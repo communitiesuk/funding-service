@@ -100,9 +100,9 @@ def delete_question(question: Question) -> None:
     # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
     # definitely has a few quirks.
     db.session.delete(question)
-    if question in question.form.questions:
-        question.form.components.remove(question)
-    question.form.components.reorder()
+    if question in question.container.components:
+        question.container.components.remove(question)
+    question.container.components.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_component_order_form DEFERRED")
     )

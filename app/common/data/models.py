@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy import Enum as SqlEnum
@@ -222,20 +222,42 @@ class Form(BaseModel):
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
     )
 
-    components: Mapped[OrderingList["Component"]] = relationship(
+    # support fetching all of a forms components so that the selectin loading strategy can make one
+    # round trip to the database to optimise this further only load components flat like this and
+    # manage nesting through properties rather than subsequent declarative queries
+    _all_components: Mapped[OrderingList["Component"]] = relationship(
         "Component",
-        lazy=True,
+        viewonly=True,
         order_by="Component.order",
         collection_class=ordering_list("order"),
-        # Importantly we don't `delete-orphan` here; when we move questions up/down, we remove them from the collection,
-        # which would trigger the delete-orphan rule
+        cascade="all, save-update, merge",
+    )
+
+    components: Mapped[OrderingList["Component"]] = relationship(
+        "Component",
+        order_by="Component.order",
+        collection_class=ordering_list("order"),
+        primaryjoin="and_(Component.form_id==Form.id, Component.parent_id.is_(None))",
         cascade="all, save-update, merge",
     )
 
     @property
     def questions(self) -> list["Question"]:
         """Consistently returns all questions in the form, respecting order and any level of nesting."""
-        return [component for component in self.components if isinstance(component, Question)]
+        return get_ordered_nested_questions_for_components(self.components)
+
+
+# todo: unit test reasonably extensively
+def get_ordered_nested_questions_for_components(components: list["Component"]) -> list["Question"]:
+    """Recursively collects all questions from a list of components, including nested components."""
+    questions = []
+    ordered_components = sorted(components, key=lambda c: c.order)
+    for component in ordered_components:
+        if isinstance(component, Question):
+            questions.append(component)
+        elif isinstance(component, Group):
+            questions.extend(get_ordered_nested_questions_for_components(component.components))
+    return questions
 
 
 class Component(BaseModel):
@@ -255,6 +277,8 @@ class Component(BaseModel):
     name: Mapped[str]
 
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
+    # todo: reason about if this should actually back populate _all_components as they might not
+    #       back populate the join condition
     form: Mapped[Form] = relationship("Form", back_populates="components")
 
     presentation_options: Mapped[QuestionPresentationOptions | None] = mapped_column(
@@ -276,7 +300,7 @@ class Component(BaseModel):
     parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("component.id"))
     parent: Mapped["Group"] = relationship("Component", remote_side="Component.id", back_populates="components")
 
-    components: Mapped[list["Component"]] = relationship(
+    components: Mapped[OrderingList["Component"]] = relationship(
         "Component",
         back_populates="parent",
         cascade="all, save-update, merge",
@@ -297,6 +321,10 @@ class Component(BaseModel):
             return next(expression for expression in self.expressions if expression.id == id)
         except StopIteration as e:
             raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
+
+    @property
+    def container(self) -> Union["Group", "Form"]:
+        return self.parent or self.form
 
     __table_args__ = (
         UniqueConstraint("order", "parent_id", "form_id", name="uq_component_order_form", deferrable=True),
@@ -393,6 +421,10 @@ class Group(Component):
     if TYPE_CHECKING:
         # reflect that groups will never have a data type but don't hook in a competing migration
         data_type: None
+
+    @property
+    def questions(self) -> list["Question"]:
+        return get_ordered_nested_questions_for_components(self.components)
 
 
 class SubmissionEvent(BaseModel):

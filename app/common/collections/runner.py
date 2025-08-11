@@ -172,7 +172,7 @@ class FormRunner:
 
         context = self.submission.expression_context
 
-        if not self.submission.is_question_visible(self.question, context):
+        if not self.submission.is_component_visible(self.question, context):
             self._valid = False
         elif self.submission.is_completed:
             self._valid = False

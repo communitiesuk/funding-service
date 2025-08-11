@@ -34,6 +34,7 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
+    Group,
     Organisation,
     Question,
     Section,
@@ -565,6 +566,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     text = factory.Sequence(lambda n: "Question %d" % n)
     name = factory.Sequence(lambda n: "Question name %d" % n)
     slug = factory.Sequence(lambda n: "question-%d" % n)
+    # todo: assumes flat question factories not nested in groups
     order = factory.LazyAttribute(lambda o: len(o.form.components))
     data_type = QuestionDataType.TEXT_SINGLE_LINE
 
@@ -581,6 +583,57 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     )
 
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
+
+    @factory.post_generation  # type: ignore[misc]
+    def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
+        if not extracted:
+            return
+        for expression in extracted:
+            expression.question_id = self.id
+
+            if (
+                isinstance(expression.managed, BaseDataSourceManagedExpression)
+                and expression.managed.referenced_question.data_source
+            ):
+                # Longwindedly doing this via ORM to avoid additional DB queries when we switch the data export
+                # performance tests back on
+                all_referenced_question_data_source_items = expression.managed.referenced_question.data_source.items
+                expression_referenced_data_source_items = expression.managed.referenced_data_source_items
+                referenced_items = [
+                    item
+                    for item in all_referenced_question_data_source_items
+                    if any(
+                        item.key == expression_ref_item["key"]
+                        for expression_ref_item in expression_referenced_data_source_items
+                    )
+                ]
+                expression.data_source_item_references = [
+                    DataSourceItemReference(expression_id=expression.id, data_source_item_id=item.id)
+                    for item in referenced_items
+                ]
+
+            db.session.add(expression)
+            self.expressions.append(expression)
+
+        if create:
+            db.session.commit()
+
+
+class _GroupFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = Group
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+    text = factory.Sequence(lambda n: "Group %d" % n)
+    name = factory.Sequence(lambda n: "Group name %d" % n)
+    slug = factory.Sequence(lambda n: "group-%d" % n)
+    # todo: assumes flat question factories not nested in groups
+    order = factory.LazyAttribute(lambda o: len(o.form.components))
+
+    form = factory.SubFactory(_FormFactory)
+    form_id = factory.LazyAttribute(lambda o: o.form.id)
 
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:

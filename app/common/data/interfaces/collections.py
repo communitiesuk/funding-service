@@ -26,6 +26,7 @@ from app.common.data.models import (
 from app.common.data.models_user import User
 from app.common.data.types import (
     CollectionType,
+    ComponentType,
     ExpressionType,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -73,7 +74,21 @@ def get_collection(
     """
     options = []
     if with_full_schema:
-        options.append(joinedload(Collection.sections).selectinload(Section.forms).selectinload(Form.components))
+        options.extend(
+            [
+                # get all flat components to drive single batches of selectin
+                # joinedload lets us avoid an exponentially increasing number of queries
+                joinedload(Collection.sections).joinedload(Section.forms).selectinload(Form._all_components),
+                # get any nested components in one go
+                joinedload(Collection.sections)
+                .joinedload(Section.forms)
+                .selectinload(Form._all_components)
+                .selectinload(Component.components.and_(Component.type == ComponentType.GROUP)),
+                # eagerly populate the forms top level components - this is a redundant query but
+                # leaves as much as possible with the ORM
+                joinedload(Collection.sections).joinedload(Section.forms).selectinload(Form.components),
+            ]
+        )
 
     filters = [Collection.id == collection_id]
     if grant_id:
@@ -109,6 +124,7 @@ def update_submission_data(submission: Submission, question: Question, data: All
     return submission
 
 
+# todo: nested components
 def get_all_submissions_with_mode_for_collection_with_full_schema(
     collection_id: UUID, submission_mode: SubmissionModeEnum
 ) -> ScalarResult[Submission]:
@@ -118,16 +134,35 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
     performance and reduce the number of queries compared to looping
     through them all individually.
     """
+
+    # todo: this feels redundant because this interface should probably be limited to a single collection and fetch
+    #       that through a specific interface which already exists - this can then focus on submissions
     return db.session.scalars(
         select(Submission)
         .where(Submission.collection_id == collection_id)
         .where(Submission.mode == submission_mode)
         .options(
+            # get all flat components to drive single batches of selectin
+            # joinedload lets us avoid an exponentially increasing number of queries
             joinedload(Submission.collection)
-            .selectinload(Collection.sections)
-            .selectinload(Section.forms)
+            .joinedload(Collection.sections)
+            .joinedload(Section.forms)
+            .selectinload(Form._all_components)
+            .joinedload(Component.expressions),
+            # get any nested components in one go
+            joinedload(Submission.collection)
+            .joinedload(Collection.sections)
+            .joinedload(Section.forms)
+            .selectinload(Form._all_components)
+            .selectinload(Component.components)
+            .joinedload(Component.expressions),
+            # eagerly populate the forms top level components - this is a redundant query but
+            # leaves as much as possible with the ORM
+            joinedload(Submission.collection)
+            .joinedload(Collection.sections)
+            .joinedload(Section.forms)
             .selectinload(Form.components)
-            .selectinload(Component.expressions),
+            .joinedload(Component.expressions),
             selectinload(Submission.events),
             joinedload(Submission.created_by),
         )
@@ -139,11 +174,24 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
     if with_full_schema:
         options.extend(
             [
+                # get all flat components to drive single batches of selectin
+                # joinedload lets us avoid an exponentially increasing number of queries
                 joinedload(Submission.collection)
-                .selectinload(Collection.sections)
-                .selectinload(Section.forms)
-                .selectinload(Form.components)
-                .joinedload(Component.expressions),
+                .joinedload(Collection.sections)
+                .joinedload(Section.forms)
+                .selectinload(Form._all_components),
+                # get any nested components in one go
+                joinedload(Submission.collection)
+                .joinedload(Collection.sections)
+                .joinedload(Section.forms)
+                .selectinload(Form._all_components)
+                .selectinload(Component.components),
+                # eagerly populate the forms top level components - this is a redundant query but
+                # leaves as much as possible with the ORM
+                joinedload(Submission.collection)
+                .joinedload(Collection.sections)
+                .joinedload(Section.forms)
+                .selectinload(Form.components),
                 joinedload(Submission.events),
             ]
         )
@@ -249,8 +297,18 @@ def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questio
         )
 
     if with_all_questions:
-        # todo: this will need refining again when we have different levels of grouped questions
-        query = query.options(selectinload(Form.components).joinedload(Component.expressions))
+        # todo: this needs to be rationalised with the grant_id behaviour above, having multiple places to
+        #       specify joins and options feels risky for them to collide or produce unexpected behaviour
+        query = query.options(
+            # get all flat components to drive single batches of selectin
+            # joinedload lets us avoid an exponentially increasing number of queries
+            selectinload(Form._all_components).joinedload(Component.expressions),
+            # get any nested components in one go
+            selectinload(Form._all_components).selectinload(Component.components).joinedload(Component.expressions),
+            # eagerly populate the forms top level components - this is a redundant query but leaves as much as possible
+            # with the ORM
+            selectinload(Form.components).joinedload(Component.expressions),
+        )
 
     return db.session.execute(query).scalar_one()
 
@@ -375,6 +433,7 @@ def create_question(
     hint: str,
     name: str,
     data_type: QuestionDataType,
+    parent: Optional[Group] = None,
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:
@@ -386,8 +445,10 @@ def create_question(
         name=name,
         data_type=data_type,
         presentation_options=presentation_options,
+        parent_id=parent.id if parent else None,
     )
-    form.components.append(question)
+    owner = parent or form
+    owner.components.append(question)
     db.session.add(question)
 
     try:
@@ -410,9 +471,12 @@ def create_question(
     return question
 
 
-def create_group(form: Form, *, text: str, name: Optional[str] = None) -> Group:
-    group = Group(text=text, name=name or text, slug=slugify(text), form_id=form.id)
-    form.components.append(group)
+def create_group(form: Form, *, text: str, name: Optional[str] = None, parent: Optional[Group] = None) -> Group:
+    group = Group(
+        text=text, name=name or text, slug=slugify(text), form_id=form.id, parent_id=parent.id if parent else None
+    )
+    owner = parent or form
+    owner.components.append(group)
     db.session.add(group)
 
     try:
@@ -433,17 +497,20 @@ class FlashableException(Protocol):
 
 
 class DependencyOrderException(Exception, FlashableException):
-    def __init__(self, message: str, question: Question, depends_on_question: Question):
+    def __init__(self, message: str, component: Component, depends_on_component: Component):
         super().__init__(message)
         self.message = message
-        self.question = question
-        self.depends_on_question = depends_on_question
+        self.question = component
+        self.depends_on_question = depends_on_component
 
     def as_flash_context(self) -> dict[str, str]:
         return {
             "message": self.message,
             "question_id": str(self.question.id),
             "question_text": self.question.text,
+            # currently you can't depend on the outcome to a generic component (like a group)
+            # so question continues to make sense here - we should review that naming if that
+            # functionality changes
             "depends_on_question_id": str(self.depends_on_question.id),
             "depends_on_question_text": self.depends_on_question.text,
         }
@@ -485,24 +552,27 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
 
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
-def check_question_order_dependency(question: Question, swap_question: Question) -> None:
-    for condition in question.conditions:
-        if condition.managed and condition.managed.question_id == swap_question.id:
+def check_component_order_dependency(component: Component, swap_component: Component) -> None:
+    for condition in component.conditions:
+        if condition.managed and condition.managed.question_id == swap_component.id:
             raise DependencyOrderException(
-                "You cannot move questions above answers they depend on", question, swap_question
+                "You cannot move questions above answers they depend on", component, swap_component
             )
 
-    for condition in swap_question.conditions:
-        if condition.managed and condition.managed.question_id == question.id:
+    for condition in swap_component.conditions:
+        if condition.managed and condition.managed.question_id == component.id:
             raise DependencyOrderException(
-                "You cannot move answers below questions that depend on them", swap_question, question
+                "You cannot move answers below questions that depend on them", swap_component, component
             )
 
 
-def is_question_dependency_order_valid(question: Question, depends_on_question: Question) -> bool:
-    return question.order > depends_on_question.order
+def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:
+    return component.order > depends_on_component.order
 
 
+# todo: when working generically with components this should dig in and check child components
+#       a short term workaround might be to use _all_components but ideally this should
+#       just expect nested components
 def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
     for target_question in question.form.questions:
         for condition in target_question.conditions:
@@ -534,18 +604,18 @@ def raise_if_data_source_item_reference_dependency(
     return None
 
 
-def move_question_up(question: Question) -> Question:
-    swap_question = question.form.questions[question.order - 1]
-    check_question_order_dependency(question, swap_question)
-    swap_elements_in_list_and_flush(question.form.components, question.order, swap_question.order)
-    return question
+def move_component_up(component: Component) -> Component:
+    swap_component = component.container.components[component.order - 1]
+    check_component_order_dependency(component, swap_component)
+    swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
+    return component
 
 
-def move_question_down(question: Question) -> Question:
-    swap_question = question.form.questions[question.order + 1]
-    check_question_order_dependency(question, swap_question)
-    swap_elements_in_list_and_flush(question.form.components, question.order, swap_question.order)
-    return question
+def move_component_down(component: Component) -> Component:
+    swap_component = component.container.components[component.order + 1]
+    check_component_order_dependency(component, swap_component)
+    swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
+    return component
 
 
 def update_question(
@@ -600,16 +670,16 @@ def get_referenced_data_source_items_by_managed_expression(
     return referenced_data_source_items
 
 
-def add_question_condition(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
-    if not is_question_dependency_order_valid(question, managed_expression.referenced_question):
+def add_component_condition(component: Component, user: User, managed_expression: "ManagedExpression") -> Component:
+    if not is_component_dependency_order_valid(component, managed_expression.referenced_question):
         raise DependencyOrderException(
             "Cannot add managed condition that depends on a later question",
-            question,
+            component,
             managed_expression.referenced_question,
         )
 
     expression = Expression.from_managed(managed_expression, user)
-    question.expressions.append(expression)
+    component.expressions.append(expression)
 
     try:
         if (
@@ -621,7 +691,7 @@ def add_question_condition(question: Question, user: User, managed_expression: "
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
-    return question
+    return component
 
 
 def add_question_validation(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:

@@ -17,10 +17,10 @@ from app.common.data.interfaces.collections import (
     get_collection,
     get_form_by_id,
     get_question_by_id,
+    move_component_down,
+    move_component_up,
     move_form_down,
     move_form_up,
-    move_question_down,
-    move_question_up,
     update_collection,
     update_form,
 )
@@ -302,9 +302,9 @@ def move_question(grant_id: UUID, question_id: UUID, direction: str) -> Response
     try:
         match direction:
             case "up":
-                move_question_up(question)
+                move_component_up(question)
             case "down":
-                move_question_down(question)
+                move_component_down(question)
             case _:
                 return abort(400)
     except DependencyOrderException as e:
