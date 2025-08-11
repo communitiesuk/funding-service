@@ -61,8 +61,8 @@
         {
           "data_source_id": "156c09ea-a26f-45f5-b645-43beb9967be9",
           "id": "819b2684-b5d9-4141-b397-e657121d9e5e",
-          "key": "none-of-the-above",
-          "label": "None of the above",
+          "key": "other",
+          "label": "Other",
           "order": 4
         },
         {
@@ -369,8 +369,8 @@
         {
           "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
           "id": "625963b4-06f8-44fe-bcc6-afde03b20040",
-          "key": "none-of-the-above",
-          "label": "None of the above",
+          "key": "other",
+          "label": "Other",
           "order": 7
         },
         {
@@ -729,8 +729,8 @@
           "context": {
             "items": [
               {
-                "key": "none-of-the-above",
-                "label": "None of the above"
+                "key": "other",
+                "label": "Other"
               }
             ],
             "question_id": "826587e0-a103-4e8f-bdf0-d9024f2c4607"
@@ -739,14 +739,14 @@
           "id": "4c912286-fe91-4299-bad9-dc177509032f",
           "managed_name": "Any of",
           "question_id": "17a224fa-7731-44f4-9b93-35e14f7f6de8",
-          "statement": "q_826587e0a1034e8fbdf0d9024f2c4607 in {'none-of-the-above'}",
+          "statement": "q_826587e0a1034e8fbdf0d9024f2c4607 in {'other'}",
           "type": "CONDITION"
         },
         {
           "context": {
             "item": {
-              "key": "none-of-the-above",
-              "label": "None of the above"
+              "key": "other",
+              "label": "Other"
             },
             "question_id": "e5ef3248-6c32-4554-b4a7-4d286cdb3f6a"
           },
@@ -754,7 +754,7 @@
           "id": "28687a63-37b5-44f6-94a6-aa81d6310b7d",
           "managed_name": "Specifically",
           "question_id": "233960c6-2eac-4bef-bccd-0f0bee3a94e8",
-          "statement": "'none-of-the-above' in q_e5ef32486c324554b4a74d286cdb3f6a",
+          "statement": "'other' in q_e5ef32486c324554b4a74d286cdb3f6a",
           "type": "CONDITION"
         },
         {
@@ -940,7 +940,7 @@
       },
       "questions": [
         {
-          "data_type": "A single line of text",
+          "data_type": "Single line of text",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "058d7d3a-3e5e-4b94-9a81-57882961c59a",
@@ -950,10 +950,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-full-name-of-the-lead-contact-for-this-programme",
-          "text": "What is the full name of the lead contact for this programme?"
+          "text": "What is the full name of the lead contact for this programme?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "An email address",
+          "data_type": "Email address",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "b51759ce-0690-49d1-9a0f-d6f34eda28f0",
@@ -963,10 +964,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-email-address-of-the-lead-contact-for-this-programme",
-          "text": "What is the email address of the lead contact for this programme?"
+          "text": "What is the email address of the lead contact for this programme?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "826587e0-a103-4e8f-bdf0-d9024f2c4607",
@@ -976,10 +978,11 @@
             "last_data_source_item_is_distinct_from_others": true
           },
           "slug": "what-is-the-role-of-the-lead-contact-for-this-programme",
-          "text": "What is the role of the lead contact for this programme?"
+          "text": "What is the role of the lead contact for this programme?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "77cd348d-e2ee-4c98-ba6a-0a699670bdcc",
@@ -989,10 +992,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-kind-of-data-certifier-is-the-lead-contact",
-          "text": "What kind of data certifier is the lead contact?"
+          "text": "What kind of data certifier is the lead contact?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A single line of text",
+          "data_type": "Single line of text",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "17a224fa-7731-44f4-9b93-35e14f7f6de8",
@@ -1002,10 +1006,11 @@
             "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "what-is-the-lead-contacts-role-in-your-own-words",
-          "text": "What is the lead contact's role in your own words?"
+          "text": "What is the lead contact's role in your own words?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A website address",
+          "data_type": "Website address (URL)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "55ef70ba-11df-46e9-8804-c57c42632fa9",
@@ -1015,10 +1020,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-website-for-this-programme",
-          "text": "What is the website for this programme?"
+          "text": "What is the website for this programme?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "25a083f6-3c97-4e3b-bc18-375a4bed65da",
@@ -1028,10 +1034,11 @@
             "last_data_source_item_is_distinct_from_others": true
           },
           "slug": "in-which-london-borough-is-the-lead-contact-based",
-          "text": "In which London borough is the lead contact based?"
+          "text": "In which London borough is the lead contact based?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one or more from a list of choices",
+          "data_type": "Select one or more from a list (checkboxes)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "e5ef3248-6c32-4554-b4a7-4d286cdb3f6a",
@@ -1041,7 +1048,8 @@
             "last_data_source_item_is_distinct_from_others": true
           },
           "slug": "on-which-days-of-the-week-is-the-lead-contact-based-in-london",
-          "text": "On which days of the week is the lead contact based in London?"
+          "text": "On which days of the week is the lead contact based in London?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Yes or no",
@@ -1054,7 +1062,8 @@
             "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "does-the-lead-contact-work-remotely",
-          "text": "Does the lead contact work remotely?"
+          "text": "Does the lead contact work remotely?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1067,7 +1076,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "provide-a-brief-update-on-the-progress-of-your-programme",
-          "text": "Provide a brief update on the progress of your programme"
+          "text": "Provide a brief update on the progress of your programme",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1080,7 +1090,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "describe-the-main-success-that-your-programme-had-in-the-last-reporting-period",
-          "text": "Describe the main success that your programme had in the last reporting period"
+          "text": "Describe the main success that your programme had in the last reporting period",
+          "type": "QUESTION"
         },
         {
           "data_type": "Yes or no",
@@ -1093,7 +1104,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "do-you-have-any-failures-to-report",
-          "text": "Do you have any failures to report?"
+          "text": "Do you have any failures to report?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1106,10 +1118,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "detail-the-failures-that-you-want-us-to-know-about",
-          "text": "Detail the failures that you want us to know about"
+          "text": "Detail the failures that you want us to know about",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "",
           "id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0",
@@ -1119,7 +1132,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "how-many-cheeseboards-were-laid-out-in-the-last-reporting-period",
-          "text": "How many cheeseboards were laid out in the last reporting period?"
+          "text": "How many cheeseboards were laid out in the last reporting period?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1132,10 +1146,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "why-were-so-few-cheeseboards-laid-out",
-          "text": "Why were so few cheeseboards laid out?"
+          "text": "Why were so few cheeseboards laid out?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "",
           "id": "0c48320f-0b45-4686-8bed-5a09509f7f8b",
@@ -1145,10 +1160,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "how-many-cheesemongers-did-you-support-in-the-last-reporting-period",
-          "text": "How many cheesemongers did you support in the last reporting period?"
+          "text": "How many cheesemongers did you support in the last reporting period?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "Enter a percentage score between 0 and 100",
           "id": "0e6df617-b770-4525-9c06-6fdbcca72a10",
@@ -1158,7 +1174,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-percentage-of-park-visitors-are-happy-with-the-local-cheeses-produced-in-the-community",
-          "text": "What percentage of park visitors are happy with the local cheeses produced in the community?"
+          "text": "What percentage of park visitors are happy with the local cheeses produced in the community?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1171,10 +1188,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "why-is-park-visitor-satisfaction-so-low",
-          "text": "Why is park visitor satisfaction so low?"
+          "text": "Why is park visitor satisfaction so low?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A single line of text",
+          "data_type": "Single line of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
           "id": "2d29a543-7bde-408e-b127-30028b87f811",
@@ -1184,7 +1202,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-name-of-the-risk",
-          "text": "What is the name of the risk?"
+          "text": "What is the name of the risk?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1197,10 +1216,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "describe-the-risk-in-detail",
-          "text": "Describe the risk in detail"
+          "text": "Describe the risk in detail",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
           "id": "ec342f10-9d1a-4e25-bfd3-b12f2fe9545a",
@@ -1210,10 +1230,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-principle-risk-category",
-          "text": "What is the principle risk category?"
+          "text": "What is the principle risk category?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
           "id": "591f6895-0b97-4cdb-ab12-63da263551a4",
@@ -1223,10 +1244,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-risk-status",
-          "text": "What is the risk status?"
+          "text": "What is the risk status?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A single line of text",
+          "data_type": "Single line of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "This is not compliant with data standards",
           "id": "1829eafb-0956-40c7-8ad7-62386229cf5a",
@@ -1236,7 +1258,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "who-is-the-risk-owner",
-          "text": "Who is the risk owner?"
+          "text": "Who is the risk owner?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Yes or no",
@@ -1249,7 +1272,8 @@
             "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "is-there-a-risk-to-life",
-          "text": "Is there a risk to life?"
+          "text": "Is there a risk to life?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1262,10 +1286,11 @@
             "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "how-are-you-managing-the-risk-to-life",
-          "text": "How are you managing the risk to life?"
+          "text": "How are you managing the risk to life?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
           "id": "aead29df-25ba-4f46-ba0f-5f0617c14996",
@@ -1275,10 +1300,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-current-impact-score",
-          "text": "What is the current impact score?"
+          "text": "What is the current impact score?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
           "id": "4172dd3a-229d-4e37-aa49-78ee582f50cd",
@@ -1288,7 +1314,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-current-likelihood-score",
-          "text": "What is the current likelihood score?"
+          "text": "What is the current likelihood score?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1301,7 +1328,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-current-mitigations-are-in-place-for-the-risk",
-          "text": "What current mitigations are in place for the risk?"
+          "text": "What current mitigations are in place for the risk?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1314,10 +1342,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-planned-mitigations-are-there-for-the-risk",
-          "text": "What planned mitigations are there for the risk?"
+          "text": "What planned mitigations are there for the risk?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
           "id": "7b6ad001-5bd8-42c4-94d4-51d122f68a33",
@@ -1327,10 +1356,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-target-impact-score",
-          "text": "What is the target impact score?"
+          "text": "What is the target impact score?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
           "id": "62e4ac71-c908-4cd1-b0ff-419e92133827",
@@ -1340,7 +1370,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-target-likelihood-score",
-          "text": "What is the target likelihood score?"
+          "text": "What is the target likelihood score?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1353,10 +1384,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "if-the-target-total-risk-score-is-over-20-explain-why",
-          "text": "If the target total risk score is over 20, explain why"
+          "text": "If the target total risk score is over 20, explain why",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "hint": "",
           "id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
@@ -1366,7 +1398,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "how-much-did-you-spend-in-the-last-reporting-period",
-          "text": "How much did you spend in the last reporting period?"
+          "text": "How much did you spend in the last reporting period?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1379,7 +1412,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "why-was-the-spend-so-low",
-          "text": "Why was the spend so low?"
+          "text": "Why was the spend so low?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1392,10 +1426,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "why-was-the-spend-so-high",
-          "text": "Why was the spend so high?"
+          "text": "Why was the spend so high?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "hint": "If you have overspent, enter a negative number",
           "id": "6452da2c-0154-4af1-8d96-f668edffa36a",
@@ -1405,7 +1440,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "how-much-of-your-allocated-funding-for-the-last-reporting-period-remains-unspent",
-          "text": "How much of your allocated funding for the last reporting period remains unspent?"
+          "text": "How much of your allocated funding for the last reporting period remains unspent?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1418,10 +1454,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "provide-an-explanation-for-the-overspend",
-          "text": "Provide an explanation for the overspend"
+          "text": "Provide an explanation for the overspend",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "e2546f96-3655-483b-8531-0bbfd49a2631",
           "hint": "The next reporting period is October 2025 to April 2026",
           "id": "95a608c8-abcd-42b4-9c39-4862282f01ab",
@@ -1431,10 +1468,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "how-much-do-you-expect-to-spend-in-the-next-reporting-period",
-          "text": "How much do you expect to spend in the next reporting period?"
+          "text": "How much do you expect to spend in the next reporting period?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "Select one from a list of choices",
+          "data_type": "Select one from a list (radios)",
           "form_id": "e2546f96-3655-483b-8531-0bbfd49a2631",
           "hint": "",
           "id": "0e153f79-f58a-4262-9c28-8d7bc0712bf3",
@@ -1444,7 +1482,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "do-you-have-enough-remaining-allocated-funding-to-meet-your-expected-future-spend",
-          "text": "Do you have enough remaining allocated funding to meet your expected future spend?"
+          "text": "Do you have enough remaining allocated funding to meet your expected future spend?",
+          "type": "QUESTION"
         }
       ],
       "sections": [
@@ -1507,7 +1546,7 @@
       },
       "questions": [
         {
-          "data_type": "A single line of text",
+          "data_type": "Single line of text",
           "form_id": "145189e8-f1da-149b-95e1-4afb893c856f",
           "hint": "",
           "id": "2c784bb4-c376-fc02-517a-8358fbff0dc4",
@@ -1517,10 +1556,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-name-of-the-park",
-          "text": "What is the name of the park?"
+          "text": "What is the name of the park?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "145189e8-f1da-149b-95e1-4afb893c856f",
           "hint": "",
           "id": "f30a3729-257f-04fe-2058-142525676f13",
@@ -1530,10 +1570,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "how-many-picnic-tables-are-available",
-          "text": "How many picnic tables are available?"
+          "text": "How many picnic tables are available?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "79332ef5-531b-720f-bad1-15f46863bc9b",
           "hint": "",
           "id": "dd34697d-46a0-78e5-9d85-abae60928332",
@@ -1543,7 +1584,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "how-many-families-used-the-picnic-area-last-month",
-          "text": "How many families used the picnic area last month?"
+          "text": "How many families used the picnic area last month?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1556,7 +1598,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "share-any-notable-comments-or-stories-from-visitors-about-the-picnic-areas",
-          "text": "Share any notable comments or stories from visitors about the picnic areas."
+          "text": "Share any notable comments or stories from visitors about the picnic areas.",
+          "type": "QUESTION"
         }
       ],
       "sections": [
@@ -1619,7 +1662,7 @@
       },
       "questions": [
         {
-          "data_type": "A single line of text",
+          "data_type": "Single line of text",
           "form_id": "5036b7da-0a66-75bb-04ca-4b7d97345fe5",
           "hint": "",
           "id": "c1bbbe14-0d6d-3357-6e26-2fc4b4cd7fb3",
@@ -1629,10 +1672,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "what-is-the-name-of-the-park",
-          "text": "What is the name of the park?"
+          "text": "What is the name of the park?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "5036b7da-0a66-75bb-04ca-4b7d97345fe5",
           "hint": "",
           "id": "fef93b25-ce7c-3862-1c90-a07fb135cf6d",
@@ -1642,10 +1686,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "how-many-pieces-of-playground-equipment-are-there",
-          "text": "How many pieces of playground equipment are there?"
+          "text": "How many pieces of playground equipment are there?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "5036b7da-0a66-75bb-04ca-4b7d97345fe5",
           "hint": "",
           "id": "b237da13-e820-fa00-1a30-0042ed4797bc",
@@ -1655,10 +1700,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "is-the-playground-accessible-to-children-with-disabilities",
-          "text": "Is the playground accessible to children with disabilities?"
+          "text": "Is the playground accessible to children with disabilities?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "7ebb5886-bbc3-14b7-38fa-e16a09e053f7",
           "hint": "",
           "id": "a6876539-f5ef-b844-602e-846930cc4f56",
@@ -1668,10 +1714,11 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "how-many-children-used-the-playground-last-month",
-          "text": "How many children used the playground last month?"
+          "text": "How many children used the playground last month?",
+          "type": "QUESTION"
         },
         {
-          "data_type": "A whole number",
+          "data_type": "Whole number",
           "form_id": "08b95b3e-2ac8-234a-4c1d-666a9694e549",
           "hint": "",
           "id": "f2af1b48-b90f-b199-5669-4d8b1a484400",
@@ -1681,7 +1728,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "were-there-any-safety-incidents-reported",
-          "text": "Were there any safety incidents reported?"
+          "text": "Were there any safety incidents reported?",
+          "type": "QUESTION"
         },
         {
           "data_type": "Multiple lines of text",
@@ -1694,7 +1742,8 @@
             "last_data_source_item_is_distinct_from_others": null
           },
           "slug": "describe-any-maintenance-activities-or-issues-during-the-last-reporting-period",
-          "text": "Describe any maintenance activities or issues during the last reporting period."
+          "text": "Describe any maintenance activities or issues during the last reporting period.",
+          "type": "QUESTION"
         }
       ],
       "sections": [

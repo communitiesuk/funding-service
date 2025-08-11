@@ -206,7 +206,7 @@ class FormForm(FlaskForm):
 
 class QuestionTypeForm(FlaskForm):
     question_data_type = RadioField(
-        "What is the type of question?",
+        "What type of question do you need?",
         choices=[(qdt.name, qdt.value) for qdt in QuestionDataType],
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
@@ -245,10 +245,10 @@ class QuestionForm(FlaskForm):
         render_kw={"params": {"rows": 2}},
     )
     name = StringField(
-        "Question reference",
-        validators=[DataRequired("Enter the question reference")],
+        "Question name",
+        validators=[DataRequired("Enter the question name")],
         description=(
-            "A short name for the answer in lower case, for example “risk category” or “contact email address”"
+            "A short name for this question that will be used for reference in monitoring reports (use lower-case text)"
         ),
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
@@ -259,18 +259,18 @@ class QuestionForm(FlaskForm):
     data_source_items = StringField(
         "List of options",
         validators=[Optional()],
-        description="Each option must be on its own line",
+        description="Enter each option on a new line",
         filters=[strip_string_if_not_empty, lambda val: val.replace("\r", "") if val else val],
         widget=GovTextArea(),
     )
     separate_option_if_no_items_match = BooleanField(
-        "Include a final answer for users if none of the options are appropriate",
+        "Include an ‘other’ option",
         validators=[Optional()],
         widget=GovCheckboxInput(),
     )
     none_of_the_above_item_text = StringField(
-        "Fallback option",
-        default="None of the above",
+        "‘Other’ option text",
+        default="Other",
         validators=[Optional()],
         widget=GovTextInput(),
     )
@@ -301,20 +301,18 @@ class QuestionForm(FlaskForm):
                 ]
 
         if question_type == QuestionDataType.CHECKBOXES:
-            self.data_source_items.description = (
-                "Each option must be on its own line. You can add a maximum of 10 options"
-            )
+            self.data_source_items.description = "Enter each option on a new line - you can add a maximum of 10 options"
 
     @property
     def normalised_data_source_items(self) -> list[str] | None:
         """For radios questions, we might want to display a final item beneath an 'or' divider, to signify that
         the choice is semantically unrelated to all of the other answers. The most common usecase for this is something
-        like a "None of the above" answer.
+        like a "Other" answer.
 
         This answer is stored in the data source like a normal item. We store it as the last item and then record on
         the question that the last item in the data source should be presented distinctly.
 
-        This form is essentially just responsible for appending the "None of the above" item to the data source items
+        This form is essentially just responsible for appending the "Other" item to the data source items
         explicitly set by the form builder.
         """
         if self._question_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:

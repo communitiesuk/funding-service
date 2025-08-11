@@ -363,7 +363,7 @@ def _create_data_source(question: Question, items: list[str]) -> None:
 
     if len(set(slugify(item) for item in items)) != len(items):
         # If this error occurs, it's probably because QuestionForm does not check for duplication between the
-        # main options and the 'none of the above' option. Might need to add that if this has triggered; but avoiding
+        # main options and the 'Other' option. Might need to add that if this has triggered; but avoiding
         # now because I consider it unlikely. This will protect us even if it's not the best UX.
         raise ValueError("No duplicate data source items are allowed")
 
@@ -383,7 +383,7 @@ def _update_data_source(question: Question, items: list[str]) -> None:
 
     if len(set(slugify(item) for item in items)) != len(items):
         # If this error occurs, it's probably because QuestionForm does not check for duplication between the
-        # main options and the 'none of the above' option. Might need to add that if this has triggered; but avoiding
+        # main options and the 'Other' option. Might need to add that if this has triggered; but avoiding
         # now because I consider it unlikely. This will protect us even if it's not the best UX.
         raise ValueError("No duplicate data source items are allowed")
 

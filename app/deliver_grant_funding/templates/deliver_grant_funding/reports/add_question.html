@@ -1,6 +1,5 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
 {% set page_title = "Add a question - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
@@ -9,7 +8,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("developers.deliver.choose_question_type", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_data_type=chosen_question_data_type.name, back_link="manage_section")
+        "href": url_for("deliver_grant_funding.choose_question_type", grant_id=grant.id, form_id=db_form.id, question_data_type=chosen_question_data_type.name, back_link="manage_section")
     })
   }}
 {% endblock beforeContent %}
@@ -19,24 +18,19 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">Add question</h1>
 
-      {{
-        govukSummaryList({
-          "rows": [{
-            "key": {"text": "Question type"},
-            "value":{"text": chosen_question_data_type.value},
-            "classes": "govuk-summary-list__row--no-border"
-          }]
-        })
-      }}
+      <div class="govuk-body govuk-form-group">
+        <p id="question-type-label" class="govuk-!-font-weight-bold govuk-!-margin-bottom-1">Question type</p>
+        <p class="govuk-body" aria-labelledby="question-type-label">{{ chosen_question_data_type.value }}</p>
+      </div>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.text }}
-        {{ form.name }}
-        {{ form.hint }}
+        {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+        {{ form.name(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+        {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
 
         {% if chosen_question_data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
-          {{ form.data_source_items }}
+          {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
 
 
           {% set conditionalHtml %}
@@ -45,7 +39,10 @@
           {{ form.separate_option_if_no_items_match(params={"items": [{"conditional": {"html": conditionalHtml} }]}) }}
         {% endif %}
 
-        {{ form.submit(params={"text": "Add question"}) }}
+        <span class="govuk-button-group">
+          {{ form.submit(params={"text": "Add question"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) }}">Cancel</a>
+        </span>
       </form>
     </div>
   </div>

@@ -374,7 +374,7 @@ def test_create_question_choose_type_get(authenticated_platform_admin_client, fa
     assert result.status_code == 200
 
     soup = BeautifulSoup(result.data, "html.parser")
-    assert get_h1_text(soup) == "What is the type of question?"
+    assert get_h1_text(soup) == "What type of question do you need?"
 
 
 def test_create_question_choose_type_post(authenticated_platform_admin_client, factories):

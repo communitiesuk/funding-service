@@ -365,7 +365,7 @@ class Question(Component, SafeQidMixin):
         for populating a textarea with the list of radio choices.
 
         This also needs to handle extraction of the last data source item, *if* the form designer has said that this
-        question should show a "None of the above"-style answer. When that setting is enabled, the last item in the
+        question should show a "Other"-style answer. When that setting is enabled, the last item in the
         data source needs to render into a separate form field.
         """
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
@@ -385,7 +385,7 @@ class Question(Component, SafeQidMixin):
 
         This setting records whether or not the radio question should render with an 'or' divider before the last
         option. The last option would be something semantically unrelated to all of the other answers, for example,
-        "None of the above".
+        "Other".
         """
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
@@ -402,7 +402,7 @@ class Question(Component, SafeQidMixin):
 
         If the form designer has said that radios should render with an 'or' divider before the last item, then
         we need to extract the last data source item. That item is semantically unrelated to all of the other options,
-        for example "None of the above".
+        for example "Other".
 
         We provide a default fallback value to populate the 'Add question' form which doesn't yet have a question
         instance to pull from.
@@ -416,7 +416,7 @@ class Question(Component, SafeQidMixin):
         ):
             return self.data_source.items[-1].label
 
-        return "None of the above"
+        return "Other"
 
 
 class Group(Component):

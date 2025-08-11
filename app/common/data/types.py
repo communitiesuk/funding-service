@@ -43,15 +43,15 @@ class AuthMethodEnum(str, enum.Enum):
 
 
 class QuestionDataType(enum.StrEnum):
-    EMAIL = "An email address"
-    # todo: should we call this "A URL" or "A website address"
-    URL = "A website address"
-    TEXT_SINGLE_LINE = "A single line of text"
+    TEXT_SINGLE_LINE = "Single line of text"
     TEXT_MULTI_LINE = "Multiple lines of text"
-    INTEGER = "A whole number"
+    EMAIL = "Email address"
+    # todo: should we call this "A URL" or "A website address"
+    URL = "Website address (URL)"
+    INTEGER = "Whole number"
     YES_NO = "Yes or no"
-    RADIOS = "Select one from a list of choices"
-    CHECKBOXES = "Select one or more from a list of choices"
+    RADIOS = "Select one from a list (radios)"
+    CHECKBOXES = "Select one or more from a list (checkboxes)"
 
     @staticmethod
     def coerce(value: Any) -> "QuestionDataType":
@@ -116,8 +116,8 @@ class FormRunnerState(enum.StrEnum):
 
 class QuestionPresentationOptions(BaseModel):
     # This is for radios (and maybe checkboxes) question types; the last item will be separated from the rest of the
-    # data source items, visually by an 'or' break. It is meant to indicate that none of the above options are
-    # appropriate and the user needs to fallback to some kind of 'not known' / 'none of the above' instead.
+    # data source items, visually by an 'or' break. It is meant to indicate that Other options are
+    # appropriate and the user needs to fallback to some kind of 'not known' / 'Other' instead.
     last_data_source_item_is_distinct_from_others: bool | None = None
 
 
