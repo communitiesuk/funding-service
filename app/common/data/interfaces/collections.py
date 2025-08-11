@@ -566,10 +566,13 @@ def check_component_order_dependency(component: Component, swap_component: Compo
             )
 
 
-def is_question_dependency_order_valid(question: Question, depends_on_question: Question) -> bool:
-    return question.order > depends_on_question.order
+def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:
+    return component.order > depends_on_component.order
 
 
+# todo: when working generically with components this should dig in and check child components
+#       a short term workaround might be to use _all_components but ideally this should
+#       just expect nested components
 def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
     for target_question in question.form.questions:
         for condition in target_question.conditions:
@@ -667,16 +670,16 @@ def get_referenced_data_source_items_by_managed_expression(
     return referenced_data_source_items
 
 
-def add_question_condition(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
-    if not is_question_dependency_order_valid(question, managed_expression.referenced_question):
+def add_component_condition(component: Component, user: User, managed_expression: "ManagedExpression") -> Component:
+    if not is_component_dependency_order_valid(component, managed_expression.referenced_question):
         raise DependencyOrderException(
             "Cannot add managed condition that depends on a later question",
-            question,
+            component,
             managed_expression.referenced_question,
         )
 
     expression = Expression.from_managed(managed_expression, user)
-    question.expressions.append(expression)
+    component.expressions.append(expression)
 
     try:
         if (
@@ -688,7 +691,7 @@ def add_question_condition(question: Question, user: User, managed_expression: "
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
-    return question
+    return component
 
 
 def add_question_validation(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:

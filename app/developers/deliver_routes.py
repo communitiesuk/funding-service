@@ -703,7 +703,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
         expression = form.get_expression(depends_on_question)
 
         try:
-            interfaces.collections.add_question_condition(question, interfaces.user.get_current_user(), expression)
+            interfaces.collections.add_component_condition(question, interfaces.user.get_current_user(), expression)
             return redirect(
                 url_for(
                     "developers.deliver.edit_question",

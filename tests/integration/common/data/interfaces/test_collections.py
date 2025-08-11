@@ -7,7 +7,7 @@ from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
-    add_question_condition,
+    add_component_condition,
     add_question_validation,
     add_submission_event,
     clear_submission_events,
@@ -652,10 +652,10 @@ class TestUpdateQuestion:
         )
 
         first_dependent_question = factories.question.create(form=form)
-        add_question_condition(first_dependent_question, user, anyof_expression)
+        add_component_condition(first_dependent_question, user, anyof_expression)
 
         second_dependent_question = factories.question.create(form=form)
-        add_question_condition(second_dependent_question, user, anyof_expression)
+        add_component_condition(second_dependent_question, user, anyof_expression)
 
         with pytest.raises(DataSourceItemReferenceDependencyException) as error:
             update_question(
@@ -692,10 +692,10 @@ class TestUpdateQuestion:
         )
 
         first_dependent_question = factories.question.create(form=form)
-        add_question_condition(first_dependent_question, user, specifically_expression)
+        add_component_condition(first_dependent_question, user, specifically_expression)
 
         second_dependent_question = factories.question.create(form=form)
-        add_question_condition(second_dependent_question, user, specifically_expression)
+        add_component_condition(second_dependent_question, user, specifically_expression)
 
         with pytest.raises(DataSourceItemReferenceDependencyException) as error:
             update_question(
@@ -850,7 +850,7 @@ def test_raise_if_radios_data_source_item_reference_dependency(db_session, facto
     anyof_expression = AnyOf(question_id=referenced_question.id, items=[{"key": items[0].key, "label": items[0].label}])
 
     dependent_question = factories.question.create(form=form)
-    add_question_condition(dependent_question, user, anyof_expression)
+    add_component_condition(dependent_question, user, anyof_expression)
     items_to_delete = [referenced_question.data_source.items[0], referenced_question.data_source.items[1]]
     with pytest.raises(DataSourceItemReferenceDependencyException) as error:
         raise_if_data_source_item_reference_dependency(referenced_question, items_to_delete)
@@ -880,7 +880,7 @@ def test_raise_if_checkboxes_data_source_item_reference_dependency(db_session, f
     )
 
     dependent_question = factories.question.create(form=form)
-    add_question_condition(dependent_question, user, specifically_expression)
+    add_component_condition(dependent_question, user, specifically_expression)
     items_to_delete = [referenced_question.data_source.items[0], referenced_question.data_source.items[1]]
     with pytest.raises(DataSourceItemReferenceDependencyException) as error:
         raise_if_data_source_item_reference_dependency(referenced_question, items_to_delete)
@@ -994,7 +994,7 @@ class TestExpressions:
         # configured by the user interface
         managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
 
-        add_question_condition(question, user, managed_expression)
+        add_component_condition(question, user, managed_expression)
 
         # check the serialisation and deserialisation is as expected
         from_db = get_question_by_id(question.id)
@@ -1007,7 +1007,7 @@ class TestExpressions:
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
         with pytest.raises(DuplicateValueError):
-            add_question_condition(question, user, managed_expression)
+            add_component_condition(question, user, managed_expression)
 
     def test_add_radios_question_condition(db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
@@ -1021,7 +1021,7 @@ class TestExpressions:
             items=[{"key": items[0].key, "label": items[0].label}, {"key": items[1].key, "label": items[1].label}],
         )
 
-        add_question_condition(question, user, managed_expression)
+        add_component_condition(question, user, managed_expression)
 
         from_db = get_question_by_id(question.id)
 
@@ -1035,7 +1035,7 @@ class TestExpressions:
         assert from_db.expressions[0].data_source_item_references[1].data_source_item_id == q0.data_source.items[1].id
 
         with pytest.raises(DuplicateValueError):
-            add_question_condition(question, user, managed_expression)
+            add_component_condition(question, user, managed_expression)
 
     def test_add_checkboxes_question_condition(db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
@@ -1046,7 +1046,7 @@ class TestExpressions:
         # configured by the user interface
         managed_expression = Specifically(question_id=q0.id, item={"key": items[0].key, "label": items[0].label})
 
-        add_question_condition(question, user, managed_expression)
+        add_component_condition(question, user, managed_expression)
 
         from_db = get_question_by_id(question.id)
 
@@ -1059,7 +1059,7 @@ class TestExpressions:
         assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[0].id
 
         with pytest.raises(DuplicateValueError):
-            add_question_condition(question, user, managed_expression)
+            add_component_condition(question, user, managed_expression)
 
     def test_add_question_condition_blocks_on_order(db_session, factories):
         user = factories.user.create()
@@ -1067,7 +1067,7 @@ class TestExpressions:
         q2 = factories.question.create(form=q1.form)
 
         with pytest.raises(DependencyOrderException) as e:
-            add_question_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+            add_component_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
         assert str(e.value) == "Cannot add managed condition that depends on a later question"
 
     def test_add_question_validation(db_session, factories):
@@ -1095,7 +1095,7 @@ class TestExpressions:
         user = factories.user.create()
         managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
 
-        add_question_condition(question, user, managed_expression)
+        add_component_condition(question, user, managed_expression)
 
         updated_expression = GreaterThan(minimum_value=5000, question_id=q0.id)
 
@@ -1114,7 +1114,7 @@ class TestExpressions:
             items=[{"key": items[0].key, "label": items[0].label}, {"key": items[1].key, "label": items[1].label}],
         )
 
-        add_question_condition(question, user, managed_expression)
+        add_component_condition(question, user, managed_expression)
 
         updated_expression = AnyOf(question_id=q0.id, items=[{"key": items[2].key, "label": items[2].label}])
 
@@ -1138,7 +1138,7 @@ class TestExpressions:
 
         managed_expression = Specifically(question_id=q0.id, item={"key": items[0].key, "label": items[0].label})
 
-        add_question_condition(question, user, managed_expression)
+        add_component_condition(question, user, managed_expression)
 
         updated_expression = Specifically(
             question_id=q0.id,
