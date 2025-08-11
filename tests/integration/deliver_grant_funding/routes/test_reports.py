@@ -801,7 +801,7 @@ class TestChooseQuestionType:
         else:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
-            assert get_h1_text(soup) == "What is the type of question?"
+            assert get_h1_text(soup) == "What type of question do you need?"
 
             assert len(soup.select("input[type=radio]")) == 8, "Should show an option for each kind of question"
 

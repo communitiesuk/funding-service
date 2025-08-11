@@ -453,7 +453,7 @@ class SelectQuestionTypePage(GrantDevelopersBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name="What is the type of question?"),
+            heading=page.get_by_role("heading", name="What type of question do you need?"),
         )
         self.section_title = section_title
         self.collection_name = collection_name
