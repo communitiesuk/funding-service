@@ -6,11 +6,15 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.models import Collection, Form
-from app.common.data.types import SubmissionModeEnum
+from app import QuestionDataType
+from app.common.data import interfaces
+from app.common.data.models import Collection, Form, Question
+from app.common.data.types import ExpressionType, SubmissionModeEnum
+from app.common.expressions.forms import build_managed_expression_form
+from app.common.expressions.managed import IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm
-from app.deliver_grant_funding.forms import AddTaskForm, SetUpReportForm
-from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_error, page_has_link
+from app.deliver_grant_funding.forms import AddTaskForm, QuestionForm, QuestionTypeForm, SetUpReportForm
+from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_button, page_has_error, page_has_link
 
 
 class TestListReports:
@@ -767,6 +771,1117 @@ class TestMoveQuestion:
             assert form.questions[0].text == "Question 1"
         else:
             assert form.questions[2].text == "Question 1"
+
+
+class TestChooseQuestionType:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.choose_question_type", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ["authenticated_grant_member_client", False],
+            ["authenticated_grant_admin_client", True],
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        response = client.get(
+            url_for("deliver_grant_funding.choose_question_type", grant_id=client.grant.id, form_id=form.id)
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "What is the type of question?"
+
+            assert len(soup.select("input[type=radio]")) == 8, "Should show an option for each kind of question"
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        form = QuestionTypeForm(data={"question_data_type": QuestionDataType.TEXT_SINGLE_LINE.name})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.choose_question_type",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=db_form.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            r"/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions/add\?question_data_type=TEXT_SINGLE_LINE"
+        )
+
+
+class TestAddQuestion:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.add_question", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ["authenticated_grant_member_client", False],
+            ["authenticated_grant_admin_client", True],
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        response = client.get(url_for("deliver_grant_funding.add_question", grant_id=client.grant.id, form_id=form.id))
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Add question"
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        form = QuestionForm(
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+
+        # Stretching the test case a little but validates the flash message
+        response = authenticated_grant_admin_client.get(response.location)
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Edit question"
+        assert get_h2_text(soup) == "Question created"
+
+
+class TestEditQuestion:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.edit_question", grant_id=uuid.uuid4(), question_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ["authenticated_grant_member_client", False],
+            ["authenticated_grant_admin_client", True],
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        response = client.get(
+            url_for("deliver_grant_funding.edit_question", grant_id=client.grant.id, question_id=question.id)
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Edit question"
+
+            db_question = db_session.get(Question, question.id)
+            assert db_question.text == "My question"
+            assert db_question.name == "Question name"
+            assert db_question.hint == "Question hint"
+            assert db_question.data_type == QuestionDataType.TEXT_SINGLE_LINE
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        form = QuestionForm(
+            data={
+                "text": "Updated question",
+                "hint": "Updated hint",
+                "name": "Updated name",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
+
+    @pytest.mark.xfail
+    def test_post_dependency_order_errors(self):
+        # TODO: write me, followup PR, sorry
+        # If you're a dev and you're looking at this please consider doing a kindness and taking 10 mins to write a nice
+        # test here.
+        raise AssertionError()
+
+    @pytest.mark.xfail
+    def test_post_data_source_item_errors(self):
+        # TODO: write me, followup PR, sorry
+        # If you're a dev and you're looking at this please consider doing a kindness and taking 10 mins to write a nice
+        # test here.
+        raise AssertionError()
+
+
+class TestAddQuestionConditionSelectQuestion:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=uuid.uuid4(),
+                question_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "There are no questions in this form that can be used as a condition." in soup.text
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_with_available_questions(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        factories.question.create(
+            form=form,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        second_question = factories.question.create(
+            form=form,
+            text="What is your email?",
+            name="email question",
+            data_type=QuestionDataType.EMAIL,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=client.grant.id,
+                question_id=second_question.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "What answer should the condition check?" in soup.text
+            assert "Do you like cheese? (cheese question)" in soup.text
+
+    def test_post(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        first_question = factories.question.create(
+            form=form,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        second_question = factories.question.create(
+            form=form,
+            text="What is your email?",
+            name="email question",
+            data_type=QuestionDataType.EMAIL,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=second_question.id,
+            ),
+            data={"question": str(first_question.id)},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{second_question.id}/add-condition/{first_question.id}"
+        )
+
+
+class TestAddQuestionCondition:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=uuid.uuid4(),
+                question_id=uuid.uuid4(),
+                depends_on_question_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        depends_on_question = factories.question.create(
+            form=form,
+            text="Do you like cheese?",
+            name="cheese question",
+            hint="Please select yes or no",
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        target_question = factories.question.create(
+            form=form,
+            text="What is your email?",
+            name="email question",
+            hint="Enter your email",
+            data_type=QuestionDataType.EMAIL,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=client.grant.id,
+                question_id=target_question.id,
+                depends_on_question_id=depends_on_question.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Do you like cheese?",
+            name="cheese question",
+            hint="Please select yes or no",
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="What is your email?",
+            name="email question",
+            hint="Enter your email",
+            data_type=QuestionDataType.EMAIL,
+        )
+
+        assert len(target_question.expressions) == 0
+
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        form = ConditionForm(data={"type": "Yes"})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=target_question.id,
+                depends_on_question_id=depends_on_question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        expression = target_question.expressions[0]
+        assert expression.type == ExpressionType.CONDITION
+        assert expression.managed_name == "Yes"
+        assert expression.managed.referenced_question.id == depends_on_question.id
+
+    def test_post_duplicate_condition(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Do you like cheese?",
+            name="cheese question",
+            hint="Please select yes or no",
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="What is your email?",
+            name="email question",
+            hint="Enter your email",
+            data_type=QuestionDataType.EMAIL,
+        )
+
+        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        form = ConditionForm(data={"type": "Yes"})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=target_question.id,
+                depends_on_question_id=depends_on_question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "condition based on this question already exists" in soup.text
+
+
+class TestEditQuestionCondition:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.edit_question_condition", grant_id=uuid.uuid4(), expression_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+        target_question = factories.question.create(
+            form=db_form,
+            text="What is your email?",
+            name="email question",
+            data_type=QuestionDataType.EMAIL,
+        )
+        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = target_question.expressions[0].id
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.edit_question_condition",
+                grant_id=client.grant.id,
+                expression_id=expression_id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+
+            assert get_h1_text(soup) == "Edit condition"
+
+            assert "The question" in soup.text
+            assert "What is your email?" in soup.text
+
+            assert "Depends on the answer to" in soup.text
+            assert "Do you like cheese?" in soup.text
+
+            yes_radio = soup.find("input", {"type": "radio", "value": "Yes"})
+            no_radio = soup.find("input", {"type": "radio", "value": "No"})
+            assert yes_radio is not None
+            assert no_radio is not None
+            assert yes_radio.get("checked") is not None
+            assert no_radio.get("checked") is None
+
+            assert page_has_button(soup, "Update condition")
+
+            delete_link = page_has_link(soup, "Delete condition")
+            assert delete_link is not None
+
+    def test_get_with_delete_parameter(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+        target_question = factories.question.create(
+            form=db_form,
+            text="What is your email?",
+            name="email question",
+            data_type=QuestionDataType.EMAIL,
+        )
+        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = target_question.expressions[0].id
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Yes, delete this condition")
+
+    def test_post_update_condition(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+        target_question = factories.question.create(
+            form=db_form,
+            text="What is your email?",
+            name="email question",
+            data_type=QuestionDataType.EMAIL,
+        )
+        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = target_question.expressions[0].id
+        assert target_question.expressions[0].managed_name == "Yes"
+
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+        )
+        form = ConditionForm(data={"type": "No"})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        assert target_question.expressions[0].managed_name == "No"
+
+    def test_post_update_condition_duplicate(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+        target_question = factories.question.create(
+            form=db_form,
+            text="What is your email?",
+            name="email question",
+            data_type=QuestionDataType.EMAIL,
+        )
+        yes_expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        interfaces.collections.add_component_condition(
+            target_question, interfaces.user.get_current_user(), yes_expression
+        )
+
+        no_expression = IsNo(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        interfaces.collections.add_component_condition(
+            target_question, interfaces.user.get_current_user(), no_expression
+        )
+        db_session.commit()
+
+        assert len(target_question.expressions) == 2
+        yes_expression_id = None
+        for expr in target_question.expressions:
+            if expr.managed_name == "Yes":
+                yes_expression_id = expr.id
+                break
+
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+        )
+        form = ConditionForm(data={"type": "No"})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=yes_expression_id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "condition based on this question already exists" in soup.text
+
+    def test_post_delete(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+        target_question = factories.question.create(
+            form=db_form,
+            text="What is your email?",
+            name="email question",
+            data_type=QuestionDataType.EMAIL,
+        )
+        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = target_question.expressions[0].id
+        assert len(target_question.expressions) == 1
+
+        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+                delete="",
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 0
+
+
+class TestAddQuestionValidation:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.add_question_validation", grant_id=uuid.uuid4(), question_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_question_validation",
+                grant_id=client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+
+            assert get_h1_text(soup) == "Add validation"
+
+            assert "Form" in soup.text
+            assert "Organisation information" in soup.text
+
+            assert "Question" in soup.text
+            assert "How many employees do you have?" in soup.text
+
+            assert "The answer to the question" in soup.text
+
+            greater_than_radio = soup.find("input", {"type": "radio", "value": "Greater than"})
+            less_than_radio = soup.find("input", {"type": "radio", "value": "Less than"})
+            between_radio = soup.find("input", {"type": "radio", "value": "Between"})
+            assert greater_than_radio is not None
+            assert less_than_radio is not None
+            assert between_radio is not None
+
+            assert page_has_button(soup, "Add validation")
+
+    def test_get_no_validation_available(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="What is your name?",
+            name="applicant name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "This question cannot be validated." in soup.text
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        assert len(question.expressions) == 0
+
+        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        form = ValidationForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+        )
+
+        assert len(question.expressions) == 1
+        expression = question.expressions[0]
+        assert expression.type == ExpressionType.VALIDATION
+        assert expression.managed_name == "Greater than"
+
+    def test_post_duplicate_validation(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        first_validation = ValidationForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+        expression = first_validation.get_expression(question)
+        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        duplicate_form = ValidationForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            data=duplicate_form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "validation already exists on the question" in soup.text
+
+
+class TestEditQuestionValidation:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.edit_question_validation", grant_id=uuid.uuid4(), expression_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        form = ValidationForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+        expression = form.get_expression(question)
+        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        db_session.refresh(question)
+        expression_id = question.expressions[0].id
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.edit_question_validation",
+                grant_id=client.grant.id,
+                expression_id=expression_id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+
+            assert get_h1_text(soup) == "Edit validation"
+
+            assert "Form" in soup.text
+            assert "Organisation information" in soup.text
+
+            assert "Question" in soup.text
+            assert "How many employees do you have?" in soup.text
+
+            assert "The answer to the question" in soup.text
+            assert "must be" in soup.text
+
+            greater_than_radio = soup.find("input", {"type": "radio", "value": "Greater than"})
+            less_than_radio = soup.find("input", {"type": "radio", "value": "Less than"})
+            between_radio = soup.find("input", {"type": "radio", "value": "Between"})
+            assert greater_than_radio.get("checked") is not None
+            assert less_than_radio.get("checked") is None
+            assert between_radio.get("checked") is None
+
+            min_value_input = soup.find("input", {"name": "greater_than_value"})
+            assert min_value_input.get("value") == "10"
+
+            assert page_has_button(soup, "Edit validation")
+
+            delete_link = page_has_link(soup, "Delete validation")
+            assert delete_link is not None
+
+    def test_get_with_delete_parameter(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        form = ValidationForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+        expression = form.get_expression(question)
+        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        db_session.refresh(question)
+        expression_id = question.expressions[0].id
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Yes, delete this validation")
+
+    def test_post_update_validation(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        original_form = ValidationForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+        expression = original_form.get_expression(question)
+        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = question.expressions[0].id
+        assert question.expressions[0].managed_name == "Greater than"
+
+        UpdateForm = build_managed_expression_form(ExpressionType.VALIDATION, question, question.expressions[0])
+        form = UpdateForm(data={"type": "Less than", "less_than_value": "100", "less_than_inclusive": True})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+        )
+
+        assert len(question.expressions) == 1
+        assert question.expressions[0].managed_name == "Less than"
+
+    def test_post_update_validation_duplicate(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        greater_than_form = ValidationForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+        greater_than_expression = greater_than_form.get_expression(question)
+        interfaces.collections.add_question_validation(
+            question, interfaces.user.get_current_user(), greater_than_expression
+        )
+
+        less_than_form = ValidationForm(
+            data={"type": "Less than", "less_than_value": "100", "less_than_inclusive": True}
+        )
+        less_than_expression = less_than_form.get_expression(question)
+        interfaces.collections.add_question_validation(
+            question, interfaces.user.get_current_user(), less_than_expression
+        )
+        db_session.commit()
+
+        assert len(question.expressions) == 2
+        greater_than_expression_id = None
+        for expr in question.expressions:
+            if expr.managed_name == "Greater than":
+                greater_than_expression_id = expr.id
+                break
+
+        UpdateForm = build_managed_expression_form(ExpressionType.VALIDATION, question, question.expressions[0])
+        form = UpdateForm(data={"type": "Less than", "less_than_value": "100", "less_than_inclusive": True})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=greater_than_expression_id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "validation already exists on the question" in soup.text
+
+    def test_post_delete(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        form = ValidationForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+        expression = form.get_expression(question)
+        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = question.expressions[0].id
+        assert len(question.expressions) == 1
+
+        delete_form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+                delete="",
+            ),
+            data=delete_form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+        )
+
+        assert len(question.expressions) == 0
 
 
 class TestListSubmissions:

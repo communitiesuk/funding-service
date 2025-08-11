@@ -19,8 +19,10 @@ from app.common.data.interfaces.collections import (
     delete_collection,
     delete_collection_test_submissions_created_by_user,
     delete_form,
+    delete_question,
     get_collection,
     get_expression,
+    get_expression_by_id,
     get_form_by_id,
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
@@ -253,14 +255,14 @@ def test_move_section_up_down(db_session, factories):
 
 
 class TestGetFormById:
-    def test_get_form(db_session, factories, track_sql_queries):
+    def test_get_form(self, db_session, factories, track_sql_queries):
         form = factories.form.create()
 
         # fetching the form directly
         from_db = get_form_by_id(form_id=form.id)
         assert from_db.id == form.id
 
-    def test_get_form_with_all_questions(db_session, factories, track_sql_queries):
+    def test_get_form_with_all_questions(self, db_session, factories, track_sql_queries):
         form = factories.form.create()
         question_one = factories.question.create(form=form)
         question_two = factories.question.create(form=form)
@@ -632,7 +634,7 @@ class TestUpdateQuestion:
 
         assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
 
-    def test_update_radios_question_options_errors_on_referenced_data_items(db_session, factories):
+    def test_update_radios_question_options_errors_on_referenced_data_items(self, db_session, factories):
         form = factories.form.create()
         user = factories.user.create()
         referenced_question = create_question(
@@ -671,7 +673,7 @@ class TestUpdateQuestion:
             first_dependent_question and second_dependent_question in error.value.data_source_item_dependency_map.keys()
         )
 
-    def test_update_checkboxes_question_options_errors_on_referenced_data_items(db_session, factories):
+    def test_update_checkboxes_question_options_errors_on_referenced_data_items(self, db_session, factories):
         form = factories.form.create()
         user = factories.user.create()
         referenced_question = create_question(
@@ -986,7 +988,7 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
 
 
 class TestExpressions:
-    def test_add_question_condition(db_session, factories):
+    def test_add_question_condition(self, db_session, factories):
         q0 = factories.question.create()
         question = factories.question.create(form=q0.form)
         user = factories.user.create()
@@ -1009,7 +1011,7 @@ class TestExpressions:
         with pytest.raises(DuplicateValueError):
             add_component_condition(question, user, managed_expression)
 
-    def test_add_radios_question_condition(db_session, factories):
+    def test_add_radios_question_condition(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
         question = factories.question.create(form=q0.form)
         items = q0.data_source.items
@@ -1037,7 +1039,7 @@ class TestExpressions:
         with pytest.raises(DuplicateValueError):
             add_component_condition(question, user, managed_expression)
 
-    def test_add_checkboxes_question_condition(db_session, factories):
+    def test_add_checkboxes_question_condition(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
         question = factories.question.create(form=q0.form)
         items = q0.data_source.items
@@ -1061,7 +1063,7 @@ class TestExpressions:
         with pytest.raises(DuplicateValueError):
             add_component_condition(question, user, managed_expression)
 
-    def test_add_question_condition_blocks_on_order(db_session, factories):
+    def test_add_question_condition_blocks_on_order(self, db_session, factories):
         user = factories.user.create()
         q1 = factories.question.create()
         q2 = factories.question.create(form=q1.form)
@@ -1070,7 +1072,7 @@ class TestExpressions:
             add_component_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
         assert str(e.value) == "Cannot add managed condition that depends on a later question"
 
-    def test_add_question_validation(db_session, factories):
+    def test_add_question_validation(self, db_session, factories):
         question = factories.question.create()
         user = factories.user.create()
 
@@ -1089,7 +1091,7 @@ class TestExpressions:
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
-    def test_update_expression(db_session, factories):
+    def test_update_expression(self, db_session, factories):
         q0 = factories.question.create()
         question = factories.question.create(form=q0.form)
         user = factories.user.create()
@@ -1103,7 +1105,7 @@ class TestExpressions:
 
         assert question.expressions[0].statement == f"{q0.safe_qid} > 5000"
 
-    def test_update_anyof_expression(db_session, factories):
+    def test_update_anyof_expression(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
         question = factories.question.create(form=q0.form)
         items = q0.data_source.items
@@ -1130,7 +1132,7 @@ class TestExpressions:
         assert len(from_db.expressions[0].data_source_item_references) == 1
         assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[2].id
 
-    def test_update_specifically_expression(db_session, factories):
+    def test_update_specifically_expression(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
         question = factories.question.create(form=q0.form)
         items = q0.data_source.items
@@ -1157,7 +1159,7 @@ class TestExpressions:
         assert len(from_db.expressions[0].data_source_item_references) == 1
         assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[1].id
 
-    def test_update_expression_errors_on_validation_overlap(db_session, factories):
+    def test_update_expression_errors_on_validation_overlap(self, db_session, factories):
         question = factories.question.create()
         user = factories.user.create()
         gt_expression = GreaterThan(minimum_value=3000, question_id=question.id)
@@ -1174,7 +1176,7 @@ class TestExpressions:
         with pytest.raises(DuplicateValueError):
             update_question_expression(lt_db_expression, gt_expression)
 
-    def test_remove_expression(db_session, factories):
+    def test_remove_expression(self, db_session, factories):
         qid = uuid.uuid4()
         user = factories.user.create()
         question = factories.question.create(
@@ -1194,19 +1196,50 @@ class TestExpressions:
         with pytest.raises(NoResultFound, match="No row was found when one was required"):
             get_expression(expression_id)
 
-    def test_get_expression(db_session, factories):
+    def test_get_expression(self, db_session, factories):
         expression = factories.expression.create(statement="", type=ExpressionType.VALIDATION)
 
         db_expr = get_expression(expression.id)
         assert db_expr is expression
 
-    def test_get_expression_missing(db_session, factories):
+    def test_get_expression_missing(self, db_session, factories):
         factories.expression.create(statement="", type=ExpressionType.VALIDATION)
 
         with pytest.raises(NoResultFound):
             get_expression(uuid.uuid4())
 
-    def test_get_referenced_data_source_items_by_anyof_managed_expression(db_session, factories):
+    def test_get_expression_by_id(self, db_session, factories, track_sql_queries):
+        question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        user = factories.user.create()
+        managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
+        add_question_validation(question, user, managed_expression)
+
+        expression_id = question.expressions[0].id
+        db_session.expunge_all()  # Clear SQLAlchemy cache to force queries to be emitted again
+        with track_sql_queries() as queries:
+            retrieved_expression = get_expression_by_id(expression_id)
+
+        assert len(queries) == 1
+
+        assert retrieved_expression.id == expression_id
+        assert retrieved_expression.type == ExpressionType.VALIDATION
+        assert retrieved_expression.managed_name == "Greater than"
+
+        with track_sql_queries() as queries:
+            assert retrieved_expression.question.form.section.collection.grant is not None
+
+        assert len(queries) == 0
+
+    def test_get_expression_by_id_missing(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        user = factories.user.create()
+        managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
+        add_question_validation(question, user, managed_expression)
+
+        with pytest.raises(NoResultFound):
+            get_expression_by_id(uuid.uuid4())
+
+    def test_get_referenced_data_source_items_by_anyof_managed_expression(self, db_session, factories):
         referenced_question = factories.question.create(data_type=QuestionDataType.RADIOS)
         items = referenced_question.data_source.items
         managed_expression = AnyOf(
@@ -1217,7 +1250,7 @@ class TestExpressions:
         assert len(referenced_data_source_items) == 2
         assert referenced_data_source_items[0] == referenced_question.data_source.items[0]
 
-    def test_get_referenced_data_source_items_by_specifically_managed_expression(db_session, factories):
+    def test_get_referenced_data_source_items_by_specifically_managed_expression(self, db_session, factories):
         referenced_question = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
         items = referenced_question.data_source.items
         managed_expression = Specifically(
@@ -1298,6 +1331,34 @@ class TestDeleteForm:
 
         assert [f.order for f in section.forms] == [0, 1, 2, 3]
         assert section.forms == [forms[0], forms[1], forms[3], forms[4]]
+
+
+class TestDeleteQuestion:
+    def test_delete(self, db_session, factories):
+        section = factories.section.create()
+        form = factories.form.create(section=section)
+        question1 = factories.question.create(form=form)
+        question2 = factories.question.create(form=form)
+        question3 = factories.question.create(form=form)
+
+        delete_question(question2)
+
+        assert db_session.get(Question, question1.id) is question1
+        assert db_session.get(Question, question2.id) is None
+        assert db_session.get(Question, question3.id) is question3
+
+    def test_form_reordering(self, db_session, factories):
+        section = factories.section.create()
+        form = factories.form.create(section=section)
+        questions = factories.question.create_batch(5, form=form)
+
+        assert [q.order for q in form.questions] == [0, 1, 2, 3, 4]
+        assert form.questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
+
+        delete_question(questions[2])
+
+        assert [q.order for q in form.questions] == [0, 1, 2, 3]
+        assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
 
 
 class TestDeleteCollectionSubmissions:

@@ -60,6 +60,7 @@ from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import (
     CollectionForm,
+    ConditionSelectQuestionForm,
     FormForm,
     GroupForm,
     QuestionForm,
@@ -68,7 +69,6 @@ from app.deliver_grant_funding.forms import (
 )
 from app.developers.forms import (
     BecomeGrantTeamMemberForm,
-    ConditionSelectQuestionForm,
     ConfirmDeletionForm,
 )
 from app.developers.helpers import start_testing_submission
