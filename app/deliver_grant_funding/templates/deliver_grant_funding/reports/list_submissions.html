@@ -45,19 +45,21 @@
     </div>
     <div class="govuk-grid-column-full">
       {% set rows=[] %}
-      {% for submission in helper.submissions %}
+      {% for submission_helper in helper.submission_helpers.values() %}
         {# TODO: We should show the organisation/recipient name instead of the user's email address #}
         {% set link_to_submission %}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.id) }}" data-submission-link>{{ submission.created_by.email }}</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission_helper.submission.id) }}" data-submission-link>
+            {{ submission_helper.submission.created_by.email }}
+          </a>
         {% endset %}
         {%
           do rows.append([
             {
               "html": link_to_submission,
             }, {
-              "html": status(submission.status)
+              "html": status(submission_helper.status)
             }, {
-              "text": format_date_short(submission.updated_at_utc)
+              "text": format_date_short(submission_helper.submission.updated_at_utc)
             }
           ])
         %}

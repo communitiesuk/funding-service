@@ -19,7 +19,6 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionEventKey,
     SubmissionModeEnum,
-    SubmissionStatusEnum,
     json_flat_scalars,
     json_scalars,
 )
@@ -140,9 +139,6 @@ class Submission(BaseModel):
     data: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
     mode: Mapped[SubmissionModeEnum] = mapped_column(
         SqlEnum(SubmissionModeEnum, name="submission_mode_enum", validate_strings=True)
-    )
-    status: Mapped[SubmissionStatusEnum] = mapped_column(
-        SqlEnum(SubmissionStatusEnum, name="submission_status_enum", validate_strings=True)
     )
 
     # TODO: generated and persisted human readable references for submissions

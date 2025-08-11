@@ -796,7 +796,11 @@ class TestListSubmissions:
         assert "No submissions found for this monitoring report" in response.text
 
     def test_based_on_submission_mode(self, authenticated_grant_member_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_completed_submissions_each_question_type__test=1,
+        )
         factories.submission.create(
             collection=report, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
         )
@@ -830,6 +834,11 @@ class TestListSubmissions:
         live_recipient_link = page_has_link(live_soup, "submitter-live@recipient.org")
         assert test_recipient_link.get("href") == AnyStringMatching("/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}")
         assert live_recipient_link.get("href") == AnyStringMatching("/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}")
+
+        test_submission_tags = test_soup.select(".govuk-tag")
+        live_submission_tags = live_soup.select(".govuk-tag")
+        assert [tag.text.strip() for tag in test_submission_tags] == ["In progress", "Not started"]
+        assert [tag.text.strip() for tag in live_submission_tags] == ["Not started"]
 
 
 class TestExportReportSubmissions:
