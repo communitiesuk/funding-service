@@ -151,7 +151,9 @@
               %}
             {% endfor %}
 
+            {% if rows %}
             {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+            {% endif %}
 
             {{
               govukButton({
