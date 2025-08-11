@@ -117,7 +117,7 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
                 grant_export["sections"].append(to_dict(section))
 
                 for form in section.forms:
-                    grant_export["forms"].append(to_dict(form))                    
+                    grant_export["forms"].append(to_dict(form))
 
                     for component in form.components:
                         add_all_components_flat(component, users, grant_export)
@@ -256,9 +256,8 @@ def seed_grants_many_submissions() -> None:
         create_completed_submissions_conditional_question_random__test=100,
     )
 
-def add_all_components_flat(
-    component: Component, users: set[User], grant_export: GrantExport
-) -> None:
+
+def add_all_components_flat(component: Component, users: set[User], grant_export: GrantExport) -> None:
     grant_export["questions"].append(to_dict(component))
 
     for expression in component.expressions:
