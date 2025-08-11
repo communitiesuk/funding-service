@@ -80,7 +80,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "Select an option from the accessible autocomplete",
         "choices": [f"option {x}" for x in range(1, 30)],
         "answers": [
-            _QuestionResponse("None of the above"),
+            _QuestionResponse("Other"),
         ],
         "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
     },
@@ -125,7 +125,7 @@ def create_question(
 
         options = question_definition.get("options")
         if options is not None and options.last_data_source_item_is_distinct_from_others is not None:
-            question_details_page.click_fallback_option_checkbox()
+            question_details_page.click_other_option_checkbox()
             question_details_page.enter_fallback_option_text()
 
     question_details_page.click_submit()

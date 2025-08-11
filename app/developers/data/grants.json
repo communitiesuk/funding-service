@@ -61,8 +61,8 @@
         {
           "data_source_id": "156c09ea-a26f-45f5-b645-43beb9967be9",
           "id": "819b2684-b5d9-4141-b397-e657121d9e5e",
-          "key": "none-of-the-above",
-          "label": "None of the above",
+          "key": "other",
+          "label": "Other",
           "order": 4
         },
         {
@@ -369,8 +369,8 @@
         {
           "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
           "id": "625963b4-06f8-44fe-bcc6-afde03b20040",
-          "key": "none-of-the-above",
-          "label": "None of the above",
+          "key": "other",
+          "label": "Other",
           "order": 7
         },
         {
@@ -729,8 +729,8 @@
           "context": {
             "items": [
               {
-                "key": "none-of-the-above",
-                "label": "None of the above"
+                "key": "other",
+                "label": "Other"
               }
             ],
             "question_id": "826587e0-a103-4e8f-bdf0-d9024f2c4607"
@@ -739,14 +739,14 @@
           "id": "4c912286-fe91-4299-bad9-dc177509032f",
           "managed_name": "Any of",
           "question_id": "17a224fa-7731-44f4-9b93-35e14f7f6de8",
-          "statement": "q_826587e0a1034e8fbdf0d9024f2c4607 in {'none-of-the-above'}",
+          "statement": "q_826587e0a1034e8fbdf0d9024f2c4607 in {'other'}",
           "type": "CONDITION"
         },
         {
           "context": {
             "item": {
-              "key": "none-of-the-above",
-              "label": "None of the above"
+              "key": "other",
+              "label": "Other"
             },
             "question_id": "e5ef3248-6c32-4554-b4a7-4d286cdb3f6a"
           },
@@ -754,7 +754,7 @@
           "id": "28687a63-37b5-44f6-94a6-aa81d6310b7d",
           "managed_name": "Specifically",
           "question_id": "233960c6-2eac-4bef-bccd-0f0bee3a94e8",
-          "statement": "'none-of-the-above' in q_e5ef32486c324554b4a74d286cdb3f6a",
+          "statement": "'other' in q_e5ef32486c324554b4a74d286cdb3f6a",
           "type": "CONDITION"
         },
         {

@@ -160,16 +160,16 @@ class TestFinalOptionExclusive:
         return validator, form, field
 
     def test_valid_when_only_final_option_selected(self):
-        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("none-of-the-above", "None of the above")]
+        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("other", "Other")]
         validator, form, field = self._get_mocks()
 
-        field.data = ["none-of-the-above"]
+        field.data = ["other"]
         field.choices = options_list
 
         validator(form, field)
 
     def test_valid_when_non_final_options_selected(self):
-        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("none-of-the-above", "None of the above")]
+        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("other", "Other")]
         validator, form, field = self._get_mocks()
 
         field.data = ["option-a", "option-b"]
@@ -178,28 +178,28 @@ class TestFinalOptionExclusive:
         validator(form, field)
 
     def test_invalid_when_final_option_and_others_selected(self):
-        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("none-of-the-above", "None of the above")]
+        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("other", "Other")]
         validator, form, field = self._get_mocks()
 
-        field.data = ["option-a", "none-of-the-above"]
+        field.data = ["option-a", "other"]
         field.choices = options_list
 
-        with pytest.raises(ValidationError, match="Select test question, or select None of the above"):
+        with pytest.raises(ValidationError, match="Select test question, or select Other"):
             validator(form, field)
 
     def test_custom_message_used_if_provided(self):
-        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("none-of-the-above", "None of the above")]
+        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("other", "Other")]
         validator = FinalOptionExclusive(question_name="ignored", message="This is a different error message")
         _, form, field = self._get_mocks()
 
-        field.data = ["option-a", "none-of-the-above"]
+        field.data = ["option-a", "other"]
         field.choices = options_list
 
         with pytest.raises(ValidationError, match="This is a different error message"):
             validator(form, field)
 
     def test_no_validation_error_when_field_is_empty(self):
-        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("none-of-the-above", "None of the above")]
+        options_list = [("option-a", "Option A"), ("option-b", "Option B"), ("other", "Other")]
         validator, form, field = self._get_mocks()
         field.data = []
         field.choices = options_list
