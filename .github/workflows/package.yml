@@ -2,7 +2,6 @@ name: Paketo build
 run-name: Build ${{github.ref_name}}
 
 permissions:
-  packages: write
   contents: read  # This is required for actions/checkout
   id-token: write  # This is required for authenticating with aws
 

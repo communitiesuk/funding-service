@@ -3,7 +3,6 @@ run-name: Deploy ${{ github.ref_name }} to ${{ github.event.inputs.environment }
 
 permissions:
   contents: read  # This is required for actions/checkout
-  packages: read # This is required for pulling from GHCR
   id-token: write  # This is required for authenticating with aws
 
 on:
