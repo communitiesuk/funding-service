@@ -1,0 +1,134 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "developers/deliver/macros/dependency_banner.html" import dependency_banner %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "developers/deliver/macros/component_table.html" import component_table %}
+
+{% set page_title = "Edit group - " ~ db_form.title %}
+{% set active_item_identifier = "developers" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": url_for("developers.deliver.manage_form_questions", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value, enum.flash_message_type.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value]) %}
+        {% if flashes %}
+          {% for error in flashes %}
+            {{ dependency_banner(error, grant.id, collection.id, section.id, db_form.id) }}
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% if confirm_deletion_form %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this group?</p>
+          <form method="post" novalidate>
+            {{ confirm_deletion_form.csrf_token }}
+            {{ confirm_deletion_form.confirm_deletion(params={"classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "", "html": banner_html}) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">
+          {# {{ group.form.name }} #}
+          {{ group.name }}
+        </span>
+        {# {{ group.name }} #} Edit group
+      </h1>
+
+      {# todo: group settings as a h2 which shows same page or not #}
+
+      <form method="post" novalidate>
+        <div class="govuk-form-group">
+          <h2 class="govuk-heading-m">Conditions</h2>
+          <p class="govuk-body">Use answers from other questions to decide if your users should be shown this group.</p>
+          {% set rows = [] %}
+          {% for condition in group.conditions %}
+            {% set managed = condition.managed %}
+            {% set depends_on = managed.referenced_question %}
+
+
+            {% set key_html %}
+              {# todo: would users find it useful to be able to link to the question being depended on from here? #}
+              <span>{{ depends_on.text }}</span>
+            {% endset %}
+
+
+            {% set value_html %}
+              {# todo: condition routes should ideally refer to "components" #}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_condition', grant_id=grant.id, question_id=group.id, expression_id=condition.id) }}">
+                <span class="govuk-visually-hidden">Change condition for</span>
+                {{ condition.managed.message }}
+              </a>
+            {% endset %}
+            {%
+              do rows.append({
+                "key": { "html": key_html },
+                "value": { "html": value_html },
+              })
+            %}
+          {% endfor %}
+
+          {% if rows %}
+            {{
+              govukSummaryList({
+                "rows": rows,
+                "classes": "app-tasklist-builder"
+              })
+            }}
+          {% endif %}
+
+          {{
+            govukButton({
+              "text": "Add condition",
+              "href": url_for('developers.deliver.add_question_condition_select_question', grant_id=grant.id, question_id=group.id),
+              "classes": "govuk-button--secondary"
+            })
+          }}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <div class="govuk-form-group">
+        <h2 class="govuk-heading-m">Questions</h2>
+
+        {% if group.components %}
+          <p class="govuk-body">This group has {% trans count=group.questions | length %}{{ count }} question{% pluralize %}{{ count }} questions{% endtrans %}.</p>
+          {{ component_table(group) }}
+        {% else %}
+          <p class="govuk-body">This group has no questions.</p>
+        {% endif %}
+      </div>
+      {{
+        govukButton({
+            "text": "Add question",
+            "classes": "govuk-button--secondary" if group.questions else '',
+            "href": url_for("developers.deliver.choose_question_type", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, parent=group.id, parent_source=group.id),
+        })
+      }}
+      <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage group</h2>
+      <p class="govuk-body">
+        <a class="govuk-link app-link--destructive" href="{{ url_for('developers.deliver.edit_group', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, group_id=group.id, delete='') }}">
+          Delete this group
+        </a>
+      </p>
+    </div>
+  </div>
+{% endblock content %}
