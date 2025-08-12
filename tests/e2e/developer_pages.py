@@ -514,7 +514,7 @@ class AddQuestionDetailsPage(GrantDevelopersBasePage):
         self.form_name = form_name
 
     def fill_question_text(self, question_text: str) -> None:
-        self.page.get_by_role("textbox", name="What is the question?").fill(question_text)
+        self.page.get_by_role("textbox", name="Question text").fill(question_text)
 
     def fill_question_name(self, question_name: str) -> None:
         self.page.get_by_role("textbox", name="Question name").fill(question_name)
@@ -632,7 +632,7 @@ class AddFormDetailsPage(GrantDevelopersBasePage):
         self.collection_name = collection_name
 
     def fill_in_task_name(self, task_name: str) -> None:
-        self.page.get_by_role("textbox", name="What is the name of the task?").fill(task_name)
+        self.page.get_by_role("textbox", name="Task name").fill(task_name)
 
     def click_add_task(self) -> CollectionDetailPage:
         self.page.get_by_role("button", name="Add task").click()

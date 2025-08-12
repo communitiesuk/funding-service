@@ -46,7 +46,7 @@
                 Tasks are groups of questions with a common theme
               {% else %}
                 <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_tasks', grant_id=grant.id, report_id=report.id) }}">
-                  Manage {{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
+                  {{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
                 </a>
               {% endif %}
             {% else %}
@@ -60,9 +60,9 @@
           {% set submissionsText %}
             {# TODO: Once reports have a draft/live status, this should also take that into account (ie if live, only show live submissions) #}
             {% if report.live_submissions %}
-              View {% trans count=report.live_submissions | length %}{{ count }} submission{% pluralize %}{{ count }} submissions{% endtrans %}
+              {% trans count=report.live_submissions | length %}{{ count }} submission{% pluralize %}{{ count }} submissions{% endtrans %}
             {% else %}
-              View {% trans count=report.test_submissions | length %}{{ count }} test submission{% pluralize %}{{ count }} test submissions{% endtrans %}
+              {% trans count=report.test_submissions | length %}{{ count }} test submission{% pluralize %}{{ count }} test submissions{% endtrans %}
             {% endif %}
             <span class="govuk-visually-hidden">for {{ report.name }}</span>
           {% endset %}

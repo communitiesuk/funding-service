@@ -15,7 +15,8 @@
 {% endblock beforeContent %}
 
 {% block content %}
-  {% set submit_label = "Edit validation" if expression else "Add validation" %}
+  {% set heading = "Edit validation" if expression else "Add validation" %}
+  {% set submit_label = "Save validation" if expression else "Add validation" %}
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
@@ -35,12 +36,12 @@
         {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "", "html": banner_html}) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">{{ submit_label }}</h1>
+      <h1 class="govuk-heading-l">{{ heading }}</h1>
 
       {{
         govukSummaryList({
           "rows": [
-            {"key": {"text": "Form"}, "value": {"text": question.form.title} },
+            {"key": {"text": "Task"}, "value": {"text": question.form.title} },
             {"key": {"text": "Question"}, "value": {"text": question.text} },
           ],
           "classes": "app-!-border-top-line"
@@ -49,7 +50,7 @@
 
       {% if form is not none %}
         {% set label_html %}
-          The answer to the question <span class="govuk-visually-hidden">“{{ question.text }}”</span> must be
+          What does the answer <span class="govuk-visually-hidden">to {{ question.text }}</span> need to be?
         {% endset %}
 
         {{ render_managed_expression_form(form, label_html=label_html, submit_label=submit_label) }}
