@@ -1,5 +1,6 @@
 import io
 import uuid
+from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
 from flask import abort, current_app, flash, redirect, render_template, request, send_file, url_for
@@ -59,6 +60,9 @@ from app.deliver_grant_funding.helpers import start_testing_submission
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
 from app.types import FlashMessageType
+
+if TYPE_CHECKING:
+    from app.common.data.models import Question
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports", methods=["GET", "POST"])
@@ -600,7 +604,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        remove_question_expression(question=question, expression=expression)
+        remove_question_expression(component=question, expression=expression)
         return redirect(
             url_for(
                 "deliver_grant_funding.edit_question",
@@ -687,7 +691,10 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
 @auto_commit_after_request
 def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)
-    question = expression.question
+
+    # todo: reason about what this return type should be, managed conditions and validations
+    #       might treat this differently
+    question = cast("Question", expression.question)
 
     confirm_deletion_form = GenericConfirmDeletionForm()
     if (
@@ -695,7 +702,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        remove_question_expression(question=question, expression=expression)
+        remove_question_expression(component=question, expression=expression)
         return redirect(
             url_for(
                 "deliver_grant_funding.edit_question",

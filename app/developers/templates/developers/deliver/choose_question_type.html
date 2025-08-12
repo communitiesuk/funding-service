@@ -5,12 +5,22 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
-  {{
-    govukBackLink({
-        "text": "Back",
-        "href": url_for("developers.deliver.manage_form_questions", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
-    })
-  }}
+  {% if parent_source %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": url_for("developers.deliver.edit_group", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, group_id=parent_source)
+      })
+    }}
+  {% else %}
+    {# default to the form #}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": url_for("developers.deliver.manage_form_questions", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
+      })
+    }}
+  {% endif %}
 {% endblock beforeContent %}
 
 {% block content %}

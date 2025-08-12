@@ -40,9 +40,9 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.temporary import (
     delete_collection,
+    delete_component,
     delete_form,
     delete_grant,
-    delete_question,
     delete_section,
 )
 from app.common.data.types import (
@@ -457,6 +457,9 @@ def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, 
     db_form = get_form_by_id(form_id)
     parent_id = request.args.get("parent", None)
     parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+
+    parent_source = request.args.get("parent_source", None)
+
     wt_form = QuestionTypeForm(
         question_data_type=request.args.get("question_data_type", None), parent=parent.id if parent else None
     )
@@ -471,6 +474,7 @@ def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, 
                 form_id=form_id,
                 question_data_type=question_data_type,
                 parent=wt_form.parent.data if wt_form.parent.data else None,
+                parent_source=parent_source,
             )
         )
     return render_template(
@@ -480,6 +484,7 @@ def choose_question_type(grant_id: UUID, collection_id: UUID, section_id: UUID, 
         section=db_form.section,
         db_form=db_form,
         form=wt_form,
+        parent_source=parent_source,
     )
 
 
@@ -496,6 +501,8 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
 
     parent_id = request.args.get("parent", None)
     parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+
+    parent_source = request.args.get("parent_source", None)
 
     wt_form = QuestionForm(question_type=question_data_type_enum)
     if wt_form.validate_on_submit():
@@ -525,6 +532,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
                     section_id=section_id,
                     form_id=form_id,
                     question_id=question.id,
+                    parent_source=parent_source,
                 )
             )
         except DuplicateValueError as e:
@@ -539,6 +547,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
         db_form=form,
         chosen_question_data_type=question_data_type_enum,
         form=wt_form,
+        parent_source=parent_source,
     )
 
 
@@ -562,17 +571,12 @@ def add_group(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UU
                 text=wt_form.name.data,
             )
 
-            # todo: either group created flash message type or have a more generic created question flash which can
-            #       include text here
-            flash("Group created", FlashMessageType.QUESTION_CREATED)
             return redirect(
                 url_for(
-                    # "developers.deliver.edit_group",
                     "developers.deliver.manage_form_questions",
                     grant_id=grant_id,
                     collection_id=collection_id,
                     section_id=section_id,
-                    # group_id=group.id,
                     form_id=form_id,
                 )
             )
@@ -612,15 +616,28 @@ def move_question(
     except DependencyOrderException as e:
         flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
 
-    return redirect(
-        url_for(
-            "developers.deliver.manage_form_questions",
-            grant_id=grant_id,
-            collection_id=collection_id,
-            section_id=section_id,
-            form_id=form_id,
+    parent_source = request.args.get("parent_source", None)
+    if parent_source:
+        return redirect(
+            url_for(
+                "developers.deliver.edit_group",
+                grant_id=grant_id,
+                collection_id=collection_id,
+                section_id=section_id,
+                form_id=form_id,
+                group_id=parent_source,
+            )
         )
-    )
+    else:
+        return redirect(
+            url_for(
+                "developers.deliver.manage_form_questions",
+                grant_id=grant_id,
+                collection_id=collection_id,
+                section_id=section_id,
+                form_id=form_id,
+            )
+        )
 
 
 @developers_deliver_blueprint.route(
@@ -635,23 +652,38 @@ def edit_question(
     question = get_question_by_id(question_id=question_id)
     wt_form = QuestionForm(obj=question, question_type=question.data_type)
 
+    parent_source = request.args.get("parent_source", None)
+
     confirm_deletion_form = ConfirmDeletionForm()
     if "delete" in request.args:
         try:
             raise_if_question_has_any_dependencies(question)
 
             if confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
-                delete_question(question)
+                delete_component(question)
                 # TODO: Flash message for deletion?
-                return redirect(
-                    url_for(
-                        "developers.deliver.manage_form_questions",
-                        grant_id=grant_id,
-                        collection_id=collection_id,
-                        section_id=section_id,
-                        form_id=form_id,
+
+                if parent_source:
+                    return redirect(
+                        url_for(
+                            "developers.deliver.edit_group",
+                            grant_id=grant_id,
+                            collection_id=collection_id,
+                            section_id=section_id,
+                            form_id=form_id,
+                            group_id=parent_source,
+                        )
                     )
-                )
+                else:
+                    return redirect(
+                        url_for(
+                            "developers.deliver.manage_form_questions",
+                            grant_id=grant_id,
+                            collection_id=collection_id,
+                            section_id=section_id,
+                            form_id=form_id,
+                        )
+                    )
         except DependencyOrderException as e:
             flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
             return redirect(
@@ -662,6 +694,7 @@ def edit_question(
                     section_id=section_id,
                     form_id=form_id,
                     question_id=question_id,
+                    parent_source=parent_source,
                 )
             )
 
@@ -680,15 +713,27 @@ def edit_question(
                     last_data_source_item_is_distinct_from_others=wt_form.separate_option_if_no_items_match.data
                 ),
             )
-            return redirect(
-                url_for(
-                    "developers.deliver.manage_form_questions",
-                    grant_id=grant_id,
-                    collection_id=collection_id,
-                    section_id=section_id,
-                    form_id=form_id,
+            if parent_source:
+                return redirect(
+                    url_for(
+                        "developers.deliver.edit_group",
+                        grant_id=grant_id,
+                        collection_id=collection_id,
+                        section_id=section_id,
+                        form_id=form_id,
+                        group_id=parent_source,
+                    )
                 )
-            )
+            else:
+                return redirect(
+                    url_for(
+                        "developers.deliver.manage_form_questions",
+                        grant_id=grant_id,
+                        collection_id=collection_id,
+                        section_id=section_id,
+                        form_id=form_id,
+                    )
+                )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
@@ -716,6 +761,60 @@ def edit_question(
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         managed_validation_available=get_managed_validators_by_data_type(question.data_type),
+        parent_source=parent_source,
+    )
+
+
+@developers_deliver_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/groups/<uuid:group_id>/edit",
+    methods=["GET", "POST"],
+)
+@is_platform_admin
+@auto_commit_after_request
+def edit_group(
+    grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, group_id: UUID
+) -> ResponseReturnValue:
+    group = get_component_by_id(component_id=group_id)
+
+    confirm_deletion_form = ConfirmDeletionForm()
+    if "delete" in request.args:
+        try:
+            raise_if_question_has_any_dependencies(group)
+
+            if confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
+                delete_component(group)
+                # TODO: Flash message for deletion?
+                return redirect(
+                    # todo: routing based on source parent id, if not present form is the default
+                    url_for(
+                        "developers.deliver.manage_form_questions",
+                        grant_id=grant_id,
+                        collection_id=collection_id,
+                        section_id=section_id,
+                        form_id=form_id,
+                    )
+                )
+        except DependencyOrderException as e:
+            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
+            return redirect(
+                url_for(
+                    "developers.deliver.edit_group",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                    group_id=group_id,
+                )
+            )
+
+    return render_template(
+        "developers/deliver/edit_group.html",
+        grant=group.form.section.collection.grant,
+        collection=group.form.section.collection,
+        section=group.form.section,
+        db_form=group.form,
+        group=group,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
 
@@ -725,8 +824,13 @@ def edit_question(
 )
 @is_platform_admin
 def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    question = get_question_by_id(question_id)
-    form = ConditionSelectQuestionForm(question=question)
+    component = get_component_by_id(question_id)
+
+    # todo: rename everything in this flow to reflect if its any component (the target) or
+    #       specifically a question (the answer depended on)
+    form = ConditionSelectQuestionForm(question=component)
+
+    parent_source = request.args.get("parent_source", None)
 
     if form.validate_on_submit():
         depends_on_question = get_question_by_id(form.question.data)
@@ -736,14 +840,16 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
                 grant_id=grant_id,
                 question_id=question_id,
                 depends_on_question_id=depends_on_question.id,
+                parent_source=parent_source,
             )
         )
 
     return render_template(
         "developers/deliver/add_question_condition_select_question.html",
-        question=question,
-        grant=question.form.section.collection.grant,
+        question=component,
+        grant=component.form.section.collection.grant,
         form=form,
+        parent_source=parent_source,
     )
 
 
@@ -754,8 +860,9 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
 @is_platform_admin
 @auto_commit_after_request
 def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
-    question = get_question_by_id(question_id)
+    question = get_component_by_id(question_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
+    parent_source = request.args.get("parent_source", None)
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
     form = ConditionForm() if ConditionForm else None
@@ -764,16 +871,32 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
 
         try:
             interfaces.collections.add_component_condition(question, interfaces.user.get_current_user(), expression)
-            return redirect(
-                url_for(
-                    "developers.deliver.edit_question",
-                    grant_id=grant_id,
-                    collection_id=question.form.section.collection.id,
-                    section_id=question.form.section.id,
-                    form_id=question.form.id,
-                    question_id=question.id,
+
+            # todo: a nicer way of doing this more uniformly
+            if question.is_group:
+                return redirect(
+                    url_for(
+                        "developers.deliver.edit_group",
+                        grant_id=grant_id,
+                        collection_id=question.form.section.collection.id,
+                        section_id=question.form.section.id,
+                        form_id=question.form.id,
+                        group_id=question.id,
+                        parent_source=parent_source,
+                    )
                 )
-            )
+            else:
+                return redirect(
+                    url_for(
+                        "developers.deliver.edit_question",
+                        grant_id=grant_id,
+                        collection_id=question.form.section.collection.id,
+                        section_id=question.form.section.id,
+                        form_id=question.form.id,
+                        question_id=question.id,
+                        parent_source=parent_source,
+                    )
+                )
         except DuplicateValueError:
             form.form_errors.append(f"“{expression.description}” condition based on this question already exists.")
 
@@ -784,6 +907,7 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
         grant=question.form.section.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
+        parent_source=parent_source,
     )
 
 
@@ -794,9 +918,10 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
 @is_platform_admin
 @auto_commit_after_request
 def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UUID) -> ResponseReturnValue:
-    question = get_question_by_id(question_id)
+    question = get_component_by_id(question_id)
     expression = question.get_expression(expression_id)
     depends_on_question = expression.managed.referenced_question
+    parent_source = request.args.get("parent_source", None)
 
     confirm_deletion_form = ConfirmDeletionForm()
     if (
@@ -804,17 +929,32 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        remove_question_expression(question=question, expression=expression)
-        return redirect(
-            url_for(
-                "developers.deliver.edit_question",
-                grant_id=grant_id,
-                collection_id=question.form.section.collection_id,
-                section_id=question.form.section.id,
-                form_id=question.form.id,
-                question_id=question.id,
+        remove_question_expression(component=question, expression=expression)
+        # todo: a nicer way of doing this more uniformly
+        if question.is_group:
+            return redirect(
+                url_for(
+                    "developers.deliver.edit_group",
+                    grant_id=grant_id,
+                    collection_id=question.form.section.collection.id,
+                    section_id=question.form.section.id,
+                    form_id=question.form.id,
+                    group_id=question.id,
+                    parent_source=parent_source,
+                )
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "developers.deliver.edit_question",
+                    grant_id=grant_id,
+                    collection_id=question.form.section.collection.id,
+                    section_id=question.form.section.id,
+                    form_id=question.form.id,
+                    question_id=question.id,
+                    parent_source=parent_source,
+                )
+            )
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question, expression)
     form = ConditionForm() if ConditionForm else None
@@ -832,6 +972,7 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
                     section_id=question.form.section.id,
                     form_id=question.form.id,
                     question_id=question.id,
+                    parent_source=parent_source,
                 )
             )
         except DuplicateValueError:
@@ -848,6 +989,7 @@ def edit_question_condition(grant_id: UUID, question_id: UUID, expression_id: UU
         expression=expression,
         QuestionDataType=QuestionDataType,
         depends_on_question=depends_on_question,
+        parent_source=parent_source,
     )
 
 
@@ -908,7 +1050,7 @@ def edit_question_validation(grant_id: UUID, question_id: UUID, expression_id: U
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        remove_question_expression(question=question, expression=expression)
+        remove_question_expression(component=question, expression=expression)
         return redirect(
             url_for(
                 "developers.deliver.edit_question",

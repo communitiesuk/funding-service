@@ -508,7 +508,7 @@ def get_expression_by_id(expression_id: UUID) -> Expression:
         expression_id,
         options=[
             joinedload(Expression.question)
-            .joinedload(Question.form)
+            .joinedload(Component.form)
             .joinedload(Form.section)
             .joinedload(Section.collection)
             .joinedload(Collection.grant)
@@ -550,7 +550,7 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
         self,
         message: str,
         question_being_edited: Question,
-        data_source_item_dependency_map: dict[Question, set[DataSourceItem]],
+        data_source_item_dependency_map: dict[Component, set[DataSourceItem]],
     ):
         super().__init__(message)
         self.message = message
@@ -596,18 +596,20 @@ def check_component_order_dependency(component: Component, swap_component: Compo
 
 
 def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:
-    return component.order > depends_on_component.order
+    form = get_form_by_id(component.form_id, with_all_questions=True)
+    components = form.all_components
+    return components.index(component) > components.index(depends_on_component)
 
 
 # todo: when working generically with components this should dig in and check child components
 #       a short term workaround might be to use _all_components but ideally this should
 #       just expect nested components
-def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
-    for target_question in question.form.questions:
+def raise_if_question_has_any_dependencies(component: Component) -> Never | None:
+    for target_question in component.form.questions:
         for condition in target_question.conditions:
-            if condition.managed and condition.managed.question_id == question.id:
+            if condition.managed and condition.managed.question_id == component.id:
                 raise DependencyOrderException(
-                    "You cannot delete an answer that other questions depend on", target_question, question
+                    "You cannot delete an answer that other questions depend on", target_question, component
                 )
     return None
 
@@ -615,7 +617,7 @@ def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
 def raise_if_data_source_item_reference_dependency(
     question: Question, items_to_delete: Sequence[DataSourceItem]
 ) -> Never | None:
-    data_source_item_dependency_map: dict[Question, set[DataSourceItem]] = {}
+    data_source_item_dependency_map: dict[Component, set[DataSourceItem]] = {}
     for data_source_item in items_to_delete:
         for reference in data_source_item.references:
             dependent_question = reference.expression.question
@@ -759,10 +761,10 @@ def get_expression(expression_id: UUID) -> Expression:
     return db.session.get_one(Expression, expression_id)
 
 
-def remove_question_expression(question: Question, expression: Expression) -> Question:
-    question.expressions.remove(expression)
+def remove_question_expression(component: Component, expression: Expression) -> Component:
+    component.expressions.remove(expression)
     db.session.flush()
-    return question
+    return component
 
 
 def update_question_expression(expression: Expression, managed_expression: "ManagedExpression") -> Expression:

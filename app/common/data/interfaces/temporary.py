@@ -16,9 +16,9 @@ from sqlalchemy import select, text
 from app.common.data.interfaces.collections import create_section, raise_if_question_has_any_dependencies
 from app.common.data.models import (
     Collection,
+    Component,
     Form,
     Grant,
-    Question,
     Section,
     Submission,
 )
@@ -93,16 +93,16 @@ def delete_form(form: Form) -> None:
     db.session.flush()
 
 
-def delete_question(question: Question) -> None:
-    raise_if_question_has_any_dependencies(question)
+def delete_component(component: Component) -> None:
+    raise_if_question_has_any_dependencies(component)
     # remove the instance from its collection specifically, which triggers reordering of all other sections
     # correctly.
     # todo: when/if this becomes a non-temporary interface, TEST THOROUGHLY. The OrderingList we're using for this
     # definitely has a few quirks.
-    db.session.delete(question)
-    if question in question.container.components:
-        question.container.components.remove(question)
-    question.container.components.reorder()
+    db.session.delete(component)
+    if component in component.container.components:
+        component.container.components.remove(component)
+    component.container.components.reorder()
     db.session.execute(
         text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_component_order_form DEFERRED")
     )

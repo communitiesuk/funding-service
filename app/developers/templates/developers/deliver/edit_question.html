@@ -10,12 +10,21 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
-  {{
-    govukBackLink({
-        "text": "Back",
-        "href": url_for("developers.deliver.manage_form_questions", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
-    })
-  }}
+  {% if parent_source %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": url_for("developers.deliver.edit_group", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, group_id=parent_source, back_link="manage_section")
+      })
+    }}
+  {% else %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": url_for("developers.deliver.manage_form_questions", grant_id = grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, back_link="manage_section")
+      })
+    }}
+  {% endif %}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -24,7 +33,13 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.QUESTION_CREATED]) %}
         {% if flashes %}
           {% set question_created_content %}
-            <a class="govuk-notification-banner__link" href="{{ url_for('developers.deliver.manage_form_questions', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}">Return to the task</a>
+            {% if parent_source %}
+              <a class="govuk-notification-banner__link" href="{{ url_for('developers.deliver.edit_group', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, group_id=parent_source) }}">
+                Return to the group
+              </a>
+            {% else %}
+              <a class="govuk-notification-banner__link" href="{{ url_for('developers.deliver.manage_form_questions', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}">Return to the task</a>
+            {% endif %}
             to add more questions, or edit this question to add conditions and validations.
           {% endset %}
           {{
@@ -107,7 +122,7 @@
 
 
                 {% set value_html %}
-                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
+                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id, parent_source=parent_source) }}">
                     <span class="govuk-visually-hidden">Change condition for</span>
                     {{ condition.managed.message }}
                   </a>
@@ -132,7 +147,7 @@
               {{
                 govukButton({
                   "text": "Add condition",
-                  "href": url_for('developers.deliver.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
+                  "href": url_for('developers.deliver.add_question_condition_select_question', grant_id=grant.id, question_id=question.id, parent_source=parent_source),
                   "classes": "govuk-button--secondary"
                 })
               }}
@@ -187,7 +202,7 @@
             <p class="govuk-body">
               <a
                 class="govuk-link app-link--destructive"
-                href="{{ url_for('developers.deliver.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=question.id, delete='') }}">
+                href="{{ url_for('developers.deliver.edit_question', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, question_id=question.id, delete='', parent_source=parent_source) }}">
                 Delete this question
               </a>
             </p>
