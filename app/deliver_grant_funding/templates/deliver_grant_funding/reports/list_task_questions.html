@@ -56,7 +56,7 @@
     <div class="govuk-grid-column-one-third govuk-!-text-align-right">
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Preview task", "classes": "govuk-button--secondary"}) }}
+        {{ form.submit(params={"text": "Preview task", "classes": "govuk-button--secondary", "disabled": true if db_form.questions | length == 0 else false}) }}
       </form>
     </div>
   </div>
