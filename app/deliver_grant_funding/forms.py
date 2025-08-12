@@ -178,7 +178,7 @@ class SectionForm(FlaskForm):
 
 class FormForm(FlaskForm):
     title = StringField(
-        "What is the name of the task?",
+        "Task name",
         validators=[DataRequired("Enter a task name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
@@ -230,7 +230,8 @@ class GroupForm(FlaskForm):
 
 class QuestionForm(FlaskForm):
     text = StringField(
-        "What is the question?",
+        "Question text",
+        description="The text grant recipients will see on their report",
         validators=[DataRequired("Enter the question text")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
@@ -240,7 +241,7 @@ class QuestionForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextArea(),
         description=(
-            "If needed, provide a single sentence without a full stop to help someone answer the question correctly"
+            "A single sentence to help someone answer the question, for example, ‘Must be between 6 and 8 digits long’"
         ),
         render_kw={"params": {"rows": 2}},
     )

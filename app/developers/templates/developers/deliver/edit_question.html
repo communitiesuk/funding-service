@@ -25,7 +25,7 @@
         {% if flashes %}
           {% set question_created_content %}
             <a class="govuk-notification-banner__link" href="{{ url_for('developers.deliver.manage_form_questions', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}">Return to the task</a>
-            to create other questions, or stay here to add conditions and validation to this question.
+            to add more questions, or edit this question to add conditions and validations.
           {% endset %}
           {{
             govukNotificationBanner({
@@ -93,7 +93,7 @@
 
             <div class="govuk-form-group">
               <h2 class="govuk-heading-m">Conditions</h2>
-              <p class="govuk-body">Use answers from other questions to decide if your users should be asked this question.</p>
+              <p class="govuk-body">Add conditions to only show this question if the grant recipient has answered one of the other questions in a particular way.</p>
               {% set rows = [] %}
               {% for condition in question.conditions %}
                 {% set managed = condition.managed %}
@@ -140,7 +140,7 @@
             <div class="govuk-form-group">
               <h2 class="govuk-heading-m">Validations</h2>
               {% if managed_validation_available %}
-                <p class="govuk-body">Add validation to help users provide the correct answer to the question. The answer will be validated in the order listed.</p>
+                <p class="govuk-body">Add validations to show an error message to the user if the answer does not meet the requirements. For example, you can add a validation to stop users entering a number over a certain amount.</p>
                 {% set rows = [] %}
                 {% for validation in question.validations %}
                   {% set managed = validation.managed %}
@@ -179,7 +179,7 @@
                   })
                 }}
               {% else %}
-                <p class="govuk-body">Validation is not available for this kind of question.</p>
+                <p class="govuk-body">Validations are not available for this question type.</p>
               {% endif %}
             </div>
 

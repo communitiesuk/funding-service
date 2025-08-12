@@ -20,9 +20,13 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l">What is the name of the task?</h1>
+      <p class="govuk-body">Use tasks to group related questions together. This helps the person completing the form to focus on one topic or ‘task’ at a time.</p>
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.title(params={"label": {"text": "Update task name", "isPageHeading": true, "classes": "govuk-label--l"} }) }}
+        {{ form.title(params={"label": {"classes": "govuk-visually-hidden"} }) }}
 
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Update task name"}) }}

@@ -71,7 +71,7 @@ class TestListReports:
         soup = BeautifulSoup(response.data, "html.parser")
         assert grant.name in soup.text
 
-        review_submissions_links = page_has_link(soup, "View 0 test submissions")
+        review_submissions_links = page_has_link(soup, "0 test submissions")
         assert review_submissions_links is not None
         assert review_submissions_links.get("href") == AnyStringMatching(
             r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/test"
@@ -1308,7 +1308,7 @@ class TestEditQuestionCondition:
             assert yes_radio.get("checked") is not None
             assert no_radio.get("checked") is None
 
-            assert page_has_button(soup, "Update condition")
+            assert page_has_button(soup, "Save condition")
 
             delete_link = page_has_link(soup, "Delete condition")
             assert delete_link is not None
@@ -1527,13 +1527,11 @@ class TestAddQuestionValidation:
 
             assert get_h1_text(soup) == "Add validation"
 
-            assert "Form" in soup.text
+            assert "Task" in soup.text
             assert "Organisation information" in soup.text
 
             assert "Question" in soup.text
             assert "How many employees do you have?" in soup.text
-
-            assert "The answer to the question" in soup.text
 
             greater_than_radio = soup.find("input", {"type": "radio", "value": "Greater than"})
             less_than_radio = soup.find("input", {"type": "radio", "value": "Less than"})
@@ -1691,14 +1689,11 @@ class TestEditQuestionValidation:
 
             assert get_h1_text(soup) == "Edit validation"
 
-            assert "Form" in soup.text
+            assert "Task" in soup.text
             assert "Organisation information" in soup.text
 
             assert "Question" in soup.text
             assert "How many employees do you have?" in soup.text
-
-            assert "The answer to the question" in soup.text
-            assert "must be" in soup.text
 
             greater_than_radio = soup.find("input", {"type": "radio", "value": "Greater than"})
             less_than_radio = soup.find("input", {"type": "radio", "value": "Less than"})
@@ -1710,7 +1705,7 @@ class TestEditQuestionValidation:
             min_value_input = soup.find("input", {"name": "greater_than_value"})
             assert min_value_input.get("value") == "10"
 
-            assert page_has_button(soup, "Edit validation")
+            assert page_has_button(soup, "Save validation")
 
             delete_link = page_has_link(soup, "Delete validation")
             assert delete_link is not None

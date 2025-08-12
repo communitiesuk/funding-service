@@ -7,7 +7,7 @@
 
 {% set is_editing = expression %}
 {% set heading = "Edit condition" if is_editing else "Add a condition" %}
-{% set submit_label = "Update condition" if is_editing else "Add condition" %}
+{% set submit_label = "Save condition" if is_editing else "Add condition" %}
 
 {% set back_to_select_question_for_condition = url_for("deliver_grant_funding.add_question_condition_select_question", grant_id=grant.id, question_id=question.id) %}
 {% set back_to_edit_question = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) %}
@@ -47,9 +47,7 @@
 
       {% if form is not none %}
         {% set label_html %}
-          Only show the question if the answer
-          <span class="govuk-visually-hidden">to {{ depends_on_question.text }}</span>
-          is
+          What does the answer <span class="govuk-visually-hidden">to {{ question.text }}</span> need to be?
         {% endset %}
         {{ render_managed_expression_form(form, label_html=label_html, submit_label=submit_label) }}
       {% else %}
