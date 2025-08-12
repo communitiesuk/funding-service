@@ -1,0 +1,52 @@
+name: Deploy branch to dev
+run-name: Deploy branch to dev ➡️ ${{github.ref_name}}
+
+permissions:
+  contents: read  # This is required for actions/checkout
+  id-token: write  # This is required for authenticating with aws
+
+on:
+  workflow_dispatch:
+    inputs:
+        run_e2e_tests:
+            required: false
+            default: true
+            type: boolean
+            description: Run e2e tests
+
+jobs:
+  paketo_build:
+    name: Build
+    uses: ./.github/workflows/package.yml
+    secrets:
+      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+      CI_AWS_ACCOUNT: ${{ secrets.CI_AWS_ACCOUNT }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+
+  run_e2e_tests_docker_compose:
+    name: Run E2E tests against docker compose
+    uses: ./.github/workflows/run_e2e_tests_docker_compose.yml
+    secrets:
+      PULLPREVIEW_GOVUK_NOTIFY_API_KEY: ${{ secrets.PULLPREVIEW_GOVUK_NOTIFY_API_KEY }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+
+  deploy_dev:
+    name: Deploy to dev
+    needs:
+      - paketo_build
+    uses: ./.github/workflows/deploy.yml
+    concurrency:
+      group: fs-deploy-dev
+      cancel-in-progress: false
+    with:
+      environment: dev
+      run_e2e_tests:  ${{ inputs.run_e2e_tests }}
+    secrets:
+      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+      CI_AWS_ACCOUNT: ${{ secrets.CI_AWS_ACCOUNT }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+      SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
+      SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
