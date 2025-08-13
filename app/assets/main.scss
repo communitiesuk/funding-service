@@ -188,3 +188,7 @@ $app-destructive-link-active-colour: $govuk-text-colour;
     @include govuk-link-style-error;
   }
 }
+
+.app-list-\!-link-color {
+   color: $govuk-link-colour !important;
+}

@@ -516,7 +516,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
                     last_data_source_item_is_distinct_from_others=wt_form.separate_option_if_no_items_match.data
                 ),
             )
-            flash("Question created", FlashMessageType.QUESTION_CREATED)
+            flash("Question added", FlashMessageType.QUESTION_CREATED)
             return redirect(
                 url_for(
                     "developers.deliver.edit_question",
