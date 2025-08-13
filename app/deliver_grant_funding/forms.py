@@ -34,6 +34,10 @@ def strip_string_if_not_empty(value: str) -> str | None:
     return value.strip() if value else value
 
 
+def empty_string_to_none(value: str) -> str | None:
+    return value if value else None
+
+
 def _validate_no_blank_lines(form: FlaskForm, field: Field) -> None:
     choices = field.data.split("\n")
     if any(choice.strip() == "" for choice in choices):
@@ -302,11 +306,13 @@ class QuestionForm(FlaskForm):
         "Prefix (optional)",
         widget=GovTextInput(),
         validators=[Optional()],
+        filters=[strip_string_if_not_empty, empty_string_to_none],
     )
     suffix = StringField(
         "Suffix (optional)",
         widget=GovTextInput(),
         validators=[Optional()],
+        filters=[strip_string_if_not_empty, empty_string_to_none],
     )
     width = SelectField(
         "Input width",
@@ -377,6 +383,14 @@ class QuestionForm(FlaskForm):
                 data_source_items.append(cast(str, self.none_of_the_above_item_text.data))
 
         return data_source_items
+
+    def validate_prefix(self, field: Field) -> None:
+        if self.prefix.data and self.suffix.data:
+            raise ValidationError("Remove the suffix if you need a prefix")
+
+    def validate_suffix(self, field: Field) -> None:
+        if self.prefix.data and self.suffix.data:
+            raise ValidationError("Remove the prefix if you need a suffix")
 
 
 class GrantAddUserForm(FlaskForm):

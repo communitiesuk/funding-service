@@ -184,3 +184,43 @@ class TestQuestionForm:
         assert form.errors == {
             "data_source_items": [f"You have entered too many options. The maximum is {max_data_source_items}"]
         }
+
+    def test_prefixes_and_suffixes_blank_coerced_to_none(self, app):
+        form = QuestionForm(question_type=QuestionDataType.INTEGER)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("prefix", ""),
+                ("suffix", "   "),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is True
+        assert form.prefix.data is None
+        assert form.suffix.data is None
+
+    def test_prefixes_and_suffixes_mutually_exclusive(self, app):
+        form = QuestionForm(question_type=QuestionDataType.INTEGER)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("prefix", "£"),
+                ("suffix", "lbs"),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is False
+        assert form.errors == {
+            "prefix": ["Remove the suffix if you need a prefix"],
+            "suffix": ["Remove the prefix if you need a suffix"],
+        }
