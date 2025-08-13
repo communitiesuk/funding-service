@@ -582,17 +582,31 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
 def check_component_order_dependency(component: Component, swap_component: Component) -> None:
-    for condition in component.conditions:
-        if condition.managed and condition.managed.question_id == swap_component.id:
-            raise DependencyOrderException(
-                "You cannot move questions above answers they depend on", component, swap_component
-            )
+    form = get_form_by_id(component.form_id, with_all_questions=True)
+    target_component = next(c for c in form.all_components if c.id == component.id)
+    target_swap_component = next(c for c in form.all_components if c.id == swap_component.id)
 
-    for condition in swap_component.conditions:
-        if condition.managed and condition.managed.question_id == component.id:
-            raise DependencyOrderException(
-                "You cannot move answers below questions that depend on them", swap_component, component
-            )
+    for c in (
+        [target_component] + target_component.all_components
+        if isinstance(target_component, Group)
+        else [target_component]
+    ):
+        for condition in c.conditions:
+            if condition.managed and condition.managed.question_id == swap_component.id:
+                raise DependencyOrderException(
+                    "You cannot move questions above answers they depend on", component, swap_component
+                )
+
+    for c in (
+        [target_swap_component] + target_swap_component.all_components
+        if isinstance(target_swap_component, Group)
+        else [target_swap_component]
+    ):
+        for condition in c.conditions:
+            if condition.managed and condition.managed.question_id == component.id:
+                raise DependencyOrderException(
+                    "You cannot move answers below questions that depend on them", swap_component, component
+                )
 
 
 def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:
@@ -605,7 +619,7 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
 #       a short term workaround might be to use _all_components but ideally this should
 #       just expect nested components
 def raise_if_question_has_any_dependencies(component: Component) -> Never | None:
-    for target_question in component.form.questions:
+    for target_question in component.form.all_components:
         for condition in target_question.conditions:
             if condition.managed and condition.managed.question_id == component.id:
                 raise DependencyOrderException(
