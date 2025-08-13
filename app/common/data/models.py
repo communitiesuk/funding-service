@@ -444,6 +444,10 @@ class Group(Component):
     def questions(self) -> list["Question"]:
         return cast(list["Question"], get_ordered_nested_questions_for_components(self.components))
 
+    @property
+    def all_components(self) -> list["Component"]:
+        return get_ordered_nested_questions_for_components(self.components, True)
+
 
 class SubmissionEvent(BaseModel):
     __tablename__ = "submission_event"
