@@ -208,10 +208,10 @@ class _CollectionFactory(SQLAlchemyModelFactory):
 
         def _create_submission(mode: SubmissionModeEnum, complete_question_2: bool = False) -> None:
             response_data: dict[str, Any] = {
-                str(q1.id): IntegerAnswer(40 if complete_question_2 else 20).get_value_for_submission()  # ty: ignore[missing-argument]
+                str(q1.id): IntegerAnswer(value=(40 if complete_question_2 else 20)).get_value_for_submission()  # ty: ignore[missing-argument]
             }
             if complete_question_2:
-                response_data[str(q2.id)] = IntegerAnswer(80).get_value_for_submission()  # ty: ignore[missing-argument]
+                response_data[str(q2.id)] = IntegerAnswer(value=80).get_value_for_submission()  # ty: ignore[missing-argument]
 
             response_data[str(q3.id)] = TextSingleLineAnswer("digestive").get_value_for_submission()  # ty: ignore[missing-argument]
 
@@ -317,7 +317,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         def _create_submission(mode: SubmissionModeEnum, count: int = 0) -> None:
             for _ in range(count):
                 response_data: dict[str, Any] = {
-                    str(q1.id): IntegerAnswer(faker.Faker().random_int(min=0, max=60)).get_value_for_submission()  # ty: ignore[missing-argument]
+                    str(q1.id): IntegerAnswer(value=faker.Faker().random_int(min=0, max=60)).get_value_for_submission()  # ty: ignore[missing-argument]
                 }
                 response_data[str(q2.id)] = YesNoAnswer(random.choice([True, False])).get_value_for_submission()  # ty: ignore[missing-argument]
 
@@ -420,7 +420,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                             else "Line 1\r\nline2\r\nline 3"
                         ).get_value_for_submission(),
                         str(q3.id): IntegerAnswer(  # ty: ignore[missing-argument]
-                            faker.Faker().random_number(2) if use_random_data else 123
+                            value=(faker.Faker().random_number(2) if use_random_data else 123)
                         ).get_value_for_submission(),
                         str(q4.id): SingleChoiceFromListAnswer(  # ty: ignore[missing-argument]
                             key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label

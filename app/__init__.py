@@ -25,6 +25,7 @@ from app.common.filters import (
     format_date_short,
     format_datetime,
     format_datetime_range,
+    format_thousands,
     to_ordinal,
 )
 from app.config import get_settings
@@ -167,6 +168,7 @@ def create_app() -> Flask:
             format_datetime=format_datetime,
             format_date_range=format_date_range,
             format_datetime_range=format_datetime_range,
+            format_thousands=format_thousands,
             to_ordinal=to_ordinal,
             enum=dict(
                 submission_mode=SubmissionModeEnum,

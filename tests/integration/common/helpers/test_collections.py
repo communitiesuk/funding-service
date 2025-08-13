@@ -56,7 +56,7 @@ class TestSubmissionHelper:
             form = build_question_form(question, expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=5)
             helper.submit_answer_for_question(question.id, form)
 
-            assert helper.get_answer_for_question(question.id) == IntegerAnswer(5)
+            assert helper.get_answer_for_question(question.id) == IntegerAnswer(value=5)
 
         def test_can_get_falsey_answers(self, db_session, factories):
             question = factories.question.build(
@@ -68,7 +68,7 @@ class TestSubmissionHelper:
             form = build_question_form(question, expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=0)
             helper.submit_answer_for_question(question.id, form)
 
-            assert helper.get_answer_for_question(question.id) == IntegerAnswer(0)
+            assert helper.get_answer_for_question(question.id) == IntegerAnswer(value=0)
 
         def test_cannot_submit_answer_on_submitted_submission(self, db_session, factories):
             question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
@@ -156,7 +156,7 @@ class TestSubmissionHelper:
                 data={
                     str(q1.id): TextSingleLineAnswer("answer").get_value_for_submission(),
                     str(q2.id): TextMultiLineAnswer("answer\nthis").get_value_for_submission(),
-                    str(q3.id): IntegerAnswer(50).get_value_for_submission(),
+                    str(q3.id): IntegerAnswer(value=50).get_value_for_submission(),
                     str(q4.id): YesNoAnswer(True).get_value_for_submission(),  # ty: ignore[missing-argument]
                     str(q5.id): SingleChoiceFromListAnswer(key="my-key", label="My label").get_value_for_submission(),
                     str(q6.id): TextSingleLineAnswer("name@example.com").get_value_for_submission(),
@@ -247,7 +247,7 @@ class TestSubmissionHelper:
                 data={
                     str(q1.id): TextSingleLineAnswer("answer").get_value_for_submission(),
                     str(q2.id): TextMultiLineAnswer("answer\nthis").get_value_for_submission(),
-                    str(q3.id): IntegerAnswer(50).get_value_for_submission(),
+                    str(q3.id): IntegerAnswer(value=50).get_value_for_submission(),
                     str(q4.id): YesNoAnswer(True).get_value_for_submission(),  # ty: ignore[missing-argument]
                     str(q5.id): SingleChoiceFromListAnswer(key="my-key", label="My label").get_value_for_submission(),
                     str(q6.id): TextSingleLineAnswer("name@example.com").get_value_for_submission(),
@@ -550,7 +550,7 @@ class TestCollectionHelper:
             for _, helper in c_helper.submission_helpers.items()
             if helper.get_answer_for_question(dependant_question_id).get_value_for_text_export() == "20"
         )
-        submission.data[str(conditional_question_id)] = 120
+        submission.data[str(conditional_question_id)] = IntegerAnswer(value=120).get_value_for_submission()
         csv_content = c_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
