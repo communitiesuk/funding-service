@@ -14,7 +14,7 @@ on:
             type: boolean
             description: Run e2e tests
   schedule:
-  - cron:  '0 9 * * 1'
+  - cron:  '0 2 * * 1'
 jobs:
   paketo_build:
     name: Build
