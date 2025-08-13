@@ -1,5 +1,5 @@
 name: Deploy branch to dev
-run-name: Deploy branch to dev ➡️ ${{github.ref_name}}
+run-name: Deploy branch '${{github.ref_name}}'   to dev
 
 permissions:
   contents: read  # This is required for actions/checkout
@@ -36,6 +36,7 @@ jobs:
     name: Deploy to dev
     needs:
       - paketo_build
+      - run_e2e_tests_docker_compose
     uses: ./.github/workflows/deploy.yml
     concurrency:
       group: fs-deploy-dev
