@@ -5,6 +5,7 @@
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "deliver_grant_funding/partials/_advanced_formatting_options.html" import advancedFormattingOptions %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 
 {% set page_title = "Edit question - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
@@ -43,7 +44,7 @@
             {% else %}
               <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_task_questions', grant_id=grant.id, form_id=db_form.id) }}">Return to the task</a>
             {% endif %}
-            to add more questions, or edit this question to add conditions and validations.
+            to add more questions. Continue editing this question to add conditions and validations.
           {% endset %}
           {{
             govukNotificationBanner({
@@ -152,14 +153,14 @@
             {% set value_html %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, component_id=question.id, expression_id=condition.id) }}">
                 <span class="govuk-visually-hidden">Change condition for</span>
-                {{ condition.managed.message }}
+                {{ condition.managed.html }}
               </a>
             {% endset %}
-            {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
+            {% do rows.append([{ "html": key_html }, { "html": value_html } ]) %}
           {% endfor %}
 
           {% if rows %}
-            {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+            {{ govukTable({ "head": [{"text": "Question"}, {"text": "Answer"}], "rows": rows }) }}
           {% endif %}
 
           {{

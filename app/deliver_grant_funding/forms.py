@@ -484,7 +484,7 @@ class AddTaskForm(FlaskForm):
 
 class ConditionSelectQuestionForm(FlaskForm):
     question = SelectField(
-        "Which answer should the condition check?",
+        "What question does this condition relate to?",
         choices=[],
         validators=[DataRequired("Select a question")],
         widget=GovSelect(),

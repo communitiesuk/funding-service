@@ -619,7 +619,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
                 parent=parent,
             )
-            flash("Question created", FlashMessageType.QUESTION_CREATED)
+            flash("Question added", FlashMessageType.QUESTION_CREATED)
             return redirect(
                 url_for(
                     "deliver_grant_funding.edit_question",
