@@ -262,7 +262,7 @@ class QuestionForm(FlaskForm):
         widget=GovTextInput(),
     )
 
-    # Note: the next three fields all read from properties on the `Question` model because the names match. This
+    # Note: the next fields all read from properties on the `Question` model because the names match. This
     # implicit connection needs to be maintained.
     data_source_items = StringField(
         "List of options",

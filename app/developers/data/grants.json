@@ -946,9 +946,7 @@
           "id": "058d7d3a-3e5e-4b94-9a81-57882961c59a",
           "name": "lead contact name",
           "order": 0,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
-          },
+          "presentation_options": {},
           "slug": "what-is-the-full-name-of-the-lead-contact-for-this-programme",
           "text": "What is the full name of the lead contact for this programme?",
           "type": "QUESTION"
@@ -960,9 +958,7 @@
           "id": "b51759ce-0690-49d1-9a0f-d6f34eda28f0",
           "name": "lead contact email",
           "order": 1,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
-          },
+          "presentation_options": {},
           "slug": "what-is-the-email-address-of-the-lead-contact-for-this-programme",
           "text": "What is the email address of the lead contact for this programme?",
           "type": "QUESTION"
@@ -972,9 +968,7 @@
           "id": "b9a4f920-7704-4799-92b9-c4457e1c8705",
           "name": "Lead contact's role",
           "order": 2,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
-          },
+          "presentation_options": {},
           "slug": "lead-contacts-role",
           "text": "Lead contact's role",
           "type": "GROUP"
@@ -1017,9 +1011,7 @@
           "name": "lead contact's custom role",
           "order": 2,
           "parent_id": "b9a4f920-7704-4799-92b9-c4457e1c8705",
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": false
-          },
+          "presentation_options": {},
           "slug": "what-is-the-lead-contacts-role-in-your-own-words",
           "text": "What is the lead contact's role in your own words?",
           "type": "QUESTION"
@@ -1031,9 +1023,7 @@
           "id": "55ef70ba-11df-46e9-8804-c57c42632fa9",
           "name": "programme website",
           "order": 3,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
-          },
+          "presentation_options": {},
           "slug": "what-is-the-website-for-this-programme",
           "text": "What is the website for this programme?",
           "type": "QUESTION"
@@ -1073,9 +1063,7 @@
           "id": "233960c6-2eac-4bef-bccd-0f0bee3a94e8",
           "name": "lead contact works remotely",
           "order": 6,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": false
-          },
+          "presentation_options": {},
           "slug": "does-the-lead-contact-work-remotely",
           "text": "Does the lead contact work remotely?",
           "type": "QUESTION"
@@ -1088,7 +1076,7 @@
           "name": "programme update",
           "order": 0,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "provide-a-brief-update-on-the-progress-of-your-programme",
           "text": "Provide a brief update on the progress of your programme",
@@ -1102,7 +1090,7 @@
           "name": "main success delivered",
           "order": 1,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "describe-the-main-success-that-your-programme-had-in-the-last-reporting-period",
           "text": "Describe the main success that your programme had in the last reporting period",
@@ -1115,9 +1103,7 @@
           "id": "d99b94c3-66fa-4449-b4c4-ac5a2caeb8c9",
           "name": "any failures to report",
           "order": 2,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
-          },
+          "presentation_options": {},
           "slug": "do-you-have-any-failures-to-report",
           "text": "Do you have any failures to report?",
           "type": "QUESTION"
@@ -1130,7 +1116,7 @@
           "name": "failure details",
           "order": 3,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "detail-the-failures-that-you-want-us-to-know-about",
           "text": "Detail the failures that you want us to know about",
@@ -1144,7 +1130,9 @@
           "name": "number of cheeseboards laid out",
           "order": 0,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "how-many-cheeseboards-were-laid-out-in-the-last-reporting-period",
           "text": "How many cheeseboards were laid out in the last reporting period?",
@@ -1158,7 +1146,7 @@
           "name": "explanation for low cheeseboard count",
           "order": 1,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "why-were-so-few-cheeseboards-laid-out",
           "text": "Why were so few cheeseboards laid out?",
@@ -1172,7 +1160,9 @@
           "name": "number of cheesemongers supported",
           "order": 2,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "how-many-cheesemongers-did-you-support-in-the-last-reporting-period",
           "text": "How many cheesemongers did you support in the last reporting period?",
@@ -1186,7 +1176,9 @@
           "name": "park visitor satifaction",
           "order": 3,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "what-percentage-of-park-visitors-are-happy-with-the-local-cheeses-produced-in-the-community",
           "text": "What percentage of park visitors are happy with the local cheeses produced in the community?",
@@ -1200,7 +1192,7 @@
           "name": "explanation for low satisfaction",
           "order": 4,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "why-is-park-visitor-satisfaction-so-low",
           "text": "Why is park visitor satisfaction so low?",
@@ -1213,9 +1205,7 @@
           "id": "2d29a543-7bde-408e-b127-30028b87f811",
           "name": "risk title",
           "order": 0,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
-          },
+          "presentation_options": {},
           "slug": "what-is-the-name-of-the-risk",
           "text": "What is the name of the risk?",
           "type": "QUESTION"
@@ -1228,7 +1218,7 @@
           "name": "risk description",
           "order": 1,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "describe-the-risk-in-detail",
           "text": "Describe the risk in detail",
@@ -1242,7 +1232,7 @@
           "name": "risk category",
           "order": 2,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "what-is-the-principle-risk-category",
           "text": "What is the principle risk category?",
@@ -1256,7 +1246,7 @@
           "name": "risk status",
           "order": 3,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "what-is-the-risk-status",
           "text": "What is the risk status?",
@@ -1269,9 +1259,7 @@
           "id": "1829eafb-0956-40c7-8ad7-62386229cf5a",
           "name": "risk owner",
           "order": 4,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
-          },
+          "presentation_options": {},
           "slug": "who-is-the-risk-owner",
           "text": "Who is the risk owner?",
           "type": "QUESTION"
@@ -1283,9 +1271,7 @@
           "id": "897480b2-794d-416b-a827-2f4f2e8f5843",
           "name": "risk to life",
           "order": 5,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": false
-          },
+          "presentation_options": {},
           "slug": "is-there-a-risk-to-life",
           "text": "Is there a risk to life?",
           "type": "QUESTION"
@@ -1298,7 +1284,7 @@
           "name": "management of risk to life",
           "order": 6,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": false
+            "rows": 5
           },
           "slug": "how-are-you-managing-the-risk-to-life",
           "text": "How are you managing the risk to life?",
@@ -1312,7 +1298,7 @@
           "name": "current risk impact score",
           "order": 7,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "what-is-the-current-impact-score",
           "text": "What is the current impact score?",
@@ -1326,7 +1312,7 @@
           "name": "current risk likelihood score",
           "order": 8,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "what-is-the-current-likelihood-score",
           "text": "What is the current likelihood score?",
@@ -1340,7 +1326,7 @@
           "name": "current risk mitigations",
           "order": 9,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "what-current-mitigations-are-in-place-for-the-risk",
           "text": "What current mitigations are in place for the risk?",
@@ -1354,7 +1340,7 @@
           "name": "planned risk mitigations",
           "order": 10,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "what-planned-mitigations-are-there-for-the-risk",
           "text": "What planned mitigations are there for the risk?",
@@ -1368,7 +1354,7 @@
           "name": "target risk impact score",
           "order": 11,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "what-is-the-target-impact-score",
           "text": "What is the target impact score?",
@@ -1382,7 +1368,7 @@
           "name": "target risk likelihood score",
           "order": 12,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "what-is-the-target-likelihood-score",
           "text": "What is the target likelihood score?",
@@ -1396,7 +1382,7 @@
           "name": "high target total risk score justification",
           "order": 13,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "if-the-target-total-risk-score-is-over-20-explain-why",
           "text": "If the target total risk score is over 20, explain why",
@@ -1410,7 +1396,9 @@
           "name": "spend in the last reporting period",
           "order": 0,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "how-much-did-you-spend-in-the-last-reporting-period",
           "text": "How much did you spend in the last reporting period?",
@@ -1424,7 +1412,7 @@
           "name": "reason why the spend was so low",
           "order": 1,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "why-was-the-spend-so-low",
           "text": "Why was the spend so low?",
@@ -1438,7 +1426,7 @@
           "name": "reason why the spend was so high",
           "order": 2,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "why-was-the-spend-so-high",
           "text": "Why was the spend so high?",
@@ -1452,7 +1440,9 @@
           "name": "unspent allocated funding",
           "order": 3,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "how-much-of-your-allocated-funding-for-the-last-reporting-period-remains-unspent",
           "text": "How much of your allocated funding for the last reporting period remains unspent?",
@@ -1466,7 +1456,7 @@
           "name": "explanation for overspend",
           "order": 4,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "provide-an-explanation-for-the-overspend",
           "text": "Provide an explanation for the overspend",
@@ -1480,7 +1470,9 @@
           "name": "expected future spend",
           "order": 0,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "how-much-do-you-expect-to-spend-in-the-next-reporting-period",
           "text": "How much do you expect to spend in the next reporting period?",
@@ -1494,7 +1486,7 @@
           "name": "confirmation of enough funding let",
           "order": 1,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "last_data_source_item_is_distinct_from_others": false
           },
           "slug": "do-you-have-enough-remaining-allocated-funding-to-meet-your-expected-future-spend",
           "text": "Do you have enough remaining allocated funding to meet your expected future spend?",
@@ -1567,9 +1559,7 @@
           "id": "2c784bb4-c376-fc02-517a-8358fbff0dc4",
           "name": "park name",
           "order": 0,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
-          },
+          "presentation_options": {},
           "slug": "what-is-the-name-of-the-park",
           "text": "What is the name of the park?",
           "type": "QUESTION"
@@ -1582,7 +1572,9 @@
           "name": "number of picnic tables",
           "order": 1,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "how-many-picnic-tables-are-available",
           "text": "How many picnic tables are available?",
@@ -1596,7 +1588,9 @@
           "name": "monthly number of families",
           "order": 0,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "how-many-families-used-the-picnic-area-last-month",
           "text": "How many families used the picnic area last month?",
@@ -1610,7 +1604,7 @@
           "name": "notable picnic area comments",
           "order": 0,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "share-any-notable-comments-or-stories-from-visitors-about-the-picnic-areas",
           "text": "Share any notable comments or stories from visitors about the picnic areas.",
@@ -1683,9 +1677,7 @@
           "id": "c1bbbe14-0d6d-3357-6e26-2fc4b4cd7fb3",
           "name": "park name",
           "order": 0,
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
-          },
+          "presentation_options": {},
           "slug": "what-is-the-name-of-the-park",
           "text": "What is the name of the park?",
           "type": "QUESTION"
@@ -1698,7 +1690,9 @@
           "name": "number of pieces of equipment",
           "order": 1,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "how-many-pieces-of-playground-equipment-are-there",
           "text": "How many pieces of playground equipment are there?",
@@ -1712,7 +1706,9 @@
           "name": "playground accessibility",
           "order": 2,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "is-the-playground-accessible-to-children-with-disabilities",
           "text": "Is the playground accessible to children with disabilities?",
@@ -1726,7 +1722,9 @@
           "name": "number of users last month",
           "order": 0,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "how-many-children-used-the-playground-last-month",
           "text": "How many children used the playground last month?",
@@ -1740,7 +1738,9 @@
           "name": "had safety incidents",
           "order": 0,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "prefix": "",
+            "suffix": "",
+            "width": "govuk-input--width-10"
           },
           "slug": "were-there-any-safety-incidents-reported",
           "text": "Were there any safety incidents reported?",
@@ -1754,7 +1754,7 @@
           "name": "maintenance activities",
           "order": 1,
           "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": null
+            "rows": 5
           },
           "slug": "describe-any-maintenance-activities-or-issues-during-the-last-reporting-period",
           "text": "Describe any maintenance activities or issues during the last reporting period.",
