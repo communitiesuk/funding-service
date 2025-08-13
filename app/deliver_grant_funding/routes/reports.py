@@ -392,7 +392,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                     last_data_source_item_is_distinct_from_others=wt_form.separate_option_if_no_items_match.data
                 ),
             )
-            flash("Question created", FlashMessageType.QUESTION_CREATED)
+            flash("Question added", FlashMessageType.QUESTION_CREATED)
             return redirect(
                 url_for(
                     "deliver_grant_funding.edit_question",

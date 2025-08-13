@@ -25,7 +25,7 @@
         {% if flashes %}
           {% set question_created_content %}
             <a class="govuk-notification-banner__link" href="{{ url_for('developers.deliver.manage_form_questions', grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id) }}">Return to the task</a>
-            to add more questions, or edit this question to add conditions and validations.
+            to add more questions. Continue editing this question to add conditions and validations.
           {% endset %}
           {{
             govukNotificationBanner({

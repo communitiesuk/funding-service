@@ -885,7 +885,7 @@ class TestAddQuestion:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Edit question"
-        assert get_h2_text(soup) == "Question created"
+        assert get_h2_text(soup) == "Question added"
 
 
 class TestEditQuestion:
@@ -1062,7 +1062,7 @@ class TestAddQuestionConditionSelectQuestion:
         else:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
-            assert "What answer should the condition check?" in soup.text
+            assert "What question does this condition relate to?" in soup.text
             assert "Do you like cheese? (cheese question)" in soup.text
 
     def test_post(self, authenticated_grant_admin_client, factories):
@@ -1295,7 +1295,7 @@ class TestEditQuestionCondition:
 
             assert get_h1_text(soup) == "Edit condition"
 
-            assert "The question" in soup.text
+            assert "Question" in soup.text
             assert "What is your email?" in soup.text
 
             assert "Depends on the answer to" in soup.text

@@ -27,7 +27,8 @@ class BecomeGrantTeamMemberForm(FlaskForm):
 
 class ConditionSelectQuestionForm(FlaskForm):
     question = SelectField(
-        "Which answer should the condition check?",
+        "Override in template",
+        description="Select a question to set the answer conditions",
         choices=[],
         validators=[DataRequired("Select a question")],
         widget=GovSelect(),
