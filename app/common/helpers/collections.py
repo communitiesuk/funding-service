@@ -67,6 +67,14 @@ class SubmissionHelper:
         self.submission = submission
         self.collection = self.submission.collection
 
+        ordered_visible_questions = {}
+        for form in chain.from_iterable(section.forms for section in self.collection.sections):
+            ordered_visible_questions[form.id] = [
+                question for question in form.questions if self.is_component_visible(question, self.expression_context)
+            ]
+
+        self.ordered_visible_questions = ordered_visible_questions
+
     @classmethod
     def load(cls, submission_id: uuid.UUID) -> "SubmissionHelper":
         return cls(get_submission(submission_id, with_full_schema=True))
@@ -259,9 +267,7 @@ class SubmissionHelper:
 
     def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
-        # todo: this probably no longer works without an additional property to factor in depth for global order
-        # calculating that on the fly might get expensive
-        return [question for question in form.questions if self.is_component_visible(question, self.expression_context)]
+        return self.ordered_visible_questions.get(form.id, [])
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
         questions = self.get_ordered_visible_questions_for_form(form)
