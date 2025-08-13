@@ -2,7 +2,6 @@ name: Deployment pipeline
 run-name: Build, deploy and e2e test ${{github.ref_name}}
 
 permissions:
-  packages: write
   contents: read  # This is required for actions/checkout
   id-token: write  # This is required for authenticating with aws
 
@@ -30,33 +29,10 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
 
-  deploy_dev:
-    name: Deploy to dev
-    needs:
-      - paketo_build
-    uses: ./.github/workflows/deploy.yml
-    concurrency:
-      group: fs-deploy-dev
-      cancel-in-progress: false
-    with:
-      environment: dev
-      run_e2e_tests: true
-    secrets:
-      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
-      CI_AWS_ACCOUNT: ${{ secrets.CI_AWS_ACCOUNT }}
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      TEMP_SLACK_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
-      SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
-      SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
-
   deploy_test:
     name: Deploy to test
-    # TODO: Strip this condition when we have dev/test/prod envs; for now, if we trigger the pipeline manually then
-    #       it should only deploy to the dev env. Test env will only be deployed to on a merge (push) to main.
-    if: github.event_name == 'push'
     needs:
       - paketo_build
-      - deploy_dev
       - run_e2e_tests_docker_compose
     uses: ./.github/workflows/deploy.yml
     concurrency:
@@ -75,11 +51,7 @@ jobs:
 
   deploy_prod:
     name: Deploy to prod
-    # TODO: Strip this condition when we have dev/test/prod envs; for now, if we trigger the pipeline manually then
-    #       it should only deploy to the dev env. Test env will only be deployed to on a merge (push) to main.
-    if: github.event_name == 'push'
     needs:
-      - deploy_dev
       - deploy_test
     uses: ./.github/workflows/deploy.yml
     concurrency:
