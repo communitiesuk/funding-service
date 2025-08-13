@@ -1,5 +1,5 @@
 name: Deploy branch to dev
-run-name: Deploy branch '${{github.ref_name}}'   to dev
+run-name: Deploy branch '${{github.ref_name}}' to dev
 
 permissions:
   contents: read  # This is required for actions/checkout
@@ -13,7 +13,8 @@ on:
             default: true
             type: boolean
             description: Run e2e tests
-
+  schedule:
+  - cron:  '0 9 * * 1'
 jobs:
   paketo_build:
     name: Build
