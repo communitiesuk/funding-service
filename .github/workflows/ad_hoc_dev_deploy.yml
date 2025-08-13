@@ -28,6 +28,7 @@ jobs:
   run_e2e_tests_docker_compose:
     name: Run E2E tests against docker compose
     uses: ./.github/workflows/run_e2e_tests_docker_compose.yml
+    if: ${{ inputs.run_e2e_tests == true }}
     secrets:
       PULLPREVIEW_GOVUK_NOTIFY_API_KEY: ${{ secrets.PULLPREVIEW_GOVUK_NOTIFY_API_KEY }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -37,7 +38,6 @@ jobs:
     name: Deploy to dev
     needs:
       - paketo_build
-      - run_e2e_tests_docker_compose
     uses: ./.github/workflows/deploy.yml
     concurrency:
       group: fs-deploy-dev
