@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import Optional as TOptional
 from uuid import UUID
 
 from flask import current_app
@@ -12,7 +13,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextArea,
     GovTextInput,
 )
-from wtforms import Field, HiddenField, SelectField
+from wtforms import Field, HiddenField, IntegerField, SelectField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
@@ -21,7 +22,7 @@ from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.collections import get_question_by_id, is_component_dependency_order_valid
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
-from app.common.data.types import QuestionDataType
+from app.common.data.types import MultilineTextInputRows, NumberInputWidths, QuestionDataType
 from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
@@ -51,6 +52,12 @@ def _validate_max_list_length(max_length: int) -> Callable[[Any, Any], None]:
             raise ValidationError(f"You have entered too many options. The maximum is {max_length}")
 
     return validator
+
+
+def _validate_textarea_size(form: FlaskForm, field: Field) -> None:
+    rows = int(field.data)
+    if rows not in MultilineTextInputRows:
+        raise ValidationError("Select a text area size")
 
 
 class GrantSetupForm(FlaskForm):
@@ -255,7 +262,7 @@ class QuestionForm(FlaskForm):
         widget=GovTextInput(),
     )
 
-    # Note: the next three fields all read from properties on the `Question` model because the names match. This
+    # Note: the next fields all read from properties on the `Question` model because the names match. This
     # implicit connection needs to be maintained.
     data_source_items = StringField(
         "List of options",
@@ -275,34 +282,77 @@ class QuestionForm(FlaskForm):
         validators=[Optional()],
         widget=GovTextInput(),
     )
+
+    # Multiline textarea field presentation options
+    rows = SelectField(
+        "Text area size",
+        widget=GovSelect(),
+        validators=[Optional()],
+        choices=[(opt.value, f"{opt.name.title()} ({opt.value} rows)") for opt in MultilineTextInputRows],
+        default=MultilineTextInputRows.MEDIUM.value,
+    )
+    word_limit = IntegerField(
+        "Word limit (optional)",
+        widget=GovTextInput(),
+        validators=[Optional()],
+    )
+
+    # Integer field presentation options
+    prefix = StringField(
+        "Prefix (optional)",
+        widget=GovTextInput(),
+        validators=[Optional()],
+    )
+    suffix = StringField(
+        "Suffix (optional)",
+        widget=GovTextInput(),
+        validators=[Optional()],
+    )
+    width = SelectField(
+        "Input width",
+        description="Reduce the size of the input if you know the answer will be smaller",
+        widget=GovSelect(),
+        validators=[Optional()],
+        choices=[(opt.value, f"{opt.name.title()}") for opt in NumberInputWidths],
+        default=NumberInputWidths.BILLIONS.value,
+    )
+
     submit = SubmitField(widget=GovSubmitInput())
 
-    def __init__(self, *args: Any, question_type: QuestionDataType, **kwargs: Any) -> None:
-        super(QuestionForm, self).__init__(*args, **kwargs)
+    def __init__(
+        self, *args: Any, question_type: QuestionDataType, obj: TOptional["Question"] = None, **kwargs: Any
+    ) -> None:
+        super(QuestionForm, self).__init__(*args, obj=obj, **kwargs)
 
         self._question_type = question_type
         self._original_separate_option_if_no_items_match = self.separate_option_if_no_items_match.data
 
-        if question_type in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
-            max_length = (
-                current_app.config["MAX_DATA_SOURCE_ITEMS_RADIOS"]
-                if question_type == QuestionDataType.RADIOS
-                else current_app.config["MAX_DATA_SOURCE_ITEMS_CHECKBOXES"]
-            )
-            self.data_source_items.validators = [
-                DataRequired("Enter the options for your list"),
-                _validate_no_blank_lines,
-                _validate_no_duplicates,
-                _validate_max_list_length(max_length=max_length),
-            ]
-
-            if self.separate_option_if_no_items_match.raw_data:
-                self.none_of_the_above_item_text.validators = [
-                    DataRequired("Enter the text to show for the fallback option")
+        match question_type:
+            case QuestionDataType.RADIOS | QuestionDataType.CHECKBOXES:
+                max_length = (
+                    current_app.config["MAX_DATA_SOURCE_ITEMS_RADIOS"]
+                    if question_type == QuestionDataType.RADIOS
+                    else current_app.config["MAX_DATA_SOURCE_ITEMS_CHECKBOXES"]
+                )
+                self.data_source_items.validators = [
+                    DataRequired("Enter the options for your list"),
+                    _validate_no_blank_lines,
+                    _validate_no_duplicates,
+                    _validate_max_list_length(max_length=max_length),
                 ]
 
-        if question_type == QuestionDataType.CHECKBOXES:
-            self.data_source_items.description = "Enter each option on a new line - you can add a maximum of 10 options"
+                if self.separate_option_if_no_items_match.raw_data:
+                    self.none_of_the_above_item_text.validators = [
+                        DataRequired("Enter the text to show for the fallback option")
+                    ]
+
+                if question_type == QuestionDataType.CHECKBOXES:
+                    self.data_source_items.description = (
+                        "Enter each option on a new line - you can add a maximum of 10 options"
+                    )
+
+            case QuestionDataType.TEXT_MULTI_LINE:
+                self.rows.validators = [_validate_textarea_size]
 
     @property
     def normalised_data_source_items(self) -> list[str] | None:

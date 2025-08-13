@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 import typing
+from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from immutabledict import immutabledict
@@ -12,6 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 if TYPE_CHECKING:
     from app.common.collections.runner import FormRunner
     from app.common.data.models import Form, Question
+    from app.deliver_grant_funding.forms import QuestionForm
 
 scalars = str | int | float | bool | None
 json_scalars = Dict[str, Any]
@@ -114,11 +116,57 @@ class FormRunnerState(enum.StrEnum):
     CHECK_YOUR_ANSWERS = "check-your-answers"
 
 
+class MultilineTextInputRows(IntEnum):
+    SMALL = 3
+    MEDIUM = 5
+    LARGE = 10
+
+
+class NumberInputWidths(enum.StrEnum):
+    HUNDREDS = "govuk-input--width-3"
+    THOUSANDS = "govuk-input--width-4"
+    MILLIONS = "govuk-input--width-5"
+    BILLIONS = "govuk-input--width-10"
+
+
 class QuestionPresentationOptions(BaseModel):
     # This is for radios (and maybe checkboxes) question types; the last item will be separated from the rest of the
     # data source items, visually by an 'or' break. It is meant to indicate that Other options are
     # appropriate and the user needs to fallback to some kind of 'not known' / 'Other' instead.
     last_data_source_item_is_distinct_from_others: bool | None = None
+
+    # Multi-line text input
+    # https://design-system.service.gov.uk/components/textarea/#use-appropriately-sized-textareas
+    rows: MultilineTextInputRows | None = None
+    # https://design-system.service.gov.uk/components/character-count/
+    word_limit: int | None = None
+
+    # Integer
+    prefix: str | None = None
+    suffix: str | None = None
+    # https://design-system.service.gov.uk/components/text-input/#fixed-width-inputs
+    width: NumberInputWidths | None = None
+
+    @staticmethod
+    def from_form(form: "QuestionForm") -> QuestionPresentationOptions:
+        match form._question_type:
+            case QuestionDataType.RADIOS | QuestionDataType.CHECKBOXES:
+                return QuestionPresentationOptions(
+                    last_data_source_item_is_distinct_from_others=form.separate_option_if_no_items_match.data
+                )
+            case QuestionDataType.TEXT_MULTI_LINE:
+                return QuestionPresentationOptions(
+                    rows=form.rows.data,
+                    word_limit=form.word_limit.data,
+                )
+            case QuestionDataType.INTEGER:
+                return QuestionPresentationOptions(
+                    prefix=form.prefix.data,
+                    suffix=form.suffix.data,
+                    width=form.width.data,
+                )
+            case _:
+                return QuestionPresentationOptions()
 
 
 class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
@@ -129,7 +177,7 @@ class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
     def process_bind_param(self, value: BaseModel, dialect: Any) -> Any:  # type: ignore[override]
         if value is None:
             return None
-        return value.model_dump(mode="json")
+        return value.model_dump(mode="json", exclude_none=True)
 
     def process_result_value(self, value: typing.Any, dialect: Any) -> QuestionPresentationOptions | None:
         if value is None:

@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovCharacterCount, GovRadioInput, GovTextArea, GovTextInput
 from werkzeug.datastructures import MultiDict
 from wtforms.fields.choices import RadioField, SelectMultipleField
 from wtforms.fields.numeric import IntegerField
@@ -15,7 +15,7 @@ from wtforms.validators import DataRequired, Email, InputRequired
 from app import create_app
 from app.common.collections.forms import build_question_form
 from app.common.data.models import Question
-from app.common.data.types import QuestionDataType
+from app.common.data.types import QuestionDataType, QuestionPresentationOptions
 from app.common.expressions import ExpressionContext
 from app.common.forms.fields import MHCLGCheckboxesInput, MHCLGRadioInput
 from app.common.forms.validators import URLWithoutProtocol
@@ -78,24 +78,29 @@ class TestBuildQuestionForm:
             "If this test breaks, tweak the number and update `test_expected_field_types` accordingly."
         )
 
+    QPO = QuestionPresentationOptions
+
     @pytest.mark.parametrize(
-        "data_type, expected_field_type, expected_widget, expected_validators",
+        "data_type, presentation_options, expected_field_type, expected_widget, expected_validators",
         (
-            (QuestionDataType.TEXT_SINGLE_LINE, StringField, GovTextInput, [DataRequired]),
-            (QuestionDataType.TEXT_MULTI_LINE, StringField, GovTextArea, [DataRequired]),
-            (QuestionDataType.INTEGER, IntegerField, GovTextInput, [InputRequired]),
-            (QuestionDataType.YES_NO, RadioField, GovRadioInput, [InputRequired]),
-            (QuestionDataType.RADIOS, RadioField, MHCLGRadioInput, []),
-            (QuestionDataType.EMAIL, EmailField, GovTextInput, [DataRequired, Email]),
-            (QuestionDataType.URL, StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
-            (QuestionDataType.CHECKBOXES, SelectMultipleField, MHCLGCheckboxesInput, [DataRequired]),
+            (QuestionDataType.TEXT_SINGLE_LINE, QPO(), StringField, GovTextInput, [DataRequired]),
+            (QuestionDataType.TEXT_MULTI_LINE, QPO(), StringField, GovTextArea, [DataRequired]),
+            (QuestionDataType.TEXT_MULTI_LINE, QPO(word_limit=500), StringField, GovCharacterCount, [DataRequired]),
+            (QuestionDataType.INTEGER, QPO(), IntegerField, GovTextInput, [InputRequired]),
+            (QuestionDataType.YES_NO, QPO(), RadioField, GovRadioInput, [InputRequired]),
+            (QuestionDataType.RADIOS, QPO(), RadioField, MHCLGRadioInput, []),
+            (QuestionDataType.EMAIL, QPO(), EmailField, GovTextInput, [DataRequired, Email]),
+            (QuestionDataType.URL, QPO(), StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
+            (QuestionDataType.CHECKBOXES, QPO(), SelectMultipleField, MHCLGCheckboxesInput, [DataRequired]),
         ),
     )
     def test_expected_field_types(
-        self, factories, app, data_type, expected_field_type, expected_widget, expected_validators
+        self, factories, app, data_type, presentation_options, expected_field_type, expected_widget, expected_validators
     ):
         """Feels like a bit of a redundant test that's just reimplementing the function, but ... :shrug:"""
-        q = factories.question.build(text="Question text", hint="Question hint", data_type=data_type)
+        q = factories.question.build(
+            text="Question text", hint="Question hint", data_type=data_type, presentation_options=presentation_options
+        )
         form = build_question_form(q, expression_context=EC())()
 
         question_field = form.get_question_field(q)

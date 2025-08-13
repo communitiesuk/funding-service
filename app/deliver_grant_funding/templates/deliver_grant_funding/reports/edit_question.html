@@ -4,6 +4,7 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "deliver_grant_funding/partials/_advanced_formatting_options.html" import advancedFormattingOptions %}
 
 {% set page_title = "Edit question - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
@@ -88,6 +89,8 @@
           {{ form.separate_option_if_no_items_match(params={"items": [{"conditional": {"html": conditionalHtml} }]}) }}
         {% endif %}
 
+        {{ advancedFormattingOptions(form, question.data_type, enum) }}
+
         <div class="govuk-form-group">
           <h2 class="govuk-heading-m">Conditions</h2>
           <p class="govuk-body">Add conditions to only show this question if the grant recipient has answered one of the other questions in a particular way.</p>
@@ -151,7 +154,9 @@
               %}
             {% endfor %}
 
-            {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+            {% if rows %}
+              {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+            {% endif %}
 
             {{
               govukButton({

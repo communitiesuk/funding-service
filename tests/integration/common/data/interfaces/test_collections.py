@@ -57,6 +57,8 @@ from app.common.data.types import (
     CollectionType,
     ExpressionType,
     ManagedExpressionsEnum,
+    MultilineTextInputRows,
+    NumberInputWidths,
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionEventKey,
@@ -425,8 +427,6 @@ class TestCreateQuestion:
         [
             QuestionDataType.TEXT_SINGLE_LINE,
             QuestionDataType.EMAIL,
-            QuestionDataType.TEXT_MULTI_LINE,
-            QuestionDataType.INTEGER,
             QuestionDataType.URL,
         ],
     )
@@ -448,6 +448,51 @@ class TestCreateQuestion:
         assert question.order == 0
         assert question.slug == "test-question"
         assert question.data_source is None
+
+    def test_integer(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.INTEGER,
+            presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
+        )
+        assert question is not None
+        assert question.id is not None
+        assert question.text == "Test Question"
+        assert question.hint == "Test Hint"
+        assert question.name == "Test Question Name"
+        assert question.data_type == QuestionDataType.INTEGER
+        assert question.order == 0
+        assert question.slug == "test-question"
+        assert question.data_source is None
+        assert question.prefix == "£"
+        assert question.suffix == "kg"
+        assert question.width == "govuk-input--width-3"
+
+    def test_text_multi_line(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+            presentation_options=QuestionPresentationOptions(rows=MultilineTextInputRows.SMALL, word_limit=500),
+        )
+        assert question is not None
+        assert question.id is not None
+        assert question.text == "Test Question"
+        assert question.hint == "Test Hint"
+        assert question.name == "Test Question Name"
+        assert question.data_type == QuestionDataType.TEXT_MULTI_LINE
+        assert question.order == 0
+        assert question.slug == "test-question"
+        assert question.data_source is None
+        assert question.rows == 3
+        assert question.word_limit == 500
 
     def test_yes_no(self, db_session, factories):
         form = factories.form.create()
@@ -536,8 +581,7 @@ class TestUpdateQuestion:
         [
             QuestionDataType.TEXT_SINGLE_LINE,
             QuestionDataType.EMAIL,
-            QuestionDataType.TEXT_MULTI_LINE,
-            QuestionDataType.INTEGER,
+            QuestionDataType.URL,
         ],
     )
     def test_simple_types(self, db_session, factories, question_type):
@@ -565,6 +609,65 @@ class TestUpdateQuestion:
         assert updated_question.data_type == question_type
         assert updated_question.slug == "updated-question"
         assert updated_question.data_source is None
+
+    def test_integer(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.INTEGER,
+            presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
+        )
+        assert question is not None
+
+        updated_question = update_question(
+            question=question,
+            text="Updated Question",
+            hint="Updated Hint",
+            name="Updated Question Name",
+            presentation_options=QuestionPresentationOptions(
+                prefix="$", suffix="lbs", width=NumberInputWidths.MILLIONS
+            ),
+        )
+
+        assert updated_question.text == "Updated Question"
+        assert updated_question.hint == "Updated Hint"
+        assert updated_question.name == "Updated Question Name"
+        assert updated_question.data_type == QuestionDataType.INTEGER
+        assert updated_question.slug == "updated-question"
+        assert updated_question.prefix == "$"
+        assert updated_question.suffix == "lbs"
+        assert updated_question.width == "govuk-input--width-5"
+
+    def test_text_multi_line(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+            presentation_options=QuestionPresentationOptions(rows=MultilineTextInputRows.SMALL, word_limit=500),
+        )
+        assert question is not None
+
+        updated_question = update_question(
+            question=question,
+            text="Updated Question",
+            hint="Updated Hint",
+            name="Updated Question Name",
+            presentation_options=QuestionPresentationOptions(rows=MultilineTextInputRows.LARGE, word_limit=None),
+        )
+
+        assert updated_question.text == "Updated Question"
+        assert updated_question.hint == "Updated Hint"
+        assert updated_question.name == "Updated Question Name"
+        assert updated_question.data_type == QuestionDataType.TEXT_MULTI_LINE
+        assert updated_question.slug == "updated-question"
+        assert updated_question.rows == 10
+        assert updated_question.word_limit is None
 
     def test_yes_no(self, db_session, factories):
         form = factories.form.create()

@@ -35,7 +35,7 @@ export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
 def to_dict(instance: BaseModel) -> dict[str, Any]:
     return {
-        col.name: (field.model_dump(mode="json") if isinstance(field, PydanticBaseModel) else field)
+        col.name: (field.model_dump(mode="json", exclude_none=True) if isinstance(field, PydanticBaseModel) else field)
         for col in instance.__table__.columns
         if (field := getattr(instance, col.name)) is not None and col.name not in {"created_at_utc", "updated_at_utc"}
     }
