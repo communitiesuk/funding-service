@@ -562,7 +562,9 @@ def test_accessing_question_page_with_failing_condition_redirects(
     authenticated_platform_admin_client, factories, templates_rendered
 ):
     question = factories.question.create()
-    submission = factories.submission.create(collection=question.form.section.collection)
+    submission = factories.submission.create(
+        collection=question.form.section.collection, created_by=authenticated_platform_admin_client.user
+    )
 
     response = authenticated_platform_admin_client.get(
         url_for("developers.deliver.ask_a_question", submission_id=submission.id, question_id=question.id),

@@ -12,7 +12,7 @@ from app.common.data.models import Collection, Form, Question
 from app.common.data.types import ExpressionType, SubmissionModeEnum
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import IsNo, IsYes
-from app.common.forms import GenericConfirmDeletionForm
+from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import AddTaskForm, QuestionForm, QuestionTypeForm, SetUpReportForm
 from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_button, page_has_error, page_has_link
 
@@ -465,6 +465,36 @@ class TestListReportTasks:
         assert manage_task_link is not None
         assert (add_another_task_list is not None) is can_edit
 
+    @pytest.mark.parametrize(
+        "client_fixture, can_preview",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_member_client", True),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_post_list_report_tasks_preview(
+        self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories, db_session
+    ):
+        client = request.getfixturevalue(client_fixture)
+        generic_grant = factories.grant.create()
+        grant = getattr(client, "grant", None) or generic_grant
+
+        report = factories.collection.create(grant=grant, name="Test Report")
+
+        form = GenericSubmitForm()
+        response = client.post(
+            url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=report.id),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        if not can_preview:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 302
+            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}")
+
 
 class TestMoveTask:
     def test_404(self, authenticated_grant_admin_client):
@@ -702,6 +732,39 @@ class TestListTaskQuestions:
             )
             for message in caplog.messages
         )
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_preview",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_member_client", True),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_post_list_task_questions_preview(
+        self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories, db_session
+    ):
+        client = request.getfixturevalue(client_fixture)
+        generic_grant = factories.grant.create()
+        grant = getattr(client, "grant", None) or generic_grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        factories.question.create(form=form)
+
+        preview_form = GenericSubmitForm()
+        response = client.post(
+            url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=form.id),
+            data=preview_form.data,
+            follow_redirects=False,
+        )
+
+        if not can_preview:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 302
+            assert response.location == AnyStringMatching(
+                "/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}/[a-z0-9-]{36}"
+            )
 
 
 class TestMoveQuestion:

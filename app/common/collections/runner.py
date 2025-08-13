@@ -2,9 +2,10 @@
 from typing import TYPE_CHECKING, ClassVar, Optional
 from uuid import UUID
 
-from flask import url_for
+from flask import abort, url_for
 
 from app.common.collections.forms import CheckYourAnswersForm, build_question_form
+from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, SubmissionStatusEnum, TRunnerUrlMap
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
@@ -73,6 +74,14 @@ class FormRunner:
             raise ValueError("Expected only one of question_id or form_id")
 
         submission = SubmissionHelper.load(submission_id)
+
+        # For test submissions, only the user who created the test submission should be able to preview it (we only
+        # have test submissions for now.) When we come to have live submissions we can extend this check based on the
+        # user's Organisation permissions.
+        current_user = interfaces.user.get_current_user()
+        if submission.created_by_email is not current_user.email:
+            return abort(403)
+
         question, form = None, None
 
         if question_id:
