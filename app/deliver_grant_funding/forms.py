@@ -27,7 +27,7 @@ from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component
+    from app.common.data.models import Component, Question
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
