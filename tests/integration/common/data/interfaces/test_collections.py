@@ -1539,6 +1539,27 @@ class TestDeleteQuestion:
         assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
 
 
+class TestDeleteGroup:
+    def test_delete_group_with_questions(self, db_session, factories):
+        form = factories.form.create()
+        user = factories.user.create()
+        g1 = factories.group.create(form=form)
+        q1 = factories.question.create(
+            form=form,
+            parent=g1,
+        )
+        q2 = factories.question.create(
+            form=form,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=3000), user)],
+        )
+
+        with pytest.raises(DependencyOrderException) as e:
+            delete_question(g1)
+
+        assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.depends_on_question == g1  # ty: ignore[unresolved
+
+
 class TestDeleteCollectionSubmissions:
     def test_delete_test_collection_submissions_created_by_user(self, db_session, factories):
         collection = factories.collection.create(
