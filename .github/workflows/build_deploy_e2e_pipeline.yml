@@ -33,7 +33,6 @@ jobs:
     name: Deploy to test
     needs:
       - paketo_build
-      - run_e2e_tests_docker_compose
     uses: ./.github/workflows/deploy.yml
     concurrency:
       group: fs-deploy-test
