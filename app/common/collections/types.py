@@ -65,10 +65,6 @@ class TextMultiLineAnswer(SubmissionAnswerRootModel[str]):
     pass
 
 
-class IntegerAnswer(SubmissionAnswerRootModel[int]):
-    pass
-
-
 class EmailAnswer(SubmissionAnswerRootModel[str]):
     @property
     def _render_answer_template(self) -> str:
@@ -91,6 +87,28 @@ class YesNoAnswer(SubmissionAnswerRootModel[bool]):
 
     def get_value_for_text_export(self) -> str:
         return "Yes" if self.root else "No"
+
+
+class IntegerAnswer(SubmissionAnswerBaseModel):
+    value: int
+    prefix: str | None = None
+    suffix: str | None = None
+
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/integer.html"
+
+    def get_value_for_submission(self) -> dict[str, Any]:
+        return self.model_dump(mode="json", exclude_none=True)
+
+    def get_value_for_form(self) -> int:
+        return self.value
+
+    def get_value_for_expression(self) -> int:
+        return self.value
+
+    def get_value_for_text_export(self) -> str:
+        return f"{self.prefix or ''}{self.value:,d}{self.suffix or ''}"
 
 
 class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):

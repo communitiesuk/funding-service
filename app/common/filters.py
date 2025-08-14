@@ -64,3 +64,7 @@ def format_datetime_range(start: datetime, end: datetime) -> str:
 
 def to_ordinal(number: int) -> str:
     return cast(str, num2words(number, to="ordinal"))
+
+
+def format_thousands(number: int) -> str:
+    return f"{number:,}"

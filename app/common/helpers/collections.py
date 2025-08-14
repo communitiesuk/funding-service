@@ -439,7 +439,7 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
         case QuestionDataType.TEXT_MULTI_LINE:
             return TextMultiLineAnswer(answer)  # ty: ignore[missing-argument]
         case QuestionDataType.INTEGER:
-            return IntegerAnswer(answer)  # ty: ignore[missing-argument]
+            return IntegerAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)  # ty: ignore[missing-argument]
         case QuestionDataType.YES_NO:
             return YesNoAnswer(answer)  # ty: ignore[missing-argument]
         case QuestionDataType.RADIOS:

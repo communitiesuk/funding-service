@@ -31,7 +31,6 @@ def test_all_answer_types_tested():
     (
         (TextSingleLineAnswer, "hello", "hello"),
         (TextMultiLineAnswer, "hello\nthere", "hello\nthere"),
-        (IntegerAnswer, 5, "5"),
         (EmailAnswer, "name@example.com", "name@example.com"),
         (UrlAnswer, "https://www.gov.uk", "https://www.gov.uk"),
         (YesNoAnswer, True, "Yes"),
@@ -54,28 +53,44 @@ class TestSubmissionAnswerRootModels:
 class TestSubmissionAnswerBaseModels:
     @pytest.mark.parametrize(
         "model, data, submission_data",
-        ((SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, {"key": "key", "label": "label"}),),
+        (
+            (IntegerAnswer, {"value": 50}, {"value": 50}),
+            (IntegerAnswer, {"value": 50, "prefix": "£"}, {"value": 50, "prefix": "£"}),
+            (IntegerAnswer, {"value": 50, "suffix": "lbs"}, {"value": 50, "suffix": "lbs"}),
+            (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, {"key": "key", "label": "label"}),
+        ),
     )
     def test_get_value_for_submission(self, model, data, submission_data):
         assert model(**data).get_value_for_submission() == submission_data
 
     @pytest.mark.parametrize(
         "model, data, form_value",
-        ((SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "key"),),
+        (
+            (IntegerAnswer, {"value": 50}, 50),
+            (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "key"),
+        ),
     )
     def test_get_value_for_form(self, model, data, form_value):
         assert model(**data).get_value_for_form() == form_value
 
     @pytest.mark.parametrize(
         "model, data, expression_value",
-        ((SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "key"),),
+        (
+            (IntegerAnswer, {"value": 50}, 50),
+            (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "key"),
+        ),
     )
     def test_get_value_for_expression(self, model, data, expression_value):
         assert model(**data).get_value_for_expression() == expression_value
 
     @pytest.mark.parametrize(
         "model, data, text_export_value",
-        ((SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "label"),),
+        (
+            (IntegerAnswer, {"value": 50}, "50"),
+            (IntegerAnswer, {"value": 1_000_000, "prefix": "£"}, "£1,000,000"),
+            (IntegerAnswer, {"value": 1_000_000, "suffix": "lbs"}, "1,000,000lbs"),
+            (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "label"),
+        ),
     )
     def test_get_value_for_text_export(self, model, data, text_export_value):
         assert model(**data).get_value_for_text_export() == text_export_value
