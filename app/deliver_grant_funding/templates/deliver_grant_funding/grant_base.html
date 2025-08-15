@@ -30,13 +30,6 @@
 {% if authorisation_helper.is_platform_admin(current_user) %}
   {%
     do right_nav_items.append({
-        "text": "See all grants",
-        "href": url_for("deliver_grant_funding.list_grants"),
-        "current": false
-    })
-  %}
-  {%
-    do nav_items.append({
         "text": "Developers",
         "key": "grant_developers",
         "href": url_for("developers.deliver.grant_developers", grant_id=grant.id),

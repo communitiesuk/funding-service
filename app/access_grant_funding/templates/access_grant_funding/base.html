@@ -5,12 +5,13 @@
 {% set nav_items = nav_items or [] %}
 {% set right_nav_items = right_nav_items or [] %}
 
-{% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
+{% block pageTitle %}{{ page_title }} - Access grant funding{% endblock pageTitle %}
 
 {% block header %}
   {{
     mhclgHeader(
       params={
+        "productName": "Access grant funding",
         "homepageUrl": "#",
         "assetPath": assetPath
       },
