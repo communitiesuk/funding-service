@@ -650,20 +650,35 @@ def move_component_down(component: Component) -> Component:
 def update_question(
     question: Question,
     *,
-    text: str,
-    hint: str | None,
-    name: str,
-    items: list[str] | None = None,
-    presentation_options: QuestionPresentationOptions | None = None,
+    text: str | TNotProvided = NOT_PROVIDED,
+    name: str | TNotProvided = NOT_PROVIDED,
+    hint: str | None | TNotProvided = NOT_PROVIDED,
+    items: list[str] | None | TNotProvided = NOT_PROVIDED,
+    presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
+    guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
+    guidance_body: str | None | TNotProvided = NOT_PROVIDED,
 ) -> Question:
-    question.text = text
-    question.hint = hint
-    question.name = name
-    question.slug = slugify(text)
-    question.presentation_options = presentation_options or QuestionPresentationOptions()
+    if text is not NOT_PROVIDED and text is not None:
+        question.text = text  # ty: ignore[invalid-assignment]
+        question.slug = slugify(text)  # ty: ignore[invalid-argument-type]
 
-    if items is not None:
-        _update_data_source(question, items)
+    if hint is not NOT_PROVIDED:
+        question.hint = hint  # ty: ignore[invalid-assignment]
+
+    if name is not NOT_PROVIDED:
+        question.name = name  # ty: ignore[invalid-assignment]
+
+    if presentation_options is not NOT_PROVIDED:
+        question.presentation_options = presentation_options or QuestionPresentationOptions()  # ty: ignore[invalid-assignment]
+
+    if guidance_heading is not NOT_PROVIDED:
+        question.guidance_heading = guidance_heading  # ty: ignore[invalid-assignment]
+
+    if guidance_body is not NOT_PROVIDED:
+        question.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
+
+    if items is not NOT_PROVIDED and items is not None:
+        _update_data_source(question, items)  # ty: ignore[invalid-argument-type]
 
     try:
         db.session.flush()

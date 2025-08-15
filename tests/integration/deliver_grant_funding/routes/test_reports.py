@@ -13,7 +13,13 @@ from app.common.data.types import ExpressionType, SubmissionModeEnum
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
-from app.deliver_grant_funding.forms import AddTaskForm, QuestionForm, QuestionTypeForm, SetUpReportForm
+from app.deliver_grant_funding.forms import (
+    AddGuidanceForm,
+    AddTaskForm,
+    QuestionForm,
+    QuestionTypeForm,
+    SetUpReportForm,
+)
 from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_button, page_has_error, page_has_link
 
 
@@ -1940,6 +1946,144 @@ class TestEditQuestionValidation:
         )
 
         assert len(question.expressions) == 0
+
+
+class TestManageGuidance:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.manage_guidance", grant_id=uuid.uuid4(), question_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_access_control(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        question = factories.question.create(form__section__collection__grant=client.grant)
+
+        response = client.get(
+            url_for("deliver_grant_funding.manage_guidance", grant_id=client.grant.id, question_id=question.id)
+        )
+
+        if can_access:
+            assert response.status_code == 200
+        else:
+            assert response.status_code == 403
+
+    def test_get_add_guidance(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(form__section__collection__grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.manage_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Add guidance" in soup.text
+        assert page_has_button(soup, "Add guidance")
+
+    def test_get_edit_guidance(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            guidance_heading="Existing heading",
+            guidance_body="Existing body",
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.manage_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Edit guidance" in soup.text
+        assert page_has_button(soup, "Update guidance")
+
+    def test_post_add_guidance(self, authenticated_grant_admin_client, factories, db_session):
+        question = factories.question.create(form__section__collection__grant=authenticated_grant_admin_client.grant)
+
+        form = AddGuidanceForm(guidance_heading="How to answer", guidance_body="Please provide detailed information")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            f"/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+        )
+
+        updated_question = db_session.get(Question, question.id)
+        assert updated_question.guidance_heading == "How to answer"
+        assert updated_question.guidance_body == "Please provide detailed information"
+
+    def test_post_update_guidance(self, authenticated_grant_admin_client, factories, db_session):
+        question = factories.question.create(
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            guidance_heading="Old heading",
+            guidance_body="Old body",
+        )
+
+        form = AddGuidanceForm(guidance_heading="Updated heading", guidance_body="Updated body")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        updated_question = db_session.get(Question, question.id)
+        assert updated_question.guidance_heading == "Updated heading"
+        assert updated_question.guidance_body == "Updated body"
+
+    def test_post_clear_guidance(self, authenticated_grant_admin_client, factories, db_session):
+        question = factories.question.create(
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            guidance_heading="Existing heading",
+            guidance_body="Existing body",
+        )
+
+        form = AddGuidanceForm(guidance_heading="", guidance_body="")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        updated_question = db_session.get(Question, question.id)
+        assert updated_question.guidance_heading == ""
+        assert updated_question.guidance_body == ""
 
 
 class TestListSubmissions:

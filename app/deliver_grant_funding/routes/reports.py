@@ -48,6 +48,7 @@ from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import (
+    AddGuidanceForm,
     AddTaskForm,
     ConditionSelectQuestionForm,
     QuestionForm,
@@ -493,6 +494,27 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         managed_validation_available=get_managed_validators_by_data_type(question.data_type),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:question_id>/guidance", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id=question_id)
+    form = AddGuidanceForm(obj=question)
+
+    if form.validate_on_submit():
+        update_question(question, guidance_heading=form.guidance_heading.data, guidance_body=form.guidance_body.data)
+        return redirect(url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id))
+
+    return render_template(
+        "deliver_grant_funding/reports/manage_guidance.html",
+        grant=question.form.section.collection.grant,
+        question=question,
+        form=form,
     )
 
 

@@ -91,6 +91,14 @@
 
         {{ advancedFormattingOptions(form, question.data_type, enum) }}
 
+        <h2 class="govuk-heading-m">Guidance (optional)</h2>
+        {% if not question.guidance_body %}
+          <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question, or to format your content with paragraphs, headings, lists or links.</p>
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id) }}">Add guidance</a>
+        {% else %}
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id) }}">Edit guidance</a>
+        {% endif %}
+
         <div class="govuk-form-group">
           <h2 class="govuk-heading-m">Conditions</h2>
           <p class="govuk-body">Add conditions to only show this question if the grant recipient has answered one of the other questions in a particular way.</p>

@@ -11,7 +11,11 @@ class TestGOVUKRenderer:
 
     def test_link(self):
         result = self.renderer.link("Example", "https://example.com", "Example Title")
-        expected = '<a href="https://example.com" class="govuk-link govuk-link--no-visited-state" title="Example Title">Example</a>'
+        expected = (
+            '<a href="https://example.com" class="govuk-link govuk-link--no-visited-state" title="Example Title">'
+            "Example"
+            "</a>"
+        )
         assert result == expected
 
     def test_link_without_title(self):
@@ -132,7 +136,13 @@ class TestConvertTextToGovukMarkup:
     def test_numbered_lists(self):
         markdown_text = "1. First item\n2. Second item\n3. Third item"
         result = convert_text_to_govuk_markup(markdown_text)
-        expected = '<ol class="govuk-list govuk-list--number">\n<li>First item</li>\n<li>Second item</li>\n<li>Third item</li>\n</ol>\n'
+        expected = (
+            '<ol class="govuk-list govuk-list--number">\n'
+            "<li>First item</li>\n"
+            "<li>Second item</li>\n"
+            "<li>Third item</li>"
+            "\n</ol>\n"
+        )
         assert str(result) == expected
 
     def test_paragraphs(self):
@@ -146,7 +156,12 @@ class TestConvertTextToGovukMarkup:
     def test_links(self):
         markdown_text = "Visit [Example](https://example.com) for more info."
         result = convert_text_to_govuk_markup(markdown_text)
-        expected = '<p class=\'govuk-body\'>Visit <a href="https://example.com" class="govuk-link govuk-link--no-visited-state">Example</a> for more info.</p>\n'
+        expected = (
+            "<p class='govuk-body'>"
+            "Visit "
+            '<a href="https://example.com" class="govuk-link govuk-link--no-visited-state">Example</a> '
+            "for more info.</p>\n"
+        )
         assert str(result) == expected
 
     @pytest.mark.parametrize(
