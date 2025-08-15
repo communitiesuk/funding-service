@@ -393,7 +393,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 name=wt_form.name.data,
                 data_type=question_data_type_enum,
                 items=wt_form.normalised_data_source_items,
-                presentation_options=QuestionPresentationOptions.from_form(wt_form),
+                presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
             )
             flash("Question created", FlashMessageType.QUESTION_CREATED)
             return redirect(
@@ -466,7 +466,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
                 items=wt_form.normalised_data_source_items,
-                presentation_options=QuestionPresentationOptions.from_form(wt_form),
+                presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
             )
             return redirect(
                 url_for(

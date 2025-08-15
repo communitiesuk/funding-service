@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 if TYPE_CHECKING:
     from app.common.collections.runner import FormRunner
     from app.common.data.models import Form, Question
-    from app.deliver_grant_funding.forms import QuestionForm
+    from app.deliver_grant_funding.forms import GroupDisplayForm, QuestionForm
 
 scalars = str | int | float | bool | None
 json_scalars = Dict[str, Any]
@@ -147,8 +147,11 @@ class QuestionPresentationOptions(BaseModel):
     # https://design-system.service.gov.uk/components/text-input/#fixed-width-inputs
     width: NumberInputWidths | None = None
 
+    # Groups
+    show_questions_on_the_same_page: bool | None = None
+
     @staticmethod
-    def from_form(form: "QuestionForm") -> QuestionPresentationOptions:
+    def from_question_form(form: "QuestionForm") -> QuestionPresentationOptions:
         match form._question_type:
             case QuestionDataType.RADIOS | QuestionDataType.CHECKBOXES:
                 return QuestionPresentationOptions(
@@ -167,6 +170,10 @@ class QuestionPresentationOptions(BaseModel):
                 )
             case _:
                 return QuestionPresentationOptions()
+
+    @staticmethod
+    def from_group_form(form: "GroupDisplayForm") -> QuestionPresentationOptions:
+        return QuestionPresentationOptions(show_questions_on_the_same_page=form.show_questions_on_the_same_page.data)
 
 
 class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]

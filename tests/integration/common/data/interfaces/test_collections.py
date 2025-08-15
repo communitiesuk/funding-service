@@ -37,6 +37,7 @@ from app.common.data.interfaces.collections import (
     raise_if_data_source_item_reference_dependency,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
+    update_group,
     update_question,
     update_question_expression,
     update_submission_data,
@@ -945,6 +946,30 @@ def test_move_question_up_down(db_session, factories):
     assert q1.order == 2
     assert q2.order == 0
     assert q3.order == 1
+
+
+class TestUpdateGroup:
+    def test_update_group(self, db_session, factories):
+        group = factories.group.create()
+        updated_group = update_group(
+            group,
+            name="Changed name",
+        )
+
+        assert updated_group.name == "Changed name"
+        assert updated_group.text == "Changed name"
+        assert updated_group.slug == "changed-name"
+        assert updated_group.presentation_options == QuestionPresentationOptions()
+
+    def test_update_group_presentation_options(self, db_session, factories):
+        group = factories.group.create()
+        updated_group = update_group(
+            group,
+            name=group.name,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+
+        assert updated_group.presentation_options.show_questions_on_the_same_page is True
 
 
 def test_move_question_with_dependencies(db_session, factories):

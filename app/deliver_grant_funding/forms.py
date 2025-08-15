@@ -488,3 +488,17 @@ class AddGuidanceForm(FlaskForm):
         filters=[strip_string_if_not_empty],
     )
     submit = SubmitField("Add guidance", widget=GovSubmitInput())
+
+
+class GroupDisplayForm(FlaskForm):
+    show_questions_on_the_same_page = RadioField(
+        "How do you want this question group to be displayed?",
+        choices=[
+            (False, "One question per page"),
+            (True, "Multiple questions on the same page"),
+        ],
+        default=False,
+        validators=[DataRequired("Select how you want this question group to be displayed")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())

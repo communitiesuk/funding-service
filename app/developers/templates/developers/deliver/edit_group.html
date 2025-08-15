@@ -51,6 +51,22 @@
       </h1>
 
       {# todo: group settings as a h2 which shows same page or not #}
+      <h2 class="govuk-heading-m">Group settings</h2>
+
+      {{
+        govukSummaryList({
+          "rows": [{
+            "key": { "text": "Display" },
+            "value": { "text": "Multiple questions on the same page" if group.presentation_options.show_questions_on_the_same_page else "One question per page" },
+            "actions": {
+              "items": [{
+                "text": "Change",
+                "href": url_for("developers.deliver.manage_group_display_options", grant_id=grant.id, collection_id=collection.id, section_id=section.id, form_id=db_form.id, group_id=group.id)
+              }]
+            }
+          }]
+        })
+      }}
 
       <form method="post" novalidate>
         <div class="govuk-form-group">
