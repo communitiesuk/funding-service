@@ -474,3 +474,17 @@ class ConditionSelectQuestionForm(FlaskForm):
         depends_on_question = get_question_by_id(self.question.data)
         if not is_component_dependency_order_valid(self.target_question, depends_on_question):
             raise ValidationError("Select an answer that comes before this question in the form")
+
+
+class AddGuidanceForm(FlaskForm):
+    guidance_heading = StringField(
+        "Page heading",
+        widget=GovTextInput(),
+        filters=[strip_string_if_not_empty],
+    )
+    guidance_body = StringField(
+        "Guidance",
+        widget=GovTextArea(),
+        filters=[strip_string_if_not_empty],
+    )
+    submit = SubmitField("Add guidance", widget=GovSubmitInput())
