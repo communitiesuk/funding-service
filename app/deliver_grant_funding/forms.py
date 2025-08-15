@@ -474,3 +474,17 @@ class ConditionSelectQuestionForm(FlaskForm):
         depends_on_question = get_question_by_id(self.question.data)
         if not is_component_dependency_order_valid(self.target_question, depends_on_question):
             raise ValidationError("Select an answer that comes before this question in the form")
+
+
+class GroupDisplayForm(FlaskForm):
+    show_questions_on_the_same_page = RadioField(
+        "How do you want this question group to be displayed?",
+        choices=[
+            (False, "One question per page"),
+            (True, "Multiple questions on the same page"),
+        ],
+        default=False,
+        validators=[DataRequired("Select how you want this question group to be displayed")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())

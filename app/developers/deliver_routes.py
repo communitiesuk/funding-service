@@ -22,6 +22,7 @@ from app.common.data.interfaces.collections import (
     get_collection,
     get_component_by_id,
     get_form_by_id,
+    get_group_by_id,
     get_question_by_id,
     get_section_by_id,
     move_component_down,
@@ -34,6 +35,7 @@ from app.common.data.interfaces.collections import (
     remove_question_expression,
     update_collection,
     update_form,
+    update_group,
     update_question,
     update_section,
 )
@@ -62,6 +64,7 @@ from app.deliver_grant_funding.forms import (
     CollectionForm,
     ConditionSelectQuestionForm,
     FormForm,
+    GroupDisplayForm,
     GroupForm,
     QuestionForm,
     QuestionTypeForm,
@@ -815,6 +818,47 @@ def edit_group(
         db_form=group.form,
         group=group,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
+
+
+# todo: this should be included in the add group flow
+@developers_deliver_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/groups/<uuid:group_id>/display_options",
+    methods=["GET", "POST"],
+)
+@is_platform_admin
+@auto_commit_after_request
+def manage_group_display_options(
+    grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: UUID, group_id: UUID
+) -> ResponseReturnValue:
+    group = get_group_by_id(group_id)
+
+    # todo: should this be a property to access consistently everywhere (given use in various business logic)
+    form = GroupDisplayForm(
+        show_questions_on_the_same_page=group.presentation_options.show_questions_on_the_same_page or False
+    )
+
+    if form.validate_on_submit():
+        update_group(group, name=group.name, presentation_options=QuestionPresentationOptions.from_group_form(form))
+        return redirect(
+            url_for(
+                "developers.deliver.edit_group",
+                grant_id=grant_id,
+                collection_id=collection_id,
+                section_id=section_id,
+                form_id=form_id,
+                group_id=group_id,
+            )
+        )
+
+    return render_template(
+        "developers/deliver/manage_group_display_options.html",
+        grant=group.form.section.collection.grant,
+        collection=group.form.section.collection,
+        section=group.form.section,
+        db_form=group.form,
+        group=group,
+        form=form,
     )
 
 

@@ -520,6 +520,10 @@ def get_component_by_id(component_id: UUID) -> Component:
     return db.session.get_one(Component, component_id)
 
 
+def get_group_by_id(group_id: UUID) -> Group:
+    return db.session.get_one(Group, group_id)
+
+
 class FlashableException(Protocol):
     def as_flash_context(self) -> dict[str, str | bool]: ...
 
@@ -686,6 +690,25 @@ def move_component_down(component: Component) -> Component:
     check_component_order_dependency(component, swap_component)
     swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
     return component
+
+
+def update_group(
+    group: Group,
+    *,
+    name: str,
+    presentation_options: QuestionPresentationOptions | None = None,
+) -> Group:
+    group.name = name
+    group.text = name
+    group.slug = slugify(name)
+    group.presentation_options = presentation_options or QuestionPresentationOptions()
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return group
 
 
 def update_question(
