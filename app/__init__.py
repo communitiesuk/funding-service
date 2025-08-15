@@ -33,6 +33,7 @@ from app.extensions import (
     auto_commit_after_request,
     db,
     flask_assets_vite,
+    govuk_markdown,
     login_manager,
     migrate,
     notification_service,
@@ -126,6 +127,7 @@ def create_app() -> Flask:
     login_manager.init_app(app)
     register_signals(app)
     record_sqlalchemy_queries.init_app(app, db)
+    govuk_markdown.init_app(app)
 
     @login_manager.user_loader  # type: ignore[misc]
     def load_user(user_id: str) -> Optional["User"]:

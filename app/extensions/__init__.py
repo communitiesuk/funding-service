@@ -5,6 +5,7 @@ from flask_sqlalchemy_lite import SQLAlchemy
 from flask_talisman import Talisman
 
 from app.common.data.models_user import User
+from app.common.markdown import FlaskGOVUKMarkdown
 from app.extensions.auto_commit_after_request import AutoCommitAfterRequestExtension
 from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
 from app.extensions.record_sqlalchemy_queries import RecordSqlalchemyQueriesExtension
@@ -18,6 +19,7 @@ talisman = Talisman()
 flask_assets_vite = FlaskAssetsViteExtension()
 login_manager = LoginManager()
 record_sqlalchemy_queries = RecordSqlalchemyQueriesExtension()
+govuk_markdown = FlaskGOVUKMarkdown()
 
 try:
     from flask_debugtoolbar import DebugToolbarExtension
