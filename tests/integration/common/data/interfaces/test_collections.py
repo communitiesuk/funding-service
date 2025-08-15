@@ -922,6 +922,25 @@ def test_move_question_with_dependencies(db_session, factories):
     move_component_up(q2)
 
 
+def test_move_group_with_question_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    q1 = factories.question.create(form=form)
+    g1 = factories.group.create(form=form)
+    factories.question.create(
+        form=form,
+        parent=g1,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=1000), user)],
+    )
+
+    # g1 can't move above q1 because one if its children depends on it
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(g1)
+
+    assert e.value.question == g1  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1  # ty: ignore[unresolved
+
+
 def test_raise_if_question_has_any_dependencies(db_session, factories):
     form = factories.form.create()
     user = factories.user.create()
@@ -1462,6 +1481,27 @@ class TestDeleteQuestion:
 
         assert [q.order for q in form.questions] == [0, 1, 2, 3]
         assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
+
+
+class TestDeleteGroup:
+    def test_delete_group_with_questions(self, db_session, factories):
+        form = factories.form.create()
+        user = factories.user.create()
+        g1 = factories.group.create(form=form)
+        q1 = factories.question.create(
+            form=form,
+            parent=g1,
+        )
+        q2 = factories.question.create(
+            form=form,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=3000), user)],
+        )
+
+        with pytest.raises(DependencyOrderException) as e:
+            delete_question(g1)
+
+        assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.depends_on_question == g1  # ty: ignore[unresolved
 
 
 class TestDeleteCollectionSubmissions:

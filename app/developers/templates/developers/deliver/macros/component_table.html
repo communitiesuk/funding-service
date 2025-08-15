@@ -33,14 +33,16 @@
 
 
       {% set question_link %}
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('developers.deliver.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id) }}">
+        <a
+          class="govuk-link govuk-link--no-visited-state"
+          href="{{ url_for('developers.deliver.edit_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, parent_source=parent.id if parent.is_group else None) }}">
           {{ component.text }}
         </a>
         {% if component.conditions %}
           {{
             govukTag({
             "text": "Conditional",
-            "classes": "govuk-tag--grey govuk-!-margin-left-1 govuk-!-margin-top-1",
+            "classes": "govuk-tag--pink govuk-!-margin-left-1 govuk-!-margin-top-1",
             })
           }}
         {% endif %}
@@ -50,10 +52,10 @@
           "html": question_link,
           "actions":[{
               "text":"Move up",
-              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'up'),"disabled": component == component.container.components | first,
+              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'up', parent_source=parent.id if parent.is_group else None),"disabled": component == component.container.components | first,
               "post": True
               }, {
-              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'down'),
+              "href": url_for('developers.deliver.move_question', grant_id = grant.id, collection_id = collection.id, section_id = section.id, form_id=form.id, question_id=component.id, direction = 'down', parent_source=parent.id if parent.is_group else None),
               "post": True,
               "text": "Move down","disabled": component == component.container.components | last
               }

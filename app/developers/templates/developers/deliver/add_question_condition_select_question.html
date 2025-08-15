@@ -8,12 +8,22 @@
 {% set active_item_identifier = "developers" %}
 
 {% block beforeContent %}
-  {{
-    govukBackLink({
-        "text": "Back",
-        "href": url_for("developers.deliver.edit_question", grant_id = grant.id, collection_id = question.form.section.collection.id, section_id = question.form.section.id, form_id = question.form.id, question_id=question.id)
-    })
-  }}
+  {# todo: nicer way of doing this more uniformly #}
+  {% if question.is_group %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": url_for("developers.deliver.edit_group", grant_id = grant.id, collection_id = question.form.section.collection.id, section_id = question.form.section.id, form_id = question.form.id, group_id=question.id, parent_source=parent_source)
+      })
+    }}
+  {% else %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": url_for("developers.deliver.edit_question", grant_id = grant.id, collection_id = question.form.section.collection.id, section_id = question.form.section.id, form_id = question.form.id, question_id=question.id, parent_source=parent_source)
+      })
+    }}
+  {% endif %}
 {% endblock beforeContent %}
 
 {% block content %}
