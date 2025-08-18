@@ -19,6 +19,7 @@ from app.common.data.interfaces.collections import (
     delete_form,
     delete_question,
     get_collection,
+    get_component_by_id,
     get_expression_by_id,
     get_form_by_id,
     get_question_by_id,
@@ -321,20 +322,20 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 @has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def move_question(grant_id: UUID, question_id: UUID, direction: str) -> ResponseReturnValue:
-    question = get_question_by_id(question_id)
+    component = get_component_by_id(question_id)
 
     try:
         match direction:
             case "up":
-                move_component_up(question)
+                move_component_up(component)
             case "down":
-                move_component_down(question)
+                move_component_down(component)
             case _:
                 return abort(400)
     except DependencyOrderException as e:
         flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
 
-    return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=question.form_id))
+    return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=component.form_id))
 
 
 @deliver_grant_funding_blueprint.route(
