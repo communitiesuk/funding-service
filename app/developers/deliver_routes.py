@@ -453,6 +453,43 @@ def manage_form(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id: 
 
 
 @developers_deliver_blueprint.route(
+    "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/groups/<uuid:group_id>/manage",
+    methods=["GET", "POST"],
+)
+@is_platform_admin
+@auto_commit_after_request
+def manage_group(grant_id: UUID, collection_id: UUID, section_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    db_group = get_group_by_id(group_id)
+    wt_form = GroupForm(obj=db_group)
+
+    if wt_form.validate_on_submit():
+        try:
+            assert wt_form.name.data is not None
+            update_group(db_group, name=wt_form.name.data)
+            return redirect(
+                url_for(
+                    "developers.deliver.edit_group",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=db_group.form.id,
+                    group_id=group_id,
+                )
+            )
+        except DuplicateValueError:
+            wt_form.name.errors.append(f"{wt_form.name.name.capitalize()} already in use")  # type:ignore[attr-defined]
+
+    return render_template(
+        "developers/deliver/manage_group.html",
+        grant=db_group.form.section.collection.grant,
+        collection=db_group.form.section.collection,
+        section=db_group.form.section,
+        db_group=db_group,
+        form=wt_form,
+    )
+
+
+@developers_deliver_blueprint.route(
     "/grants/<uuid:grant_id>/collections/<uuid:collection_id>/sections/<uuid:section_id>/forms/<uuid:form_id>/questions/add/choose-type",
     methods=["GET", "POST"],
 )

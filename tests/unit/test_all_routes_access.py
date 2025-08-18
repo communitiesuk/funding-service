@@ -38,6 +38,7 @@ routes_with_expected_platform_admin_only_access = [
     "developers.deliver.add_question",
     "developers.deliver.add_group",
     "developers.deliver.edit_group",
+    "developers.deliver.manage_group",
     "developers.deliver.manage_group_display_options",
     "developers.deliver.move_question",
     "developers.deliver.edit_question",
