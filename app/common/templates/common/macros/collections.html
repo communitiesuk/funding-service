@@ -36,7 +36,8 @@
           params={
             "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
             "maxwords": question.presentation_options.word_limit,
-            "rows": question.presentation_options.rows
+            "rows": question.presentation_options.rows,
+            "attributes": {"data-module": "paste-html-bullets-as-markdown"},
           }
         )
       }}

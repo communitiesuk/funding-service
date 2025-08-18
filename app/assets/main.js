@@ -35,4 +35,10 @@ document
       element.getAttribute('data-allow-headings') === 'true'
     );
     element.addEventListener('paste', pasteListener);
-  })
+  });
+
+document
+    .querySelectorAll('[data-module="paste-html-bullets-as-markdown"]')
+    .forEach(element => {
+        element.addEventListener('paste', pasteListener);
+    });
