@@ -19,7 +19,11 @@ from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAr
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.data.interfaces.collections import get_question_by_id, is_component_dependency_order_valid
+from app.common.data.interfaces.collections import (
+    get_question_by_id,
+    is_component_dependency_in_same_page_valid,
+    is_component_dependency_order_valid,
+)
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import MultilineTextInputRows, NumberInputWidths, QuestionDataType
@@ -474,6 +478,9 @@ class ConditionSelectQuestionForm(FlaskForm):
         depends_on_question = get_question_by_id(self.question.data)
         if not is_component_dependency_order_valid(self.target_question, depends_on_question):
             raise ValidationError("Select an answer that comes before this question in the form")
+
+        if not is_component_dependency_in_same_page_valid(self.target_question, depends_on_question):
+            raise ValidationError("Select an answer that is not on the same page as this question")
 
 
 class AddGuidanceForm(FlaskForm):

@@ -31,6 +31,7 @@ from app.common.data.interfaces.collections import (
     move_form_up,
     move_section_down,
     move_section_up,
+    raise_if_group_has_inter_dependencies,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
     update_collection,
@@ -839,17 +840,25 @@ def manage_group_display_options(
     )
 
     if form.validate_on_submit():
-        update_group(group, name=group.name, presentation_options=QuestionPresentationOptions.from_group_form(form))
-        return redirect(
-            url_for(
-                "developers.deliver.edit_group",
-                grant_id=grant_id,
-                collection_id=collection_id,
-                section_id=section_id,
-                form_id=form_id,
-                group_id=group_id,
+        # todo: probably move to form
+        try:
+            if form.show_questions_on_the_same_page.data == "True":
+                raise_if_group_has_inter_dependencies(group)
+            update_group(group, name=group.name, presentation_options=QuestionPresentationOptions.from_group_form(form))
+            return redirect(
+                url_for(
+                    "developers.deliver.edit_group",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                    section_id=section_id,
+                    form_id=form_id,
+                    group_id=group_id,
+                )
             )
-        )
+        except DependencyOrderException:
+            form.show_questions_on_the_same_page.errors.append(  # type:ignore[attr-defined]
+                "A question group cannot display on the same page if questions depend on answers within the group"
+            )
 
     return render_template(
         "developers/deliver/manage_group_display_options.html",

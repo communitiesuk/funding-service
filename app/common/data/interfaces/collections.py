@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
+from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence, cast
 from uuid import UUID
 
 from sqlalchemy import ScalarResult, delete, select, text
@@ -635,6 +635,42 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
     return components.index(component) > components.index(depends_on_component)
 
 
+def is_component_dependency_in_same_page_valid(component: Component, depends_on_component: Component) -> bool:
+    form = get_form_by_id(component.form_id, with_all_questions=True)
+    target_component = next(c for c in form.all_components if c.id == component.id)
+    target_depends_on_component = next(c for c in form.all_components if c.id == depends_on_component.id)
+
+    # todo: this is the most robust check I think we can do but might be overkill for while you cant have
+    #       groups nested in same page groups
+    if (
+        target_component.parent
+        and target_component.parent.display_same_page
+        and target_depends_on_component in target_component.parent.all_components
+    ):
+        return False
+    return True
+
+
+def raise_if_group_has_inter_dependencies(group: Group) -> Never | None:
+    form = get_form_by_id(group.form_id, with_all_questions=True)
+    target_group: Group = cast(Group, next(c for c in form.all_components if c.id == group.id))
+    for component in target_group.all_components:
+        if component.is_group:
+            raise DependencyOrderException(
+                "A question group cannot display on the same page if it contains other groups",
+                target_group,
+                component,
+            )
+        for condition in component.conditions:
+            if condition.managed and condition.managed.question_id in [c.id for c in target_group.all_components]:
+                raise DependencyOrderException(
+                    "A question group cannot display on the same page if questions depend on answers within the group",
+                    target_group,
+                    component,
+                )
+    return None
+
+
 # todo: when working generically with components this should dig in and check child components
 #       a short term workaround might be to use _all_components but ideally this should
 #       just expect nested components
@@ -782,6 +818,13 @@ def add_component_condition(component: Component, user: User, managed_expression
     if not is_component_dependency_order_valid(component, managed_expression.referenced_question):
         raise DependencyOrderException(
             "Cannot add managed condition that depends on a later question",
+            component,
+            managed_expression.referenced_question,
+        )
+
+    if not is_component_dependency_in_same_page_valid(component, managed_expression.referenced_question):
+        raise DependencyOrderException(
+            "Cannot add managed condition the depends on the answer to a question on the same page",
             component,
             managed_expression.referenced_question,
         )
