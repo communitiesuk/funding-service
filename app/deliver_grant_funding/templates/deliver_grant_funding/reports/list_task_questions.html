@@ -74,7 +74,7 @@
             {% else %}
               {{ question.text }}
             {% endif %}
-            {% if question.conditions %}
+            {% if grant_admin and question.conditions %}
               {{
                 govukTag({
                   "text": "Conditional",
@@ -108,7 +108,9 @@
         }}
       {% endif %}
 
-      <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id) }}">{{ "Add another question" if db_form.questions else "Add a question" }}</a>
+      {% if grant_admin %}
+        <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id) }}">{{ "Add another question" if db_form.questions else "Add a question" }}</a>
+      {% endif %}
     </div>
     {% if grant_admin %}
       <div class="govuk-grid-column-full">
