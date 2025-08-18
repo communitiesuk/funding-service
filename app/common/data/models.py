@@ -275,15 +275,21 @@ class Component(BaseModel):
         )
     )
     name: Mapped[str]
-
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
-    # todo: reason about if this should actually back populate _all_components as they might not
-    #       back populate the join condition
-    form: Mapped[Form] = relationship("Form", back_populates="components")
-
     presentation_options: Mapped[QuestionPresentationOptions] = mapped_column(
         default=QuestionPresentationOptions, server_default="{}"
     )
+    type: Mapped[ComponentType] = mapped_column(
+        SqlEnum(ComponentType, name="component_type_enum", validate_strings=True), default=ComponentType.QUESTION
+    )
+    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("component.id"))
+    guidance_heading: Mapped[Optional[str]]
+    guidance_body: Mapped[Optional[str]]
+
+    # Relationships
+    # todo: reason about if this should actually back populate _all_components as they might not
+    #       back populate the join condition
+    form: Mapped[Form] = relationship("Form", back_populates="components")
 
     # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
     expressions: Mapped[list["Expression"]] = relationship(
@@ -292,14 +298,7 @@ class Component(BaseModel):
     data_source: Mapped["DataSource"] = relationship(
         "DataSource", cascade="all, delete-orphan", back_populates="question"
     )
-
-    type: Mapped[ComponentType] = mapped_column(
-        SqlEnum(ComponentType, name="component_type_enum", validate_strings=True), default=ComponentType.QUESTION
-    )
-
-    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("component.id"))
     parent: Mapped["Group"] = relationship("Component", remote_side="Component.id", back_populates="components")
-
     components: Mapped[OrderingList["Component"]] = relationship(
         "Component",
         back_populates="parent",

@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data.types import ExpressionType, SubmissionModeEnum
+from tests.utils import get_h1_text
 
 
 class TestSubmissionTasklist:
@@ -322,6 +323,58 @@ class TestAskAQuestion:
                 form_id=question.form.id,
             )
             assert response.location == expected_location
+
+    def test_question_without_guidance_uses_question_as_heading(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            text="What's your favourite colour?",
+            guidance_heading=None,
+            guidance_body=None,
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+        )
+        submission = factories.submission.create(
+            collection=question.form.section.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert get_h1_text(soup) == "What's your favourite colour?"
+
+    def test_question_with_guidance_uses_guidance_heading(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            text="What's your favourite colour?",
+            guidance_heading="Important instructions",
+            guidance_body="Please read this carefully before answering",
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+        )
+        submission = factories.submission.create(
+            collection=question.form.section.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert get_h1_text(soup) == "Important instructions"
+        assert "Please read this carefully before answering" in soup.text
+        assert soup.select_one("label").text.strip() == "What's your favourite colour?"
 
 
 class TestCheckYourAnswers:

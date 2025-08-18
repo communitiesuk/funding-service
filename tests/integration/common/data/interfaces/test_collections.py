@@ -863,6 +863,62 @@ class TestUpdateQuestion:
     def test_break_if_new_question_types_added(self):
         assert len(QuestionDataType) == 8, "Add a new test above if adding a new question type"
 
+    def test_update_question_with_guidance_fields(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        updated_question = update_question(
+            question=question,
+            guidance_heading="How to answer this question",
+            guidance_body="This is detailed guidance with **markdown** formatting.",
+        )
+
+        assert updated_question.guidance_heading == "How to answer this question"
+        assert updated_question.guidance_body == "This is detailed guidance with **markdown** formatting."
+
+    def test_update_question_guidance_optional_parameters(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        question.guidance_heading = "Initial heading"
+        question.guidance_body = "Initial body"
+
+        updated_question = update_question(question=question, text="Updated Question Text")
+
+        assert updated_question.text == "Updated Question Text"
+        assert updated_question.guidance_heading == "Initial heading"
+        assert updated_question.guidance_body == "Initial body"
+
+    def test_update_question_clear_guidance_fields(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        question.guidance_heading = "Initial heading"
+        question.guidance_body = "Initial body"
+
+        updated_question = update_question(question=question, guidance_heading=None, guidance_body=None)
+
+        assert updated_question.guidance_heading is None
+        assert updated_question.guidance_body is None
+
 
 def test_move_question_up_down(db_session, factories):
     form = factories.form.create()
