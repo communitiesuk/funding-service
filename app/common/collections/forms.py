@@ -62,17 +62,17 @@ class DynamicQuestionForm(FlaskForm):
         """
         # Run the native WTForm field validation, which will do things like check data types are correct (eg for
         # IntegerFields.
-        valid = super().validate(extra_validators)
-        if not valid:
-            # If initial validation fails, don't run any of our custom validation chains.
-            return valid
+        super().validate(extra_validators)
 
         extra_validators = defaultdict(list, extra_validators or {})
 
         # Inject the latest data from this form submission into the context for validators to use.
         self._expression_context.form_context = self._build_form_context()
         for q in self._questions:
-            extra_validators[q.safe_qid].extend(build_validators(q, self._expression_context))
+            # only add custom validators if that question hasn't already failed basic validation
+            # (it's may not be well formed data of that type)
+            if not self[q.safe_qid].errors:
+                extra_validators[q.safe_qid].extend(build_validators(q, self._expression_context))
 
         # Do a second validation pass that includes all of our managed/custom validation. This has a small bit of
         # redundancy because it will run the data validation checks again, but it means that all of our own
@@ -110,118 +110,123 @@ def build_validators(question: Question, expression_context: ExpressionContext) 
     return validators
 
 
-def build_question_form(question: Question, expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
+def build_question_form(questions: list[Question], expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
         _expression_context = expression_context
-        _questions = [question]
+        _questions = questions
 
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
     field: _accepted_fields
-    match question.data_type:
-        case QuestionDataType.EMAIL:
-            field = EmailField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovTextInput(),
-                validators=[
-                    DataRequired(f"Enter the {question.name}"),
-                    Email(message="Enter an email address in the correct format, like name@example.com"),
-                ],
-            )
-        case QuestionDataType.TEXT_SINGLE_LINE:
-            field = StringField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovTextInput(),
-                validators=[DataRequired(f"Enter the {question.name}")],
-            )
-        case QuestionDataType.TEXT_MULTI_LINE:
-            field = StringField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovCharacterCount() if question.presentation_options.word_limit else GovTextArea(),
-                validators=[DataRequired(f"Enter the {question.name}")]
-                + (
-                    [WordRange(max_words=question.presentation_options.word_limit, field_display_name=question.name)]
-                    if question.presentation_options.word_limit
-                    else []
-                ),
-            )
-        case QuestionDataType.INTEGER:
-            field = IntegerField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovTextInput(),
-                validators=[InputRequired(f"Enter the {question.name}")],
-            )
-        case QuestionDataType.YES_NO:
-            field = RadioField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovRadioInput(),
-                choices=[(1, "Yes"), (0, "No")],
-                validators=[InputRequired("Select yes or no")],
-                coerce=lambda val: bool(int(val)),
-            )
-        case QuestionDataType.RADIOS:
-            if len(question.data_source.items) > current_app.config["ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS"]:
-                fallback_option = (
-                    question.data_source.items[-1].label if question.separate_option_if_no_items_match else None
-                )
-                field = SelectField(
+    for question in questions:
+        match question.data_type:
+            case QuestionDataType.EMAIL:
+                field = EmailField(
                     label=question.text,
                     description=question.hint or "",
-                    widget=MHCLGAccessibleAutocomplete(fallback_option=fallback_option),
-                    choices=[("", "")] + [(item.key, item.label) for item in question.data_source.items],
-                    validators=[DataRequired("Select an option")],
+                    widget=GovTextInput(),
+                    validators=[
+                        DataRequired(f"Enter the {question.name}"),
+                        Email(message="Enter an email address in the correct format, like name@example.com"),
+                    ],
                 )
-            else:
-                choices = [(item.key, item.label) for item in question.data_source.items]
+            case QuestionDataType.TEXT_SINGLE_LINE:
+                field = StringField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=GovTextInput(),
+                    validators=[DataRequired(f"Enter the {question.name}")],
+                )
+            case QuestionDataType.TEXT_MULTI_LINE:
+                field = StringField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=GovCharacterCount() if question.presentation_options.word_limit else GovTextArea(),
+                    validators=[DataRequired(f"Enter the {question.name}")]
+                    + (
+                        [
+                            WordRange(
+                                max_words=question.presentation_options.word_limit, field_display_name=question.name
+                            )
+                        ]
+                        if question.presentation_options.word_limit
+                        else []
+                    ),
+                )
+            case QuestionDataType.INTEGER:
+                field = IntegerField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=GovTextInput(),
+                    validators=[InputRequired(f"Enter the {question.name}")],
+                )
+            case QuestionDataType.YES_NO:
                 field = RadioField(
                     label=question.text,
                     description=question.hint or "",
-                    widget=MHCLGRadioInput(
+                    widget=GovRadioInput(),
+                    choices=[(1, "Yes"), (0, "No")],
+                    validators=[InputRequired("Select yes or no")],
+                    coerce=lambda val: bool(int(val)),
+                )
+            case QuestionDataType.RADIOS:
+                if len(question.data_source.items) > current_app.config["ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS"]:
+                    fallback_option = (
+                        question.data_source.items[-1].label if question.separate_option_if_no_items_match else None
+                    )
+                    field = SelectField(
+                        label=question.text,
+                        description=question.hint or "",
+                        widget=MHCLGAccessibleAutocomplete(fallback_option=fallback_option),
+                        choices=[("", "")] + [(item.key, item.label) for item in question.data_source.items],
+                        validators=[DataRequired("Select an option")],
+                    )
+                else:
+                    choices = [(item.key, item.label) for item in question.data_source.items]
+                    field = RadioField(
+                        label=question.text,
+                        description=question.hint or "",
+                        widget=MHCLGRadioInput(
+                            insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
+                        ),
+                        choices=choices,
+                    )
+            case QuestionDataType.URL:
+                field = StringField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=GovTextInput(),
+                    validators=[
+                        DataRequired(f"Enter the {question.name}"),
+                        URLWithoutProtocol(
+                            message="Enter a website address in the correct format, like www.gov.uk",
+                            require_tld=True,
+                        ),
+                    ],
+                )
+            case QuestionDataType.CHECKBOXES:
+                choices = [(item.key, item.label) for item in question.data_source.items]
+                validators: list[Callable[[Any, Any], None]] = [DataRequired(f"Select {question.name}")]
+                if question.separate_option_if_no_items_match:
+                    # This is a fallback validator in case JS is disabled, to prevent the user selecting both the
+                    # separated final checkbox option and another checkbox
+                    validators.append(FinalOptionExclusive(question_name=question.name))
+
+                field = SelectMultipleField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=MHCLGCheckboxesInput(
                         insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
                     ),
                     choices=choices,
+                    validators=validators,
                 )
-        case QuestionDataType.URL:
-            field = StringField(
-                label=question.text,
-                description=question.hint or "",
-                widget=GovTextInput(),
-                validators=[
-                    DataRequired(f"Enter the {question.name}"),
-                    URLWithoutProtocol(
-                        message="Enter a website address in the correct format, like www.gov.uk",
-                        require_tld=True,
-                    ),
-                ],
-            )
-        case QuestionDataType.CHECKBOXES:
-            choices = [(item.key, item.label) for item in question.data_source.items]
-            validators: list[Callable[[Any, Any], None]] = [DataRequired(f"Select {question.name}")]
-            if question.separate_option_if_no_items_match:
-                # This is a fallback validator in case JS is disabled, to prevent the user selecting both the
-                # separated final checkbox option and another checkbox
-                validators.append(FinalOptionExclusive(question_name=question.name))
 
-            field = SelectMultipleField(
-                label=question.text,
-                description=question.hint or "",
-                widget=MHCLGCheckboxesInput(
-                    insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
-                ),
-                choices=choices,
-                validators=validators,
-            )
+            case _:
+                raise Exception("Unable to generate dynamic form for question type {_}")
 
-        case _:
-            raise Exception("Unable to generate dynamic form for question type {_}")
-
-    _DynamicQuestionForm.attach_field(question, field)
+        _DynamicQuestionForm.attach_field(question, field)
 
     return _DynamicQuestionForm
 

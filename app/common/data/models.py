@@ -441,6 +441,10 @@ class Group(Component):
         data_type: None
 
     @property
+    def display_same_page(self) -> bool:
+        return bool(self.presentation_options.show_questions_on_the_same_page)
+
+    @property
     def questions(self) -> list["Question"]:
         return cast(list["Question"], get_ordered_nested_questions_for_components(self.components))
 

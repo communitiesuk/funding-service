@@ -635,6 +635,8 @@ class _GroupFactory(SQLAlchemyModelFactory):
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)
 
+    presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
+
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:

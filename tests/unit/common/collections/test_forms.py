@@ -31,7 +31,7 @@ class TestBuildQuestionForm:
             id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"), data_type=QuestionDataType.INTEGER
         )
 
-        _FormClass = build_question_form(question, expression_context=ExpressionContext())
+        _FormClass = build_question_form([question], expression_context=ExpressionContext())
         form = _FormClass()
 
         assert not hasattr(form, "csrf_token")
@@ -57,7 +57,7 @@ class TestBuildQuestionForm:
                 id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"), data_type=QuestionDataType.INTEGER
             )
 
-            _FormClass = build_question_form(question, expression_context=ExpressionContext())
+            _FormClass = build_question_form([question], expression_context=ExpressionContext())
             form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7a": "500"}))
             assert hasattr(form, "csrf_token")
             assert hasattr(form, "submit")
@@ -69,7 +69,7 @@ class TestBuildQuestionForm:
             text="Question text",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
-        form = build_question_form(q, expression_context=EC())
+        form = build_question_form([q], expression_context=EC())
         assert hasattr(form, "q_31673d5195b04589b25433b866dfd94f")
         assert hasattr(form, "submit")
 
@@ -101,7 +101,7 @@ class TestBuildQuestionForm:
         q = factories.question.build(
             text="Question text", hint="Question hint", data_type=data_type, presentation_options=presentation_options
         )
-        form = build_question_form(q, expression_context=EC())()
+        form = build_question_form([q], expression_context=EC())()
 
         question_field = form.get_question_field(q)
         assert isinstance(question_field, expected_field_type)

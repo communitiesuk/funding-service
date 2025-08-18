@@ -12,92 +12,72 @@
 {% endmacro %}
 
 {% macro collection_question(runner) %}
-  {% set question = runner.question %}
+  {% set is_group = runner.component.is_group %}
+  {% set questions = runner.component.questions if is_group else [runner.component] %}
   {% set form = runner.question_form %}
-  {% set questionAsPageHeading = not runner.question.guidance_heading %}
+  {% set questionAsPageHeading = not runner.component.guidance_heading and not is_group %}
 
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
-    <span class="govuk-caption-l">{{ question.form.title }}</span>
-    {% if runner.question.guidance_heading %}
-      <h1 class="govuk-heading-l">{{ runner.question.guidance_heading }}</h1>
-      {{ runner.question.guidance_body | govuk_markdown }}
+    <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
+    {% if is_group %}
+      <h1 class="govuk-heading-l">{{ runner.component.name }}</h1>
+    {% elif runner.component.guidance_heading %}
+      <h1 class="govuk-heading-l">{{ runner.component.guidance_heading }}</h1>
+      {{ runner.component.guidance_body | govuk_markdown }}
     {% endif %}
 
     {# https://github.com/alphagov/govuk-frontend/issues/1841 #}
     {# GOV.UK Frontend macros don't let you add captions to label/legend-headings that are outside of the <h> element #}
     {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
     {# So we just manually add the caption here. #}
-    {% if question.data_type == enum.question_type.TEXT_MULTI_LINE %}
-      {{
-        form.render_question(
-          question,
-          params={
-            "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
-            "maxwords": question.presentation_options.word_limit,
-            "rows": question.presentation_options.rows
-          }
-        )
-      }}
-    {% elif question.data_type == enum.question_type.TEXT_SINGLE_LINE or question.data_type == enum.question_type.EMAIL or question.data_type == enum.question_type.URL %}
-      {{
-        form.render_question(
-          question,
-          params={
-            "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading}
-          }
-        )
-      }}
-    {% elif question.data_type == enum.question_type.INTEGER %}
-      {{
-        form.render_question(
-          question,
-          params={
-            "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold" ,"isPageHeading": questionAsPageHeading},
-            "inputmode": "numeric",
-            "spellcheck": false,
-            "classes": question.presentation_options.width or '',
-            "prefix": {"text": question.presentation_options.prefix or ''},
-            "suffix": {"text": question.presentation_options.suffix or ''}
-          }
-        )
-      }}
-    {% elif question.data_type == enum.question_type.YES_NO %}
-      {{
-        form.render_question(
-          question,
-          params={
-            "fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
-            "classes": "govuk-radios--inline"
-          }
-        )
-      }}
-    {% elif question.data_type == enum.question_type.CHECKBOXES %}
-      {{
-        form.render_question(
-          question,
-          params={
-            "fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
-          }
-        )
-      }}
-    {% elif question.data_type == enum.question_type.RADIOS %}
-      {% if form.get_question_field(question).widget.is_accessible_autocomplete %}
-        {#
-          `govuk-!-width-full` override here to line up with the default width of the accessible autocomplete component. We could potentially do something smarter, like copy the class
-          from here to the enhanced autocomplete, but leaving that for a future increment.
-        #}
+    {% for question in questions %}
+      {% if question.data_type == enum.question_type.TEXT_MULTI_LINE %}
         {{
           form.render_question(
             question,
             params={
-              "label": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
-              "classes": "govuk-!-width-full"
+              "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+              "maxwords": question.presentation_options.word_limit,
+              "rows": question.presentation_options.rows
             }
           )
         }}
-      {% else %}
+      {% elif question.data_type == enum.question_type.TEXT_SINGLE_LINE or question.data_type == enum.question_type.EMAIL or question.data_type == enum.question_type.URL %}
+        {{
+          form.render_question(
+            question,
+            params={
+              "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading}
+            }
+          )
+        }}
+      {% elif question.data_type == enum.question_type.INTEGER %}
+        {{
+          form.render_question(
+            question,
+            params={
+              "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold" ,"isPageHeading": questionAsPageHeading},
+              "inputmode": "numeric",
+              "spellcheck": false,
+              "classes": question.presentation_options.width or '',
+              "prefix": {"text": question.presentation_options.prefix or ''},
+              "suffix": {"text": question.presentation_options.suffix or ''}
+            }
+          )
+        }}
+      {% elif question.data_type == enum.question_type.YES_NO %}
+        {{
+          form.render_question(
+            question,
+            params={
+              "fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+              "classes": "govuk-radios--inline"
+            }
+          )
+        }}
+      {% elif question.data_type == enum.question_type.CHECKBOXES %}
         {{
           form.render_question(
             question,
@@ -106,8 +86,33 @@
             }
           )
         }}
+      {% elif question.data_type == enum.question_type.RADIOS %}
+        {% if form.get_question_field(question).widget.is_accessible_autocomplete %}
+          {#
+            `govuk-!-width-full` override here to line up with the default width of the accessible autocomplete component. We could potentially do something smarter, like copy the class
+            from here to the enhanced autocomplete, but leaving that for a future increment.
+          #}
+          {{
+            form.render_question(
+              question,
+              params={
+                "label": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+                "classes": "govuk-!-width-full"
+              }
+            )
+          }}
+        {% else %}
+          {{
+            form.render_question(
+              question,
+              params={
+                "fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+              }
+            )
+          }}
+        {% endif %}
       {% endif %}
-    {% endif %}
+    {% endfor %}
 
     {{ form.submit }}
   </form>

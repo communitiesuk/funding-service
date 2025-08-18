@@ -46,7 +46,16 @@ from app.common.expressions import (
 from app.common.filters import format_datetime
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Component, Expression, Form, Grant, Question, Section, Submission
+    from app.common.data.models import (
+        Collection,
+        Component,
+        Expression,
+        Form,
+        Grant,
+        Question,
+        Section,
+        Submission,
+    )
 
 
 class SubmissionHelper:
@@ -193,6 +202,21 @@ class SubmissionHelper:
         except StopIteration as e:
             raise ValueError(
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
+            ) from e
+
+    def get_component(self, component_id: uuid.UUID) -> "Component":
+        try:
+            return next(
+                filter(
+                    lambda c: c.id == component_id,
+                    chain.from_iterable(
+                        form.all_components for section in self.collection.sections for form in section.forms
+                    ),
+                )
+            )
+        except StopIteration as e:
+            raise ValueError(
+                f"Could not find a component with id={component_id} in collection={self.collection.id}"
             ) from e
 
     def get_ordered_visible_sections(self) -> list["Section"]:

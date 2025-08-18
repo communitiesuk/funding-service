@@ -88,7 +88,7 @@ def submission_tasklist(submission_id: uuid.UUID) -> ResponseReturnValue:
 def ask_a_question(submission_id: uuid.UUID, question_id: uuid.UUID) -> ResponseReturnValue:
     source = request.args.get("source")
     runner = AGFFormRunner.load(
-        submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
+        submission_id=submission_id, component_id=question_id, source=FormRunnerState(source) if source else None
     )
 
     if not runner.validate_can_show_question_page():

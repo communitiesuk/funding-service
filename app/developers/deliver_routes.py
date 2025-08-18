@@ -1179,8 +1179,9 @@ def submission_tasklist(submission_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def ask_a_question(submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
+
     runner = DevelopersFormRunner.load(
-        submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
+        submission_id=submission_id, component_id=question_id, source=FormRunnerState(source) if source else None
     )
 
     if not runner.validate_can_show_question_page():

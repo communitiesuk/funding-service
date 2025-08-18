@@ -33,7 +33,7 @@ def test_validation_attached_to_field_and_runs__text(factories, value, error_mes
         name="test_text",
     )
 
-    _FormClass = build_question_form(question, expression_context=ExpressionContext())
+    _FormClass = build_question_form([question], expression_context=ExpressionContext())
     form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7b": str(value)}))
 
     valid = form.validate()
@@ -70,7 +70,7 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
         question, user, LessThan(question_id=question.id, maximum_value=100, inclusive=False)
     )
 
-    _FormClass = build_question_form(question, expression_context=ExpressionContext())
+    _FormClass = build_question_form([question], expression_context=ExpressionContext())
     form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7a": str(value)}))
 
     valid = form.validate()
@@ -91,7 +91,7 @@ def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_sess
         data_type=QuestionDataType.RADIOS,
         items=[str(i) for i in range(25)],
     )
-    form = build_question_form(q, expression_context=EC())()
+    form = build_question_form([q], expression_context=EC())()
 
     question_field = form.get_question_field(q)
     assert isinstance(question_field, SelectField)

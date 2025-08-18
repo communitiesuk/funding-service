@@ -1,5 +1,5 @@
 # todo: propose moving common/helper/collections.py to common/collections/submission.py
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional, Union
 from uuid import UUID
 
 from flask import abort, url_for
@@ -12,7 +12,7 @@ from app.common.helpers.collections import SubmissionHelper
 
 if TYPE_CHECKING:
     from app.common.collections.forms import DynamicQuestionForm
-    from app.common.data.models import Form, Question
+    from app.common.data.models import Form, Group, Question
     from app.common.data.models_user import User
 
 
@@ -25,19 +25,27 @@ class FormRunner:
     This allows us to implement the form runner in different domain environments consistently."""
 
     url_map: ClassVar[TRunnerUrlMap] = {}
+    component: Union["Question", "Group", None]
+    _questions: list["Question"]
 
     def __init__(
         self,
         submission: SubmissionHelper,
-        question: Optional["Question"] = None,
+        component: Optional[Union["Question", "Group"]] = None,
         form: Optional["Form"] = None,
         source: Optional["FormRunnerState"] = None,
     ):
-        if question and form:
-            raise ValueError("Expected only one of question or form")
+        if component and form:
+            raise ValueError("Expected only one of component or form")
 
         self.submission = submission
-        self.question = question
+
+        # todo: test this logic
+        if component and component.parent and component.parent.display_same_page:
+            self.component = component.parent
+        else:
+            self.component = component
+
         self.form = form
         self.source = source
 
@@ -47,9 +55,18 @@ class FormRunner:
         self._question_form: Optional[DynamicQuestionForm] = None
         self._check_your_answers_form: Optional[CheckYourAnswersForm] = None
 
-        if self.question:
-            self.form = self.question.form
-            _QuestionForm = build_question_form(self.question, self.submission.expression_context)
+        if self.component:
+            if not self.component.is_group:
+                # fixme: these will always just be questions but not doing "isinstance" here to avoid
+                #        importing the class, there's probably a nicer way
+                self._questions = [self.component]  # type: ignore[list-item]
+            elif self.component.is_group and self.component.display_same_page:  # type: ignore[union-attr]
+                self._questions = self.component.questions  # type: ignore[union-attr]
+            else:
+                raise ValueError("Runner component must be a question or same page group")
+
+            self.form = self.component.form
+            _QuestionForm = build_question_form(self._questions, self.submission.expression_context)
             self._question_form = _QuestionForm(data=self.submission.form_data)
 
         if self.form:
@@ -66,11 +83,11 @@ class FormRunner:
         cls,
         *,
         submission_id: UUID,
-        question_id: Optional[UUID] = None,
+        component_id: Optional[UUID] = None,
         form_id: Optional[UUID] = None,
         source: Optional[FormRunnerState] = None,
     ) -> "FormRunner":
-        if question_id and form_id:
+        if component_id and form_id:
             raise ValueError("Expected only one of question_id or form_id")
 
         submission = SubmissionHelper.load(submission_id)
@@ -82,18 +99,18 @@ class FormRunner:
         if submission.created_by_email is not current_user.email:
             return abort(403)
 
-        question, form = None, None
+        component, form = None, None
 
-        if question_id:
-            question = submission.get_question(question_id)
+        if component_id:
+            component = submission.get_component(component_id)
         elif form_id:
             form = submission.get_form(form_id)
 
-        return cls(submission=submission, question=question, form=form, source=source)
+        return cls(submission=submission, component=component, form=form, source=source)  # type: ignore[arg-type]
 
     @property
     def question_form(self) -> "DynamicQuestionForm":
-        if not self.question or not self._question_form:
+        if not self.component or not self._question_form:
             raise RuntimeError("Question context not set")
         return self._question_form
 
@@ -108,10 +125,11 @@ class FormRunner:
         return self._tasklist_form
 
     def save_question_answer(self) -> None:
-        if not self.question:
+        if not self.component:
             raise RuntimeError("Question context not set")
 
-        self.submission.submit_answer_for_question(self.question.id, self.question_form)
+        for question in self._questions:
+            self.submission.submit_answer_for_question(question.id, self.question_form)
 
     def save_is_form_completed(self, user: "User") -> bool:
         if not self.form:
@@ -146,17 +164,21 @@ class FormRunner:
         form: Optional["Form"] = None,
         source: Optional[FormRunnerState] = None,
     ) -> str:
-        return self.url_map[state](self, question or self.question, form or self.form, source)
+        return self.url_map[state](self, question or self.component, form or self.form, source)  # type: ignore[arg-type]
 
     @property
     def next_url(self) -> str:
         # if we're in the context of a question page, decide if we should go to the next question
         # or back to check your answers based on if the integrity checks pass
-        if self.question:
+        if self.component:
             if not self._valid:
                 return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
-            next_question = self.submission.get_next_question(self.question.id)
+            # we use the last available question which will either be the component
+            # the runner is loaded for or the last question in the group being shown on the same page
+            # todo: feedback from devs, maybe this logic being more explicit and checking if we're in a
+            #       group context would be move verbose but the code might read more easily - get opinions
+            next_question = self.submission.get_next_question(self._questions[-1].id)
 
             # Regardless of where they're from (eg even check-your-answers), take them to the next unanswered question
             # this will let users stay in a data-submitting flow if they've changed a conditional answer which has
@@ -176,12 +198,12 @@ class FormRunner:
     def validate_can_show_question_page(self) -> bool:
         # for now we're only validating the question state, there may be integrity
         # checks for check your answers or tasklist in the future
-        if not self.question:
+        if not self.component:
             raise ValueError("Question context not set")
 
         context = self.submission.expression_context
 
-        if not self.submission.is_component_visible(self.question, context):
+        if not self.submission.is_component_visible(self.component, context):
             self._valid = False
         elif self.submission.is_completed:
             self._valid = False
@@ -198,8 +220,10 @@ class FormRunner:
         elif self.source == FormRunnerState.CHECK_YOUR_ANSWERS:
             return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
-        if self.question:
-            previous_question = self.submission.get_previous_question(self.question.id)
+        if self.component:
+            # todo: feedback from devs, maybe this logic being more explicit and checking if we're in a
+            #       group context would be move verbose but the code might read more easily - get opinions
+            previous_question = self.submission.get_previous_question(self._questions[0].id)
         elif self.form:
             previous_question = self.submission.get_last_question_for_form(self.form)
         else:
