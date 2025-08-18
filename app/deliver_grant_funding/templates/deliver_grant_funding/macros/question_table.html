@@ -1,0 +1,49 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{# interactively display questions for a given form or question group #}
+{% macro question_table(parent, role_can_edit=false) %}
+  {% set grant = parent.form.section.collection.grant if parent.is_group else parent.section.collection.grant %}
+  {% set title = parent.form.title if parent.is_group else parent.title %}
+
+  {% set rows = [] %}
+  {% for question in parent.questions %}
+    {% set keyHtml %}
+      {% if role_can_edit %}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=question.id) }}">{{ question.text }}</a>
+      {% else %}
+        {{ question.text }}
+      {% endif %}
+      {% if role_can_edit and question.conditions %}
+        {{
+          govukTag({
+            "text": "Conditional",
+            "classes": "govuk-tag--grey govuk-!-margin-left-1 govuk-!-margin-top-1",
+          })
+        }}
+      {% endif %}
+    {% endset %}
+
+    {% set actions = [] %}
+    {% if role_can_edit and parent.questions|length > 1 %}
+      {% do actions.append({"text": "Move up", "visuallyHiddenText": title, "href": url_for('deliver_grant_funding.move_question', grant_id=grant.id, question_id=question.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
+      {% do actions.append({"text": "Move down", "visuallyHiddenText": title, "href": url_for('deliver_grant_funding.move_question', grant_id=grant.id, question_id=question.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
+    {% endif %}
+    {%
+      do rows.append(
+      {
+        "key": {"html": keyHtml, "classes": "govuk-!-font-weight-regular govuk-!-width-one-half"},
+        "value": {"text": question.data_type, "classes": "govuk-!-width-one-third" if not actions else ""},
+        "actions": {
+          "items": actions,
+        } if actions else {},
+      })
+    %}
+  {% endfor %}
+
+  {{
+    govukSummaryList({
+      "rows": rows
+    })
+  }}
+{% endmacro %}

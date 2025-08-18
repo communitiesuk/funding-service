@@ -1,9 +1,8 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
-{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
+{% from "deliver_grant_funding/macros/question_table.html" import question_table %}
 
 {% set page_title = "Reports" %}
 {% set active_item_identifier = "reports" %}
@@ -66,46 +65,7 @@
       {% if not db_form.questions %}
         <p class="govuk-body">This task has no questions.</p>
       {% else %}
-        {% set rows = [] %}
-        {% for question in db_form.questions %}
-          {% set keyHtml %}
-            {% if grant_admin %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=question.id) }}">{{ question.text }}</a>
-            {% else %}
-              {{ question.text }}
-            {% endif %}
-            {% if grant_admin and question.conditions %}
-              {{
-                govukTag({
-                  "text": "Conditional",
-                  "classes": "govuk-tag--grey govuk-!-margin-left-1 govuk-!-margin-top-1",
-                })
-              }}
-            {% endif %}
-          {% endset %}
-
-          {% set actions = [] %}
-          {% if grant_admin and db_form.questions|length > 1 %}
-            {% do actions.append({"text": "Move up", "visuallyHiddenText": db_form.title, "href": url_for('deliver_grant_funding.move_question', grant_id=grant.id, question_id=question.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
-            {% do actions.append({"text": "Move down", "visuallyHiddenText": db_form.title, "href": url_for('deliver_grant_funding.move_question', grant_id=grant.id, question_id=question.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
-          {% endif %}
-          {%
-            do rows.append(
-            {
-              "key": {"html": keyHtml, "classes": "govuk-!-font-weight-regular govuk-!-width-one-half"},
-              "value": {"text": question.data_type, "classes": "govuk-!-width-one-third" if not actions else ""},
-              "actions": {
-                "items": actions,
-              } if actions else {},
-            })
-          %}
-        {% endfor %}
-
-        {{
-          govukSummaryList({
-            "rows": rows
-          })
-        }}
+        {{ question_table(db_form, role_can_edit=grant_admin) }}
       {% endif %}
 
       {% if grant_admin %}
