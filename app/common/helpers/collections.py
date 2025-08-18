@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         Expression,
         Form,
         Grant,
+        Group,
         Question,
         Section,
         Submission,
@@ -280,6 +281,12 @@ class SubmissionHelper:
             # todo: check dependency chain for conditions when undefined variables are encountered to avoid
             #       always suppressing errors and not surfacing issues on misconfigured forms
             return False
+
+    # todo: make this uniform and cover appropriately
+    def get_ordered_visible_questions_for_group(self, group: "Group") -> list["Question"]:
+        return [
+            question for question in group.questions if self.is_component_visible(question, self.expression_context)
+        ]
 
     def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
         """Returns the visible, ordered questions for a given form based upon the current state of this collection."""

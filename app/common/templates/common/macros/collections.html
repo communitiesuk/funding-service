@@ -32,7 +32,8 @@
     {# GOV.UK Frontend macros don't let you add captions to label/legend-headings that are outside of the <h> element #}
     {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
     {# So we just manually add the caption here. #}
-    {% for question in questions %}
+    {# fixme: if you need to access it name it appropriately #}
+    {% for question in runner._questions %}
       {% if question.data_type == enum.question_type.TEXT_MULTI_LINE %}
         {{
           form.render_question(

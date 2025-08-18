@@ -61,7 +61,7 @@ class FormRunner:
                 #        importing the class, there's probably a nicer way
                 self._questions = [self.component]  # type: ignore[list-item]
             elif self.component.is_group and self.component.display_same_page:  # type: ignore[union-attr]
-                self._questions = self.component.questions  # type: ignore[union-attr]
+                self._questions = self.submission.get_ordered_visible_questions_for_group(self.component)  # type: ignore[arg-type]
             else:
                 raise ValueError("Runner component must be a question or same page group")
 
