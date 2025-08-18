@@ -6,8 +6,22 @@
   {% set grant = parent.form.section.collection.grant if parent.is_group else parent.section.collection.grant %}
   {% set title = parent.form.title if parent.is_group else parent.title %}
 
+  {% set components = [] %}
+  {% for component in parent.components %}
+    {% do components.append(component) %}
+    {% if component.is_group %}
+
+      {# we'll show questions to one level of depth #}
+      {% for component in component.components %}
+        {% do components.append(component) %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+
   {% set rows = [] %}
-  {% for question in parent.questions %}
+  {% for question in components %}
+    {% set nested = question.parent and question.parent != parent %}
+    {% set final = question.parent and question == (question.parent.components | last) %}
     {% set keyHtml %}
       {% if role_can_edit %}
         <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=question.id) }}">{{ question.text }}</a>
@@ -32,11 +46,12 @@
     {%
       do rows.append(
       {
-        "key": {"html": keyHtml, "classes": "govuk-!-font-weight-regular govuk-!-width-one-half"},
-        "value": {"text": question.data_type, "classes": "govuk-!-width-one-third" if not actions else ""},
+        "key": {"html": keyHtml, "classes": "govuk-!-font-weight-regular govuk-!-width-one-half" },
+        "value": {"text": question.data_type if not question.is_group else "", "classes": "govuk-!-width-one-third" if not actions else ""},
         "actions": {
           "items": actions,
         } if actions else {},
+        "classes": "app-summary-list-group-row " if question.is_group else "" ~ ("app-summary-list-group-nested " if nested else "") ~ ("app-summary-list-group-nested--final " if final else ""),
       })
     %}
   {% endfor %}

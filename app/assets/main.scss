@@ -188,3 +188,30 @@ $app-destructive-link-active-colour: $govuk-text-colour;
     @include govuk-link-style-error;
   }
 }
+
+$inset-nested-rows: 15px;
+
+.app-summary-list-group-row {
+  background-color: govuk-colour("light-grey");
+}
+
+.app-summary-list-group-row:first-child {
+  border-top: 1px solid $govuk-border-colour;
+}
+
+.app-summary-list-group-row .govuk-summary-list__key {
+  padding-left: $inset-nested-rows;
+  font-weight: bold !important;
+}
+
+.app-summary-list-group-nested {
+  box-shadow: inset 4px 0 0 0 $govuk-border-colour;
+}
+
+.app-summary-list-group-nested .govuk-summary-list__key {
+  padding-left: $inset-nested-rows;
+}
+
+.app-summary-list-group-nested--final {
+  border-bottom: 2px solid $govuk-border-colour;
+}
