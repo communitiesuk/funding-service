@@ -26,7 +26,7 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.guidance_heading(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
-        {{ form.guidance_body(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+        {{ form.guidance_body(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "markdown-editor-toolbar", "data-allow-headings": "true", "data-i18n": "{}"} }) }}
         {{ form.submit(params={"text": submit_label }) }}
       </form>
     </div>

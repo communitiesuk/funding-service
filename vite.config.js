@@ -43,6 +43,10 @@ export default defineConfig({
       ],
     }),
   ],
+  test: {
+    globals: true,
+    setupFiles: ['app/assets/test/setup.js']
+  },
   clearScreen: false,
   appType: "custom"
 })

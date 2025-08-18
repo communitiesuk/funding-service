@@ -90,18 +90,15 @@ jobs:
     steps:
       - name: checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-      - name: Read .nvmrc
-        id: nvmrc
-        run: echo "nodeVersion=$(cat .nvmrc)" >> "$GITHUB_OUTPUT"
-      - name: Setup node ${{ steps.nvmrc.outputs.nodeVersion }}
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ steps.nvmrc.outputs.nodeVersion }}
+          node-version-file: ".nvmrc"
+          cache: "npm"
       - name: install dependencies
         run: npm ci
       - name: check HTML formatting
         run: make check-html
-
 
   lint_imports:
     runs-on: ubuntu-latest
@@ -116,3 +113,18 @@ jobs:
         run: uv sync
       - name: run imports linting
         run: uv run lint-imports
+
+  js_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Run JS tests
+        run: npm test
