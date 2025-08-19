@@ -19,8 +19,8 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.grant_id }}
-        <span class="govuk-caption-l">{{ grant.name }}</span>
-        {{ form.name (params={"label": {"isPageHeading": true, "classes": "govuk-label--l" }}) }}
+        {{ form.name (params={"label": {"isPageHeading": true, "classes": "govuk-label--l" }})
+        }}
         {{
           form.submit(params={
               "text": "Continue and set up report"
