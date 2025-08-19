@@ -74,7 +74,7 @@ const createToolbarForTextArea = textArea => {
 
 const getButtonText = (identifier, i18n) => {
   const snakeCaseIdentifier = identifier.replaceAll('-', '_')
-  return i18n[snakeCaseIdentifier]
+  return {h2: "Add a second-level heading", link: "Add a link", bullet_list: "Add a bulleted list", numbered_list: "Add a numbered list"}[snakeCaseIdentifier];
 }
 
 const createButtonGroup = (
