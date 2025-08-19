@@ -658,6 +658,77 @@ class TestChangeFormName:
         assert page_has_error(soup, "A task with this name already exists")
 
 
+class TestListGroupQuestions:
+    def test_404(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        form = factories.form.create(section=report.sections[0])
+        question = factories.question.create(form=form)
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.list_group_questions", grant_id=uuid.uuid4(), group_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+        # we don't load the group management page for any type of component
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=question.form.section.collection.grant.id,
+                group_id=question.id,
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_edit",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_admin_actions(self, request, client_fixture, can_edit, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", order=0)
+        factories.question.create(form=form, parent=group, order=0)
+
+        response = client.get(
+            url_for("deliver_grant_funding.list_group_questions", grant_id=client.grant.id, group_id=group.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Test group"
+
+        # todo: extend with "change name" and "question group settings"
+        delete_group_link = page_has_link(soup, "Delete question group")
+
+        assert (delete_group_link is not None) is can_edit
+
+        if can_edit:
+            assert delete_group_link.get("href") == AnyStringMatching(r"\?delete")
+
+    # todo: delete group integrity checks on conditions
+    # todo: delete interface deletes from any parent appropriately
+    def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", order=0)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Yes, delete this question group")
+
+
 class TestListTaskQuestions:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
@@ -955,6 +1026,45 @@ class TestAddQuestion:
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Edit question"
         assert get_h2_text(soup) == "Question created"
+
+    def test_post_add_to_group(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=db_form, name="Test group", order=0)
+
+        form = QuestionForm(
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
+                parent_id=group.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+
+        response = authenticated_grant_admin_client.get(response.location)
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Edit question"
+        assert get_h2_text(soup) == "Question created"
+        assert page_has_link(soup, "Return to the question group")
+
+        # the question was added to the group rather than the form directly so the group shows in the
+        # navigation hierarchy
+        assert page_has_link(soup, "Test group")
 
 
 class TestEditQuestion:

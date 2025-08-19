@@ -19,11 +19,11 @@
   %}
 
   {% if question.parent and question.parent.parent_id %}
-    {% do items.append({"text": "...", "href": url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.parent.parent_id)}) %}
+    {% do items.append({"text": "...", "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.parent.parent_id)}) %}
   {% endif %}
 
   {% if question.parent %}
-    {% do items.append({"text": question.parent.name, "href": url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.parent_id)}) %}
+    {% do items.append({"text": question.parent.name, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.parent_id)}) %}
   {% endif %}
   {% do items.append({"text": "Edit " ~ question.name }) %}
 
@@ -40,7 +40,11 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.QUESTION_CREATED]) %}
         {% if flashes %}
           {% set question_created_content %}
-            <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_task_questions', grant_id=grant.id, form_id=db_form.id) }}">Return to the task</a>
+            {% if question.parent %}
+              <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=question.parent.id) }}">Return to the question group</a>
+            {% else %}
+              <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_task_questions', grant_id=grant.id, form_id=db_form.id) }}">Return to the task</a>
+            {% endif %}
             to add more questions, or edit this question to add conditions and validations.
           {% endset %}
           {{

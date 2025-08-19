@@ -502,6 +502,16 @@ def get_question_by_id(question_id: UUID) -> Question:
     )
 
 
+def get_group_by_id(group_id: UUID) -> Group:
+    return db.session.get_one(
+        Group,
+        group_id,
+        options=[
+            joinedload(Group.form).joinedload(Form.section).joinedload(Section.collection).joinedload(Collection.grant),
+        ],
+    )
+
+
 def get_expression_by_id(expression_id: UUID) -> Expression:
     return db.session.get_one(
         Expression,
@@ -602,7 +612,7 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
 # todo: when working generically with components this should dig in and check child components
 #       a short term workaround might be to use _all_components but ideally this should
 #       just expect nested components
-def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
+def raise_if_question_has_any_dependencies(question: Question | Group) -> Never | None:
     for target_question in question.form.questions:
         for condition in target_question.conditions:
             if condition.managed and condition.managed.question_id == question.id:
@@ -801,7 +811,7 @@ def delete_form(form: Form) -> None:
     db.session.flush()
 
 
-def delete_question(question: Question) -> None:
+def delete_question(question: Question | Group) -> None:
     raise_if_question_has_any_dependencies(question)
     db.session.delete(question)
     if question in question.form.questions:

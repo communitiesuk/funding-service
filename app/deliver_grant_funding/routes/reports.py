@@ -22,6 +22,7 @@ from app.common.data.interfaces.collections import (
     get_component_by_id,
     get_expression_by_id,
     get_form_by_id,
+    get_group_by_id,
     get_question_by_id,
     move_component_down,
     move_component_up,
@@ -318,6 +319,35 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     )
 
 
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/questions", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    group = get_group_by_id(group_id)
+
+    delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
+    if delete_wtform:
+        if not AuthorisationHelper.has_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
+            return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group_id))
+
+        if delete_wtform.validate_on_submit():
+            delete_question(group)
+
+            return redirect(
+                url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=group.form_id)
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/list_group_questions.html",
+        grant=group.form.section.collection.grant,
+        db_form=group.form,
+        delete_form=delete_wtform,
+        group=group,
+    )
+
+
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/question/<uuid:question_id>/move-<direction>")
 @has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
@@ -335,7 +365,13 @@ def move_question(grant_id: UUID, question_id: UUID, direction: str) -> Response
     except DependencyOrderException as e:
         flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
 
-    return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=component.form_id))
+    source = request.args.get("source", None)
+    if source:
+        return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=source))
+    else:
+        return redirect(
+            url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=component.form_id)
+        )
 
 
 @deliver_grant_funding_blueprint.route(
@@ -346,6 +382,9 @@ def move_question(grant_id: UUID, question_id: UUID, direction: str) -> Response
 def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
+    parent_id = request.args.get("parent_id", None)
+    parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+
     if wt_form.validate_on_submit():
         question_data_type = wt_form.question_data_type.data
         return redirect(
@@ -354,6 +393,7 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 grant_id=grant_id,
                 form_id=form_id,
                 question_data_type=question_data_type,
+                parent_id=parent_id if parent else None,
             )
         )
 
@@ -362,6 +402,7 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         grant=db_form.section.collection.grant,
         db_form=db_form,
         form=wt_form,
+        parent=parent,
     )
 
 
@@ -375,6 +416,8 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
+    parent_id = request.args.get("parent_id", None)
+    parent = get_component_by_id(UUID(parent_id)) if parent_id else None
 
     wt_form = QuestionForm(question_type=question_data_type_enum)
     if wt_form.validate_on_submit():
@@ -391,6 +434,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 data_type=question_data_type_enum,
                 items=wt_form.normalised_data_source_items,
                 presentation_options=QuestionPresentationOptions.from_form(wt_form),
+                parent=parent,
             )
             flash("Question created", FlashMessageType.QUESTION_CREATED)
             return redirect(
@@ -412,6 +456,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         db_form=form,
         chosen_question_data_type=question_data_type_enum,
         form=wt_form,
+        parent=parent,
     )
 
 

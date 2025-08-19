@@ -24,6 +24,7 @@ from app.common.data.interfaces.collections import (
     get_expression,
     get_expression_by_id,
     get_form_by_id,
+    get_group_by_id,
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
     get_section_by_id,
@@ -344,6 +345,12 @@ def test_get_question(db_session, factories):
     assert from_db is not None
 
 
+def test_get_group(db_session, factories):
+    g = factories.group.create()
+    from_db = get_group_by_id(group_id=g.id)
+    assert from_db is not None
+
+
 class TestCreateGroup:
     def test_create_group(self, db_session, factories):
         form = factories.form.create()
@@ -573,6 +580,20 @@ class TestCreateQuestion:
                 data_type=None,
             )
         assert "ck_component_type_question_requires_data_type" in str(e.value)
+
+    def test_question_associated_with_group(self, db_session, factories):
+        form = factories.form.create()
+        group = factories.group.create(form=form, order=0)
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            parent=group,
+        )
+        assert question.parent == group
+        assert question.order == 0
 
 
 class TestUpdateQuestion:

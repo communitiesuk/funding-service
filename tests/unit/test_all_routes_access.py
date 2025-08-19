@@ -86,6 +86,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_reports",
     "deliver_grant_funding.list_report_tasks",
     "deliver_grant_funding.list_task_questions",
+    "deliver_grant_funding.list_group_questions",
     "deliver_grant_funding.ask_a_question",
     "deliver_grant_funding.submission_tasklist",
     "deliver_grant_funding.check_your_answers",
