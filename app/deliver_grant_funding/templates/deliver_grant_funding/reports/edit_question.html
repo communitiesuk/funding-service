@@ -10,14 +10,26 @@
 {% set active_item_identifier = "reports" %}
 
 {% block beforeContent %}
+  {%
+    set items = [
+      {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
+      {"text": db_form.section.collection.name, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=db_form.section.collection_id)},
+      {"text": db_form.title, "href": url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) },
+    ]
+  %}
+
+  {% if question.parent and question.parent.parent_id %}
+    {% do items.append({"text": "...", "href": url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.parent.parent_id)}) %}
+  {% endif %}
+
+  {% if question.parent %}
+    {% do items.append({"text": question.parent.name, "href": url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.parent_id)}) %}
+  {% endif %}
+  {% do items.append({"text": "Edit " ~ question.name }) %}
+
   {{
     govukBreadcrumbs(params={
-      "items": [
-        {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
-        {"text": db_form.section.collection.name, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=db_form.section.collection_id)},
-        {"text": db_form.title, "href": url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) },
-        {"text": "Edit " ~ question.name},
-      ],
+      "items": items
     })
   }}
 {% endblock beforeContent %}
