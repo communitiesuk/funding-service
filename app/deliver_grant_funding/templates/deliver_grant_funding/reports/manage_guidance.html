@@ -1,6 +1,7 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "govuk_frontend_jinja/components/tabs/macro.html" import govukTabs %}
 
 {% set page_title = "Add guidance" if not question.guidance_body else "Edit guidance" %}
 {% set submit_label = "Add guidance" if not question.guidance_body else "Update guidance" %}
@@ -63,11 +64,35 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.guidance_heading(params={"label": {"classes": "govuk-label--m"} }) }}
-        {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-module": "markdown-editor-toolbar", "data-allow-headings": "true", "data-i18n": "{}"} }) }}
 
-        {{ govukDetails(params={"summaryText": "Formatting help", "html": guidance_help}) }}
 
-        {{ form.submit(params={"text": submit_label }) }}
+        {% set write_guidance_html %}
+          {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-module": "markdown-editor-toolbar", "data-allow-headings": "true", "data-i18n": "{}", "data-ajax-markdown-source": ""} }) }}
+          {{ govukDetails(params={"summaryText": "Formatting help", "html": guidance_help}) }}
+          {{ form.preview(params={"classes": "govuk-button--secondary app-markdown-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
+        {% endset %}
+
+
+        {% set preview_guidance_html %}
+          <div class="app-markdown-editor__preview-intro">
+            <h2 class="govuk-heading-m">Preview your guidance below</h2>
+            <p class="govuk-body">Below is a preview of how your guidance content will be shown to the person completing your form.</p>
+          </div>
+          <div class="app-markdown-editor__preview-area" data-ajax-markdown-target="">{{ question.guidance_body | govuk_markdown | safe }}</div>
+        {% endset %}
+
+        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('common_api.markdown_to_html') }}">
+          {{
+            govukTabs(params={
+              "items": [
+                {"label": "Write guidance", "id": "write-guidance", "panel": {"html": write_guidance_html} },
+                {"label": "Preview guidance", "id": "preview-guidance", "panel": {"html": preview_guidance_html} },
+              ],
+            })
+          }}
+        </div>
+
+        {{ form.submit }}
       </form>
     </div>
   </div>

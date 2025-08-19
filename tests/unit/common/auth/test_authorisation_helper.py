@@ -23,6 +23,18 @@ class TestAuthorisationHelper:
         assert AuthorisationHelper.has_logged_in(user) is expected
 
     @pytest.mark.parametrize(
+        "email, expected",
+        (
+            ("person@gmail.com", False),
+            ("person@communities.gov.uk", True),
+            ("person@test.communities.gov.uk", True),
+        ),
+    )
+    def test_is_mhclg_user(self, factories, email, expected):
+        user = factories.user.build(email=email)
+        assert AuthorisationHelper.is_mhclg_user(user) is expected
+
+    @pytest.mark.parametrize(
         "role, has_grant_linked_to_role, expected",
         [
             (RoleEnum.ADMIN, False, True),

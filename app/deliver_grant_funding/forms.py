@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -493,4 +493,20 @@ class AddGuidanceForm(FlaskForm):
         widget=GovTextArea(),
         filters=[strip_string_if_not_empty],
     )
-    submit = SubmitField("Add guidance", widget=GovSubmitInput())
+
+    preview = SubmitField("Save and preview guidance", widget=GovSubmitInput())
+    submit = SubmitField("Save guidance", widget=GovSubmitInput())
+
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
+        result = cast(bool, super().validate(extra_validators=extra_validators))
+
+        if not result:
+            return result
+
+        if (self.guidance_heading.data or self.guidance_body.data) and not (
+            self.guidance_heading.data and self.guidance_body.data
+        ):
+            self.form_errors.append("Provide both a page heading and guidance text, or neither")
+            return False
+
+        return result

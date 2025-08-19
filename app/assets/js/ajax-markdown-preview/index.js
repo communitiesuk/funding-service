@@ -3,20 +3,18 @@ import debounce from '../utils/debounce'
 const store = {
   target: null,
   source: null,
-  authenticityToken: null,
   csrfToken: null,
   liveRegion: null,
-  i18n: null,
   errorArea: null
 }
 
 const setLoadingStatus = () => {
   store.liveRegion.setAttribute('aria-busy', 'true')
-  store.target.innerHTML = `<p>${store.i18n.preview_loading}</p>`
+  store.target.innerHTML = `<p>Preview loading...</p>`
 }
 
 const setFailureStatus = () => {
-  store.target.innerHTML = `<p>${store.i18n.preview_error}</p>`
+  store.target.innerHTML = `<p>There was an error</p>`
   const retryButton = document.createElement('button')
   retryButton.classList.add('govuk-button', 'govuk-button--secondary')
   retryButton.innerHTML = 'Retry preview'
@@ -34,13 +32,12 @@ const triggerAjaxMarkdownPreview = async () => {
         credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': store.csrfToken
         },
         redirect: 'follow',
         referrerPolicy: 'same-origin',
         body: JSON.stringify({
+          csrf_token: store.csrfToken,
           markdown: store.source.value,
-          authenticity_token: store.authenticityToken
         })
       })
 
@@ -60,7 +57,7 @@ const triggerAjaxMarkdownPreview = async () => {
     }
   } catch {
     setFailureStatus()
-    addNotification(store.i18n.preview_error)
+    addNotification("Error loading preview")
   }
 }
 
@@ -155,19 +152,14 @@ const removeErrorClass = () => {
  * @param {HTMLElement} target - The element where the markdown preview should be rendered.
  * @param {HTMLElement} source - The element which contains the raw markdown for conversion.
  * @param {string} endpoint - The URL for the endpoint that renders the markdown.
- * @param {Object} i18n - An object containing translations for the component.
  */
-const ajaxMarkdownPreview = (target, source, endpoint, i18n) => {
+const ajaxMarkdownPreview = (target, source, endpoint) => {
   store.target = target
   store.source = source
   store.endpoint = endpoint
-  store.i18n = i18n
-  store.authenticityToken = document.querySelector(
-    'input[name="authenticity_token"]'
-  )?.value
   store.csrfToken = document
-    .querySelector('meta[name="csrf-token"]')
-    ?.getAttribute('content')
+    .querySelector('input[name="csrf_token"]')
+    ?.getAttribute('value')
 
   addLiveRegion()
   createErrorArea()

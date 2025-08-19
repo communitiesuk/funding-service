@@ -45,15 +45,10 @@ const generateSourceHTML = (markdownContent, includeServerSideError) => {
 }
 
 const setupDocument = (markdownContent, includeServerSideError = false) => {
-  const i18n = JSON.stringify({
-    preview_loading: 'Loading...',
-    preview_error: 'There was an error'
-  })
-
   const sourceHTML = generateSourceHTML(markdownContent, includeServerSideError)
   const targetHTML =
     '<div data-ajax-markdown-target><p>Some old preview content</p></div>'
-  document.body.innerHTML = `<div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="/endpoint" data-i18n='${i18n}'>
+  document.body.innerHTML = `<div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="/endpoint">
     ${sourceHTML}
     ${targetHTML}
     </div>
@@ -65,7 +60,6 @@ const setupDocument = (markdownContent, includeServerSideError = false) => {
         element.querySelector('[data-ajax-markdown-target]'),
         element.querySelector('[data-ajax-markdown-source]'),
         element.getAttribute('data-ajax-markdown-endpoint'),
-        JSON.parse(element.getAttribute('data-i18n'))
       )
     })
 
@@ -271,7 +265,7 @@ describe('AJAX Markdown preview', () => {
     })
 
     test('Loading text is displayed before the response arrives', async () => {
-      expect(target.innerHTML).toBe('<p>Loading...</p>')
+      expect(target.innerHTML).toBe('<p>Preview loading...</p>')
 
       await vi.advanceTimersByTimeAsync(500)
 
