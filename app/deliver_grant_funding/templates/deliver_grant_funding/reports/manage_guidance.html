@@ -92,7 +92,10 @@
           }}
         </div>
 
-        {{ form.submit }}
+        <div class="govuk-button-group">
+          {{ form.submit }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=question.id) }}">Cancel</a>
+        </div>
       </form>
     </div>
   </div>
