@@ -91,12 +91,20 @@
 
         {{ advancedFormattingOptions(form, question.data_type, enum) }}
 
-        <h2 class="govuk-heading-m">Guidance (optional)</h2>
-        {% if not question.guidance_body %}
-          <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question, or to format your content with paragraphs, headings, lists or links.</p>
-          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id) }}">Add guidance</a>
+        <h2 class="govuk-heading-m">Guidance</h2>
+        <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question, or to format your content with paragraphs, headings, lists or links.</p>
+
+        {% if question.guidance_body %}
+          {{
+            govukSummaryList({
+              "rows": [
+                {"key": {"text": "Page heading"}, "value": {"text": question.guidance_heading}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "page heading"}] } },
+                {"key": {"text": "Guidance text"}, "value": {"html": question.guidance_body.replace('\n', '<br>')}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "guidance text"}] } },
+              ]
+            })
+          }}
         {% else %}
-          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id) }}">Edit guidance</a>
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id) }}"> Add guidance </a>
         {% endif %}
 
         <div class="govuk-form-group">
