@@ -478,12 +478,18 @@ class ConditionSelectQuestionForm(FlaskForm):
 
 class AddGuidanceForm(FlaskForm):
     guidance_heading = StringField(
-        "Page heading",
+        "Give your page a heading",
+        description=(
+            "When you add guidance your question text will no longer be the main page heading, "
+            "so you need to use a different one. "
+            "Use a heading that’s a statement rather than a question - for example, ‘Interview needs’."
+        ),
         widget=GovTextInput(),
         filters=[strip_string_if_not_empty],
     )
     guidance_body = StringField(
-        "Guidance",
+        "Add guidance text",
+        description="Use Markdown if you need to format your guidance content. Formatting help can be found below.",
         widget=GovTextArea(),
         filters=[strip_string_if_not_empty],
     )
