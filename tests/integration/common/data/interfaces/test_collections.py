@@ -1595,6 +1595,44 @@ class TestDeleteQuestion:
         assert [q.order for q in form.questions] == [0, 1, 2, 3]
         assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
 
+    def test_delete_group(self, db_session, factories):
+        section = factories.section.create()
+        form = factories.form.create(section=section)
+        question1 = factories.question.create(form=form, order=0)
+        group = factories.group.create(form=form, order=1)
+        group_questions = factories.question.create_batch(3, form=form, parent=group)
+        question2 = factories.question.create(form=form, order=2)
+
+        assert form.components == [question1, group, question2]
+        assert form.questions == [question1, *[q for q in group_questions], question2]
+
+        delete_question(group)
+
+        assert db_session.get(Group, group.id) is None
+        assert db_session.get(Question, group_questions[0].id) is None
+
+        assert form.components == [question1, question2]
+        assert form.questions == [question1, question2]
+
+    def test_nested_question_in_group(self, db_session, factories):
+        section = factories.section.create()
+        form = factories.form.create(section=section)
+        group = factories.group.create(form=form)
+        questions = factories.question.create_batch(5, form=form, parent=group)
+
+        assert [c.order for c in form.components] == [0]
+        assert [q.order for q in group.questions] == [0, 1, 2, 3, 4]
+        assert form.questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
+
+        delete_question(questions[2])
+
+        assert [c.order for c in form.components] == [0]
+        assert [q.order for q in group.questions] == [0, 1, 2, 3]
+        assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
+
+        assert db_session.get(Question, questions[2].id) is None
+        assert db_session.get(Question, questions[0].id) is not None
+
 
 class TestDeleteCollectionSubmissions:
     def test_delete_test_collection_submissions_created_by_user(self, db_session, factories):
