@@ -102,7 +102,9 @@ routes_with_expected_access_grant_funding_logged_in_access = [
     "developers.access.collection_confirmation",
 ]
 
-routes_with_expected_is_mhclg_user_access = ["deliver_grant_funding.list_grants"]
+routes_with_expected_is_mhclg_user_access = [
+    "deliver_grant_funding.list_grants",
+]
 routes_with_no_expected_access_restrictions = [
     "developers.access.grant_details",
     "auth.request_a_link_to_sign_in",
@@ -116,6 +118,7 @@ routes_with_no_expected_access_restrictions = [
     "static",
     "healthcheck.healthcheck",
     "index",
+    "common_api.markdown_to_html",  # authorisation done within the endpoint, to avoid redirects+session hijacking
 ]
 
 

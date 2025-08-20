@@ -2,6 +2,7 @@ import { initAll } from 'govuk-frontend';
 import accessibleAutocomplete from 'accessible-autocomplete';
 import markdownEditorToolbar from "./js/markdown-editor-toolbar";
 import { pasteListener } from './js/paste-html-to-markdown';
+import ajaxMarkdownPreview from './js/ajax-markdown-preview';
 
 initAll();
 
@@ -36,6 +37,17 @@ document
     );
     element.addEventListener('paste', pasteListener);
   });
+
+document
+  .querySelectorAll('[data-module="ajax-markdown-preview"]')
+  .forEach(element => {
+    ajaxMarkdownPreview(
+      element.querySelector('[data-ajax-markdown-target]'),
+      element.querySelector('[data-ajax-markdown-source]'),
+      element.getAttribute('data-ajax-markdown-endpoint'),
+      JSON.parse(element.getAttribute('data-i18n'))
+    )
+  })
 
 document
     .querySelectorAll('[data-module="paste-html-bullets-as-markdown"]')

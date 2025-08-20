@@ -1989,7 +1989,7 @@ class TestManageGuidance:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Add guidance" in soup.text
-        assert page_has_button(soup, "Add guidance")
+        assert page_has_button(soup, "Save guidance")
 
     def test_get_edit_guidance(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(
@@ -2009,7 +2009,7 @@ class TestManageGuidance:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Edit guidance" in soup.text
-        assert page_has_button(soup, "Update guidance")
+        assert page_has_button(soup, "Save guidance")
 
     def test_post_add_guidance(self, authenticated_grant_admin_client, factories, db_session):
         question = factories.question.create(form__section__collection__grant=authenticated_grant_admin_client.grant)
@@ -2084,6 +2084,36 @@ class TestManageGuidance:
         updated_question = db_session.get(Question, question.id)
         assert updated_question.guidance_heading == ""
         assert updated_question.guidance_body == ""
+
+    def test_post_guidance_with_heading_or_text_but_not_Both(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        question = factories.question.create(
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            guidance_heading="Existing heading",
+            guidance_body="Existing body",
+        )
+
+        form = AddGuidanceForm(guidance_heading="Existing heading", guidance_body="")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        assert page_has_error(soup, "Provide both a page heading and guidance text, or neither")
+
+        updated_question = db_session.get(Question, question.id)
+        assert updated_question.guidance_heading == "Existing heading"
+        assert updated_question.guidance_body == "Existing body"
 
 
 class TestListSubmissions:

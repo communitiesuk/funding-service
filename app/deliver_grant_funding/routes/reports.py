@@ -508,6 +508,17 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
     if form.validate_on_submit():
         update_question(question, guidance_heading=form.guidance_heading.data, guidance_body=form.guidance_body.data)
+
+        if form.preview.data:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.manage_guidance",
+                    grant_id=grant_id,
+                    question_id=question_id,
+                    _anchor="preview-guidance",
+                )
+            )
+
         return redirect(url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id))
 
     return render_template(
