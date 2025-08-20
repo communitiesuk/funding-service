@@ -425,10 +425,9 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
 
-    wt_form = GroupForm(name=group_name)
+    wt_form = GroupForm(name=group_name, check_name_exists=True, group_form_id=form_id)
 
     if wt_form.validate_on_submit():
-        # todo: check the name would be valid? - I think we have some precedent for this in the i.e add new grant flow
         return redirect(
             url_for(
                 "deliver_grant_funding.add_question_group_display_options",

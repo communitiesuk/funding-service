@@ -19,7 +19,11 @@ from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAr
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.data.interfaces.collections import get_question_by_id, is_component_dependency_order_valid
+from app.common.data.interfaces.collections import (
+    get_question_by_id,
+    group_name_exists,
+    is_component_dependency_order_valid,
+)
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import MultilineTextInputRows, NumberInputWidths, QuestionDataType
@@ -238,13 +242,24 @@ class GroupForm(FlaskForm):
     )
     submit = SubmitField(widget=GovSubmitInput())
 
+    def __init__(self, *args: Any, check_name_exists: bool = False, group_form_id: UUID | None = None, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.check_name_exists = check_name_exists
+        self.group_form_id = group_form_id
+
+    def validate_name(self, field: StringField) -> None:
+        if field.data and self.check_name_exists:
+            if not self.group_form_id:
+                raise ValueError("group_form_id must be provided if check_name_exists is True")
+            if group_name_exists(field.data, self.group_form_id):
+                raise ValidationError("A question group with this name already exists")
+
 
 class GroupDisplayOptionsForm(FlaskForm):
     show_questions_on_the_same_page = RadioField(
         "How do you want this question group to be displayed?",
         choices=[
             (False, "One question per page"),
-            # todo: link in with content from mobbing day or get reviewed
             (True, "All questions on the same page"),
         ],
         default=False,

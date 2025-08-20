@@ -1313,6 +1313,32 @@ class TestAddQuestionGroup:
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Test group"
 
+    def test_post_duplicate(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        factories.group.create(form=db_form, name="Duplicate test group")
+
+        form = GroupForm(
+            data={
+                "name": "Duplicate test group",
+            },
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_group_name",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                name="Duplicate test group",
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "A question group with this name already exists")
+
 
 class TestEditQuestion:
     def test_404(self, authenticated_grant_admin_client):
