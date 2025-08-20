@@ -5,6 +5,7 @@ from abc import ABC
 from playwright.sync_api import Locator, Page, expect
 
 from tests.e2e.developer_pages import GrantDevelopersPage
+from tests.e2e.reports_pages import GrantReportsPage
 
 
 class BasePage:
@@ -278,12 +279,14 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
     dashboard_nav: Locator
     settings_nav: Locator
     developers_nav: Locator
+    reports_nav: Locator
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.dashboard_nav = self.page.get_by_role("link", name="Grant home")
         self.settings_nav = self.page.get_by_role("link", name="Grant details")
         self.developers_nav = self.page.get_by_role("link", name="Developers")
+        self.reports_nav = self.page.get_by_role("link", name="Reports")
 
     def click_dashboard(self) -> GrantDashboardPage:
         self.dashboard_nav.click()
@@ -303,6 +306,12 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
         grant_developers_page = GrantDevelopersPage(self.page, self.domain, grant_name=grant_name)
         expect(grant_developers_page.heading).to_be_visible()
         return grant_developers_page
+
+    def click_reports(self, grant_name: str) -> GrantReportsPage:
+        self.reports_nav.click()
+        grant_reports_page = GrantReportsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_reports_page.heading).to_be_visible()
+        return grant_reports_page
 
 
 class GrantDashboardPage(GrantDashboardBasePage):
