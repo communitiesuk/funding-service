@@ -309,6 +309,34 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     )
 
 
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-display-options", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    db_group = get_group_by_id(group_id)
+
+    form = GroupDisplayOptionsForm(obj=db_group.presentation_options)
+    if form.validate_on_submit():
+        update_group(db_group, presentation_options=QuestionPresentationOptions.from_group_form(form))
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=grant_id,
+                group_id=db_group.id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/change_question_group_display_options.html",
+        grant=db_group.form.section.collection.grant,
+        group=db_group,
+        db_form=db_group.form,
+        form=form,
+    )
+
+
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/task/<uuid:form_id>/questions", methods=["GET", "POST"])
 @has_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request

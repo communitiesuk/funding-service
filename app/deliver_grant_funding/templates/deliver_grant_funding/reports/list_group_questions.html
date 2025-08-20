@@ -1,6 +1,7 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "deliver_grant_funding/macros/question_table.html" import question_table %}
 
@@ -64,9 +65,31 @@
     </div>
   </div>
   <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m govuk-!-margin-top-5">Question group settings</h2>
+
+      {{
+        govukSummaryList({
+          "rows": [
+            {
+              "key": {"text": "Display"},
+              "value": {"text": "All questions on the same page" if group.presentation_options.show_questions_on_the_same_page else "One question per page"},
+              "actions": {
+                "items": [{
+                  "text": "Change",
+                  "href": url_for("deliver_grant_funding.change_group_display_options", grant_id=grant.id, group_id=group.id)
+                }]
+              }
+            },
+          ]
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
       <div class="govuk-body govuk-form-group">
-        <h2 class="govuk-heading-m">Questions</h2>
+        <h2 class="govuk-heading-m govuk-!-margin-top-5">Questions</h2>
         {% if not group.components %}
           <p class="govuk-body">This question group has no questions.</p>
         {% else %}

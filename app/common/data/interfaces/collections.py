@@ -677,8 +677,8 @@ def update_group(
 ) -> Group:
     if name is not NOT_PROVIDED:
         group.name = name  # ty: ignore[invalid-assignment]
-        group.text = name
-        group.slug = slugify(name)
+        group.text = name  # ty: ignore[invalid-assignment]
+        group.slug = slugify(name)  # ty: ignore[invalid-argument-type]
 
     if presentation_options is not NOT_PROVIDED:
         group.presentation_options = presentation_options or QuestionPresentationOptions()  # ty: ignore[invalid-assignment]
