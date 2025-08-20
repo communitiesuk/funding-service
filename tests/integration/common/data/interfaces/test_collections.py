@@ -38,6 +38,7 @@ from app.common.data.interfaces.collections import (
     raise_if_data_source_item_reference_dependency,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
+    update_group,
     update_question,
     update_question_expression,
     update_submission_data,
@@ -438,6 +439,48 @@ class TestCreateGroup:
         # the forms components are limited to ones with a direct relationship and no parents
         assert len(from_db.components) == 2
         assert len(from_db.questions) == 5
+
+
+class TestUpdateGroup:
+    def test_update_group(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+
+        assert group.presentation_options.show_questions_on_the_same_page is True
+
+        updated_group = update_group(
+            group,
+            name="Updated test group",
+        )
+
+        assert updated_group.name == "Updated test group"
+        assert updated_group.text == "Updated test group"
+        assert updated_group.slug == "updated-test-group"
+
+        updated_group = update_group(
+            group,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+
+        assert updated_group.presentation_options.show_questions_on_the_same_page is False
+
+    def test_update_group_unique_overlap(self, db_session, factories):
+        form = factories.form.create()
+        create_group(form=form, text="Overlap group name")
+        group = create_group(
+            form=form,
+            text="Test group",
+        )
+
+        with pytest.raises(DuplicateValueError):
+            update_group(
+                group,
+                name="Overlap group name",
+            )
 
 
 class TestCreateQuestion:

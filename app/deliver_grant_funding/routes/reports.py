@@ -33,6 +33,7 @@ from app.common.data.interfaces.collections import (
     remove_question_expression,
     update_collection,
     update_form,
+    update_group,
     update_question,
 )
 from app.common.data.interfaces.exceptions import DuplicateValueError
@@ -272,6 +273,38 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/reports/change_form_name.html",
         grant=db_form.section.collection.grant,
         db_form=db_form,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-name", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    db_group = get_group_by_id(group_id)
+
+    form = GroupForm(obj=db_group)
+    if form.validate_on_submit():
+        assert form.name.data
+        try:
+            update_group(db_group, name=form.name.data)
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_group_questions",
+                    grant_id=grant_id,
+                    group_id=db_group.id,
+                )
+            )
+        except DuplicateValueError:
+            form.name.errors.append("A question group with this name already exists")  # type: ignore[attr-defined]
+
+    return render_template(
+        "deliver_grant_funding/reports/change_question_group_name.html",
+        grant=db_group.form.section.collection.grant,
+        group=db_group,
+        db_form=db_group.form,
         form=form,
     )
 

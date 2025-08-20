@@ -84,6 +84,7 @@
         <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage question group</h2>
         <div class="govuk-body">
           <ul class="govuk-list govuk-list--spaced">
+            <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.change_group_name', grant_id=grant.id, group_id=group.id) }}">Change question group name</a></li>
             <li><a class="govuk-link govuk-link--no-visited-state" href="?delete">Delete question group</a></li>
           </ul>
         </div>

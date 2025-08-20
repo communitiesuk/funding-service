@@ -669,6 +669,28 @@ def move_component_down(component: Component) -> Component:
     return component
 
 
+def update_group(
+    group: Group,
+    *,
+    name: str | TNotProvided = NOT_PROVIDED,
+    presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
+) -> Group:
+    if name is not NOT_PROVIDED:
+        group.name = name  # ty: ignore[invalid-assignment]
+        group.text = name
+        group.slug = slugify(name)
+
+    if presentation_options is not NOT_PROVIDED:
+        group.presentation_options = presentation_options or QuestionPresentationOptions()  # ty: ignore[invalid-assignment]
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return group
+
+
 def update_question(
     question: Question,
     *,
