@@ -854,9 +854,9 @@ def delete_form(form: Form) -> None:
 def delete_question(question: Question | Group) -> None:
     raise_if_question_has_any_dependencies(question)
     db.session.delete(question)
-    if question in question.form.questions:
-        question.form.components.remove(question)
-    question.form.components.reorder()
+    if question in question.container.components:
+        question.container.components.remove(question)
+    question.container.components.reorder()
     db.session.execute(text("SET CONSTRAINTS uq_component_order_form DEFERRED"))
     db.session.flush()
 
