@@ -433,7 +433,7 @@ def create_question(
     hint: str,
     name: str,
     data_type: QuestionDataType,
-    parent: Optional[Component] = None,
+    parent: Optional[Group] = None,
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:

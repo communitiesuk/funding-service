@@ -16,6 +16,7 @@ from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddTaskForm,
+    GroupDisplayOptionsForm,
     QuestionForm,
     QuestionTypeForm,
     SetUpReportForm,
@@ -1065,6 +1066,104 @@ class TestAddQuestion:
         # the question was added to the group rather than the form directly so the group shows in the
         # navigation hierarchy
         assert page_has_link(soup, "Test group")
+
+
+class TestAddQuestionGroup:
+    def test_404(self, authenticated_grant_admin_client, factories):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.add_question", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+        # valid grant and form context but adding to a missing question group
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(section=report.sections[0])
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                parent_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    def test_400(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        db_form = factories.form.create(section=report.sections[0])
+
+        form = GroupDisplayOptionsForm(
+            data={
+                "show_questions_on_the_same_page": "True",
+            },
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_group_display_options",
+                grant_id=grant.id,
+                form_id=db_form.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ["authenticated_grant_member_client", False],
+            ["authenticated_grant_admin_client", True],
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_display_options",
+                grant_id=client.grant.id,
+                form_id=form.id,
+                name="Test group",
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "How should the question group be displayed?"
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        form = GroupDisplayOptionsForm(
+            data={
+                "show_questions_on_the_same_page": "True",
+            },
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_group_display_options",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                name="Test group",
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}")
+
+        response = authenticated_grant_admin_client.get(response.location)
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Test group"
 
 
 class TestEditQuestion:

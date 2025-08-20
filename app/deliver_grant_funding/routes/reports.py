@@ -14,6 +14,7 @@ from app.common.data.interfaces.collections import (
     DependencyOrderException,
     create_collection,
     create_form,
+    create_group,
     create_question,
     delete_collection,
     delete_form,
@@ -53,6 +54,8 @@ from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddTaskForm,
     ConditionSelectQuestionForm,
+    GroupDisplayOptionsForm,
+    GroupForm,
     QuestionForm,
     QuestionTypeForm,
     SetUpReportForm,
@@ -348,6 +351,76 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     )
 
 
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/task/<uuid:form_id>/groups/add",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    form = get_form_by_id(form_id)
+    group_name = request.args.get("name", None)
+
+    parent_id = request.args.get("parent_id", None)
+    parent = get_group_by_id(UUID(parent_id)) if parent_id else None
+
+    wt_form = GroupForm(name=group_name)
+
+    if wt_form.validate_on_submit():
+        # todo: check the name would be valid? - I think we have some precedent for this in the i.e add new grant flow
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_group_display_options",
+                grant_id=grant_id,
+                form_id=form_id,
+                name=wt_form.name.data,
+                parent_id=parent.id if parent else None,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_question_group_name.html",
+        grant=form.section.collection.grant,
+        db_form=form,
+        form=wt_form,
+        parent=parent,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/task/<uuid:form_id>/groups/add/display_options",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    form = get_form_by_id(form_id)
+    group_name = request.args.get("name", None)
+
+    if not group_name:
+        return abort(400, "A group name must be provided to add a question group")
+
+    parent_id = request.args.get("parent_id", None)
+    parent = get_group_by_id(UUID(parent_id)) if parent_id else None
+
+    wt_form = GroupDisplayOptionsForm()
+
+    if wt_form.validate_on_submit():
+        group = create_group(text=group_name, form=form, parent=parent)
+        return redirect(
+            url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, form_id=form_id, group_id=group.id)
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_question_group_display_options.html",
+        grant=form.section.collection.grant,
+        db_form=form,
+        group_name=group_name,
+        form=wt_form,
+        parent=parent,
+    )
+
+
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/question/<uuid:question_id>/move-<direction>")
 @has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
@@ -383,7 +456,7 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
     parent_id = request.args.get("parent_id", None)
-    parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+    parent = get_group_by_id(UUID(parent_id)) if parent_id else None
 
     if wt_form.validate_on_submit():
         question_data_type = wt_form.question_data_type.data
@@ -417,7 +490,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
     parent_id = request.args.get("parent_id", None)
-    parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+    parent = get_group_by_id(UUID(parent_id)) if parent_id else None
 
     wt_form = QuestionForm(question_type=question_data_type_enum)
     if wt_form.validate_on_submit():

@@ -69,7 +69,10 @@
       {% endif %}
 
       {% if grant_admin %}
-        <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id) }}">{{ "Add another question" if db_form.questions else "Add a question" }}</a>
+        <div class="govuk-button-group">
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id) }}">{{ "Add another question" if db_form.questions else "Add a question" }}</a>
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_question_group_name', grant_id=grant.id, form_id=db_form.id) }}">{{ "Add question group" }}</a>
+        </div>
       {% endif %}
     </div>
     {% if grant_admin %}

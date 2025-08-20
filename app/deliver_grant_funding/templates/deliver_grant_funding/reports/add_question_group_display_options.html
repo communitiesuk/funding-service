@@ -1,0 +1,55 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Add a question group - " ~ db_form.title %}
+{% set active_item_identifier = "reports" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for("deliver_grant_funding.add_question_group_name", grant_id=grant.id, form_id=db_form.id, name=group_name, parent_id=parent.id if parent else None)
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      {# todo: link in with content from mobbing day or get reviewed #}
+      {# todo: #}
+      <h1 class="govuk-heading-l">How should the question group be displayed?</h1>
+      <p class="govuk-body govuk-!-margin-bottom-0">You can change how this question group will be displayed later.</p>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{
+          form.show_questions_on_the_same_page(params={
+            "fieldset": {
+              "legend": {
+                "classes": "govuk-visually-hidden"
+              }
+            },
+            "items": [
+              {},
+              {
+                "hint": {
+                  "text": "The question group name will be the page title",
+                }
+              }
+            ]
+          })
+        }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Add question group"}) }}
+
+          {% set link = url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) if not parent else url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=parent.id) %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ link }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

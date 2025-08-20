@@ -231,10 +231,25 @@ class QuestionTypeForm(FlaskForm):
 
 class GroupForm(FlaskForm):
     name = StringField(
-        "Group name",
-        validators=[DataRequired("Enter the group name")],
+        "Question group name",
+        validators=[DataRequired("Enter question the group name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
+class GroupDisplayOptionsForm(FlaskForm):
+    show_questions_on_the_same_page = RadioField(
+        "How do you want this question group to be displayed?",
+        choices=[
+            (False, "One question per page"),
+            # todo: link in with content from mobbing day or get reviewed
+            (True, "All questions on the same page"),
+        ],
+        default=False,
+        validators=[DataRequired("Select how you want this question group to be displayed")],
+        widget=GovRadioInput(),
     )
     submit = SubmitField(widget=GovSubmitInput())
 
