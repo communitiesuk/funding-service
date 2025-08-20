@@ -362,6 +362,18 @@ class TestCreateGroup:
         assert group is not None
         assert form.components[0] == group
 
+    def test_create_group_presentation_options(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test Group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+
+        assert group is not None
+        assert form.components[0] == group
+        assert group.presentation_options.show_questions_on_the_same_page is True
+
     def test_create_nested_components(self, db_session, factories, track_sql_queries):
         form = factories.form.create()
 

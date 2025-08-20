@@ -406,7 +406,12 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
     wt_form = GroupDisplayOptionsForm()
 
     if wt_form.validate_on_submit():
-        group = create_group(text=group_name, form=form, parent=parent)
+        group = create_group(
+            text=group_name,
+            form=form,
+            parent=parent,
+            presentation_options=QuestionPresentationOptions.from_group_form(wt_form),
+        )
         return redirect(
             url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, form_id=form_id, group_id=group.id)
         )
@@ -506,7 +511,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 name=wt_form.name.data,
                 data_type=question_data_type_enum,
                 items=wt_form.normalised_data_source_items,
-                presentation_options=QuestionPresentationOptions.from_form(wt_form),
+                presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
                 parent=parent,
             )
             flash("Question created", FlashMessageType.QUESTION_CREATED)
@@ -581,7 +586,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
                 items=wt_form.normalised_data_source_items,
-                presentation_options=QuestionPresentationOptions.from_form(wt_form),
+                presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
             )
             return redirect(
                 url_for(

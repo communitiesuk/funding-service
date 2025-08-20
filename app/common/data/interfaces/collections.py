@@ -471,9 +471,21 @@ def create_question(
     return question
 
 
-def create_group(form: Form, *, text: str, name: Optional[str] = None, parent: Optional[Group] = None) -> Group:
+def create_group(
+    form: Form,
+    *,
+    text: str,
+    name: Optional[str] = None,
+    parent: Optional[Group] = None,
+    presentation_options: QuestionPresentationOptions | None = None,
+) -> Group:
     group = Group(
-        text=text, name=name or text, slug=slugify(text), form_id=form.id, parent_id=parent.id if parent else None
+        text=text,
+        name=name or text,
+        slug=slugify(text),
+        form_id=form.id,
+        parent_id=parent.id if parent else None,
+        presentation_options=presentation_options,
     )
     owner = parent or form
     owner.components.append(group)
