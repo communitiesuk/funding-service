@@ -41,9 +41,10 @@
     {% endset %}
 
     {% set actions = [] %}
-    {% if role_can_edit and parent.questions|length > 1 %}
+    {% set parent_has_multiple_questions_to_move = (question.parent.components if nested else parent.components)|length > 1 %}
+    {% if role_can_edit and parent_has_multiple_questions_to_move %}
       {% do actions.append({"text": "Move up", "visuallyHiddenText": title, "href": url_for('deliver_grant_funding.move_question', grant_id=grant.id, question_id=question.id, direction='up', source=parent.id if parent.is_group else None), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first or nested_first else ""), "attributes": {"aria-hidden": true} if loop.first or nested_first else {} }) %}
-      {% do actions.append({"text": "Move down", "visuallyHiddenText": title, "href": url_for('deliver_grant_funding.move_question', grant_id=grant.id, question_id=question.id, direction='down', source=parent.id if parent.is_group else None), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last or nested_last else ""), "attributes": {"aria-hidden": true} if loop.last or nested_last else {} }) %}
+      {% do actions.append({"text": "Move down", "visuallyHiddenText": title, "href": url_for('deliver_grant_funding.move_question', grant_id=grant.id, question_id=question.id, direction='down', source=parent.id if parent.is_group else None), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if (question == parent.components | last) or nested_last else ""), "attributes": {"aria-hidden": true} if loop.last or nested_last else {} }) %}
     {% endif %}
     {%
       do rows.append(
