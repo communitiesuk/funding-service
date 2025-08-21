@@ -8,10 +8,10 @@ from flask import url_for
 
 from app import QuestionDataType
 from app.common.data import interfaces
-from app.common.data.models import Collection, Form, Group, Question
+from app.common.data.models import Collection, Expression, Form, Group, Question
 from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
 from app.common.expressions.forms import build_managed_expression_form
-from app.common.expressions.managed import IsNo, IsYes
+from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
@@ -862,8 +862,6 @@ class TestListGroupQuestions:
         if can_edit:
             assert delete_group_link.get("href") == AnyStringMatching(r"\?delete")
 
-    # todo: delete group integrity checks on conditions
-    # todo: delete interface deletes from any parent appropriately
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         form = factories.form.create(section=report.sections[0], title="Organisation information")
@@ -881,6 +879,35 @@ class TestListGroupQuestions:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_button(soup, "Yes, delete this question group")
+
+    def test_cannot_delete_with_depended_on_questions_in_group(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        user = factories.user.create()
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", order=0)
+        question = factories.question.create(form=form, parent=group, order=0, data_type=QuestionDataType.INTEGER)
+        factories.question.create(
+            form=form,
+            order=1,
+            expressions=[Expression.from_managed(GreaterThan(question_id=question.id, minimum_value=1000), user)],
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 302
+
+        response = authenticated_grant_admin_client.get(response.location)
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You cannot delete an answer that other questions depend on" in soup.text
 
 
 class TestListTaskQuestions:

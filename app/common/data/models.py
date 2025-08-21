@@ -251,7 +251,6 @@ class Form(BaseModel):
         return get_ordered_nested_components(self.components)
 
 
-# todo: unit test reasonably extensively
 def get_ordered_nested_components(components: list["Component"]) -> list["Component"]:
     """Recursively collects all components from a list of components, including nested components."""
     flat_components = []
@@ -438,6 +437,10 @@ class Group(Component):
     @property
     def questions(self) -> list["Question"]:
         return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
+
+    @property
+    def all_components(self) -> list["Component"]:
+        return get_ordered_nested_components(self.components)
 
 
 class SubmissionEvent(BaseModel):

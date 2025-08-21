@@ -403,12 +403,17 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         if not AuthorisationHelper.has_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
             return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group_id))
 
-        if delete_wtform.validate_on_submit():
-            delete_question(group)
+        try:
+            raise_if_question_has_any_dependencies(group)
+            if delete_wtform.validate_on_submit() and delete_wtform.confirm_deletion.data:
+                delete_question(group)
 
-            return redirect(
-                url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=group.form_id)
-            )
+                return redirect(
+                    url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=group.form_id)
+                )
+        except DependencyOrderException as e:
+            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
+            return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group_id))
 
     return render_template(
         "deliver_grant_funding/reports/list_group_questions.html",
