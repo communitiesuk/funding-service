@@ -129,6 +129,13 @@ class NumberInputWidths(enum.StrEnum):
     BILLIONS = "govuk-input--width-10"
 
 
+# for now this is just used by the form but this could also be used to serialise the
+# value used in the question presentation options and provide a consistent human readable value
+class GroupDisplayOptions(enum.StrEnum):
+    ONE_QUESTION_PER_PAGE = ("one-question-per-page",)
+    ALL_QUESTIONS_ON_SAME_PAGE = "all-questions-on-same-page"
+
+
 class QuestionPresentationOptions(BaseModel):
     # This is for radios (and maybe checkboxes) question types; the last item will be separated from the rest of the
     # data source items, visually by an 'or' break. It is meant to indicate that Other options are
@@ -173,7 +180,10 @@ class QuestionPresentationOptions(BaseModel):
 
     @staticmethod
     def from_group_form(form: "GroupDisplayOptionsForm") -> QuestionPresentationOptions:
-        return QuestionPresentationOptions(show_questions_on_the_same_page=form.show_questions_on_the_same_page.data)
+        return QuestionPresentationOptions(
+            show_questions_on_the_same_page=form.show_questions_on_the_same_page.data
+            == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
+        )
 
 
 class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]

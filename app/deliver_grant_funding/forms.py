@@ -26,7 +26,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
-from app.common.data.types import MultilineTextInputRows, NumberInputWidths, QuestionDataType
+from app.common.data.types import GroupDisplayOptions, MultilineTextInputRows, NumberInputWidths, QuestionDataType
 from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
@@ -259,10 +259,10 @@ class GroupDisplayOptionsForm(FlaskForm):
     show_questions_on_the_same_page = RadioField(
         "How do you want this question group to be displayed?",
         choices=[
-            (False, "One question per page"),
-            (True, "All questions on the same page"),
+            (GroupDisplayOptions.ONE_QUESTION_PER_PAGE, "One question per page"),
+            (GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE, "All questions on the same page"),
         ],
-        default=False,
+        default=GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
         validators=[DataRequired("Select how you want this question group to be displayed")],
         widget=GovRadioInput(),
     )

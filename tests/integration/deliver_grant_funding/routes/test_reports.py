@@ -668,7 +668,12 @@ class TestChangeQuestionGroupDisplay:
             assert (
                 soup.find(
                     "input",
-                    {"type": "radio", "name": "show_questions_on_the_same_page", "value": "True", "checked": True},
+                    {
+                        "type": "radio",
+                        "name": "show_questions_on_the_same_page",
+                        "value": "all-questions-on-same-page",
+                        "checked": True,
+                    },
                 )
                 is not None
             )
@@ -685,7 +690,7 @@ class TestChangeQuestionGroupDisplay:
 
         assert db_group.presentation_options.show_questions_on_the_same_page is False
 
-        form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "True"})
+        form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "all-questions-on-same-page"})
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.change_group_display_options",
@@ -1278,7 +1283,7 @@ class TestAddQuestionGroup:
 
         form = GroupDisplayOptionsForm(
             data={
-                "show_questions_on_the_same_page": "True",
+                "show_questions_on_the_same_page": "all-questions-on-same-page",
             },
         )
         response = authenticated_grant_admin_client.post(
@@ -1327,7 +1332,7 @@ class TestAddQuestionGroup:
 
         form = GroupDisplayOptionsForm(
             data={
-                "show_questions_on_the_same_page": "True",
+                "show_questions_on_the_same_page": "all-questions-on-same-page",
             },
         )
         response = authenticated_grant_admin_client.post(

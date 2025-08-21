@@ -42,6 +42,7 @@ from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
     CollectionType,
     ExpressionType,
+    GroupDisplayOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
@@ -317,7 +318,11 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
 
-    form = GroupDisplayOptionsForm(obj=db_group.presentation_options)
+    form = GroupDisplayOptionsForm(
+        show_questions_on_the_same_page=GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
+        if db_group.presentation_options.show_questions_on_the_same_page
+        else GroupDisplayOptions.ONE_QUESTION_PER_PAGE
+    )
     if form.validate_on_submit():
         update_group(db_group, presentation_options=QuestionPresentationOptions.from_group_form(form))
         return redirect(
