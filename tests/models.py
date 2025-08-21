@@ -630,8 +630,9 @@ class _GroupFactory(SQLAlchemyModelFactory):
     text = factory.Sequence(lambda n: "Group %d" % n)
     name = factory.Sequence(lambda n: "Group name %d" % n)
     slug = factory.Sequence(lambda n: "group-%d" % n)
-    # todo: assumes flat question factories not nested in groups
-    order = factory.LazyAttribute(lambda o: len(o.form.components))
+    order = factory.LazyAttribute(
+        lambda o: len(o.parent.components) if getattr(o, "parent", None) else len(o.form.components)
+    )
 
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)
