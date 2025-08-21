@@ -193,6 +193,16 @@ def test_create_and_preview_report(
 
         manage_task_page = report_tasks_page.click_manage_task(task_name=task_name)
 
+        # Sense check that the test includes all question types
+        new_question_type_error = None
+        try:
+            assert len(QuestionDataType) == 8 and len(questions_to_test) == 9, (
+                "If you have added a new question type, please update this test to include the new type in "
+                "`questions_to_test`."
+            )
+        except AssertionError as e:
+            new_question_type_error = e
+
         # Add a question of each type
         for question_to_test in questions_to_test.values():
             create_question(question_to_test, manage_task_page)
@@ -288,3 +298,5 @@ def test_create_and_preview_report(
         grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
         developers_page = grant_dashboard_page.click_developers(new_grant_name)
         developers_page.delete_grant()
+        if new_question_type_error:
+            raise new_question_type_error
