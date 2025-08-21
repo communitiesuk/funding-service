@@ -1071,6 +1071,26 @@ def test_raise_if_question_has_any_dependencies(db_session, factories):
     assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
 
 
+def test_raise_if_group_has_any_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    group = factories.group.create(form=form)
+    nested_question = factories.question.create(parent=group, form=form)
+    q2 = factories.question.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=nested_question.id, minimum_value=1000), user)],
+    )
+
+    with pytest.raises(DependencyOrderException) as e:
+        raise_if_question_has_any_dependencies(nested_question)
+
+    with pytest.raises(DependencyOrderException) as e:
+        raise_if_question_has_any_dependencies(group)
+
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved
+
+
 def test_raise_if_radios_data_source_item_reference_dependency(db_session, factories):
     form = factories.form.create()
     user = factories.user.create()

@@ -621,13 +621,18 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
     return component.order > depends_on_component.order
 
 
-# todo: when working generically with components this should dig in and check child components
-#       a short term workaround might be to use _all_components but ideally this should
-#       just expect nested components
 def raise_if_question_has_any_dependencies(question: Question | Group) -> Never | None:
-    for target_question in question.form.questions:
+    # fetching the entire schema means whatever is calling this doesn't have to worry about
+    # guaranteeing lazy loading performance behaviour
+    form = get_form_by_id(question.form_id, with_all_questions=True)
+
+    # all of the child components that might be removed or impacted with a change to this components
+    child_components_ids = [c.id for c in [question] + (question.all_components if isinstance(question, Group) else [])]
+
+    # go through all components in this schema and compare against any related child components
+    for target_question in form.all_components:
         for condition in target_question.conditions:
-            if condition.managed and condition.managed.question_id == question.id:
+            if condition.managed and condition.managed.question_id in child_components_ids:
                 raise DependencyOrderException(
                     "You cannot delete an answer that other questions depend on", target_question, question
                 )
