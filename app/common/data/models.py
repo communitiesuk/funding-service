@@ -244,20 +244,23 @@ class Form(BaseModel):
     @property
     def questions(self) -> list["Question"]:
         """Consistently returns all questions in the form, respecting order and any level of nesting."""
-        return get_ordered_nested_questions_for_components(self.components)
+        return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
+
+    @property
+    def all_components(self) -> list["Component"]:
+        return get_ordered_nested_components(self.components)
 
 
 # todo: unit test reasonably extensively
-def get_ordered_nested_questions_for_components(components: list["Component"]) -> list["Question"]:
-    """Recursively collects all questions from a list of components, including nested components."""
-    questions = []
+def get_ordered_nested_components(components: list["Component"]) -> list["Component"]:
+    """Recursively collects all components from a list of components, including nested components."""
+    flat_components = []
     ordered_components = sorted(components, key=lambda c: c.order)
     for component in ordered_components:
-        if isinstance(component, Question):
-            questions.append(component)
-        elif isinstance(component, Group):
-            questions.extend(get_ordered_nested_questions_for_components(component.components))
-    return questions
+        flat_components.append(component)
+        if isinstance(component, Group):
+            flat_components.extend(get_ordered_nested_components(component.components))
+    return flat_components
 
 
 class Component(BaseModel):
@@ -434,7 +437,7 @@ class Group(Component):
 
     @property
     def questions(self) -> list["Question"]:
-        return get_ordered_nested_questions_for_components(self.components)
+        return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
 
 
 class SubmissionEvent(BaseModel):
