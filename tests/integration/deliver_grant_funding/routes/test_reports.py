@@ -1276,7 +1276,7 @@ class TestAddQuestionGroup:
         )
         assert response.status_code == 404
 
-    def test_400(self, authenticated_grant_admin_client, factories, db_session):
+    def test_missing_name(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
         db_form = factories.form.create(section=report.sections[0])
@@ -1295,7 +1295,8 @@ class TestAddQuestionGroup:
             data=form.data,
             follow_redirects=False,
         )
-        assert response.status_code == 400
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add")
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
@@ -1309,12 +1310,12 @@ class TestAddQuestionGroup:
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(section=report.sections[0], title="Organisation information")
 
+        with client.session_transaction() as session:
+            session["add_question_group"] = {"group_name": "Test group"}
+
         response = client.get(
             url_for(
-                "deliver_grant_funding.add_question_group_display_options",
-                grant_id=client.grant.id,
-                form_id=form.id,
-                name="Test group",
+                "deliver_grant_funding.add_question_group_display_options", grant_id=client.grant.id, form_id=form.id
             )
         )
 
@@ -1330,18 +1331,16 @@ class TestAddQuestionGroup:
         report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(section=report.sections[0], title="Organisation information")
 
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["add_question_group"] = {"group_name": "Test group"}
+
         form = GroupDisplayOptionsForm(
             data={
                 "show_questions_on_the_same_page": "all-questions-on-same-page",
             },
         )
         response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.add_question_group_display_options",
-                grant_id=grant.id,
-                form_id=db_form.id,
-                name="Test group",
-            ),
+            url_for("deliver_grant_funding.add_question_group_display_options", grant_id=grant.id, form_id=db_form.id),
             data=form.data,
             follow_redirects=False,
         )

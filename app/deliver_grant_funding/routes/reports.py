@@ -1,9 +1,11 @@
 import io
 import uuid
+from typing import Any
 from uuid import UUID
 
-from flask import abort, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
+from pydantic import BaseModel, ValidationError
 from wtforms import Field
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
@@ -417,6 +419,17 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     )
 
 
+class AddQuestionGroup(BaseModel):
+    group_name: str
+
+    def to_session_dict(self) -> dict[str, Any]:
+        return self.model_dump(exclude_none=True)
+
+    @classmethod
+    def from_session(cls, session_data: dict[str, Any]) -> "AddQuestionGroup":
+        return cls.model_validate(session_data)
+
+
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/groups/add",
     methods=["GET", "POST"],
@@ -433,12 +446,13 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
     wt_form = GroupForm(name=group_name, check_name_exists=True, group_form_id=form_id)
 
     if wt_form.validate_on_submit():
+        assert wt_form.name.data is not None
+        session["add_question_group"] = AddQuestionGroup(group_name=wt_form.name.data).to_session_dict()
         return redirect(
             url_for(
                 "deliver_grant_funding.add_question_group_display_options",
                 grant_id=grant_id,
                 form_id=form_id,
-                name=wt_form.name.data,
                 parent_id=parent.id if parent else None,
             )
         )
@@ -460,23 +474,32 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
 @auto_commit_after_request
 def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
-    group_name = request.args.get("name", None)
-
-    if not group_name:
-        return abort(400, "A group name must be provided to add a question group")
 
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
+
+    try:
+        add_question_group = AddQuestionGroup.from_session(session.get("add_question_group", {}))
+    except ValidationError:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_group_name",
+                grant_id=grant_id,
+                form_id=form_id,
+                parent_id=parent.id if parent else None,
+            )
+        )
 
     wt_form = GroupDisplayOptionsForm()
 
     if wt_form.validate_on_submit():
         group = create_group(
-            text=group_name,
+            text=add_question_group.group_name,
             form=form,
             parent=parent,
             presentation_options=QuestionPresentationOptions.from_group_form(wt_form),
         )
+        session.pop("add_question_group", None)
         return redirect(
             url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, form_id=form_id, group_id=group.id)
         )
@@ -485,7 +508,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
         "deliver_grant_funding/reports/add_question_group_display_options.html",
         grant=form.section.collection.grant,
         db_form=form,
-        group_name=group_name,
+        group_name=add_question_group.group_name,
         form=wt_form,
         parent=parent,
     )
