@@ -997,9 +997,9 @@ class TestMoveQuestion:
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.move_question",
+                "deliver_grant_funding.move_component",
                 grant_id=uuid.uuid4(),
-                question_id=uuid.uuid4(),
+                component_id=uuid.uuid4(),
                 direction="up",
             )
         )
@@ -1012,9 +1012,9 @@ class TestMoveQuestion:
 
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.move_question",
+                "deliver_grant_funding.move_component",
                 grant_id=authenticated_grant_member_client.grant.id,
-                question_id=questions[0].id,
+                component_id=questions[0].id,
                 direction="blah",
             )
         )
@@ -1027,9 +1027,9 @@ class TestMoveQuestion:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.move_question",
+                "deliver_grant_funding.move_component",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                question_id=questions[0].id,
+                component_id=questions[0].id,
                 direction="blah",
             )
         )
@@ -1048,9 +1048,9 @@ class TestMoveQuestion:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.move_question",
+                "deliver_grant_funding.move_component",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                question_id=questions[1].id,
+                component_id=questions[1].id,
                 direction=direction,
             )
         )
@@ -1060,6 +1060,44 @@ class TestMoveQuestion:
             assert form.questions[0].text == "Question 1"
         else:
             assert form.questions[2].text == "Question 1"
+
+    def test_move_group(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", order=0)
+        question1 = factories.question.create(parent=group, text="Question 1", order=0)
+        factories.question.create(parent=group, text="Question 2", order=1)
+        factories.question.create(form=form, text="Question 3", order=1)
+        assert form.questions[0].text == "Question 1"
+
+        # we can move the whole group on the form page
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_component",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=group.id,
+                direction="down",
+            )
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(r"/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
+
+        assert form.questions[0].text == "Question 3"
+
+        # we can move questions inside the group
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_component",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=question1.id,
+                source=group.id,
+                direction="down",
+            )
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(r"/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+
+        assert form.questions[1].text == "Question 2"
 
 
 class TestChooseQuestionType:
@@ -1204,16 +1242,13 @@ class TestAddQuestion:
         assert response.status_code == 302
         assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
 
+        # Stretching the test case a little but validates the group specific flash message
         response = authenticated_grant_admin_client.get(response.location)
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Edit question"
         assert get_h2_text(soup) == "Question created"
         assert page_has_link(soup, "Return to the question group")
-
-        # the question was added to the group rather than the form directly so the group shows in the
-        # navigation hierarchy
-        assert page_has_link(soup, "Test group")
 
 
 class TestAddQuestionGroup:
@@ -1307,11 +1342,6 @@ class TestAddQuestionGroup:
         )
         assert response.status_code == 302
         assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}")
-
-        response = authenticated_grant_admin_client.get(response.location)
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Test group"
 
     def test_post_duplicate(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant

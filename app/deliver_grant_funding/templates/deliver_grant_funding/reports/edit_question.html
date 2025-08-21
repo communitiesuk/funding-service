@@ -18,9 +18,7 @@
     ]
   %}
 
-  {% if question.parent and question.parent.parent_id %}
-    {% do items.append({"text": "...", "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.parent.parent_id)}) %}
-  {% endif %}
+  {# todo: when we can have a group in a group include "..." breadcrumb for the parent of any level of nesting above a direct child #}
 
   {% if question.parent %}
     {% do items.append({"text": question.parent.name, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.parent_id)}) %}

@@ -4,12 +4,12 @@
 {% set page_title = "Add a question - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
 
-{% set link = url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) if not parent else url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=parent.id) %}
+{% set return_to_form_or_group_url = url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) if not parent else url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=parent.id) %}
 {% block beforeContent %}
   {{
     govukBackLink({
       "text": "Back",
-      "href": link,
+      "href": return_to_form_or_group_url,
     })
   }}
 {% endblock beforeContent %}
@@ -26,7 +26,7 @@
 
         <span class="govuk-button-group">
           {{ form.submit(params={"text": "Continue"}) }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ link }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ return_to_form_or_group_url }}">Cancel</a>
         </span>
       </form>
     </div>

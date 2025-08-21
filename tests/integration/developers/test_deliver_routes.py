@@ -6,7 +6,7 @@ from flask import url_for
 from sqlalchemy import select
 
 from app import QuestionDataType, SubmissionModeEnum
-from app.common.data.models import Collection, Expression, Form, Grant, Group, Question, Section
+from app.common.data.models import Collection, Expression, Form, Grant, Question, Section
 from app.common.data.types import ExpressionType
 from app.common.expressions.managed import AnyOf
 from app.deliver_grant_funding.forms import CollectionForm, FormForm, QuestionForm, QuestionTypeForm, SectionForm
@@ -296,8 +296,6 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     form = factories.form.create()
     question1 = factories.question.create(form=form, order=0)
     question2 = factories.question.create(form=form, order=1)
-    group1 = factories.group.create(form=form, order=2)
-    nested_question1 = factories.question.create(form=form, parent=group1, order=0)
     result = authenticated_platform_admin_client.post(
         url_for(
             "developers.deliver.move_question",
@@ -347,34 +345,6 @@ def test_move_question(authenticated_platform_admin_client, factories, db_sessio
     question2_from_db = db_session.scalars(select(Question).where(Question.id == question2.id)).one()
     assert question1_from_db.order == 0
     assert question2_from_db.order == 1
-
-    result = authenticated_platform_admin_client.post(
-        url_for(
-            "developers.deliver.move_question",
-            grant_id=form.section.collection.grant.id,
-            collection_id=form.section.collection.id,
-            section_id=form.section.id,
-            form_id=form.id,
-            question_id=group1.id,
-            direction="up",
-        ),
-    )
-    assert result.status_code == 302
-    assert result.location == url_for(
-        "developers.deliver.manage_form_questions",
-        grant_id=form.section.collection.grant.id,
-        collection_id=form.section.collection.id,
-        section_id=form.section.id,
-        form_id=form.id,
-    )
-
-    question1_from_db = db_session.scalars(select(Question).where(Question.id == question1.id)).one()
-    question2_from_db = db_session.scalars(select(Question).where(Question.id == question2.id)).one()
-    group1_from_db = db_session.scalars(select(Group).where(Group.id == group1.id)).one()
-    assert group1_from_db.order == 1
-    assert nested_question1.order == 0
-    assert question2_from_db.order == 2
-    assert question1_from_db.order == 0
 
     result = authenticated_platform_admin_client.post(
         url_for(

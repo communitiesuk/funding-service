@@ -486,11 +486,11 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/question/<uuid:question_id>/move-<direction>")
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/question/<uuid:component_id>/move-<direction>")
 @has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def move_question(grant_id: UUID, question_id: UUID, direction: str) -> ResponseReturnValue:
-    component = get_component_by_id(question_id)
+def move_component(grant_id: UUID, component_id: UUID, direction: str) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
 
     try:
         match direction:
