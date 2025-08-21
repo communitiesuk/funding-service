@@ -3,10 +3,16 @@ import uuid
 from typing import NotRequired, TypedDict
 
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
-from app.common.data.types import QuestionDataType, QuestionPresentationOptions
+from app.common.data.types import (
+    MultilineTextInputRows,
+    NumberInputWidths,
+    QuestionDataType,
+    QuestionPresentationOptions,
+)
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
+from app.common.filters import format_thousands
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.pages import AllGrantsPage
@@ -53,16 +59,29 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "text-multi-line": {
         "type": QuestionDataType.TEXT_MULTI_LINE,
         "text": "Enter a few lines of text",
-        "answers": [_QuestionResponse("E2E question text multi line\nwith a second line")],
+        "answers": [
+            _QuestionResponse("E2E question text multi line\nwith a second line that's over the word limit"),
+            _QuestionResponse("E2E question text multi line\nwith a second line"),
+        ],
+        "options": QuestionPresentationOptions(word_limit=10, rows=MultilineTextInputRows.LARGE),
     },
-    "integer": {
+    "prefix-integer": {
         "type": QuestionDataType.INTEGER,
-        "text": "Enter a number",
+        "text": "Enter the total cost as a number",
         "answers": [
             _QuestionResponse("0", "The answer must be greater than 1"),
+            _QuestionResponse("10000"),
+        ],
+        "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS),
+    },
+    "suffix-integer": {
+        "type": QuestionDataType.INTEGER,
+        "text": "Enter the total weight as a number",
+        "answers": [
             _QuestionResponse("101", "The answer must be less than or equal to 100"),
             _QuestionResponse("100"),
         ],
+        "options": QuestionPresentationOptions(suffix="kg", width=NumberInputWidths.HUNDREDS),
     },
     "yes-no": {
         "type": QuestionDataType.YES_NO,
@@ -129,6 +148,26 @@ def create_question(question_definition: TQuestionToTest, manage_task_page: Mana
             question_details_page.click_other_option_checkbox()
             question_details_page.enter_other_option_text()
 
+    if question_definition["type"] == QuestionDataType.INTEGER:
+        question_details_page.click_advanced_formatting_options()
+        options = question_definition.get("options")
+        if options is not None:
+            if options.prefix is not None:
+                question_details_page.fill_prefix(options.prefix)
+            if options.suffix is not None:
+                question_details_page.fill_suffix(options.suffix)
+            if options.width is not None:
+                question_details_page.select_input_width(options.width)
+
+    if question_definition["type"] == QuestionDataType.TEXT_MULTI_LINE:
+        question_details_page.click_advanced_formatting_options()
+        options = question_definition.get("options")
+        if options is not None:
+            if options.rows is not None:
+                question_details_page.select_multiline_input_rows(options.rows)
+            if options.word_limit is not None:
+                question_details_page.fill_word_limit(options.word_limit)
+
     question_details_page.click_submit()
     question_details_page.click_return_to_task()
 
@@ -148,6 +187,38 @@ def navigate_to_report_tasks_page(page: Page, domain: str, grant_name: str, repo
     grant_reports_page = grant_dashboard_page.click_reports(grant_name)
     report_tasks_page = grant_reports_page.click_manage_tasks(grant_name=grant_name, report_name=report_name)
     return report_tasks_page
+
+
+def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPage, question: TQuestionToTest) -> None:
+    if question["type"] == QuestionDataType.CHECKBOXES:
+        checkbox_answers_list = check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}").locator("li")
+        expect(checkbox_answers_list).to_have_text(question["answers"][-1].answer)
+    elif question["type"] == QuestionDataType.INTEGER:
+        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+            f"{question['options'].prefix or ''}"
+            f"{format_thousands(int(question['answers'][-1].answer))}"
+            f"{question['options'].suffix or ''}"
+        )
+    else:
+        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+            question["answers"][-1].answer
+        )
+
+
+def assert_view_report_answers(answers_list: Locator, question: TQuestionToTest) -> None:
+    if question["type"] == QuestionDataType.CHECKBOXES:
+        expect(
+            answers_list.get_by_text(f"{question['text']} {' '.join(question['answers'][-1].answer)}")
+        ).to_be_visible()
+    elif question["type"] == QuestionDataType.INTEGER:
+        expect(
+            answers_list.get_by_text(
+                f"{question['text']} {question['options'].prefix or ''}"
+                f"{format_thousands(int(question['answers'][-1].answer))}{question['options'].suffix or ''}"
+            )
+        ).to_be_visible()
+    else:
+        expect(answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}")).to_be_visible()
 
 
 @pytest.mark.skip_in_environments(["prod"])
@@ -193,6 +264,16 @@ def test_create_and_preview_report(
 
         manage_task_page = report_tasks_page.click_manage_task(task_name=task_name)
 
+        # Sense check that the test includes all question types
+        new_question_type_error = None
+        try:
+            assert len(QuestionDataType) == 8 and len(questions_to_test) == 10, (
+                "If you have added a new question type, please update this test to include the new type in "
+                "`questions_to_test`."
+            )
+        except AssertionError as e:
+            new_question_type_error = e
+
         # Add a question of each type
         for question_to_test in questions_to_test.values():
             create_question(question_to_test, manage_task_page)
@@ -200,13 +281,13 @@ def test_create_and_preview_report(
         # TODO: move this into `question_to_test` definition as well
         add_validation(
             manage_task_page,
-            questions_to_test["integer"]["text"],
+            questions_to_test["prefix-integer"]["text"],
             GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),  # question_id does not matter here
         )
 
         add_validation(
             manage_task_page,
-            questions_to_test["integer"]["text"],
+            questions_to_test["suffix-integer"]["text"],
             LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),  # question_id does not matter here
         )
 
@@ -237,25 +318,17 @@ def test_create_and_preview_report(
                     expect(question_page.page.get_by_role("link", name=question_response.error_message)).to_be_visible()
 
         # Check the answers page
-        check_your_answers = RunnerCheckYourAnswersPage(page, domain, new_grant_name)
+        check_your_answers_page = RunnerCheckYourAnswersPage(page, domain, new_grant_name)
 
         for question in questions_to_test.values():
-            question_heading = check_your_answers.page.get_by_text(question["text"], exact=True)
+            question_heading = check_your_answers_page.page.get_by_text(question["text"], exact=True)
             expect(question_heading).to_be_visible()
-            if question["type"] == QuestionDataType.CHECKBOXES:
-                checkbox_answers_list = check_your_answers.page.get_by_test_id(f"answer-{question['text']}").locator(
-                    "li"
-                )
-                expect(checkbox_answers_list).to_have_text(question["answers"][-1].answer)
-            else:
-                expect(check_your_answers.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
-                    question["answers"][-1].answer
-                )
+            assert_check_your_answers(check_your_answers_page, question)
 
-        expect(check_your_answers.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
+        expect(check_your_answers_page.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
 
-        check_your_answers.click_mark_as_complete_yes()
-        tasklist_page = check_your_answers.click_save_and_continue(report_name=new_report_name)
+        check_your_answers_page.click_mark_as_complete_yes()
+        tasklist_page = check_your_answers_page.click_save_and_continue(report_name=new_report_name)
 
         # Submit the report
         expect(
@@ -275,12 +348,7 @@ def test_create_and_preview_report(
         answers_list = view_report_page.get_questions_list_for_task(task_name)
         expect(answers_list).to_be_visible()
         for question in questions_to_test.values():
-            if question["type"] == QuestionDataType.CHECKBOXES:
-                expect(
-                    answers_list.get_by_text(f"{question['text']} {' '.join(question['answers'][-1].answer)}")
-                ).to_be_visible()
-            else:
-                expect(answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}")).to_be_visible()
+            assert_view_report_answers(answers_list, question)
 
     finally:
         # Tidy up by deleting the grant, which will cascade to all related entities
@@ -288,3 +356,5 @@ def test_create_and_preview_report(
         grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
         developers_page = grant_dashboard_page.click_developers(new_grant_name)
         developers_page.delete_grant()
+        if new_question_type_error:
+            raise new_question_type_error

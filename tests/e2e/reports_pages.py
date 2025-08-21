@@ -5,7 +5,7 @@ from typing import cast
 
 from playwright.sync_api import Locator, Page, expect
 
-from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
+from app.common.data.types import ManagedExpressionsEnum, MultilineTextInputRows, NumberInputWidths, QuestionDataType
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
 
 
@@ -399,6 +399,24 @@ class AddQuestionDetailsPage(ReportsBasePage):
 
     def enter_other_option_text(self, text: str = "Other") -> None:
         self.page.get_by_role("textbox", name="‘Other’ option text").fill(text)
+
+    def click_advanced_formatting_options(self) -> None:
+        self.page.get_by_text("Advanced formatting options").click()
+
+    def fill_word_limit(self, word_limit: int) -> None:
+        self.page.get_by_role("textbox", name="Word limit").fill(str(word_limit))
+
+    def fill_prefix(self, text: str) -> None:
+        self.page.get_by_role("textbox", name="Prefix").fill(text)
+
+    def fill_suffix(self, text: str) -> None:
+        self.page.get_by_role("textbox", name="Suffix").fill(text)
+
+    def select_input_width(self, width: NumberInputWidths) -> None:
+        self.page.get_by_label("width").select_option(width.name.title())
+
+    def select_multiline_input_rows(self, rows: MultilineTextInputRows) -> None:
+        self.page.get_by_label("Text area size").select_option(f"{rows.name.title()} ({rows.value} rows)")
 
     def click_submit(self) -> "EditQuestionPage":
         self.page.get_by_role("button", name="Add question").click()
