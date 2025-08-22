@@ -31,6 +31,7 @@ from app.common.data.interfaces.collections import (
     move_component_up,
     move_form_down,
     move_form_up,
+    raise_if_group_questions_depend_on_each_other,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
     update_collection,
@@ -326,14 +327,23 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
         else GroupDisplayOptions.ONE_QUESTION_PER_PAGE
     )
     if form.validate_on_submit():
-        update_group(db_group, presentation_options=QuestionPresentationOptions.from_group_form(form))
-        return redirect(
-            url_for(
-                "deliver_grant_funding.list_group_questions",
-                grant_id=grant_id,
-                group_id=db_group.id,
+        try:
+            # todo: pass this as a value into the template so that we can grey out the option before reaching this point
+            #       will need to decide how thats displayed:
+            #       p text before the radio might work - grey hint on grey hint bad
+            raise_if_group_questions_depend_on_each_other(db_group)
+            update_group(db_group, presentation_options=QuestionPresentationOptions.from_group_form(form))
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_group_questions",
+                    grant_id=grant_id,
+                    group_id=db_group.id,
+                )
             )
-        )
+        except DependencyOrderException:
+            form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
+                "A question group cannot display on the same page if questions depend on answers within the group"
+            )
 
     return render_template(
         "deliver_grant_funding/reports/change_question_group_display_options.html",
