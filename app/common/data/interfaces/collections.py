@@ -543,7 +543,7 @@ def get_component_by_id(component_id: UUID) -> Component:
 
 
 class FlashableException(Protocol):
-    def as_flash_context(self) -> dict[str, str]: ...
+    def as_flash_context(self) -> dict[str, str | bool]: ...
 
 
 class DependencyOrderException(Exception, FlashableException):
@@ -553,17 +553,19 @@ class DependencyOrderException(Exception, FlashableException):
         self.question = component
         self.depends_on_question = depends_on_component
 
-    def as_flash_context(self) -> dict[str, str]:
+    def as_flash_context(self) -> dict[str, str | bool]:
         return {
             "message": self.message,
             "grant_id": str(self.question.form.section.collection.grant_id),  # Required for URL routing
             "question_id": str(self.question.id),
             "question_text": self.question.text,
+            "question_is_group": self.question.is_group,
             # currently you can't depend on the outcome to a generic component (like a group)
             # so question continues to make sense here - we should review that naming if that
             # functionality changes
             "depends_on_question_id": str(self.depends_on_question.id),
             "depends_on_question_text": self.depends_on_question.text,
+            "depends_on_question_is_group": self.depends_on_question.is_group,
         }
 
 
@@ -579,25 +581,24 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
         self.question_being_edited = question_being_edited
         self.data_source_item_dependency_map = data_source_item_dependency_map
 
-    def as_flash_context(self) -> dict[str, str]:
+    def as_flash_context(self) -> dict[str, str | bool]:
         contexts = self.as_flash_contexts()
         return contexts[0] if contexts else {}
 
-    def as_flash_contexts(self) -> list[dict[str, str]]:
+    def as_flash_contexts(self) -> list[dict[str, str | bool]]:
         flash_contexts = []
         for dependent_question, data_source_items in self.data_source_item_dependency_map.items():
-            flash_contexts.append(
-                {
-                    "message": self.message,
-                    "question_id": str(dependent_question.id),
-                    "question_text": dependent_question.text,
-                    "depends_on_question_id": str(self.question_being_edited.id),
-                    "depends_on_question_text": self.question_being_edited.text,
-                    "depends_on_items_text": ", ".join(
-                        data_source_item.label for data_source_item in data_source_items
-                    ),
-                }
-            )
+            flash_context: dict[str, str | bool] = {
+                "message": self.message,
+                "question_id": str(dependent_question.id),
+                "question_text": dependent_question.text,
+                "question_is_group": dependent_question.is_group,
+                "depends_on_question_id": str(self.question_being_edited.id),
+                "depends_on_question_text": self.question_being_edited.text,
+                "depends_on_question_is_group": self.question_being_edited.is_group,
+                "depends_on_items_text": ", ".join(data_source_item.label for data_source_item in data_source_items),
+            }
+            flash_contexts.append(flash_context)
         return flash_contexts
 
 
@@ -620,7 +621,11 @@ def _check_component_order_dependency(component: Component, swap_component: Comp
             # check against each of the possible options we're comparing against
             if condition.managed and condition.managed.question_id in [c.id for c in child_swap_components]:
                 raise DependencyOrderException(
-                    "You cannot move questions above answers they depend on", component, swap_component
+                    "You cannot move "
+                    + ("question groups" if c.is_group else "questions")
+                    + " above answers they depend on",
+                    component,
+                    swap_component,
                 )
 
     for c in child_swap_components:
@@ -628,7 +633,11 @@ def _check_component_order_dependency(component: Component, swap_component: Comp
             # check against each of the possible options we're comparing against
             if condition.managed and condition.managed.question_id in [c.id for c in child_components]:
                 raise DependencyOrderException(
-                    "You cannot move answers below questions that depend on them", swap_component, component
+                    "You cannot move answers below "
+                    + ("question groups" if c.is_group else "questions")
+                    + " that depend on them",
+                    swap_component,
+                    component,
                 )
 
 
