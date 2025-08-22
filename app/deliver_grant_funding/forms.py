@@ -31,7 +31,7 @@ from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
-    from app.common.data.models import Question
+    from app.common.data.models import Component, Question
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
@@ -491,7 +491,7 @@ class ConditionSelectQuestionForm(FlaskForm):
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
-    def __init__(self, *args, question: "Question", **kwargs):  # type: ignore[no-untyped-def]
+    def __init__(self, *args, question: "Component", **kwargs):  # type: ignore[no-untyped-def]
         super().__init__(*args, **kwargs)
 
         self.target_question = question

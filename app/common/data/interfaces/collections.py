@@ -530,7 +530,7 @@ def get_expression_by_id(expression_id: UUID) -> Expression:
         expression_id,
         options=[
             joinedload(Expression.question)
-            .joinedload(Question.form)
+            .joinedload(Component.form)
             .joinedload(Form.section)
             .joinedload(Section.collection)
             .joinedload(Collection.grant)
@@ -572,7 +572,7 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
         self,
         message: str,
         question_being_edited: Question,
-        data_source_item_dependency_map: dict[Question, set[DataSourceItem]],
+        data_source_item_dependency_map: dict[Component, set[DataSourceItem]],
     ):
         super().__init__(message)
         self.message = message
@@ -658,7 +658,7 @@ def raise_if_group_questions_depend_on_each_other(group: Group) -> Never | None:
 def raise_if_data_source_item_reference_dependency(
     question: Question, items_to_delete: Sequence[DataSourceItem]
 ) -> Never | None:
-    data_source_item_dependency_map: dict[Question, set[DataSourceItem]] = {}
+    data_source_item_dependency_map: dict[Component, set[DataSourceItem]] = {}
     for data_source_item in items_to_delete:
         for reference in data_source_item.references:
             dependent_question = reference.expression.question
@@ -845,7 +845,7 @@ def get_expression(expression_id: UUID) -> Expression:
     return db.session.get_one(Expression, expression_id)
 
 
-def remove_question_expression(question: Question, expression: Expression) -> Question:
+def remove_question_expression(question: Component, expression: Expression) -> Component:
     question.expressions.remove(expression)
     db.session.flush()
     return question

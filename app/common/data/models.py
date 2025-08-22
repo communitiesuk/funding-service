@@ -481,7 +481,7 @@ class Expression(BaseModel):
     )
 
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
-    question: Mapped[Question] = relationship("Question", back_populates="expressions")
+    question: Mapped[Component] = relationship("Component", back_populates="expressions")
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
