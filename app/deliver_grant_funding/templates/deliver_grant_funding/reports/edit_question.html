@@ -137,7 +137,7 @@
 
 
             {% set value_html %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, component_id=question.id, expression_id=condition.id) }}">
                 <span class="govuk-visually-hidden">Change condition for</span>
                 {{ condition.managed.message }}
               </a>
@@ -152,7 +152,7 @@
           {{
             govukButton({
               "text": "Add condition",
-              "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
+              "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, component_id=question.id),
               "classes": "govuk-button--secondary",
             })
           }}

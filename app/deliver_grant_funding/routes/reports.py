@@ -1,6 +1,6 @@
 import io
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from flask import abort, current_app, flash, redirect, render_template, request, send_file, session, url_for
@@ -68,6 +68,9 @@ from app.deliver_grant_funding.helpers import start_testing_submission
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
 from app.types import FlashMessageType
+
+if TYPE_CHECKING:
+    from app.common.data.models import Question
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports", methods=["GET", "POST"])
@@ -756,13 +759,13 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/question/<uuid:question_id>/add-condition",
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition",
     methods=["GET", "POST"],
 )
 @has_grant_role(RoleEnum.ADMIN)
-def add_question_condition_select_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    question = get_question_by_id(question_id)
-    form = ConditionSelectQuestionForm(question=question)
+def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
+    form = ConditionSelectQuestionForm(question=component)
 
     if form.validate_on_submit():
         depends_on_question = get_question_by_id(form.question.data)
@@ -770,27 +773,27 @@ def add_question_condition_select_question(grant_id: UUID, question_id: UUID) ->
             url_for(
                 "deliver_grant_funding.add_question_condition",
                 grant_id=grant_id,
-                question_id=question_id,
+                component_id=component_id,
                 depends_on_question_id=depends_on_question.id,
             )
         )
 
     return render_template(
         "deliver_grant_funding/reports/add_question_condition_select_question.html",
-        question=question,
-        grant=question.form.section.collection.grant,
+        component=component,
+        grant=component.form.section.collection.grant,
         form=form,
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/question/<uuid:question_id>/add-condition/<uuid:depends_on_question_id>",
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/<uuid:depends_on_question_id>",
     methods=["GET", "POST"],
 )
 @has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
-    question = get_question_by_id(question_id)
+def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
@@ -799,22 +802,31 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
         expression = form.get_expression(depends_on_question)
 
         try:
-            interfaces.collections.add_component_condition(question, interfaces.user.get_current_user(), expression)
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.edit_question",
-                    grant_id=grant_id,
-                    question_id=question.id,
+            interfaces.collections.add_component_condition(component, interfaces.user.get_current_user(), expression)
+            if component.is_group:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.list_group_questions",
+                        grant_id=grant_id,
+                        group_id=component.id,
+                    )
                 )
-            )
+            else:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.edit_question",
+                        grant_id=grant_id,
+                        question_id=component.id,
+                    )
+                )
         except DuplicateValueError:
             form.form_errors.append(f"“{expression.description}” condition based on this question already exists.")
 
     return render_template(
         "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
-        question=question,
+        component=component,
         depends_on_question=depends_on_question,
-        grant=question.form.section.collection.grant,
+        grant=component.form.section.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
     )
@@ -828,8 +840,14 @@ def add_question_condition(grant_id: UUID, question_id: UUID, depends_on_questio
 @auto_commit_after_request
 def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)
-    question = expression.question
+    component = expression.question
     depends_on_question = expression.managed.referenced_question
+
+    return_url = (
+        url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=component.id)
+        if not component.is_group
+        else url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=component.id)
+    )
 
     confirm_deletion_form = GenericConfirmDeletionForm()
     if (
@@ -837,14 +855,8 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         and confirm_deletion_form.validate_on_submit()
         and confirm_deletion_form.confirm_deletion.data
     ):
-        remove_question_expression(question=question, expression=expression)
-        return redirect(
-            url_for(
-                "deliver_grant_funding.edit_question",
-                grant_id=grant_id,
-                question_id=question.id,
-            )
-        )
+        remove_question_expression(question=component, expression=expression)
+        return redirect(return_url)
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question, expression)
     form = ConditionForm() if ConditionForm else None
@@ -854,13 +866,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
 
         try:
             interfaces.collections.update_question_expression(expression, updated_managed_expression)
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.edit_question",
-                    grant_id=grant_id,
-                    question_id=question.id,
-                )
-            )
+            return redirect(return_url)
         except DuplicateValueError:
             form.form_errors.append(
                 f"“{updated_managed_expression.description}” condition based on this question already exists."
@@ -868,8 +874,8 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
 
     return render_template(
         "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
-        question=question,
-        grant=question.form.section.collection.grant,
+        component=component,
+        grant=component.form.section.collection.grant,
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,
@@ -941,11 +947,13 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
             )
         )
 
-    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question, expression)
+    # anything we're depending on will currently definitely be a question component
+    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, cast("Question", question), expression)
     form = ValidationForm() if ValidationForm else None
 
     if form and form.validate_on_submit():
-        updated_managed_expression = form.get_expression(question)
+        # todo: any time we're dealing with the dependant component its a question - make sure this makes sense
+        updated_managed_expression = form.get_expression(cast("Question", question))
         try:
             interfaces.collections.update_question_expression(expression, updated_managed_expression)
         except DuplicateValueError:

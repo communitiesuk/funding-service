@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 
 if TYPE_CHECKING:
-    from app.common.data.models import Question
+    from app.common.data.models import Component, Question
     from app.common.expressions.managed import ManagedExpression
 
 
@@ -56,6 +56,6 @@ def register_managed_expression(cls: type["ManagedExpression"]) -> type["Managed
     return cls
 
 
-def get_supported_form_questions(question: "Question") -> list["Question"]:
+def get_supported_form_questions(question: "Component") -> list["Question"]:
     questions = question.form.questions
     return [q for q in questions if q.data_type in get_registered_data_types() and q.id != question.id]

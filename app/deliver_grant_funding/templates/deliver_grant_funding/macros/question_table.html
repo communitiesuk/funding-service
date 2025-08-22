@@ -34,7 +34,7 @@
         {{
           govukTag({
             "text": "Conditional",
-            "classes": "govuk-tag--grey govuk-!-margin-left-1 govuk-!-margin-top-1",
+            "classes": "govuk-tag--grey govuk-!-margin-left-1 " ~ ("govuk-!-margin-top-1" if not question.is_group else ""),
           })
         }}
       {% endif %}

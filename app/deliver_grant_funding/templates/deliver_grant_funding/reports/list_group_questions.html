@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "deliver_grant_funding/macros/question_table.html" import question_table %}
 
@@ -100,14 +101,55 @@
           >
         {% endif %}
       </div>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <div class="govuk-body govuk-form-group">
+        <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
+        <p class="govuk-body">Add conditions to only show this question group if the grant recipient has answered one of the other questions in a particular way.</p>
+        {% set rows = [] %}
+        {% for condition in group.conditions %}
+          {% set managed = condition.managed %}
+          {% set depends_on = managed.referenced_question %}
 
+
+          {% set key_html %}
+            {# todo: would users find it useful to be able to link to the question being depended on from here? #}
+            <span>{{ depends_on.text }}</span>
+          {% endset %}
+
+
+          {% set value_html %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, expression_id=condition.id) }}">
+              <span class="govuk-visually-hidden">Change condition for</span>
+              {{ condition.managed.message }}
+            </a>
+          {% endset %}
+          {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
+        {% endfor %}
+
+        {% if rows %}
+          {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+        {% endif %}
+
+        {{
+          govukButton({
+            "text": "Add condition",
+            "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, component_id=group.id),
+            "classes": "govuk-button--secondary",
+          })
+        }}
+      </div>
       {% if grant_admin %}
-        <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage question group</h2>
-        <div class="govuk-body">
-          <ul class="govuk-list govuk-list--spaced">
-            <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.change_group_name', grant_id=grant.id, group_id=group.id) }}">Change question group name</a></li>
-            <li><a class="govuk-link govuk-link--no-visited-state" href="?delete">Delete question group</a></li>
-          </ul>
+        <div class="govuk-body govuk-form-group">
+          <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage question group</h2>
+          <div class="govuk-body">
+            <ul class="govuk-list govuk-list--spaced">
+              <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.change_group_name', grant_id=grant.id, group_id=group.id) }}">Change question group name</a></li>
+              <li><a class="govuk-link govuk-link--no-visited-state" href="?delete">Delete question group</a></li>
+            </ul>
+          </div>
         </div>
       {% endif %}
     </div>

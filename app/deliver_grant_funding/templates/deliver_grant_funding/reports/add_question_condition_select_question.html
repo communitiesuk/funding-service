@@ -2,10 +2,11 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% set active_item_identifier = "reports" %}
 
-{% block pageTitle %}Add a condition - {{ question.name }} - Deliver grant funding{% endblock pageTitle %}
+{% block pageTitle %}Add a condition - {{ component.name }} - Deliver grant funding{% endblock pageTitle %}
 
 {% block beforeContent %}
-  {{ govukBackLink({ "text": "Back", "href": url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) }) }}
+  {% set back_link = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=component.id) if not component.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=component.id) %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
 
 {% block content %}

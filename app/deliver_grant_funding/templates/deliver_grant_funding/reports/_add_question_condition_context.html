@@ -3,8 +3,8 @@
 {{
   govukSummaryList({
     "rows": [{
-      "key": { "text": "The question" },
-      "value": { "text": question.text },
+      "key": { "text": "The question" if not component.is_group else "The question group" },
+      "value": { "text": component.text },
     }, {
       "key": { "text": "Depends on the answer to" },
       "value": { "text": "(Not selected)" if not depends_on_question else depends_on_question.text },
