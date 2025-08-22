@@ -2922,7 +2922,7 @@ class TestExportReportSubmissions:
                 grant_id=authenticated_grant_member_client.grant.id,
                 report_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
-                export_format="json",
+                export_format="zip",
             )
         )
         assert response.status_code == 400
@@ -2949,6 +2949,29 @@ class TestExportReportSubmissions:
         # relying on testing for the internal implementation that we're generating a good CSV
         assert response.content_length > 0
         assert len(response.text.splitlines()) == 2  # Header + 1 submission
+
+    def test_json_download(self, authenticated_grant_member_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        factories.submission.create(
+            collection=report, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
+        )
+        factories.submission.create(
+            collection=report, mode=SubmissionModeEnum.LIVE, created_by__email="submitter-live@recipient.org"
+        )
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.export_report_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.TEST,
+                export_format="json",
+            )
+        )
+        assert response.status_code == 200
+        assert response.mimetype == "application/json"
+
+        assert response.content_length > 0
+        assert len(response.json["submissions"]) == 1
 
 
 class TestViewSubmission:

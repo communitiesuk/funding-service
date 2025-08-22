@@ -1029,22 +1029,29 @@ def export_report_submissions(
     )
     helper = CollectionHelper(collection=report, submission_mode=submission_mode)
 
-    match export_format.lower():
+    export_format = export_format.lower()
+    match export_format:
         case "csv":
-            csv_data = helper.generate_csv_content_for_all_submissions()
-            csv_buffer = io.StringIO()
-            csv_buffer.write(csv_data)
-            csv_buffer.seek(0)
-            return send_file(
-                io.BytesIO(csv_buffer.getvalue().encode("utf-8")),
-                mimetype="text/csv",
-                as_attachment=True,
-                download_name=f"{report.name} - {submission_mode.name.lower()}.csv",
-                max_age=0,
-            )
+            data = helper.generate_csv_content_for_all_submissions()
+            mimetype = "text/csv"
+
+        case "json":
+            data = helper.generate_json_content_for_all_submissions()
+            mimetype = "application/json"
 
         case _:
             abort(400)
+
+    buffer = io.StringIO()
+    buffer.write(data)
+    buffer.seek(0)
+    return send_file(
+        io.BytesIO(buffer.getvalue().encode("utf-8")),
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=f"{report.name} - {submission_mode.name.lower()}.{export_format}",
+        max_age=0,
+    )
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/submission/<uuid:submission_id>")

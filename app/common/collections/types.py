@@ -42,6 +42,9 @@ class SubmissionAnswerRootModel[T](RootModel[T]):
     def get_value_for_text_export(self) -> str:
         return str(self.root)
 
+    def get_value_for_json_export(self) -> T:
+        return cast(T, self.model_dump(mode="json"))
+
 
 class SubmissionAnswerBaseModel(BaseModel, abc.ABC):
     @property
@@ -55,6 +58,8 @@ class SubmissionAnswerBaseModel(BaseModel, abc.ABC):
     def get_value_for_expression(self) -> Any: ...
     @abc.abstractmethod
     def get_value_for_text_export(self) -> str: ...
+    @abc.abstractmethod
+    def get_value_for_json_export(self) -> Any: ...
 
 
 class TextSingleLineAnswer(SubmissionAnswerRootModel[str]):
@@ -88,6 +93,9 @@ class YesNoAnswer(SubmissionAnswerRootModel[bool]):
     def get_value_for_text_export(self) -> str:
         return "Yes" if self.root else "No"
 
+    def get_value_for_json_export(self) -> bool:
+        return cast(bool, self.model_dump(mode="json"))
+
 
 class IntegerAnswer(SubmissionAnswerBaseModel):
     value: int
@@ -110,6 +118,16 @@ class IntegerAnswer(SubmissionAnswerBaseModel):
     def get_value_for_text_export(self) -> str:
         return f"{self.prefix or ''}{self.value:,d}{self.suffix or ''}"
 
+    def get_value_for_json_export(self) -> dict[str, Any]:
+        data: dict[str, str | int] = {"value": self.value}
+
+        if self.prefix:
+            data["prefix"] = self.prefix
+        if self.suffix:
+            data["suffix"] = self.suffix
+
+        return data
+
 
 class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):
     key: str
@@ -131,6 +149,9 @@ class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):
     def get_value_for_text_export(self) -> str:
         return self.label
 
+    def get_value_for_json_export(self) -> ChoiceDict:
+        return {"key": self.key, "label": self.label}
+
 
 class MultipleChoiceFromListAnswer(SubmissionAnswerBaseModel):
     choices: list[ChoiceDict]
@@ -150,6 +171,9 @@ class MultipleChoiceFromListAnswer(SubmissionAnswerBaseModel):
 
     def get_value_for_text_export(self) -> str:
         return "\n".join(choice["label"] for choice in self.choices)
+
+    def get_value_for_json_export(self) -> list[ChoiceDict]:
+        return self.choices
 
 
 AllAnswerTypes = Union[
