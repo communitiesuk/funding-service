@@ -604,17 +604,32 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
 def check_component_order_dependency(component: Component, swap_component: Component) -> None:
-    for condition in component.conditions:
-        if condition.managed and condition.managed.question_id == swap_component.id:
-            raise DependencyOrderException(
-                "You cannot move questions above answers they depend on", component, swap_component
-            )
+    # fetching the entire schema means whatever is calling this doesn't have to worry about
+    # guaranteeing lazy loading performance behaviour
+    _ = get_form_by_id(component.form_id, with_all_questions=True)
 
-    for condition in swap_component.conditions:
-        if condition.managed and condition.managed.question_id == component.id:
-            raise DependencyOrderException(
-                "You cannot move answers below questions that depend on them", swap_component, component
-            )
+    # we could be comparing to either an individual question or a group of multiple questions so collect those
+    # as lists to compare against each other
+    child_components = [component] + ([c for c in component.all_components] if isinstance(component, Group) else [])
+    child_swap_components = [swap_component] + (
+        [c for c in swap_component.all_components] if isinstance(swap_component, Group) else []
+    )
+
+    for c in child_components:
+        for condition in c.conditions:
+            # check against each of the possible options we're comparing against
+            if condition.managed and condition.managed.question_id in [c.id for c in child_swap_components]:
+                raise DependencyOrderException(
+                    "You cannot move questions above answers they depend on", component, swap_component
+                )
+
+    for c in child_swap_components:
+        for condition in c.conditions:
+            # check against each of the possible options we're comparing against
+            if condition.managed and condition.managed.question_id in [c.id for c in child_components]:
+                raise DependencyOrderException(
+                    "You cannot move answers below questions that depend on them", swap_component, component
+                )
 
 
 def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:

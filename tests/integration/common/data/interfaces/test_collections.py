@@ -1098,6 +1098,104 @@ def test_move_question_with_dependencies(db_session, factories):
     move_component_up(q2)
 
 
+# you can't move a group above questions that it itself depends on
+def test_move_group_with_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    q1, q2 = factories.question.create_batch(2, form=form)
+    group = factories.group.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q2.id, minimum_value=3000), user)],
+    )
+
+    # group can't move above its dependency q2
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(group)
+    assert e.value.question == group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+
+    # q2 can't move below group which depends on it
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(q2)
+    assert e.value.question == group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+
+    # q1 can freely move up and down as it has no dependencies
+    move_component_down(q1)
+    move_component_down(q1)
+    move_component_up(q1)
+    move_component_up(q1)
+
+
+def test_move_group_with_child_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    q1 = factories.question.create(form=form)
+    group = factories.group.create(form=form)
+    _ = factories.question.create(
+        form=form,
+        parent=group,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=3000), user)],
+    )
+
+    # you can't move a group above a question that something in the group depends on
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(group)
+    assert e.value.question == group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(q1)
+    assert e.value.question == group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+
+
+def test_move_question_with_group_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    group = factories.group.create(form=form)
+    nested_q1 = factories.question.create(form=form, parent=group)
+    q2 = factories.question.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=nested_q1.id, minimum_value=3000), user)],
+    )
+
+    # you can't move a question above a group that it depends on a question in
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(q2)
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(group)
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+
+
+def test_move_group_with_group_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    group = factories.group.create(form=form)
+    nested_q1 = factories.question.create(form=form, parent=group)
+    group2 = factories.group.create(form=form)
+    _ = factories.question.create(
+        form=form,
+        parent=group2,
+        expressions=[Expression.from_managed(GreaterThan(question_id=nested_q1.id, minimum_value=3000), user)],
+    )
+
+    # you can't move a group above a question in a group that it depends on
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(group2)
+    assert e.value.question == group2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(group)
+    assert e.value.question == group2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+
+
 def test_raise_if_question_has_any_dependencies(db_session, factories):
     form = factories.form.create()
     user = factories.user.create()
