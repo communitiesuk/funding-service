@@ -8,7 +8,7 @@
   {% set banner_html %}
     <p class="govuk-body govuk-!-font-weight-bold">{{ error.message }}</p>
     <p class="govuk-body govuk-!-font-weight-bold">
-      Question:
+      {{ "Question group" if error.question_is_group else "Question" }}:
       <a class="govuk-notification-banner__link" href="{{ question_link }}">{{ error.question_text }}</a>
     </p>
     <p class="govuk-body govuk-!-font-weight-bold">
