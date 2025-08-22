@@ -796,6 +796,9 @@ def add_component_condition(component: Component, user: User, managed_expression
     expression = Expression.from_managed(managed_expression, user)
     component.expressions.append(expression)
 
+    if component.parent and component.parent.same_page:
+        raise_if_group_questions_depend_on_each_other(component.parent)
+
     try:
         if (
             isinstance(managed_expression, BaseDataSourceManagedExpression)

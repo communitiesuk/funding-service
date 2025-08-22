@@ -1649,6 +1649,41 @@ class TestAddQuestionConditionSelectQuestion:
             rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{second_question.id}/add-condition/{first_question.id}"
         )
 
+    def test_post_rejects_same_page_group(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        group = factories.group.create(
+            form=form,
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.create(
+            form=form,
+            parent=group,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        q2 = factories.question.create(
+            form=form, parent=group, text="What is your email?", name="email question", data_type=QuestionDataType.EMAIL
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=q2.id,
+            ),
+            data={"question": str(q1.id)},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+        assert page_has_error(soup, "Select an answer that is not on the same page as this question")
+
 
 class TestAddQuestionCondition:
     def test_404(self, authenticated_grant_admin_client):

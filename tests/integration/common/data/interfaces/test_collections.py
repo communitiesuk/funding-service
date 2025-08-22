@@ -1284,6 +1284,19 @@ class TestExpressions:
         with pytest.raises(DuplicateValueError):
             add_component_condition(question, user, managed_expression)
 
+    def test_add_condition_raises_if_same_page(self, db_session, factories):
+        group = factories.group.create(
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        q0 = factories.question.create(form=group.form, parent=group, data_type=QuestionDataType.INTEGER)
+        q1 = factories.question.create(form=group.form, parent=group)
+        user = factories.user.create()
+
+        managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
+
+        with pytest.raises(DependencyOrderException):
+            add_component_condition(q1, user, managed_expression)
+
     def test_add_radios_question_condition(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
         question = factories.question.create(form=q0.form)
