@@ -33,7 +33,7 @@ def test_validation_attached_to_field_and_runs__text(factories, value, error_mes
         name="test_text",
     )
 
-    _FormClass = build_question_form(question, expression_context=ExpressionContext())
+    _FormClass = build_question_form([question], expression_context=ExpressionContext())
     form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7b": str(value)}))
 
     valid = form.validate()
@@ -70,7 +70,7 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
         question, user, LessThan(question_id=question.id, maximum_value=100, inclusive=False)
     )
 
-    _FormClass = build_question_form(question, expression_context=ExpressionContext())
+    _FormClass = build_question_form([question], expression_context=ExpressionContext())
     form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7a": str(value)}))
 
     valid = form.validate()
@@ -91,7 +91,7 @@ def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_sess
         data_type=QuestionDataType.RADIOS,
         items=[str(i) for i in range(25)],
     )
-    form = build_question_form(q, expression_context=EC())()
+    form = build_question_form([q], expression_context=EC())()
 
     question_field = form.get_question_field(q)
     assert isinstance(question_field, SelectField)
@@ -100,3 +100,29 @@ def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_sess
     assert question_field.description == "Question hint"
     assert len(question_field.validators) == 1
     assert isinstance(question_field.validators[0], DataRequired)
+
+
+def test_validation_attached_to_multiple_fields(factories, db_session):
+    user = factories.user.build()
+    q1 = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE, name="q0")
+    q2 = factories.question.build(data_type=QuestionDataType.INTEGER)
+    q3 = factories.question.build(data_type=QuestionDataType.YES_NO)
+
+    interfaces.collections.add_question_validation(
+        q2, user, GreaterThan(question_id=q2.id, minimum_value=100, inclusive=True)
+    )
+
+    _FormClass = build_question_form([q1, q2, q3], expression_context=ExpressionContext())
+    form = _FormClass(formdata=MultiDict({q1.safe_qid: "", q2.safe_qid: 50, q3.safe_qid: True}))
+
+    valid = form.validate()
+
+    assert valid is False
+
+    # check wtforms validation
+    assert "Enter the q0" in form.errors[q1.safe_qid]
+
+    # check custom expression validators are applied at the same time
+    assert "The answer must be greater than or equal to 100" in form.errors[q2.safe_qid]
+
+    assert q3.safe_qid not in form.errors
