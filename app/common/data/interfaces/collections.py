@@ -632,8 +632,12 @@ def check_component_order_dependency(component: Component, swap_component: Compo
                 )
 
 
+# todo: persisting global order (depth + order) of components would help short circuit a lot of these checks
 def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:
-    return component.order > depends_on_component.order
+    # fetching the entire schema means whatever is calling this doesn't have to worry about
+    # guaranteeing lazy loading performance behaviour
+    form = get_form_by_id(component.form_id, with_all_questions=True)
+    return form.all_components.index(component) > form.all_components.index(depends_on_component)
 
 
 def raise_if_question_has_any_dependencies(question: Question | Group) -> Never | None:

@@ -233,7 +233,7 @@ class ManageTaskPage(ReportsBasePage):
         expect(self.page.get_by_role("term").filter(has_text=question_name)).to_be_visible()
 
     def click_edit_question(self, question_name: str) -> "EditQuestionPage":
-        self.page.get_by_role("link", name=question_name).click()
+        self.page.get_by_role("link", name=question_name, exact=True).click()
         edit_question_page = EditQuestionPage(
             self.page,
             self.domain,
