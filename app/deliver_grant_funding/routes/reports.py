@@ -31,7 +31,6 @@ from app.common.data.interfaces.collections import (
     move_component_up,
     move_form_down,
     move_form_up,
-    raise_if_group_questions_depend_on_each_other,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
     update_collection,
@@ -328,10 +327,10 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
     )
     if form.validate_on_submit():
         try:
-            # todo: pass this as a value into the template so that we can grey out the option before reaching this point
-            #       will need to decide how thats displayed:
-            #       p text before the radio might work - grey hint on grey hint bad
-            raise_if_group_questions_depend_on_each_other(db_group)
+            # todo: pass the result of checking if questions depend on each other
+            #       into the template so that we can grey out the option before reaching this point
+            #       will need to decide how thats displayed: p text before the radio might work - grey hint
+            #       on grey hint bad
             update_group(db_group, presentation_options=QuestionPresentationOptions.from_group_form(form))
             return redirect(
                 url_for(

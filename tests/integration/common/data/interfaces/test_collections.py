@@ -483,6 +483,49 @@ class TestUpdateGroup:
                 name="Overlap group name",
             )
 
+    def test_update_group_with_question_dependencies_cant_enable_same_page(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, parent=group)
+        _ = factories.question.create(
+            form=form,
+            parent=group,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=100), created_by=user)],
+        )
+
+        with pytest.raises(DependencyOrderException):
+            update_group(
+                group,
+                presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+            )
+        assert group.presentation_options.show_questions_on_the_same_page is False
+
+    def test_update_group_with_question_dependencies_can_disable_same_page(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, parent=group)
+        _ = factories.question.create(
+            form=form,
+            parent=group,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=100), created_by=user)],
+        )
+
+        update_group(
+            group,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        assert group.presentation_options.show_questions_on_the_same_page is False
+
 
 class TestCreateQuestion:
     @pytest.mark.parametrize(

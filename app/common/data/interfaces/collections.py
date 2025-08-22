@@ -708,6 +708,15 @@ def update_group(
         group.slug = slugify(name)  # ty: ignore[invalid-argument-type]
 
     if presentation_options is not NOT_PROVIDED:
+        if (
+            not group.presentation_options.show_questions_on_the_same_page
+            and presentation_options.show_questions_on_the_same_page  # ty:ignore [possibly-unbound-attribute]
+        ):
+            try:
+                raise_if_group_questions_depend_on_each_other(group)
+            except DependencyOrderException as e:
+                db.session.rollback()
+                raise e
         group.presentation_options = presentation_options or QuestionPresentationOptions()  # ty: ignore[invalid-assignment]
 
     try:
