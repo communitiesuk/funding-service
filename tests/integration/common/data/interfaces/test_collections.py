@@ -1297,6 +1297,9 @@ class TestExpressions:
         with pytest.raises(DependencyOrderException):
             add_component_condition(q1, user, managed_expression)
 
+        # check that the ORM has been rolled back and invalidated any changes from the interface
+        assert q1.expressions == []
+
     def test_add_radios_question_condition(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
         question = factories.question.create(form=q0.form)

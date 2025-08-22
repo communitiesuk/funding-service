@@ -796,10 +796,10 @@ def add_component_condition(component: Component, user: User, managed_expression
     expression = Expression.from_managed(managed_expression, user)
     component.expressions.append(expression)
 
-    if component.parent and component.parent.same_page:
-        raise_if_group_questions_depend_on_each_other(component.parent)
-
     try:
+        if component.parent and component.parent.same_page:
+            raise_if_group_questions_depend_on_each_other(component.parent)
+
         if (
             isinstance(managed_expression, BaseDataSourceManagedExpression)
             and managed_expression.referenced_question.data_source
@@ -809,6 +809,9 @@ def add_component_condition(component: Component, user: User, managed_expression
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
+    except DependencyOrderException as e:
+        db.session.rollback()
+        raise e
     return component
 
 
