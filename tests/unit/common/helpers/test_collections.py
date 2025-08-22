@@ -46,7 +46,7 @@ class TestSubmissionHelper:
             _question_1 = factories.question.build(order=1, form=form)
 
             helper = SubmissionHelper(submission)
-            helper_questions = helper.get_ordered_visible_questions_for_form(form)
+            helper_questions = helper.get_ordered_visible_questions(form)
             assert len(helper_questions) == 3
             assert [s.order for s in helper_questions] == [0, 1, 2]
 
@@ -59,7 +59,7 @@ class TestSubmissionHelper:
             factories.expression.build(question=invisible_question, type=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
-            helper_questions = helper.get_ordered_visible_questions_for_form(form)
+            helper_questions = helper.get_ordered_visible_questions(form)
             assert len(helper_questions) == 1
             assert helper_questions[0].id == visible_question.id
 
@@ -75,9 +75,27 @@ class TestSubmissionHelper:
             factories.expression.build(question=invisible_group, type=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
-            helper_questions = helper.get_ordered_visible_questions_for_form(form)
+            helper_questions = helper.get_ordered_visible_questions(form)
             assert len(helper_questions) == 1
             assert helper_questions[0].id == visible_question.id
+
+        def test_visible_questions_filtered_for_group_parent(self, factories):
+            form = factories.form.build()
+            submission = factories.submission.build(collection=form.section.collection)
+            q0 = factories.question.build(form=form)
+            group = factories.group.build(form=form)
+            q1 = factories.question.build(form_id=form.id, parent=group)
+            q2 = factories.question.build(form_id=form.id, parent=group)
+            q3 = factories.question.build(form_id=form.id, parent=group)
+
+            factories.expression.build(question=q2, type=ExpressionType.CONDITION, statement="False")
+
+            helper = SubmissionHelper(submission)
+            helper_questions = helper.get_ordered_visible_questions(form)
+            assert helper_questions == [q0, q1, q3]
+
+            group_questions = helper.get_ordered_visible_questions(group)
+            assert group_questions == [q1, q3]
 
     class TestGetSection:
         def test_exists(self, db_session, factories):

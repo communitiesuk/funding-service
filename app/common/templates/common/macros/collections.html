@@ -13,7 +13,7 @@
 
 {% macro collection_question(runner) %}
   {% set is_group = runner.component.is_group %}
-  {% set questions = runner.component.questions if is_group else [runner.component] %}
+  {% set questions = runner.questions if is_group else [runner.component] %}
   {% set form = runner.question_form %}
   {% set questionAsPageHeading = not runner.component.guidance_heading and not is_group %}
 
@@ -126,7 +126,7 @@
   <h1 class="govuk-heading-l">{{ "Your submitted answers" if submission.is_completed else "Check your answers" }}</h1>
 
   {% set rows = [] %}
-  {% for question in submission.get_ordered_visible_questions_for_form(form) %}
+  {% for question in submission.get_ordered_visible_questions(form) %}
     {% set answer = submission.get_answer_for_question(question.id) %}
     {% if answer is not none %}
       {% set value_html %}

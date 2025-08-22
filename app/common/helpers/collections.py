@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 from uuid import UUID
 
 from immutabledict import immutabledict
@@ -46,7 +46,17 @@ from app.common.expressions import (
 from app.common.filters import format_datetime
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Component, Expression, Form, Grant, Question, Section, Submission
+    from app.common.data.models import (
+        Collection,
+        Component,
+        Expression,
+        Form,
+        Grant,
+        Group,
+        Question,
+        Section,
+        Submission,
+    )
 
 
 class SubmissionHelper:
@@ -115,7 +125,7 @@ class SubmissionHelper:
             question.id: question
             for section in self.get_ordered_visible_sections()
             for form in self.get_ordered_visible_forms_for_section(section)
-            for question in self.get_ordered_visible_questions_for_form(form)
+            for question in self.get_ordered_visible_questions(form)
         }
 
     @property
@@ -200,7 +210,7 @@ class SubmissionHelper:
         return sorted(self.sections, key=lambda s: s.order)
 
     def get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
-        visible_questions = self.get_ordered_visible_questions_for_form(form)
+        visible_questions = self.get_ordered_visible_questions(form)
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
         return len(visible_questions) == len(answers), answers
 
@@ -257,20 +267,20 @@ class SubmissionHelper:
             #       always suppressing errors and not surfacing issues on misconfigured forms
             return False
 
-    def get_ordered_visible_questions_for_form(self, form: "Form") -> list["Question"]:
-        """Returns the visible, ordered questions for a given form based upon the current state of this collection."""
-        # todo: this probably no longer works without an additional property to factor in depth for global order
-        # calculating that on the fly might get expensive
-        return [question for question in form.questions if self.is_component_visible(question, self.expression_context)]
+    def get_ordered_visible_questions(self, parent: Union["Form", "Group"]) -> list["Question"]:
+        """Returns the visible, ordered questions based upon the current state of this collection."""
+        return [
+            question for question in parent.questions if self.is_component_visible(question, self.expression_context)
+        ]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
-        questions = self.get_ordered_visible_questions_for_form(form)
+        questions = self.get_ordered_visible_questions(form)
         if questions:
             return questions[0]
         return None
 
     def get_last_question_for_form(self, form: "Form") -> Optional["Question"]:
-        questions = self.get_ordered_visible_questions_for_form(form)
+        questions = self.get_ordered_visible_questions(form)
         if questions:
             return questions[-1]
         return None
@@ -333,7 +343,7 @@ class SubmissionHelper:
         Retrieve the next question that should be shown to the user, or None if this was the last relevant question.
         """
         form = self.get_form_for_question(current_question_id)
-        questions = self.get_ordered_visible_questions_for_form(form)
+        questions = self.get_ordered_visible_questions(form)
 
         question_iterator = iter(questions)
         for question in question_iterator:
@@ -347,7 +357,7 @@ class SubmissionHelper:
         Retrieve the question that was asked before this one, or None if this was the first relevant question.
         """
         form = self.get_form_for_question(current_question_id)
-        questions = self.get_ordered_visible_questions_for_form(form)
+        questions = self.get_ordered_visible_questions(form)
 
         # Reverse the list of questions so that we're working from the end to the start.
         question_iterator = iter(reversed(questions))
