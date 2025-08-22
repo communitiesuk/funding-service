@@ -59,7 +59,6 @@ class FormRunner:
 
         if self.component:
             self.form = self.component.form
-            # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
             _QuestionForm = build_question_form(
                 self.questions,
                 self.submission.expression_context,
@@ -161,7 +160,8 @@ class FormRunner:
         form: Optional["Form"] = None,
         source: Optional[FormRunnerState] = None,
     ) -> str:
-        return self.url_map[state](self, question or self.component, form or self.form, source)  # type: ignore
+        # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
+        return self.url_map[state](self, question or self.component, form or self.form, source)  # type: ignore[arg-type]
 
     @property
     def next_url(self) -> str:
