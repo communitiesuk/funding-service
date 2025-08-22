@@ -244,20 +244,22 @@ class Form(BaseModel):
     @property
     def questions(self) -> list["Question"]:
         """Consistently returns all questions in the form, respecting order and any level of nesting."""
-        return get_ordered_nested_questions_for_components(self.components)
+        return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
+
+    @property
+    def all_components(self) -> list["Component"]:
+        return get_ordered_nested_components(self.components)
 
 
-# todo: unit test reasonably extensively
-def get_ordered_nested_questions_for_components(components: list["Component"]) -> list["Question"]:
-    """Recursively collects all questions from a list of components, including nested components."""
-    questions = []
+def get_ordered_nested_components(components: list["Component"]) -> list["Component"]:
+    """Recursively collects all components from a list of components, including nested components."""
+    flat_components = []
     ordered_components = sorted(components, key=lambda c: c.order)
     for component in ordered_components:
-        if isinstance(component, Question):
-            questions.append(component)
-        elif isinstance(component, Group):
-            questions.extend(get_ordered_nested_questions_for_components(component.components))
-    return questions
+        flat_components.append(component)
+        if isinstance(component, Group):
+            flat_components.extend(get_ordered_nested_components(component.components))
+    return flat_components
 
 
 class Component(BaseModel):
@@ -432,9 +434,18 @@ class Group(Component):
         # reflect that groups will never have a data type but don't hook in a competing migration
         data_type: None
 
+    # todo: rename to something that makes it clear this is processed, something like all_nested_questions
     @property
     def questions(self) -> list["Question"]:
-        return get_ordered_nested_questions_for_components(self.components)
+        return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
+
+    @property
+    def all_components(self) -> list["Component"]:
+        return get_ordered_nested_components(self.components)
+
+    @property
+    def same_page(self) -> bool:
+        return bool(self.presentation_options.show_questions_on_the_same_page) if self.presentation_options else False
 
 
 class SubmissionEvent(BaseModel):
@@ -470,7 +481,7 @@ class Expression(BaseModel):
     )
 
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
-    question: Mapped[Question] = relationship("Question", back_populates="expressions")
+    question: Mapped[Component] = relationship("Component", back_populates="expressions")
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")

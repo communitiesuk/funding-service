@@ -8,14 +8,16 @@ from flask import url_for
 
 from app import QuestionDataType
 from app.common.data import interfaces
-from app.common.data.models import Collection, Form, Question
-from app.common.data.types import ExpressionType, SubmissionModeEnum
+from app.common.data.models import Collection, Expression, Form, Group, Question
+from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
 from app.common.expressions.forms import build_managed_expression_form
-from app.common.expressions.managed import IsNo, IsYes
+from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddTaskForm,
+    GroupDisplayOptionsForm,
+    GroupForm,
     QuestionForm,
     QuestionTypeForm,
     SetUpReportForm,
@@ -554,6 +556,196 @@ class TestMoveTask:
             assert report.sections[0].forms[2].title == "Form 1"
 
 
+class TestChangeQuestionGroupName:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.change_group_name", grant_id=uuid.uuid4(), group_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=form, name="Test group")
+        response = client.get(
+            url_for("deliver_grant_funding.change_group_name", grant_id=client.grant.id, group_id=group.id)
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "Test group" in soup.text
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        db_form = factories.form.create(
+            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(form=db_form, name="Test group")
+
+        form = GroupForm(data={"name": "Updated test group"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_name",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.name == "Updated test group"
+
+    def test_post_duplicate(self, authenticated_grant_admin_client, factories):
+        db_form = factories.form.create(
+            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        factories.group.create(form=db_form, name="Duplicate test group")
+        db_group = factories.group.create(form=db_form, name="Test group")
+
+        form = GroupForm(data={"name": "Duplicate test group"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_name",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "A question group with this name already exists")
+
+
+class TestChangeQuestionGroupDisplay:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.change_group_display_options", grant_id=uuid.uuid4(), group_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(
+            form=form,
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        response = client.get(
+            url_for("deliver_grant_funding.change_group_display_options", grant_id=client.grant.id, group_id=group.id)
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            # the correct option is selected based on whats in the database
+            assert (
+                soup.find(
+                    "input",
+                    {
+                        "type": "radio",
+                        "name": "show_questions_on_the_same_page",
+                        "value": "all-questions-on-same-page",
+                        "checked": True,
+                    },
+                )
+                is not None
+            )
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        db_form = factories.form.create(
+            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(
+            form=db_form,
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+
+        assert db_group.presentation_options.show_questions_on_the_same_page is False
+
+        form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "all-questions-on-same-page"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_display_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.presentation_options.show_questions_on_the_same_page is True
+
+    def test_post_change_same_page_with_question_inter_dependencies(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_user = factories.user.create()
+        db_form = factories.form.create(
+            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(
+            form=db_form,
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        db_question1 = factories.question.create(form=db_form, parent=db_group)
+        _ = factories.question.create(
+            form=db_form,
+            parent=db_group,
+            expressions=[
+                Expression.from_managed(GreaterThan(question_id=db_question1.id, minimum_value=1000), db_user)
+            ],
+        )
+
+        form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "all-questions-on-same-page"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_display_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup, "A question group cannot display on the same page if questions depend on answers within the group"
+        )
+
+
 class TestChangeFormName:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
@@ -656,6 +848,104 @@ class TestChangeFormName:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "A task with this name already exists")
+
+
+class TestListGroupQuestions:
+    def test_404(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        form = factories.form.create(section=report.sections[0])
+        question = factories.question.create(form=form)
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.list_group_questions", grant_id=uuid.uuid4(), group_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+        # we don't load the group management page for any type of component
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=question.form.section.collection.grant.id,
+                group_id=question.id,
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_edit",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_admin_actions(self, request, client_fixture, can_edit, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", order=0)
+        factories.question.create(form=form, parent=group, order=0)
+
+        response = client.get(
+            url_for("deliver_grant_funding.list_group_questions", grant_id=client.grant.id, group_id=group.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Test group"
+
+        # todo: extend with "change name" and "question group settings"
+        delete_group_link = page_has_link(soup, "Delete question group")
+
+        assert (delete_group_link is not None) is can_edit
+
+        if can_edit:
+            assert delete_group_link.get("href") == AnyStringMatching(r"\?delete")
+
+    def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", order=0)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Yes, delete this question group")
+
+    def test_cannot_delete_with_depended_on_questions_in_group(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        user = factories.user.create()
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", order=0)
+        question = factories.question.create(form=form, parent=group, order=0, data_type=QuestionDataType.INTEGER)
+        factories.question.create(
+            form=form,
+            order=1,
+            expressions=[Expression.from_managed(GreaterThan(question_id=question.id, minimum_value=1000), user)],
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 302
+
+        response = authenticated_grant_admin_client.get(response.location)
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You cannot delete an answer that other questions depend on" in soup.text
 
 
 class TestListTaskQuestions:
@@ -777,9 +1067,9 @@ class TestMoveQuestion:
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.move_question",
+                "deliver_grant_funding.move_component",
                 grant_id=uuid.uuid4(),
-                question_id=uuid.uuid4(),
+                component_id=uuid.uuid4(),
                 direction="up",
             )
         )
@@ -792,9 +1082,9 @@ class TestMoveQuestion:
 
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.move_question",
+                "deliver_grant_funding.move_component",
                 grant_id=authenticated_grant_member_client.grant.id,
-                question_id=questions[0].id,
+                component_id=questions[0].id,
                 direction="blah",
             )
         )
@@ -807,9 +1097,9 @@ class TestMoveQuestion:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.move_question",
+                "deliver_grant_funding.move_component",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                question_id=questions[0].id,
+                component_id=questions[0].id,
                 direction="blah",
             )
         )
@@ -828,9 +1118,9 @@ class TestMoveQuestion:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.move_question",
+                "deliver_grant_funding.move_component",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                question_id=questions[1].id,
+                component_id=questions[1].id,
                 direction=direction,
             )
         )
@@ -840,6 +1130,44 @@ class TestMoveQuestion:
             assert form.questions[0].text == "Question 1"
         else:
             assert form.questions[2].text == "Question 1"
+
+    def test_move_group(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", order=0)
+        question1 = factories.question.create(parent=group, text="Question 1", order=0)
+        factories.question.create(parent=group, text="Question 2", order=1)
+        factories.question.create(form=form, text="Question 3", order=1)
+        assert form.questions[0].text == "Question 1"
+
+        # we can move the whole group on the form page
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_component",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=group.id,
+                direction="down",
+            )
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(r"/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
+
+        assert form.questions[0].text == "Question 3"
+
+        # we can move questions inside the group
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_component",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=question1.id,
+                source=group.id,
+                direction="down",
+            )
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(r"/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+
+        assert form.questions[1].text == "Question 2"
 
 
 class TestChooseQuestionType:
@@ -956,6 +1284,160 @@ class TestAddQuestion:
         assert get_h1_text(soup) == "Edit question"
         assert get_h2_text(soup) == "Question created"
 
+    def test_post_add_to_group(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        group = factories.group.create(form=db_form, name="Test group", order=0)
+
+        form = QuestionForm(
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
+                parent_id=group.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+
+        # Stretching the test case a little but validates the group specific flash message
+        response = authenticated_grant_admin_client.get(response.location)
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Edit question"
+        assert get_h2_text(soup) == "Question created"
+        assert page_has_link(soup, "Return to the question group")
+
+
+class TestAddQuestionGroup:
+    def test_404(self, authenticated_grant_admin_client, factories):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.add_question", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+        # valid grant and form context but adding to a missing question group
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(section=report.sections[0])
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                parent_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    def test_missing_name(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        db_form = factories.form.create(section=report.sections[0])
+
+        form = GroupDisplayOptionsForm(
+            data={
+                "show_questions_on_the_same_page": "all-questions-on-same-page",
+            },
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_group_display_options",
+                grant_id=grant.id,
+                form_id=db_form.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add")
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ["authenticated_grant_member_client", False],
+            ["authenticated_grant_admin_client", True],
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        with client.session_transaction() as session:
+            session["add_question_group"] = {"group_name": "Test group"}
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_display_options", grant_id=client.grant.id, form_id=form.id
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "How should the question group be displayed?"
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["add_question_group"] = {"group_name": "Test group"}
+
+        form = GroupDisplayOptionsForm(
+            data={
+                "show_questions_on_the_same_page": "all-questions-on-same-page",
+            },
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.add_question_group_display_options", grant_id=grant.id, form_id=db_form.id),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}")
+
+    def test_post_duplicate(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        factories.group.create(form=db_form, name="Duplicate test group")
+
+        form = GroupForm(
+            data={
+                "name": "Duplicate test group",
+            },
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_group_name",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                name="Duplicate test group",
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "A question group with this name already exists")
+
 
 class TestEditQuestion:
     def test_404(self, authenticated_grant_admin_client):
@@ -1053,7 +1535,7 @@ class TestAddQuestionConditionSelectQuestion:
             url_for(
                 "deliver_grant_funding.add_question_condition_select_question",
                 grant_id=uuid.uuid4(),
-                question_id=uuid.uuid4(),
+                component_id=uuid.uuid4(),
             )
         )
         assert response.status_code == 404
@@ -1076,12 +1558,13 @@ class TestAddQuestionConditionSelectQuestion:
             hint="Question hint",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
+        group = factories.group.create(form=form, name="Test group")
 
         response = client.get(
             url_for(
                 "deliver_grant_funding.add_question_condition_select_question",
                 grant_id=client.grant.id,
-                question_id=question.id,
+                component_id=question.id,
             )
         )
 
@@ -1091,6 +1574,23 @@ class TestAddQuestionConditionSelectQuestion:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert "There are no questions in this form that can be used as a condition." in soup.text
+            assert "The question" in soup.text
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=client.grant.id,
+                component_id=group.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "There are no questions in this form that can be used as a condition." in soup.text
+            assert "The question group" in soup.text
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
@@ -1122,7 +1622,7 @@ class TestAddQuestionConditionSelectQuestion:
             url_for(
                 "deliver_grant_funding.add_question_condition_select_question",
                 grant_id=client.grant.id,
-                question_id=second_question.id,
+                component_id=second_question.id,
             )
         )
 
@@ -1156,7 +1656,7 @@ class TestAddQuestionConditionSelectQuestion:
             url_for(
                 "deliver_grant_funding.add_question_condition_select_question",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                question_id=second_question.id,
+                component_id=second_question.id,
             ),
             data={"question": str(first_question.id)},
             follow_redirects=False,
@@ -1167,6 +1667,41 @@ class TestAddQuestionConditionSelectQuestion:
             rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{second_question.id}/add-condition/{first_question.id}"
         )
 
+    def test_post_rejects_same_page_group(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        group = factories.group.create(
+            form=form,
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.create(
+            form=form,
+            parent=group,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        q2 = factories.question.create(
+            form=form, parent=group, text="What is your email?", name="email question", data_type=QuestionDataType.EMAIL
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=q2.id,
+            ),
+            data={"question": str(q1.id)},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+        assert page_has_error(soup, "Select an answer that is not on the same page as this question")
+
 
 class TestAddQuestionCondition:
     def test_404(self, authenticated_grant_admin_client):
@@ -1174,7 +1709,7 @@ class TestAddQuestionCondition:
             url_for(
                 "deliver_grant_funding.add_question_condition",
                 grant_id=uuid.uuid4(),
-                question_id=uuid.uuid4(),
+                component_id=uuid.uuid4(),
                 depends_on_question_id=uuid.uuid4(),
             )
         )
@@ -1191,6 +1726,10 @@ class TestAddQuestionCondition:
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        group = factories.group.create(
+            form=form,
+        )
 
         depends_on_question = factories.question.create(
             form=form,
@@ -1212,7 +1751,21 @@ class TestAddQuestionCondition:
             url_for(
                 "deliver_grant_funding.add_question_condition",
                 grant_id=client.grant.id,
-                question_id=target_question.id,
+                component_id=target_question.id,
+                depends_on_question_id=depends_on_question.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=client.grant.id,
+                component_id=group.id,
                 depends_on_question_id=depends_on_question.id,
             )
         )
@@ -1251,7 +1804,7 @@ class TestAddQuestionCondition:
             url_for(
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                question_id=target_question.id,
+                component_id=target_question.id,
                 depends_on_question_id=depends_on_question.id,
             ),
             data=form.data,
@@ -1265,6 +1818,47 @@ class TestAddQuestionCondition:
 
         assert len(target_question.expressions) == 1
         expression = target_question.expressions[0]
+        assert expression.type == ExpressionType.CONDITION
+        assert expression.managed_name == "Yes"
+        assert expression.managed.referenced_question.id == depends_on_question.id
+
+    def test_post_for_group(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Do you like cheese?",
+            name="cheese question",
+            hint="Please select yes or no",
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        target_group = factories.group.create(form=db_form)
+
+        assert len(target_group.expressions) == 0
+
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        form = ConditionForm(data={"type": "Yes"})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=target_group.id,
+                depends_on_question_id=depends_on_question.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/grant/{authenticated_grant_admin_client.grant.id}/group/{target_group.id}/questions"
+        )
+
+        assert len(target_group.expressions) == 1
+        expression = target_group.expressions[0]
         assert expression.type == ExpressionType.CONDITION
         assert expression.managed_name == "Yes"
         assert expression.managed.referenced_question.id == depends_on_question.id
@@ -1300,7 +1894,7 @@ class TestAddQuestionCondition:
             url_for(
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                question_id=target_question.id,
+                component_id=target_question.id,
                 depends_on_question_id=depends_on_question.id,
             ),
             data=form.data,
@@ -1456,6 +2050,46 @@ class TestEditQuestionCondition:
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
             rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        assert target_question.expressions[0].managed_name == "No"
+
+    def test_post_update_group_condition(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+        target_question = factories.group.create(form=db_form)
+        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = target_question.expressions[0].id
+        assert target_question.expressions[0].managed_name == "Yes"
+
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+        )
+        form = ConditionForm(data={"type": "No"})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/grant/{authenticated_grant_admin_client.grant.id}/group/{target_question.id}/questions"
         )
 
         assert len(target_question.expressions) == 1

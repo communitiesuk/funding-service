@@ -24,10 +24,12 @@ from app.common.data.interfaces.collections import (
     get_expression,
     get_expression_by_id,
     get_form_by_id,
+    get_group_by_id,
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
     get_section_by_id,
     get_submission,
+    is_component_dependency_order_valid,
     move_component_down,
     move_component_up,
     move_form_down,
@@ -35,8 +37,10 @@ from app.common.data.interfaces.collections import (
     move_section_down,
     move_section_up,
     raise_if_data_source_item_reference_dependency,
+    raise_if_group_questions_depend_on_each_other,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
+    update_group,
     update_question,
     update_question_expression,
     update_submission_data,
@@ -344,6 +348,12 @@ def test_get_question(db_session, factories):
     assert from_db is not None
 
 
+def test_get_group(db_session, factories):
+    g = factories.group.create()
+    from_db = get_group_by_id(group_id=g.id)
+    assert from_db is not None
+
+
 class TestCreateGroup:
     def test_create_group(self, db_session, factories):
         form = factories.form.create()
@@ -354,6 +364,18 @@ class TestCreateGroup:
 
         assert group is not None
         assert form.components[0] == group
+
+    def test_create_group_presentation_options(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test Group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+
+        assert group is not None
+        assert form.components[0] == group
+        assert group.presentation_options.show_questions_on_the_same_page is True
 
     def test_create_nested_components(self, db_session, factories, track_sql_queries):
         form = factories.form.create()
@@ -419,6 +441,91 @@ class TestCreateGroup:
         # the forms components are limited to ones with a direct relationship and no parents
         assert len(from_db.components) == 2
         assert len(from_db.questions) == 5
+
+
+class TestUpdateGroup:
+    def test_update_group(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+
+        assert group.presentation_options.show_questions_on_the_same_page is True
+
+        updated_group = update_group(
+            group,
+            name="Updated test group",
+        )
+
+        assert updated_group.name == "Updated test group"
+        assert updated_group.text == "Updated test group"
+        assert updated_group.slug == "updated-test-group"
+
+        updated_group = update_group(
+            group,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+
+        assert updated_group.presentation_options.show_questions_on_the_same_page is False
+
+    def test_update_group_unique_overlap(self, db_session, factories):
+        form = factories.form.create()
+        create_group(form=form, text="Overlap group name")
+        group = create_group(
+            form=form,
+            text="Test group",
+        )
+
+        with pytest.raises(DuplicateValueError):
+            update_group(
+                group,
+                name="Overlap group name",
+            )
+
+    def test_update_group_with_question_dependencies_cant_enable_same_page(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, parent=group)
+        _ = factories.question.create(
+            form=form,
+            parent=group,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=100), created_by=user)],
+        )
+
+        with pytest.raises(DependencyOrderException):
+            update_group(
+                group,
+                presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+            )
+        assert group.presentation_options.show_questions_on_the_same_page is False
+
+    def test_update_group_with_question_dependencies_can_disable_same_page(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, parent=group)
+        _ = factories.question.create(
+            form=form,
+            parent=group,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=100), created_by=user)],
+        )
+
+        update_group(
+            group,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        assert group.presentation_options.show_questions_on_the_same_page is False
 
 
 class TestCreateQuestion:
@@ -573,6 +680,20 @@ class TestCreateQuestion:
                 data_type=None,
             )
         assert "ck_component_type_question_requires_data_type" in str(e.value)
+
+    def test_question_associated_with_group(self, db_session, factories):
+        form = factories.form.create()
+        group = factories.group.create(form=form, order=0)
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            parent=group,
+        )
+        assert question.parent == group
+        assert question.order == 0
 
 
 class TestUpdateQuestion:
@@ -978,6 +1099,104 @@ def test_move_question_with_dependencies(db_session, factories):
     move_component_up(q2)
 
 
+# you can't move a group above questions that it itself depends on
+def test_move_group_with_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    q1, q2 = factories.question.create_batch(2, form=form)
+    group = factories.group.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q2.id, minimum_value=3000), user)],
+    )
+
+    # group can't move above its dependency q2
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(group)
+    assert e.value.question == group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+
+    # q2 can't move below group which depends on it
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(q2)
+    assert e.value.question == group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+
+    # q1 can freely move up and down as it has no dependencies
+    move_component_down(q1)
+    move_component_down(q1)
+    move_component_up(q1)
+    move_component_up(q1)
+
+
+def test_move_group_with_child_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    q1 = factories.question.create(form=form)
+    group = factories.group.create(form=form)
+    _ = factories.question.create(
+        form=form,
+        parent=group,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=3000), user)],
+    )
+
+    # you can't move a group above a question that something in the group depends on
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(group)
+    assert e.value.question == group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(q1)
+    assert e.value.question == group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+
+
+def test_move_question_with_group_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    group = factories.group.create(form=form)
+    nested_q1 = factories.question.create(form=form, parent=group)
+    q2 = factories.question.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=nested_q1.id, minimum_value=3000), user)],
+    )
+
+    # you can't move a question above a group that it depends on a question in
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(q2)
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(group)
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+
+
+def test_move_group_with_group_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    group = factories.group.create(form=form)
+    nested_q1 = factories.question.create(form=form, parent=group)
+    group2 = factories.group.create(form=form)
+    _ = factories.question.create(
+        form=form,
+        parent=group2,
+        expressions=[Expression.from_managed(GreaterThan(question_id=nested_q1.id, minimum_value=3000), user)],
+    )
+
+    # you can't move a group above a question in a group that it depends on
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(group2)
+    assert e.value.question == group2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(group)
+    assert e.value.question == group2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+
+
 def test_raise_if_question_has_any_dependencies(db_session, factories):
     form = factories.form.create()
     user = factories.user.create()
@@ -991,6 +1210,43 @@ def test_raise_if_question_has_any_dependencies(db_session, factories):
 
     with pytest.raises(DependencyOrderException) as e:
         raise_if_question_has_any_dependencies(q1)
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+
+
+def test_raise_if_group_has_any_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    group = factories.group.create(form=form)
+    nested_question = factories.question.create(parent=group, form=form)
+    q2 = factories.question.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=nested_question.id, minimum_value=1000), user)],
+    )
+
+    with pytest.raises(DependencyOrderException) as e:
+        raise_if_question_has_any_dependencies(nested_question)
+
+    with pytest.raises(DependencyOrderException) as e:
+        raise_if_question_has_any_dependencies(group)
+
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == group  # ty: ignore[unresolved
+
+
+def test_raise_if_group_questions_depend_on_each_other(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    group = factories.group.create(form=form)
+    q1 = factories.question.create(parent=group, form=form, data_type=QuestionDataType.INTEGER)
+    q2 = factories.question.create(
+        parent=group,
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=1000), user)],
+    )
+
+    with pytest.raises(DependencyOrderException) as e:
+        raise_if_group_questions_depend_on_each_other(group)
     assert e.value.question == q2  # ty: ignore[unresolved-attribute]
     assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
 
@@ -1146,6 +1402,16 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     assert queries == []
 
 
+class TestIsComponentDependencyOrderValid:
+    def test_with_nested_group_order(self, db_session, factories):
+        form = factories.form.create()
+        question = factories.question.create(form=form)
+        group = factories.group.create(form=form)
+        nested_question = factories.question.create(form=form, parent=group)
+
+        assert is_component_dependency_order_valid(nested_question, question) is True
+
+
 class TestExpressions:
     def test_add_question_condition(self, db_session, factories):
         q0 = factories.question.create()
@@ -1169,6 +1435,22 @@ class TestExpressions:
 
         with pytest.raises(DuplicateValueError):
             add_component_condition(question, user, managed_expression)
+
+    def test_add_condition_raises_if_same_page(self, db_session, factories):
+        group = factories.group.create(
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        q0 = factories.question.create(form=group.form, parent=group, data_type=QuestionDataType.INTEGER)
+        q1 = factories.question.create(form=group.form, parent=group)
+        user = factories.user.create()
+
+        managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
+
+        with pytest.raises(DependencyOrderException):
+            add_component_condition(q1, user, managed_expression)
+
+        # check that the ORM has been rolled back and invalidated any changes from the interface
+        assert q1.expressions == []
 
     def test_add_radios_question_condition(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
@@ -1518,6 +1800,44 @@ class TestDeleteQuestion:
 
         assert [q.order for q in form.questions] == [0, 1, 2, 3]
         assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
+
+    def test_delete_group(self, db_session, factories):
+        section = factories.section.create()
+        form = factories.form.create(section=section)
+        question1 = factories.question.create(form=form, order=0)
+        group = factories.group.create(form=form, order=1)
+        group_questions = factories.question.create_batch(3, form=form, parent=group)
+        question2 = factories.question.create(form=form, order=2)
+
+        assert form.components == [question1, group, question2]
+        assert form.questions == [question1, *[q for q in group_questions], question2]
+
+        delete_question(group)
+
+        assert db_session.get(Group, group.id) is None
+        assert db_session.get(Question, group_questions[0].id) is None
+
+        assert form.components == [question1, question2]
+        assert form.questions == [question1, question2]
+
+    def test_nested_question_in_group(self, db_session, factories):
+        section = factories.section.create()
+        form = factories.form.create(section=section)
+        group = factories.group.create(form=form)
+        questions = factories.question.create_batch(5, form=form, parent=group)
+
+        assert [c.order for c in form.components] == [0]
+        assert [q.order for q in group.questions] == [0, 1, 2, 3, 4]
+        assert form.questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
+
+        delete_question(questions[2])
+
+        assert [c.order for c in form.components] == [0]
+        assert [q.order for q in group.questions] == [0, 1, 2, 3]
+        assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
+
+        assert db_session.get(Question, questions[2].id) is None
+        assert db_session.get(Question, questions[0].id) is not None
 
 
 class TestDeleteCollectionSubmissions:

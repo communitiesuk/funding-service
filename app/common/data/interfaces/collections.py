@@ -433,7 +433,7 @@ def create_question(
     hint: str,
     name: str,
     data_type: QuestionDataType,
-    parent: Optional[Component] = None,
+    parent: Optional[Group] = None,
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:
@@ -471,9 +471,21 @@ def create_question(
     return question
 
 
-def create_group(form: Form, *, text: str, name: Optional[str] = None, parent: Optional[Group] = None) -> Group:
+def create_group(
+    form: Form,
+    *,
+    text: str,
+    name: Optional[str] = None,
+    parent: Optional[Group] = None,
+    presentation_options: QuestionPresentationOptions | None = None,
+) -> Group:
     group = Group(
-        text=text, name=name or text, slug=slugify(text), form_id=form.id, parent_id=parent.id if parent else None
+        text=text,
+        name=name or text,
+        slug=slugify(text),
+        form_id=form.id,
+        parent_id=parent.id if parent else None,
+        presentation_options=presentation_options,
     )
     owner = parent or form
     owner.components.append(group)
@@ -502,13 +514,23 @@ def get_question_by_id(question_id: UUID) -> Question:
     )
 
 
+def get_group_by_id(group_id: UUID) -> Group:
+    return db.session.get_one(
+        Group,
+        group_id,
+        options=[
+            joinedload(Group.form).joinedload(Form.section).joinedload(Section.collection).joinedload(Collection.grant),
+        ],
+    )
+
+
 def get_expression_by_id(expression_id: UUID) -> Expression:
     return db.session.get_one(
         Expression,
         expression_id,
         options=[
             joinedload(Expression.question)
-            .joinedload(Question.form)
+            .joinedload(Component.form)
             .joinedload(Form.section)
             .joinedload(Section.collection)
             .joinedload(Collection.grant)
@@ -521,7 +543,7 @@ def get_component_by_id(component_id: UUID) -> Component:
 
 
 class FlashableException(Protocol):
-    def as_flash_context(self) -> dict[str, str]: ...
+    def as_flash_context(self) -> dict[str, str | bool]: ...
 
 
 class DependencyOrderException(Exception, FlashableException):
@@ -531,17 +553,19 @@ class DependencyOrderException(Exception, FlashableException):
         self.question = component
         self.depends_on_question = depends_on_component
 
-    def as_flash_context(self) -> dict[str, str]:
+    def as_flash_context(self) -> dict[str, str | bool]:
         return {
             "message": self.message,
             "grant_id": str(self.question.form.section.collection.grant_id),  # Required for URL routing
             "question_id": str(self.question.id),
             "question_text": self.question.text,
+            "question_is_group": self.question.is_group,
             # currently you can't depend on the outcome to a generic component (like a group)
             # so question continues to make sense here - we should review that naming if that
             # functionality changes
             "depends_on_question_id": str(self.depends_on_question.id),
             "depends_on_question_text": self.depends_on_question.text,
+            "depends_on_question_is_group": self.depends_on_question.is_group,
         }
 
 
@@ -550,64 +574,111 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
         self,
         message: str,
         question_being_edited: Question,
-        data_source_item_dependency_map: dict[Question, set[DataSourceItem]],
+        data_source_item_dependency_map: dict[Component, set[DataSourceItem]],
     ):
         super().__init__(message)
         self.message = message
         self.question_being_edited = question_being_edited
         self.data_source_item_dependency_map = data_source_item_dependency_map
 
-    def as_flash_context(self) -> dict[str, str]:
+    def as_flash_context(self) -> dict[str, str | bool]:
         contexts = self.as_flash_contexts()
         return contexts[0] if contexts else {}
 
-    def as_flash_contexts(self) -> list[dict[str, str]]:
+    def as_flash_contexts(self) -> list[dict[str, str | bool]]:
         flash_contexts = []
         for dependent_question, data_source_items in self.data_source_item_dependency_map.items():
-            flash_contexts.append(
-                {
-                    "message": self.message,
-                    "question_id": str(dependent_question.id),
-                    "question_text": dependent_question.text,
-                    "depends_on_question_id": str(self.question_being_edited.id),
-                    "depends_on_question_text": self.question_being_edited.text,
-                    "depends_on_items_text": ", ".join(
-                        data_source_item.label for data_source_item in data_source_items
-                    ),
-                }
-            )
+            flash_context: dict[str, str | bool] = {
+                "message": self.message,
+                "question_id": str(dependent_question.id),
+                "question_text": dependent_question.text,
+                "question_is_group": dependent_question.is_group,
+                "depends_on_question_id": str(self.question_being_edited.id),
+                "depends_on_question_text": self.question_being_edited.text,
+                "depends_on_question_is_group": self.question_being_edited.is_group,
+                "depends_on_items_text": ", ".join(data_source_item.label for data_source_item in data_source_items),
+            }
+            flash_contexts.append(flash_context)
         return flash_contexts
 
 
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
-def check_component_order_dependency(component: Component, swap_component: Component) -> None:
-    for condition in component.conditions:
-        if condition.managed and condition.managed.question_id == swap_component.id:
-            raise DependencyOrderException(
-                "You cannot move questions above answers they depend on", component, swap_component
-            )
+def _check_component_order_dependency(component: Component, swap_component: Component) -> None:
+    # fetching the entire schema means whatever is calling this doesn't have to worry about
+    # guaranteeing lazy loading performance behaviour
+    _ = get_form_by_id(component.form_id, with_all_questions=True)
 
-    for condition in swap_component.conditions:
-        if condition.managed and condition.managed.question_id == component.id:
-            raise DependencyOrderException(
-                "You cannot move answers below questions that depend on them", swap_component, component
-            )
+    # we could be comparing to either an individual question or a group of multiple questions so collect those
+    # as lists to compare against each other
+    child_components = [component] + ([c for c in component.all_components] if isinstance(component, Group) else [])
+    child_swap_components = [swap_component] + (
+        [c for c in swap_component.all_components] if isinstance(swap_component, Group) else []
+    )
+
+    for c in child_components:
+        for condition in c.conditions:
+            # check against each of the possible options we're comparing against
+            if condition.managed and condition.managed.question_id in [c.id for c in child_swap_components]:
+                raise DependencyOrderException(
+                    "You cannot move "
+                    + ("question groups" if c.is_group else "questions")
+                    + " above answers they depend on",
+                    component,
+                    swap_component,
+                )
+
+    for c in child_swap_components:
+        for condition in c.conditions:
+            # check against each of the possible options we're comparing against
+            if condition.managed and condition.managed.question_id in [c.id for c in child_components]:
+                raise DependencyOrderException(
+                    "You cannot move answers below "
+                    + ("question groups" if c.is_group else "questions")
+                    + " that depend on them",
+                    swap_component,
+                    component,
+                )
 
 
+# todo: persisting global order (depth + order) of components would help short circuit a lot of these checks
 def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:
-    return component.order > depends_on_component.order
+    # fetching the entire schema means whatever is calling this doesn't have to worry about
+    # guaranteeing lazy loading performance behaviour
+    form = get_form_by_id(component.form_id, with_all_questions=True)
+    return form.all_components.index(component) > form.all_components.index(depends_on_component)
 
 
-# todo: when working generically with components this should dig in and check child components
-#       a short term workaround might be to use _all_components but ideally this should
-#       just expect nested components
-def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
-    for target_question in question.form.questions:
+def raise_if_question_has_any_dependencies(question: Question | Group) -> Never | None:
+    # fetching the entire schema means whatever is calling this doesn't have to worry about
+    # guaranteeing lazy loading performance behaviour
+    form = get_form_by_id(question.form_id, with_all_questions=True)
+
+    # all of the child components that might be removed or impacted with a change to this components
+    child_components_ids = [c.id for c in [question] + (question.all_components if isinstance(question, Group) else [])]
+
+    # go through all components in this schema and compare against any related child components
+    for target_question in form.all_components:
         for condition in target_question.conditions:
-            if condition.managed and condition.managed.question_id == question.id:
+            if condition.managed and condition.managed.question_id in child_components_ids:
                 raise DependencyOrderException(
                     "You cannot delete an answer that other questions depend on", target_question, question
+                )
+    return None
+
+
+def raise_if_group_questions_depend_on_each_other(group: Group) -> Never | None:
+    # fetching the entire schema means whatever is calling this doesn't have to worry about
+    # guaranteeing lazy loading performance behaviour - should investigate fetching the group with all
+    # questions and expressions standalone, consider shared join options for components
+    _ = get_form_by_id(group.form_id, with_all_questions=True)
+    for question in group.questions:
+        for condition in question.conditions:
+            if condition.managed and condition.managed.question_id in [q.id for q in group.questions]:
+                raise DependencyOrderException(
+                    "You cannot set a group to be same page if it contains questions that depend on each other",
+                    question,
+                    condition.managed.referenced_question,
                 )
     return None
 
@@ -615,7 +686,7 @@ def raise_if_question_has_any_dependencies(question: Question) -> Never | None:
 def raise_if_data_source_item_reference_dependency(
     question: Question, items_to_delete: Sequence[DataSourceItem]
 ) -> Never | None:
-    data_source_item_dependency_map: dict[Question, set[DataSourceItem]] = {}
+    data_source_item_dependency_map: dict[Component, set[DataSourceItem]] = {}
     for data_source_item in items_to_delete:
         for reference in data_source_item.references:
             dependent_question = reference.expression.question
@@ -635,16 +706,53 @@ def raise_if_data_source_item_reference_dependency(
 
 def move_component_up(component: Component) -> Component:
     swap_component = component.container.components[component.order - 1]
-    check_component_order_dependency(component, swap_component)
+    _check_component_order_dependency(component, swap_component)
     swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
     return component
 
 
 def move_component_down(component: Component) -> Component:
     swap_component = component.container.components[component.order + 1]
-    check_component_order_dependency(component, swap_component)
+    _check_component_order_dependency(component, swap_component)
     swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
     return component
+
+
+def group_name_exists(name: str, form_id: UUID) -> bool:
+    statement = select(Group).where(Group.name == name and Group.form_id == form_id)
+    group = db.session.scalar(statement)
+    return group is not None
+
+
+def update_group(
+    group: Group,
+    *,
+    name: str | TNotProvided = NOT_PROVIDED,
+    presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
+) -> Group:
+    if name is not NOT_PROVIDED:
+        group.name = name  # ty: ignore[invalid-assignment]
+        group.text = name  # ty: ignore[invalid-assignment]
+        group.slug = slugify(name)  # ty: ignore[invalid-argument-type]
+
+    if presentation_options is not NOT_PROVIDED:
+        if (
+            not group.presentation_options.show_questions_on_the_same_page
+            and presentation_options.show_questions_on_the_same_page  # ty:ignore [possibly-unbound-attribute]
+        ):
+            try:
+                raise_if_group_questions_depend_on_each_other(group)
+            except DependencyOrderException as e:
+                db.session.rollback()
+                raise e
+        group.presentation_options = presentation_options or QuestionPresentationOptions()  # ty: ignore[invalid-assignment]
+
+    try:
+        db.session.flush()
+    except IntegrityError as e:
+        db.session.rollback()
+        raise DuplicateValueError(e) from e
+    return group
 
 
 def update_question(
@@ -726,6 +834,9 @@ def add_component_condition(component: Component, user: User, managed_expression
     component.expressions.append(expression)
 
     try:
+        if component.parent and component.parent.same_page:
+            raise_if_group_questions_depend_on_each_other(component.parent)
+
         if (
             isinstance(managed_expression, BaseDataSourceManagedExpression)
             and managed_expression.referenced_question.data_source
@@ -735,6 +846,9 @@ def add_component_condition(component: Component, user: User, managed_expression
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
+    except DependencyOrderException as e:
+        db.session.rollback()
+        raise e
     return component
 
 
@@ -759,7 +873,7 @@ def get_expression(expression_id: UUID) -> Expression:
     return db.session.get_one(Expression, expression_id)
 
 
-def remove_question_expression(question: Question, expression: Expression) -> Question:
+def remove_question_expression(question: Component, expression: Expression) -> Component:
     question.expressions.remove(expression)
     db.session.flush()
     return question
@@ -801,12 +915,12 @@ def delete_form(form: Form) -> None:
     db.session.flush()
 
 
-def delete_question(question: Question) -> None:
+def delete_question(question: Question | Group) -> None:
     raise_if_question_has_any_dependencies(question)
     db.session.delete(question)
-    if question in question.form.questions:
-        question.form.components.remove(question)
-    question.form.components.reorder()
+    if question in question.container.components:
+        question.container.components.remove(question)
+    question.container.components.reorder()
     db.session.execute(text("SET CONSTRAINTS uq_component_order_form DEFERRED"))
     db.session.flush()
 

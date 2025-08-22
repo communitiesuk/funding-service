@@ -968,7 +968,9 @@
           "id": "b9a4f920-7704-4799-92b9-c4457e1c8705",
           "name": "Lead contact's role",
           "order": 2,
-          "presentation_options": {},
+          "presentation_options": {
+            "show_questions_on_the_same_page": false
+          },
           "slug": "lead-contacts-role",
           "text": "Lead contact's role",
           "type": "GROUP"
@@ -1813,7 +1815,7 @@
       "azure_ad_subject_id": "36f6f23d57459ed3eef25d2835e2d31a",
       "email": "thompsonedwin@test.communities.gov.uk",
       "id": "838de5cd-2874-4612-85de-43f7a485b3ff",
-      "last_logged_in_at_utc": "Mon, 11 Aug 2025 14:37:44 GMT",
+      "last_logged_in_at_utc": "Wed, 20 Aug 2025 18:34:56 GMT",
       "name": "Erik Ramirez"
     }
   ]

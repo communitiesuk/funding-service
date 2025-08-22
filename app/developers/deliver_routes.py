@@ -22,6 +22,7 @@ from app.common.data.interfaces.collections import (
     get_collection,
     get_component_by_id,
     get_form_by_id,
+    get_group_by_id,
     get_question_by_id,
     get_section_by_id,
     move_component_down,
@@ -495,7 +496,7 @@ def add_question(grant_id: UUID, collection_id: UUID, section_id: UUID, form_id:
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
 
     parent_id = request.args.get("parent", None)
-    parent = get_component_by_id(UUID(parent_id)) if parent_id else None
+    parent = get_group_by_id(UUID(parent_id)) if parent_id else None
 
     wt_form = QuestionForm(question_type=question_data_type_enum)
     if wt_form.validate_on_submit():

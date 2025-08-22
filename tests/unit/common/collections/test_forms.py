@@ -31,12 +31,21 @@ class TestBuildQuestionForm:
             id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"), data_type=QuestionDataType.INTEGER
         )
 
-        _FormClass = build_question_form(question, expression_context=ExpressionContext())
+        _FormClass = build_question_form([question], expression_context=ExpressionContext())
         form = _FormClass()
 
         assert not hasattr(form, "csrf_token")
         assert hasattr(form, "submit")
         assert hasattr(form, "q_e4bd98ab41ef4d23b1e59c0404891e7a")
+
+    def test_multiple_questions_attached_by_id(self, factories):
+        questions = factories.question.build_batch(5, data_type=QuestionDataType.INTEGER)
+
+        _FormClass = build_question_form(questions, expression_context=ExpressionContext())
+        form = _FormClass()
+
+        for question in questions:
+            assert hasattr(form, question.safe_qid)
 
     class TestBuildFormContext:
         @pytest.fixture(scope="function")
@@ -53,15 +62,25 @@ class TestBuildQuestionForm:
             yield app
 
         def test_build_form_context(self, factories):
-            question = factories.question.build(
+            q1 = factories.question.build(
                 id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"), data_type=QuestionDataType.INTEGER
             )
+            q2 = factories.question.build(
+                id=uuid.UUID("4d188cd7-2603-4fd8-955d-40e3f65f9312"), data_type=QuestionDataType.TEXT_SINGLE_LINE
+            )
 
-            _FormClass = build_question_form(question, expression_context=ExpressionContext())
-            form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7a": "500"}))
+            _FormClass = build_question_form([q1, q2], expression_context=ExpressionContext())
+            form = _FormClass(
+                formdata=MultiDict(
+                    {"q_e4bd98ab41ef4d23b1e59c0404891e7a": "500", "q_4d188cd726034fd8955d40e3f65f9312": "Test value"}
+                )
+            )
             assert hasattr(form, "csrf_token")
             assert hasattr(form, "submit")
-            assert form._build_form_context() == {"q_e4bd98ab41ef4d23b1e59c0404891e7a": 500}
+            assert form._build_form_context() == {
+                "q_e4bd98ab41ef4d23b1e59c0404891e7a": 500,
+                "q_4d188cd726034fd8955d40e3f65f9312": "Test value",
+            }
 
     def test_expected_fields_exist(self, app):
         q = Question(
@@ -69,7 +88,7 @@ class TestBuildQuestionForm:
             text="Question text",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
-        form = build_question_form(q, expression_context=EC())
+        form = build_question_form([q], expression_context=EC())
         assert hasattr(form, "q_31673d5195b04589b25433b866dfd94f")
         assert hasattr(form, "submit")
 
@@ -101,7 +120,7 @@ class TestBuildQuestionForm:
         q = factories.question.build(
             text="Question text", hint="Question hint", data_type=data_type, presentation_options=presentation_options
         )
-        form = build_question_form(q, expression_context=EC())()
+        form = build_question_form([q], expression_context=EC())()
 
         question_field = form.get_question_field(q)
         assert isinstance(question_field, expected_field_type)

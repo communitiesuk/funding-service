@@ -10,14 +10,24 @@
 {% set active_item_identifier = "reports" %}
 
 {% block beforeContent %}
+  {%
+    set items = [
+      {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
+      {"text": db_form.section.collection.name, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=db_form.section.collection_id)},
+      {"text": db_form.title, "href": url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) },
+    ]
+  %}
+
+  {# todo: when we can have a group in a group include "..." breadcrumb for the parent of any level of nesting above a direct child #}
+
+  {% if question.parent %}
+    {% do items.append({"text": question.parent.name, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.parent_id)}) %}
+  {% endif %}
+  {% do items.append({"text": "Edit " ~ question.name }) %}
+
   {{
     govukBreadcrumbs(params={
-      "items": [
-        {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
-        {"text": db_form.section.collection.name, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=db_form.section.collection_id)},
-        {"text": db_form.title, "href": url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) },
-        {"text": "Edit " ~ question.name},
-      ],
+      "items": items
     })
   }}
 {% endblock beforeContent %}
@@ -28,7 +38,11 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.QUESTION_CREATED]) %}
         {% if flashes %}
           {% set question_created_content %}
-            <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_task_questions', grant_id=grant.id, form_id=db_form.id) }}">Return to the task</a>
+            {% if question.parent %}
+              <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=question.parent.id) }}">Return to the question group</a>
+            {% else %}
+              <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_task_questions', grant_id=grant.id, form_id=db_form.id) }}">Return to the task</a>
+            {% endif %}
             to add more questions, or edit this question to add conditions and validations.
           {% endset %}
           {{
@@ -123,7 +137,7 @@
 
 
             {% set value_html %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, question_id=question.id, expression_id=condition.id) }}">
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, component_id=question.id, expression_id=condition.id) }}">
                 <span class="govuk-visually-hidden">Change condition for</span>
                 {{ condition.managed.message }}
               </a>
@@ -138,7 +152,7 @@
           {{
             govukButton({
               "text": "Add condition",
-              "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, question_id=question.id),
+              "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, component_id=question.id),
               "classes": "govuk-button--secondary",
             })
           }}

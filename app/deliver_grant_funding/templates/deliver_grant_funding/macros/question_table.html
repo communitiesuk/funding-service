@@ -1,0 +1,83 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{# interactively display questions for a given form or question group #}
+{% macro question_table(parent, role_can_edit=false) %}
+  {% set grant = parent.form.section.collection.grant if parent.is_group else parent.section.collection.grant %}
+
+  {% set components = [] %}
+  {% for component in parent.components %}
+    {% do components.append(component) %}
+    {% if component.is_group %}
+
+      {# we'll show questions to one level of depth #}
+      {% for component in component.components %}
+        {% do components.append(component) %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+
+  {% set rows = [] %}
+  {% for question in components %}
+    {% set nested = question.parent and question.parent != parent %}
+    {% set nested_first = nested and question == (question.parent.components | first) %}
+    {% set nested_last = nested and question == (question.parent.components | last) %}
+    {% set keyHtml %}
+      {% if role_can_edit %}
+        {% set edit_link = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) if not question.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.id) %}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ edit_link }}">{{ question.text }}</a>
+      {% else %}
+        {{ question.text }}
+      {% endif %}
+      {% if role_can_edit and question.conditions %}
+        {{
+          govukTag({
+            "text": "Conditional",
+            "classes": "govuk-tag--pink govuk-!-margin-left-1 " ~ ("govuk-!-margin-top-1" if not question.is_group else ""),
+          })
+        }}
+      {% endif %}
+    {% endset %}
+
+    {% set actions = [] %}
+    {% set parent_has_multiple_questions_to_move = (question.parent.components if nested else parent.components)|length > 1 %}
+    {% if role_can_edit and parent_has_multiple_questions_to_move %}
+      {% set visually_hidden_text = ("group of questions: " ~ question.text) if question.is_group else question.text %}
+      {%
+        do actions.append({
+          "text": "Move up",
+          "visuallyHiddenText": visually_hidden_text,
+          "href": url_for('deliver_grant_funding.move_component', grant_id=grant.id, component_id=question.id, direction='up', source=parent.id if parent.is_group else None),
+          "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first or nested_first else ""),
+          "attributes": {"aria-hidden": true} if loop.first or nested_first else {}
+        })
+      %}
+      {%
+        do actions.append({
+          "text": "Move down",
+          "visuallyHiddenText": visually_hidden_text,
+          "href": url_for('deliver_grant_funding.move_component', grant_id=grant.id, component_id=question.id, direction='down', source=parent.id if parent.is_group else None),
+          "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if (question == parent.components | last) or nested_last else ""),
+          "attributes": {"aria-hidden": true} if loop.last or nested_last else {}
+        })
+      %}
+    {% endif %}
+    {%
+      do rows.append(
+      {
+        "key": {"html": keyHtml, "classes": "govuk-!-font-weight-regular govuk-!-width-one-half" },
+        "value": {"text": question.data_type if not question.is_group else "", "classes": "govuk-!-width-one-third" if not actions else ""},
+        "actions": {
+          "items": actions,
+        } if actions else {},
+        "classes": "app-summary-list-group-row " if question.is_group else "" ~ ("app-summary-list-group-nested " if nested else "") ~ ("app-summary-list-group-nested--final " if nested_last else ""),
+      })
+    %}
+  {% endfor %}
+
+  {{
+    govukSummaryList({
+      "rows": rows
+    })
+  }}
+{% endmacro %}

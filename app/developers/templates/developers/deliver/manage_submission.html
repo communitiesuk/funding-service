@@ -34,7 +34,7 @@
     {% for form in submission_helper.get_ordered_visible_forms_for_section(section) %}
       <h3 class="govuk-heading-s govuk-!-margin-top-4">{{ form.title }}</h3>
       {% set rows = [] %}
-      {% for question in submission_helper.get_ordered_visible_questions_for_form(form) %}
+      {% for question in submission_helper.get_ordered_visible_questions(form) %}
 
         {% set answer = submission_helper.get_answer_for_question(question.id) %}
         {% set value_html %}

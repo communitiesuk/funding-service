@@ -9,7 +9,7 @@
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("deliver_grant_funding.choose_question_type", grant_id=grant.id, form_id=db_form.id, question_data_type=chosen_question_data_type.name, back_link="manage_section")
+        "href": url_for("deliver_grant_funding.choose_question_type", grant_id=grant.id, form_id=db_form.id, question_data_type=chosen_question_data_type.name, parent_id=parent.id if parent else None)
     })
   }}
 {% endblock beforeContent %}
@@ -44,7 +44,9 @@
 
         <span class="govuk-button-group">
           {{ form.submit(params={"text": "Add question"}) }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) }}">Cancel</a>
+
+          {% set link = url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) if not parent else url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=parent.id) %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ link }}">Cancel</a>
         </span>
       </form>
     </div>

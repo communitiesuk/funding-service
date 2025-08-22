@@ -19,15 +19,19 @@ from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAr
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.data.interfaces.collections import get_question_by_id, is_component_dependency_order_valid
+from app.common.data.interfaces.collections import (
+    get_question_by_id,
+    group_name_exists,
+    is_component_dependency_order_valid,
+)
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
-from app.common.data.types import MultilineTextInputRows, NumberInputWidths, QuestionDataType
+from app.common.data.types import GroupDisplayOptions, MultilineTextInputRows, NumberInputWidths, QuestionDataType
 from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
-    from app.common.data.models import Question
+    from app.common.data.models import Component, Question
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
@@ -231,10 +235,36 @@ class QuestionTypeForm(FlaskForm):
 
 class GroupForm(FlaskForm):
     name = StringField(
-        "Group name",
-        validators=[DataRequired("Enter the group name")],
+        "Question group name",
+        validators=[DataRequired("Enter question the group name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, check_name_exists: bool = False, group_form_id: UUID | None = None, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.check_name_exists = check_name_exists
+        self.group_form_id = group_form_id
+
+    def validate_name(self, field: StringField) -> None:
+        if field.data and self.check_name_exists:
+            if not self.group_form_id:
+                raise ValueError("group_form_id must be provided if check_name_exists is True")
+            if group_name_exists(field.data, self.group_form_id):
+                raise ValidationError("A question group with this name already exists")
+
+
+class GroupDisplayOptionsForm(FlaskForm):
+    show_questions_on_the_same_page = RadioField(
+        "How do you want this question group to be displayed?",
+        choices=[
+            (GroupDisplayOptions.ONE_QUESTION_PER_PAGE, "One question per page"),
+            (GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE, "All questions on the same page"),
+        ],
+        default=GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
+        validators=[DataRequired("Select how you want this question group to be displayed")],
+        widget=GovRadioInput(),
     )
     submit = SubmitField(widget=GovSubmitInput())
 
@@ -461,7 +491,7 @@ class ConditionSelectQuestionForm(FlaskForm):
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
-    def __init__(self, *args, question: "Question", **kwargs):  # type: ignore[no-untyped-def]
+    def __init__(self, *args, question: "Component", **kwargs):  # type: ignore[no-untyped-def]
         super().__init__(*args, **kwargs)
 
         self.target_question = question
@@ -474,6 +504,13 @@ class ConditionSelectQuestionForm(FlaskForm):
         depends_on_question = get_question_by_id(self.question.data)
         if not is_component_dependency_order_valid(self.target_question, depends_on_question):
             raise ValidationError("Select an answer that comes before this question in the form")
+
+        if (
+            self.target_question.parent
+            and self.target_question.parent.same_page
+            and (depends_on_question.parent == self.target_question.parent)
+        ):
+            raise ValidationError("Select an answer that is not on the same page as this question")
 
 
 class AddGuidanceForm(FlaskForm):
