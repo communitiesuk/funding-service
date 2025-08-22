@@ -603,7 +603,7 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
 
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
-def check_component_order_dependency(component: Component, swap_component: Component) -> None:
+def _check_component_order_dependency(component: Component, swap_component: Component) -> None:
     # fetching the entire schema means whatever is calling this doesn't have to worry about
     # guaranteeing lazy loading performance behaviour
     _ = get_form_by_id(component.form_id, with_all_questions=True)
@@ -697,14 +697,14 @@ def raise_if_data_source_item_reference_dependency(
 
 def move_component_up(component: Component) -> Component:
     swap_component = component.container.components[component.order - 1]
-    check_component_order_dependency(component, swap_component)
+    _check_component_order_dependency(component, swap_component)
     swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
     return component
 
 
 def move_component_down(component: Component) -> Component:
     swap_component = component.container.components[component.order + 1]
-    check_component_order_dependency(component, swap_component)
+    _check_component_order_dependency(component, swap_component)
     swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
     return component
 
