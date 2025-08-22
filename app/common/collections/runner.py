@@ -26,6 +26,7 @@ class FormRunner:
 
     url_map: ClassVar[TRunnerUrlMap] = {}
     component: Optional[Union["Question", "Group"]]
+    questions: list["Question"]
 
     def __init__(
         self,
@@ -45,8 +46,10 @@ class FormRunner:
         # pass the whole group into the form runner
         if question and question.parent and question.parent.same_page:
             self.component = question.parent
+            self.questions = self.submission.get_ordered_visible_questions(self.component)
         else:
             self.component = question
+            self.questions = [self.component] if self.component else []
 
         self._valid: Optional[bool] = None
 
@@ -58,7 +61,7 @@ class FormRunner:
             self.form = self.component.form
             # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
             _QuestionForm = build_question_form(
-                self.component.questions if self.component.is_group else [self.component],  # type: ignore
+                self.questions,
                 self.submission.expression_context,
             )
             self._question_form = _QuestionForm(data=self.submission.form_data)
@@ -122,7 +125,7 @@ class FormRunner:
         if not self.component:
             raise RuntimeError("Question context not set")
 
-        for question in self.component.questions if self.component.is_group else [self.component]:  # type: ignore
+        for question in self.questions:
             self.submission.submit_answer_for_question(question.id, self.question_form)
 
     def save_is_form_completed(self, user: "User") -> bool:
@@ -168,7 +171,7 @@ class FormRunner:
             if not self._valid:
                 return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
-            last_question = self.component.questions[-1] if self.component.is_group else self.component  # type: ignore
+            last_question = self.questions[-1] if self.component.is_group else self.component
             next_question = self.submission.get_next_question(last_question.id)
 
             # Regardless of where they're from (eg even check-your-answers), take them to the next unanswered question
@@ -212,7 +215,7 @@ class FormRunner:
             return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
         if self.component:
-            first_question = self.component.questions[0] if self.component.is_group else self.component  # type: ignore
+            first_question = self.questions[0] if self.component.is_group else self.component
             previous_question = self.submission.get_previous_question(first_question.id)
         elif self.form:
             previous_question = self.submission.get_last_question_for_form(self.form)

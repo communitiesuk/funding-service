@@ -612,11 +612,10 @@ class _QuestionFactory(SQLAlchemyModelFactory):
                     DataSourceItemReference(expression_id=expression.id, data_source_item_id=item.id)
                     for item in referenced_items
                 ]
-
-            db.session.add(expression)
             self.expressions.append(expression)
 
         if create:
+            db.session.add(expression)
             db.session.commit()
 
 

@@ -4,7 +4,9 @@ import pytest
 
 from app.common.collections.runner import FormRunner
 from app.common.collections.types import TextSingleLineAnswer
+from app.common.data.models import Expression
 from app.common.data.types import FormRunnerState, QuestionDataType, QuestionPresentationOptions
+from app.common.expressions.managed import GreaterThan
 from app.common.helpers.collections import SubmissionHelper
 
 
@@ -16,6 +18,7 @@ class TestFormRunner:
 
         question_state_context = FormRunner(submission=helper, question=question, source=None)
         assert question_state_context.component == question
+        assert question_state_context.questions == [question]
         assert question_state_context.form == question.form
         assert question_state_context.question_form is not None
 
@@ -41,7 +44,7 @@ class TestFormRunner:
         runner = FormRunner(submission=helper, question=q1, source=None)
 
         assert runner.component == group
-        assert runner.component.questions == [q1, q2]
+        assert runner.questions == [q1, q2]
         assert runner.question_form is not None
 
     def test_form_runner_correctly_configures_dynamic_question_form(self, factories):
@@ -55,6 +58,31 @@ class TestFormRunner:
         runner = FormRunner(submission=helper, question=question, source=None)
         assert runner.question_form.get_question_field(question) is not None
         assert runner.question_form.get_answer_to_question(question) == "An answer"
+
+    def test_form_runner_only_configures_visible_questions_for_same_page(self, factories):
+        user = factories.user.build()
+        group = factories.group.build(
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        q0 = factories.question.build(form=group.form)
+        q1 = factories.question.build(parent=group, form=group.form)
+        q2 = factories.question.build(
+            parent=group,
+            form=group.form,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q0.id, minimum_value=100), user)],
+        )
+        q3 = factories.question.build(parent=group, form=group.form)
+        submission = factories.submission.build(collection=group.form.section.collection)
+        helper = SubmissionHelper(submission)
+
+        runner = FormRunner(submission=helper, question=q1, source=None)
+
+        assert runner.component == group
+        assert runner.questions == [q1, q3]
+        assert runner.question_form.get_question_field(q1) is not None
+        with pytest.raises(AttributeError):
+            runner.question_form.get_question_field(q2)
+        assert runner.question_form.get_question_field(q3) is not None
 
     def test_form_runner_correctly_configured_dynamic_question_form_for_same_page(self, factories):
         group = factories.group.build(
