@@ -442,6 +442,10 @@ class Group(Component):
     def all_components(self) -> list["Component"]:
         return get_ordered_nested_components(self.components)
 
+    @property
+    def same_page(self) -> bool:
+        return bool(self.presentation_options.show_questions_on_the_same_page) if self.presentation_options else False
+
 
 class SubmissionEvent(BaseModel):
     __tablename__ = "submission_event"

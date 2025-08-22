@@ -97,3 +97,15 @@ class TestGroupModel:
 
         assert group.questions == [question2, question3, question4]
         assert sub_group.questions == [question4]
+
+    @pytest.mark.parametrize("show_questions_on_the_same_page", [True, False])
+    def test_same_page_property(self, factories, show_questions_on_the_same_page):
+        form = factories.form.create()
+        group = factories.group.create(
+            form_id=form.id,
+            presentation_options=QuestionPresentationOptions(
+                show_questions_on_the_same_page=show_questions_on_the_same_page
+            ),
+        )
+
+        assert group.same_page is show_questions_on_the_same_page

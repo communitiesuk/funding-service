@@ -2,7 +2,7 @@
 {% from "common/macros/collections.html" import collection_before with context %}
 {% extends "developers/access/base.html" %}
 
-{% set page_title = runner.question.text ~ " - " ~ runner.form.title %}
+{% set page_title = runner.component.text ~ " - " ~ runner.form.title %}
 
 {% set form = runner.question_form %}
 
