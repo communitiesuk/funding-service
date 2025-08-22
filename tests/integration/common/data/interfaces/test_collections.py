@@ -29,6 +29,7 @@ from app.common.data.interfaces.collections import (
     get_referenced_data_source_items_by_managed_expression,
     get_section_by_id,
     get_submission,
+    is_component_dependency_order_valid,
     move_component_down,
     move_component_up,
     move_form_down,
@@ -1399,6 +1400,16 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
                     count += 1
 
     assert queries == []
+
+
+class TestIsComponentDependencyOrderValid:
+    def test_with_nested_group_order(self, db_session, factories):
+        form = factories.form.create()
+        question = factories.question.create(form=form)
+        group = factories.group.create(form=form)
+        nested_question = factories.question.create(form=form, parent=group)
+
+        assert is_component_dependency_order_valid(nested_question, question) is True
 
 
 class TestExpressions:
