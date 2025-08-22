@@ -1,8 +1,8 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
 {% macro dependency_banner(error) %}
-  {% set question_link = url_for("deliver_grant_funding.edit_question", grant_id=error.grant_id, question_id=error.question_id) %}
-  {% set depends_on_link = url_for("deliver_grant_funding.edit_question", grant_id=error.grant_id, question_id=error.depends_on_question_id) %}
+  {% set question_link = url_for("deliver_grant_funding.edit_question", grant_id=error.grant_id, question_id=error.question_id) if not error.question_is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=error.grant_id, group_id=error.question_id) %}
+  {% set depends_on_link = url_for("deliver_grant_funding.edit_question", grant_id=error.grant_id, question_id=error.depends_on_question_id) if not error.depends_on_question_is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=error.grant_id, group_id=error.depends_on_question_id) %}
 
 
   {% set banner_html %}
