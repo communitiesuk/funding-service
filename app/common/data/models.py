@@ -434,6 +434,7 @@ class Group(Component):
         # reflect that groups will never have a data type but don't hook in a competing migration
         data_type: None
 
+    # todo: rename to something that makes it clear this is processed, something like all_nested_questions
     @property
     def questions(self) -> list["Question"]:
         return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]

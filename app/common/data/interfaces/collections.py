@@ -639,6 +639,22 @@ def raise_if_question_has_any_dependencies(question: Question | Group) -> Never 
     return None
 
 
+def raise_if_group_questions_depend_on_each_other(group: Group) -> Never | None:
+    # fetching the entire schema means whatever is calling this doesn't have to worry about
+    # guaranteeing lazy loading performance behaviour - should investigate fetching the group with all
+    # questions and expressions standalone, consider shared join options for components
+    _ = get_form_by_id(group.form_id, with_all_questions=True)
+    for question in group.questions:
+        for condition in question.conditions:
+            if condition.managed and condition.managed.question_id in [q.id for q in group.questions]:
+                raise DependencyOrderException(
+                    "You cannot set a group to be same page if it contains questions that depend on each other",
+                    question,
+                    condition.managed.referenced_question,
+                )
+    return None
+
+
 def raise_if_data_source_item_reference_dependency(
     question: Question, items_to_delete: Sequence[DataSourceItem]
 ) -> Never | None:

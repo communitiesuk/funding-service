@@ -36,6 +36,7 @@ from app.common.data.interfaces.collections import (
     move_section_down,
     move_section_up,
     raise_if_data_source_item_reference_dependency,
+    raise_if_group_questions_depend_on_each_other,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
     update_group,
@@ -1089,6 +1090,23 @@ def test_raise_if_group_has_any_dependencies(db_session, factories):
 
     assert e.value.question == q2  # ty: ignore[unresolved-attribute]
     assert e.value.depends_on_question == group  # ty: ignore[unresolved
+
+
+def test_raise_if_group_questions_depend_on_each_other(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    group = factories.group.create(form=form)
+    q1 = factories.question.create(parent=group, form=form, data_type=QuestionDataType.INTEGER)
+    q2 = factories.question.create(
+        parent=group,
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=1000), user)],
+    )
+
+    with pytest.raises(DependencyOrderException) as e:
+        raise_if_group_questions_depend_on_each_other(group)
+    assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
 
 
 def test_raise_if_radios_data_source_item_reference_dependency(db_session, factories):

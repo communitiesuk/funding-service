@@ -707,6 +707,44 @@ class TestChangeQuestionGroupDisplay:
         updated_group = db_session.get(Group, db_group.id)
         assert updated_group.presentation_options.show_questions_on_the_same_page is True
 
+    def test_post_change_same_page_with_question_inter_dependencies(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_user = factories.user.create()
+        db_form = factories.form.create(
+            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(
+            form=db_form,
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        db_question1 = factories.question.create(form=db_form, parent=db_group)
+        _ = factories.question.create(
+            form=db_form,
+            parent=db_group,
+            expressions=[
+                Expression.from_managed(GreaterThan(question_id=db_question1.id, minimum_value=1000), db_user)
+            ],
+        )
+
+        form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "all-questions-on-same-page"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_display_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup, "A question group cannot display on the same page if questions depend on answers within the group"
+        )
+
 
 class TestChangeFormName:
     def test_404(self, authenticated_grant_member_client):
