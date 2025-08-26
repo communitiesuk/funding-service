@@ -17,6 +17,7 @@ from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
 from tests.e2e.pages import AllGrantsPage
 from tests.e2e.reports_pages import (
+    AddQuestionDetailsPage,
     ManageTaskPage,
     ReportTasksPage,
     RunnerCheckYourAnswersPage,
@@ -148,28 +149,36 @@ def create_question(question_definition: TQuestionToTest, manage_task_page: Mana
             question_details_page.click_other_option_checkbox()
             question_details_page.enter_other_option_text()
 
-    if question_definition["type"] == QuestionDataType.INTEGER:
-        question_details_page.click_advanced_formatting_options()
-        options = question_definition.get("options")
-        if options is not None:
+    if (
+        question_definition["type"] in [QuestionDataType.INTEGER, QuestionDataType.TEXT_MULTI_LINE]
+        and question_definition.get("options") is not None
+    ):
+        add_advanced_formatting(question_definition, question_details_page)
+
+    edit_question_page = question_details_page.click_submit()
+    edit_question_page.click_return_to_task()
+
+
+def add_advanced_formatting(
+    question_definition: TQuestionToTest, question_details_page: AddQuestionDetailsPage
+) -> None:
+    options = question_definition.get("options")
+    question_details_page.click_advanced_formatting_options()
+    match question_definition["type"]:
+        case QuestionDataType.TEXT_MULTI_LINE:
+            if options.rows is not None:
+                question_details_page.select_multiline_input_rows(options.rows)
+            if options.word_limit is not None:
+                question_details_page.fill_word_limit(options.word_limit)
+        case QuestionDataType.INTEGER:
             if options.prefix is not None:
                 question_details_page.fill_prefix(options.prefix)
             if options.suffix is not None:
                 question_details_page.fill_suffix(options.suffix)
             if options.width is not None:
                 question_details_page.select_input_width(options.width)
-
-    if question_definition["type"] == QuestionDataType.TEXT_MULTI_LINE:
-        question_details_page.click_advanced_formatting_options()
-        options = question_definition.get("options")
-        if options is not None:
-            if options.rows is not None:
-                question_details_page.select_multiline_input_rows(options.rows)
-            if options.word_limit is not None:
-                question_details_page.fill_word_limit(options.word_limit)
-
-    question_details_page.click_submit()
-    question_details_page.click_return_to_task()
+        case _:
+            pass  # No advanced formatting for other question types
 
 
 def add_validation(manage_task_page: ManageTaskPage, question_text: str, validation: ManagedExpression) -> None:

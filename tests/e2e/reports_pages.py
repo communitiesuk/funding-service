@@ -289,6 +289,18 @@ class EditQuestionPage(ReportsBasePage):
         expect(manage_task_page.heading).to_be_visible()
         return manage_task_page
 
+    def click_return_to_task(self) -> ManageTaskPage:
+        self.page.get_by_role("link", name="Return to the task").click()
+        manage_task_page = ManageTaskPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+        )
+        expect(manage_task_page.heading).to_be_visible()
+        return manage_task_page
+
 
 class AddValidationPage(ReportsBasePage):
     add_validation_button: Locator
@@ -429,18 +441,6 @@ class AddQuestionDetailsPage(ReportsBasePage):
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
-
-    def click_return_to_task(self) -> ManageTaskPage:
-        self.page.get_by_role("link", name="Return to the task").click()
-        manage_task_page = ManageTaskPage(
-            self.page,
-            self.domain,
-            grant_name=self.grant_name,
-            report_name=self.report_name,
-            task_name=self.task_name,
-        )
-        expect(manage_task_page.heading).to_be_visible()
-        return manage_task_page
 
 
 class AddTaskPage(ReportsBasePage):
