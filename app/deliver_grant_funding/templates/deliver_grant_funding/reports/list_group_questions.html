@@ -141,9 +141,32 @@
           })
         }}
       </div>
+
+      {% if group.same_page %}
+        <div class="govuk-body govuk-form-group">
+          <h2 class="govuk-heading-m govuk-!-margin-top-5">Guidance</h2>
+          <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question group, or to format your content with paragraphs, headings, lists or links.</p>
+
+          {% if group.guidance_body %}
+            {% set guidance_text %}
+              <pre class="app-pre-markdown">{{ group.guidance_body }}</pre>
+            {% endset %}
+            {{
+              govukSummaryList({
+                "rows": [
+                  {"key": {"text": "Page heading"}, "value": {"text": group.guidance_heading}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=group.id), "text": "Change", "visuallyHiddenText": "page heading"}] } },
+                  {"key": {"text": "Guidance text"}, "value": {"html": guidance_text}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=group.id), "text": "Change", "visuallyHiddenText": "guidance text"}] } },
+                ]
+              })
+            }}
+          {% else %}
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=group.id) }}"> Add guidance </a>
+          {% endif %}
+        </div>
+      {% endif %}
       {% if grant_admin %}
         <div class="govuk-body govuk-form-group">
-          <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage question group</h2>
+          <h2 class="govuk-heading-m govuk-!-margin-top-9">Manage question group</h2>
           <div class="govuk-body">
             <ul class="govuk-list govuk-list--spaced">
               <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.change_group_name', grant_id=grant.id, group_id=group.id) }}">Change question group name</a></li>

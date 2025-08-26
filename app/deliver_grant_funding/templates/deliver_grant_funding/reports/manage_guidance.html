@@ -7,10 +7,11 @@
 {% set submit_label = "Add guidance" if not question.guidance_body else "Update guidance" %}
 
 {% block beforeContent %}
+  {% set back_link = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) if not question.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.id) %}
   {{
     govukBackLink({
         "text": "Back",
-        "href": url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id)
+        "href": back_link
     })
   }}
 {% endblock beforeContent %}

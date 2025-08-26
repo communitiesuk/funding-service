@@ -109,11 +109,14 @@
         <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question, or to format your content with paragraphs, headings, lists or links.</p>
 
         {% if question.guidance_body %}
+          {% set guidance_text %}
+            <pre class="app-pre-markdown">{{ question.guidance_body }}</pre>
+          {% endset %}
           {{
             govukSummaryList({
               "rows": [
                 {"key": {"text": "Page heading"}, "value": {"text": question.guidance_heading}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "page heading"}] } },
-                {"key": {"text": "Guidance text"}, "value": {"html": question.guidance_body.replace('\n', '<br>')}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "guidance text"}] } },
+                {"key": {"text": "Guidance text"}, "value": {"html": guidance_text}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "guidance text"}] } },
               ]
             })
           }}

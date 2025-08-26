@@ -738,6 +738,8 @@ def update_group(
     *,
     name: str | TNotProvided = NOT_PROVIDED,
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
+    guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
+    guidance_body: str | None | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
         group.name = name  # ty: ignore[invalid-assignment]
@@ -755,6 +757,12 @@ def update_group(
                 db.session.rollback()
                 raise e
         group.presentation_options = presentation_options or QuestionPresentationOptions()  # ty: ignore[invalid-assignment]
+
+    if guidance_heading is not NOT_PROVIDED:
+        group.guidance_heading = guidance_heading  # ty: ignore[invalid-assignment]
+
+    if guidance_body is not NOT_PROVIDED:
+        group.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
 
     try:
         db.session.flush()

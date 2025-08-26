@@ -2689,6 +2689,7 @@ class TestManageGuidance:
         )
 
         assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
 
         updated_question = db_session.get(Question, question.id)
         assert updated_question.guidance_heading == "Updated heading"
@@ -2748,6 +2749,52 @@ class TestManageGuidance:
         updated_question = db_session.get(Question, question.id)
         assert updated_question.guidance_heading == "Existing heading"
         assert updated_question.guidance_body == "Existing body"
+
+    def test_get_edit_guidance_groups(self, authenticated_grant_admin_client, factories, db_session):
+        group = factories.group.create(
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            guidance_heading="Existing heading",
+            guidance_body="Existing body",
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.manage_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Edit guidance" in soup.text
+        assert "Existing body" in soup.text
+
+    def test_post_update_guidance_groups(self, authenticated_grant_admin_client, factories, db_session):
+        group = factories.group.create(
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            guidance_heading="Old heading",
+            guidance_body="Old body",
+        )
+
+        form = AddGuidanceForm(guidance_heading="Updated heading", guidance_body="Updated body")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=group.id,
+            ),
+            data={k: v for k, v in form.data.items() if k not in ["preview"]},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+
+        updated_group = db_session.get(Group, group.id)
+        assert updated_group.guidance_heading == "Updated heading"
+        assert updated_group.guidance_body == "Updated body"
 
 
 class TestListSubmissions:
