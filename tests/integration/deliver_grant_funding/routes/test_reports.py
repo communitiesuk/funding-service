@@ -1482,6 +1482,32 @@ class TestEditQuestion:
             assert db_question.hint == "Question hint"
             assert db_question.data_type == QuestionDataType.TEXT_SINGLE_LINE
 
+    def test_get_with_group(self, request, authenticated_grant_admin_client, factories, db_session):
+        group = factories.group.create(
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+            name="Test group",
+        )
+        question = factories.question.create(parent=group, form=group.form)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        # we link back to the parent group in the breadcrumbs
+        assert page_has_link(soup, "Test group")
+
+        # the option to edit guidance text is removed and we give a prompt for what you can do
+        assert "This question is part of a group of questions that are all on the same page." in soup.text
+        assert "Guidance can be added to the question group." in soup.text
+
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
