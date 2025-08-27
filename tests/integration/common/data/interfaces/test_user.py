@@ -571,3 +571,27 @@ class TestInvitations:
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
         invite_from_db = db_session.scalar(select(Invitation).where(Invitation.is_usable.is_(True)))
         assert invite_from_db.grant_id == grant.id and invite_from_db.role == RoleEnum.MEMBER
+
+    def test_upsert_platform_admin_user_and_set_platform_admin_role_claims_invitations(
+        self, db_session, factories
+    ) -> None:
+        grants = factories.grant.create_batch(3)
+        for grant in grants:
+            factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+
+        factories.invitation.create(email="different_email@communities.gov.uk", grant=grants[0], role=RoleEnum.MEMBER)
+
+        interfaces.user.upsert_user_and_set_platform_admin_role(
+            azure_ad_subject_id="oih12373", email_address="test@communities.gov.uk", name="User Name"
+        )
+
+        usable_invites_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert (
+            len(usable_invites_from_db) == 1 and usable_invites_from_db[0].email == "different_email@communities.gov.uk"
+        )
+
+        user_from_db = db_session.scalar(select(User).where(User.azure_ad_subject_id == "oih12373"))
+        assert len(user_from_db.roles) == 1
+        user_from_db_role = user_from_db.roles[0]
+        assert user_from_db_role.role == RoleEnum.ADMIN
+        assert (user_from_db_role.organisation_id, user_from_db_role.grant_id) == (None, None)

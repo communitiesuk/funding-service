@@ -248,6 +248,11 @@ def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_addr
         email_address=email_address,
         name=name,
     )
+    # Claiming invitations here is an edge case but avoids pre-invited grant team members who might sign in for the
+    # first time as a platform admin from having pending invitations in the database and Grant Team views
+    invitations = get_usable_invitations_by_email(email=email_address)
+    for invite in invitations:
+        claim_invitation(invitation=invite, user=user)
     set_platform_admin_role_for_user(user)
     return user
 
