@@ -126,3 +126,43 @@ def test_validation_attached_to_multiple_fields(factories, db_session):
     assert "The answer must be greater than or equal to 100" in form.errors[q2.safe_qid]
 
     assert q3.safe_qid not in form.errors
+
+
+@pytest.mark.parametrize(
+    "user_input, will_validate, saved_input",
+    [
+        ("  email@email.com  ", True, "email@email.com"),
+        ("  not-an-email  ", False, "not-an-email"),
+    ],
+)
+def test_email_strips_empty_chars(factories, user_input, will_validate, saved_input) -> None:
+    question = factories.question.build(
+        id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"),
+        data_type=QuestionDataType.EMAIL,
+        name="test email",
+    )
+    _FormClass = build_question_form([question], expression_context=ExpressionContext())
+    form = _FormClass(formdata=MultiDict({question.safe_qid: user_input}))
+    valid = form.validate()
+    assert valid is will_validate
+    assert form.get_answer_to_question(question) == saved_input
+
+
+@pytest.mark.parametrize(
+    "user_input, will_validate, saved_input",
+    [
+        ("  www.google.com  ", True, "www.google.com"),
+        ("  not-a-url  ", False, "not-a-url"),
+    ],
+)
+def test_url_strips_empty_chars(factories, user_input, will_validate, saved_input) -> None:
+    question = factories.question.build(
+        id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"),
+        data_type=QuestionDataType.URL,
+        name="test url",
+    )
+    _FormClass = build_question_form([question], expression_context=ExpressionContext())
+    form = _FormClass(formdata=MultiDict({question.safe_qid: user_input}))
+    valid = form.validate()
+    assert valid is will_validate
+    assert form.get_answer_to_question(question) == saved_input

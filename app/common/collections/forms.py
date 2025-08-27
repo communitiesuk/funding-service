@@ -130,6 +130,7 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                         DataRequired(f"Enter the {question.name}"),
                         Email(message="Enter an email address in the correct format, like name@example.com"),
                     ],
+                    filters=[lambda x: x.strip() if x else x],
                 )
             case QuestionDataType.TEXT_SINGLE_LINE:
                 field = StringField(
@@ -204,6 +205,7 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                             require_tld=True,
                         ),
                     ],
+                    filters=[lambda x: x.strip() if x else x],
                 )
             case QuestionDataType.CHECKBOXES:
                 choices = [(item.key, item.label) for item in question.data_source.items]
