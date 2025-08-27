@@ -7,6 +7,7 @@ from playwright.sync_api import Locator, Page, expect
 
 from app.common.data.types import ManagedExpressionsEnum, MultilineTextInputRows, NumberInputWidths, QuestionDataType
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
+from tests.e2e.dataclasses import GuidanceText
 
 
 class ReportsBasePage:
@@ -246,8 +247,10 @@ class ManageTaskPage(ReportsBasePage):
 
 
 class EditQuestionPage(ReportsBasePage):
-    add_validation_button: Locator
     task_breadcrumb: Locator
+    add_validation_button: Locator
+    add_guidance_button: Locator
+    change_guidance_link: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
         super().__init__(
@@ -258,12 +261,14 @@ class EditQuestionPage(ReportsBasePage):
         )
         self.report_name = report_name
         self.task_name = task_name
-        self.add_validation_button = self.page.get_by_role("button", name="Add validation").or_(
-            self.page.get_by_role("button", name="Add more validation")
-        )
         self.task_breadcrumb = self.page.locator("a.govuk-breadcrumbs__link").filter(
             has=page.get_by_text(f"{task_name}")
         )
+        self.add_validation_button = self.page.get_by_role("button", name="Add validation").or_(
+            self.page.get_by_role("button", name="Add more validation")
+        )
+        self.add_guidance_button = self.page.get_by_role("link", name="Add guidance")
+        self.change_guidance_link = self.page.get_by_role("link", name="Change  page heading")
 
     def click_add_validation(self) -> "AddValidationPage":
         self.add_validation_button.click()
@@ -288,6 +293,172 @@ class EditQuestionPage(ReportsBasePage):
         )
         expect(manage_task_page.heading).to_be_visible()
         return manage_task_page
+
+    def click_return_to_task(self) -> ManageTaskPage:
+        self.page.get_by_role("link", name="Return to the task").click()
+        manage_task_page = ManageTaskPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+        )
+        expect(manage_task_page.heading).to_be_visible()
+        return manage_task_page
+
+    def click_save(self) -> ManageTaskPage:
+        self.page.get_by_role("button", name="Save").click()
+        manage_task_page = ManageTaskPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+        )
+        expect(manage_task_page.heading).to_be_visible()
+        return manage_task_page
+
+    def click_add_guidance(self) -> AddGuidancePage:
+        self.add_guidance_button.click()
+        add_guidance_page = AddGuidancePage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+        )
+        expect(add_guidance_page.heading).to_be_visible()
+        return add_guidance_page
+
+    def click_change_guidance(self) -> AddGuidancePage:
+        self.change_guidance_link.click()
+        add_guidance_page = AddGuidancePage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+        )
+        expect(add_guidance_page.heading).to_be_visible()
+        return add_guidance_page
+
+
+class AddGuidancePage(ReportsBasePage):
+    save_guidance_button: Locator
+    preview_guidance_tab: Locator
+    write_guidance_tab: Locator
+    h2_button: Locator
+    link_button: Locator
+    bulleted_list_button: Locator
+    numbered_list_button: Locator
+    guidance_heading_textbox: Locator
+    guidance_body_textbox: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Add guidance").or_(
+                page.get_by_role("heading", name="Edit guidance")
+            ),
+        )
+        self.report_name = report_name
+        self.task_name = task_name
+        self.save_guidance_button = self.page.get_by_role("button", name="Save guidance")
+        self.preview_guidance_tab = self.page.get_by_role("tab", name="Preview guidance")
+        self.write_guidance_tab = self.page.get_by_role("tab", name="Write guidance")
+        self.h2_button = self.page.get_by_role("button", name="Add a second-level heading")
+        self.link_button = self.page.get_by_role("button", name="Add a link")
+        self.bulleted_list_button = self.page.get_by_role("button", name="Add a bulleted list")
+        self.numbered_list_button = self.page.get_by_role("button", name="Add a numbered list")
+        self.guidance_heading_textbox = self.page.get_by_role("textbox", name="Give your page a heading")
+        self.guidance_body_textbox = self.page.get_by_role("textbox", name="Add guidance text")
+
+    def fill_guidance_heading(self, text: str) -> None:
+        self.guidance_heading_textbox.fill(text)
+
+    def fill_guidance_text(self, text: str) -> None:
+        self.guidance_body_textbox.type(text)
+
+    def go_to_end_of_guidance_text(self) -> None:
+        self.guidance_body_textbox.focus()
+        self.page.keyboard.press("ControlOrMeta+ArrowDown")
+
+    def add_linebreaks_to_guidance_text(self) -> None:
+        self.go_to_end_of_guidance_text()
+        self.page.keyboard.press("Enter")
+        self.page.keyboard.press("Enter")
+
+    def clear_guidance_heading(self) -> None:
+        self.guidance_heading_textbox.clear()
+
+    def clear_guidance_body(self) -> None:
+        self.guidance_body_textbox.clear()
+
+    def click_h2_button(self) -> None:
+        self.h2_button.click()
+
+    def click_link_button(self) -> None:
+        self.link_button.click()
+
+    def click_bulleted_list_button(self) -> None:
+        self.bulleted_list_button.click()
+
+    def click_numbered_list_button(self) -> None:
+        self.numbered_list_button.click()
+
+    def click_preview_guidance_tab(self) -> None:
+        self.preview_guidance_tab.click()
+
+    def click_write_guidance_tab(self) -> None:
+        self.write_guidance_tab.click()
+
+    def click_save_guidance_button(self) -> EditQuestionPage:
+        self.save_guidance_button.click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
+
+    def fill_guidance(self, question_definition_guidance: GuidanceText) -> None:
+        self.clear_guidance_heading()
+        self.clear_guidance_body()
+        self.fill_guidance_heading(question_definition_guidance.heading)
+        self.fill_guidance_text(f"## {question_definition_guidance.body_heading}")
+        self.add_linebreaks_to_guidance_text()
+        self.fill_guidance_text(
+            f"[{question_definition_guidance.body_link_text}]({question_definition_guidance.body_link_url})"
+        )
+        self.add_linebreaks_to_guidance_text()
+        self.fill_guidance_text("\n".join(f"* {item}" for item in question_definition_guidance.body_ul_items))
+        self.add_linebreaks_to_guidance_text()
+        self.fill_guidance_text(
+            "\n".join(f"{i + 1}. {item}" for i, item in enumerate(question_definition_guidance.body_ol_items))
+        )
+
+    def fill_guidance_default(self) -> None:
+        self.click_h2_button()
+        self.add_linebreaks_to_guidance_text()
+        self.click_link_button()
+        self.add_linebreaks_to_guidance_text()
+        self.click_bulleted_list_button()
+        self.add_linebreaks_to_guidance_text()
+        self.click_numbered_list_button()
+        self.click_preview_guidance_tab()
+        expect(self.page.get_by_role("heading", name="Heading text")).to_be_visible()
+        expect(self.page.get_by_role("link", name="Link text")).to_be_visible()
+        expect(self.page.get_by_role("link", name="Link text")).to_have_attribute(
+            "href", "https://www.gov.uk/link-text-url"
+        )
+        expect(self.page.get_by_label("Preview guidance").locator("ul").get_by_text("List item")).to_be_visible()
+        expect(self.page.get_by_label("Preview guidance").locator("ol").get_by_text("List item")).to_be_visible()
+        self.click_write_guidance_tab()
 
 
 class AddValidationPage(ReportsBasePage):
@@ -429,18 +600,6 @@ class AddQuestionDetailsPage(ReportsBasePage):
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
-
-    def click_return_to_task(self) -> ManageTaskPage:
-        self.page.get_by_role("link", name="Return to the task").click()
-        manage_task_page = ManageTaskPage(
-            self.page,
-            self.domain,
-            grant_name=self.grant_name,
-            report_name=self.report_name,
-            task_name=self.task_name,
-        )
-        expect(manage_task_page.heading).to_be_visible()
-        return manage_task_page
 
 
 class AddTaskPage(ReportsBasePage):
