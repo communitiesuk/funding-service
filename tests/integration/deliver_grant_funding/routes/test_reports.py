@@ -1483,7 +1483,6 @@ class TestEditQuestion:
             assert db_question.data_type == QuestionDataType.TEXT_SINGLE_LINE
             assert page_has_link(soup, "Delete this question")
 
-    
     def test_get_delete_restricted_for_dependencies(self, authenticated_grant_admin_client, factories, db_session):
         user = factories.user.create()
         question = factories.question.create(form__section__collection__grant=authenticated_grant_admin_client.grant)
@@ -1508,7 +1507,6 @@ class TestEditQuestion:
             in soup.text
         )
         assert page_has_link(soup, depends_on.text)
-
 
     def test_get_with_group(self, request, authenticated_grant_admin_client, factories, db_session):
         group = factories.group.create(
@@ -1536,7 +1534,6 @@ class TestEditQuestion:
         # the option to edit guidance text is removed and we give a prompt for what you can do
         assert "This question is part of a group of questions that are all on the same page." in soup.text
         assert page_has_link(soup, "question group")
-
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
