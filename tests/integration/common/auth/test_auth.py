@@ -378,6 +378,31 @@ class TestSSOGetTokenView:
 
         assert response.status_code == 200
 
+    def test_platform_admin_signin_claims_pending_invitations(self, anonymous_client, factories, db_session):
+        grants = factories.grant.create_batch(3)
+        for grant in grants:
+            factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+        assert db_session.scalar(select(func.count()).select_from(Invitation)) == 3
+
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": ["FSD_ADMIN"],
+                    "sub": "wer234",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+
+        assert response.status_code == 200
+        user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "wer234"))
+        assert AuthorisationHelper.is_platform_admin(user) is True
+        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+        usable_invites_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert not usable_invites_from_db
+
     def test_grant_member_with_valid_invites_first_login(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
             user = interfaces.user.get_current_user()
