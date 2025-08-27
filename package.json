@@ -11,18 +11,18 @@
   "dependencies": {
     "accessible-autocomplete": "3.0.1",
     "govuk-frontend": "5.11.1",
-    "jsdom": "26.1.0",
-    "turndown": "7.2.1",
-    "vitest": "3.2.4"
+    "turndown": "7.2.1"
   },
   "devDependencies": {
     "@testing-library/dom": "10.4.1",
+    "jsdom": "26.1.0",
     "prettier": "3.6.2",
     "prettier-plugin-jinja-template": "2.1.0",
     "regenerator-runtime": "0.14.1",
     "sass": "1.90.0",
     "vite": "6.3.5",
-    "vite-plugin-static-copy": "3.1.2"
+    "vite-plugin-static-copy": "3.1.2",
+    "vitest": "3.2.4"
   },
   "standard": {
     "globals": [
