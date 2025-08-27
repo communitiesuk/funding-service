@@ -658,26 +658,18 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id=question_id)
     wt_form = QuestionForm(obj=question, question_type=question.data_type)
 
+    deleted_errors = []
+    try:
+        raise_if_question_has_any_dependencies(question)
+    except DependencyOrderException as e:
+        deleted_errors.append(e.as_flash_context())
+
     confirm_deletion_form = GenericConfirmDeletionForm()
     if "delete" in request.args:
-        try:
-            raise_if_question_has_any_dependencies(question)
-
-            if confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
-                delete_question(question)
-                return redirect(
-                    url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=question.form_id)
-                )
-
-        except DependencyOrderException as e:
-            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
+        if confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
+            delete_question(question)
             return redirect(
-                url_for(
-                    "deliver_grant_funding.edit_question",
-                    grant_id=grant_id,
-                    form_id=question.form_id,
-                    question_id=question_id,
-                )
+                url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=question.form_id)
             )
 
     if wt_form.validate_on_submit():
@@ -723,6 +715,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         managed_validation_available=get_managed_validators_by_data_type(question.data_type),
+        deleted_errors=deleted_errors,
     )
 
 

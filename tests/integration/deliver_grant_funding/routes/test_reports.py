@@ -1481,6 +1481,34 @@ class TestEditQuestion:
             assert db_question.name == "Question name"
             assert db_question.hint == "Question hint"
             assert db_question.data_type == QuestionDataType.TEXT_SINGLE_LINE
+            assert page_has_link(soup, "Delete this question")
+
+    
+    def test_get_delete_restricted_for_dependencies(self, authenticated_grant_admin_client, factories, db_session):
+        user = factories.user.create()
+        question = factories.question.create(form__section__collection__grant=authenticated_grant_admin_client.grant)
+        depends_on = factories.question.create(
+            form=question.form,
+            expressions=[Expression.from_managed(GreaterThan(question_id=question.id, minimum_value=1000), user)],
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert not page_has_link(soup, "Delete this question")
+        assert (
+            "This question cannot be deleted because the user's answer decides what other questions will be asked."
+            in soup.text
+        )
+        assert page_has_link(soup, depends_on.text)
+
 
     def test_get_with_group(self, request, authenticated_grant_admin_client, factories, db_session):
         group = factories.group.create(
@@ -1497,6 +1525,7 @@ class TestEditQuestion:
                 question_id=question.id,
             )
         )
+
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -1507,6 +1536,7 @@ class TestEditQuestion:
         # the option to edit guidance text is removed and we give a prompt for what you can do
         assert "This question is part of a group of questions that are all on the same page." in soup.text
         assert page_has_link(soup, "question group")
+
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant

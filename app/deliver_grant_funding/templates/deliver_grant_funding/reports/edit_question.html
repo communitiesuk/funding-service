@@ -218,9 +218,21 @@
       </form>
 
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage question</h2>
-      <p class="govuk-body">
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=question.id, delete='') }}">Delete this question</a>
-      </p>
+      <div class="govuk-body">
+        {% if deleted_errors %}
+          <p class="govuk-body">This question cannot be deleted because the user's answer decides what other questions will be asked.</p>
+          <p class="govuk-body">To delete this question, you'll need to remove conditions from the other questions or delete them:</p>
+
+          <ul class="govuk-list">
+            {% for error in deleted_errors %}
+              {% set question_link = url_for("deliver_grant_funding.edit_question", grant_id=error.grant_id, question_id=error.question_id) if not error.question_is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=error.grant_id, group_id=error.question_id) %}
+              <li><a class="govuk-link govuk-link--no-visited-state" href="{{ question_link }}">{{ error.question_text }}</a></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=question.id, delete='') }}">Delete this question</a>
+        {% endif %}
+      </div>
     </div>
   </div>
 {% endblock content %}
