@@ -14,10 +14,11 @@ from app.common.data.types import (
 from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
 from app.common.filters import format_thousands
 from tests.e2e.config import EndToEndTestSecrets
-from tests.e2e.dataclasses import E2ETestUser
+from tests.e2e.dataclasses import E2ETestUser, GuidanceText
 from tests.e2e.pages import AllGrantsPage
 from tests.e2e.reports_pages import (
     AddQuestionDetailsPage,
+    EditQuestionPage,
     ManageTaskPage,
     ReportTasksPage,
     RunnerCheckYourAnswersPage,
@@ -39,6 +40,7 @@ TQuestionToTest = TypedDict(
         "answers": list[_QuestionResponse],
         "choices": NotRequired[list[str]],
         "options": NotRequired[QuestionPresentationOptions],
+        "guidance": NotRequired[GuidanceText],
     },
 )
 
@@ -56,6 +58,14 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
         "text": "Enter a single line of text",
         "answers": [_QuestionResponse("E2E question text single line")],
+        "guidance": GuidanceText(
+            heading="This is a guidance page heading",
+            body_heading="Guidance subheading",
+            body_link_text="Design system link text",
+            body_link_url="https://design-system.service.gov.uk",
+            body_ol_items=["UL item one", "UL item two"],
+            body_ul_items=["OL item one", "OL item two"],
+        ),
     },
     "text-multi-line": {
         "type": QuestionDataType.TEXT_MULTI_LINE,
@@ -156,7 +166,12 @@ def create_question(question_definition: TQuestionToTest, manage_task_page: Mana
         add_advanced_formatting(question_definition, question_details_page)
 
     edit_question_page = question_details_page.click_submit()
-    edit_question_page.click_return_to_task()
+
+    if question_definition.get("guidance") is not None:
+        add_question_guidance(question_definition, edit_question_page)
+        edit_question_page.click_save()
+    else:
+        edit_question_page.click_return_to_task()
 
 
 def add_advanced_formatting(
@@ -181,6 +196,20 @@ def add_advanced_formatting(
             pass  # No advanced formatting for other question types
 
 
+def add_question_guidance(question_definition: TQuestionToTest, edit_question_page: EditQuestionPage) -> None:
+    add_guidance_page = edit_question_page.click_add_guidance()
+    guidance = question_definition.get("guidance")
+    if guidance is not None:
+        add_guidance_page.fill_guidance_heading(guidance.heading)
+        add_guidance_page.fill_guidance_default()
+        edit_question_page = add_guidance_page.click_save_guidance_button()
+        expect(edit_question_page.page.get_by_text("Page heading", exact=True)).to_be_visible()
+        expect(edit_question_page.page.get_by_text("Guidance text", exact=True)).to_be_visible()
+        edit_question_page.click_change_guidance()
+        add_guidance_page.fill_guidance(guidance)
+        add_guidance_page.click_save_guidance_button()
+
+
 def add_validation(manage_task_page: ManageTaskPage, question_text: str, validation: ManagedExpression) -> None:
     edit_question_page = manage_task_page.click_edit_question(question_text)
     add_validation_page = edit_question_page.click_add_validation()
@@ -196,6 +225,19 @@ def navigate_to_report_tasks_page(page: Page, domain: str, grant_name: str, repo
     grant_reports_page = grant_dashboard_page.click_reports(grant_name)
     report_tasks_page = grant_reports_page.click_manage_tasks(grant_name=grant_name, report_name=report_name)
     return report_tasks_page
+
+
+def assert_question_guidance_visibility(question_page: RunnerQuestionPage, question_to_test: TQuestionToTest) -> None:
+    expect(question_page.page.get_by_role("heading", name=question_to_test["guidance"].heading)).to_be_visible()
+    expect(question_page.page.get_by_role("heading", name=question_to_test["guidance"].body_heading)).to_be_visible()
+    expect(question_page.page.get_by_role("link", name=question_to_test["guidance"].body_link_text)).to_be_visible()
+    expect(question_page.page.get_by_role("link", name=question_to_test["guidance"].body_link_text)).to_have_attribute(
+        "href", question_to_test["guidance"].body_link_url
+    )
+    for item in question_to_test["guidance"].body_ul_items:
+        expect(question_page.page.locator("ul").get_by_text(item)).to_be_visible()
+    for item in question_to_test["guidance"].body_ol_items:
+        expect(question_page.page.locator("ol").get_by_text(item)).to_be_visible()
 
 
 def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPage, question: TQuestionToTest) -> None:
@@ -233,7 +275,7 @@ def assert_view_report_answers(answers_list: Locator, question: TQuestionToTest)
 @pytest.mark.skip_in_environments(["prod"])
 def test_create_and_preview_report(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser
-):
+) -> None:
     try:
         new_grant_name = f"E2E developer_grant {uuid.uuid4()}"
         all_grants_page = AllGrantsPage(page, domain)
@@ -315,7 +357,10 @@ def test_create_and_preview_report(
         tasklist_page.click_on_task(task_name=task_name)
         for question_to_test in questions_to_test.values():
             question_page = RunnerQuestionPage(page, domain, new_grant_name, question_to_test["text"])
-            expect(question_page.heading).to_be_visible()
+            if question_to_test.get("guidance") is None:
+                expect(question_page.heading).to_be_visible()
+            else:
+                assert_question_guidance_visibility(question_page, question_to_test)
 
             for question_response in question_to_test["answers"]:
                 question_page.respond_to_question(
