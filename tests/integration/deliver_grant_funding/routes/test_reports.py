@@ -1726,7 +1726,7 @@ class TestAddQuestionConditionSelectQuestion:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
-        assert page_has_error(soup, "Select an answer that is not on the same page as this question")
+        assert page_has_error(soup, "Select a question that is not on the same page as this question")
 
 
 class TestAddQuestionCondition:

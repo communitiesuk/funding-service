@@ -488,6 +488,7 @@ class ConditionSelectQuestionForm(FlaskForm):
         choices=[],
         validators=[DataRequired("Select a question")],
         widget=GovSelect(),
+        description="Select a question to set the answer conditions",
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
@@ -503,14 +504,14 @@ class ConditionSelectQuestionForm(FlaskForm):
     def validate_question(self: "ConditionSelectQuestionForm", field: "Field") -> None:
         depends_on_question = get_question_by_id(self.question.data)
         if not is_component_dependency_order_valid(self.target_question, depends_on_question):
-            raise ValidationError("Select an answer that comes before this question in the form")
+            raise ValidationError("Select a question that comes before this one in the list")
 
         if (
             self.target_question.parent
             and self.target_question.parent.same_page
             and (depends_on_question.parent == self.target_question.parent)
         ):
-            raise ValidationError("Select an answer that is not on the same page as this question")
+            raise ValidationError("Select a question that is not on the same page as this question")
 
 
 class AddGuidanceForm(FlaskForm):
