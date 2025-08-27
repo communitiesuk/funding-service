@@ -6,7 +6,7 @@ from typing import cast
 from playwright.sync_api import Locator, Page, expect
 
 from app.common.data.types import ManagedExpressionsEnum, MultilineTextInputRows, NumberInputWidths, QuestionDataType
-from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
+from app.common.expressions.managed import Between, GreaterThan, LessThan, ManagedExpression
 from tests.e2e.dataclasses import GuidanceText
 
 
@@ -491,6 +491,16 @@ class AddValidationPage(ReportsBasePage):
                 self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_validation.maximum_value))
 
                 if managed_validation.inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+
+            case ManagedExpressionsEnum.BETWEEN:
+                managed_validation = cast(Between, managed_validation)
+                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_validation.minimum_value))
+                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_validation.maximum_value))
+
+                if managed_validation.minimum_inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
+                if managed_validation.maximum_inclusive:
                     self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
 
     def click_managed_validation_type(self, managed_validation: ManagedExpression) -> None:

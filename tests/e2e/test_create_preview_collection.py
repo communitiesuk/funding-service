@@ -11,7 +11,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
 )
-from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
+from app.common.expressions.managed import Between, GreaterThan, LessThan, ManagedExpression
 from app.common.filters import format_thousands
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser, GuidanceText
@@ -41,6 +41,7 @@ TQuestionToTest = TypedDict(
         "choices": NotRequired[list[str]],
         "options": NotRequired[QuestionPresentationOptions],
         "guidance": NotRequired[GuidanceText],
+        "validation": NotRequired[ManagedExpression],
     },
 )
 
@@ -84,6 +85,9 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("10000"),
         ],
         "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS),
+        "validation": GreaterThan(
+            question_id=uuid.uuid4(), minimum_value=1, inclusive=False
+        ),  # question_id does not matter here
     },
     "suffix-integer": {
         "type": QuestionDataType.INTEGER,
@@ -93,6 +97,25 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("100"),
         ],
         "options": QuestionPresentationOptions(suffix="kg", width=NumberInputWidths.HUNDREDS),
+        "validation": LessThan(
+            question_id=uuid.uuid4(), maximum_value=100, inclusive=True
+        ),  # question_id does not matter here
+    },
+    "between-integer": {
+        "type": QuestionDataType.INTEGER,
+        "text": "Enter a number between 20 and 100",
+        "answers": [
+            _QuestionResponse("101", "The answer must be between 20 (inclusive) and 100 (exclusive)"),
+            _QuestionResponse("20"),
+        ],
+        "options": QuestionPresentationOptions(),
+        "validation": Between(
+            question_id=uuid.uuid4(),
+            maximum_value=100,
+            maximum_inclusive=False,
+            minimum_value=20,
+            minimum_inclusive=True,
+        ),  # question_id does not matter here
     },
     "yes-no": {
         "type": QuestionDataType.YES_NO,
@@ -318,7 +341,7 @@ def test_create_and_preview_report(
         # Sense check that the test includes all question types
         new_question_type_error = None
         try:
-            assert len(QuestionDataType) == 8 and len(questions_to_test) == 10, (
+            assert len(QuestionDataType) == 8 and len(questions_to_test) == 11, (
                 "If you have added a new question type, please update this test to include the new type in "
                 "`questions_to_test`."
             )
@@ -328,19 +351,8 @@ def test_create_and_preview_report(
         # Add a question of each type
         for question_to_test in questions_to_test.values():
             create_question(question_to_test, manage_task_page)
-
-        # TODO: move this into `question_to_test` definition as well
-        add_validation(
-            manage_task_page,
-            questions_to_test["prefix-integer"]["text"],
-            GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),  # question_id does not matter here
-        )
-
-        add_validation(
-            manage_task_page,
-            questions_to_test["suffix-integer"]["text"],
-            LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),  # question_id does not matter here
-        )
+            if question_to_test.get("validation") is not None:
+                add_validation(manage_task_page, question_to_test["text"], question_to_test["validation"])
 
         # Preview the report
         report_tasks_page = navigate_to_report_tasks_page(page, domain, new_grant_name, new_report_name)
