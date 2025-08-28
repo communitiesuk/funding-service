@@ -6,12 +6,22 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from app.common.data.types import (
+    ManagedExpressionsEnum,
     MultilineTextInputRows,
     NumberInputWidths,
     QuestionDataType,
     QuestionPresentationOptions,
 )
-from app.common.expressions.managed import Between, GreaterThan, LessThan, ManagedExpression
+from app.common.expressions.managed import (
+    AnyOf,
+    Between,
+    GreaterThan,
+    IsNo,
+    IsYes,
+    LessThan,
+    ManagedExpression,
+    Specifically,
+)
 from app.common.filters import format_thousands
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser, GuidanceText
@@ -32,6 +42,12 @@ class _QuestionResponse:
     error_message: str | None = None
 
 
+@dataclasses.dataclass
+class Condition:
+    referenced_question: str
+    managed_expression: ManagedExpression
+
+
 TQuestionToTest = TypedDict(
     "TQuestionToTest",
     {
@@ -42,41 +58,12 @@ TQuestionToTest = TypedDict(
         "options": NotRequired[QuestionPresentationOptions],
         "guidance": NotRequired[GuidanceText],
         "validation": NotRequired[ManagedExpression],
+        "condition": NotRequired[Condition],
     },
 )
 
 
 questions_to_test: dict[str, TQuestionToTest] = {
-    "email": {
-        "type": QuestionDataType.EMAIL,
-        "text": "Enter an email address",
-        "answers": [
-            _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
-            _QuestionResponse("name@example.com"),
-        ],
-    },
-    "text-single-line": {
-        "type": QuestionDataType.TEXT_SINGLE_LINE,
-        "text": "Enter a single line of text",
-        "answers": [_QuestionResponse("E2E question text single line")],
-        "guidance": GuidanceText(
-            heading="This is a guidance page heading",
-            body_heading="Guidance subheading",
-            body_link_text="Design system link text",
-            body_link_url="https://design-system.service.gov.uk",
-            body_ol_items=["UL item one", "UL item two"],
-            body_ul_items=["OL item one", "OL item two"],
-        ),
-    },
-    "text-multi-line": {
-        "type": QuestionDataType.TEXT_MULTI_LINE,
-        "text": "Enter a few lines of text",
-        "answers": [
-            _QuestionResponse("E2E question text multi line\nwith a second line that's over the word limit"),
-            _QuestionResponse("E2E question text multi line\nwith a second line"),
-        ],
-        "options": QuestionPresentationOptions(word_limit=10, rows=MultilineTextInputRows.LARGE),
-    },
     "prefix-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter the total cost as a number",
@@ -100,6 +87,10 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "validation": LessThan(
             question_id=uuid.uuid4(), maximum_value=100, inclusive=True
         ),  # question_id does not matter here
+        "condition": Condition(
+            referenced_question="Enter the total cost as a number",
+            managed_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),
+        ),
     },
     "between-integer": {
         "type": QuestionDataType.INTEGER,
@@ -116,6 +107,10 @@ questions_to_test: dict[str, TQuestionToTest] = {
             minimum_value=20,
             minimum_inclusive=True,
         ),  # question_id does not matter here
+        "condition": Condition(
+            referenced_question="Enter the total weight as a number",
+            managed_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),
+        ),
     },
     "yes-no": {
         "type": QuestionDataType.YES_NO,
@@ -123,6 +118,16 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "answers": [
             _QuestionResponse("Yes"),
         ],
+        "condition": Condition(
+            referenced_question="Enter a number between 20 and 100",
+            managed_expression=Between(
+                question_id=uuid.uuid4(),
+                maximum_value=40,
+                maximum_inclusive=True,
+                minimum_value=15,
+                minimum_inclusive=False,
+            ),
+        ),
     },
     "radio": {
         "type": QuestionDataType.RADIOS,
@@ -131,6 +136,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "answers": [
             _QuestionResponse("option 2"),
         ],
+        "condition": Condition(referenced_question="Yes or no", managed_expression=IsYes(question_id=uuid.uuid4())),
     },
     "autocomplete": {
         "type": QuestionDataType.RADIOS,
@@ -140,14 +146,13 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("Other"),
         ],
         "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
-    },
-    "url": {
-        "type": QuestionDataType.URL,
-        "text": "Enter a website address",
-        "answers": [
-            _QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
-            _QuestionResponse("https://gov.uk"),
-        ],
+        "condition": Condition(
+            referenced_question="Select an option",
+            managed_expression=AnyOf(
+                question_id=uuid.uuid4(),
+                items=[{"key": "option-2", "label": "option 2"}, {"key": "option-3", "label": "option 3"}],
+            ),
+        ),
     },
     "checkboxes": {
         "type": QuestionDataType.CHECKBOXES,
@@ -157,6 +162,58 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse(["option 2", "option 3"]),
         ],
         "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
+        "condition": Condition(
+            referenced_question="Select an option from the accessible autocomplete",
+            managed_expression=AnyOf(question_id=uuid.uuid4(), items=[{"key": "other", "label": "Other"}]),
+        ),
+    },
+    "email": {
+        "type": QuestionDataType.EMAIL,
+        "text": "Enter an email address",
+        "answers": [
+            _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
+            _QuestionResponse("name@example.com"),
+        ],
+        "condition": Condition(
+            referenced_question="Select one or more options",
+            managed_expression=Specifically(question_id=uuid.uuid4(), item={"key": "option-2", "label": "option 2"}),
+        ),
+    },
+    "text-single-line": {
+        "type": QuestionDataType.TEXT_SINGLE_LINE,
+        "text": "Enter a single line of text",
+        "answers": [_QuestionResponse("E2E question text single line")],
+        "guidance": GuidanceText(
+            heading="This is a guidance page heading",
+            body_heading="Guidance subheading",
+            body_link_text="Design system link text",
+            body_link_url="https://design-system.service.gov.uk",
+            body_ol_items=["UL item one", "UL item two"],
+            body_ul_items=["OL item one", "OL item two"],
+        ),
+    },
+    "text-multi-line": {
+        "type": QuestionDataType.TEXT_MULTI_LINE,
+        "text": "Enter a few lines of text",
+        "answers": [
+            _QuestionResponse("E2E question text multi line\nwith a second line that's over the word limit"),
+            _QuestionResponse("E2E question text multi line\nwith a second line"),
+        ],
+        "options": QuestionPresentationOptions(word_limit=10, rows=MultilineTextInputRows.LARGE),
+    },
+    "url": {
+        "type": QuestionDataType.URL,
+        "text": "Enter a website address",
+        "answers": [
+            _QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
+            _QuestionResponse("https://gov.uk"),
+        ],
+    },
+    "text-single-line-not-shown": {
+        "type": QuestionDataType.TEXT_SINGLE_LINE,
+        "text": "This question should not be shown",
+        "answers": [_QuestionResponse("This question shouldn't be shown")],
+        "condition": Condition(referenced_question="Yes or no", managed_expression=IsNo(question_id=uuid.uuid4())),
     },
 }
 
@@ -192,9 +249,11 @@ def create_question(question_definition: TQuestionToTest, manage_task_page: Mana
 
     if question_definition.get("guidance") is not None:
         add_question_guidance(question_definition, edit_question_page)
-        edit_question_page.click_save()
-    else:
-        edit_question_page.click_return_to_task()
+    if question_definition.get("validation") is not None:
+        add_validation(edit_question_page, question_definition["text"], question_definition["validation"])
+    if question_definition.get("condition") is not None:
+        add_condition(edit_question_page, question_definition["text"], question_definition["condition"])
+    edit_question_page.click_save()
 
 
 def add_advanced_formatting(
@@ -220,9 +279,9 @@ def add_advanced_formatting(
 
 
 def add_question_guidance(question_definition: TQuestionToTest, edit_question_page: EditQuestionPage) -> None:
-    add_guidance_page = edit_question_page.click_add_guidance()
     guidance = question_definition.get("guidance")
     if guidance is not None:
+        add_guidance_page = edit_question_page.click_add_guidance()
         add_guidance_page.fill_guidance_heading(guidance.heading)
         add_guidance_page.fill_guidance_default()
         edit_question_page = add_guidance_page.click_save_guidance_button()
@@ -233,12 +292,17 @@ def add_question_guidance(question_definition: TQuestionToTest, edit_question_pa
         add_guidance_page.click_save_guidance_button()
 
 
-def add_validation(manage_task_page: ManageTaskPage, question_text: str, validation: ManagedExpression) -> None:
-    edit_question_page = manage_task_page.click_edit_question(question_text)
+def add_validation(edit_question_page: EditQuestionPage, question_text: str, validation: ManagedExpression) -> None:
     add_validation_page = edit_question_page.click_add_validation()
     add_validation_page.configure_managed_validation(validation)
     edit_question_page = add_validation_page.click_add_validation()
-    edit_question_page.click_task_breadcrumb()
+
+
+def add_condition(edit_question_page: EditQuestionPage, question_text: str, condition: Condition) -> None:
+    add_condition_page = edit_question_page.click_add_condition()
+    add_condition_page.select_condition_question(condition.referenced_question)
+    add_condition_page.configure_managed_condition(condition.managed_expression)
+    edit_question_page = add_condition_page.click_add_condition()
 
 
 def navigate_to_report_tasks_page(page: Page, domain: str, grant_name: str, report_name: str) -> ReportTasksPage:
@@ -250,20 +314,34 @@ def navigate_to_report_tasks_page(page: Page, domain: str, grant_name: str, repo
     return report_tasks_page
 
 
-def assert_question_guidance_visibility(question_page: RunnerQuestionPage, question_to_test: TQuestionToTest) -> None:
-    expect(question_page.page.get_by_role("heading", name=question_to_test["guidance"].heading)).to_be_visible()
-    expect(question_page.page.get_by_role("heading", name=question_to_test["guidance"].body_heading)).to_be_visible()
-    expect(question_page.page.get_by_role("link", name=question_to_test["guidance"].body_link_text)).to_be_visible()
-    expect(question_page.page.get_by_role("link", name=question_to_test["guidance"].body_link_text)).to_have_attribute(
-        "href", question_to_test["guidance"].body_link_url
-    )
-    for item in question_to_test["guidance"].body_ul_items:
-        expect(question_page.page.locator("ul").get_by_text(item)).to_be_visible()
-    for item in question_to_test["guidance"].body_ol_items:
-        expect(question_page.page.locator("ol").get_by_text(item)).to_be_visible()
+def assert_question_visibility(question_page: RunnerQuestionPage, question_to_test: TQuestionToTest) -> None:
+    if question_to_test.get("guidance") is None:
+        if "This question should not be shown" in question_to_test["text"]:
+            expect(question_page.heading).not_to_be_visible()
+        else:
+            expect(question_page.heading).to_be_visible()
+    else:
+        expect(question_page.page.get_by_role("heading", name=question_to_test["guidance"].heading)).to_be_visible()
+        expect(
+            question_page.page.get_by_role("heading", name=question_to_test["guidance"].body_heading)
+        ).to_be_visible()
+        expect(question_page.page.get_by_role("link", name=question_to_test["guidance"].body_link_text)).to_be_visible()
+        expect(
+            question_page.page.get_by_role("link", name=question_to_test["guidance"].body_link_text)
+        ).to_have_attribute("href", question_to_test["guidance"].body_link_url)
+        for item in question_to_test["guidance"].body_ul_items:
+            expect(question_page.page.locator("ul").get_by_text(item)).to_be_visible()
+        for item in question_to_test["guidance"].body_ol_items:
+            expect(question_page.page.locator("ol").get_by_text(item)).to_be_visible()
 
 
 def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPage, question: TQuestionToTest) -> None:
+    if "This question should not be shown" in question["text"]:
+        return
+
+    question_heading = check_your_answers_page.page.get_by_text(question["text"], exact=True)
+    expect(question_heading).to_be_visible()
+
     if question["type"] == QuestionDataType.CHECKBOXES:
         checkbox_answers_list = check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}").locator("li")
         expect(checkbox_answers_list).to_have_text(question["answers"][-1].answer)
@@ -280,6 +358,8 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
 
 
 def assert_view_report_answers(answers_list: Locator, question: TQuestionToTest) -> None:
+    if "This question should not be shown" in question["text"]:
+        return
     if question["type"] == QuestionDataType.CHECKBOXES:
         expect(
             answers_list.get_by_text(f"{question['text']} {' '.join(question['answers'][-1].answer)}")
@@ -341,9 +421,9 @@ def test_create_and_preview_report(
         # Sense check that the test includes all question types
         new_question_type_error = None
         try:
-            assert len(QuestionDataType) == 8 and len(questions_to_test) == 11, (
-                "If you have added a new question type, please update this test to include the new type in "
-                "`questions_to_test`."
+            assert len(QuestionDataType) == 8 and len(questions_to_test) == 12 and len(ManagedExpressionsEnum) == 7, (
+                "If you have added a new question type or managed expression, update this test to include the "
+                "new question type or managed expression in `questions_to_test`."
             )
         except AssertionError as e:
             new_question_type_error = e
@@ -351,8 +431,6 @@ def test_create_and_preview_report(
         # Add a question of each type
         for question_to_test in questions_to_test.values():
             create_question(question_to_test, manage_task_page)
-            if question_to_test.get("validation") is not None:
-                add_validation(manage_task_page, question_to_test["text"], question_to_test["validation"])
 
         # Preview the report
         report_tasks_page = navigate_to_report_tasks_page(page, domain, new_grant_name, new_report_name)
@@ -369,26 +447,24 @@ def test_create_and_preview_report(
         tasklist_page.click_on_task(task_name=task_name)
         for question_to_test in questions_to_test.values():
             question_page = RunnerQuestionPage(page, domain, new_grant_name, question_to_test["text"])
-            if question_to_test.get("guidance") is None:
-                expect(question_page.heading).to_be_visible()
-            else:
-                assert_question_guidance_visibility(question_page, question_to_test)
+            assert_question_visibility(question_page, question_to_test)
 
             for question_response in question_to_test["answers"]:
-                question_page.respond_to_question(
-                    question_type=question_to_test["type"], answer=question_response.answer
-                )
-                question_page.click_continue()
+                if "This question should not be shown" not in question_to_test["text"]:
+                    question_page.respond_to_question(
+                        question_type=question_to_test["type"], answer=question_response.answer
+                    )
+                    question_page.click_continue()
 
-                if question_response.error_message:
-                    expect(question_page.page.get_by_role("link", name=question_response.error_message)).to_be_visible()
+                    if question_response.error_message:
+                        expect(
+                            question_page.page.get_by_role("link", name=question_response.error_message)
+                        ).to_be_visible()
 
         # Check the answers page
         check_your_answers_page = RunnerCheckYourAnswersPage(page, domain, new_grant_name)
 
         for question in questions_to_test.values():
-            question_heading = check_your_answers_page.page.get_by_text(question["text"], exact=True)
-            expect(question_heading).to_be_visible()
             assert_check_your_answers(check_your_answers_page, question)
 
         expect(check_your_answers_page.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
