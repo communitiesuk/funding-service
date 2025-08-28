@@ -6,7 +6,14 @@ from typing import cast
 from playwright.sync_api import Locator, Page, expect
 
 from app.common.data.types import ManagedExpressionsEnum, MultilineTextInputRows, NumberInputWidths, QuestionDataType
-from app.common.expressions.managed import GreaterThan, LessThan, ManagedExpression
+from app.common.expressions.managed import (
+    AnyOf,
+    Between,
+    GreaterThan,
+    LessThan,
+    ManagedExpression,
+    Specifically,
+)
 from tests.e2e.dataclasses import GuidanceText
 
 
@@ -249,6 +256,7 @@ class ManageTaskPage(ReportsBasePage):
 class EditQuestionPage(ReportsBasePage):
     task_breadcrumb: Locator
     add_validation_button: Locator
+    add_condition_button: Locator
     add_guidance_button: Locator
     change_guidance_link: Locator
 
@@ -267,6 +275,7 @@ class EditQuestionPage(ReportsBasePage):
         self.add_validation_button = self.page.get_by_role("button", name="Add validation").or_(
             self.page.get_by_role("button", name="Add more validation")
         )
+        self.add_condition_button = self.page.get_by_role("button", name="Add condition")
         self.add_guidance_button = self.page.get_by_role("link", name="Add guidance")
         self.change_guidance_link = self.page.get_by_role("link", name="Change  page heading")
 
@@ -281,6 +290,18 @@ class EditQuestionPage(ReportsBasePage):
         )
         expect(add_validation_page.heading).to_be_visible()
         return add_validation_page
+
+    def click_add_condition(self) -> "AddConditionPage":
+        self.add_condition_button.click()
+        add_condition_page = AddConditionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+        )
+        expect(add_condition_page.heading).to_be_visible()
+        return add_condition_page
 
     def click_task_breadcrumb(self) -> "ManageTaskPage":
         self.task_breadcrumb.click()
@@ -493,11 +514,103 @@ class AddValidationPage(ReportsBasePage):
                 if managed_validation.inclusive:
                     self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
 
+            case ManagedExpressionsEnum.BETWEEN:
+                managed_validation = cast(Between, managed_validation)
+                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_validation.minimum_value))
+                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_validation.maximum_value))
+
+                if managed_validation.minimum_inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
+                if managed_validation.maximum_inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+
     def click_managed_validation_type(self, managed_validation: ManagedExpression) -> None:
         self.page.get_by_role("radio", name=managed_validation._key.value).click()
 
     def click_add_validation(self) -> "EditQuestionPage":
         self.add_validation_button.click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
+
+
+class AddConditionPage(ReportsBasePage):
+    add_condition_button: Locator
+    continue_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Add a condition"),
+        )
+        self.report_name = report_name
+        self.task_name = task_name
+        self.add_condition_button = self.page.get_by_role("button", name="Add condition")
+        self.continue_button = self.page.get_by_role("button", name="Continue")
+
+    def configure_managed_condition(self, managed_condition: ManagedExpression) -> None:
+        self.click_managed_condition_type(managed_condition)
+
+        match managed_condition._key:
+            case ManagedExpressionsEnum.GREATER_THAN:
+                managed_condition = cast(GreaterThan, managed_condition)
+                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_condition.minimum_value))
+
+                if managed_condition.inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
+
+            case ManagedExpressionsEnum.LESS_THAN:
+                managed_condition = cast(LessThan, managed_condition)
+                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_condition.maximum_value))
+
+                if managed_condition.inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+
+            case ManagedExpressionsEnum.BETWEEN:
+                managed_condition = cast(Between, managed_condition)
+                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_condition.minimum_value))
+                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_condition.maximum_value))
+
+                if managed_condition.minimum_inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
+                if managed_condition.maximum_inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+
+            case ManagedExpressionsEnum.IS_YES | ManagedExpressionsEnum.IS_NO:
+                return
+
+            case ManagedExpressionsEnum.ANY_OF:
+                managed_condition = cast(AnyOf, managed_condition)
+                for item in managed_condition.items:
+                    self.page.get_by_role("checkbox", name=item["label"]).click()
+
+            case ManagedExpressionsEnum.SPECIFICALLY:
+                managed_condition = cast(Specifically, managed_condition)
+                self.page.get_by_role("radio", name=managed_condition.item["label"]).click()
+
+    def click_managed_condition_type(self, managed_condition: ManagedExpression) -> None:
+        self.page.get_by_role("radio", name=managed_condition._key.value).click()
+
+    def select_condition_question(self, condition_question: str) -> None:
+        # We don't easily know randomly generated uuid apended to the previous question texts, so have to grab it to
+        # select the correct option
+        question_select_locator = self.page.get_by_label(" What answer should the condition check? ")
+        full_question_text = (
+            question_select_locator.locator("option").filter(has_text=condition_question).first.get_attribute("value")
+        )
+        question_select_locator.select_option(full_question_text)
+        self.continue_button.click()
+
+    def click_add_condition(self) -> "EditQuestionPage":
+        self.add_condition_button.click()
         edit_question_page = EditQuestionPage(
             self.page,
             self.domain,
