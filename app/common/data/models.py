@@ -107,6 +107,15 @@ class Collection(BaseModel):
         # which would trigger the delete-orphan rule
         cascade="all",
     )
+    forms: Mapped[OrderingList["Form"]] = relationship(
+        "Form",
+        lazy=True,
+        order_by="Form.order",
+        collection_class=ordering_list("order"),
+        # Importantly we don't `delete-orphan` here; when we move forms up/down, we remove them from the collection,
+        # which would trigger the delete-orphan rule
+        cascade="all",
+    )
 
     __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_collection_name_version_grant_id"),)
 
@@ -117,13 +126,6 @@ class Collection(BaseModel):
     @property
     def live_submissions(self) -> list["Submission"]:
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
-
-    @property
-    def forms(self) -> list["Form"]:
-        if not self.sections:
-            raise RuntimeError("We expect all collections to have at least 1 section now")
-
-        return [form for section in self.sections for form in section.forms]
 
     @property
     def has_non_default_sections(self) -> bool:
@@ -212,14 +214,25 @@ class Form(BaseModel):
     order: Mapped[int]
     slug: Mapped[str]
 
+    # todo: remove this; replaced by direct connection to collections
     section_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("section.id"))
     section: Mapped[Section] = relationship("Section", back_populates="forms")
+
+    collection_id: Mapped[uuid.UUID]
+    collection_version: Mapped[int]
+    collection: Mapped[Collection] = relationship("Collection", back_populates="forms")
 
     __table_args__ = (
         UniqueConstraint("order", "section_id", name="uq_form_order_section", deferrable=True),
         # TODO how can we make this unique per collection?
         UniqueConstraint("title", "section_id", name="uq_form_title_section"),
         UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
+        UniqueConstraint(
+            "order", "collection_id", "collection_version", name="uq_form_order_collection", deferrable=True
+        ),
+        UniqueConstraint("title", "collection_id", "collection_version", name="uq_form_title_collection"),
+        UniqueConstraint("slug", "collection_id", "collection_version", name="uq_form_slug_collection"),
+        ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
     )
 
     # support fetching all of a forms components so that the selectin loading strategy can make one

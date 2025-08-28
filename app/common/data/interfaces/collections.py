@@ -265,7 +265,10 @@ def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, in
     if 0 <= index_a < len(containing_list) and 0 <= index_b < len(containing_list):
         containing_list[index_a], containing_list[index_b] = containing_list[index_b], containing_list[index_a]
     db.session.execute(
-        text("SET CONSTRAINTS uq_section_order_collection, uq_form_order_section, uq_component_order_form DEFERRED")
+        text(
+            "SET CONSTRAINTS uq_form_order_collection, uq_section_order_collection, "
+            "uq_form_order_section, uq_component_order_form DEFERRED"
+        )
     )
     db.session.flush()
     return containing_list
@@ -314,7 +317,13 @@ def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questio
 
 
 def create_form(*, title: str, section: Section) -> Form:
-    form = Form(title=title, section_id=section.id, slug=slugify(title))
+    form = Form(
+        title=title,
+        section_id=section.id,
+        collection_id=section.collection_id,
+        collection_version=section.collection_version,
+        slug=slugify(title),
+    )
     section.forms.append(form)
     db.session.add(form)
 
@@ -341,7 +350,7 @@ def update_form(form: Form, *, title: str, section_id: uuid.UUID | TNotProvided 
     form.slug = slugify(title)
 
     if section_id is not NOT_PROVIDED:
-        db.session.execute(text("SET CONSTRAINTS uq_form_order_section DEFERRED"))
+        db.session.execute(text("SET CONSTRAINTS uq_form_order_section, uq_form_order_collection DEFERRED"))
         new_section = get_section_by_id(section_id)  # ty: ignore[invalid-argument-type]
         original_section = form.section
         form.section = new_section
@@ -911,7 +920,7 @@ def delete_form(form: Form) -> None:
     db.session.delete(form)
     form.section.forms = [f for f in form.section.forms if f.id != form.id]  # type: ignore[assignment]
     form.section.forms.reorder()  # Force all other forms to update their `order` attribute
-    db.session.execute(text("SET CONSTRAINTS uq_form_order_section DEFERRED"))
+    db.session.execute(text("SET CONSTRAINTS uq_form_order_collection, uq_form_order_section DEFERRED"))
     db.session.flush()
 
 
