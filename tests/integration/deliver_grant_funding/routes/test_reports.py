@@ -1506,7 +1506,7 @@ class TestEditQuestion:
 
         # the option to edit guidance text is removed and we give a prompt for what you can do
         assert "This question is part of a group of questions that are all on the same page." in soup.text
-        assert "Guidance can be added to the question group." in soup.text
+        assert page_has_link(soup, "question group")
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant

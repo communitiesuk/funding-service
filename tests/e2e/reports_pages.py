@@ -211,7 +211,7 @@ class ManageTaskPage(ReportsBasePage):
         self.report_name = report_name
         self.task_name = task_name
         self.preview_task_button = self.page.get_by_role("button", name="Preview task")
-        self.add_question_button = self.page.get_by_role("link", name="Add a question").or_(
+        self.add_question_button = self.page.get_by_role("link", name="Add a question", exact=True).or_(
             self.page.get_by_role("link", name="Add another question")
         )
         self.change_task_name_link = self.page.get_by_role("link", name="Change task name")

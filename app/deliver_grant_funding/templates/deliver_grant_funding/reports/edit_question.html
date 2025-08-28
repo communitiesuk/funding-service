@@ -109,7 +109,10 @@
           <h2 class="govuk-heading-m">Guidance</h2>
           {% if question.parent and question.parent.same_page %}
             {# todo: temporary context - to be replaced with something sensible #}
-            <p class="govuk-body">This question is part of a group of questions that are all on the same page. Guidance can be added to the question group.</p>
+            <p class="govuk-body">
+              This question is part of a group of questions that are all on the same page. Guidance can be added to the
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=question.parent.id) }}">question group</a>.
+            </p>
           {% else %}
             <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question, or to format your content with paragraphs, headings, lists or links.</p>
 
