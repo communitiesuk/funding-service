@@ -3,7 +3,7 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.types import ExpressionType, SubmissionModeEnum
+from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
 from tests.utils import get_h1_text
 
 
@@ -375,6 +375,43 @@ class TestAskAQuestion:
         assert get_h1_text(soup) == "Important instructions"
         assert "Please read this carefully before answering" in soup.text
         assert soup.select_one("label").text.strip() == "What's your favourite colour?"
+
+    def test_group_same_page_with_questions_uses_group_guidance(self, authenticated_grant_admin_client, factories):
+        group = factories.group.create(
+            text="Group title - should not be used",
+            guidance_heading="Group guidance heading",
+            guidance_body="Group guidance body",
+            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.create(
+            parent=group,
+            form=group.form,
+            guidance_heading="Question guidance heading",
+            guidance_body="Question guidance body",
+        )
+        q2 = factories.question.create(parent=group, form=group.form)
+        submission = factories.submission.create(
+            collection=group.form.section.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+                question_id=q1.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert get_h1_text(soup) == "Group guidance heading"
+        assert "Group guidance body" in soup.text
+        assert "Question guidance heading" not in soup.text
+        assert "Question guidance body" not in soup.text
+        assert [label.text.strip() for label in soup.select("label")] == [q1.text, q2.text]
 
 
 class TestCheckYourAnswers:

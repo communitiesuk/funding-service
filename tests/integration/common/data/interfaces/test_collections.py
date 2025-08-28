@@ -527,6 +527,25 @@ class TestUpdateGroup:
         )
         assert group.presentation_options.show_questions_on_the_same_page is False
 
+    def test_update_group_with_guidance_fields(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test Question Name",
+        )
+
+        assert group.guidance_heading is None
+        assert group.guidance_body is None
+
+        updated_group = update_group(
+            group=group,
+            guidance_heading="How to answer this question",
+            guidance_body="This is detailed guidance with **markdown** formatting.",
+        )
+
+        assert updated_group.guidance_heading == "How to answer this question"
+        assert updated_group.guidance_body == "This is detailed guidance with **markdown** formatting."
+
 
 class TestCreateQuestion:
     @pytest.mark.parametrize(

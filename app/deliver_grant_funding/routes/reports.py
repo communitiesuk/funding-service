@@ -70,7 +70,7 @@ from app.extensions import auto_commit_after_request
 from app.types import FlashMessageType
 
 if TYPE_CHECKING:
-    from app.common.data.models import Question
+    from app.common.data.models import Group, Question
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports", methods=["GET", "POST"])
@@ -732,11 +732,24 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 @has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    question = get_question_by_id(question_id=question_id)
+    question = get_component_by_id(component_id=question_id)
     form = AddGuidanceForm(obj=question)
 
     if form.validate_on_submit():
-        update_question(question, guidance_heading=form.guidance_heading.data, guidance_body=form.guidance_body.data)
+        # todo: both of these are equivalent as this is a property of the underlying component
+        #       should there be an update that handles either
+        if question.is_group:
+            update_group(
+                cast("Group", question),
+                guidance_heading=form.guidance_heading.data,
+                guidance_body=form.guidance_body.data,
+            )
+        else:
+            update_question(
+                cast("Question", question),
+                guidance_heading=form.guidance_heading.data,
+                guidance_body=form.guidance_body.data,
+            )
 
         if form.preview.data:
             return redirect(
@@ -748,7 +761,11 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
                 )
             )
 
-        return redirect(url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id))
+        return redirect(
+            url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id)
+            if not question.is_group
+            else url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=question.id)
+        )
 
     return render_template(
         "deliver_grant_funding/reports/manage_guidance.html",

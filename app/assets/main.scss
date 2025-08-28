@@ -215,3 +215,9 @@ $inset-nested-rows: 15px;
 .app-summary-list-group-nested--final {
   border-bottom: 2px solid $govuk-border-colour;
 }
+
+.app-pre-markdown {
+  @include govuk-font(19);
+  white-space: pre-line;
+  margin-top: 0px;
+}

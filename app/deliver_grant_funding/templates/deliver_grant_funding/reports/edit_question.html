@@ -105,24 +105,37 @@
 
         {{ advancedFormattingOptions(form, question.data_type, enum) }}
 
-        <h2 class="govuk-heading-m">Guidance</h2>
-        <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question, or to format your content with paragraphs, headings, lists or links.</p>
+        <div class="govuk-form-group">
+          <h2 class="govuk-heading-m">Guidance</h2>
+          {% if question.parent and question.parent.same_page %}
+            {# todo: temporary context - to be replaced with something sensible #}
+            <p class="govuk-body">
+              This question is part of a group of questions that are all on the same page. Guidance can be added to the
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=question.parent.id) }}">question group</a>.
+            </p>
+          {% else %}
+            <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question, or to format your content with paragraphs, headings, lists or links.</p>
 
-        {% if question.guidance_body %}
-          {{
-            govukSummaryList({
-              "rows": [
-                {"key": {"text": "Page heading"}, "value": {"text": question.guidance_heading}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "page heading"}] } },
-                {"key": {"text": "Guidance text"}, "value": {"html": question.guidance_body.replace('\n', '<br>')}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "guidance text"}] } },
-              ]
-            })
-          }}
-        {% else %}
-          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id) }}"> Add guidance </a>
-        {% endif %}
+            {% if question.guidance_body %}
+              {% set guidance_text %}
+                <pre class="app-pre-markdown">{{ question.guidance_body }}</pre>
+              {% endset %}
+              {{
+                govukSummaryList({
+                  "rows": [
+                    {"key": {"text": "Page heading"}, "value": {"text": question.guidance_heading}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "page heading"}] } },
+                    {"key": {"text": "Guidance text"}, "value": {"html": guidance_text}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "guidance text"}] } },
+                  ]
+                })
+              }}
+            {% else %}
+              <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id) }}"> Add guidance </a>
+            {% endif %}
+          {% endif %}
+        </div>
 
         <div class="govuk-form-group">
-          <h2 class="govuk-heading-m">Conditions</h2>
+          <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
           <p class="govuk-body">Add conditions to only show this question if the grant recipient has answered one of the other questions in a particular way.</p>
           {% set rows = [] %}
           {% for condition in question.conditions %}
@@ -153,7 +166,7 @@
             govukButton({
               "text": "Add condition",
               "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, component_id=question.id),
-              "classes": "govuk-button--secondary",
+              "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
             })
           }}
         </div>
