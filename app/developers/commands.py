@@ -63,7 +63,8 @@ ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list
 
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
 @click.argument("grant_ids", nargs=-1, type=click.UUID)
-def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
+@click.option("--output", type=click.Choice(["file", "stdout"]), default="file")
+def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C901
     from faker import Faker
 
     if not export_path.exists():
@@ -138,10 +139,19 @@ def export_grants(grant_ids: list[uuid.UUID]) -> None:  # noqa: C901
         export_data["users"].sort(key=lambda u: u["email"])
 
     export_json = current_app.json.dumps(export_data, indent=2)
-    with open(export_path, "w") as outfile:
-        outfile.write(export_json + "\n")
+    match output:
+        case "file":
+            with open(export_path, "w") as outfile:
+                outfile.write(export_json + "\n")
 
-    click.echo(f"Written {len(grants)} grants to {export_path}")
+            click.echo(f"Written {len(grants)} grants to {export_path}")
+
+        case "stdout":
+            click.echo(f"Writing {len(grants)} grants to stdout")
+            click.echo("\n\n\n")
+            click.echo(export_json)
+            click.echo("\n\n\n")
+            click.echo(f"Written {len(grants)} grants to stdout")
 
 
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
