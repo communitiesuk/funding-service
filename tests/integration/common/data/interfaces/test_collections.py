@@ -164,11 +164,11 @@ def test_get_submission(db_session, factories):
 def test_get_submission_with_full_schema(db_session, factories, track_sql_queries):
     submission = factories.submission.create(collection__default_section=False)
     submission_id = submission.id
-    sections = factories.section.create_batch(3, collection=submission.collection)
-    for section in sections:
-        forms = factories.form.create_batch(3, section=section)
-        for form in forms:
-            factories.question.create_batch(3, form=form)
+    # TODO: remove sections
+    section = factories.section.create(collection=submission.collection)
+    forms = factories.form.create_batch(3, section=section)
+    for form in forms:
+        factories.question.create_batch(3, form=form)
 
     with track_sql_queries() as queries:
         from_db = get_submission(submission_id=submission_id, with_full_schema=True)
@@ -1374,11 +1374,10 @@ def test_clear_events_from_submission(db_session, factories):
 
 def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):
     collection = factories.collection.create(default_section=False)
-    sections = factories.section.create_batch(3, collection=collection)
-    for section in sections:
-        forms = factories.form.create_batch(3, section=section)
-        for form in forms:
-            factories.question.create_batch(3, form=form)
+    section = factories.section.create(collection=collection)
+    forms = factories.form.create_batch(3, section=section)
+    for form in forms:
+        factories.question.create_batch(3, form=form)
 
     with track_sql_queries() as queries:
         from_db = get_collection(collection_id=collection.id, with_full_schema=True)

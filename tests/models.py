@@ -528,6 +528,9 @@ class _FormFactory(SQLAlchemyModelFactory):
     section = factory.SubFactory(_SectionFactory)
     section_id = factory.LazyAttribute(lambda o: o.section.id)
 
+    collection = factory.LazyAttribute(lambda o: o.section.collection)
+    collection_id = factory.LazyAttribute(lambda o: o.section.collection.id)
+
 
 class _DataSourceItemFactory(SQLAlchemyModelFactory):
     class Meta:
