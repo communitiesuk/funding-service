@@ -1,7 +1,9 @@
 import csv
+import json
 import uuid
 from datetime import datetime
 from io import StringIO
+from unittest import mock
 
 import pytest
 from immutabledict import immutabledict
@@ -481,6 +483,8 @@ class TestCollectionHelper:
             "Submission reference",
             "Created by",
             "Created at",
+            "Status",
+            "Submitted at",
             "[Export test form] Your name",
             "[Export test form] Your quest",
             "[Export test form] Airspeed velocity",
@@ -519,6 +523,8 @@ class TestCollectionHelper:
             "Submission reference",
             "Created by",
             "Created at",
+            "Status",
+            "Submitted at",
             "[Export test form] Number of cups of tea",
             "[Export test form] Tea bag pack size",
             "[Export test form] Favourite dunking biscuit",
@@ -558,6 +564,8 @@ class TestCollectionHelper:
             "Submission reference",
             "Created by",
             "Created at",
+            "Status",
+            "Submitted at",
             "[Export test form] Number of cups of tea",
             "[Export test form] Tea bag pack size",
             "[Export test form] Favourite dunking biscuit",
@@ -591,6 +599,8 @@ class TestCollectionHelper:
             "Submission reference",
             "Created by",
             "Created at",
+            "Status",
+            "Submitted at",
             "[Export test form] Your name",
             "[Export test form] Your quest",
             "[Export test form] Airspeed velocity",
@@ -604,6 +614,8 @@ class TestCollectionHelper:
             c_helper.submissions[0].reference,
             c_helper.submissions[0].created_by.email,
             format_datetime(c_helper.submissions[0].created_at_utc),
+            "In progress",
+            "",
             "test name",
             "Line 1\r\nline2\r\nline 3",
             "123",
@@ -613,6 +625,46 @@ class TestCollectionHelper:
             "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
             "Cheddar\nStilton",
         ]
+
+    def test_all_question_types_appear_correctly_in_json_export(self, factories):
+        factories.data_source_item.reset_sequence()
+        collection = factories.collection.create(
+            create_completed_submissions_each_question_type__test=1,
+            create_completed_submissions_each_question_type__use_random_data=False,
+        )
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        json_data = c_helper.generate_json_content_for_all_submissions()
+        submissions = json.loads(json_data)
+
+        assert submissions == {
+            "submissions": [
+                {
+                    "created_at_utc": mock.ANY,
+                    "created_by": mock.ANY,
+                    "reference": mock.ANY,
+                    "status": "In progress",
+                    "submitted_at_utc": None,
+                    "tasks": [
+                        {
+                            "answers": {
+                                "Airspeed velocity": {"value": 123},
+                                "Best option": {"key": "key-0", "label": "Option 0"},
+                                "Email address": "test@email.com",
+                                "Favourite cheeses": [
+                                    {"key": "cheddar", "label": "Cheddar"},
+                                    {"key": "stilton", "label": "Stilton"},
+                                ],
+                                "Like cheese": True,
+                                "Website address": "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
+                                "Your name": "test name",
+                                "Your quest": "Line 1\r\nline2\r\nline 3",
+                            },
+                            "name": "Export test form",
+                        }
+                    ],
+                }
+            ]
+        }
 
     @pytest.mark.skip(reason="performance")
     @pytest.mark.parametrize("num_test_submissions", [1, 2, 3, 5, 12, 60, 100, 500])

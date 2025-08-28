@@ -1,4 +1,5 @@
 import csv
+import json
 import uuid
 from datetime import datetime
 from io import StringIO
@@ -144,6 +145,20 @@ class SubmissionHelper:
             return SubmissionStatusEnum.NOT_STARTED
         else:
             return SubmissionStatusEnum.IN_PROGRESS
+
+    @property
+    def submitted_at_utc(self) -> datetime | None:
+        if not self.is_completed:
+            return None
+
+        submitted = next(
+            filter(lambda e: e.key == SubmissionEventKey.SUBMISSION_SUBMITTED, reversed(self.submission.events)),
+            None,
+        )
+        if not submitted:
+            return None
+
+        return submitted.created_at_utc
 
     @property
     def is_completed(self) -> bool:
@@ -408,8 +423,7 @@ class CollectionHelper:
         ]
 
     def generate_csv_content_for_all_submissions(self) -> str:
-        # TODO: make me generate rows (yield) rather than hold everything in memory
-        metadata_headers = ["Submission reference", "Created by", "Created at"]
+        metadata_headers = ["Submission reference", "Created by", "Created at", "Status", "Submitted at"]
         question_headers = {
             question.id: f"[{question.form.title}] {question.name}"
             for question in self.get_all_possible_questions_for_collection()
@@ -424,6 +438,8 @@ class CollectionHelper:
                 "Submission reference": submission.reference,
                 "Created by": submission.created_by_email,
                 "Created at": format_datetime(submission.created_at_utc),
+                "Status": submission.status,
+                "Submitted at": format_datetime(submission.submitted_at_utc) if submission.submitted_at_utc else None,
             }
             visible_questions = submission.all_visible_questions
             for question_id, header_string in question_headers.items():
@@ -431,11 +447,40 @@ class CollectionHelper:
                     submission_csv_data[header_string] = NOT_ASKED
                 else:
                     answer = submission.get_answer_for_question(question_id)
-                    submission_csv_data[header_string] = answer.get_value_for_text_export() if answer else NOT_ANSWERED
+                    submission_csv_data[header_string] = (
+                        answer.get_value_for_text_export() if answer is not None else NOT_ANSWERED
+                    )
 
             csv_writer.writerow(submission_csv_data)
 
         return csv_output.getvalue()
+
+    def generate_json_content_for_all_submissions(self) -> str:
+        submissions_data: dict[str, Any] = {"submissions": []}
+        for submission in self.submission_helpers.values():
+            submission_data: dict[str, Any] = {
+                "reference": submission.reference,
+                "created_by": submission.created_by_email,
+                "created_at_utc": format_datetime(submission.created_at_utc),
+                "status": submission.status,
+                "submitted_at_utc": format_datetime(submission.submitted_at_utc)
+                if submission.submitted_at_utc
+                else None,
+                "tasks": [],
+            }
+
+            for form in submission.get_ordered_visible_forms_for_section(submission.sections[0]):
+                task_data: dict[str, Any] = {"name": form.title, "answers": {}}
+                for question in submission.get_ordered_visible_questions(form):
+                    answer = submission.get_answer_for_question(question.id)
+                    task_data["answers"][question.name] = (
+                        answer.get_value_for_json_export() if answer is not None else None
+                    )
+                submission_data["tasks"].append(task_data)
+
+            submissions_data["submissions"].append(submission_data)
+
+        return json.dumps(submissions_data)
 
 
 def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm) -> AllAnswerTypes:

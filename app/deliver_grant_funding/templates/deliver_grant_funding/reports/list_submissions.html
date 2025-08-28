@@ -38,7 +38,13 @@
             "text": "Export as CSV",
             "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='csv'),
             "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
-            "disabled": true
+          })
+        }}
+        {{
+          govukButton({
+            "text": "Export as JSON",
+            "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='json'),
+            "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
           })
         }}
       </p>
