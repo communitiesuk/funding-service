@@ -1,4 +1,5 @@
 import uuid
+from functools import cached_property
 from typing import TYPE_CHECKING, Optional, Union
 
 from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
@@ -254,12 +255,12 @@ class Form(BaseModel):
         cascade="all, save-update, merge",
     )
 
-    @property
+    @cached_property
     def questions(self) -> list["Question"]:
         """Consistently returns all questions in the form, respecting order and any level of nesting."""
         return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
 
-    @property
+    @cached_property
     def all_components(self) -> list["Component"]:
         return get_ordered_nested_components(self.components)
 
@@ -448,11 +449,11 @@ class Group(Component):
         data_type: None
 
     # todo: rename to something that makes it clear this is processed, something like all_nested_questions
-    @property
+    @cached_property
     def questions(self) -> list["Question"]:
         return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
 
-    @property
+    @cached_property
     def all_components(self) -> list["Component"]:
         return get_ordered_nested_components(self.components)
 

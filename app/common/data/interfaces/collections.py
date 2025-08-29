@@ -83,10 +83,14 @@ def get_collection(
                 .joinedload(Section.forms)
                 .selectinload(Form._all_components)
                 # .selectinload(Component.components.and_(Component.type == ComponentType.GROUP)),
-                .selectinload(Component.components),
+                .selectinload(Component.components)
+                .joinedload(Component.expressions),
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
-                joinedload(Collection.sections).joinedload(Section.forms).selectinload(Form.components),
+                joinedload(Collection.sections)
+                .joinedload(Section.forms)
+                .selectinload(Form.components)
+                .joinedload(Component.expressions),
             ]
         )
 
@@ -124,7 +128,8 @@ def update_submission_data(submission: Submission, question: Question, data: All
     return submission
 
 
-# todo: nested components
+# todo: we need to rationalise the interfaces here - far too many deep diving the schema
+#       are they options on one method?
 def get_all_submissions_with_mode_for_collection_with_full_schema(
     collection_id: UUID, submission_mode: SubmissionModeEnum
 ) -> ScalarResult[Submission]:
@@ -147,8 +152,7 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
             joinedload(Submission.collection)
             .joinedload(Collection.sections)
             .joinedload(Section.forms)
-            .selectinload(Form._all_components)
-            .joinedload(Component.expressions),
+            .selectinload(Form._all_components),
             # get any nested components in one go
             joinedload(Submission.collection)
             .joinedload(Collection.sections)
@@ -179,19 +183,22 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
                 joinedload(Submission.collection)
                 .joinedload(Collection.sections)
                 .joinedload(Section.forms)
-                .selectinload(Form._all_components),
+                .selectinload(Form._all_components)
+                .joinedload(Component.expressions),
                 # get any nested components in one go
                 joinedload(Submission.collection)
                 .joinedload(Collection.sections)
                 .joinedload(Section.forms)
                 .selectinload(Form._all_components)
-                .selectinload(Component.components),
+                .selectinload(Component.components)
+                .joinedload(Component.expressions),
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
                 joinedload(Submission.collection)
                 .joinedload(Collection.sections)
                 .joinedload(Section.forms)
-                .selectinload(Form.components),
+                .selectinload(Form.components)
+                .joinedload(Component.expressions),
                 joinedload(Submission.events),
             ]
         )

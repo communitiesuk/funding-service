@@ -2,6 +2,7 @@ import csv
 import json
 import uuid
 from datetime import datetime
+from functools import cached_property, lru_cache
 from io import StringIO
 from itertools import chain
 from typing import TYPE_CHECKING, Any, List, Optional, Union
@@ -78,6 +79,18 @@ class SubmissionHelper:
         self.submission = submission
         self.collection = self.submission.collection
 
+        self.get_answer_for_question = lru_cache(maxsize=None)(self.get_answer_for_question)  # type: ignore[method-assign]
+        self.get_all_questions_are_answered_for_form = lru_cache(maxsize=None)(  # type: ignore[method-assign]
+            self.get_all_questions_are_answered_for_form
+        )
+        self.get_ordered_visible_forms_for_section = lru_cache(maxsize=None)(self.get_ordered_visible_forms_for_section)  # type: ignore[method-assign]
+
+        # would need to specify the hash for the set
+        # self.is_component_visible = lru_cache(maxsize=None)(self.is_component_visible)
+
+        # to do this generically with a decorator we'd probably need to make sure
+        # models are hashable - if we want to do that
+
     @classmethod
     def load(cls, submission_id: uuid.UUID) -> "SubmissionHelper":
         return cls(get_submission(submission_id, with_full_schema=True))
@@ -98,7 +111,7 @@ class SubmissionHelper:
     def reference(self) -> str:
         return self.submission.reference
 
-    @property
+    @cached_property
     def form_data(self) -> dict[str, Any]:
         form_data = {
             question.safe_qid: answer.get_value_for_form()
@@ -109,7 +122,7 @@ class SubmissionHelper:
         }
         return form_data
 
-    @property
+    @cached_property
     def expression_context(self) -> ExpressionContext:
         submission_data = {
             question.safe_qid: answer.get_value_for_expression()
@@ -229,7 +242,7 @@ class SubmissionHelper:
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
         return len(visible_questions) == len(answers), answers
 
-    @property
+    @cached_property
     def all_forms_are_completed(self) -> bool:
         form_statuses = set(
             [
