@@ -41,6 +41,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
+from app.common.data.interfaces.very_temporary import deep_copy_component
 from app.common.data.types import (
     CollectionType,
     ExpressionType,
@@ -400,6 +401,21 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         delete_form=delete_wtform,
         form=preview_form,
     )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/component/<uuid:component_id>/duplicate", methods=["GET"]
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def duplicate_component(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
+    form = component.form
+
+    new_component = deep_copy_component(component, parent_id=component.parent_id, form_id=form.id)
+    form.components.reorder()
+
+    return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=form.id))
 
 
 @deliver_grant_funding_blueprint.route(

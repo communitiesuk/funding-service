@@ -61,6 +61,15 @@
           "attributes": {"aria-hidden": true} if loop.last or nested_last else {}
         })
       %}
+      {%
+        do actions.append({
+          "text": "Dupe",
+          "visuallyHiddenText": visually_hidden_text,
+          "href": url_for('deliver_grant_funding.duplicate_component', grant_id=grant.id, component_id=question.id),
+          "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if (question == parent.components | last) or nested_last else ""),
+          "attributes": {"aria-hidden": true} if loop.last or nested_last else {}
+        })
+        %}
     {% endif %}
     {%
       do rows.append(
