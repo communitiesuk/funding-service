@@ -78,7 +78,11 @@ class SubmissionHelper:
         self.submission = submission
         self.collection = self.submission.collection
 
-        self.cached_get_answer_for_question = lru_cache(maxsize=None)(self.get_answer_for_question)
+        self.cached_get_ordered_visible_questions = lru_cache(maxsize=None)(self._get_ordered_visible_questions)
+        self.cached_get_answer_for_question = lru_cache(maxsize=None)(self._get_answer_for_question)
+        self.cached_get_all_questions_are_answered_for_form = lru_cache(maxsize=None)(
+            self._get_all_questions_are_answered_for_form
+        )
 
     @classmethod
     def load(cls, submission_id: uuid.UUID) -> "SubmissionHelper":
@@ -121,7 +125,7 @@ class SubmissionHelper:
         return {
             question.id: question
             for form in self.get_ordered_visible_forms()
-            for question in self.get_ordered_visible_questions(form)
+            for question in self.cached_get_ordered_visible_questions(form)
         }
 
     @property
@@ -198,7 +202,7 @@ class SubmissionHelper:
             ) from e
 
     def get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
-        visible_questions = self.get_ordered_visible_questions(form)
+        visible_questions = self.cached_get_ordered_visible_questions(form)
         answers = [
             answer for q in visible_questions if (answer := self.cached_get_answer_for_question(q.id)) is not None
         ]
@@ -216,7 +220,7 @@ class SubmissionHelper:
         return TasklistTaskStatusEnum(self.get_status_for_form(form))
 
     def get_status_for_form(self, form: "Form") -> str:
-        all_questions_answered, answers = self.get_all_questions_are_answered_for_form(form)
+        all_questions_answered, answers = self.cached_get_all_questions_are_answered_for_form(form)
         marked_as_complete = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED in [
             x.key for x in self.submission.events if x.form and x.form.id == form.id
         ]
@@ -252,7 +256,7 @@ class SubmissionHelper:
             #       always suppressing errors and not surfacing issues on misconfigured forms
             return False
 
-    def get_ordered_visible_questions(self, parent: Union["Form", "Group"]) -> list["Question"]:
+    def _get_ordered_visible_questions(self, parent: Union["Form", "Group"]) -> list["Question"]:
         """Returns the visible, ordered questions based upon the current state of this collection."""
         return [
             question
@@ -261,13 +265,13 @@ class SubmissionHelper:
         ]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
-        questions = self.get_ordered_visible_questions(form)
+        questions = self.cached_get_ordered_visible_questions(form)
         if questions:
             return questions[0]
         return None
 
     def get_last_question_for_form(self, form: "Form") -> Optional["Question"]:
-        questions = self.get_ordered_visible_questions(form)
+        questions = self.cached_get_ordered_visible_questions(form)
         if questions:
             return questions[-1]
         return None
@@ -279,7 +283,7 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
-    def get_answer_for_question(self, question_id: UUID) -> AllAnswerTypes | None:
+    def _get_answer_for_question(self, question_id: UUID) -> AllAnswerTypes | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
@@ -295,6 +299,12 @@ class SubmissionHelper:
         data = _form_data_to_question_type(question, form)
         interfaces.collections.update_submission_data(self.submission, question, data)
         self.cached_get_answer_for_question.cache_clear()
+        self.cached_get_all_questions_are_answered_for_form.cache_clear()
+
+        # FIXME: work out why end to end tests aren't happy without this here
+        #        I've made it work but not happy with not clearly pointing to where
+        #        an instance was failing to route (next_url) appropriately without it
+        self.cached_get_ordered_visible_questions.cache_clear()
 
     def submit(self, user: "User") -> None:
         if self.is_completed:
@@ -311,7 +321,7 @@ class SubmissionHelper:
             return
 
         if is_complete:
-            all_questions_answered, _ = self.get_all_questions_are_answered_for_form(form)
+            all_questions_answered, _ = self.cached_get_all_questions_are_answered_for_form(form)
             if not all_questions_answered:
                 raise ValueError(
                     f"Could not mark form id={form.id} as complete because not all questions have been answered."
@@ -330,7 +340,8 @@ class SubmissionHelper:
         Retrieve the next question that should be shown to the user, or None if this was the last relevant question.
         """
         form = self.get_form_for_question(current_question_id)
-        questions = self.get_ordered_visible_questions(form)
+
+        questions = self.cached_get_ordered_visible_questions(form)
 
         question_iterator = iter(questions)
         for question in question_iterator:
@@ -344,7 +355,7 @@ class SubmissionHelper:
         Retrieve the question that was asked before this one, or None if this was the first relevant question.
         """
         form = self.get_form_for_question(current_question_id)
-        questions = self.get_ordered_visible_questions(form)
+        questions = self.cached_get_ordered_visible_questions(form)
 
         # Reverse the list of questions so that we're working from the end to the start.
         question_iterator = iter(reversed(questions))
@@ -442,7 +453,7 @@ class CollectionHelper:
 
             for form in submission.get_ordered_visible_forms():
                 task_data: dict[str, Any] = {"name": form.title, "answers": {}}
-                for question in submission.get_ordered_visible_questions(form):
+                for question in submission.cached_get_ordered_visible_questions(form):
                     answer = submission.cached_get_answer_for_question(question.id)
                     task_data["answers"][question.name] = (
                         answer.get_value_for_json_export() if answer is not None else None

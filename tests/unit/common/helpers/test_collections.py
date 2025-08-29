@@ -30,7 +30,7 @@ class TestSubmissionHelper:
             _question_1 = factories.question.build(order=1, form=form)
 
             helper = SubmissionHelper(submission)
-            helper_questions = helper.get_ordered_visible_questions(form)
+            helper_questions = helper.cached_get_ordered_visible_questions(form)
             assert len(helper_questions) == 3
             assert [s.order for s in helper_questions] == [0, 1, 2]
 
@@ -43,7 +43,7 @@ class TestSubmissionHelper:
             factories.expression.build(question=invisible_question, type=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
-            helper_questions = helper.get_ordered_visible_questions(form)
+            helper_questions = helper.cached_get_ordered_visible_questions(form)
             assert len(helper_questions) == 1
             assert helper_questions[0].id == visible_question.id
 
@@ -59,7 +59,7 @@ class TestSubmissionHelper:
             factories.expression.build(question=invisible_group, type=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
-            helper_questions = helper.get_ordered_visible_questions(form)
+            helper_questions = helper.cached_get_ordered_visible_questions(form)
             assert len(helper_questions) == 1
             assert helper_questions[0].id == visible_question.id
 
@@ -75,10 +75,10 @@ class TestSubmissionHelper:
             factories.expression.build(question=q2, type=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
-            helper_questions = helper.get_ordered_visible_questions(form)
+            helper_questions = helper.cached_get_ordered_visible_questions(form)
             assert helper_questions == [q0, q1, q3]
 
-            group_questions = helper.get_ordered_visible_questions(group)
+            group_questions = helper.cached_get_ordered_visible_questions(group)
             assert group_questions == [q1, q3]
 
     class TestGetForm:
@@ -318,6 +318,7 @@ class TestSubmissionHelper:
 
             submission.data[str(question_one.id)] = "User submitted data"
             helper.cached_get_answer_for_question.cache_clear()
+            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
             submission.events = [
                 factories.submission_event.build(
                     submission=submission, form=form_one, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
@@ -329,6 +330,7 @@ class TestSubmissionHelper:
 
             submission.data[str(question_two.id)] = "User submitted data"
             helper.cached_get_answer_for_question.cache_clear()
+            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
             del helper.all_forms_are_completed
 
             # all questions complete but a form not marked as completed is still not completed
