@@ -70,7 +70,7 @@
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_task_questions', grant_id=grant.id, form_id=form.id) }}">{{ form.title }}</a>
           {% endset %}
           {% set questionsHtml %}
-            {{ form.questions | length }}
+            {{ form.cached_questions | length }}
             questions<span class="govuk-visually-hidden"> in {{ form.title }}</span>
           {% endset %}
           {% set actions = [] %}
