@@ -61,9 +61,9 @@ class FormRunner:
             self.form = self.component.form
             _QuestionForm = build_question_form(
                 self.questions,
-                self.submission.expression_context,
+                self.submission.cached_expression_context,
             )
-            self._question_form = _QuestionForm(data=self.submission.form_data)
+            self._question_form = _QuestionForm(data=self.submission.cached_form_data)
 
         if self.form:
             all_questions_answered, _ = self.submission.get_all_questions_are_answered_for_form(self.form)
@@ -195,7 +195,7 @@ class FormRunner:
         if not self.component:
             raise ValueError("Question context not set")
 
-        context = self.submission.expression_context
+        context = self.submission.cached_expression_context
 
         if not self.submission.is_component_visible(self.component, context):
             self._valid = False
