@@ -317,6 +317,7 @@ class TestSubmissionHelper:
             assert helper.all_forms_are_completed is False
 
             submission.data[str(question_one.id)] = "User submitted data"
+            helper.cached_get_answer_for_question.cache_clear()
             submission.events = [
                 factories.submission_event.build(
                     submission=submission, form=form_one, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
@@ -327,6 +328,7 @@ class TestSubmissionHelper:
             assert helper.all_forms_are_completed is False
 
             submission.data[str(question_two.id)] = "User submitted data"
+            helper.cached_get_answer_for_question.cache_clear()
             del helper.all_forms_are_completed
 
             # all questions complete but a form not marked as completed is still not completed

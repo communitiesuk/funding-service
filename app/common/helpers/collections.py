@@ -2,7 +2,7 @@ import csv
 import json
 import uuid
 from datetime import datetime
-from functools import cached_property
+from functools import cached_property, lru_cache
 from io import StringIO
 from itertools import chain
 from typing import TYPE_CHECKING, Any, List, Optional, Union
@@ -78,6 +78,8 @@ class SubmissionHelper:
         self.submission = submission
         self.collection = self.submission.collection
 
+        self.cached_get_answer_for_question = lru_cache(maxsize=None)(self.get_answer_for_question)
+
     @classmethod
     def load(cls, submission_id: uuid.UUID) -> "SubmissionHelper":
         return cls(get_submission(submission_id, with_full_schema=True))
@@ -100,7 +102,7 @@ class SubmissionHelper:
             question.safe_qid: answer.get_value_for_form()
             for form in self.submission.collection.forms
             for question in form.cached_questions
-            if (answer := self.get_answer_for_question(question.id)) is not None
+            if (answer := self.cached_get_answer_for_question(question.id)) is not None
         }
         return form_data
 
@@ -110,7 +112,7 @@ class SubmissionHelper:
             question.safe_qid: answer.get_value_for_expression()
             for form in self.collection.forms
             for question in form.cached_questions
-            if (answer := self.get_answer_for_question(question.id)) is not None
+            if (answer := self.cached_get_answer_for_question(question.id)) is not None
         }
         return ExpressionContext(from_submission=immutabledict(submission_data))
 
@@ -197,7 +199,9 @@ class SubmissionHelper:
 
     def get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
         visible_questions = self.get_ordered_visible_questions(form)
-        answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
+        answers = [
+            answer for q in visible_questions if (answer := self.cached_get_answer_for_question(q.id)) is not None
+        ]
         return len(visible_questions) == len(answers), answers
 
     @cached_property
@@ -290,6 +294,7 @@ class SubmissionHelper:
         question = self.get_question(question_id)
         data = _form_data_to_question_type(question, form)
         interfaces.collections.update_submission_data(self.submission, question, data)
+        self.cached_get_answer_for_question.cache_clear()
 
     def submit(self, user: "User") -> None:
         if self.is_completed:
@@ -412,7 +417,7 @@ class CollectionHelper:
                 if question_id not in visible_questions.keys():
                     submission_csv_data[header_string] = NOT_ASKED
                 else:
-                    answer = submission.get_answer_for_question(question_id)
+                    answer = submission.cached_get_answer_for_question(question_id)
                     submission_csv_data[header_string] = (
                         answer.get_value_for_text_export() if answer is not None else NOT_ANSWERED
                     )
@@ -438,7 +443,7 @@ class CollectionHelper:
             for form in submission.get_ordered_visible_forms():
                 task_data: dict[str, Any] = {"name": form.title, "answers": {}}
                 for question in submission.get_ordered_visible_questions(form):
-                    answer = submission.get_answer_for_question(question.id)
+                    answer = submission.cached_get_answer_for_question(question.id)
                     task_data["answers"][question.name] = (
                         answer.get_value_for_json_export() if answer is not None else None
                     )

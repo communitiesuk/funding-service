@@ -134,6 +134,6 @@ def test_collection_factory_completed_submissions(db_session, factories):
         all_questions = collection.forms[0].cached_questions
         for question in all_questions:
             assert helper.get_question(question.id).text == question.text
-            answer = helper.get_answer_for_question(question.id)
+            answer = helper.cached_get_answer_for_question(question.id)
             assert answer
             assert answer.get_value_for_submission() == submission.data[str(question.id)]
