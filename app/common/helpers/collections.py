@@ -2,6 +2,7 @@ import csv
 import json
 import uuid
 from datetime import datetime
+from functools import cached_property
 from io import StringIO
 from itertools import chain
 from typing import TYPE_CHECKING, Any, List, Optional, Union
@@ -98,8 +99,8 @@ class SubmissionHelper:
     def reference(self) -> str:
         return self.submission.reference
 
-    @property
-    def form_data(self) -> dict[str, Any]:
+    @cached_property
+    def cached_form_data(self) -> dict[str, Any]:
         form_data = {
             question.safe_qid: answer.get_value_for_form()
             for section in self.submission.collection.sections
@@ -109,8 +110,8 @@ class SubmissionHelper:
         }
         return form_data
 
-    @property
-    def expression_context(self) -> ExpressionContext:
+    @cached_property
+    def cached_expression_context(self) -> ExpressionContext:
         submission_data = {
             question.safe_qid: answer.get_value_for_expression()
             for section in self.submission.collection.sections
@@ -229,7 +230,7 @@ class SubmissionHelper:
         answers = [answer for q in visible_questions if (answer := self.get_answer_for_question(q.id)) is not None]
         return len(visible_questions) == len(answers), answers
 
-    @property
+    @cached_property
     def all_forms_are_completed(self) -> bool:
         form_statuses = set(
             [
@@ -287,7 +288,7 @@ class SubmissionHelper:
         return [
             question
             for question in parent.cached_questions
-            if self.is_component_visible(question, self.expression_context)
+            if self.is_component_visible(question, self.cached_expression_context)
         ]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
