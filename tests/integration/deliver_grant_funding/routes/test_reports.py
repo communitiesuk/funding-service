@@ -1282,7 +1282,7 @@ class TestAddQuestion:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Edit question"
-        assert get_h2_text(soup) == "Question created"
+        assert get_h2_text(soup) == "Question added"
 
     def test_post_add_to_group(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
@@ -1317,7 +1317,7 @@ class TestAddQuestion:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Edit question"
-        assert get_h2_text(soup) == "Question created"
+        assert get_h2_text(soup) == "Question added"
         assert page_has_link(soup, "Return to the question group")
 
 
@@ -1481,6 +1481,32 @@ class TestEditQuestion:
             assert db_question.name == "Question name"
             assert db_question.hint == "Question hint"
             assert db_question.data_type == QuestionDataType.TEXT_SINGLE_LINE
+            assert page_has_link(soup, "Delete this question")
+
+    def test_get_delete_restricted_for_dependencies(self, authenticated_grant_admin_client, factories, db_session):
+        user = factories.user.create()
+        question = factories.question.create(form__section__collection__grant=authenticated_grant_admin_client.grant)
+        depends_on = factories.question.create(
+            form=question.form,
+            expressions=[Expression.from_managed(GreaterThan(question_id=question.id, minimum_value=1000), user)],
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert not page_has_link(soup, "Delete this question")
+        assert (
+            "This question cannot be deleted because the user's answer decides what other questions will be asked."
+            in soup.text
+        )
+        assert page_has_link(soup, depends_on.text)
 
     def test_get_with_group(self, request, authenticated_grant_admin_client, factories, db_session):
         group = factories.group.create(
@@ -1497,6 +1523,7 @@ class TestEditQuestion:
                 question_id=question.id,
             )
         )
+
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -1600,7 +1627,7 @@ class TestAddQuestionConditionSelectQuestion:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert "There are no questions in this form that can be used as a condition." in soup.text
-            assert "The question" in soup.text
+            assert "Question" in soup.text
 
         response = client.get(
             url_for(
@@ -1616,7 +1643,7 @@ class TestAddQuestionConditionSelectQuestion:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert "There are no questions in this form that can be used as a condition." in soup.text
-            assert "The question group" in soup.text
+            assert "Question group" in soup.text
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
@@ -1657,7 +1684,7 @@ class TestAddQuestionConditionSelectQuestion:
         else:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
-            assert "What answer should the condition check?" in soup.text
+            assert "What question does this condition relate to?" in soup.text
             assert "Do you like cheese? (cheese question)" in soup.text
 
     def test_post(self, authenticated_grant_admin_client, factories):
@@ -1726,7 +1753,7 @@ class TestAddQuestionConditionSelectQuestion:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
-        assert page_has_error(soup, "Select an answer that is not on the same page as this question")
+        assert page_has_error(soup, "Select a question that is not on the same page as this question")
 
 
 class TestAddQuestionCondition:
@@ -1984,7 +2011,7 @@ class TestEditQuestionCondition:
 
             assert get_h1_text(soup) == "Edit condition"
 
-            assert "The question" in soup.text
+            assert "Question" in soup.text
             assert "What is your email?" in soup.text
 
             assert "Depends on the answer to" in soup.text

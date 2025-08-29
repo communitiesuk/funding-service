@@ -47,6 +47,10 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     def message(self) -> str: ...
 
     @property
+    @abc.abstractmethod
+    def html(self) -> Markup: ...
+
+    @property
     def referenced_question(self) -> "Question":
         # todo: split up the collections interface to let us sensibly reason about whats importing what
         from app.common.data.interfaces.collections import get_question_by_id
@@ -174,6 +178,10 @@ class GreaterThan(ManagedExpression):
         return f"The answer must be greater than {'or equal to ' if self.inclusive else ''}{self.minimum_value}"
 
     @property
+    def html(self) -> Markup:
+        return Markup(f"Greater than {'or equal to ' if self.inclusive else ''}{self.minimum_value}")
+
+    @property
     def statement(self) -> str:
         return f"{self.safe_qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
 
@@ -228,6 +236,10 @@ class LessThan(ManagedExpression):
     @property
     def message(self) -> str:
         return f"The answer must be less than {'or equal to ' if self.inclusive else ''}{self.maximum_value}"
+
+    @property
+    def html(self) -> Markup:
+        return Markup(f"Less than {'or equal to ' if self.inclusive else ''}{self.maximum_value}")
 
     @property
     def statement(self) -> str:
@@ -292,6 +304,14 @@ class Between(ManagedExpression):
         # todo: make this use expression evaluation/interpolation rather than f-strings
         return (
             f"The answer must be between "
+            f"{self.minimum_value}{' (inclusive)' if self.minimum_inclusive else ' (exclusive)'} and "
+            f"{self.maximum_value}{' (inclusive)' if self.maximum_inclusive else ' (exclusive)'}"
+        )
+
+    @property
+    def html(self) -> Markup:
+        return Markup(
+            f"Between "
             f"{self.minimum_value}{' (inclusive)' if self.minimum_inclusive else ' (exclusive)'} and "
             f"{self.maximum_value}{' (inclusive)' if self.maximum_inclusive else ' (exclusive)'}"
         )
@@ -387,7 +407,18 @@ class AnyOf(BaseDataSourceManagedExpression):
         if len(self.items) == 1:
             return f"The answer is “{self.items[0]['label']}”"
 
-        return f"The answer is one of “{'”, “'.join(c['label'] for c in self.items)}”"
+        return f"The answer is any of “{'”, “'.join(c['label'] for c in self.items)}”"
+
+    @property
+    def html(self) -> Markup:
+        if len(self.items) == 1:
+            return Markup(f"{self.items[0]['label']}")
+
+        return Markup(
+            f"<ul class='govuk-list govuk-list--bullet app-list-!-link-color'>"
+            f"<li>{'</li><li>'.join(c['label'] for c in self.items)}</li>"
+            f"</ul>"
+        )
 
     @property
     def statement(self) -> str:
@@ -452,6 +483,10 @@ class IsYes(ManagedExpression):
         return "The answer is “yes”"
 
     @property
+    def html(self) -> Markup:
+        return Markup("Yes")
+
+    @property
     def statement(self) -> str:
         return f"{self.safe_qid} is True"
 
@@ -487,6 +522,10 @@ class IsNo(ManagedExpression):
     @property
     def message(self) -> str:
         return "The answer is “no”"
+
+    @property
+    def html(self) -> Markup:
+        return Markup("No")
 
     @property
     def statement(self) -> str:
@@ -525,6 +564,10 @@ class Specifically(BaseDataSourceManagedExpression):
     @property
     def message(self) -> str:
         return f"The answer is “{self.item['label']}”"
+
+    @property
+    def html(self) -> Markup:
+        return Markup(self.item["label"])
 
     @property
     def statement(self) -> str:
