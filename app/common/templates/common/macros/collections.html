@@ -127,7 +127,7 @@
 
   {% set rows = [] %}
   {% for question in submission.get_ordered_visible_questions(form) %}
-    {% set answer = submission.get_answer_for_question(question.id) %}
+    {% set answer = submission.cached_get_answer_for_question(question.id) %}
     {% if answer is not none %}
       {% set value_html %}
         {% include answer._render_answer_template %}

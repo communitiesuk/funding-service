@@ -177,7 +177,7 @@ class FormRunner:
             # Regardless of where they're from (eg even check-your-answers), take them to the next unanswered question
             # this will let users stay in a data-submitting flow if they've changed a conditional answer which has
             # unlocked more questions.
-            while next_question and self.submission.get_answer_for_question(next_question.id) is not None:
+            while next_question and self.submission.cached_get_answer_for_question(next_question.id) is not None:
                 next_question = self.submission.get_next_question(next_question.id)
 
             return (
