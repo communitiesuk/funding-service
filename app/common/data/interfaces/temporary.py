@@ -16,6 +16,7 @@ from sqlalchemy import select, text
 from app.common.data.interfaces.collections import create_section, raise_if_question_has_any_dependencies
 from app.common.data.models import (
     Collection,
+    Component,
     Form,
     Grant,
     Question,
