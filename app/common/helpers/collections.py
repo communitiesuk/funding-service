@@ -78,6 +78,8 @@ class SubmissionHelper:
         self.submission = submission
         self.collection = self.submission.collection
 
+        self.question_index = {question.id: question for form in self.collection.forms for question in form.questions}
+
     @classmethod
     def load(cls, submission_id: uuid.UUID) -> "SubmissionHelper":
         return cls(get_submission(submission_id, with_full_schema=True))
@@ -207,15 +209,8 @@ class SubmissionHelper:
 
     def get_question(self, question_id: uuid.UUID) -> "Question":
         try:
-            return next(
-                filter(
-                    lambda q: q.id == question_id,
-                    chain.from_iterable(
-                        form.questions for section in self.collection.sections for form in section.forms
-                    ),
-                )
-            )
-        except StopIteration as e:
+            return self.question_index[question_id]
+        except KeyError as e:
             raise ValueError(
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
