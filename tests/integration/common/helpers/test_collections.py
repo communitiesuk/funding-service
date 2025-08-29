@@ -547,8 +547,9 @@ class TestCollectionHelper:
     def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
         c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        dependant_question_id = collection.forms[0].questions[0].id
-        conditional_question_id = collection.forms[0].questions[1].id
+        dependant_question_id = collection.forms[0].cached_questions[0].id
+        conditional_question_id = collection.forms[0].cached_questions[1].id
+        
         # Find the submission where question 2 is not expected to be answered it and store some data as though it has
         # previously been answered
         submission = next(

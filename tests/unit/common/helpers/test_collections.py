@@ -175,7 +175,7 @@ class TestSubmissionHelper:
 
             helper = SubmissionHelper(submission)
 
-            for question in form.questions:
+            for question in form.cached_questions:
                 assert helper.get_form_for_question(question.id) == form
 
         def test_question_does_not_exist_in_collection_forms(self, db_session, factories):

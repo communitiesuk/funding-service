@@ -37,8 +37,8 @@ class TestNestedComponents:
         nested_questions2 = factories.question.build_batch(3, parent=g2)
         q2 = factories.question.build(form=form)
 
-        assert form.questions == [q1, *nested_questions, *nested_questions2, q2]
-        assert group.questions == [*nested_questions, *nested_questions2]
+        assert form.cached_questions == [q1, *nested_questions, *nested_questions2, q2]
+        assert group.cached_questions == [*nested_questions, *nested_questions2]
 
     def test_get_components_nested_orders(self, factories):
         form = factories.form.build()
@@ -48,7 +48,7 @@ class TestNestedComponents:
         q2 = factories.question.build(form=form, order=1)
 
         assert get_ordered_nested_components(form.components) == [group, nested_q, q2, q1]
-        assert form.questions == [nested_q, q2, q1]
+        assert form.cached_questions == [nested_q, q2, q1]
 
     def test_get_components_nested_depth_5(self, factories):
         form = factories.form.build()
@@ -71,4 +71,4 @@ class TestNestedComponents:
             nested_q,
             q2,
         ]
-        assert form.questions == [q1, nested_q, q2]
+        assert form.cached_questions == [q1, nested_q, q2]

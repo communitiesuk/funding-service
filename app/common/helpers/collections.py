@@ -98,7 +98,7 @@ class SubmissionHelper:
         form_data = {
             question.safe_qid: answer.get_value_for_form()
             for form in self.submission.collection.forms
-            for question in form.questions
+            for question in form.cached_questions
             if (answer := self.get_answer_for_question(question.id)) is not None
         }
         return form_data
@@ -108,7 +108,7 @@ class SubmissionHelper:
         submission_data = {
             question.safe_qid: answer.get_value_for_expression()
             for form in self.collection.forms
-            for question in form.questions
+            for question in form.cached_questions
             if (answer := self.get_answer_for_question(question.id)) is not None
         }
         return ExpressionContext(from_submission=immutabledict(submission_data))
@@ -186,7 +186,7 @@ class SubmissionHelper:
             return next(
                 filter(
                     lambda q: q.id == question_id,
-                    chain.from_iterable(form.questions for form in self.collection.forms),
+                    chain.from_iterable(form.cached_questions for form in self.collection.forms),
                 )
             )
         except StopIteration as e:
@@ -205,7 +205,7 @@ class SubmissionHelper:
         return {SubmissionStatusEnum.COMPLETED} == form_statuses
 
     def get_tasklist_status_for_form(self, form: "Form") -> TasklistTaskStatusEnum:
-        if len(form.questions) == 0:
+        if len(form.cached_questions) == 0:
             return TasklistTaskStatusEnum.NO_QUESTIONS
 
         return TasklistTaskStatusEnum(self.get_status_for_form(form))
@@ -215,7 +215,7 @@ class SubmissionHelper:
         marked_as_complete = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED in [
             x.key for x in self.submission.events if x.form and x.form.id == form.id
         ]
-        if form.questions and all_questions_answered and marked_as_complete:
+        if form.cached_questions and all_questions_answered and marked_as_complete:
             return SubmissionStatusEnum.COMPLETED
         elif answers:
             return SubmissionStatusEnum.IN_PROGRESS
@@ -250,7 +250,9 @@ class SubmissionHelper:
     def get_ordered_visible_questions(self, parent: Union["Form", "Group"]) -> list["Question"]:
         """Returns the visible, ordered questions based upon the current state of this collection."""
         return [
-            question for question in parent.questions if self.is_component_visible(question, self.expression_context)
+            question
+            for question in parent.cached_questions
+            if self.is_component_visible(question, self.expression_context)
         ]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
@@ -267,7 +269,7 @@ class SubmissionHelper:
 
     def get_form_for_question(self, question_id: UUID) -> "Form":
         for form in self.collection.forms:
-            if any(q.id == question_id for q in form.questions):
+            if any(q.id == question_id for q in form.cached_questions):
                 return form
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
@@ -382,7 +384,7 @@ class CollectionHelper:
         return [
             question
             for form in sorted(self.collection.forms, key=lambda f: f.order)
-            for question in sorted(form.questions, key=lambda q: q.order)
+            for question in sorted(form.cached_questions, key=lambda q: q.order)
         ]
 
     def generate_csv_content_for_all_submissions(self) -> str:

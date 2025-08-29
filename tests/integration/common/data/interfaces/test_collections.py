@@ -170,7 +170,7 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
     count = 0
     with track_sql_queries() as queries:
         for f in from_db.collection.forms:
-            for _q in f.questions:
+            for _q in f.cached_questions:
                 count += 1
 
     assert queries == []
@@ -197,7 +197,7 @@ class TestGetFormById:
         # check we're not sending off more round trips to the database when interacting with the ORM
         count = 0
         with track_sql_queries() as queries:
-            for q in from_db.questions:
+            for q in from_db.cached_questions:
                 for _e in q.expressions:
                     count += 1
 
@@ -355,7 +355,7 @@ class TestCreateGroup:
 
         # the forms components are limited to ones with a direct relationship and no parents
         assert len(from_db.components) == 2
-        assert len(from_db.questions) == 5
+        assert len(from_db.cached_questions) == 5
 
 
 class TestUpdateGroup:
@@ -815,6 +815,9 @@ class TestUpdateQuestion:
         add_component_condition(first_dependent_question, user, anyof_expression)
 
         second_dependent_question = factories.question.create(form=form)
+
+        # todo: for test setup do we want factories to clear the cache to make tests a bit more readable
+        del form.cached_all_components
         add_component_condition(second_dependent_question, user, anyof_expression)
 
         with pytest.raises(DataSourceItemReferenceDependencyException) as error:
@@ -855,6 +858,8 @@ class TestUpdateQuestion:
         add_component_condition(first_dependent_question, user, specifically_expression)
 
         second_dependent_question = factories.question.create(form=form)
+
+        del form.cached_all_components
         add_component_condition(second_dependent_question, user, specifically_expression)
 
         with pytest.raises(DataSourceItemReferenceDependencyException) as error:
@@ -1326,7 +1331,7 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     count = 0
     with track_sql_queries() as queries:
         for f in from_db.forms:
-            for _q in f.questions:
+            for _q in f.cached_questions:
                 count += 1
 
     assert queries == []
@@ -1718,13 +1723,14 @@ class TestDeleteQuestion:
         form = factories.form.create()
         questions = factories.question.create_batch(5, form=form)
 
-        assert [q.order for q in form.questions] == [0, 1, 2, 3, 4]
-        assert form.questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
+        assert [q.order for q in form.cached_questions] == [0, 1, 2, 3, 4]
+        assert form.cached_questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
 
         delete_question(questions[2])
+        del form.cached_questions
 
-        assert [q.order for q in form.questions] == [0, 1, 2, 3]
-        assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
+        assert [q.order for q in form.cached_questions] == [0, 1, 2, 3]
+        assert form.cached_questions == [questions[0], questions[1], questions[3], questions[4]]
 
     def test_delete_group(self, db_session, factories):
         form = factories.form.create()
@@ -1734,15 +1740,16 @@ class TestDeleteQuestion:
         question2 = factories.question.create(form=form, order=2)
 
         assert form.components == [question1, group, question2]
-        assert form.questions == [question1, *[q for q in group_questions], question2]
+        assert form.cached_questions == [question1, *[q for q in group_questions], question2]
 
         delete_question(group)
+        del form.cached_questions
 
         assert db_session.get(Group, group.id) is None
         assert db_session.get(Question, group_questions[0].id) is None
 
         assert form.components == [question1, question2]
-        assert form.questions == [question1, question2]
+        assert form.cached_questions == [question1, question2]
 
     def test_nested_question_in_group(self, db_session, factories):
         form = factories.form.create()
@@ -1750,14 +1757,16 @@ class TestDeleteQuestion:
         questions = factories.question.create_batch(5, form=form, parent=group)
 
         assert [c.order for c in form.components] == [0]
-        assert [q.order for q in group.questions] == [0, 1, 2, 3, 4]
-        assert form.questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
+        assert [q.order for q in group.cached_questions] == [0, 1, 2, 3, 4]
+        assert form.cached_questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
 
         delete_question(questions[2])
+        del form.cached_questions
+        del group.cached_questions
 
         assert [c.order for c in form.components] == [0]
-        assert [q.order for q in group.questions] == [0, 1, 2, 3]
-        assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
+        assert [q.order for q in group.cached_questions] == [0, 1, 2, 3]
+        assert form.cached_questions == [questions[0], questions[1], questions[3], questions[4]]
 
         assert db_session.get(Question, questions[2].id) is None
         assert db_session.get(Question, questions[0].id) is not None
