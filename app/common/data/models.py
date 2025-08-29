@@ -1,4 +1,5 @@
 import uuid
+from functools import lru_cache
 from typing import TYPE_CHECKING, Optional, Union
 
 from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
@@ -257,21 +258,22 @@ class Form(BaseModel):
     @property
     def questions(self) -> list["Question"]:
         """Consistently returns all questions in the form, respecting order and any level of nesting."""
-        return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
+        return [q for q in get_ordered_nested_components(tuple(self.components)) if isinstance(q, Question)]
 
     @property
     def all_components(self) -> list["Component"]:
-        return get_ordered_nested_components(self.components)
+        return get_ordered_nested_components(tuple(self.components))
 
 
-def get_ordered_nested_components(components: list["Component"]) -> list["Component"]:
+@lru_cache
+def get_ordered_nested_components(components: tuple["Component", ...]) -> list["Component"]:
     """Recursively collects all components from a list of components, including nested components."""
     flat_components = []
     ordered_components = sorted(components, key=lambda c: c.order)
     for component in ordered_components:
         flat_components.append(component)
         if isinstance(component, Group):
-            flat_components.extend(get_ordered_nested_components(component.components))
+            flat_components.extend(get_ordered_nested_components(tuple(component.components)))
     return flat_components
 
 
@@ -450,11 +452,11 @@ class Group(Component):
     # todo: rename to something that makes it clear this is processed, something like all_nested_questions
     @property
     def questions(self) -> list["Question"]:
-        return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
+        return [q for q in get_ordered_nested_components(tuple(self.components)) if isinstance(q, Question)]
 
     @property
     def all_components(self) -> list["Component"]:
-        return get_ordered_nested_components(self.components)
+        return get_ordered_nested_components(tuple(self.components))
 
     @property
     def same_page(self) -> bool:

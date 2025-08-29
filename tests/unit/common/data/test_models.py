@@ -3,12 +3,12 @@ from app.common.data.models import get_ordered_nested_components
 
 class TestNestedComponents:
     def test_get_components_empty(self):
-        assert get_ordered_nested_components([]) == []
+        assert get_ordered_nested_components(tuple()) == []
 
     def test_get_components_flat(self, factories):
         form = factories.form.build()
         questions = factories.question.build_batch(3, form=form)
-        assert get_ordered_nested_components(form.components) == questions
+        assert get_ordered_nested_components(tuple(form.components)) == questions
 
     def test_get_components_nested(self, factories):
         form = factories.form.build()
@@ -19,7 +19,7 @@ class TestNestedComponents:
         nested_questions2 = factories.question.build_batch(3, parent=g2)
         q2 = factories.question.build(form=form)
 
-        assert get_ordered_nested_components(form.components) == [
+        assert get_ordered_nested_components(tuple(form.components)) == [
             q1,
             group,
             *nested_questions,
@@ -47,7 +47,7 @@ class TestNestedComponents:
         nested_q = factories.question.build(parent=group, order=0)
         q2 = factories.question.build(form=form, order=1)
 
-        assert get_ordered_nested_components(form.components) == [group, nested_q, q2, q1]
+        assert get_ordered_nested_components(tuple(form.components)) == [group, nested_q, q2, q1]
         assert form.questions == [nested_q, q2, q1]
 
     def test_get_components_nested_depth_5(self, factories):
@@ -61,7 +61,7 @@ class TestNestedComponents:
         nested_q = factories.question.build(parent=group5)
         q2 = factories.question.build(form=form)
 
-        assert get_ordered_nested_components(form.components) == [
+        assert get_ordered_nested_components(tuple(form.components)) == [
             q1,
             group1,
             group2,
