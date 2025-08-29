@@ -46,7 +46,7 @@ class FormRunner:
         # pass the whole group into the form runner
         if question and question.parent and question.parent.same_page:
             self.component = question.parent
-            self.questions = self.submission.get_ordered_visible_questions(self.component)
+            self.questions = self.submission.cached_get_ordered_visible_questions(self.component)
         else:
             self.component = question
             self.questions = [self.component] if self.component else []
@@ -66,7 +66,7 @@ class FormRunner:
             self._question_form = _QuestionForm(data=self.submission.cached_form_data)
 
         if self.form:
-            all_questions_answered, _ = self.submission.get_all_questions_are_answered_for_form(self.form)
+            all_questions_answered, _ = self.submission.cached_get_all_questions_are_answered_for_form(self.form)
             self._check_your_answers_form = CheckYourAnswersForm(
                 section_completed=(
                     "yes" if self.submission.get_status_for_form(self.form) == SubmissionStatusEnum.COMPLETED else None

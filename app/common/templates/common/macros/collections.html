@@ -126,7 +126,7 @@
   <h1 class="govuk-heading-l">{{ "Your submitted answers" if submission.is_completed else "Check your answers" }}</h1>
 
   {% set rows = [] %}
-  {% for question in submission.get_ordered_visible_questions(form) %}
+  {% for question in submission.cached_get_ordered_visible_questions(form) %}
     {% set answer = submission.cached_get_answer_for_question(question.id) %}
     {% if answer is not none %}
       {% set value_html %}
@@ -182,7 +182,7 @@
     {% set check_your_answers_form = runner.check_your_answers_form %}
     <form method="post" novalidate>
       {{ check_your_answers_form.csrf_token }}
-      {% set all_questions_answered, _ = submission.get_all_questions_are_answered_for_form(form) %}
+      {% set all_questions_answered, _ = submission.cached_get_all_questions_are_answered_for_form(form) %}
       {% if all_questions_answered %}
         {{
           check_your_answers_form.section_completed(params={
