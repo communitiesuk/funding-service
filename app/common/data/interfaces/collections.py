@@ -162,15 +162,22 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
             [
                 # get all flat components to drive single batches of selectin
                 # joinedload lets us avoid an exponentially increasing number of queries
-                joinedload(Submission.collection).joinedload(Collection.forms).selectinload(Form._all_components),
+                joinedload(Submission.collection)
+                .joinedload(Collection.forms)
+                .selectinload(Form._all_components)
+                .joinedload(Component.expressions),
                 # get any nested components in one go
                 joinedload(Submission.collection)
                 .joinedload(Collection.forms)
                 .selectinload(Form._all_components)
-                .selectinload(Component.components),
+                .selectinload(Component.components)
+                .joinedload(Component.expressions),
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
-                joinedload(Submission.collection).joinedload(Collection.forms).selectinload(Form.components),
+                joinedload(Submission.collection)
+                .joinedload(Collection.forms)
+                .selectinload(Form.components)
+                .joinedload(Component.expressions),
                 joinedload(Submission.events),
             ]
         )

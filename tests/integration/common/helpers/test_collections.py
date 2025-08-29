@@ -549,7 +549,7 @@ class TestCollectionHelper:
         c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
         dependant_question_id = collection.forms[0].cached_questions[0].id
         conditional_question_id = collection.forms[0].cached_questions[1].id
-        
+
         # Find the submission where question 2 is not expected to be answered it and store some data as though it has
         # previously been answered
         submission = next(

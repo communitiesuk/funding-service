@@ -201,7 +201,7 @@ class SubmissionHelper:
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
 
-    def get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
+    def _get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
         visible_questions = self.cached_get_ordered_visible_questions(form)
         answers = [
             answer for q in visible_questions if (answer := self.cached_get_answer_for_question(q.id)) is not None

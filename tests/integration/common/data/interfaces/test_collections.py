@@ -170,8 +170,9 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
     count = 0
     with track_sql_queries() as queries:
         for f in from_db.collection.forms:
-            for _q in f.cached_questions:
-                count += 1
+            for q in f._all_components:
+                for _e in q.expressions:
+                    count += 1
 
     assert queries == []
 
