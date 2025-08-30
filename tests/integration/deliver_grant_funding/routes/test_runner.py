@@ -20,7 +20,7 @@ class TestSubmissionTasklist:
         client = request.getfixturevalue(client_fixture)
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(form__title="Colour information", form__section__collection__grant=grant)
-        submission = factories.submission.create(collection=question.form.section.collection, created_by=client.user)
+        submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
         response = client.get(
             url_for(
@@ -51,9 +51,7 @@ class TestSubmissionTasklist:
         question = factories.question.create(form__title="Colour information", form__section__collection__grant=grant)
 
         generic_user = factories.user.create()
-        generic_submission = factories.submission.create(
-            collection=question.form.section.collection, created_by=generic_user
-        )
+        generic_submission = factories.submission.create(collection=question.form.collection, created_by=generic_user)
 
         response = client.get(
             url_for(
@@ -80,7 +78,7 @@ class TestSubmissionTasklist:
         question = factories.question.create(form__title="Colour information", form__section__collection__grant=grant)
         submission_data = {str(question.id): "test answer"}
         submission = factories.submission.create(
-            collection=question.form.section.collection, created_by=client.user, data=submission_data
+            collection=question.form.collection, created_by=client.user, data=submission_data
         )
         factories.submission_event.create(created_by=client.user, submission=submission, form=question.form)
 
@@ -103,7 +101,7 @@ class TestSubmissionTasklist:
             assert response.status_code == 302
             expected_location = url_for(
                 "deliver_grant_funding.return_from_test_submission",
-                collection_id=question.form.section.collection.id,
+                collection_id=question.form.collection.id,
                 finished=1,
             )
             assert response.location == expected_location
@@ -124,7 +122,7 @@ class TestSubmissionTasklist:
         question = factories.question.create(form__title="Colour information", form__section__collection__grant=grant)
         submission_data = {str(question.id): "test answer"}
         submission = factories.submission.create(
-            collection=question.form.section.collection,
+            collection=question.form.collection,
             mode=SubmissionModeEnum.LIVE,
             created_by=client.user,
             data=submission_data,
@@ -170,7 +168,7 @@ class TestAskAQuestion:
             form__title="Colour information",
             form__section__collection__grant=grant,
         )
-        submission = factories.submission.create(collection=question.form.section.collection, created_by=client.user)
+        submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
         response = client.get(
             url_for(
@@ -205,9 +203,7 @@ class TestAskAQuestion:
         )
 
         generic_user = factories.user.create()
-        generic_submission = factories.submission.create(
-            collection=question.form.section.collection, created_by=generic_user
-        )
+        generic_submission = factories.submission.create(collection=question.form.collection, created_by=generic_user)
 
         response = client.get(
             url_for(
@@ -223,7 +219,7 @@ class TestAskAQuestion:
         grant = authenticated_grant_admin_client.grant
         user = authenticated_grant_admin_client.user
         question = factories.question.create(form__section__collection__grant=grant)
-        submission = factories.submission.create(collection=question.form.section.collection, created_by=user)
+        submission = factories.submission.create(collection=question.form.collection, created_by=user)
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -276,7 +272,7 @@ class TestAskAQuestion:
             order=1,
             form=question.form,
         )
-        submission = factories.submission.create(collection=question.form.section.collection, created_by=client.user)
+        submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
         # Redirect to next question on successful post
         response = client.post(
@@ -332,7 +328,7 @@ class TestAskAQuestion:
             form__section__collection__grant=authenticated_grant_admin_client.grant,
         )
         submission = factories.submission.create(
-            collection=question.form.section.collection, created_by=authenticated_grant_admin_client.user
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
         )
 
         response = authenticated_grant_admin_client.get(
@@ -357,7 +353,7 @@ class TestAskAQuestion:
             form__section__collection__grant=authenticated_grant_admin_client.grant,
         )
         submission = factories.submission.create(
-            collection=question.form.section.collection, created_by=authenticated_grant_admin_client.user
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
         )
 
         response = authenticated_grant_admin_client.get(
@@ -392,7 +388,7 @@ class TestAskAQuestion:
         )
         q2 = factories.question.create(parent=group, form=group.form)
         submission = factories.submission.create(
-            collection=group.form.section.collection, created_by=authenticated_grant_admin_client.user
+            collection=group.form.collection, created_by=authenticated_grant_admin_client.user
         )
 
         response = authenticated_grant_admin_client.get(
@@ -431,7 +427,7 @@ class TestCheckYourAnswers:
             form__title="Colour information",
             form__section__collection__grant=grant,
         )
-        submission = factories.submission.create(collection=question.form.section.collection, created_by=client.user)
+        submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
         response = client.get(
             url_for(
@@ -468,9 +464,7 @@ class TestCheckYourAnswers:
         )
 
         generic_user = factories.user.create()
-        generic_submission = factories.submission.create(
-            collection=question.form.section.collection, created_by=generic_user
-        )
+        generic_submission = factories.submission.create(collection=question.form.collection, created_by=generic_user)
 
         response = client.get(
             url_for(
@@ -500,7 +494,7 @@ class TestCheckYourAnswers:
             form__title="Colour information",
             form__section__collection__grant=grant,
         )
-        submission = factories.submission.create(collection=question.form.section.collection, created_by=client.user)
+        submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
         response = client.post(
             url_for(
@@ -541,7 +535,7 @@ class TestCheckYourAnswers:
             form__title="Colour information",
             form__section__collection__grant=grant,
         )
-        submission = factories.submission.create(collection=question.form.section.collection, created_by=client.user)
+        submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
         with client.session_transaction() as session:
             session["test_submission_form_id"] = question.form.id
@@ -561,7 +555,7 @@ class TestCheckYourAnswers:
             assert response.status_code == 302
             expected_location = url_for(
                 "deliver_grant_funding.return_from_test_submission",
-                collection_id=question.form.section.collection.id,
+                collection_id=question.form.collection.id,
                 finished=1,
             )
             assert response.location == expected_location

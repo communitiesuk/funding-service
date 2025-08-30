@@ -36,7 +36,7 @@ def return_from_test_submission(collection_id: UUID) -> ResponseReturnValue:
         return redirect(
             url_for(
                 "deliver_grant_funding.list_task_questions",
-                grant_id=form.section.collection.grant.id,
+                grant_id=form.collection.grant.id,
                 form_id=form_id,
             )
         )

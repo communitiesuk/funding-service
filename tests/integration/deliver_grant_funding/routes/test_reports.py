@@ -780,7 +780,7 @@ class TestChangeFormName:
         form = factories.form.create(
             section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
         )
-        factories.submission.create(mode=SubmissionModeEnum.LIVE, collection=form.section.collection)
+        factories.submission.create(mode=SubmissionModeEnum.LIVE, collection=form.collection)
 
         with caplog.at_level(logging.INFO):
             response = authenticated_grant_admin_client.get(
@@ -864,7 +864,7 @@ class TestListGroupQuestions:
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.list_group_questions",
-                grant_id=question.form.section.collection.grant.id,
+                grant_id=question.form.collection.grant.id,
                 group_id=question.id,
             )
         )
