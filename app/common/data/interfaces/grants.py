@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import DuplicateValueError
-from app.common.data.models import Collection, Grant, Section
+from app.common.data.models import Collection, Grant
 from app.common.data.models_user import User
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
@@ -18,10 +18,7 @@ def get_grant(grant_id: UUID, with_all_collections: bool = False) -> Grant:
         options.append(
             selectinload(Grant.collections).options(
                 joinedload(Collection.created_by),
-                # While we only have 1 section per collection (monitoring reports), it feels very fine to joinedload
-                # this. If we start having an arbitrary number of sections, and often have more than a few, then
-                # maybe we drop this back to a selectinload.
-                joinedload(Collection.sections).selectinload(Section.forms),
+                selectinload(Collection.forms),
             )
         )
 

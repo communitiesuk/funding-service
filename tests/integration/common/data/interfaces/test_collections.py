@@ -176,7 +176,6 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
 
     # Expected queries:
     # * Load the collection with the nested relationships attached
-    # * Load the sections
     # * Load the forms
     # * Load the questions (components)
     # * Load any recursive questions (components)
@@ -185,10 +184,9 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
     # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
     count = 0
     with track_sql_queries() as queries:
-        for s in from_db.collection.sections:
-            for f in s.forms:
-                for _q in f.questions:
-                    count += 1
+        for f in from_db.collection.forms:
+            for _q in f.questions:
+                count += 1
 
     assert queries == []
 
@@ -290,18 +288,18 @@ class TestGetFormById:
     def test_get_form_with_grant(self, db_session, factories, track_sql_queries):
         form = factories.form.create()
 
-        from_db = get_form_by_id(form_id=form.id, grant_id=form.section.collection.grant_id)
+        from_db = get_form_by_id(form_id=form.id, grant_id=form.collection.grant_id)
 
         with track_sql_queries() as queries:
             # access the grant; should be no more queries as eagerly loaded
-            _ = from_db.section.collection.grant
+            _ = from_db.collection.grant
 
         assert len(queries) == 0
 
 
 def test_create_form(db_session, factories):
     section = factories.section.create()
-    form = create_form(title="Test Form", section=section)
+    form = create_form(title="Test Form", section=section, collection=section.collection)
     assert form is not None
     assert form.id is not None
     assert form.title == "Test Form"
@@ -311,11 +309,11 @@ def test_create_form(db_session, factories):
 
 def test_form_name_unique_in_section(db_session, factories):
     section = factories.section.create()
-    form = create_form(title="test form", section=section)
+    form = create_form(title="test form", section=section, collection=section.collection)
     assert form
 
     with pytest.raises(DuplicateValueError):
-        create_form(title="test form", section=section)
+        create_form(title="test form", section=section, collection=section.collection)
 
 
 def test_move_form_up_down(db_session, factories):
@@ -1406,16 +1404,15 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     # * Initial queries for collection and user
     # * Load the forms
     # * Load the question (component)
-    # * Load any of the questions questions (components)
+    # * Load any of the questions (components)
     assert len(queries) == 5
 
     # No additional queries when inspecting the ORM model
     count = 0
     with track_sql_queries() as queries:
-        for s in from_db.sections:
-            for f in s.forms:
-                for _q in f.questions:
-                    count += 1
+        for f in from_db.forms:
+            for _q in f.questions:
+                count += 1
 
     assert queries == []
 
@@ -1685,7 +1682,7 @@ class TestExpressions:
         assert retrieved_expression.managed_name == "Greater than"
 
         with track_sql_queries() as queries:
-            assert retrieved_expression.question.form.section.collection.grant is not None
+            assert retrieved_expression.question.form.collection.grant is not None
 
         assert len(queries) == 0
 
@@ -1781,15 +1778,16 @@ class TestDeleteForm:
 
     def test_form_reordering(self, db_session, factories):
         section = factories.section.create()
+        collection = section.collection
         forms = factories.form.create_batch(5, section=section)
 
-        assert [f.order for f in section.forms] == [0, 1, 2, 3, 4]
-        assert section.forms == [forms[0], forms[1], forms[2], forms[3], forms[4]]
+        assert [f.order for f in collection.forms] == [0, 1, 2, 3, 4]
+        assert collection.forms == [forms[0], forms[1], forms[2], forms[3], forms[4]]
 
         delete_form(forms[2])
 
-        assert [f.order for f in section.forms] == [0, 1, 2, 3]
-        assert section.forms == [forms[0], forms[1], forms[3], forms[4]]
+        assert [f.order for f in collection.forms] == [0, 1, 2, 3]
+        assert collection.forms == [forms[0], forms[1], forms[3], forms[4]]
 
 
 class TestDeleteQuestion:

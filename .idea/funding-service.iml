@@ -5,6 +5,8 @@
       <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.jj" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/.claude" />
+      <excludeFolder url="file://$MODULE_DIR$/.import_linter_cache" />
     </content>
     <orderEntry type="jdk" jdkName="uv (funding-service)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
