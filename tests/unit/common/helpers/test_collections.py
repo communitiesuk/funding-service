@@ -8,20 +8,6 @@ from tests.utils import AnyStringMatching
 
 
 class TestSubmissionHelper:
-    class TestGetOrderedVisibleSections:
-        def test_ordering(self, db_session, factories):
-            submission = factories.submission.build(collection__default_section=False)
-            _section_2 = factories.section.build(order=2, collection=submission.collection)
-            _section_0 = factories.section.build(order=0, collection=submission.collection)
-            _section_1 = factories.section.build(order=1, collection=submission.collection)
-            _section_4 = factories.section.build(order=4, collection=submission.collection)
-            _section_3 = factories.section.build(order=3, collection=submission.collection)
-
-            helper = SubmissionHelper(submission)
-            helper_sections = helper.get_ordered_visible_sections()
-            assert len(helper_sections) == 5
-            assert [s.order for s in helper_sections] == [0, 1, 2, 3, 4]
-
     class TestGetOrderedVisibleForms:
         def test_ordering(self, db_session, factories):
             submission = factories.submission.build()
@@ -32,7 +18,7 @@ class TestSubmissionHelper:
             _form_1 = factories.form.build(order=1, section=section)
 
             helper = SubmissionHelper(submission)
-            helper_forms = helper.get_ordered_visible_forms_for_section(section)
+            helper_forms = helper.get_ordered_visible_forms()
             assert len(helper_forms) == 4
             assert [s.order for s in helper_forms] == [0, 1, 2, 3]
 
@@ -96,26 +82,6 @@ class TestSubmissionHelper:
 
             group_questions = helper.get_ordered_visible_questions(group)
             assert group_questions == [q1, q3]
-
-    class TestGetSection:
-        def test_exists(self, db_session, factories):
-            section = factories.section.build()
-            submission = factories.submission.build(collection=section.collection)
-
-            helper = SubmissionHelper(submission)
-            assert helper.get_section(section.id) == section
-
-        def test_does_not_exist(self, db_session, factories):
-            section = factories.section.build()
-            submission = factories.submission.build(collection=section.collection)
-
-            helper = SubmissionHelper(submission)
-            with pytest.raises(ValueError) as e:
-                assert helper.get_section(uuid.uuid4())
-
-            assert str(e.value) == AnyStringMatching(
-                r"Could not find a section with id=[a-z0-9-]+ in collection=[a-z0-9-]+"
-            )
 
     class TestGetForm:
         def test_exists(self, db_session, factories):
