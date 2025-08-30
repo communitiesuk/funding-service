@@ -172,42 +172,6 @@ class GrantContactForm(GrantSetupForm):
     )
 
 
-class CollectionForm(GrantSetupForm):
-    name = StringField(
-        "What is the name of this monitoring report?",
-        validators=[DataRequired("Enter a monitoring report name")],
-        filters=[strip_string_if_not_empty],
-        widget=GovTextInput(),
-    )
-
-
-class SectionForm(FlaskForm):
-    title = StringField(
-        "What is the name of the new section?",
-        validators=[DataRequired("Enter a section title")],
-        filters=[strip_string_if_not_empty],
-        widget=GovTextInput(),
-    )
-    submit = SubmitField(widget=GovSubmitInput())
-
-
-class FormForm(FlaskForm):
-    title = StringField(
-        "Task name",
-        validators=[DataRequired("Enter a task name")],
-        filters=[strip_string_if_not_empty],
-        widget=GovTextInput(),
-    )
-    section_id = RadioField(
-        "Task section",
-        description="A section is a group of related tasks",
-        widget=GovRadioInput(),
-        choices=[],
-        validators=[Optional()],
-    )
-    submit = SubmitField(widget=GovSubmitInput())
-
-
 class QuestionTypeForm(FlaskForm):
     question_data_type = RadioField(
         "What type of question do you need?",
