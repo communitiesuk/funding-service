@@ -150,7 +150,6 @@ class TestCreateCollection:
         g = factories.grant.create()
         u = factories.user.create()
         collection = create_collection(name="test collection", user=u, grant=g, type_=CollectionType.MONITORING_REPORT)
-        assert collection.has_non_default_sections is False
         assert len(collection.sections) == 1
         assert collection.sections[0].title == "Tasks"
 

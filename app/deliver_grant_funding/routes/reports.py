@@ -164,9 +164,6 @@ def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
     form = GenericSubmitForm()
 
-    if report.has_non_default_sections:
-        raise RuntimeError(f"Report {report_id} has non-default sections - `add_task` needs updating to handle this.")
-
     if form.validate_on_submit() and form.submit.data:
         return start_testing_submission(collection=report)
 
@@ -217,9 +214,6 @@ def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         if report.forms
         else url_for("deliver_grant_funding.list_reports", grant_id=grant_id)
     )
-
-    if report.has_non_default_sections:
-        raise RuntimeError(f"Report {report_id} has non-default sections - `add_task` needs updating to handle this.")
 
     form = AddTaskForm(obj=report)
     if form.validate_on_submit():

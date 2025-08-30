@@ -127,13 +127,6 @@ class Collection(BaseModel):
     def live_submissions(self) -> list["Submission"]:
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
 
-    @property
-    def has_non_default_sections(self) -> bool:
-        if not self.sections:
-            raise RuntimeError("We expect all collections to have at least 1 section now")
-
-        return len(self.sections) > 1 or self.sections[0].title != DEFAULT_SECTION_NAME
-
 
 class Submission(BaseModel):
     __tablename__ = "submission"
