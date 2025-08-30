@@ -24,7 +24,6 @@ from app.common.data.types import (
 )
 from app.common.expressions.managed import get_managed_expression
 from app.common.qid import SafeQidMixin
-from app.constants import DEFAULT_SECTION_NAME
 
 if TYPE_CHECKING:
     from app.common.data.models_user import UserRole
@@ -194,10 +193,6 @@ class Section(BaseModel):
         UniqueConstraint("collection_id", "collection_version", "slug", name="uq_section_slug_collection"),
         ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
     )
-
-    @property
-    def is_default_section(self) -> bool:
-        return len(self.collection.sections) == 1 and self.title == DEFAULT_SECTION_NAME
 
 
 class Form(BaseModel):

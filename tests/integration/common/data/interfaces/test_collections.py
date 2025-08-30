@@ -27,15 +27,12 @@ from app.common.data.interfaces.collections import (
     get_group_by_id,
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
-    get_section_by_id,
     get_submission,
     is_component_dependency_order_valid,
     move_component_down,
     move_component_up,
     move_form_down,
     move_form_up,
-    move_section_down,
-    move_section_up,
     raise_if_data_source_item_reference_dependency,
     raise_if_group_questions_depend_on_each_other,
     raise_if_question_has_any_dependencies,
@@ -190,28 +187,16 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
     assert queries == []
 
 
-def test_get_section(db_session, factories):
-    collection = factories.collection.create(default_section=False)
-    section = factories.section.create(collection=collection)
-    from_db = get_section_by_id(section.id)
-    assert from_db is not None
-    assert from_db.id == section.id
-    assert from_db.title == section.title
-    assert from_db.order == 0
-
-
 def test_create_section(db_session, factories):
     collection = factories.collection.create(default_section=False)
     section = create_section(title="test_section", collection=collection)
     assert section
 
-    from_db = get_section_by_id(section.id)
+    from_db = db_session.get(Section, section.id)
     assert from_db is not None
     assert from_db.id == section.id
     assert from_db.title == section.title
     assert from_db.order == 0
-
-    section = create_section(title="test_section_2", collection=collection)
 
 
 def test_section_ordering(db_session, factories):
@@ -232,29 +217,6 @@ def test_section_name_unique_in_collection(db_session, factories):
 
     with pytest.raises(DuplicateValueError):
         create_section(title="test_section", collection=collection)
-
-
-def test_move_section_up_down(db_session, factories):
-    collection = factories.collection.create(default_section=False)
-    section1 = create_section(title="test_section_1", collection=collection)
-    section2 = create_section(title="test_section_2", collection=collection)
-    assert section1
-    assert section2
-
-    assert section1.order == 0
-    assert section2.order == 1
-
-    # Move section 2 up
-    move_section_up(section2)
-
-    assert section1.order == 1
-    assert section2.order == 0
-
-    # Move section 2 down
-    move_section_down(section2)
-
-    assert section1.order == 0
-    assert section2.order == 1
 
 
 class TestGetFormById:
