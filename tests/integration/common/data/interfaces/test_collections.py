@@ -1326,7 +1326,7 @@ def test_raise_if_checkboxes_data_source_item_reference_dependency(db_session, f
 
 def test_update_submission_data(db_session, factories):
     question = factories.question.build()
-    submission = factories.submission.build(collection=question.form.section.collection)
+    submission = factories.submission.build(collection=question.form.collection)
 
     assert str(question.id) not in submission.data
 
