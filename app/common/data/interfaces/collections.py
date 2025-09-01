@@ -214,12 +214,7 @@ def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, in
     """
     if 0 <= index_a < len(containing_list) and 0 <= index_b < len(containing_list):
         containing_list[index_a], containing_list[index_b] = containing_list[index_b], containing_list[index_a]
-    db.session.execute(
-        text(
-            "SET CONSTRAINTS uq_form_order_collection, uq_section_order_collection, "
-            "uq_form_order_section, uq_component_order_form DEFERRED"
-        )
-    )
+    db.session.execute(text("SET CONSTRAINTS uq_form_order_collection, uq_component_order_form DEFERRED"))
     db.session.flush()
     return containing_list
 
@@ -850,7 +845,7 @@ def delete_form(form: Form) -> None:
     db.session.delete(form)
     form.collection.forms = [f for f in form.collection.forms if f.id != form.id]  # type: ignore[assignment]
     form.collection.forms.reorder()  # Force all other forms to update their `order` attribute
-    db.session.execute(text("SET CONSTRAINTS uq_form_order_collection, uq_form_order_section DEFERRED"))
+    db.session.execute(text("SET CONSTRAINTS uq_form_order_collection DEFERRED"))
     db.session.flush()
 
 
