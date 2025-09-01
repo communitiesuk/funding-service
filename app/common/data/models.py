@@ -203,8 +203,7 @@ class Form(BaseModel):
     slug: Mapped[str]
 
     # todo: remove this; replaced by direct connection to collections
-    section_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("section.id"))
-    section: Mapped[Section] = relationship("Section", back_populates="forms")
+    section_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("section.id"))
 
     collection_id: Mapped[uuid.UUID]
     collection_version: Mapped[int]

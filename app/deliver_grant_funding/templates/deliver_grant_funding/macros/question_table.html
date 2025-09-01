@@ -3,7 +3,7 @@
 
 {# interactively display questions for a given form or question group #}
 {% macro question_table(parent, role_can_edit=false) %}
-  {% set grant = parent.form.collection.grant if parent.is_group else parent.section.collection.grant %}
+  {% set grant = parent.form.collection.grant if parent.is_group else parent.collection.grant %}
 
   {% set components = [] %}
   {% for component in parent.components %}

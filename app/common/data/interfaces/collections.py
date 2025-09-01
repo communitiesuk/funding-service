@@ -19,7 +19,6 @@ from app.common.data.models import (
     Grant,
     Group,
     Question,
-    Section,
     Submission,
     SubmissionEvent,
 )
@@ -34,7 +33,6 @@ from app.common.data.types import (
 )
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.utils import slugify
-from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
@@ -51,9 +49,6 @@ def create_collection(*, name: str, user: User, grant: Grant, version: int = 1, 
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
-
-    # All collections must have at least 1 section; we provide a default to get started with.
-    create_section(title=DEFAULT_SECTION_NAME, collection=collection)
 
     return collection
 
@@ -205,19 +200,6 @@ def create_submission(*, collection: Collection, created_by: User, mode: Submiss
     return submission
 
 
-def create_section(*, title: str, collection: Collection) -> Section:
-    section = Section(title=title, collection_id=collection.id, slug=slugify(title))
-    collection.sections.append(section)
-    db.session.add(section)
-
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
-    return section
-
-
 def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, index_b: int) -> list[Any]:
     """Swaps the elements at the specified indices in the supplied list.
     If either index is outside the valid range, returns the list unchanged.
@@ -270,10 +252,9 @@ def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questio
     return db.session.execute(query).scalar_one()
 
 
-def create_form(*, title: str, section: Section, collection: Collection) -> Form:
+def create_form(*, title: str, collection: Collection) -> Form:
     form = Form(
         title=title,
-        section_id=section.id,
         collection_id=collection.id,
         collection_version=collection.version,
         slug=slugify(title),

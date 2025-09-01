@@ -15,7 +15,6 @@ from app.common.data.interfaces.collections import (
     create_form,
     create_group,
     create_question,
-    create_section,
     delete_collection,
     delete_collection_test_submissions_created_by_user,
     delete_form,
@@ -50,7 +49,6 @@ from app.common.data.models import (
     Form,
     Group,
     Question,
-    Section,
     Submission,
     SubmissionEvent,
 )
@@ -143,13 +141,6 @@ class TestCreateCollection:
         with pytest.raises(DuplicateValueError):
             create_collection(name="test_collection", user=u, grant=grants[0], type_=CollectionType.MONITORING_REPORT)
 
-    def test_creates_default_section(self, db_session, factories):
-        g = factories.grant.create()
-        u = factories.user.create()
-        collection = create_collection(name="test collection", user=u, grant=g, type_=CollectionType.MONITORING_REPORT)
-        assert len(collection.sections) == 1
-        assert collection.sections[0].title == "Tasks"
-
 
 def test_get_submission(db_session, factories):
     submission = factories.submission.create()
@@ -158,11 +149,9 @@ def test_get_submission(db_session, factories):
 
 
 def test_get_submission_with_full_schema(db_session, factories, track_sql_queries):
-    submission = factories.submission.create(collection__default_section=False)
+    submission = factories.submission.create()
     submission_id = submission.id
-    # TODO: remove sections
-    section = factories.section.create(collection=submission.collection)
-    forms = factories.form.create_batch(3, section=section)
+    forms = factories.form.create_batch(3, collection=submission.collection)
     for form in forms:
         factories.question.create_batch(3, form=form)
 
@@ -185,38 +174,6 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
                 count += 1
 
     assert queries == []
-
-
-def test_create_section(db_session, factories):
-    collection = factories.collection.create(default_section=False)
-    section = create_section(title="test_section", collection=collection)
-    assert section
-
-    from_db = db_session.get(Section, section.id)
-    assert from_db is not None
-    assert from_db.id == section.id
-    assert from_db.title == section.title
-    assert from_db.order == 0
-
-
-def test_section_ordering(db_session, factories):
-    collection = factories.collection.create(default_section=False)
-    section = create_section(title="test_section_1", collection=collection)
-    assert section
-    assert section.order == 0
-
-    section2 = create_section(title="test_section_2", collection=collection)
-    assert section2
-    assert section2.order == 1
-
-
-def test_section_name_unique_in_collection(db_session, factories):
-    collection = factories.collection.create()
-    section = create_section(title="test_section", collection=collection)
-    assert section
-
-    with pytest.raises(DuplicateValueError):
-        create_section(title="test_section", collection=collection)
 
 
 class TestGetFormById:
@@ -259,8 +216,8 @@ class TestGetFormById:
 
 
 def test_create_form(db_session, factories):
-    section = factories.section.create()
-    form = create_form(title="Test Form", section=section, collection=section.collection)
+    collection = factories.collection.create()
+    form = create_form(title="Test Form", collection=collection)
     assert form is not None
     assert form.id is not None
     assert form.title == "Test Form"
@@ -268,19 +225,18 @@ def test_create_form(db_session, factories):
     assert form.slug == "test-form"
 
 
-def test_form_name_unique_in_section(db_session, factories):
-    section = factories.section.create()
-    form = create_form(title="test form", section=section, collection=section.collection)
+def test_form_name_unique_in_collection(db_session, factories):
+    collection = factories.collection.create()
+    form = create_form(title="test form", collection=collection)
     assert form
 
     with pytest.raises(DuplicateValueError):
-        create_form(title="test form", section=section, collection=section.collection)
+        create_form(title="test form", collection=collection)
 
 
 def test_move_form_up_down(db_session, factories):
-    section = factories.section.create()
-    form1 = factories.form.create(section=section)
-    form2 = factories.form.create(section=section)
+    form1 = factories.form.create()
+    form2 = factories.form.create(collection=form1.collection)
 
     assert form1
     assert form2
@@ -1314,9 +1270,8 @@ def test_add_submission_event(db_session, factories):
 
 def test_clear_events_from_submission(db_session, factories):
     submission = factories.submission.build()
-    section = factories.section.build(collection=submission.collection)
-    form_one = factories.form.build(section=section)
-    form_two = factories.form.build(section=section)
+    form_one = factories.form.build(collection=submission.collection)
+    form_two = factories.form.build(collection=submission.collection)
 
     add_submission_event(
         submission=submission, user=submission.created_by, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
@@ -1351,9 +1306,8 @@ def test_clear_events_from_submission(db_session, factories):
 
 
 def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):
-    collection = factories.collection.create(default_section=False)
-    section = factories.section.create(collection=collection)
-    forms = factories.form.create_batch(3, section=section)
+    collection = factories.collection.create()
+    forms = factories.form.create_batch(3, collection=collection)
     for form in forms:
         factories.question.create_batch(3, form=form)
 
@@ -1689,15 +1643,13 @@ class TestDeleteCollection:
 
     def test_delete_cascades_downstream(self, db_session, factories):
         collection = factories.collection.create()
-        section = collection.sections[0]
-        forms = factories.form.create_batch(2, section=section)
+        forms = factories.form.create_batch(2, collection=collection)
         questions = []
         for form in forms:
             questions.extend(factories.question.create_batch(2, form=form))
 
         delete_collection(collection)
 
-        assert db_session.get(Section, section.id) is None
         for form in forms:
             assert db_session.get(Form, form.id) is None
 
@@ -1724,10 +1676,9 @@ class TestDeleteCollection:
 
 class TestDeleteForm:
     def test_delete(self, db_session, factories):
-        section = factories.section.create()
-        form1 = factories.form.create(section=section)
+        form1 = factories.form.create()
         question1 = factories.question.create(form=form1)
-        form2 = factories.form.create(section=section)
+        form2 = factories.form.create(collection=form1.collection)
         question2 = factories.question.create(form=form2)
 
         delete_form(form1)
@@ -1738,9 +1689,8 @@ class TestDeleteForm:
         assert db_session.get(Question, question2.id) is question2
 
     def test_form_reordering(self, db_session, factories):
-        section = factories.section.create()
-        collection = section.collection
-        forms = factories.form.create_batch(5, section=section)
+        collection = factories.collection.create()
+        forms = factories.form.create_batch(5, collection=collection)
 
         assert [f.order for f in collection.forms] == [0, 1, 2, 3, 4]
         assert collection.forms == [forms[0], forms[1], forms[2], forms[3], forms[4]]
@@ -1753,8 +1703,7 @@ class TestDeleteForm:
 
 class TestDeleteQuestion:
     def test_delete(self, db_session, factories):
-        section = factories.section.create()
-        form = factories.form.create(section=section)
+        form = factories.form.create()
         question1 = factories.question.create(form=form)
         question2 = factories.question.create(form=form)
         question3 = factories.question.create(form=form)
@@ -1766,8 +1715,7 @@ class TestDeleteQuestion:
         assert db_session.get(Question, question3.id) is question3
 
     def test_form_reordering(self, db_session, factories):
-        section = factories.section.create()
-        form = factories.form.create(section=section)
+        form = factories.form.create()
         questions = factories.question.create_batch(5, form=form)
 
         assert [q.order for q in form.questions] == [0, 1, 2, 3, 4]
@@ -1779,8 +1727,7 @@ class TestDeleteQuestion:
         assert form.questions == [questions[0], questions[1], questions[3], questions[4]]
 
     def test_delete_group(self, db_session, factories):
-        section = factories.section.create()
-        form = factories.form.create(section=section)
+        form = factories.form.create()
         question1 = factories.question.create(form=form, order=0)
         group = factories.group.create(form=form, order=1)
         group_questions = factories.question.create_batch(3, form=form, parent=group)
@@ -1798,8 +1745,7 @@ class TestDeleteQuestion:
         assert form.questions == [question1, question2]
 
     def test_nested_question_in_group(self, db_session, factories):
-        section = factories.section.create()
-        form = factories.form.create(section=section)
+        form = factories.form.create()
         group = factories.group.create(form=form)
         questions = factories.question.create_batch(5, form=form, parent=group)
 
