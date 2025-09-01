@@ -205,50 +205,42 @@
   {% set submission = runner.submission %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% for section in submission.get_ordered_visible_sections() %}
-        {% if submission.collection.has_non_default_sections %}
-          <h2 class="govuk-heading-m">{{ section.title }}</h2>
-        {% endif %}
-
-        {% set forms = submission.get_ordered_visible_forms_for_section(section) %}
-        {% if not forms %}
-          <p class="govuk-body">This section has no forms.</p>
-        {% else %}
-          {% set rows=[] %}
-          {% for form in forms %}
-            {% set first_question = submission.get_first_question_for_form(form) %}
-            {%
-              set link_href = (
-                ''
-                if not first_question else
-                runner.to_url(enum.form_runner_state.QUESTION, question=first_question)
-                if submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED else
-                runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST)
-              )
-            %}
-            {%
-              do rows.append({
-                "title": {
-                  "text": form.title,
-                },
-                "status": {
-                  "html": status(submission.get_tasklist_status_for_form(form)) ,
-                },
-                "href": link_href,
-              })
-            %}
-          {% endfor %}
-
-          {{
-            govukTaskList({
-              "idPrefix": section.slug,
-              "items": rows
-            })
-          }}
-        {% endif %}
+      {% set forms = submission.get_ordered_visible_forms() %}
+      {% if not forms %}
+        <p class="govuk-body">This collection has no forms.</p>
       {% else %}
-        <p class="govuk-body">This collection has no sections.</p>
-      {% endfor %}
+        {% set rows=[] %}
+        {% for form in forms %}
+          {% set first_question = submission.get_first_question_for_form(form) %}
+          {%
+            set link_href = (
+              ''
+              if not first_question else
+              runner.to_url(enum.form_runner_state.QUESTION, question=first_question)
+              if submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED else
+              runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST)
+            )
+          %}
+          {%
+            do rows.append({
+              "title": {
+                "text": form.title,
+              },
+              "status": {
+                "html": status(submission.get_tasklist_status_for_form(form)) ,
+              },
+              "href": link_href,
+            })
+          %}
+        {% endfor %}
+
+        {{
+          govukTaskList({
+            "idPrefix": submission.collection.slug,
+            "items": rows
+          })
+        }}
+      {% endif %}
     </div>
   </div>
   {% if not submission.is_completed %}
