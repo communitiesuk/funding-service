@@ -218,22 +218,6 @@ def create_section(*, title: str, collection: Collection) -> Section:
     return section
 
 
-def get_section_by_id(section_id: UUID) -> Section:
-    return db.session.get_one(Section, section_id)
-
-
-def update_section(section: Section, *, title: str) -> Section:
-    section.title = title
-    section.slug = slugify(title)
-
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
-    return section
-
-
 def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, index_b: int) -> list[Any]:
     """Swaps the elements at the specified indices in the supplied list.
     If either index is outside the valid range, returns the list unchanged.
@@ -256,19 +240,6 @@ def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, in
     )
     db.session.flush()
     return containing_list
-
-
-def move_section_up(section: Section) -> Section:
-    """Move a section up in the order, which means move it lower in the list."""
-    swap_elements_in_list_and_flush(section.collection.sections, section.order, section.order - 1)
-
-    return section
-
-
-def move_section_down(section: Section) -> Section:
-    """Move a section down in the order, which means move it higher in the list."""
-    swap_elements_in_list_and_flush(section.collection.sections, section.order, section.order + 1)
-    return section
 
 
 def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questions: bool = False) -> Form:

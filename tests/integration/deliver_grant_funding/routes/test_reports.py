@@ -392,8 +392,8 @@ class TestAddTask:
             assert response.status_code == 302
             assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
 
-            assert len(report.sections[0].forms) == 1
-            assert report.sections[0].forms[0].title == "Organisation information"
+            assert len(report.forms) == 1
+            assert report.forms[0].title == "Organisation information"
 
     def test_post_duplicate_form_name(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Monitoring report")
@@ -551,9 +551,9 @@ class TestMoveTask:
         assert response.status_code == 302
 
         if direction == "up":
-            assert report.sections[0].forms[0].title == "Form 1"
+            assert report.forms[0].title == "Form 1"
         else:
-            assert report.sections[0].forms[2].title == "Form 1"
+            assert report.forms[2].title == "Form 1"
 
 
 class TestChangeQuestionGroupName:
@@ -3002,7 +3002,7 @@ class TestViewSubmission:
         soup = BeautifulSoup(response.data, "html.parser")
 
         assert "Export test form" in soup.text
-        assert len(report.sections[0].forms[0].questions) == 8, "If more questions added, check+update this test"
+        assert len(report.forms[0].questions) == 8, "If more questions added, check+update this test"
 
         assert "What is your name?" in soup.text
         assert "test name" in soup.text
