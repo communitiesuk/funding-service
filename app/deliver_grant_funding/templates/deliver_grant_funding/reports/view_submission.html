@@ -31,8 +31,7 @@
     {{ status(helper.status) }}
   </div>
 
-  {% set section = helper.get_ordered_visible_sections()[0] %}
-  {% for form in helper.get_ordered_visible_forms_for_section(section) %}
+  {% for form in helper.get_ordered_visible_forms() %}
     <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>
     {% set rows = [] %}
     {% for question in helper.get_ordered_visible_questions(form) %}

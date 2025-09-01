@@ -55,7 +55,6 @@ if TYPE_CHECKING:
         Grant,
         Group,
         Question,
-        Section,
         Submission,
     )
 
@@ -71,7 +70,7 @@ class SubmissionHelper:
     def __init__(self, submission: "Submission"):
         """
         Initialise the SubmissionHelper; the `submission` instance passed in should have been retrieved from the DB
-        with the collection and related tables (eg section, form, question) eagerly loaded to prevent this helper from
+        with the collection and related tables (eg form, question) eagerly loaded to prevent this helper from
         making any further DB queries. Use `get_submission` with the `with_full_schema=True` option.
         :param submission:
         """
@@ -87,10 +86,6 @@ class SubmissionHelper:
         return self.collection.grant
 
     @property
-    def sections(self) -> list["Section"]:
-        return self.collection.sections
-
-    @property
     def name(self) -> str:
         return self.collection.name
 
@@ -102,8 +97,7 @@ class SubmissionHelper:
     def form_data(self) -> dict[str, Any]:
         form_data = {
             question.safe_qid: answer.get_value_for_form()
-            for section in self.submission.collection.sections
-            for form in section.forms
+            for form in self.submission.collection.forms
             for question in form.questions
             if (answer := self.get_answer_for_question(question.id)) is not None
         }
@@ -113,8 +107,7 @@ class SubmissionHelper:
     def expression_context(self) -> ExpressionContext:
         submission_data = {
             question.safe_qid: answer.get_value_for_expression()
-            for section in self.submission.collection.sections
-            for form in section.forms
+            for form in self.collection.forms
             for question in form.questions
             if (answer := self.get_answer_for_question(question.id)) is not None
         }
@@ -124,8 +117,7 @@ class SubmissionHelper:
     def all_visible_questions(self) -> dict[UUID, "Question"]:
         return {
             question.id: question
-            for section in self.get_ordered_visible_sections()
-            for form in self.get_ordered_visible_forms_for_section(section)
+            for form in self.get_ordered_visible_forms()
             for question in self.get_ordered_visible_questions(form)
         }
 
@@ -133,12 +125,7 @@ class SubmissionHelper:
     def status(self) -> str:
         submitted = SubmissionEventKey.SUBMISSION_SUBMITTED in [x.key for x in self.submission.events]
 
-        form_statuses = set(
-            [
-                self.get_status_for_form(form)
-                for form in chain.from_iterable(section.forms for section in self.collection.sections)
-            ]
-        )
+        form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
         if {SubmissionStatusEnum.COMPLETED} == form_statuses and submitted:
             return SubmissionStatusEnum.COMPLETED
         elif {SubmissionStatusEnum.NOT_STARTED} == form_statuses:
@@ -188,20 +175,9 @@ class SubmissionHelper:
     def collection_id(self) -> UUID:
         return self.collection.id
 
-    def get_section(self, section_id: uuid.UUID) -> "Section":
-        try:
-            return next(filter(lambda s: s.id == section_id, self.collection.sections))
-        except StopIteration as e:
-            raise ValueError(f"Could not find a section with id={section_id} in collection={self.collection.id}") from e
-
     def get_form(self, form_id: uuid.UUID) -> "Form":
         try:
-            return next(
-                filter(
-                    lambda f: f.id == form_id,
-                    chain.from_iterable(section.forms for section in self.collection.sections),
-                )
-            )
+            return next(filter(lambda f: f.id == form_id, self.collection.forms))
         except StopIteration as e:
             raise ValueError(f"Could not find a form with id={form_id} in collection={self.collection.id}") from e
 
@@ -210,19 +186,13 @@ class SubmissionHelper:
             return next(
                 filter(
                     lambda q: q.id == question_id,
-                    chain.from_iterable(
-                        form.questions for section in self.collection.sections for form in section.forms
-                    ),
+                    chain.from_iterable(form.questions for form in self.collection.forms),
                 )
             )
         except StopIteration as e:
             raise ValueError(
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
-
-    def get_ordered_visible_sections(self) -> list["Section"]:
-        """Returns the visible, ordered sections based upon the current state of this submission."""
-        return sorted(self.sections, key=lambda s: s.order)
 
     def get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
         visible_questions = self.get_ordered_visible_questions(form)
@@ -231,12 +201,7 @@ class SubmissionHelper:
 
     @property
     def all_forms_are_completed(self) -> bool:
-        form_statuses = set(
-            [
-                self.get_status_for_form(form)
-                for form in chain.from_iterable(section.forms for section in self.collection.sections)
-            ]
-        )
+        form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
         return {SubmissionStatusEnum.COMPLETED} == form_statuses
 
     def get_tasklist_status_for_form(self, form: "Form") -> TasklistTaskStatusEnum:
@@ -257,9 +222,9 @@ class SubmissionHelper:
         else:
             return SubmissionStatusEnum.NOT_STARTED
 
-    def get_ordered_visible_forms_for_section(self, section: "Section") -> list["Form"]:
-        """Returns the visible, ordered forms for a given section based upon the current state of this collection."""
-        return sorted(section.forms, key=lambda f: f.order)
+    def get_ordered_visible_forms(self) -> list["Form"]:
+        """Returns the visible, ordered forms based upon the current state of this collection."""
+        return sorted(self.collection.forms, key=lambda f: f.order)
 
     def is_component_visible(self, component: "Component", context: "ExpressionContext") -> bool:
         # we can optimise this to exit early and do this in a sensible order if we switch
@@ -301,10 +266,9 @@ class SubmissionHelper:
         return None
 
     def get_form_for_question(self, question_id: UUID) -> "Form":
-        for section in self.collection.sections:
-            for form in section.forms:
-                if any(q.id == question_id for q in form.questions):
-                    return form
+        for form in self.collection.forms:
+            if any(q.id == question_id for q in form.questions):
+                return form
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
@@ -413,12 +377,11 @@ class CollectionHelper:
 
     def get_all_possible_questions_for_collection(self) -> list["Question"]:
         """
-        Returns a list of all questions that are part of the collection, across all sections and forms.
+        Returns a list of all questions that are part of the collection, across all forms.
         """
         return [
             question
-            for section in sorted(self.collection.sections, key=lambda s: s.order)
-            for form in sorted(section.forms, key=lambda f: f.order)
+            for form in sorted(self.collection.forms, key=lambda f: f.order)
             for question in sorted(form.questions, key=lambda q: q.order)
         ]
 
@@ -469,7 +432,7 @@ class CollectionHelper:
                 "tasks": [],
             }
 
-            for form in submission.get_ordered_visible_forms_for_section(submission.sections[0]):
+            for form in submission.get_ordered_visible_forms():
                 task_data: dict[str, Any] = {"name": form.title, "answers": {}}
                 for question in submission.get_ordered_visible_questions(form):
                     answer = submission.get_answer_for_question(question.id)

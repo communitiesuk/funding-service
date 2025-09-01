@@ -13,7 +13,7 @@
   {%
     set items = [
       {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
-      {"text": db_form.section.collection.name, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=db_form.section.collection_id)},
+      {"text": db_form.collection.name, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=db_form.collection_id)},
       {"text": db_form.title, "href": url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) },
     ]
   %}

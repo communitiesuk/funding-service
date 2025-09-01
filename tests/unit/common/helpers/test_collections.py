@@ -8,20 +8,6 @@ from tests.utils import AnyStringMatching
 
 
 class TestSubmissionHelper:
-    class TestGetOrderedVisibleSections:
-        def test_ordering(self, db_session, factories):
-            submission = factories.submission.build(collection__default_section=False)
-            _section_2 = factories.section.build(order=2, collection=submission.collection)
-            _section_0 = factories.section.build(order=0, collection=submission.collection)
-            _section_1 = factories.section.build(order=1, collection=submission.collection)
-            _section_4 = factories.section.build(order=4, collection=submission.collection)
-            _section_3 = factories.section.build(order=3, collection=submission.collection)
-
-            helper = SubmissionHelper(submission)
-            helper_sections = helper.get_ordered_visible_sections()
-            assert len(helper_sections) == 5
-            assert [s.order for s in helper_sections] == [0, 1, 2, 3, 4]
-
     class TestGetOrderedVisibleForms:
         def test_ordering(self, db_session, factories):
             submission = factories.submission.build()
@@ -32,7 +18,7 @@ class TestSubmissionHelper:
             _form_1 = factories.form.build(order=1, section=section)
 
             helper = SubmissionHelper(submission)
-            helper_forms = helper.get_ordered_visible_forms_for_section(section)
+            helper_forms = helper.get_ordered_visible_forms()
             assert len(helper_forms) == 4
             assert [s.order for s in helper_forms] == [0, 1, 2, 3]
 
@@ -52,7 +38,7 @@ class TestSubmissionHelper:
 
         def test_visible_questions_filtered(self, factories):
             form = factories.form.build()
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
             visible_question = factories.question.build(form=form)
 
             invisible_question = factories.question.build(form=form)
@@ -65,7 +51,7 @@ class TestSubmissionHelper:
 
         def test_visible_questions_filtered_in_group(self, factories):
             form = factories.form.build()
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
             visible_question = factories.question.build(form=form)
 
             invisible_group = factories.group.build(form=form)
@@ -81,7 +67,7 @@ class TestSubmissionHelper:
 
         def test_visible_questions_filtered_for_group_parent(self, factories):
             form = factories.form.build()
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
             q0 = factories.question.build(form=form)
             group = factories.group.build(form=form)
             q1 = factories.question.build(form_id=form.id, parent=group)
@@ -97,37 +83,17 @@ class TestSubmissionHelper:
             group_questions = helper.get_ordered_visible_questions(group)
             assert group_questions == [q1, q3]
 
-    class TestGetSection:
-        def test_exists(self, db_session, factories):
-            section = factories.section.build()
-            submission = factories.submission.build(collection=section.collection)
-
-            helper = SubmissionHelper(submission)
-            assert helper.get_section(section.id) == section
-
-        def test_does_not_exist(self, db_session, factories):
-            section = factories.section.build()
-            submission = factories.submission.build(collection=section.collection)
-
-            helper = SubmissionHelper(submission)
-            with pytest.raises(ValueError) as e:
-                assert helper.get_section(uuid.uuid4())
-
-            assert str(e.value) == AnyStringMatching(
-                r"Could not find a section with id=[a-z0-9-]+ in collection=[a-z0-9-]+"
-            )
-
     class TestGetForm:
         def test_exists(self, db_session, factories):
             form = factories.form.build()
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
             assert helper.get_form(form.id) == form
 
         def test_does_not_exist(self, db_session, factories):
             form = factories.form.build()
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
             with pytest.raises(ValueError) as e:
@@ -140,14 +106,14 @@ class TestSubmissionHelper:
     class TestGetQuestion:
         def test_exists(self, db_session, factories):
             question = factories.question.build()
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.form.collection)
 
             helper = SubmissionHelper(submission)
             assert helper.get_question(question.id) == question
 
         def test_does_not_exist(self, db_session, factories):
             question = factories.question.build()
-            submission = factories.submission.build(collection=question.form.section.collection)
+            submission = factories.submission.build(collection=question.form.collection)
 
             helper = SubmissionHelper(submission)
             with pytest.raises(ValueError) as e:
@@ -164,7 +130,7 @@ class TestSubmissionHelper:
             for x in reversed(range(5)):
                 factories.question.build(form=form, id=uuid.UUID(int=x), order=x)
 
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
             question = helper.get_first_question_for_form(form)
@@ -173,7 +139,7 @@ class TestSubmissionHelper:
         def test_no_visible_questions_in_form(self, db_session, factories):
             form = factories.form.build()
 
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
             assert helper.get_first_question_for_form(form) is None
@@ -185,7 +151,7 @@ class TestSubmissionHelper:
             for x in reversed(range(5)):
                 factories.question.build(form=form, id=uuid.UUID(int=x), order=x)
 
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
             question = helper.get_last_question_for_form(form)
@@ -194,7 +160,7 @@ class TestSubmissionHelper:
         def test_no_visible_questions_in_form(self, db_session, factories):
             form = factories.form.build()
 
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
             assert helper.get_last_question_for_form(form) is None
@@ -217,7 +183,7 @@ class TestSubmissionHelper:
         def test_question_does_not_exist_in_collection_forms(self, db_session, factories):
             form = factories.form.build()
             factories.question.build(form=form, id=uuid.UUID(int=0), order=0)
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
 
@@ -234,7 +200,7 @@ class TestSubmissionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
 
@@ -247,7 +213,7 @@ class TestSubmissionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
 
@@ -257,7 +223,7 @@ class TestSubmissionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
 
@@ -271,7 +237,7 @@ class TestSubmissionHelper:
 
         def test_next_question_ignores_not_visible_questions(self, factories):
             form = factories.form.build()
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
             question_one = factories.question.build(form=form, id=uuid.UUID(int=0), order=0)
             question_two = factories.question.build(form=form, id=uuid.UUID(int=1), order=1)
             question_three = factories.question.build(form=form, id=uuid.UUID(int=2), order=2)
@@ -289,7 +255,7 @@ class TestSubmissionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
 
@@ -302,7 +268,7 @@ class TestSubmissionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
 
@@ -312,7 +278,7 @@ class TestSubmissionHelper:
             form = factories.form.build()
             for x in range(5):
                 factories.question.build(form=form, id=uuid.UUID(int=x))
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
 
             helper = SubmissionHelper(submission)
 
@@ -326,7 +292,7 @@ class TestSubmissionHelper:
 
         def test_previous_question_ignores_not_visible_questions(self, factories):
             form = factories.form.build()
-            submission = factories.submission.build(collection=form.section.collection)
+            submission = factories.submission.build(collection=form.collection)
             question_one = factories.question.build(form=form, id=uuid.UUID(int=0), order=0)
             question_two = factories.question.build(form=form, id=uuid.UUID(int=1), order=1)
             question_three = factories.question.build(form=form, id=uuid.UUID(int=2), order=2)
@@ -379,13 +345,13 @@ class TestSubmissionHelper:
     class TestVisibleQuestion:
         def test_is_question_always_visible_with_no_conditions(self, factories):
             question = factories.question.build()
-            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
 
             assert helper.is_component_visible(question, helper.expression_context) is True
 
         def test_is_component_visible_not_visible_with_failing_condition(self, factories):
             question = factories.question.build()
-            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
 
             factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="False")
 
@@ -393,7 +359,7 @@ class TestSubmissionHelper:
 
         def test_is_component_visible_visible_with_passing_condition(self, factories):
             question = factories.question.build()
-            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
 
             factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="True")
 
@@ -403,7 +369,7 @@ class TestSubmissionHelper:
             group = factories.group.build()
             sub_group = factories.group.build(parent=group)
             question = factories.question.build(form=group.form)
-            helper = SubmissionHelper(factories.submission.build(collection=question.form.section.collection))
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
 
             expression = factories.expression.build(question=group, type=ExpressionType.CONDITION, statement="False")
 

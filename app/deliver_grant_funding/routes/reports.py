@@ -164,9 +164,6 @@ def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
     form = GenericSubmitForm()
 
-    if report.has_non_default_sections:
-        raise RuntimeError(f"Report {report_id} has non-default sections - `add_task` needs updating to handle this.")
-
     if form.validate_on_submit() and form.submit.data:
         return start_testing_submission(collection=report)
 
@@ -195,9 +192,7 @@ def move_task(grant_id: UUID, form_id: UUID, direction: str) -> ResponseReturnVa
     except DependencyOrderException as e:
         flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
 
-    return redirect(
-        url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=form.section.collection_id)
-    )
+    return redirect(url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=form.collection_id))
 
 
 @deliver_grant_funding_blueprint.route(
@@ -218,9 +213,6 @@ def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         else url_for("deliver_grant_funding.list_reports", grant_id=grant_id)
     )
 
-    if report.has_non_default_sections:
-        raise RuntimeError(f"Report {report_id} has non-default sections - `add_task` needs updating to handle this.")
-
     form = AddTaskForm(obj=report)
     if form.validate_on_submit():
         assert form.title.data
@@ -228,6 +220,7 @@ def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
             create_form(
                 title=form.title.data,
                 section=report.sections[0],
+                collection=report,
             )
             return redirect(url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=report.id))
 
@@ -248,7 +241,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     # NOTE: this fetches the _latest version_ of the collection with this ID
     db_form = get_form_by_id(form_id, grant_id=grant_id)
 
-    if db_form.section.collection.live_submissions:
+    if db_form.collection.live_submissions:
         # Prevent changes to the task if it has any live submissions; this is very coarse layer of protection. We might
         # want to do something more fine-grained to give a better user experience at some point. And/or we might need
         # to allow _some_ people (eg platform admins) to make changes, at their own peril.
@@ -277,7 +270,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/change_form_name.html",
-        grant=db_form.section.collection.grant,
+        grant=db_form.collection.grant,
         db_form=db_form,
         form=form,
     )
@@ -308,7 +301,7 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/change_question_group_name.html",
-        grant=db_group.form.section.collection.grant,
+        grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
         form=form,
@@ -349,7 +342,7 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
 
     return render_template(
         "deliver_grant_funding/reports/change_question_group_display_options.html",
-        grant=db_group.form.section.collection.grant,
+        grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
         form=form,
@@ -364,14 +357,14 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
     preview_form = GenericSubmitForm()
     if preview_form.validate_on_submit() and preview_form.submit.data:
-        return start_testing_submission(db_form.section.collection, form=db_form)
+        return start_testing_submission(db_form.collection, form=db_form)
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
         if not AuthorisationHelper.has_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
             return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=form_id))
 
-        if db_form.section.collection.live_submissions:
+        if db_form.collection.live_submissions:
             # Prevent changes to the task if it has any live submissions; this is very coarse layer of protection. We
             # might want to do something more fine-grained to give a better user experience at some point. And/or we
             # might need to allow _some_ people (eg platform admins) to make changes, at their own peril.
@@ -389,13 +382,13 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 url_for(
                     "deliver_grant_funding.list_report_tasks",
                     grant_id=grant_id,
-                    report_id=db_form.section.collection_id,
+                    report_id=db_form.collection_id,
                 )
             )
 
     return render_template(
         "deliver_grant_funding/reports/list_task_questions.html",
-        grant=db_form.section.collection.grant,
+        grant=db_form.collection.grant,
         db_form=db_form,
         delete_form=delete_wtform,
         form=preview_form,
@@ -429,7 +422,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/list_group_questions.html",
-        grant=group.form.section.collection.grant,
+        grant=group.form.collection.grant,
         db_form=group.form,
         delete_form=delete_wtform,
         group=group,
@@ -476,7 +469,7 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
 
     return render_template(
         "deliver_grant_funding/reports/add_question_group_name.html",
-        grant=form.section.collection.grant,
+        grant=form.collection.grant,
         db_form=form,
         form=wt_form,
         parent=parent,
@@ -523,7 +516,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
 
     return render_template(
         "deliver_grant_funding/reports/add_question_group_display_options.html",
-        grant=form.section.collection.grant,
+        grant=form.collection.grant,
         db_form=form,
         group_name=add_question_group.group_name,
         form=wt_form,
@@ -582,7 +575,7 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/choose_question_type.html",
-        grant=db_form.section.collection.grant,
+        grant=db_form.collection.grant,
         db_form=db_form,
         form=wt_form,
         parent=parent,
@@ -633,8 +626,8 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/add_question.html",
-        grant=form.section.collection.grant,
-        collection=form.section.collection,
+        grant=form.collection.grant,
+        collection=form.collection,
         section=form.section,
         db_form=form,
         chosen_question_data_type=question_data_type_enum,
@@ -717,7 +710,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/edit_question.html",
-        grant=question.form.section.collection.grant,
+        grant=question.form.collection.grant,
         db_form=question.form,
         question=question,
         form=wt_form,
@@ -769,7 +762,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/manage_guidance.html",
-        grant=question.form.section.collection.grant,
+        grant=question.form.collection.grant,
         question=question,
         form=form,
     )
@@ -798,7 +791,7 @@ def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -
     return render_template(
         "deliver_grant_funding/reports/add_question_condition_select_question.html",
         component=component,
-        grant=component.form.section.collection.grant,
+        grant=component.form.collection.grant,
         form=form,
     )
 
@@ -843,7 +836,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
         "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
         component=component,
         depends_on_question=depends_on_question,
-        grant=component.form.section.collection.grant,
+        grant=component.form.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
     )
@@ -892,7 +885,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
     return render_template(
         "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
         component=component,
-        grant=component.form.section.collection.grant,
+        grant=component.form.collection.grant,
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,
@@ -933,7 +926,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     return render_template(
         "deliver_grant_funding/reports/manage_question_validation.html",
         question=question,
-        grant=question.form.section.collection.grant,
+        grant=question.form.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
     )
@@ -991,7 +984,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
     return render_template(
         "deliver_grant_funding/reports/manage_question_validation.html",
         question=question,
-        grant=question.form.section.collection.grant,
+        grant=question.form.collection.grant,
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,

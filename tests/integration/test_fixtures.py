@@ -131,7 +131,7 @@ def test_collection_factory_completed_submissions(db_session, factories):
 
     for submission in collection_from_db.test_submissions:
         helper = SubmissionHelper(submission)
-        all_questions = collection.sections[0].forms[0].questions
+        all_questions = collection.forms[0].questions
         for question in all_questions:
             assert helper.get_question(question.id).text == question.text
             answer = helper.get_answer_for_question(question.id)

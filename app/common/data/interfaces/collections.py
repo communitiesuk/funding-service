@@ -77,16 +77,10 @@ def get_collection(
             [
                 # get all flat components to drive single batches of selectin
                 # joinedload lets us avoid an exponentially increasing number of queries
-                joinedload(Collection.sections).joinedload(Section.forms).selectinload(Form._all_components),
-                # get any nested components in one go
-                joinedload(Collection.sections)
-                .joinedload(Section.forms)
-                .selectinload(Form._all_components)
-                # .selectinload(Component.components.and_(Component.type == ComponentType.GROUP)),
-                .selectinload(Component.components),
+                joinedload(Collection.forms).selectinload(Form._all_components).selectinload(Component.components),
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
-                joinedload(Collection.sections).joinedload(Section.forms).selectinload(Form.components),
+                joinedload(Collection.forms).selectinload(Form.components),
             ]
         )
 
@@ -145,22 +139,19 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
             # get all flat components to drive single batches of selectin
             # joinedload lets us avoid an exponentially increasing number of queries
             joinedload(Submission.collection)
-            .joinedload(Collection.sections)
-            .joinedload(Section.forms)
+            .joinedload(Collection.forms)
             .selectinload(Form._all_components)
             .joinedload(Component.expressions),
             # get any nested components in one go
             joinedload(Submission.collection)
-            .joinedload(Collection.sections)
-            .joinedload(Section.forms)
+            .joinedload(Collection.forms)
             .selectinload(Form._all_components)
             .selectinload(Component.components)
             .joinedload(Component.expressions),
             # eagerly populate the forms top level components - this is a redundant query but
             # leaves as much as possible with the ORM
             joinedload(Submission.collection)
-            .joinedload(Collection.sections)
-            .joinedload(Section.forms)
+            .joinedload(Collection.forms)
             .selectinload(Form.components)
             .joinedload(Component.expressions),
             selectinload(Submission.events),
@@ -176,22 +167,15 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
             [
                 # get all flat components to drive single batches of selectin
                 # joinedload lets us avoid an exponentially increasing number of queries
-                joinedload(Submission.collection)
-                .joinedload(Collection.sections)
-                .joinedload(Section.forms)
-                .selectinload(Form._all_components),
+                joinedload(Submission.collection).joinedload(Collection.forms).selectinload(Form._all_components),
                 # get any nested components in one go
                 joinedload(Submission.collection)
-                .joinedload(Collection.sections)
-                .joinedload(Section.forms)
+                .joinedload(Collection.forms)
                 .selectinload(Form._all_components)
                 .selectinload(Component.components),
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
-                joinedload(Submission.collection)
-                .joinedload(Collection.sections)
-                .joinedload(Section.forms)
-                .selectinload(Form.components),
+                joinedload(Submission.collection).joinedload(Collection.forms).selectinload(Form.components),
                 joinedload(Submission.events),
             ]
         )
@@ -234,22 +218,6 @@ def create_section(*, title: str, collection: Collection) -> Section:
     return section
 
 
-def get_section_by_id(section_id: UUID) -> Section:
-    return db.session.get_one(Section, section_id)
-
-
-def update_section(section: Section, *, title: str) -> Section:
-    section.title = title
-    section.slug = slugify(title)
-
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
-    return section
-
-
 def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, index_b: int) -> list[Any]:
     """Swaps the elements at the specified indices in the supplied list.
     If either index is outside the valid range, returns the list unchanged.
@@ -274,29 +242,15 @@ def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, in
     return containing_list
 
 
-def move_section_up(section: Section) -> Section:
-    """Move a section up in the order, which means move it lower in the list."""
-    swap_elements_in_list_and_flush(section.collection.sections, section.order, section.order - 1)
-
-    return section
-
-
-def move_section_down(section: Section) -> Section:
-    """Move a section down in the order, which means move it higher in the list."""
-    swap_elements_in_list_and_flush(section.collection.sections, section.order, section.order + 1)
-    return section
-
-
 def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questions: bool = False) -> Form:
     query = select(Form).where(Form.id == form_id)
 
     if grant_id:
         query = (
-            query.join(Form.section)
-            .join(Section.collection)
+            query.join(Form.collection)
             .join(Collection.grant)
-            .options(joinedload(Form.section).joinedload(Section.collection).joinedload(Collection.grant))
-            .where(Collection.grant_id == grant_id)
+            .options(joinedload(Form.collection).joinedload(Collection.grant))
+            .where(Collection.id == Form.collection_id, Collection.grant_id == grant_id)
         )
 
     if with_all_questions:
@@ -316,15 +270,15 @@ def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questio
     return db.session.execute(query).scalar_one()
 
 
-def create_form(*, title: str, section: Section) -> Form:
+def create_form(*, title: str, section: Section, collection: Collection) -> Form:
     form = Form(
         title=title,
         section_id=section.id,
-        collection_id=section.collection_id,
-        collection_version=section.collection_version,
+        collection_id=collection.id,
+        collection_version=collection.version,
         slug=slugify(title),
     )
-    section.forms.append(form)
+    collection.forms.append(form)
     db.session.add(form)
 
     try:
@@ -336,27 +290,18 @@ def create_form(*, title: str, section: Section) -> Form:
 
 
 def move_form_up(form: Form) -> Form:
-    swap_elements_in_list_and_flush(form.section.forms, form.order, form.order - 1)
+    swap_elements_in_list_and_flush(form.collection.forms, form.order, form.order - 1)
     return form
 
 
 def move_form_down(form: Form) -> Form:
-    swap_elements_in_list_and_flush(form.section.forms, form.order, form.order + 1)
+    swap_elements_in_list_and_flush(form.collection.forms, form.order, form.order + 1)
     return form
 
 
-def update_form(form: Form, *, title: str, section_id: uuid.UUID | TNotProvided = NOT_PROVIDED) -> Form:
+def update_form(form: Form, *, title: str) -> Form:
     form.title = title
     form.slug = slugify(title)
-
-    if section_id is not NOT_PROVIDED:
-        db.session.execute(text("SET CONSTRAINTS uq_form_order_section, uq_form_order_collection DEFERRED"))
-        new_section = get_section_by_id(section_id)  # ty: ignore[invalid-argument-type]
-        original_section = form.section
-        form.section = new_section
-
-        new_section.forms.reorder()
-        original_section.forms.reorder()
 
     try:
         db.session.flush()
@@ -515,10 +460,7 @@ def get_question_by_id(question_id: UUID) -> Question:
         Question,
         question_id,
         options=[
-            joinedload(Question.form)
-            .joinedload(Form.section)
-            .joinedload(Section.collection)
-            .joinedload(Collection.grant),
+            joinedload(Question.form).joinedload(Form.collection).joinedload(Collection.grant),
         ],
     )
 
@@ -528,7 +470,7 @@ def get_group_by_id(group_id: UUID) -> Group:
         Group,
         group_id,
         options=[
-            joinedload(Group.form).joinedload(Form.section).joinedload(Section.collection).joinedload(Collection.grant),
+            joinedload(Group.form).joinedload(Form.collection).joinedload(Collection.grant),
         ],
     )
 
@@ -540,8 +482,7 @@ def get_expression_by_id(expression_id: UUID) -> Expression:
         options=[
             joinedload(Expression.question)
             .joinedload(Component.form)
-            .joinedload(Form.section)
-            .joinedload(Section.collection)
+            .joinedload(Form.collection)
             .joinedload(Collection.grant)
         ],
     )
@@ -565,7 +506,7 @@ class DependencyOrderException(Exception, FlashableException):
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
             "message": self.message,
-            "grant_id": str(self.question.form.section.collection.grant_id),  # Required for URL routing
+            "grant_id": str(self.question.form.collection.grant_id),  # Required for URL routing
             "question_id": str(self.question.id),
             "question_text": self.question.text,
             "question_is_group": self.question.is_group,
@@ -926,8 +867,8 @@ def delete_collection(collection: Collection) -> None:
 
 def delete_form(form: Form) -> None:
     db.session.delete(form)
-    form.section.forms = [f for f in form.section.forms if f.id != form.id]  # type: ignore[assignment]
-    form.section.forms.reorder()  # Force all other forms to update their `order` attribute
+    form.collection.forms = [f for f in form.collection.forms if f.id != form.id]  # type: ignore[assignment]
+    form.collection.forms.reorder()  # Force all other forms to update their `order` attribute
     db.session.execute(text("SET CONSTRAINTS uq_form_order_collection, uq_form_order_section DEFERRED"))
     db.session.flush()
 

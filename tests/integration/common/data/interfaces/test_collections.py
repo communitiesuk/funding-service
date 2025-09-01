@@ -27,15 +27,12 @@ from app.common.data.interfaces.collections import (
     get_group_by_id,
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
-    get_section_by_id,
     get_submission,
     is_component_dependency_order_valid,
     move_component_down,
     move_component_up,
     move_form_down,
     move_form_up,
-    move_section_down,
-    move_section_up,
     raise_if_data_source_item_reference_dependency,
     raise_if_group_questions_depend_on_each_other,
     raise_if_question_has_any_dependencies,
@@ -150,7 +147,6 @@ class TestCreateCollection:
         g = factories.grant.create()
         u = factories.user.create()
         collection = create_collection(name="test collection", user=u, grant=g, type_=CollectionType.MONITORING_REPORT)
-        assert collection.has_non_default_sections is False
         assert len(collection.sections) == 1
         assert collection.sections[0].title == "Tasks"
 
@@ -176,7 +172,6 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
 
     # Expected queries:
     # * Load the collection with the nested relationships attached
-    # * Load the sections
     # * Load the forms
     # * Load the questions (components)
     # * Load any recursive questions (components)
@@ -185,22 +180,11 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
     # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
     count = 0
     with track_sql_queries() as queries:
-        for s in from_db.collection.sections:
-            for f in s.forms:
-                for _q in f.questions:
-                    count += 1
+        for f in from_db.collection.forms:
+            for _q in f.questions:
+                count += 1
 
     assert queries == []
-
-
-def test_get_section(db_session, factories):
-    collection = factories.collection.create(default_section=False)
-    section = factories.section.create(collection=collection)
-    from_db = get_section_by_id(section.id)
-    assert from_db is not None
-    assert from_db.id == section.id
-    assert from_db.title == section.title
-    assert from_db.order == 0
 
 
 def test_create_section(db_session, factories):
@@ -208,13 +192,11 @@ def test_create_section(db_session, factories):
     section = create_section(title="test_section", collection=collection)
     assert section
 
-    from_db = get_section_by_id(section.id)
+    from_db = db_session.get(Section, section.id)
     assert from_db is not None
     assert from_db.id == section.id
     assert from_db.title == section.title
     assert from_db.order == 0
-
-    section = create_section(title="test_section_2", collection=collection)
 
 
 def test_section_ordering(db_session, factories):
@@ -235,29 +217,6 @@ def test_section_name_unique_in_collection(db_session, factories):
 
     with pytest.raises(DuplicateValueError):
         create_section(title="test_section", collection=collection)
-
-
-def test_move_section_up_down(db_session, factories):
-    collection = factories.collection.create(default_section=False)
-    section1 = create_section(title="test_section_1", collection=collection)
-    section2 = create_section(title="test_section_2", collection=collection)
-    assert section1
-    assert section2
-
-    assert section1.order == 0
-    assert section2.order == 1
-
-    # Move section 2 up
-    move_section_up(section2)
-
-    assert section1.order == 1
-    assert section2.order == 0
-
-    # Move section 2 down
-    move_section_down(section2)
-
-    assert section1.order == 0
-    assert section2.order == 1
 
 
 class TestGetFormById:
@@ -290,18 +249,18 @@ class TestGetFormById:
     def test_get_form_with_grant(self, db_session, factories, track_sql_queries):
         form = factories.form.create()
 
-        from_db = get_form_by_id(form_id=form.id, grant_id=form.section.collection.grant_id)
+        from_db = get_form_by_id(form_id=form.id, grant_id=form.collection.grant_id)
 
         with track_sql_queries() as queries:
             # access the grant; should be no more queries as eagerly loaded
-            _ = from_db.section.collection.grant
+            _ = from_db.collection.grant
 
         assert len(queries) == 0
 
 
 def test_create_form(db_session, factories):
     section = factories.section.create()
-    form = create_form(title="Test Form", section=section)
+    form = create_form(title="Test Form", section=section, collection=section.collection)
     assert form is not None
     assert form.id is not None
     assert form.title == "Test Form"
@@ -311,11 +270,11 @@ def test_create_form(db_session, factories):
 
 def test_form_name_unique_in_section(db_session, factories):
     section = factories.section.create()
-    form = create_form(title="test form", section=section)
+    form = create_form(title="test form", section=section, collection=section.collection)
     assert form
 
     with pytest.raises(DuplicateValueError):
-        create_form(title="test form", section=section)
+        create_form(title="test form", section=section, collection=section.collection)
 
 
 def test_move_form_up_down(db_session, factories):
@@ -1329,7 +1288,7 @@ def test_raise_if_checkboxes_data_source_item_reference_dependency(db_session, f
 
 def test_update_submission_data(db_session, factories):
     question = factories.question.build()
-    submission = factories.submission.build(collection=question.form.section.collection)
+    submission = factories.submission.build(collection=question.form.collection)
 
     assert str(question.id) not in submission.data
 
@@ -1406,16 +1365,15 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     # * Initial queries for collection and user
     # * Load the forms
     # * Load the question (component)
-    # * Load any of the questions questions (components)
+    # * Load any of the questions (components)
     assert len(queries) == 5
 
     # No additional queries when inspecting the ORM model
     count = 0
     with track_sql_queries() as queries:
-        for s in from_db.sections:
-            for f in s.forms:
-                for _q in f.questions:
-                    count += 1
+        for f in from_db.forms:
+            for _q in f.questions:
+                count += 1
 
     assert queries == []
 
@@ -1685,7 +1643,7 @@ class TestExpressions:
         assert retrieved_expression.managed_name == "Greater than"
 
         with track_sql_queries() as queries:
-            assert retrieved_expression.question.form.section.collection.grant is not None
+            assert retrieved_expression.question.form.collection.grant is not None
 
         assert len(queries) == 0
 
@@ -1781,15 +1739,16 @@ class TestDeleteForm:
 
     def test_form_reordering(self, db_session, factories):
         section = factories.section.create()
+        collection = section.collection
         forms = factories.form.create_batch(5, section=section)
 
-        assert [f.order for f in section.forms] == [0, 1, 2, 3, 4]
-        assert section.forms == [forms[0], forms[1], forms[2], forms[3], forms[4]]
+        assert [f.order for f in collection.forms] == [0, 1, 2, 3, 4]
+        assert collection.forms == [forms[0], forms[1], forms[2], forms[3], forms[4]]
 
         delete_form(forms[2])
 
-        assert [f.order for f in section.forms] == [0, 1, 2, 3]
-        assert section.forms == [forms[0], forms[1], forms[3], forms[4]]
+        assert [f.order for f in collection.forms] == [0, 1, 2, 3]
+        assert collection.forms == [forms[0], forms[1], forms[3], forms[4]]
 
 
 class TestDeleteQuestion:
