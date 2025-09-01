@@ -96,16 +96,6 @@ class Collection(BaseModel):
         back_populates="collection",
         cascade="all, delete-orphan",
     )
-
-    sections: Mapped[OrderingList["Section"]] = relationship(
-        "Section",
-        lazy=True,
-        order_by="Section.order",
-        collection_class=ordering_list("order"),
-        # Importantly we don't `delete-orphan` here; when we move sections up/down, we remove them from the collection,
-        # which would trigger the delete-orphan rule
-        cascade="all",
-    )
     forms: Mapped[OrderingList["Form"]] = relationship(
         "Form",
         lazy=True,
@@ -169,7 +159,6 @@ class Section(BaseModel):
 
     collection_id: Mapped[uuid.UUID]
     collection_version: Mapped[int]
-    collection: Mapped[Collection] = relationship("Collection", back_populates="sections")
 
     forms: Mapped[OrderingList["Form"]] = relationship(
         "Form",
@@ -210,10 +199,6 @@ class Form(BaseModel):
     collection: Mapped[Collection] = relationship("Collection", back_populates="forms")
 
     __table_args__ = (
-        UniqueConstraint("order", "section_id", name="uq_form_order_section", deferrable=True),
-        # TODO how can we make this unique per collection?
-        UniqueConstraint("title", "section_id", name="uq_form_title_section"),
-        UniqueConstraint("slug", "section_id", name="uq_form_slug_section"),
         UniqueConstraint(
             "order", "collection_id", "collection_version", name="uq_form_order_collection", deferrable=True
         ),
