@@ -228,6 +228,7 @@ def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
             create_form(
                 title=form.title.data,
                 section=report.sections[0],
+                collection=report,
             )
             return redirect(url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=report.id))
 
