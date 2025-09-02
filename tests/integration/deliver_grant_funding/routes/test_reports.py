@@ -1062,6 +1062,30 @@ class TestListTaskQuestions:
                 "/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}/[a-z0-9-]{36}"
             )
 
+    def test_post_list_task_questions_returns_to_task_list(
+        self, factories, db_session, authenticated_grant_admin_client
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        factories.question.create(form=form)
+
+        preview_form = GenericSubmitForm()
+        runner_response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.list_task_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data=preview_form.data,
+            follow_redirects=True,
+        )
+        soup = BeautifulSoup(runner_response.data, "html.parser")
+        assert page_has_link(soup, "Back").get("href") == url_for(
+            "deliver_grant_funding.list_task_questions",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            form_id=form.id,
+        )
+
 
 class TestMoveQuestion:
     def test_404(self, authenticated_grant_admin_client):

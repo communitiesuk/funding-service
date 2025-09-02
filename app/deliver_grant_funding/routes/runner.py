@@ -63,7 +63,16 @@ def ask_a_question(grant_id: UUID, submission_id: UUID, question_id: UUID) -> Re
         runner.save_question_answer()
         return redirect(runner.next_url)
 
-    return render_template("deliver_grant_funding/runner/ask_a_question.html", runner=runner)
+    is_first_question_in_task_preview = False
+    if session.get("test_submission_form_id", None):
+        question = runner.questions[0]
+        is_first_question_in_task_preview = question == question.form.cached_questions[0]
+
+    return render_template(
+        "deliver_grant_funding/runner/ask_a_question.html",
+        runner=runner,
+        is_first_question_in_task_preview=is_first_question_in_task_preview,
+    )
 
 
 @deliver_grant_funding_blueprint.route(
