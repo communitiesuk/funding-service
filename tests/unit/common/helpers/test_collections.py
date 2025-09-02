@@ -11,11 +11,10 @@ class TestSubmissionHelper:
     class TestGetOrderedVisibleForms:
         def test_ordering(self, db_session, factories):
             submission = factories.submission.build()
-            section = submission.collection.sections[0]
-            _form_0 = factories.form.build(order=0, section=section)
-            _form_2 = factories.form.build(order=2, section=section)
-            _form_3 = factories.form.build(order=3, section=section)
-            _form_1 = factories.form.build(order=1, section=section)
+            _form_0 = factories.form.build(order=0, collection=submission.collection)
+            _form_2 = factories.form.build(order=2, collection=submission.collection)
+            _form_3 = factories.form.build(order=3, collection=submission.collection)
+            _form_1 = factories.form.build(order=1, collection=submission.collection)
 
             helper = SubmissionHelper(submission)
             helper_forms = helper.get_ordered_visible_forms()
@@ -25,8 +24,7 @@ class TestSubmissionHelper:
     class TestGetOrderedVisibleQuestions:
         def test_ordering(self, db_session, factories):
             submission = factories.submission.build()
-            section = submission.collection.sections[0]
-            form = factories.form.build(order=0, section=section)
+            form = factories.form.build(order=0, collection=submission.collection)
             _question_2 = factories.question.build(order=2, form=form)
             _question_0 = factories.question.build(order=0, form=form)
             _question_1 = factories.question.build(order=1, form=form)
@@ -167,13 +165,13 @@ class TestSubmissionHelper:
 
     class TestGetFormForQuestion:
         def test_question_exists_in_collection_forms(self, db_session, factories):
-            section = factories.section.build()
-            form = factories.form.build(section=section)
+            collection = factories.collection.build()
+            form = factories.form.build(collection=collection)
 
             for x in reversed(range(5)):
                 factories.question.build(form=form, id=uuid.UUID(int=x), order=x)
 
-            submission = factories.submission.build(collection=section.collection)
+            submission = factories.submission.build(collection=collection)
 
             helper = SubmissionHelper(submission)
 
@@ -308,11 +306,11 @@ class TestSubmissionHelper:
     class TestStatuses:
         def test_all_forms_are_completed(self, db_session, factories):
             form_one = factories.form.build()
-            form_two = factories.form.build(section=form_one.section)
+            form_two = factories.form.build(collection=form_one.collection)
             question_one = factories.question.build(form=form_one)
             question_two = factories.question.build(form=form_two)
 
-            submission = factories.submission.build(collection=form_one.section.collection)
+            submission = factories.submission.build(collection=form_one.collection)
             helper = SubmissionHelper(submission)
 
             # empty collections are not completed

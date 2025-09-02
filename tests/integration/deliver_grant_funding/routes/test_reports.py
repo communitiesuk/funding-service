@@ -397,7 +397,7 @@ class TestAddTask:
 
     def test_post_duplicate_form_name(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Monitoring report")
-        factories.form.create(section=report.sections[0], title="Organisation information")
+        factories.form.create(collection=report, title="Organisation information")
 
         form = AddTaskForm(data={"title": "Organisation information"})
         response = authenticated_grant_admin_client.post(
@@ -457,7 +457,7 @@ class TestListReportTasks:
     def test_get_with_tasks(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        factories.form.create(section=report.sections[0], title="Organisation information")
+        factories.form.create(collection=report, title="Organisation information")
 
         response = client.get(
             url_for("deliver_grant_funding.list_report_tasks", grant_id=client.grant.id, report_id=report.id)
@@ -518,7 +518,7 @@ class TestMoveTask:
 
     def test_400(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        forms = factories.form.create_batch(3, section=report.sections[0])
+        forms = factories.form.create_batch(3, collection=report)
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -537,7 +537,7 @@ class TestMoveTask:
     def test_move(self, authenticated_grant_admin_client, factories, db_session, direction):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         factories.form.reset_sequence()
-        forms = factories.form.create_batch(3, section=report.sections[0])
+        forms = factories.form.create_batch(3, collection=report)
         assert forms[1].title == "Form 1"
 
         response = authenticated_grant_admin_client.get(
@@ -573,7 +573,7 @@ class TestChangeQuestionGroupName:
     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=form, name="Test group")
         response = client.get(
             url_for("deliver_grant_funding.change_group_name", grant_id=client.grant.id, group_id=group.id)
@@ -588,7 +588,7 @@ class TestChangeQuestionGroupName:
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         db_form = factories.form.create(
-            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
         )
         db_group = factories.group.create(form=db_form, name="Test group")
 
@@ -611,7 +611,7 @@ class TestChangeQuestionGroupName:
 
     def test_post_duplicate(self, authenticated_grant_admin_client, factories):
         db_form = factories.form.create(
-            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
         )
         factories.group.create(form=db_form, name="Duplicate test group")
         db_group = factories.group.create(form=db_form, name="Test group")
@@ -649,7 +649,7 @@ class TestChangeQuestionGroupDisplay:
     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(
             form=form,
             name="Test group",
@@ -680,7 +680,7 @@ class TestChangeQuestionGroupDisplay:
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         db_form = factories.form.create(
-            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
         )
         db_group = factories.group.create(
             form=db_form,
@@ -712,7 +712,7 @@ class TestChangeQuestionGroupDisplay:
     ):
         db_user = factories.user.create()
         db_form = factories.form.create(
-            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
         )
         db_group = factories.group.create(
             form=db_form,
@@ -763,7 +763,7 @@ class TestChangeFormName:
     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
 
         response = client.get(
             url_for("deliver_grant_funding.change_form_name", grant_id=client.grant.id, form_id=form.id)
@@ -778,7 +778,7 @@ class TestChangeFormName:
 
     def test_get_blocked_if_live_submissions(self, authenticated_grant_admin_client, factories, caplog):
         form = factories.form.create(
-            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
         )
         factories.submission.create(mode=SubmissionModeEnum.LIVE, collection=form.collection)
 
@@ -811,7 +811,7 @@ class TestChangeFormName:
         self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session
     ):
         client = request.getfixturevalue(client_fixture)
-        db_form = factories.form.create(section__collection__grant=client.grant, title="Organisation information")
+        db_form = factories.form.create(collection__grant=client.grant, title="Organisation information")
 
         form = AddTaskForm(data={"title": "Updated Name"})
         response = client.post(
@@ -831,9 +831,9 @@ class TestChangeFormName:
 
     def test_post_update_name_duplicate(self, authenticated_grant_admin_client, factories):
         db_form = factories.form.create(
-            section__collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
         )
-        db_form2 = factories.form.create(section=db_form.section, title="Project information")
+        db_form2 = factories.form.create(collection=db_form.collection, title="Project information")
 
         form = AddTaskForm(data={"title": "Organisation information"})
         response = authenticated_grant_admin_client.post(
@@ -853,7 +853,7 @@ class TestChangeFormName:
 class TestListGroupQuestions:
     def test_404(self, authenticated_grant_member_client, factories):
         report = factories.collection.create(grant=authenticated_grant_member_client.grant)
-        form = factories.form.create(section=report.sections[0])
+        form = factories.form.create(collection=report)
         question = factories.question.create(form=form)
         response = authenticated_grant_member_client.get(
             url_for("deliver_grant_funding.list_group_questions", grant_id=uuid.uuid4(), group_id=uuid.uuid4())
@@ -880,7 +880,7 @@ class TestListGroupQuestions:
     def test_admin_actions(self, request, client_fixture, can_edit, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
         factories.question.create(form=form, parent=group, order=0)
 
@@ -902,7 +902,7 @@ class TestListGroupQuestions:
 
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
 
         response = authenticated_grant_admin_client.get(
@@ -923,7 +923,7 @@ class TestListGroupQuestions:
     ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         user = factories.user.create()
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
         question = factories.question.create(form=form, parent=group, order=0, data_type=QuestionDataType.INTEGER)
         factories.question.create(
@@ -965,7 +965,7 @@ class TestListTaskQuestions:
     def test_admin_actions(self, request, client_fixture, can_edit, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         factories.question.create_batch(2, form=form)
 
         response = client.get(
@@ -990,7 +990,7 @@ class TestListTaskQuestions:
 
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -1007,7 +1007,7 @@ class TestListTaskQuestions:
 
     def test_cannot_delete_with_live_submissions(self, authenticated_grant_admin_client, factories, db_session, caplog):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         factories.submission.create(collection=report, mode=SubmissionModeEnum.LIVE)
 
         with caplog.at_level(logging.INFO):
@@ -1044,7 +1044,7 @@ class TestListTaskQuestions:
         generic_grant = factories.grant.create()
         grant = getattr(client, "grant", None) or generic_grant
         report = factories.collection.create(grant=grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         factories.question.create(form=form)
 
         preview_form = GenericSubmitForm()
@@ -1077,7 +1077,7 @@ class TestMoveQuestion:
 
     def test_no_access_for_grant_members(self, authenticated_grant_member_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         questions = factories.question.create_batch(3, form=form)
 
         response = authenticated_grant_member_client.get(
@@ -1092,7 +1092,7 @@ class TestMoveQuestion:
 
     def test_400(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         questions = factories.question.create_batch(3, form=form)
 
         response = authenticated_grant_admin_client.get(
@@ -1111,7 +1111,7 @@ class TestMoveQuestion:
     )
     def test_move(self, authenticated_grant_admin_client, factories, db_session, direction):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         factories.question.reset_sequence()
         questions = factories.question.create_batch(3, form=form)
         assert form.questions[1].text == "Question 1"
@@ -1133,7 +1133,7 @@ class TestMoveQuestion:
 
     def test_move_group(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
         question1 = factories.question.create(parent=group, text="Question 1", order=0)
         factories.question.create(parent=group, text="Question 2", order=1)
@@ -1187,7 +1187,7 @@ class TestChooseQuestionType:
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
 
         response = client.get(
             url_for("deliver_grant_funding.choose_question_type", grant_id=client.grant.id, form_id=form.id)
@@ -1204,7 +1204,7 @@ class TestChooseQuestionType:
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
 
         form = QuestionTypeForm(data={"question_data_type": QuestionDataType.TEXT_SINGLE_LINE.name})
         response = authenticated_grant_admin_client.post(
@@ -1240,7 +1240,7 @@ class TestAddQuestion:
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
 
         response = client.get(url_for("deliver_grant_funding.add_question", grant_id=client.grant.id, form_id=form.id))
 
@@ -1254,7 +1254,7 @@ class TestAddQuestion:
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
 
         form = QuestionForm(
             data={
@@ -1287,7 +1287,7 @@ class TestAddQuestion:
     def test_post_add_to_group(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=db_form, name="Test group", order=0)
 
         form = QuestionForm(
@@ -1330,7 +1330,7 @@ class TestAddQuestionGroup:
 
         # valid grant and form context but adding to a missing question group
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(section=report.sections[0])
+        form = factories.form.create(collection=report)
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.add_question",
@@ -1344,7 +1344,7 @@ class TestAddQuestionGroup:
     def test_missing_name(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
-        db_form = factories.form.create(section=report.sections[0])
+        db_form = factories.form.create(collection=report)
 
         form = GroupDisplayOptionsForm(
             data={
@@ -1373,7 +1373,7 @@ class TestAddQuestionGroup:
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
 
         with client.session_transaction() as session:
             session["add_question_group"] = {"group_name": "Test group"}
@@ -1394,7 +1394,7 @@ class TestAddQuestionGroup:
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
 
         with authenticated_grant_admin_client.session_transaction() as session:
             session["add_question_group"] = {"group_name": "Test group"}
@@ -1415,7 +1415,7 @@ class TestAddQuestionGroup:
     def test_post_duplicate(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         factories.group.create(form=db_form, name="Duplicate test group")
 
         form = GroupForm(
@@ -1456,7 +1456,7 @@ class TestEditQuestion:
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=form,
             text="My question",
@@ -1484,7 +1484,7 @@ class TestEditQuestion:
 
     def test_get_with_group(self, request, authenticated_grant_admin_client, factories, db_session):
         group = factories.group.create(
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
             name="Test group",
         )
@@ -1511,7 +1511,7 @@ class TestEditQuestion:
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="My question",
@@ -1576,7 +1576,7 @@ class TestAddQuestionConditionSelectQuestion:
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=form,
             text="My question",
@@ -1628,7 +1628,7 @@ class TestAddQuestionConditionSelectQuestion:
     def test_get_with_available_questions(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
 
         factories.question.create(
             form=form,
@@ -1662,7 +1662,7 @@ class TestAddQuestionConditionSelectQuestion:
 
     def test_post(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
 
         first_question = factories.question.create(
             form=form,
@@ -1695,7 +1695,7 @@ class TestAddQuestionConditionSelectQuestion:
 
     def test_post_rejects_same_page_group(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
 
         group = factories.group.create(
             form=form,
@@ -1751,7 +1751,7 @@ class TestAddQuestionCondition:
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(section=report.sections[0], title="Organisation information")
+        form = factories.form.create(collection=report, title="Organisation information")
 
         group = factories.group.create(
             form=form,
@@ -1803,7 +1803,7 @@ class TestAddQuestionCondition:
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
 
         depends_on_question = factories.question.create(
             form=db_form,
@@ -1850,7 +1850,7 @@ class TestAddQuestionCondition:
 
     def test_post_for_group(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
 
         depends_on_question = factories.question.create(
             form=db_form,
@@ -1891,7 +1891,7 @@ class TestAddQuestionCondition:
 
     def test_post_duplicate_condition(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
 
         depends_on_question = factories.question.create(
             form=db_form,
@@ -1949,7 +1949,7 @@ class TestEditQuestionCondition:
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -2004,7 +2004,7 @@ class TestEditQuestionCondition:
 
     def test_get_with_delete_parameter(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -2038,7 +2038,7 @@ class TestEditQuestionCondition:
 
     def test_post_update_condition(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -2083,7 +2083,7 @@ class TestEditQuestionCondition:
 
     def test_post_update_group_condition(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -2123,7 +2123,7 @@ class TestEditQuestionCondition:
 
     def test_post_update_condition_duplicate(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -2175,7 +2175,7 @@ class TestEditQuestionCondition:
 
     def test_post_delete(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -2232,7 +2232,7 @@ class TestAddQuestionValidation:
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -2273,7 +2273,7 @@ class TestAddQuestionValidation:
 
     def test_get_no_validation_available(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="What is your name?",
@@ -2295,7 +2295,7 @@ class TestAddQuestionValidation:
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -2332,7 +2332,7 @@ class TestAddQuestionValidation:
 
     def test_post_duplicate_validation(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -2383,7 +2383,7 @@ class TestEditQuestionValidation:
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -2441,7 +2441,7 @@ class TestEditQuestionValidation:
 
     def test_get_with_delete_parameter(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -2475,7 +2475,7 @@ class TestEditQuestionValidation:
 
     def test_post_update_validation(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -2517,7 +2517,7 @@ class TestEditQuestionValidation:
 
     def test_post_update_validation_duplicate(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -2569,7 +2569,7 @@ class TestEditQuestionValidation:
 
     def test_post_delete(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(section=report.sections[0], title="Organisation information")
+        db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -2624,7 +2624,7 @@ class TestManageGuidance:
     )
     def test_get_access_control(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        question = factories.question.create(form__section__collection__grant=client.grant)
+        question = factories.question.create(form__collection__grant=client.grant)
 
         response = client.get(
             url_for("deliver_grant_funding.manage_guidance", grant_id=client.grant.id, question_id=question.id)
@@ -2636,7 +2636,7 @@ class TestManageGuidance:
             assert response.status_code == 403
 
     def test_get_add_guidance(self, authenticated_grant_admin_client, factories):
-        question = factories.question.create(form__section__collection__grant=authenticated_grant_admin_client.grant)
+        question = factories.question.create(form__collection__grant=authenticated_grant_admin_client.grant)
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -2653,7 +2653,7 @@ class TestManageGuidance:
 
     def test_get_edit_guidance(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
             guidance_heading="Existing heading",
             guidance_body="Existing body",
         )
@@ -2672,7 +2672,7 @@ class TestManageGuidance:
         assert page_has_button(soup, "Save guidance")
 
     def test_post_add_guidance(self, authenticated_grant_admin_client, factories, db_session):
-        question = factories.question.create(form__section__collection__grant=authenticated_grant_admin_client.grant)
+        question = factories.question.create(form__collection__grant=authenticated_grant_admin_client.grant)
 
         form = AddGuidanceForm(guidance_heading="How to answer", guidance_body="Please provide detailed information")
 
@@ -2697,7 +2697,7 @@ class TestManageGuidance:
 
     def test_post_update_guidance(self, authenticated_grant_admin_client, factories, db_session):
         question = factories.question.create(
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
             guidance_heading="Old heading",
             guidance_body="Old body",
         )
@@ -2723,7 +2723,7 @@ class TestManageGuidance:
 
     def test_post_clear_guidance(self, authenticated_grant_admin_client, factories, db_session):
         question = factories.question.create(
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
             guidance_heading="Existing heading",
             guidance_body="Existing body",
         )
@@ -2750,7 +2750,7 @@ class TestManageGuidance:
         self, authenticated_grant_admin_client, factories, db_session
     ):
         question = factories.question.create(
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
             guidance_heading="Existing heading",
             guidance_body="Existing body",
         )
@@ -2778,7 +2778,7 @@ class TestManageGuidance:
 
     def test_get_edit_guidance_groups(self, authenticated_grant_admin_client, factories, db_session):
         group = factories.group.create(
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
             guidance_heading="Existing heading",
             guidance_body="Existing body",
         )
@@ -2798,7 +2798,7 @@ class TestManageGuidance:
 
     def test_post_update_guidance_groups(self, authenticated_grant_admin_client, factories, db_session):
         group = factories.group.create(
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
             guidance_heading="Old heading",
             guidance_body="Old body",
         )

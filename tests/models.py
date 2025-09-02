@@ -37,7 +37,6 @@ from app.common.data.models import (
     Group,
     Organisation,
     Question,
-    Section,
     Submission,
     SubmissionEvent,
 )
@@ -50,7 +49,6 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions.managed import AnyOf, BaseDataSourceManagedExpression, GreaterThan, Specifically
-from app.constants import DEFAULT_SECTION_NAME
 from app.extensions import db
 from app.types import TRadioItem
 
@@ -155,20 +153,6 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     grant = factory.SubFactory(_GrantFactory)
 
     @factory.post_generation  # type: ignore
-    def default_section(obj: Collection, create, extracted: bool = True, **kwargs):  # type: ignore
-        # Our system automatically creates a default section for every collection that exists, so to closely match
-        # the real system behaviour, our collection factory should do the same thing by default.
-
-        if extracted is False:
-            return
-
-        if len(obj.sections) == 0:
-            if create:
-                obj.sections = [_SectionFactory.create(collection=obj, title=DEFAULT_SECTION_NAME)]
-            else:
-                obj.sections = [_SectionFactory.build(collection=obj, title=DEFAULT_SECTION_NAME)]  # type: ignore
-
-    @factory.post_generation  # type: ignore
     def create_completed_submissions_conditional_question(  # type: ignore
         obj: Collection,
         create,
@@ -180,8 +164,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         if not live and not test:
             return
 
-        section = obj.sections[0]
-        form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
+        form = _FormFactory.create(collection=obj, title="Export test form", slug="export-test-form")
 
         # Create a conditional branch of questions
         q1 = _QuestionFactory.create(
@@ -240,8 +223,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         if not live and not test:
             return
 
-        section = obj.sections[0]
-        form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
+        form = _FormFactory.create(collection=obj, title="Export test form", slug="export-test-form")
 
         # Create a conditional branch of questions
         q1 = _QuestionFactory.create(
@@ -357,8 +339,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     ) -> None:
         if not test and not live:
             return
-        section = obj.sections[0]
-        form = _FormFactory.create(section=section, title="Export test form", slug="export-test-form")
+        form = _FormFactory.create(collection=obj, title="Export test form", slug="export-test-form")
 
         # Assertion to remind us to add more question types here when we start supporting them
         assert len(QuestionDataType) == 8, "If you have added a new question type, please update this factory."
@@ -499,21 +480,6 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
     collection_version = factory.LazyAttribute(lambda o: o.collection.version)
 
 
-class _SectionFactory(SQLAlchemyModelFactory):
-    class Meta:
-        model = Section
-        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
-        sqlalchemy_session_persistence = "commit"
-
-    id = factory.LazyFunction(uuid4)
-    title = factory.Sequence(lambda n: "Section %d" % n)
-    order = factory.LazyAttribute(lambda o: len(o.collection.sections))
-    slug = factory.Sequence(lambda n: "section-%d" % n)
-
-    collection = factory.SubFactory(_CollectionFactory)
-    collection_id = factory.LazyAttribute(lambda o: o.collection.id)
-
-
 class _FormFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Form
@@ -523,13 +489,10 @@ class _FormFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     title = factory.Sequence(lambda n: "Form %d" % n)
     slug = factory.Sequence(lambda n: "form-%d" % n)
-    order = factory.LazyAttribute(lambda o: len(o.section.forms))
+    order = factory.LazyAttribute(lambda o: len(o.collection.forms))
 
-    section = factory.SubFactory(_SectionFactory)
-    section_id = factory.LazyAttribute(lambda o: o.section.id)
-
-    collection = factory.LazyAttribute(lambda o: o.section.collection)
-    collection_id = factory.LazyAttribute(lambda o: o.section.collection.id)
+    collection = factory.SubFactory(_CollectionFactory)
+    collection_id = factory.LazyAttribute(lambda o: o.collection.id)
 
 
 class _DataSourceItemFactory(SQLAlchemyModelFactory):

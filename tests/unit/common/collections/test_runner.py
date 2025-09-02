@@ -108,7 +108,7 @@ class TestFormRunner:
     def test_calls_mapped_urls_with_the_right_information(self, factories):
         question = factories.question.build()
         second_question = factories.question.build(form=question.form)
-        second_form = factories.form.build(section=question.form.section)
+        second_form = factories.form.build(collection=question.form.collection)
         submission = factories.submission.build(collection=question.form.collection)
         helper = SubmissionHelper(submission)
 

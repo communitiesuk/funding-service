@@ -19,7 +19,7 @@ class TestSubmissionTasklist:
     def test_get_submission_tasklist(self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories):
         client = request.getfixturevalue(client_fixture)
         grant = getattr(client, "grant", None) or factories.grant.create()
-        question = factories.question.create(form__title="Colour information", form__section__collection__grant=grant)
+        question = factories.question.create(form__title="Colour information", form__collection__grant=grant)
         submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
         response = client.get(
@@ -48,7 +48,7 @@ class TestSubmissionTasklist:
     def test_get_other_users_submission_tasklist_403s(self, request: FixtureRequest, client_fixture: str, factories):
         client = request.getfixturevalue(client_fixture)
         grant = getattr(client, "grant", None) or factories.grant.create()
-        question = factories.question.create(form__title="Colour information", form__section__collection__grant=grant)
+        question = factories.question.create(form__title="Colour information", form__collection__grant=grant)
 
         generic_user = factories.user.create()
         generic_submission = factories.submission.create(collection=question.form.collection, created_by=generic_user)
@@ -75,7 +75,7 @@ class TestSubmissionTasklist:
     ):
         client = request.getfixturevalue(client_fixture)
         grant = getattr(client, "grant", None) or factories.grant.create()
-        question = factories.question.create(form__title="Colour information", form__section__collection__grant=grant)
+        question = factories.question.create(form__title="Colour information", form__collection__grant=grant)
         submission_data = {str(question.id): "test answer"}
         submission = factories.submission.create(
             collection=question.form.collection, created_by=client.user, data=submission_data
@@ -119,7 +119,7 @@ class TestSubmissionTasklist:
     ):
         client = request.getfixturevalue(client_fixture)
         grant = getattr(client, "grant", None) or factories.grant.create()
-        question = factories.question.create(form__title="Colour information", form__section__collection__grant=grant)
+        question = factories.question.create(form__title="Colour information", form__collection__grant=grant)
         submission_data = {str(question.id): "test answer"}
         submission = factories.submission.create(
             collection=question.form.collection,
@@ -166,7 +166,7 @@ class TestAskAQuestion:
         question = factories.question.create(
             text="What's your favourite colour?",
             form__title="Colour information",
-            form__section__collection__grant=grant,
+            form__collection__grant=grant,
         )
         submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
@@ -199,7 +199,7 @@ class TestAskAQuestion:
         question = factories.question.create(
             text="What's your favourite colour?",
             form__title="Colour information",
-            form__section__collection__grant=grant,
+            form__collection__grant=grant,
         )
 
         generic_user = factories.user.create()
@@ -218,7 +218,7 @@ class TestAskAQuestion:
     def test_get_ask_a_question_with_failing_condition_redirects(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
         user = authenticated_grant_admin_client.user
-        question = factories.question.create(form__section__collection__grant=grant)
+        question = factories.question.create(form__collection__grant=grant)
         submission = factories.submission.create(collection=question.form.collection, created_by=user)
 
         response = authenticated_grant_admin_client.get(
@@ -265,7 +265,7 @@ class TestAskAQuestion:
             text="What's your favourite colour?",
             order=0,
             form__title="Colour information",
-            form__section__collection__grant=grant,
+            form__collection__grant=grant,
         )
         question_2 = factories.question.create(
             text="What's your least favourite colour?",
@@ -325,7 +325,7 @@ class TestAskAQuestion:
             text="What's your favourite colour?",
             guidance_heading=None,
             guidance_body=None,
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
         )
         submission = factories.submission.create(
             collection=question.form.collection, created_by=authenticated_grant_admin_client.user
@@ -350,7 +350,7 @@ class TestAskAQuestion:
             text="What's your favourite colour?",
             guidance_heading="Important instructions",
             guidance_body="Please read this carefully before answering",
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
         )
         submission = factories.submission.create(
             collection=question.form.collection, created_by=authenticated_grant_admin_client.user
@@ -377,7 +377,7 @@ class TestAskAQuestion:
             text="Group title - should not be used",
             guidance_heading="Group guidance heading",
             guidance_body="Group guidance body",
-            form__section__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__grant=authenticated_grant_admin_client.grant,
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
         )
         q1 = factories.question.create(
@@ -425,7 +425,7 @@ class TestCheckYourAnswers:
         question = factories.question.create(
             text="What's your favourite colour?",
             form__title="Colour information",
-            form__section__collection__grant=grant,
+            form__collection__grant=grant,
         )
         submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
@@ -460,7 +460,7 @@ class TestCheckYourAnswers:
         question = factories.question.create(
             text="What's your favourite colour?",
             form__title="Colour information",
-            form__section__collection__grant=grant,
+            form__collection__grant=grant,
         )
 
         generic_user = factories.user.create()
@@ -492,7 +492,7 @@ class TestCheckYourAnswers:
         question = factories.question.create(
             text="What's your favourite colour?",
             form__title="Colour information",
-            form__section__collection__grant=grant,
+            form__collection__grant=grant,
         )
         submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
@@ -533,7 +533,7 @@ class TestCheckYourAnswers:
         question = factories.question.create(
             text="What's your favourite colour?",
             form__title="Colour information",
-            form__section__collection__grant=grant,
+            form__collection__grant=grant,
         )
         submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
