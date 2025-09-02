@@ -150,49 +150,12 @@ class Submission(BaseModel):
         return f"{self.__class__.__name__}(reference={self.reference}, mode={self.mode})"
 
 
-class Section(BaseModel):
-    __tablename__ = "section"
-
-    title: Mapped[str]
-    order: Mapped[int]
-    slug: Mapped[str]
-
-    collection_id: Mapped[uuid.UUID]
-    collection_version: Mapped[int]
-
-    forms: Mapped[OrderingList["Form"]] = relationship(
-        "Form",
-        lazy=True,
-        order_by="Form.order",
-        collection_class=ordering_list("order"),
-        # Importantly we don't `delete-orphan` here; when we move forms up/down, we remove them from the collection,
-        # which would trigger the delete-orphan rule
-        cascade="all, save-update, merge",
-    )
-
-    __table_args__ = (
-        UniqueConstraint(
-            "collection_id",
-            "collection_version",
-            "order",
-            name="uq_section_order_collection",
-            deferrable=True,
-        ),
-        UniqueConstraint("collection_id", "collection_version", "title", name="uq_section_title_collection"),
-        UniqueConstraint("collection_id", "collection_version", "slug", name="uq_section_slug_collection"),
-        ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
-    )
-
-
 class Form(BaseModel):
     __tablename__ = "form"
 
     title: Mapped[str]
     order: Mapped[int]
     slug: Mapped[str]
-
-    # todo: remove this; replaced by direct connection to collections
-    section_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("section.id"))
 
     collection_id: Mapped[uuid.UUID]
     collection_version: Mapped[int]
