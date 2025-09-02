@@ -97,7 +97,7 @@
 
         {% if grant_admin %}
           <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id, parent_id=group.id) }}"
-            >{{ "Add another question" if group.questions else "Add a question" }}</a
+            >{{ "Add another question" if group.cached_questions else "Add a question" }}</a
           >
         {% endif %}
       </div>

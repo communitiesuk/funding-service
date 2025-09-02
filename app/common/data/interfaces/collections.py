@@ -162,15 +162,22 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
             [
                 # get all flat components to drive single batches of selectin
                 # joinedload lets us avoid an exponentially increasing number of queries
-                joinedload(Submission.collection).joinedload(Collection.forms).selectinload(Form._all_components),
+                joinedload(Submission.collection)
+                .joinedload(Collection.forms)
+                .selectinload(Form._all_components)
+                .joinedload(Component.expressions),
                 # get any nested components in one go
                 joinedload(Submission.collection)
                 .joinedload(Collection.forms)
                 .selectinload(Form._all_components)
-                .selectinload(Component.components),
+                .selectinload(Component.components)
+                .joinedload(Component.expressions),
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
-                joinedload(Submission.collection).joinedload(Collection.forms).selectinload(Form.components),
+                joinedload(Submission.collection)
+                .joinedload(Collection.forms)
+                .selectinload(Form.components)
+                .joinedload(Component.expressions),
                 joinedload(Submission.events),
             ]
         )
@@ -537,9 +544,11 @@ def _check_component_order_dependency(component: Component, swap_component: Comp
 
     # we could be comparing to either an individual question or a group of multiple questions so collect those
     # as lists to compare against each other
-    child_components = [component] + ([c for c in component.all_components] if isinstance(component, Group) else [])
+    child_components = [component] + (
+        [c for c in component.cached_all_components] if isinstance(component, Group) else []
+    )
     child_swap_components = [swap_component] + (
-        [c for c in swap_component.all_components] if isinstance(swap_component, Group) else []
+        [c for c in swap_component.cached_all_components] if isinstance(swap_component, Group) else []
     )
 
     for c in child_components:
@@ -572,7 +581,7 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
     # fetching the entire schema means whatever is calling this doesn't have to worry about
     # guaranteeing lazy loading performance behaviour
     form = get_form_by_id(component.form_id, with_all_questions=True)
-    return form.all_components.index(component) > form.all_components.index(depends_on_component)
+    return form.cached_all_components.index(component) > form.cached_all_components.index(depends_on_component)
 
 
 def raise_if_question_has_any_dependencies(question: Question | Group) -> Never | None:
@@ -581,10 +590,12 @@ def raise_if_question_has_any_dependencies(question: Question | Group) -> Never 
     form = get_form_by_id(question.form_id, with_all_questions=True)
 
     # all of the child components that might be removed or impacted with a change to this components
-    child_components_ids = [c.id for c in [question] + (question.all_components if isinstance(question, Group) else [])]
+    child_components_ids = [
+        c.id for c in [question] + (question.cached_all_components if isinstance(question, Group) else [])
+    ]
 
     # go through all components in this schema and compare against any related child components
-    for target_question in form.all_components:
+    for target_question in form.cached_all_components:
         for condition in target_question.conditions:
             if condition.managed and condition.managed.question_id in child_components_ids:
                 raise DependencyOrderException(
@@ -598,9 +609,9 @@ def raise_if_group_questions_depend_on_each_other(group: Group) -> Never | None:
     # guaranteeing lazy loading performance behaviour - should investigate fetching the group with all
     # questions and expressions standalone, consider shared join options for components
     _ = get_form_by_id(group.form_id, with_all_questions=True)
-    for question in group.questions:
+    for question in group.cached_questions:
         for condition in question.conditions:
-            if condition.managed and condition.managed.question_id in [q.id for q in group.questions]:
+            if condition.managed and condition.managed.question_id in [q.id for q in group.cached_questions]:
                 raise DependencyOrderException(
                     "You cannot set a group to be same page if it contains questions that depend on each other",
                     question,

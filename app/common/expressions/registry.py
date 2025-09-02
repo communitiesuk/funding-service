@@ -57,5 +57,5 @@ def register_managed_expression(cls: type["ManagedExpression"]) -> type["Managed
 
 
 def get_supported_form_questions(question: "Component") -> list["Question"]:
-    questions = question.form.questions
+    questions = question.form.cached_questions
     return [q for q in questions if q.data_type in get_registered_data_types() and q.id != question.id]

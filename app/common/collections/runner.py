@@ -46,7 +46,7 @@ class FormRunner:
         # pass the whole group into the form runner
         if question and question.parent and question.parent.same_page:
             self.component = question.parent
-            self.questions = self.submission.get_ordered_visible_questions(self.component)
+            self.questions = self.submission.cached_get_ordered_visible_questions(self.component)
         else:
             self.component = question
             self.questions = [self.component] if self.component else []
@@ -61,12 +61,12 @@ class FormRunner:
             self.form = self.component.form
             _QuestionForm = build_question_form(
                 self.questions,
-                self.submission.expression_context,
+                self.submission.cached_expression_context,
             )
-            self._question_form = _QuestionForm(data=self.submission.form_data)
+            self._question_form = _QuestionForm(data=self.submission.cached_form_data)
 
         if self.form:
-            all_questions_answered, _ = self.submission.get_all_questions_are_answered_for_form(self.form)
+            all_questions_answered, _ = self.submission.cached_get_all_questions_are_answered_for_form(self.form)
             self._check_your_answers_form = CheckYourAnswersForm(
                 section_completed=(
                     "yes" if self.submission.get_status_for_form(self.form) == SubmissionStatusEnum.COMPLETED else None
@@ -177,7 +177,7 @@ class FormRunner:
             # Regardless of where they're from (eg even check-your-answers), take them to the next unanswered question
             # this will let users stay in a data-submitting flow if they've changed a conditional answer which has
             # unlocked more questions.
-            while next_question and self.submission.get_answer_for_question(next_question.id) is not None:
+            while next_question and self.submission.cached_get_answer_for_question(next_question.id) is not None:
                 next_question = self.submission.get_next_question(next_question.id)
 
             return (
@@ -195,7 +195,7 @@ class FormRunner:
         if not self.component:
             raise ValueError("Question context not set")
 
-        context = self.submission.expression_context
+        context = self.submission.cached_expression_context
 
         if not self.submission.is_component_visible(self.component, context):
             self._valid = False

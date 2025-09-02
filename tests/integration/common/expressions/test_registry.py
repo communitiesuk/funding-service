@@ -33,6 +33,7 @@ class TestManagedExpressions:
         assert get_supported_form_questions(valid_question) == []
 
         second_question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
+        del form.cached_questions
 
         # make sure the original question under test does show up in the correct circumstances
         assert get_supported_form_questions(second_question) == [valid_question]

@@ -1114,7 +1114,7 @@ class TestMoveQuestion:
         form = factories.form.create(collection=report, title="Organisation information")
         factories.question.reset_sequence()
         questions = factories.question.create_batch(3, form=form)
-        assert form.questions[1].text == "Question 1"
+        assert form.cached_questions[1].text == "Question 1"
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -1124,13 +1124,17 @@ class TestMoveQuestion:
                 direction=direction,
             )
         )
+        del form.cached_questions
         assert response.status_code == 302
 
         if direction == "up":
-            assert form.questions[0].text == "Question 1"
+            assert form.cached_questions[0].text == "Question 1"
         else:
-            assert form.questions[2].text == "Question 1"
+            assert form.cached_questions[2].text == "Question 1"
 
+    # todo: think about if interfaces that update questions should also clear their forms
+    #       cachce if it exists (for now we're just going to leave it and assume instances are
+    #       loaded once per request)
     def test_move_group(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
@@ -1138,7 +1142,7 @@ class TestMoveQuestion:
         question1 = factories.question.create(parent=group, text="Question 1", order=0)
         factories.question.create(parent=group, text="Question 2", order=1)
         factories.question.create(form=form, text="Question 3", order=1)
-        assert form.questions[0].text == "Question 1"
+        assert form.cached_questions[0].text == "Question 1"
 
         # we can move the whole group on the form page
         response = authenticated_grant_admin_client.get(
@@ -1149,10 +1153,11 @@ class TestMoveQuestion:
                 direction="down",
             )
         )
+        del form.cached_questions
+
         assert response.status_code == 302
         assert response.location == AnyStringMatching(r"/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
-
-        assert form.questions[0].text == "Question 3"
+        assert form.cached_questions[0].text == "Question 3"
 
         # we can move questions inside the group
         response = authenticated_grant_admin_client.get(
@@ -1164,10 +1169,11 @@ class TestMoveQuestion:
                 direction="down",
             )
         )
+        del form.cached_questions
         assert response.status_code == 302
         assert response.location == AnyStringMatching(r"/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
 
-        assert form.questions[1].text == "Question 2"
+        assert form.cached_questions[1].text == "Question 2"
 
 
 class TestChooseQuestionType:
@@ -3002,7 +3008,7 @@ class TestViewSubmission:
         soup = BeautifulSoup(response.data, "html.parser")
 
         assert "Export test form" in soup.text
-        assert len(report.forms[0].questions) == 8, "If more questions added, check+update this test"
+        assert len(report.forms[0].cached_questions) == 8, "If more questions added, check+update this test"
 
         assert "What is your name?" in soup.text
         assert "test name" in soup.text

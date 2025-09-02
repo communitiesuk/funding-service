@@ -82,7 +82,7 @@ class TestFormModel:
         sub_group = factories.group.create(form_id=form.id, parent=group, order=1)
         question4 = factories.question.create(form_id=form.id, parent=sub_group, order=0)
 
-        assert form.questions == [question1, question2, question3, question4]
+        assert form.cached_questions == [question1, question2, question3, question4]
 
 
 class TestGroupModel:
@@ -95,8 +95,8 @@ class TestGroupModel:
         sub_group = factories.group.create(form_id=group.form_id, parent=group, order=2)
         question4 = factories.question.create(form_id=group.form_id, parent=sub_group, order=0)
 
-        assert group.questions == [question2, question3, question4]
-        assert sub_group.questions == [question4]
+        assert group.cached_questions == [question2, question3, question4]
+        assert sub_group.cached_questions == [question4]
 
     @pytest.mark.parametrize("show_questions_on_the_same_page", [True, False])
     def test_same_page_property(self, factories, show_questions_on_the_same_page):

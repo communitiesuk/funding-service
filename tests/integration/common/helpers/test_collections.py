@@ -39,14 +39,14 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=question.form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.get_answer_for_question(question.id) is None
+            assert helper.cached_get_answer_for_question(question.id) is None
 
             form = build_question_form([question], expression_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994294="User submitted data"
             )
             helper.submit_answer_for_question(question.id, form)
 
-            assert helper.get_answer_for_question(question.id) == TextSingleLineAnswer("User submitted data")
+            assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("User submitted data")
 
         def test_get_data_maps_type(self, db_session, factories):
             question = factories.question.build(
@@ -58,7 +58,7 @@ class TestSubmissionHelper:
             form = build_question_form([question], expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=5)
             helper.submit_answer_for_question(question.id, form)
 
-            assert helper.get_answer_for_question(question.id) == IntegerAnswer(value=5)
+            assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=5)
 
         def test_can_get_falsey_answers(self, db_session, factories):
             question = factories.question.build(
@@ -70,7 +70,7 @@ class TestSubmissionHelper:
             form = build_question_form([question], expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=0)
             helper.submit_answer_for_question(question.id, form)
 
-            assert helper.get_answer_for_question(question.id) == IntegerAnswer(value=0)
+            assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=0)
 
         def test_cannot_submit_answer_on_submitted_submission(self, db_session, factories):
             question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
@@ -103,7 +103,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.form_data == {}
+            assert helper.cached_form_data == {}
 
         def test_with_submission_data(self, factories):
             assert len(QuestionDataType) == 8, "Update this test if adding new questions"
@@ -170,7 +170,7 @@ class TestSubmissionHelper:
             )
             helper = SubmissionHelper(submission)
 
-            assert helper.form_data == {
+            assert helper.cached_form_data == {
                 "q_d696aebc49d24170a92fb6ef42994294": "answer",
                 "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
                 "q_d696aebc49d24170a92fb6ef42994296": 50,
@@ -192,7 +192,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.expression_context == ExpressionContext()
+            assert helper.cached_expression_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
             assert len(QuestionDataType) == 8, "Update this test if adding new questions"
@@ -261,7 +261,7 @@ class TestSubmissionHelper:
             )
             helper = SubmissionHelper(submission)
 
-            assert helper.expression_context == ExpressionContext(
+            assert helper.cached_expression_context == ExpressionContext(
                 from_submission=immutabledict(
                     {
                         "q_d696aebc49d24170a92fb6ef42994294": "answer",
@@ -547,14 +547,15 @@ class TestCollectionHelper:
     def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
         c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        dependant_question_id = collection.forms[0].questions[0].id
-        conditional_question_id = collection.forms[0].questions[1].id
+        dependant_question_id = collection.forms[0].cached_questions[0].id
+        conditional_question_id = collection.forms[0].cached_questions[1].id
+
         # Find the submission where question 2 is not expected to be answered it and store some data as though it has
         # previously been answered
         submission = next(
             helper.submission
             for _, helper in c_helper.submission_helpers.items()
-            if helper.get_answer_for_question(dependant_question_id).get_value_for_text_export() == "20"
+            if helper.cached_get_answer_for_question(dependant_question_id).get_value_for_text_export() == "20"
         )
         submission.data[str(conditional_question_id)] = IntegerAnswer(value=120).get_value_for_submission()
         csv_content = c_helper.generate_csv_content_for_all_submissions()
