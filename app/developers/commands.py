@@ -23,7 +23,6 @@ from app.common.data.models import (
     Grant,
     Group,
     Question,
-    Section,
 )
 from app.common.data.models_user import User
 from app.common.data.types import ComponentType, QuestionPresentationOptions
@@ -46,7 +45,6 @@ GrantExport = TypedDict(
     {
         "grant": dict[str, Any],
         "collections": list[Any],
-        "sections": list[Any],
         "forms": list[Any],
         # intentionally leaving this as questions for now to avoid
         # transitioning to a new schema, we can change this to components for
@@ -98,7 +96,6 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
         grant_export: GrantExport = {
             "grant": to_dict(grant),
             "collections": [],
-            "sections": [],
             "forms": [],
             "questions": [],
             "expressions": [],
@@ -114,14 +111,11 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
             grant_export["collections"].append(to_dict(collection))
             users.add(collection.created_by)
 
-            for section in collection.sections:
-                grant_export["sections"].append(to_dict(section))
+            for form in collection.forms:
+                grant_export["forms"].append(to_dict(form))
 
-                for form in section.forms:
-                    grant_export["forms"].append(to_dict(form))
-
-                    for component in form.components:
-                        add_all_components_flat(component, users, grant_export)
+                for component in form.components:
+                    add_all_components_flat(component, users, grant_export)
 
         for user in users:
             if user.id in [u["id"] for u in export_data["users"]]:
@@ -178,11 +172,6 @@ def seed_grants() -> None:  # noqa: C901
             collection["id"] = uuid.UUID(collection["id"])
             collection = Collection(**collection)
             db.session.add(collection)
-
-        for section in grant_data["sections"]:
-            section["id"] = uuid.UUID(section["id"])
-            section = Section(**section)
-            db.session.add(section)
 
         for form in grant_data["forms"]:
             form["id"] = uuid.UUID(form["id"])
