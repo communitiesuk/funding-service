@@ -87,6 +87,16 @@
             }
           )
         }}
+      {% elif question.data_type == enum.question_type.DATE %}
+        {{
+          form.render_question(
+            question,
+            params={
+              "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold" ,"isPageHeading": questionAsPageHeading},
+              "spellcheck": false
+            }
+          )
+        }}
       {% elif question.data_type == enum.question_type.RADIOS %}
         {% if form.get_question_field(question).widget.is_accessible_autocomplete %}
           {#

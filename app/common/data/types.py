@@ -54,6 +54,7 @@ class QuestionDataType(enum.StrEnum):
     YES_NO = "Yes or no"
     RADIOS = "Select one from a list (radios)"
     CHECKBOXES = "Select one or more from a list (checkboxes)"
+    DATE = "A date"
 
     @staticmethod
     def coerce(value: Any) -> "QuestionDataType":
