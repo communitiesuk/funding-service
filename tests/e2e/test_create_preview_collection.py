@@ -1,6 +1,6 @@
 import dataclasses
 import uuid
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict, Union
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
@@ -25,14 +25,16 @@ from app.common.expressions.managed import (
 from app.common.filters import format_thousands
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser, GuidanceText
-from tests.e2e.pages import AllGrantsPage
+from tests.e2e.pages import AllGrantsPage, GrantDashboardPage
 from tests.e2e.reports_pages import (
     AddQuestionDetailsPage,
+    EditQuestionGroupPage,
     EditQuestionPage,
     ManageTaskPage,
     ReportTasksPage,
     RunnerCheckYourAnswersPage,
     RunnerQuestionPage,
+    RunnerTasklistPage,
 )
 
 
@@ -48,19 +50,26 @@ class Condition:
     managed_expression: ManagedExpression
 
 
-TQuestionToTest = TypedDict(
-    "TQuestionToTest",
-    {
-        "type": QuestionDataType,
-        "text": str,  # this is mutated by the test runner to store the unique (uuid'd) question name
-        "answers": list[_QuestionResponse],
-        "choices": NotRequired[list[str]],
-        "options": NotRequired[QuestionPresentationOptions],
-        "guidance": NotRequired[GuidanceText],
-        "validation": NotRequired[ManagedExpression],
-        "condition": NotRequired[Condition],
-    },
-)
+class QuestionDict(TypedDict):
+    type: QuestionDataType
+    text: str  # this is mutated by the test runner to store the unique (uuid'd) question name
+    answers: list[_QuestionResponse]
+    choices: NotRequired[list[str]]
+    options: NotRequired[QuestionPresentationOptions]
+    guidance: NotRequired[GuidanceText]
+    validation: NotRequired[ManagedExpression]
+    condition: NotRequired[Condition]
+
+
+class QuestionGroupDict(TypedDict):
+    type: Literal["group"]
+    text: str
+    guidance: NotRequired[GuidanceText]
+    condition: NotRequired[Condition]
+    questions: list[QuestionDict]
+
+
+TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
 
 
 questions_to_test: dict[str, TQuestionToTest] = {
@@ -217,9 +226,98 @@ questions_to_test: dict[str, TQuestionToTest] = {
     },
 }
 
+questions_with_groups_to_test: dict[str, TQuestionToTest] = {
+    "yes-no": {
+        "type": QuestionDataType.YES_NO,
+        "text": "Do you want to show question groups?",
+        "answers": [
+            _QuestionResponse("Yes"),
+        ],
+    },
+    "question-group": {
+        "type": "group",
+        "text": "This is a question group",
+        "guidance": GuidanceText(
+            heading="This is a guidance page heading for a group",
+            body_heading="Guidance subheading",
+            body_link_text="Design system link text",
+            body_link_url="https://design-system.service.gov.uk",
+            body_ol_items=["UL item one", "UL item two"],
+            body_ul_items=["OL item one", "OL item two"],
+        ),
+        "condition": Condition(
+            referenced_question="Do you want to show question groups?",
+            managed_expression=IsYes(question_id=uuid.uuid4()),
+        ),
+        "questions": [
+            {
+                "type": QuestionDataType.TEXT_SINGLE_LINE,
+                "text": "Group Enter a single line of text",
+                "answers": [_QuestionResponse("E2E question text single line")],
+            },
+            {
+                "type": QuestionDataType.URL,
+                "text": "Group Enter a website address",
+                "answers": [
+                    _QuestionResponse("https://gov.uk"),
+                ],
+            },
+            {
+                "type": QuestionDataType.EMAIL,
+                "text": "Group Enter an email address",
+                "answers": [
+                    _QuestionResponse("group@example.com"),
+                ],
+            },
+        ],
+    },
+    "text-single-line": {
+        "type": QuestionDataType.TEXT_SINGLE_LINE,
+        "text": "Enter another single line of text",
+        "answers": [_QuestionResponse("E2E question text single line second answer")],
+    },
+}
 
-def create_question(question_definition: TQuestionToTest, manage_task_page: ManageTaskPage) -> None:
-    question_type_page = manage_task_page.click_add_question()
+
+def create_grant(new_grant_name: str, all_grants_page: AllGrantsPage) -> GrantDashboardPage:
+    grant_intro_page = all_grants_page.click_set_up_a_grant()
+    grant_ggis_page = grant_intro_page.click_continue()
+    grant_ggis_page.select_yes()
+    grant_ggis_page.fill_ggis_number()
+    grant_name_page = grant_ggis_page.click_save_and_continue()
+    grant_name_page.fill_name(new_grant_name)
+    grant_description_page = grant_name_page.click_save_and_continue()
+    grant_description_page.fill_description()
+    grant_contact_page = grant_description_page.click_save_and_continue()
+    grant_contact_page.fill_contact_name()
+    grant_contact_page.fill_contact_email()
+    grant_check_your_answers_page = grant_contact_page.click_save_and_continue()
+    grant_dashboard_page = grant_check_your_answers_page.click_add_grant()
+    return grant_dashboard_page
+
+
+def create_question_or_group(question_definition: TQuestionToTest, manage_task_page: ManageTaskPage):
+    if question_definition["type"] == "group":
+        add_question_group_page = manage_task_page.click_add_question_group(question_definition["text"])
+        add_question_group_page.fill_in_question_group_name()
+        group_display_options_page = add_question_group_page.click_continue()
+        # TODO: This currently only adds a question group with all questions on a page - we should come back and extend
+        # extend this test with a one-question-per-page question group for full coverage
+        group_display_options_page.click_question_group_display_type("All questions on the same page")
+        edit_question_group_page = group_display_options_page.click_submit()
+        if question_definition.get("guidance") is not None:
+            add_question_guidance(question_definition, edit_question_group_page)
+        if question_definition.get("condition") is not None:
+            add_condition(edit_question_group_page, question_definition["text"], question_definition["condition"])
+        for question in question_definition["questions"]:
+            create_question(question, edit_question_group_page)
+        manage_task_page = edit_question_group_page.click_task_breadcrumb()
+    else:
+        create_question(question_definition, manage_task_page)
+
+
+def create_question(question_definition: TQuestionToTest, manage_page: ManageTaskPage | EditQuestionGroupPage) -> None:
+    question_type_page = manage_page.click_add_question()
     question_type_page.click_question_type(question_definition["type"])
     question_details_page = question_type_page.click_continue()
 
@@ -253,7 +351,11 @@ def create_question(question_definition: TQuestionToTest, manage_task_page: Mana
         add_validation(edit_question_page, question_definition["text"], question_definition["validation"])
     if question_definition.get("condition") is not None:
         add_condition(edit_question_page, question_definition["text"], question_definition["condition"])
-    edit_question_page.click_save()
+
+    if isinstance(manage_page, EditQuestionGroupPage):
+        edit_question_page.click_question_group_breadcrumb(manage_page.group_name)
+    else:
+        edit_question_page.click_task_breadcrumb()
 
 
 def add_advanced_formatting(
@@ -278,18 +380,20 @@ def add_advanced_formatting(
             pass  # No advanced formatting for other question types
 
 
-def add_question_guidance(question_definition: TQuestionToTest, edit_question_page: EditQuestionPage) -> None:
+def add_question_guidance(
+    question_definition: TQuestionToTest, edit_question_page: EditQuestionPage | EditQuestionGroupPage
+) -> None:
     guidance = question_definition.get("guidance")
     if guidance is not None:
         add_guidance_page = edit_question_page.click_add_guidance()
         add_guidance_page.fill_guidance_heading(guidance.heading)
         add_guidance_page.fill_guidance_default()
-        edit_question_page = add_guidance_page.click_save_guidance_button()
+        edit_question_page = add_guidance_page.click_save_guidance_button(edit_question_page)
         expect(edit_question_page.page.get_by_text("Page heading", exact=True)).to_be_visible()
         expect(edit_question_page.page.get_by_text("Guidance text", exact=True)).to_be_visible()
         edit_question_page.click_change_guidance()
         add_guidance_page.fill_guidance(guidance)
-        add_guidance_page.click_save_guidance_button()
+        add_guidance_page.click_save_guidance_button(edit_question_page)
 
 
 def add_validation(edit_question_page: EditQuestionPage, question_text: str, validation: ManagedExpression) -> None:
@@ -298,11 +402,67 @@ def add_validation(edit_question_page: EditQuestionPage, question_text: str, val
     edit_question_page = add_validation_page.click_add_validation()
 
 
-def add_condition(edit_question_page: EditQuestionPage, question_text: str, condition: Condition) -> None:
+def add_condition(
+    edit_question_page: EditQuestionPage | EditQuestionGroupPage, question_text: str, condition: Condition
+) -> None:
     add_condition_page = edit_question_page.click_add_condition()
     add_condition_page.select_condition_question(condition.referenced_question)
     add_condition_page.configure_managed_condition(condition.managed_expression)
-    edit_question_page = add_condition_page.click_add_condition()
+    edit_question_page = add_condition_page.click_add_condition(edit_question_page)
+
+
+def complete_task(
+    tasklist_page: RunnerTasklistPage, task_name: str, grant_name: str, questions_to_test: dict[str, TQuestionToTest]
+) -> RunnerTasklistPage:
+    tasklist_page.click_on_task(task_name=task_name)
+    for question_to_test in questions_to_test.values():
+        question_page = RunnerQuestionPage(
+            tasklist_page.page, tasklist_page.domain, grant_name, question_to_test["text"]
+        )
+        assert_question_visibility(question_page, question_to_test)
+
+        if question_to_test["type"] == "group":
+            for nested_question in question_to_test["questions"]:
+                for question_response in nested_question["answers"]:
+                    question_page.respond_to_question(
+                        question_type=nested_question["type"],
+                        question_text=nested_question["text"],
+                        answer=question_response.answer,
+                    )
+            question_page.click_continue()
+
+        else:
+            for question_response in question_to_test["answers"]:
+                if "This question should not be shown" not in question_to_test["text"]:
+                    question_page.respond_to_question(
+                        question_type=question_to_test["type"],
+                        question_text=question_to_test["text"],
+                        answer=question_response.answer,
+                    )
+                    question_page.click_continue()
+
+                    if question_response.error_message:
+                        expect(
+                            question_page.page.get_by_role("link", name=question_response.error_message)
+                        ).to_be_visible()
+
+
+def task_check_your_answers(
+    tasklist_page: RunnerTasklistPage, grant_name: str, report_name: str, questions_to_test: dict[str, TQuestionToTest]
+):
+    check_your_answers_page = RunnerCheckYourAnswersPage(tasklist_page.page, tasklist_page.domain, grant_name)
+
+    for question_to_test in questions_to_test.values():
+        if question_to_test["type"] == "group":
+            for nested_question in question_to_test["questions"]:
+                assert_check_your_answers(check_your_answers_page, nested_question)
+        else:
+            assert_check_your_answers(check_your_answers_page, question_to_test)
+
+    expect(check_your_answers_page.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
+
+    check_your_answers_page.click_mark_as_complete_yes()
+    tasklist_page = check_your_answers_page.click_save_and_continue(report_name=report_name)
 
 
 def navigate_to_report_tasks_page(page: Page, domain: str, grant_name: str, report_name: str) -> ReportTasksPage:
@@ -380,24 +540,22 @@ def test_create_and_preview_report(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser
 ) -> None:
     try:
+        # Sense check that the test includes all question types
+        new_question_type_error = None
+        try:
+            assert len(QuestionDataType) == 8 and len(questions_to_test) == 12 and len(ManagedExpressionsEnum) == 7, (
+                "If you have added a new question type or managed expression, update this test to include the "
+                "new question type or managed expression in `questions_to_test`."
+            )
+        except AssertionError as e:
+            new_question_type_error = e
+
         new_grant_name = f"E2E developer_grant {uuid.uuid4()}"
         all_grants_page = AllGrantsPage(page, domain)
         all_grants_page.navigate()
 
         # Set up new grant
-        grant_intro_page = all_grants_page.click_set_up_a_grant()
-        grant_ggis_page = grant_intro_page.click_continue()
-        grant_ggis_page.select_yes()
-        grant_ggis_page.fill_ggis_number()
-        grant_name_page = grant_ggis_page.click_save_and_continue()
-        grant_name_page.fill_name(new_grant_name)
-        grant_description_page = grant_name_page.click_save_and_continue()
-        grant_description_page.fill_description()
-        grant_contact_page = grant_description_page.click_save_and_continue()
-        grant_contact_page.fill_contact_name()
-        grant_contact_page.fill_contact_email()
-        grant_check_your_answers_page = grant_contact_page.click_save_and_continue()
-        grant_dashboard_page = grant_check_your_answers_page.click_add_grant()
+        grant_dashboard_page = create_grant(new_grant_name, all_grants_page)
 
         # Go to Reports tab
         grant_reports_page = grant_dashboard_page.click_reports(new_grant_name)
@@ -409,28 +567,28 @@ def test_create_and_preview_report(
         grant_reports_page = add_report_page.click_submit(new_grant_name)
         grant_reports_page.check_report_exists(new_report_name)
 
-        # Add a new task
+        # Add a first task and a questions/question group
         add_task_page = grant_reports_page.click_add_task(report_name=new_report_name, grant_name=new_grant_name)
-        task_name = f"E2E task {uuid.uuid4()}"
-        add_task_page.fill_in_task_name(task_name)
+        first_task_name = f"E2E question group task {uuid.uuid4()}"
+        add_task_page.fill_in_task_name(first_task_name)
         report_tasks_page = add_task_page.click_add_task()
-        report_tasks_page.check_task_exists(task_name)
+        report_tasks_page.check_task_exists(first_task_name)
 
-        manage_task_page = report_tasks_page.click_manage_task(task_name=task_name)
+        manage_task_page = report_tasks_page.click_manage_task(task_name=first_task_name)
+        for question_to_test in questions_with_groups_to_test.values():
+            create_question_or_group(question_to_test, manage_task_page)
 
-        # Sense check that the test includes all question types
-        new_question_type_error = None
-        try:
-            assert len(QuestionDataType) == 8 and len(questions_to_test) == 12 and len(ManagedExpressionsEnum) == 7, (
-                "If you have added a new question type or managed expression, update this test to include the "
-                "new question type or managed expression in `questions_to_test`."
-            )
-        except AssertionError as e:
-            new_question_type_error = e
+        # Add a second task and a question of each type to the task
+        report_tasks_page = navigate_to_report_tasks_page(page, domain, new_grant_name, new_report_name)
+        add_task_page = report_tasks_page.click_add_task()
+        second_task_name = f"E2E task {uuid.uuid4()}"
+        add_task_page.fill_in_task_name(second_task_name)
+        report_tasks_page = add_task_page.click_add_task()
+        report_tasks_page.check_task_exists(second_task_name)
 
-        # Add a question of each type
+        manage_task_page = report_tasks_page.click_manage_task(task_name=second_task_name)
         for question_to_test in questions_to_test.values():
-            create_question(question_to_test, manage_task_page)
+            create_question_or_group(question_to_test, manage_task_page)
 
         # Preview the report
         report_tasks_page = navigate_to_report_tasks_page(page, domain, new_grant_name, new_report_name)
@@ -441,36 +599,20 @@ def test_create_and_preview_report(
             tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
         ).to_be_visible()
         expect(tasklist_page.submit_button).to_be_disabled()
-        expect(tasklist_page.page.get_by_role("link", name=task_name)).to_be_visible()
+        expect(tasklist_page.page.get_by_role("link", name=first_task_name)).to_be_visible()
+        expect(tasklist_page.page.get_by_role("link", name=second_task_name)).to_be_visible()
 
-        # Complete the first task
-        tasklist_page.click_on_task(task_name=task_name)
-        for question_to_test in questions_to_test.values():
-            question_page = RunnerQuestionPage(page, domain, new_grant_name, question_to_test["text"])
-            assert_question_visibility(question_page, question_to_test)
+        # Complete the first task with question groups
+        complete_task(tasklist_page, first_task_name, new_grant_name, questions_with_groups_to_test)
 
-            for question_response in question_to_test["answers"]:
-                if "This question should not be shown" not in question_to_test["text"]:
-                    question_page.respond_to_question(
-                        question_type=question_to_test["type"], answer=question_response.answer
-                    )
-                    question_page.click_continue()
+        # Check your answers page
+        task_check_your_answers(tasklist_page, new_grant_name, new_report_name, questions_with_groups_to_test)
 
-                    if question_response.error_message:
-                        expect(
-                            question_page.page.get_by_role("link", name=question_response.error_message)
-                        ).to_be_visible()
+        # Complete the second task with flat questions list
+        complete_task(tasklist_page, second_task_name, new_grant_name, questions_to_test)
 
-        # Check the answers page
-        check_your_answers_page = RunnerCheckYourAnswersPage(page, domain, new_grant_name)
-
-        for question in questions_to_test.values():
-            assert_check_your_answers(check_your_answers_page, question)
-
-        expect(check_your_answers_page.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
-
-        check_your_answers_page.click_mark_as_complete_yes()
-        tasklist_page = check_your_answers_page.click_save_and_continue(report_name=new_report_name)
+        # Check your answers page
+        task_check_your_answers(tasklist_page, new_grant_name, new_report_name, questions_to_test)
 
         # Submit the report
         expect(
@@ -487,7 +629,16 @@ def test_create_and_preview_report(
 
         view_report_page = submissions_list_page.click_on_first_submission()
 
-        answers_list = view_report_page.get_questions_list_for_task(task_name)
+        answers_list = view_report_page.get_questions_list_for_task(first_task_name)
+        expect(answers_list).to_be_visible()
+        for question in questions_with_groups_to_test.values():
+            if question["type"] == "group":
+                for nested_question in question["questions"]:
+                    assert_view_report_answers(answers_list, nested_question)
+            else:
+                assert_view_report_answers(answers_list, question)
+
+        answers_list = view_report_page.get_questions_list_for_task(second_task_name)
         expect(answers_list).to_be_visible()
         for question in questions_to_test.values():
             assert_view_report_answers(answers_list, question)
