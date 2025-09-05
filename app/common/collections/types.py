@@ -194,12 +194,10 @@ class DateAnswer(SubmissionAnswerBaseModel):
         return self.answer
 
     def get_value_for_text_export(self) -> str:
-        # TODO export in a format for excel
-        return self.answer.strftime("%d %m %Y")
+        return self.answer.isoformat()
 
     def get_value_for_json_export(self) -> str:
-        # TODO export in iso format
-        return self.answer.strftime("%d %m %Y")
+        return self.answer.isoformat()
 
 
 AllAnswerTypes = Union[
