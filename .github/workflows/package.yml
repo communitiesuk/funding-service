@@ -53,8 +53,26 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@d63b14614fe5d7fc5e5e52c523dea4e876816cc4
 
+      - name: Check if image exists in ECR
+        id: check_image_exists_in_ecr
+        run: |
+          AWS_REGION="eu-west-2"
+          REPO_NAME="funding-service-ci-shared-app"
+          IMAGE_TAG=${{ github.sha }}
+
+          # the script should only fail for network or config failures, a missing image tag will successfully return nothing
+          REMOTE_IMAGE_TAG="$(aws ecr batch-get-image --repository-name=$REPO_NAME --image-ids=imageTag=$IMAGE_TAG --query 'images[].imageId.imageTag' --output=text --region $AWS_REGION)"
+
+          if [[ $IMAGE_TAG == $REMOTE_IMAGE_TAG ]]; then
+            # CI image tags are immutable and cannot be overridden
+            echo "image_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "image_exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and publish to ECR
         id: build_and_publish
+        if: steps.check_image_exists_in_ecr.outputs.image_exists == 'false'
         run: |
           AWS_ACCOUNT_ID=${{ secrets.CI_AWS_ACCOUNT}}
           AWS_REGION="eu-west-2"
@@ -69,6 +87,7 @@ jobs:
           pack build "$ECR_IMAGE_URI" \
             --builder paketobuildpacks/builder-jammy-full \
             --publish
+
 
   notify_slack:
       needs:
