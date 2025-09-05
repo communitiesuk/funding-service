@@ -232,7 +232,7 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                     description=question.hint or "",
                     widget=GovDateInput(),
                     validators=[DataRequired(f"Enter the {question.name}")],
-                    format="%d %m %Y",
+                    format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
                 )
 
             case _:
