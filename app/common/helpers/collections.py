@@ -108,6 +108,7 @@ class SubmissionHelper:
             for form in self.submission.collection.forms
             for question in form.cached_questions
             if (answer := self.cached_get_answer_for_question(question.id)) is not None
+            # and question.data_type is not QuestionDataType.DATE
         }
         return form_data
 
@@ -491,7 +492,8 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
             ]
             return MultipleChoiceFromListAnswer(choices=choices)
         case QuestionDataType.DATE:
-            return DateAnswer(answer=answer)
+            raw_data = form.get_answer_to_question_as_raw_data(question)
+            return DateAnswer(date_as_date=answer, date_as_entered=raw_data)
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 

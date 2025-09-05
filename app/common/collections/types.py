@@ -1,5 +1,5 @@
 import abc
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Protocol, TypedDict, Union, cast
 
 from pydantic import BaseModel, RootModel
@@ -178,7 +178,18 @@ class MultipleChoiceFromListAnswer(SubmissionAnswerBaseModel):
 
 
 class DateAnswer(SubmissionAnswerBaseModel):
-    answer: date
+    date_as_date: date
+    date_as_entered: list[str]
+
+    _valid_formats = ["%d %m %Y", "%d %b %Y", "%d %B %Y"]
+
+    def _parse_date_from_date_as_entered(self) -> date | None:
+        for fmt in self._valid_formats:
+            try:
+                return datetime.strptime(" ".join(self.date_as_entered), fmt).date()
+            except ValueError:
+                continue
+        return None
 
     @property
     def _render_answer_template(self) -> str:
@@ -188,18 +199,18 @@ class DateAnswer(SubmissionAnswerBaseModel):
         return self.model_dump(mode="json")
 
     def get_value_for_form(self) -> date:
-        return self.answer
+        return self._parse_date_from_date_as_entered()
 
     def get_value_for_expression(self) -> date:
-        return self.answer
+        return self._parse_date_from_date_as_entered()
 
     def get_value_for_text_export(self) -> str:
         # TODO export in a format for excel
-        return self.answer.strftime("%d %m %Y")
+        return self.date_as_date.strftime("%d %m %Y")
 
     def get_value_for_json_export(self) -> str:
         # TODO export in iso format
-        return self.answer.strftime("%d %m %Y")
+        return self.date_as_date.strftime("%d %m %Y")
 
 
 AllAnswerTypes = Union[

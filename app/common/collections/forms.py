@@ -93,6 +93,9 @@ class DynamicQuestionForm(FlaskForm):
     def get_answer_to_question(self, question: Question) -> Any:
         return getattr(self, question.safe_qid).data
 
+    def get_answer_to_question_as_raw_data(self, question: Question) -> Any:
+        return getattr(self, question.safe_qid).raw_data
+
 
 def build_validators(question: Question, expression_context: ExpressionContext) -> list[Callable[[Form, Field], None]]:
     validators = []
@@ -234,7 +237,6 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                     validators=[DataRequired(f"Enter the {question.name}")],
                     format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
                 )
-
             case _:
                 raise Exception("Unable to generate dynamic form for question type {_}")
 
