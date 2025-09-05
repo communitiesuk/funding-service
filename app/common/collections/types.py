@@ -1,4 +1,5 @@
 import abc
+from datetime import date
 from typing import Any, Protocol, TypedDict, Union, cast
 
 from pydantic import BaseModel, RootModel
@@ -176,6 +177,29 @@ class MultipleChoiceFromListAnswer(SubmissionAnswerBaseModel):
         return self.choices
 
 
+class DateAnswer(SubmissionAnswerBaseModel):
+    answer: date
+
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/date.html"
+
+    def get_value_for_submission(self) -> dict[str, Any]:
+        return self.model_dump(mode="json")
+
+    def get_value_for_form(self) -> date:
+        return self.answer
+
+    def get_value_for_expression(self) -> date:
+        return self.answer
+
+    def get_value_for_text_export(self) -> str:
+        return self.answer.isoformat()
+
+    def get_value_for_json_export(self) -> str:
+        return self.answer.isoformat()
+
+
 AllAnswerTypes = Union[
     TextSingleLineAnswer
     | TextMultiLineAnswer
@@ -185,4 +209,5 @@ AllAnswerTypes = Union[
     | YesNoAnswer
     | SingleChoiceFromListAnswer
     | MultipleChoiceFromListAnswer
+    | DateAnswer
 ]
