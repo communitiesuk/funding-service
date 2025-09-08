@@ -5,7 +5,13 @@ from typing import cast
 
 from playwright.sync_api import Locator, Page, expect
 
-from app.common.data.types import ManagedExpressionsEnum, MultilineTextInputRows, NumberInputWidths, QuestionDataType
+from app.common.data.types import (
+    GroupDisplayOptions,
+    ManagedExpressionsEnum,
+    MultilineTextInputRows,
+    NumberInputWidths,
+    QuestionDataType,
+)
 from app.common.expressions.managed import (
     AnyOf,
     Between,
@@ -999,8 +1005,16 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
         self.task_name = task_name
         self.group_name = group_name
 
-    def click_question_group_display_type(self, display_type: str) -> None:
-        self.page.get_by_role("radio", name=display_type).click()
+    def click_question_group_display_type(self, display_options: GroupDisplayOptions) -> None:
+        match display_options:
+            case GroupDisplayOptions.ONE_QUESTION_PER_PAGE:
+                self.page.get_by_role("radio", name="One question per page").click()
+
+            case GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE:
+                self.page.get_by_role("radio", name="All questions on the same page").click()
+
+            case _:
+                raise ValueError("Unknown group display option: {_}")
 
     def click_submit(self) -> EditQuestionGroupPage:
         self.page.get_by_role("button", name="Add question group").click()
