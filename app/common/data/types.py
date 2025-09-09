@@ -132,7 +132,7 @@ class NumberInputWidths(enum.StrEnum):
 # for now this is just used by the form but this could also be used to serialise the
 # value used in the question presentation options and provide a consistent human readable value
 class GroupDisplayOptions(enum.StrEnum):
-    ONE_QUESTION_PER_PAGE = ("one-question-per-page",)
+    ONE_QUESTION_PER_PAGE = "one-question-per-page"
     ALL_QUESTIONS_ON_SAME_PAGE = "all-questions-on-same-page"
 
 

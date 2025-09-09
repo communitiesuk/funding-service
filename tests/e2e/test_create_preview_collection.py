@@ -6,6 +6,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from app.common.data.types import (
+    GroupDisplayOptions,
     ManagedExpressionsEnum,
     MultilineTextInputRows,
     NumberInputWidths,
@@ -64,6 +65,7 @@ class QuestionDict(TypedDict):
 class QuestionGroupDict(TypedDict):
     type: Literal["group"]
     text: str
+    display_options: GroupDisplayOptions
     guidance: NotRequired[GuidanceText]
     condition: NotRequired[Condition]
     questions: list[QuestionDict]
@@ -234,9 +236,10 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("Yes"),
         ],
     },
-    "question-group": {
+    "question-group-all-same-page": {
         "type": "group",
         "text": "This is a question group",
+        "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
         "guidance": GuidanceText(
             heading="This is a guidance page heading for a group",
             body_heading="Guidance subheading",
@@ -276,6 +279,25 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
         "text": "Enter another single line of text",
         "answers": [_QuestionResponse("E2E question text single line second answer")],
     },
+    "question-group-one-per-page": {
+        "type": "group",
+        "text": "One question per page group",
+        "display_options": GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
+        "questions": [
+            {
+                "type": QuestionDataType.TEXT_SINGLE_LINE,
+                "text": "Second group Enter a single line of text",
+                "answers": [_QuestionResponse("E2E question text single line group")],
+            },
+            {
+                "type": QuestionDataType.EMAIL,
+                "text": "Second group Enter an email address",
+                "answers": [
+                    _QuestionResponse("group2@example.com"),
+                ],
+            },
+        ],
+    },
 }
 
 
@@ -301,11 +323,12 @@ def create_question_or_group(question_definition: TQuestionToTest, manage_task_p
         add_question_group_page = manage_task_page.click_add_question_group(question_definition["text"])
         add_question_group_page.fill_in_question_group_name()
         group_display_options_page = add_question_group_page.click_continue()
-        # TODO: This currently only adds a question group with all questions on a page - we should come back and extend
-        # extend this test with a one-question-per-page question group for full coverage
-        group_display_options_page.click_question_group_display_type("All questions on the same page")
+        group_display_options_page.click_question_group_display_type(question_definition["display_options"])
         edit_question_group_page = group_display_options_page.click_submit()
-        if question_definition.get("guidance") is not None:
+        if (
+            question_definition.get("guidance") is not None
+            and question_definition.get("display_options") == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
+        ):
             add_question_guidance(question_definition, edit_question_group_page)
         if question_definition.get("condition") is not None:
             add_condition(edit_question_group_page, question_definition["text"], question_definition["condition"])
@@ -411,6 +434,32 @@ def add_condition(
     edit_question_page = add_condition_page.click_add_condition(edit_question_page)
 
 
+def complete_question_group(
+    question_page: RunnerQuestionPage,
+    tasklist_page: RunnerTasklistPage,
+    grant_name: str,
+    question_to_test: TQuestionToTest,
+):
+    if question_to_test.get("guidance") is not None:
+        assert_question_visibility(question_page, question_to_test)
+    for nested_question in question_to_test["questions"]:
+        if question_to_test.get("guidance") is None:
+            question_page = RunnerQuestionPage(
+                tasklist_page.page, tasklist_page.domain, grant_name, nested_question["text"]
+            )
+            assert_question_visibility(question_page, nested_question)
+        for question_response in nested_question["answers"]:
+            question_page.respond_to_question(
+                question_type=nested_question["type"],
+                question_text=nested_question["text"],
+                answer=question_response.answer,
+            )
+        if question_to_test["display_options"] == GroupDisplayOptions.ONE_QUESTION_PER_PAGE:
+            question_page.click_continue()
+    if question_to_test["display_options"] == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE:
+        question_page.click_continue()
+
+
 def complete_task(
     tasklist_page: RunnerTasklistPage, task_name: str, grant_name: str, questions_to_test: dict[str, TQuestionToTest]
 ) -> RunnerTasklistPage:
@@ -419,19 +468,11 @@ def complete_task(
         question_page = RunnerQuestionPage(
             tasklist_page.page, tasklist_page.domain, grant_name, question_to_test["text"]
         )
-        assert_question_visibility(question_page, question_to_test)
 
         if question_to_test["type"] == "group":
-            for nested_question in question_to_test["questions"]:
-                for question_response in nested_question["answers"]:
-                    question_page.respond_to_question(
-                        question_type=nested_question["type"],
-                        question_text=nested_question["text"],
-                        answer=question_response.answer,
-                    )
-            question_page.click_continue()
-
+            complete_question_group(question_page, tasklist_page, grant_name, question_to_test)
         else:
+            assert_question_visibility(question_page, question_to_test)
             for question_response in question_to_test["answers"]:
                 if "This question should not be shown" not in question_to_test["text"]:
                     question_page.respond_to_question(
