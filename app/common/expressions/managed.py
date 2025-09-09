@@ -49,27 +49,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
 
     @property
     @abc.abstractmethod
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        """
-        Used when we evaluate an expression to add specific functions to the list of what simpleeval will accept
-        and parse.
-        For a default implementation (if your ManagedExpression statement can be evaluated as a straight python
-        string, eg. q_123 < 56) use:
-
-            @property
-            def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-                return super().required_functions
-
-        If your ManagedExpression needs a specific function to evaluate the statement,
-        eg. q_543 < calculate_something_complex(),
-        override this function as follows:
-
-            @property
-            def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-                return dict(calculate_something_complex=app.stuff.calculate_something_complex)
-
-        """
-        return None
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]: ...
 
     @property
     def referenced_question(self) -> "Question":
@@ -234,8 +214,8 @@ class GreaterThan(ManagedExpression):
         )
 
     @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+        return {}
 
 
 @register_managed_expression
@@ -294,8 +274,8 @@ class LessThan(ManagedExpression):
         )
 
     @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+        return {}
 
 
 @register_managed_expression
@@ -393,8 +373,8 @@ class Between(ManagedExpression):
         )
 
     @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+        return {}
 
 
 class BaseDataSourceManagedExpression(ManagedExpression):
@@ -404,8 +384,8 @@ class BaseDataSourceManagedExpression(ManagedExpression):
         raise NotImplementedError
 
     @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+        return {}
 
 
 @register_managed_expression
@@ -511,8 +491,8 @@ class IsYes(ManagedExpression):
         return IsYes(question_id=question.id)
 
     @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+        return {}
 
 
 @register_managed_expression
@@ -552,8 +532,8 @@ class IsNo(ManagedExpression):
         return IsNo(question_id=question.id)
 
     @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+        return {}
 
 
 @register_managed_expression
