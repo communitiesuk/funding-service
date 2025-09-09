@@ -33,6 +33,23 @@ def upgrade() -> None:
         affected_columns=[TableReference(table_schema="public", table_name="component", column_name="data_type")],
         enum_values_to_rename=[],
     )
+    op.sync_enum_values(
+        enum_schema="public",
+        enum_name="managed_expression_enum",
+        new_values=[
+            "GREATER_THAN",
+            "LESS_THAN",
+            "BETWEEN",
+            "IS_YES",
+            "IS_NO",
+            "ANY_OF",
+            "SPECIFICALLY",
+            "IS_BEFORE",
+            "IS_AFTER",
+        ],
+        affected_columns=[TableReference(table_schema="public", table_name="expression", column_name="managed_name")],
+        enum_values_to_rename=[],
+    )
 
 
 def downgrade() -> None:
@@ -41,5 +58,12 @@ def downgrade() -> None:
         enum_name="question_data_type_enum",
         new_values=["TEXT_SINGLE_LINE", "TEXT_MULTI_LINE", "EMAIL", "URL", "INTEGER", "YES_NO", "RADIOS", "CHECKBOXES"],
         affected_columns=[TableReference(table_schema="public", table_name="component", column_name="data_type")],
+        enum_values_to_rename=[],
+    )
+    op.sync_enum_values(
+        enum_schema="public",
+        enum_name="managed_expression_enum",
+        new_values=["GREATER_THAN", "LESS_THAN", "BETWEEN", "IS_YES", "IS_NO", "ANY_OF", "SPECIFICALLY"],
+        affected_columns=[TableReference(table_schema="public", table_name="expression", column_name="managed_name")],
         enum_values_to_rename=[],
     )

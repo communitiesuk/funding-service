@@ -1,6 +1,7 @@
 import abc
+import datetime
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Union, cast
 from typing import Optional as TOptional
 
 # Define any "managed" expressions that can be applied to common conditions or validations
@@ -8,15 +9,22 @@ from typing import Optional as TOptional
 from uuid import UUID
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovCheckboxesInput, GovCheckboxInput, GovRadioInput, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import (
+    GovCheckboxesInput,
+    GovCheckboxInput,
+    GovDateInput,
+    GovRadioInput,
+    GovTextInput,
+)
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
-from wtforms import BooleanField, IntegerField, SelectField, SelectMultipleField
+from wtforms import BooleanField, DateField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.core import Field
 from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
+from app.common.filters import format_date_short
 from app.common.qid import SafeQidMixin
 from app.types import TRadioItem
 
@@ -48,7 +56,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     def message(self) -> str: ...
 
     @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type]]:
         """
         Used when we evaluate an expression to add specific functions to the list of what simpleeval will accept
         and parse.
@@ -59,7 +67,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         override this function as follows:
 
             @property
-            def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+            def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type]]:
                 return dict(calculate_something_complex=app.stuff.calculate_something_complex)
 
         Where the keys of the dict are the function names as they will appear in the expression statement, and the
@@ -103,6 +111,12 @@ class ManagedExpression(BaseModel, SafeQidMixin):
                 ),
             }
 
+        Note:   Only add the `Optional()` validator here. If further validation is required (eg. making sure the answer
+                is a number) add these validators in `update_validators` instead. This is because if there are multiple
+                managed expressions available for a question type they all appear on the same page, and adding
+                validation to the fields directly means they are validated even if a different type of expression was
+                selected.
+
         Note: because these are fed into dynamic form generation, and these dynamic forms are rendered automatically,
               we need to specify the parameters tweak rendering here. `render_kw['params']` is of the same format
               and structure as in Jinja2 templates directly, which closely follows the official GOV.UK Frontend
@@ -117,6 +131,9 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         A hook used by `build_managed_expression_form`. If this managed expression has been selected, then (some or all
         of) the fields are likely to required to correctly define the instance. Mutate the fields on the form to set
         those validators here.
+
+        Set these validators on the form fields that were added in `get_form_fields`. See notes there about why we set
+        the validators in a separate function.
 
         Eg:
             def update_validators(form: "_ManagedExpressionForm") -> None:
@@ -585,6 +602,134 @@ class Specifically(BaseDataSourceManagedExpression):
     @property
     def referenced_data_source_items(self) -> list["TRadioItem"]:
         return [self.item]
+
+
+@register_managed_expression
+class IsBefore(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_BEFORE
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    latest_value: datetime.date
+    inclusive: bool = False
+
+    @property
+    def description(self) -> str:
+        return f"Is {'on or ' if self.inclusive else ''}before"
+
+    @property
+    def message(self) -> str:
+        return f"The answer must be {'on or ' if self.inclusive else ''}before {format_date_short(self.latest_value)}"
+
+    @property
+    def statement(self) -> str:
+        return (
+            f"{self.safe_qid} <{'=' if self.inclusive else ''} date({self.latest_value.year}, "
+            f"{self.latest_value.month}, {self.latest_value.day})"
+        )
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        return {
+            "latest_value": DateField(
+                "Enter the date which this answer must come before",
+                default=datetime.datetime.strptime(cast(str, expression.context["latest_value"]), "%Y-%m-%d").date()
+                if expression
+                else None,
+                widget=GovDateInput(),
+                validators=[Optional()],
+                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
+            ),
+            "latest_value_inclusive": BooleanField(
+                "An answer of exactly the latest date is allowed",
+                default=cast(bool, expression.context["inclusive"]) if expression else None,
+                widget=GovCheckboxInput(),
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        form.latest_value.validators = [DataRequired("Enter the date which this answer must come before")]
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsBefore":
+        return IsBefore(
+            question_id=question.id, latest_value=form.latest_value.data, inclusive=form.latest_value_inclusive.data
+        )  # ty: ignore[unresolved-attribute]
+
+    @property
+    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
+        return dict(date=datetime.date)
+
+
+@register_managed_expression
+class IsAfter(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_AFTER
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    earliest_value: datetime.date
+    inclusive: bool = False
+
+    @property
+    def description(self) -> str:
+        return f"Is {'on or ' if self.inclusive else ''}after"
+
+    @property
+    def message(self) -> str:
+        return f"The answer must be {'on or ' if self.inclusive else ''}after {format_date_short(self.earliest_value)}"
+
+    @property
+    def statement(self) -> str:
+        return (
+            f"{self.safe_qid} >{'=' if self.inclusive else ''} date({self.earliest_value.year}, "
+            f"{self.earliest_value.month}, {self.earliest_value.day})"
+        )
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        return {
+            "earliest_value": DateField(
+                "Enter the date which this answer must come after",
+                default=datetime.datetime.strptime(cast(str, expression.context["earliest_value"]), "%Y-%m-%d").date()
+                if expression
+                else None,
+                widget=GovDateInput(),
+                validators=[Optional()],
+                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
+            ),
+            "earliest_value_inclusive": BooleanField(
+                "An answer of exactly the earliest date is allowed",
+                default=cast(bool, expression.context["inclusive"]) if expression else None,
+                widget=GovCheckboxInput(),
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        form.earliest_value.validators = [InputRequired("Enter the earliest value allowed for this question")]  # ty: ignore[unresolved-attribute]
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsAfter":
+        return IsAfter(
+            question_id=question.id,
+            earliest_value=form.earliest_value.data,
+            inclusive=form.earliest_value_inclusive.data,
+        )  # ty: ignore[unresolved-attribute]
+
+    @property
+    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
+        return dict(date=datetime.date)
 
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:

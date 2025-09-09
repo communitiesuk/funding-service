@@ -109,6 +109,8 @@ class ManagedExpressionsEnum(enum.StrEnum):
     IS_NO = "No"
     ANY_OF = "Any of"
     SPECIFICALLY = "Specifically"
+    IS_BEFORE = "Is before"
+    IS_AFTER = "Is after"
 
 
 class FormRunnerState(enum.StrEnum):

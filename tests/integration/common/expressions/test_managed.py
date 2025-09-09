@@ -1,3 +1,4 @@
+import datetime
 import uuid
 
 import pytest
@@ -5,7 +6,17 @@ import pytest
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
 from app.common.expressions import evaluate
-from app.common.expressions.managed import AnyOf, Between, GreaterThan, IsNo, IsYes, LessThan, Specifically
+from app.common.expressions.managed import (
+    AnyOf,
+    Between,
+    GreaterThan,
+    IsAfter,
+    IsBefore,
+    IsNo,
+    IsYes,
+    LessThan,
+    Specifically,
+)
 from app.types import TRadioItem
 
 
@@ -142,3 +153,59 @@ class TestSpecificallyExpression:
     def test_evaluate(self, item: TRadioItem, answers: set[str], expected_result: bool):
         expr = Specifically(question_id=uuid.uuid4(), item=item)
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answers})) is expected_result
+
+
+class TestIsBeforeExpression:
+    max_value = datetime.datetime.strptime("2025-01-01", "%Y-%m-%d").date()
+
+    @pytest.mark.parametrize(
+        "maximum_value, inclusive, answer, expected_result",
+        (
+            (max_value, False, max_value - datetime.timedelta(days=2), True),
+            (max_value, False, max_value, False),
+            (max_value, True, max_value, True),
+            (max_value, False, max_value + datetime.timedelta(days=2), False),
+        ),
+    )
+    def test_evaluate(self, maximum_value, inclusive, answer, expected_result):
+        expr = IsBefore(question_id=uuid.uuid4(), latest_value=maximum_value, inclusive=inclusive)
+        assert (
+            evaluate(
+                Expression(
+                    statement=expr.statement,
+                    context={expr.safe_qid: answer, "latest_value": expr.latest_value, "question_id": expr.question_id},
+                    managed_name=expr.name,
+                )
+            )
+            is expected_result
+        )
+
+
+class TestIsAfterExpression:
+    min_value = datetime.datetime.strptime("2020-01-01", "%Y-%m-%d").date()
+
+    @pytest.mark.parametrize(
+        "min_value, inclusive, answer, expected_result",
+        (
+            (min_value, False, min_value - datetime.timedelta(days=2), False),
+            (min_value, False, min_value, False),
+            (min_value, True, min_value, True),
+            (min_value, False, min_value + datetime.timedelta(days=2), True),
+        ),
+    )
+    def test_evaluate(self, min_value, inclusive, answer, expected_result):
+        expr = IsAfter(question_id=uuid.uuid4(), earliest_value=min_value, inclusive=inclusive)
+        assert (
+            evaluate(
+                Expression(
+                    statement=expr.statement,
+                    context={
+                        expr.safe_qid: answer,
+                        "earliest_value": expr.earliest_value,
+                        "question_id": expr.question_id,
+                    },
+                    managed_name=expr.name,
+                )
+            )
+            is expected_result
+        )
