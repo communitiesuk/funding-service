@@ -1,5 +1,4 @@
 import datetime
-from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
@@ -110,38 +109,41 @@ class TestEvaluatingManagedExpressions:
         assert evaluate(expr, ExpressionContext(immutabledict({q0.safe_qid: 3001}))) is True
 
 
-@mock.patch(
-    "app.common.data.models.Expression.required_functions",
-    new_callable=PropertyMock,
-    return_value={"date": datetime.date, "min": min},
-)
 class TestEvaluatingManagedExpressionsWithRequiredFunctions:
     def test_managed_expression_with_custom_required_function_true(self, factories, mocker):
         expr = factories.expression.build(statement="value < date(2025, 1, 1)", type=ExpressionType.VALIDATION)
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"date": datetime.date},
+        )
         assert evaluate(expr, ExpressionContext(from_submission={"value": datetime.date(2024, 1, 1)})) is True
 
     def test_managed_expression_with_custom_required_function_false(self, factories):
         expr = factories.expression.build(statement="value > date(2025, 1, 1)", type=ExpressionType.VALIDATION)
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"date": datetime.date},
+        )
         assert evaluate(expr, ExpressionContext(from_submission={"value": datetime.date(2024, 1, 1)})) is True
 
     def test_managed_expression_with_builtin_required_function(self, factories):
         expr = factories.expression.build(statement="value >= min(1, 2)", type=ExpressionType.VALIDATION)
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"date": datetime.date},
+        )
         assert evaluate(expr, ExpressionContext(from_submission={"value": 5})) is True
 
-    @mock.patch(
-        "app.common.data.models.Expression.required_functions",
-        new_callable=PropertyMock,
-        return_value={},
-    )
     def test_managed_expression_with_required_function_not_present(self, factories):
-        # Test with a custom function we haven't added to required_functions
         expr = factories.expression.build(statement="value < date(2025, 1, 1)", type=ExpressionType.VALIDATION)
+
+        # Test with a custom function we haven't added to required_functions
         with pytest.raises(DisallowedExpression):
-            evaluate(expr, ExpressionContext(from_submission={"value": datetime.date(2025, 1, 1)}))
             evaluate(Expression.from_managed(expr, created_by=factories.user.build()))
 
         # Test with a builtin function that isn't on the allowed list
-        expr = factories.expression.build(statement="value <= min(1, 2)", type=ExpressionType.VALIDATION)
         with pytest.raises(DisallowedExpression):
-            evaluate(expr, ExpressionContext(from_submission={"value": 5}))
             evaluate(Expression.from_managed(expr, created_by=factories.user.build()))
