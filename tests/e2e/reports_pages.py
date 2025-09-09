@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import tempfile
 from typing import cast
 
 from playwright.sync_api import Locator, Page, expect
@@ -935,29 +936,43 @@ class SubmissionsListPage(ReportsBasePage):
         first_submission_reference = self.page.locator("[data-submission-link]").first.inner_text()
         return self.click_on_submission(first_submission_reference)
 
-    def click_on_submission(self, report_reference: str) -> ViewSubmissionPage:
-        self.page.get_by_role("link", name=report_reference).click()
-        view_submission_page = ViewSubmissionPage(
-            self.page, self.domain, self.grant_name, report_reference=report_reference
-        )
+    def click_on_submission(self, submission_reference: str) -> ViewSubmissionPage:
+        self.page.get_by_role("link", name=submission_reference).click()
+        view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
         expect(view_submission_page.heading).to_be_visible()
         return view_submission_page
 
+    def click_export(self, filetype: str) -> str:
+        with self.page.expect_download() as download_info:
+            self.page.get_by_role("button", name=f"Export as {filetype}").click()
+        download = download_info.value
+        tempdir = tempfile.gettempdir()
+        download_filename = tempdir + "/" + download_info.value.suggested_filename
+        download.save_as(download_filename)
+
+        return download_filename
+
 
 class ViewSubmissionPage(ReportsBasePage):
-    report_reference: str
+    report_name: str
 
-    def __init__(self, page: Page, domain: str, grant_name: str, report_reference: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
         super().__init__(
             page,
             domain,
             grant_name=grant_name,
             heading=page.get_by_role("heading", name="Submission"),
         )
-        self.report_reference = report_reference
+        self.report_name = report_name
 
     def get_questions_list_for_task(self, task_name: str) -> Locator:
         return self.page.get_by_test_id(task_name)
+
+    def click_submissions_breadcrumb(self) -> SubmissionsListPage:
+        self.page.locator("a.govuk-breadcrumbs__link").filter(has=self.page.get_by_text("Submissions")).click()
+        submissions_list_page = SubmissionsListPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(submissions_list_page.heading).to_be_visible()
+        return submissions_list_page
 
 
 class AddQuestionGroupPage(ReportsBasePage):

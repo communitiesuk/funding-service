@@ -1,4 +1,6 @@
+import csv
 import dataclasses
+import json
 import uuid
 from typing import Literal, NotRequired, TypedDict, Union
 
@@ -668,9 +670,9 @@ def test_create_and_preview_report(
         expect(grant_reports_page.summary_row_submissions.get_by_text("1 test submission")).to_be_visible()
         submissions_list_page = grant_reports_page.click_view_submissions(new_report_name)
 
-        view_report_page = submissions_list_page.click_on_first_submission()
+        view_submission_page = submissions_list_page.click_on_first_submission()
 
-        answers_list = view_report_page.get_questions_list_for_task(first_task_name)
+        answers_list = view_submission_page.get_questions_list_for_task(first_task_name)
         expect(answers_list).to_be_visible()
         for question in questions_with_groups_to_test.values():
             if question["type"] == "group":
@@ -679,10 +681,29 @@ def test_create_and_preview_report(
             else:
                 assert_view_report_answers(answers_list, question)
 
-        answers_list = view_report_page.get_questions_list_for_task(second_task_name)
+        answers_list = view_submission_page.get_questions_list_for_task(second_task_name)
         expect(answers_list).to_be_visible()
         for question in questions_to_test.values():
             assert_view_report_answers(answers_list, question)
+
+        submissions_list_page = view_submission_page.click_submissions_breadcrumb()
+
+        # Download CSV
+        csv_export_filename = submissions_list_page.click_export(filetype="CSV")
+        assert csv_export_filename.endswith(".csv")
+        with open(csv_export_filename, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            rows = list(reader)
+            assert len(rows) == 2  # Header + 1 submission
+
+        # Download JSON
+        json_export_filename = submissions_list_page.click_export(filetype="JSON")
+        assert json_export_filename.endswith(".json")
+        with open(json_export_filename, "r", encoding="utf-8") as f:
+            export_data = json.load(f)
+            assert isinstance(export_data["submissions"], list)
+            assert len(export_data["submissions"]) == 1
+            assert isinstance(export_data["submissions"][0], dict)
 
     finally:
         # Tidy up by deleting the grant, which will cascade to all related entities
