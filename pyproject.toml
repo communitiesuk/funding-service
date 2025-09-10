@@ -54,14 +54,14 @@ dev = [
     "responses==0.25.8",
     "ruff==0.12.12",
     "sqlalchemy-utils==0.42.0",
-    "testcontainers[postgres]==4.12.0",
+    "testcontainers[postgres]==4.13.0",
     "types-flask-migrate==4.1.0.20250809",
     "types-wtforms==3.2.1.20250809",
     "html5lib==1.1",
     "types-html5lib==1.1.11.20250809",
     "types-pytz==2025.2.0.20250809",
-    "boto3==1.40.26",
-    "types-boto3==1.40.26",
+    "boto3==1.40.27",
+    "types-boto3==1.40.27",
     "freezegun==1.5.5",
     "import-linter==2.4",
     "ty==0.0.1a20",
@@ -214,7 +214,8 @@ filterwarnings = [
     "error",
     "ignore:Could not insert debug toolbar:UserWarning",
     "ignore:cannot collect test class 'TestConfig' because it has a __init__ constructor:pytest.PytestCollectionWarning",
-    "ignore:datetime\\.datetime\\.utcnow\\(\\) is deprecated and scheduled for removal in a future version*:DeprecationWarning"
+    "ignore:datetime\\.datetime\\.utcnow\\(\\) is deprecated and scheduled for removal in a future version*:DeprecationWarning",
+    "ignore:The @wait_container_is_ready decorator is deprecated and will be removed in a future version.:DeprecationWarning"
 ]
 [tool.ty.src]
 include = ["app", "tests"]
