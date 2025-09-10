@@ -1,6 +1,6 @@
 import uuid
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy import Enum as SqlEnum
@@ -476,6 +476,14 @@ class Expression(BaseModel):
             type=ExpressionType.CONDITION,
             managed_name=managed_expression._key,
         )
+
+    @property
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+        if self.managed_name:
+            return self.managed.required_functions
+
+        # In future, make this return a default list of functions for non-managed expressions
+        return {}
 
 
 class DataSource(BaseModel):
