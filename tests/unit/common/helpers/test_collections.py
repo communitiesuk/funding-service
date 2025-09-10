@@ -40,7 +40,7 @@ class TestSubmissionHelper:
             visible_question = factories.question.build(form=form)
 
             invisible_question = factories.question.build(form=form)
-            factories.expression.build(question=invisible_question, type=ExpressionType.CONDITION, statement="False")
+            factories.expression.build(question=invisible_question, type_=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
             helper_questions = helper.cached_get_ordered_visible_questions(form)
@@ -56,7 +56,7 @@ class TestSubmissionHelper:
             factories.question.build(form_id=form.id, parent=invisible_group)
             factories.question.build(form_id=form.id, parent=invisible_group)
             factories.question.build(form_id=form.id, parent=invisible_group)
-            factories.expression.build(question=invisible_group, type=ExpressionType.CONDITION, statement="False")
+            factories.expression.build(question=invisible_group, type_=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
             helper_questions = helper.cached_get_ordered_visible_questions(form)
@@ -72,7 +72,7 @@ class TestSubmissionHelper:
             q2 = factories.question.build(form_id=form.id, parent=group)
             q3 = factories.question.build(form_id=form.id, parent=group)
 
-            factories.expression.build(question=q2, type=ExpressionType.CONDITION, statement="False")
+            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
             helper_questions = helper.cached_get_ordered_visible_questions(form)
@@ -240,7 +240,7 @@ class TestSubmissionHelper:
             question_two = factories.question.build(form=form, id=uuid.UUID(int=1), order=1)
             question_three = factories.question.build(form=form, id=uuid.UUID(int=2), order=2)
 
-            factories.expression.build(question=question_two, type=ExpressionType.CONDITION, statement="False")
+            factories.expression.build(question=question_two, type_=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
 
@@ -295,7 +295,7 @@ class TestSubmissionHelper:
             question_two = factories.question.build(form=form, id=uuid.UUID(int=1), order=1)
             question_three = factories.question.build(form=form, id=uuid.UUID(int=2), order=2)
 
-            factories.expression.build(question=question_two, type=ExpressionType.CONDITION, statement="False")
+            factories.expression.build(question=question_two, type_=ExpressionType.CONDITION, statement="False")
 
             helper = SubmissionHelper(submission)
 
@@ -357,7 +357,7 @@ class TestSubmissionHelper:
             question = factories.question.build()
             helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
 
-            factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="False")
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
 
             assert helper.is_component_visible(question, helper.cached_expression_context) is False
 
@@ -365,7 +365,7 @@ class TestSubmissionHelper:
             question = factories.question.build()
             helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
 
-            factories.expression.build(question=question, type=ExpressionType.CONDITION, statement="True")
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
 
             assert helper.is_component_visible(question, helper.cached_expression_context) is True
 
@@ -375,7 +375,7 @@ class TestSubmissionHelper:
             question = factories.question.build(form=group.form)
             helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
 
-            expression = factories.expression.build(question=group, type=ExpressionType.CONDITION, statement="False")
+            expression = factories.expression.build(question=group, type_=ExpressionType.CONDITION, statement="False")
 
             assert helper.is_component_visible(question, helper.cached_expression_context) is True
             assert helper.is_component_visible(group, helper.cached_expression_context) is False

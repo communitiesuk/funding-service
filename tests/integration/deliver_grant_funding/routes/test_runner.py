@@ -232,7 +232,7 @@ class TestAskAQuestion:
         assert response.status_code == 200
 
         # the question should no longer be accessible
-        factories.expression.create(question=question, type=ExpressionType.CONDITION, statement="False")
+        factories.expression.create(question=question, type_=ExpressionType.CONDITION, statement="False")
 
         response = authenticated_grant_admin_client.get(
             url_for(

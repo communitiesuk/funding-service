@@ -120,7 +120,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
     def test_managed_expression_with_required_function_allowed_imported(
         self, factories, mocker, question_value, expected_result
     ):
-        expr = factories.expression.build(statement="q_123 < date(2024, 1, 1)", type=ExpressionType.VALIDATION)
+        expr = factories.expression.build(statement="q_123 < date(2024, 1, 1)", type_=ExpressionType.VALIDATION)
         mocker.patch(
             "app.common.data.models.Expression.required_functions",
             new_callable=PropertyMock,
@@ -138,7 +138,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
     def test_managed_expression_with_required_function_allowed_builtin(
         self, factories, mocker, question_value, expected_result
     ):
-        expr = factories.expression.build(statement="q_123 > min(1,2)", type=ExpressionType.VALIDATION)
+        expr = factories.expression.build(statement="q_123 > min(1,2)", type_=ExpressionType.VALIDATION)
         mocker.patch(
             "app.common.data.models.Expression.required_functions",
             new_callable=PropertyMock,
@@ -159,7 +159,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
         def _custom_test_function():
             return 42
 
-        expr = factories.expression.build(statement="q_123 > calculate_result()", type=ExpressionType.VALIDATION)
+        expr = factories.expression.build(statement="q_123 > calculate_result()", type_=ExpressionType.VALIDATION)
         mocker.patch(
             "app.common.data.models.Expression.required_functions",
             new_callable=PropertyMock,
@@ -169,7 +169,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
 
     def test_managed_expression_with_required_function_builtin_not_present_builtin(self, factories):
         # test with a builtin function that isn't on the allowed list
-        expr = factories.expression.build(statement="q_123 > max(1,2)", type=ExpressionType.VALIDATION)
+        expr = factories.expression.build(statement="q_123 > max(1,2)", type_=ExpressionType.VALIDATION)
         # Don't patch the required_functions property, so it returns an empty dict
         with pytest.raises(DisallowedExpression):
             evaluate(expr, ExpressionContext(from_submission={"q_123": 123}))
@@ -179,7 +179,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
             return 42
 
         # Test with a custom function that isn't on the allowed list
-        expr = factories.expression.build(statement="q_123 > _custom_test_function()", type=ExpressionType.VALIDATION)
+        expr = factories.expression.build(statement="q_123 > _custom_test_function()", type_=ExpressionType.VALIDATION)
         # Don't patch the required_functions property, so it returns an empty dict
         with pytest.raises(DisallowedExpression):
             evaluate(expr, ExpressionContext(from_submission={"q_123": 123}))

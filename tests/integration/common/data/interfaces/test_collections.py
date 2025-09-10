@@ -189,8 +189,8 @@ class TestGetFormById:
         form = factories.form.create()
         question_one = factories.question.create(form=form)
         question_two = factories.question.create(form=form)
-        factories.expression.create_batch(5, question=question_one, type=ExpressionType.CONDITION, statement="")
-        factories.expression.create_batch(5, question=question_two, type=ExpressionType.CONDITION, statement="")
+        factories.expression.create_batch(5, question=question_one, type_=ExpressionType.CONDITION, statement="")
+        factories.expression.create_batch(5, question=question_two, type_=ExpressionType.CONDITION, statement="")
 
         # fetching the form and eagerly loading all questions and their expressions
         from_db = get_form_by_id(form_id=form.id, with_all_questions=True)
@@ -1363,7 +1363,7 @@ class TestExpressions:
         from_db = get_question_by_id(question.id)
 
         assert len(from_db.expressions) == 1
-        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].type_ == ExpressionType.CONDITION
         assert from_db.expressions[0].statement == f"{q0.safe_qid} > 3000"
 
         # check the serialised context lines up with the values in the managed expression
@@ -1405,7 +1405,7 @@ class TestExpressions:
         from_db = get_question_by_id(question.id)
 
         assert len(from_db.expressions) == 1
-        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].type_ == ExpressionType.CONDITION
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.ANY_OF
         assert q0.safe_qid and items[0].key and items[1].key in from_db.expressions[0].statement
 
@@ -1430,7 +1430,7 @@ class TestExpressions:
         from_db = get_question_by_id(question.id)
 
         assert len(from_db.expressions) == 1
-        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].type_ == ExpressionType.CONDITION
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.SPECIFICALLY
         assert q0.safe_qid and items[0].key in from_db.expressions[0].statement
 
@@ -1462,7 +1462,7 @@ class TestExpressions:
         from_db = get_question_by_id(question.id)
 
         assert len(from_db.expressions) == 1
-        assert from_db.expressions[0].type == ExpressionType.VALIDATION
+        assert from_db.expressions[0].type_ == ExpressionType.VALIDATION
         assert from_db.expressions[0].statement == f"{question.safe_qid} > 3000"
 
         # check the serialised context lines up with the values in the managed expression
@@ -1502,7 +1502,7 @@ class TestExpressions:
         from_db = get_question_by_id(question.id)
 
         assert len(from_db.expressions) == 1
-        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].type_ == ExpressionType.CONDITION
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.ANY_OF
         assert q0.safe_qid and items[2].key in from_db.expressions[0].statement
 
@@ -1529,7 +1529,7 @@ class TestExpressions:
         from_db = get_question_by_id(question.id)
 
         assert len(from_db.expressions) == 1
-        assert from_db.expressions[0].type == ExpressionType.CONDITION
+        assert from_db.expressions[0].type_ == ExpressionType.CONDITION
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.SPECIFICALLY
         assert q0.safe_qid and items[1].key in from_db.expressions[0].statement
 
@@ -1574,13 +1574,13 @@ class TestExpressions:
             get_expression(expression_id)
 
     def test_get_expression(self, db_session, factories):
-        expression = factories.expression.create(statement="", type=ExpressionType.VALIDATION)
+        expression = factories.expression.create(statement="", type_=ExpressionType.VALIDATION)
 
         db_expr = get_expression(expression.id)
         assert db_expr is expression
 
     def test_get_expression_missing(self, db_session, factories):
-        factories.expression.create(statement="", type=ExpressionType.VALIDATION)
+        factories.expression.create(statement="", type_=ExpressionType.VALIDATION)
 
         with pytest.raises(NoResultFound):
             get_expression(uuid.uuid4())
@@ -1599,7 +1599,7 @@ class TestExpressions:
         assert len(queries) == 1
 
         assert retrieved_expression.id == expression_id
-        assert retrieved_expression.type == ExpressionType.VALIDATION
+        assert retrieved_expression.type_ == ExpressionType.VALIDATION
         assert retrieved_expression.managed_name == "Greater than"
 
         with track_sql_queries() as queries:

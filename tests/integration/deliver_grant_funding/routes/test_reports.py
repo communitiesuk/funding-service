@@ -1874,7 +1874,7 @@ class TestAddQuestionCondition:
 
         assert len(target_question.expressions) == 1
         expression = target_question.expressions[0]
-        assert expression.type == ExpressionType.CONDITION
+        assert expression.type_ == ExpressionType.CONDITION
         assert expression.managed_name == "Yes"
         assert expression.managed.referenced_question.id == depends_on_question.id
 
@@ -1915,7 +1915,7 @@ class TestAddQuestionCondition:
 
         assert len(target_group.expressions) == 1
         expression = target_group.expressions[0]
-        assert expression.type == ExpressionType.CONDITION
+        assert expression.type_ == ExpressionType.CONDITION
         assert expression.managed_name == "Yes"
         assert expression.managed.referenced_question.id == depends_on_question.id
 
@@ -2357,7 +2357,7 @@ class TestAddQuestionValidation:
 
         assert len(question.expressions) == 1
         expression = question.expressions[0]
-        assert expression.type == ExpressionType.VALIDATION
+        assert expression.type_ == ExpressionType.VALIDATION
         assert expression.managed_name == "Greater than"
 
     def test_post_duplicate_validation(self, authenticated_grant_admin_client, factories, db_session):
