@@ -48,28 +48,25 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     def message(self) -> str: ...
 
     @property
-    @abc.abstractmethod
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
         """
         Used when we evaluate an expression to add specific functions to the list of what simpleeval will accept
         and parse.
-        For a default implementation (if your ManagedExpression statement can be evaluated as a straight python
-        string, eg. q_123 < 56) use:
-
-            @property
-            def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-                return super().required_functions
+        Provides a default implementation that returns an empty dict (no additional functions).
 
         If your ManagedExpression needs a specific function to evaluate the statement,
         eg. q_543 < calculate_something_complex(),
         override this function as follows:
 
             @property
-            def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
+            def required_functions(self) -> dict[str, Callable[[Any], Any]]:
                 return dict(calculate_something_complex=app.stuff.calculate_something_complex)
 
+        Where the keys of the dict are the function names as they will appear in the expression statement, and the
+        values are the function definitions.
+
         """
-        return None
+        return dict()
 
     @property
     def referenced_question(self) -> "Question":
@@ -233,10 +230,6 @@ class GreaterThan(ManagedExpression):
             inclusive=form.greater_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
 
-    @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
-
 
 @register_managed_expression
 class LessThan(ManagedExpression):
@@ -292,10 +285,6 @@ class LessThan(ManagedExpression):
             maximum_value=form.less_than_value.data,  # ty: ignore[unresolved-attribute]
             inclusive=form.less_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
-
-    @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
 
 
 @register_managed_expression
@@ -392,20 +381,12 @@ class Between(ManagedExpression):
             maximum_inclusive=form.between_top_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
 
-    @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
-
 
 class BaseDataSourceManagedExpression(ManagedExpression):
     @property
     @abc.abstractmethod  # todo: decorator does nothing here because ABCMeta cant be used
     def referenced_data_source_items(self) -> list["TRadioItem"]:
         raise NotImplementedError
-
-    @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
 
 
 @register_managed_expression
@@ -510,10 +491,6 @@ class IsYes(ManagedExpression):
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsYes":
         return IsYes(question_id=question.id)
 
-    @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
-
 
 @register_managed_expression
 class IsNo(ManagedExpression):
@@ -550,10 +527,6 @@ class IsNo(ManagedExpression):
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsNo":
         return IsNo(question_id=question.id)
-
-    @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]] | None:
-        return super().required_functions
 
 
 @register_managed_expression
