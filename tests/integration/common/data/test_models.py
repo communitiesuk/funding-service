@@ -19,22 +19,22 @@ class TestQuestionModel:
     def test_question_property_selects_expressions(self, factories):
         question = factories.question.create()
         condition_expression = factories.expression.create(
-            question=question, type=ExpressionType.CONDITION, statement=""
+            question=question, type_=ExpressionType.CONDITION, statement=""
         )
         validation_expression = factories.expression.create(
-            question=question, type=ExpressionType.VALIDATION, statement=""
+            question=question, type_=ExpressionType.VALIDATION, statement=""
         )
         assert question.conditions == [condition_expression]
         assert question.validations == [validation_expression]
 
     def test_question_gets_a_valid_expression_that_belongs_to_it(self, factories):
         question = factories.question.create()
-        expression = factories.expression.create(question=question, type=ExpressionType.CONDITION, statement="")
+        expression = factories.expression.create(question=question, type_=ExpressionType.CONDITION, statement="")
         assert question.get_expression(expression.id) == expression
 
     def test_question_does_not_get_a_valid_expression_that_does_not_belong_to_it(self, factories):
         question = factories.question.create()
-        expression_on_other_question = factories.expression.create(type=ExpressionType.CONDITION, statement="")
+        expression_on_other_question = factories.expression.create(type_=ExpressionType.CONDITION, statement="")
 
         with pytest.raises(ValueError) as e:
             question.get_expression(expression_on_other_question.id)

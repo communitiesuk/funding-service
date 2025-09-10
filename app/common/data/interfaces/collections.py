@@ -802,7 +802,7 @@ def add_question_validation(question: Question, user: User, managed_expression: 
         statement=managed_expression.statement,
         context=managed_expression.model_dump(mode="json"),
         created_by=user,
-        type=ExpressionType.VALIDATION,
+        type_=ExpressionType.VALIDATION,
         managed_name=managed_expression._key,
     )
     question.expressions.append(expression)

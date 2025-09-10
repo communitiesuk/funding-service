@@ -666,7 +666,7 @@ class _ExpressionFactory(SQLAlchemyModelFactory):
     # todo: we could actually set this based on the question sub factory to make sure the default expression
     #       makes some kind of sense for the question type
     statement = factory.LazyFunction(_required)
-    type = factory.LazyFunction(_required)
+    type_ = factory.LazyFunction(_required)
 
 
 class _InvitationFactory(SQLAlchemyModelFactory):

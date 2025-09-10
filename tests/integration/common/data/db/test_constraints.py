@@ -27,7 +27,7 @@ class TestExpressionConstraints:
         factories.expression.create(
             question=q,
             created_by=user,
-            type=ExpressionType.VALIDATION,
+            type_=ExpressionType.VALIDATION,
             statement="",
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
         )
@@ -36,7 +36,7 @@ class TestExpressionConstraints:
             factories.expression.create(
                 question=q,
                 created_by=user,
-                type=ExpressionType.VALIDATION,
+                type_=ExpressionType.VALIDATION,
                 statement="",
                 managed_name=ManagedExpressionsEnum.GREATER_THAN,
             )

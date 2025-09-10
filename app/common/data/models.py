@@ -260,11 +260,11 @@ class Component(BaseModel):
 
     @property
     def conditions(self) -> list["Expression"]:
-        return [expression for expression in self.expressions if expression.type == ExpressionType.CONDITION]
+        return [expression for expression in self.expressions if expression.type_ == ExpressionType.CONDITION]
 
     @property
     def validations(self) -> list["Expression"]:
-        return [expression for expression in self.expressions if expression.type == ExpressionType.VALIDATION]
+        return [expression for expression in self.expressions if expression.type_ == ExpressionType.VALIDATION]
 
     def get_expression(self, id: uuid.UUID) -> "Expression":
         try:
@@ -421,8 +421,8 @@ class Expression(BaseModel):
 
     context: Mapped[json_flat_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
 
-    type: Mapped[ExpressionType] = mapped_column(
-        SqlEnum(ExpressionType, name="expression_type_enum", validate_strings=True)
+    type_: Mapped[ExpressionType] = mapped_column(
+        "type", SqlEnum(ExpressionType, name="expression_type_enum", validate_strings=True)
     )
 
     managed_name: Mapped[Optional[ManagedExpressionsEnum]] = mapped_column(
@@ -473,7 +473,7 @@ class Expression(BaseModel):
             statement=managed_expression.statement,
             context=managed_expression.model_dump(mode="json"),
             created_by=created_by,
-            type=ExpressionType.CONDITION,
+            type_=ExpressionType.CONDITION,
             managed_name=managed_expression._key,
         )
 
