@@ -1,8 +1,12 @@
+import datetime
+from unittest.mock import PropertyMock
+
 import pytest
 from immutabledict import immutabledict
 
 from app.common.data.models import Expression
-from app.common.expressions import ExpressionContext, evaluate
+from app.common.data.types import ExpressionType
+from app.common.expressions import DisallowedExpression, ExpressionContext, evaluate
 from app.common.expressions.managed import GreaterThan
 
 
@@ -103,3 +107,79 @@ class TestEvaluatingManagedExpressions:
         assert evaluate(expr, ExpressionContext(immutabledict({q0.safe_qid: 500}))) is False
         assert evaluate(expr, ExpressionContext(immutabledict({q0.safe_qid: 3000}))) is False
         assert evaluate(expr, ExpressionContext(immutabledict({q0.safe_qid: 3001}))) is True
+
+
+class TestEvaluatingManagedExpressionsWithRequiredFunctions:
+    @pytest.mark.parametrize(
+        "question_value, expected_result",
+        [
+            (datetime.date(2023, 12, 1), True),
+            (datetime.date(2026, 12, 1), False),
+        ],
+    )
+    def test_managed_expression_with_required_function_allowed_imported(
+        self, factories, mocker, question_value, expected_result
+    ):
+        expr = factories.expression.build(statement="q_123 < date(2024, 1, 1)", type=ExpressionType.VALIDATION)
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"date": datetime.date},
+        )
+        assert evaluate(expr, ExpressionContext(from_submission={"q_123": question_value})) is expected_result
+
+    @pytest.mark.parametrize(
+        "question_value, expected_result",
+        [
+            (309, True),
+            (0, False),
+        ],
+    )
+    def test_managed_expression_with_required_function_allowed_builtin(
+        self, factories, mocker, question_value, expected_result
+    ):
+        expr = factories.expression.build(statement="q_123 > min(1,2)", type=ExpressionType.VALIDATION)
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"min": min},
+        )
+        assert evaluate(expr, ExpressionContext(from_submission={"q_123": question_value})) is expected_result
+
+    @pytest.mark.parametrize(
+        "question_value, expected_result",
+        [
+            (100, True),
+            (5, False),
+        ],
+    )
+    def test_managed_expression_with_required_function_allowed_custom(
+        self, factories, mocker, question_value, expected_result
+    ):
+        def _custom_test_function():
+            return 42
+
+        expr = factories.expression.build(statement="q_123 > calculate_result()", type=ExpressionType.VALIDATION)
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"calculate_result": _custom_test_function},
+        )
+        assert evaluate(expr, ExpressionContext(from_submission={"q_123": question_value})) is expected_result
+
+    def test_managed_expression_with_required_function_builtin_not_present_builtin(self, factories):
+        # test with a builtin function that isn't on the allowed list
+        expr = factories.expression.build(statement="q_123 > max(1,2)", type=ExpressionType.VALIDATION)
+        # Don't patch the required_functions property, so it returns an empty dict
+        with pytest.raises(DisallowedExpression):
+            evaluate(expr, ExpressionContext(from_submission={"q_123": 123}))
+
+    def test_managed_expression_with_required_function_not_present_custom(self, factories):
+        def _custom_test_function():
+            return 42
+
+        # Test with a custom function that isn't on the allowed list
+        expr = factories.expression.build(statement="q_123 > _custom_test_function()", type=ExpressionType.VALIDATION)
+        # Don't patch the required_functions property, so it returns an empty dict
+        with pytest.raises(DisallowedExpression):
+            evaluate(expr, ExpressionContext(from_submission={"q_123": 123}))

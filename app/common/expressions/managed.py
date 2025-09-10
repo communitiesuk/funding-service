@@ -1,5 +1,6 @@
 import abc
-from typing import TYPE_CHECKING, ClassVar, cast
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 from typing import Optional as TOptional
 
 # Define any "managed" expressions that can be applied to common conditions or validations
@@ -45,6 +46,27 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     @property
     @abc.abstractmethod
     def message(self) -> str: ...
+
+    @property
+    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+        """
+        Used when we evaluate an expression to add specific functions to the list of what simpleeval will accept
+        and parse.
+        Provides a default implementation that returns an empty dict (no additional functions).
+
+        If your ManagedExpression needs a specific function to evaluate the statement,
+        eg. q_543 < calculate_something_complex(),
+        override this function as follows:
+
+            @property
+            def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+                return dict(calculate_something_complex=app.stuff.calculate_something_complex)
+
+        Where the keys of the dict are the function names as they will appear in the expression statement, and the
+        values are the function definitions.
+
+        """
+        return dict()
 
     @property
     def referenced_question(self) -> "Question":
