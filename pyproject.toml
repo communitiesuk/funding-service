@@ -214,7 +214,8 @@ filterwarnings = [
     "error",
     "ignore:Could not insert debug toolbar:UserWarning",
     "ignore:cannot collect test class 'TestConfig' because it has a __init__ constructor:pytest.PytestCollectionWarning",
-    "ignore:datetime\\.datetime\\.utcnow\\(\\) is deprecated and scheduled for removal in a future version*:DeprecationWarning"
+    "ignore:datetime\\.datetime\\.utcnow\\(\\) is deprecated and scheduled for removal in a future version*:DeprecationWarning",
+    "ignore:The @wait_container_is_ready decorator is deprecated and will be removed in a future version.:DeprecationWarning"
 ]
 [tool.ty.src]
 include = ["app", "tests"]
