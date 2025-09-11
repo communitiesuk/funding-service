@@ -7,6 +7,7 @@ from typing import Any, TypedDict
 import click
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
+from sqlalchemy import inspect
 from sqlalchemy.exc import NoResultFound
 
 from app.common.data.base import BaseModel
@@ -34,9 +35,10 @@ export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
 def to_dict(instance: BaseModel) -> dict[str, Any]:
     return {
-        col.name: (field.model_dump(mode="json", exclude_none=True) if isinstance(field, PydanticBaseModel) else field)
-        for col in instance.__table__.columns
-        if (field := getattr(instance, col.name)) is not None and col.name not in {"created_at_utc", "updated_at_utc"}
+        prop.key: (field.model_dump(mode="json", exclude_none=True) if isinstance(field, PydanticBaseModel) else field)
+        for prop in inspect(instance.__class__).column_attrs
+        if (field := getattr(instance, prop.key)) is not None
+        and prop.columns[0].name not in {"created_at_utc", "updated_at_utc"}
     }
 
 

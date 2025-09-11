@@ -723,7 +723,7 @@
           "managed_name": "Any of",
           "question_id": "b9da63b3-2cff-4523-93ef-d282670ba61e",
           "statement": "q_65664e18722d484f8488c851c5c5de36 in {'data-certifier-eg-section-151-officer'}",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -740,7 +740,7 @@
           "managed_name": "Any of",
           "question_id": "bea8a446-97e3-466b-9fd0-c322f4f06938",
           "statement": "q_65664e18722d484f8488c851c5c5de36 in {'other'}",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -755,7 +755,7 @@
           "managed_name": "Specifically",
           "question_id": "233960c6-2eac-4bef-bccd-0f0bee3a94e8",
           "statement": "'other' in q_e5ef32486c324554b4a74d286cdb3f6a",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -766,7 +766,7 @@
           "managed_name": "Yes",
           "question_id": "6e42d5ac-1475-4e3a-89f0-39c9ab1ac2d1",
           "statement": "q_d99b94c366fa4449b4c4ac5a2caeb8c9 is True",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -779,7 +779,7 @@
           "managed_name": "Greater than",
           "question_id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0",
           "statement": "q_46068ea57e83476e91f471e87a1cc1a0 >= 0",
-          "type": "VALIDATION"
+          "type_": "VALIDATION"
         },
         {
           "context": {
@@ -792,7 +792,7 @@
           "managed_name": "Less than",
           "question_id": "e3858acb-ac9a-46e3-af20-553b48a9af10",
           "statement": "q_46068ea57e83476e91f471e87a1cc1a0 < 5",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -805,7 +805,7 @@
           "managed_name": "Greater than",
           "question_id": "0c48320f-0b45-4686-8bed-5a09509f7f8b",
           "statement": "q_0c48320f0b4546868bed5a09509f7f8b >= 0",
-          "type": "VALIDATION"
+          "type_": "VALIDATION"
         },
         {
           "context": {
@@ -820,7 +820,7 @@
           "managed_name": "Between",
           "question_id": "0e6df617-b770-4525-9c06-6fdbcca72a10",
           "statement": "0 <= q_0e6df617b77045259c066fdbcca72a10 <= 100",
-          "type": "VALIDATION"
+          "type_": "VALIDATION"
         },
         {
           "context": {
@@ -833,7 +833,7 @@
           "managed_name": "Less than",
           "question_id": "22613139-724f-41d7-84a3-3549550c6a4b",
           "statement": "q_0e6df617b77045259c066fdbcca72a10 <= 25",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -844,7 +844,7 @@
           "managed_name": "Yes",
           "question_id": "677b317f-37cd-456c-905f-f3324f905e4a",
           "statement": "q_897480b2794d416ba8272f4f2e8f5843 is True",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -857,7 +857,7 @@
           "managed_name": "Less than",
           "question_id": "b6e4dd70-7285-4595-9a1c-f1dfe7f68521",
           "statement": "q_c1f6fdab3e7948ae9c751210588afc1c < 10000",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -870,7 +870,7 @@
           "managed_name": "Greater than",
           "question_id": "19fc71ff-ec1b-414a-b8b9-52502c0d4617",
           "statement": "q_c1f6fdab3e7948ae9c751210588afc1c > 1000000",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -883,7 +883,7 @@
           "managed_name": "Less than",
           "question_id": "ea608b3b-ff0c-4733-9ff4-29ac31868200",
           "statement": "q_6452da2c01544af18d96f668edffa36a < 0",
-          "type": "CONDITION"
+          "type_": "CONDITION"
         }
       ],
       "forms": [
