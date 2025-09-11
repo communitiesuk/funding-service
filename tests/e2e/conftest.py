@@ -157,7 +157,7 @@ def login_with_session_cookie(page: Page, domain: str, e2e_test_secrets: EndToEn
     )
     sso_sign_in_page.navigate()
     # If the browser contains a valid cookie, it should redirect to the grants page
-    expect(page).to_have_url(f"{domain}/grants")
+    expect(page).to_have_url(f"{domain}/deliver/grants")
     return E2ETestUser(email_address="svc-Preaward-Funds@test.communities.gov.uk")
 
 

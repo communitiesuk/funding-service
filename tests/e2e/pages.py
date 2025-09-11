@@ -139,7 +139,7 @@ class AllGrantsPage(TopNavMixin, BasePage):
         self.title = self.page.get_by_role("heading", name="Grants")
 
     def navigate(self) -> None:
-        self.page.goto(f"{self.domain}/grants")
+        self.page.goto(f"{self.domain}/deliver/grants")
         expect(self.title).to_be_visible()
 
     def click_set_up_a_grant(self) -> GrantSetupIntroPage:
