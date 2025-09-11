@@ -10,7 +10,7 @@ from uuid import UUID
 
 from immutabledict import immutabledict
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import TypeAdapter
+from pydantic import RootModel, TypeAdapter
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.collections.types import (
@@ -102,12 +102,25 @@ class SubmissionHelper:
 
     @cached_property
     def cached_form_data(self) -> dict[str, Any]:
-        form_data = {
-            question.safe_qid: answer.get_value_for_form()
-            for form in self.submission.collection.forms
-            for question in form.cached_questions
-            if (answer := self.cached_get_answer_for_question(question.id)) is not None
-        }
+        # todo: you should always be providing an index or ID (index for now) in an add another context
+        #       otherwise you can't show a single form value
+        #       where this is then used on the summary page will need some tweaking
+        form_data = {}
+        for form in self.submission.collection.forms:
+            for question in form.cached_questions:
+                if (answer := self.cached_get_answer_for_question(question.id)) is not None:
+                    if not question.is_add_another:
+                        form_data[question.safe_qid] = answer.get_value_for_form()
+                    else:
+                        for another in answer:
+                            # todo: this would need to be unit tested extensively - one place should know how to create these
+                            form_data[question.safe_qid + str(answer.index(another))] = another.get_value_for_form()
+        # form_data = {
+        #     question.safe_qid: answer.get_value_for_form()
+        #     for form in self.submission.collection.forms
+        #     for question in form.cached_questions
+        #     if (answer := self.cached_get_answer_for_question(question.id)) is not None
+        # }
         return form_data
 
     @cached_property
@@ -117,6 +130,11 @@ class SubmissionHelper:
             for form in self.collection.forms
             for question in form.cached_questions
             if (answer := self.cached_get_answer_for_question(question.id)) is not None
+            # for now add another won't show up in contexts - can decide to support that intentionally
+            # probably alongside calculations
+            # todo: if you want to depend on another question _within_ this add another then I might need to do something here
+            #       it probably looks like having a convention for the context which is qid + index
+            and question.is_add_another is False
         }
         return ExpressionContext(from_submission=immutabledict(submission_data))
 
@@ -283,12 +301,14 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
-    def _get_answer_for_question(self, question_id: UUID) -> AllAnswerTypes | None:
+    def _get_answer_for_question(self, question_id: UUID) -> AllAnswerTypes | list[AllAnswerTypes] | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
 
-    def submit_answer_for_question(self, question_id: UUID, form: DynamicQuestionForm) -> None:
+    def submit_answer_for_question(
+        self, question_id: UUID, form: DynamicQuestionForm, *, add_another_index: Optional[int] = None
+    ) -> None:
         if self.is_completed:
             raise ValueError(
                 f"Could not submit answer for question_id={question_id} "
@@ -297,7 +317,9 @@ class SubmissionHelper:
 
         question = self.get_question(question_id)
         data = _form_data_to_question_type(question, form)
-        interfaces.collections.update_submission_data(self.submission, question, data)
+        interfaces.collections.update_submission_data(
+            self.submission, question, data, add_another_index=add_another_index
+        )
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
 
@@ -493,10 +515,21 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
 
-def _deserialise_question_type(question: "Question", serialised_data: str | int | float | bool) -> AllAnswerTypes:
+def _deserialise_question_type(
+    question: "Question", serialised_data: str | int | float | bool
+) -> AllAnswerTypes | list[AllAnswerTypes]:
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
-            return TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)
+            # todo: make a map of question type to answer type and then validate once - which will include this iteration logic
+            if question.is_add_another:
+                # todo: should this be used to serialise as well (rather than a manual append in submit)
+                Wrapper = RootModel[List[TextSingleLineAnswer]]
+
+                # todo: this could be reflected in _either_ the answer serialised type, its a list or a single answer
+                #       or here in this interface - I'm not sure yet which is best
+                return TypeAdapter(Wrapper).validate_python(serialised_data).root
+            else:
+                return TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)
         case QuestionDataType.URL:
             return TypeAdapter(UrlAnswer).validate_python(serialised_data)
         case QuestionDataType.EMAIL:

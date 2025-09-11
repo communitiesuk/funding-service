@@ -107,8 +107,26 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
     return collection
 
 
-def update_submission_data(submission: Submission, question: Question, data: AllAnswerTypes) -> Submission:
-    submission.data[str(question.id)] = data.get_value_for_submission()
+# { "qid": "text answer" }
+# { "qid": [ "text answer 1", "text answer 2" ] }
+# { "qid": [ { "qid": "text answer" }, { "qid": "text answer 2" } ] }
+
+# should then the data type serialiser not even know about it being a list or not, it will just either be parsed in
+# a list or not and whatevers returning the answer type will be returning a list of them or not?
+
+
+def update_submission_data(
+    submission: Submission, question: Question, data: AllAnswerTypes, *, add_another_index: Optional[int] = None
+) -> Submission:
+    if question.is_add_another:
+        if add_another_index is None:
+            submission.data.setdefault(str(question.id), []).append(data.get_value_for_submission())
+        else:
+            # todo: when we're doing question groups and each entry can be multiple questions this will need to be another dictionary of question ids to answers
+            #       should we just do that up front?
+            submission.data[str(question.id)][add_another_index] = data.get_value_for_submission()
+    else:
+        submission.data[str(question.id)] = data.get_value_for_submission()
     db.session.flush()
     return submission
 

@@ -124,6 +124,8 @@ class FormRunner:
         if not self.component:
             raise RuntimeError("Question context not set")
 
+        # presume the runner knows the list ID/ index by the time its loading up the question form
+        # either its new and there is no ID/ index or its adding multiple questions to a given identifier or updating a known answer
         for question in self.questions:
             self.submission.submit_answer_for_question(question.id, self.question_form)
 

@@ -36,10 +36,19 @@
     {% set rows = [] %}
     {% for question in helper.cached_get_ordered_visible_questions(form) %}
 
-      {% set answer = helper.cached_get_answer_for_question(question.id) %}
+      {% set answer_value = helper.cached_get_answer_for_question(question.id) %}
       {% set value_html %}
-        {% if answer %}
-          {% include answer._render_answer_template %}
+        {% if answer_value %}
+          {% if question.is_add_another %}
+            <ul class="govuk-list govuk-list--bullet">
+              {% for answer in answer_value %}
+                <li>{% include answer._render_answer_template %}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            {% set answer = answer_value %}
+            {% include answer._render_answer_template %}
+          {% endif %}
         {% else %}
           (Not answered)
         {% endif %}

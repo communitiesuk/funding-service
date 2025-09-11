@@ -127,10 +127,20 @@
 
   {% set rows = [] %}
   {% for question in submission.cached_get_ordered_visible_questions(form) %}
-    {% set answer = submission.cached_get_answer_for_question(question.id) %}
-    {% if answer is not none %}
+    {% set answer_value = submission.cached_get_answer_for_question(question.id) %}
+    {% if answer_value is not none %}
       {% set value_html %}
-        {% include answer._render_answer_template %}
+        {# todo: this is a very temporary solution - we might want this to be done elsewhere as its used in CSV, JSON, etc. but maybe they do each need to do something unique #}
+        {% if question.is_add_another %}
+          <ul class="govuk-list govuk-list--bullet">
+            {% for answer in answer_value %}
+              <li>{% include answer._render_answer_template %}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {% set answer = answer_value %}
+          {% include answer._render_answer_template %}
+        {% endif %}
       {% endset %}
 
       {# todo: can we "anchor" or link to the specific question if we're going to be changing a question on a same page group #}
