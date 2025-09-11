@@ -16,7 +16,7 @@ def test_stub_sso_journey(page: Page, domain: str):
     sso_email_login_page.fill_email_address("test@communities.gov.uk")
     sso_email_login_page.click_sign_in()
 
-    expect(page).to_have_url(f"{domain}/grants")
+    expect(page).to_have_url(f"{domain}/deliver/grants")
 
 
 @pytest.mark.skip_in_environments(["local", "dev", "test", "prod"])
@@ -43,9 +43,9 @@ def test_real_sso_journey(page: Page, domain: str):
     ms_password_page.fill_password()
     ms_password_page.click_sign_in()
 
-    if not page.url == f"{domain}/grants":
+    if not page.url == f"{domain}/deliver/grants":
         page.get_by_role("link", name="Click here for more details").click()
         page.screenshot()
-        raise pytest.fail("SSO login did not redirect to /grants as expected")
+        raise pytest.fail("SSO login did not redirect to /deliver/grants as expected")
 
-    expect(page).to_have_url(f"{domain}/grants")
+    expect(page).to_have_url(f"{domain}/deliver/grants")

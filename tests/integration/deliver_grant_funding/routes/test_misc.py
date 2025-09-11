@@ -12,7 +12,7 @@ class TestListGrants:
     ):
         factories.grant.create_batch(5)
         with track_sql_queries() as queries:
-            result = authenticated_platform_admin_client.get("/grants")
+            result = authenticated_platform_admin_client.get("/deliver/grants")
         assert result.status_code == 200
         assert len(templates_rendered.get("deliver_grant_funding.list_grants").context.get("grants")) == 5
         soup = BeautifulSoup(result.data, "html.parser")
@@ -30,7 +30,7 @@ class TestListGrants:
         self, app, authenticated_grant_member_client, factories, templates_rendered, track_sql_queries
     ):
         with track_sql_queries() as queries:
-            result = authenticated_grant_member_client.get("/grants", follow_redirects=True)
+            result = authenticated_grant_member_client.get("/deliver/grants", follow_redirects=True)
         assert result.status_code == 200
         soup = BeautifulSoup(result.data, "html.parser")
 
@@ -46,7 +46,7 @@ class TestListGrants:
         for grant in grants:
             factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
 
-        result = authenticated_grant_member_client.get("/grants")
+        result = authenticated_grant_member_client.get("/deliver/grants")
         assert result.status_code == 200
         soup = BeautifulSoup(result.data, "html.parser")
         button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
@@ -60,5 +60,5 @@ class TestListGrants:
 
     @pytest.mark.authenticate_as("test@google.com")
     def test_list_grant_requires_mhclg_user(self, authenticated_no_role_client, factories, templates_rendered):
-        response = authenticated_no_role_client.get("/grants")
+        response = authenticated_no_role_client.get("/deliver/grants")
         assert response.status_code == 403

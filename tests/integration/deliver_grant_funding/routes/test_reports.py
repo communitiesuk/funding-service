@@ -49,7 +49,7 @@ class TestListReports:
         assert client.grant.name in soup.text
 
         expected_links = [
-            ("Add a monitoring report", AnyStringMatching(r"/grant/[a-z0-9-]{36}/set-up-report")),
+            ("Add a monitoring report", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/set-up-report")),
         ]
         for expected_link in expected_links:
             button = page_has_link(soup, expected_link[0])
@@ -82,14 +82,14 @@ class TestListReports:
         review_submissions_links = page_has_link(soup, "0 test submissions")
         assert review_submissions_links is not None
         assert review_submissions_links.get("href") == AnyStringMatching(
-            r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/test"
+            r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/test"
         )
 
         expected_links = [
-            ("Add another monitoring report", AnyStringMatching(r"/grant/[a-z0-9-]{36}/set-up-report")),
-            ("Add tasks", AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")),
-            ("Change name", AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/change-name")),
-            ("Delete", AnyStringMatching(r"/grant/[a-z0-9-]{36}/reports\?delete")),
+            ("Add another monitoring report", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/set-up-report")),
+            ("Add tasks", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")),
+            ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/change-name")),
+            ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports\?delete")),
         ]
         for expected_link in expected_links:
             link = page_has_link(soup, expected_link[0])
@@ -148,7 +148,7 @@ class TestListReports:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/reports")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/reports")
 
         deleted_report = db_session.get(Collection, (report.id, report.version))
         assert (deleted_report is None) == can_delete
@@ -203,7 +203,7 @@ class TestSetUpReport:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/reports")
+            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/reports")
 
             assert len(client.grant.reports) == 1
             assert client.grant.reports[0].name == "Test monitoring report"
@@ -293,7 +293,7 @@ class TestChangeReportName:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/reports")
+            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/reports")
 
             updated_report = db_session.get(Collection, (report.id, report.version))
             assert updated_report.name == "Updated Name"
@@ -334,7 +334,7 @@ class TestChangeReportName:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/reports")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/reports")
 
         updated_report = db_session.get(Collection, (report.id, report.version))
         assert updated_report is not None
@@ -390,7 +390,7 @@ class TestAddTask:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
+            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
 
             assert len(report.forms) == 1
             assert report.forms[0].title == "Organisation information"
@@ -444,7 +444,7 @@ class TestListReportTasks:
         assert (add_task_link is not None) is can_edit
 
         if add_task_link:
-            expected_href = AnyStringMatching(r"/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")
+            expected_href = AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")
             assert add_task_link.get("href") == expected_href
 
     @pytest.mark.parametrize(
@@ -501,7 +501,7 @@ class TestListReportTasks:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}")
+            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}")
 
 
 class TestMoveTask:
@@ -604,7 +604,7 @@ class TestChangeQuestionGroupName:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
 
         updated_group = db_session.get(Group, db_group.id)
         assert updated_group.name == "Updated test group"
@@ -702,7 +702,7 @@ class TestChangeQuestionGroupDisplay:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
 
         updated_group = db_session.get(Group, db_group.id)
         assert updated_group.presentation_options.show_questions_on_the_same_page is True
@@ -824,7 +824,7 @@ class TestChangeFormName:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
+            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
 
             updated_form = db_session.get(Form, db_form.id)
             assert updated_form.title == "Updated Name"
@@ -984,7 +984,7 @@ class TestListTaskQuestions:
 
         if can_edit:
             assert change_task_name_link.get("href") == AnyStringMatching(
-                "/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/change-name"
+                "/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/change-name"
             )
             assert delete_task_link.get("href") == AnyStringMatching(r"\?delete")
 
@@ -1059,7 +1059,7 @@ class TestListTaskQuestions:
         else:
             assert response.status_code == 302
             assert response.location == AnyStringMatching(
-                "/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}/[a-z0-9-]{36}"
+                "/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}/[a-z0-9-]{36}"
             )
 
     def test_post_list_task_questions_returns_to_task_list(
@@ -1180,7 +1180,7 @@ class TestMoveQuestion:
         del form.cached_questions
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching(r"/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
+        assert response.location == AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
         assert form.cached_questions[0].text == "Question 3"
 
         # we can move questions inside the group
@@ -1195,7 +1195,7 @@ class TestMoveQuestion:
         )
         del form.cached_questions
         assert response.status_code == 302
-        assert response.location == AnyStringMatching(r"/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+        assert response.location == AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
 
         assert form.cached_questions[1].text == "Question 2"
 
@@ -1249,7 +1249,7 @@ class TestChooseQuestionType:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            r"/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions/add\?question_data_type=TEXT_SINGLE_LINE"
+            r"/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions/add\?question_data_type=TEXT_SINGLE_LINE"
         )
 
 
@@ -1305,7 +1305,7 @@ class TestAddQuestion:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
 
         # Stretching the test case a little but validates the flash message
         response = authenticated_grant_admin_client.get(response.location)
@@ -1340,7 +1340,7 @@ class TestAddQuestion:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
 
         # Stretching the test case a little but validates the group specific flash message
         response = authenticated_grant_admin_client.get(response.location)
@@ -1391,7 +1391,7 @@ class TestAddQuestionGroup:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add")
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
@@ -1440,7 +1440,7 @@ class TestAddQuestionGroup:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}")
 
     def test_post_duplicate(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
@@ -1568,7 +1568,7 @@ class TestEditQuestion:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
 
     @pytest.mark.xfail
     def test_post_dependency_order_errors(self):
@@ -1720,7 +1720,7 @@ class TestAddQuestionConditionSelectQuestion:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{second_question.id}/add-condition/{first_question.id}"
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{second_question.id}/add-condition/{first_question.id}"
         )
 
     def test_post_rejects_same_page_group(self, authenticated_grant_admin_client, factories):
@@ -1869,7 +1869,7 @@ class TestAddQuestionCondition:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
         )
 
         assert len(target_question.expressions) == 1
@@ -1910,7 +1910,7 @@ class TestAddQuestionCondition:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            rf"/grant/{authenticated_grant_admin_client.grant.id}/group/{target_group.id}/questions"
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/group/{target_group.id}/questions"
         )
 
         assert len(target_group.expressions) == 1
@@ -2105,7 +2105,7 @@ class TestEditQuestionCondition:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
         )
 
         assert len(target_question.expressions) == 1
@@ -2145,7 +2145,7 @@ class TestEditQuestionCondition:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            rf"/grant/{authenticated_grant_admin_client.grant.id}/group/{target_question.id}/questions"
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/group/{target_question.id}/questions"
         )
 
         assert len(target_question.expressions) == 1
@@ -2239,7 +2239,7 @@ class TestEditQuestionCondition:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
         )
 
         assert len(target_question.expressions) == 0
@@ -2352,7 +2352,7 @@ class TestAddQuestionValidation:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
         )
 
         assert len(question.expressions) == 1
@@ -2539,7 +2539,7 @@ class TestEditQuestionValidation:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
         )
 
         assert len(question.expressions) == 1
@@ -2632,7 +2632,7 @@ class TestEditQuestionValidation:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            rf"/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
         )
 
         assert len(question.expressions) == 0
@@ -2718,7 +2718,7 @@ class TestManageGuidance:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            f"/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
         )
 
         updated_question = db_session.get(Question, question.id)
@@ -2745,7 +2745,7 @@ class TestManageGuidance:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
 
         updated_question = db_session.get(Question, question.id)
         assert updated_question.guidance_heading == "Updated heading"
@@ -2846,7 +2846,7 @@ class TestManageGuidance:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
 
         updated_group = db_session.get(Group, group.id)
         assert updated_group.guidance_heading == "Updated heading"
@@ -2916,8 +2916,12 @@ class TestListSubmissions:
         # TODO: this should be an organisation name, when we have that concept
         test_recipient_link = page_has_link(test_soup, "submitter-test@recipient.org")
         live_recipient_link = page_has_link(live_soup, "submitter-live@recipient.org")
-        assert test_recipient_link.get("href") == AnyStringMatching("/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}")
-        assert live_recipient_link.get("href") == AnyStringMatching("/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}")
+        assert test_recipient_link.get("href") == AnyStringMatching(
+            "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
+        )
+        assert live_recipient_link.get("href") == AnyStringMatching(
+            "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
+        )
 
         test_submission_tags = test_soup.select(".govuk-tag")
         live_submission_tags = live_soup.select(".govuk-tag")
