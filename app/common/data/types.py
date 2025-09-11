@@ -111,6 +111,7 @@ class ManagedExpressionsEnum(enum.StrEnum):
     SPECIFICALLY = "Specifically"
     IS_BEFORE = "Is before"
     IS_AFTER = "Is after"
+    BETWEEN_DATES = "Between dates"
 
 
 class FormRunnerState(enum.StrEnum):

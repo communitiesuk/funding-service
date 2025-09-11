@@ -46,6 +46,7 @@ def upgrade() -> None:
             "SPECIFICALLY",
             "IS_BEFORE",
             "IS_AFTER",
+            "BETWEEN_DATES",
         ],
         affected_columns=[TableReference(table_schema="public", table_name="expression", column_name="managed_name")],
         enum_values_to_rename=[],
