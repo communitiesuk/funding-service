@@ -5,8 +5,9 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
-from govuk_frontend_wtf.wtforms_widgets import GovCharacterCount, GovRadioInput, GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovCharacterCount, GovDateInput, GovRadioInput, GovTextArea, GovTextInput
 from werkzeug.datastructures import MultiDict
+from wtforms import DateField
 from wtforms.fields.choices import RadioField, SelectMultipleField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField
@@ -93,7 +94,7 @@ class TestBuildQuestionForm:
         assert hasattr(form, "submit")
 
     def test_the_next_test_exhausts_QuestionDataType(self):
-        assert len(QuestionDataType) == 8, (
+        assert len(QuestionDataType) == 9, (
             "If this test breaks, tweak the number and update `test_expected_field_types` accordingly."
         )
 
@@ -111,6 +112,7 @@ class TestBuildQuestionForm:
             (QuestionDataType.EMAIL, QPO(), EmailField, GovTextInput, [DataRequired, Email]),
             (QuestionDataType.URL, QPO(), StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
             (QuestionDataType.CHECKBOXES, QPO(), SelectMultipleField, MHCLGCheckboxesInput, [DataRequired]),
+            (QuestionDataType.DATE, QPO(), DateField, GovDateInput, [DataRequired]),
         ),
     )
     def test_expected_field_types(
@@ -131,4 +133,4 @@ class TestBuildQuestionForm:
             assert isinstance(question_field.validators[i], validator)
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 8, "Add a new parameter option above if adding a new question type"
+        assert len(QuestionDataType) == 9, "Add a new parameter option above if adding a new question type"
