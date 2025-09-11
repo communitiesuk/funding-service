@@ -717,7 +717,7 @@ class IsAfter(ManagedExpression):
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.earliest_value.validators = [InputRequired("Enter the earliest value allowed for this question")]  # ty: ignore[unresolved-attribute]
+        form.earliest_value.validators = [InputRequired("Enter the date which this answer must come after")]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsAfter":
@@ -726,6 +726,109 @@ class IsAfter(ManagedExpression):
             earliest_value=form.earliest_value.data,
             inclusive=form.earliest_value_inclusive.data,
         )  # ty: ignore[unresolved-attribute]
+
+    @property
+    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
+        return dict(date=datetime.date)
+
+
+@register_managed_expression
+class BetweenDates(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.BETWEEN_DATES
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    earliest_value: datetime.date
+    earliest_inclusive: bool = False
+    latest_value: datetime.date
+    latest_inclusive: bool = False
+
+    @property
+    def description(self) -> str:
+        return "Is between"
+
+    @property
+    def message(self) -> str:
+        # todo: optionally include the question name in the default message
+        # todo: do you allow the form builder to override this if they need to
+        #       - does that persist in the context (inherited from ManagedExpression) or as a separate
+        #         property on the model
+        # todo: make this use expression evaluation/interpolation rather than f-strings
+        return (
+            f"The {self.referenced_question.name} must be between "
+            f"{format_date_short(self.earliest_value)}{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'}"
+            f" and {format_date_short(self.latest_value)}{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
+        )
+
+    @property
+    def statement(self) -> str:
+        # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
+        return (
+            f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day}) "
+            f"<{'=' if self.earliest_inclusive else ''} "
+            f"{self.safe_qid} "
+            f"<{'=' if self.latest_inclusive else ''} "
+            f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"
+        )
+
+    @staticmethod
+    def get_form_fields(
+        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+    ) -> dict[str, "Field"]:
+        return {
+            "between_bottom_of_range": DateField(
+                "Earliest date",
+                default=datetime.datetime.strptime(cast(str, expression.context["earliest_value"]), "%Y-%m-%d").date()
+                if expression
+                else None,
+                widget=GovDateInput(),
+                validators=[Optional()],
+                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
+            ),
+            "between_bottom_inclusive": BooleanField(
+                "An answer of exactly the earliest date is allowed",
+                default=cast(bool, expression.context["earliest_inclusive"]) if expression else None,
+                widget=GovCheckboxInput(),
+            ),
+            "between_top_of_range": DateField(
+                "Latest date",
+                default=datetime.datetime.strptime(cast(str, expression.context["latest_value"]), "%Y-%m-%d").date()
+                if expression
+                else None,
+                widget=GovDateInput(),
+                validators=[Optional()],
+                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
+            ),
+            "between_top_inclusive": BooleanField(
+                "An answer of exactly the latest date is allowed",
+                default=cast(bool, expression.context["latest_inclusive"]) if expression else None,
+                widget=GovCheckboxInput(),
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        form.between_bottom_of_range.validators = [  # ty: ignore[unresolved-attribute]
+            InputRequired("Enter the earliest date allowed for this question"),
+            BottomOfRangeIsLower("The earliest date must be before the latest date"),
+        ]
+        form.between_top_of_range.validators = [  # ty: ignore[unresolved-attribute]
+            InputRequired("Enter the latest date allowed for this question"),
+            BottomOfRangeIsLower("The latest date must be after the earliest date"),
+        ]
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "BetweenDates":
+        return BetweenDates(
+            question_id=question.id,
+            earliest_value=form.between_bottom_of_range.data,  # ty: ignore[unresolved-attribute]
+            earliest_inclusive=form.between_bottom_inclusive.data,  # ty: ignore[unresolved-attribute]
+            latest_value=form.between_top_of_range.data,  # ty: ignore[unresolved-attribute]
+            latest_inclusive=form.between_top_inclusive.data,  # ty: ignore[unresolved-attribute]
+        )
 
     @property
     def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
