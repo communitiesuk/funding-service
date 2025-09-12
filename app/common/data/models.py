@@ -478,7 +478,7 @@ class Expression(BaseModel):
         )
 
     @property
-    def required_functions(self) -> dict[str, Callable[[Any], Any]]:
+    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
         if self.managed_name:
             return self.managed.required_functions
 

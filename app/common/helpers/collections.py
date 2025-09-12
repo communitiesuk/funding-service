@@ -18,6 +18,7 @@ from app.common.collections.types import (
     NOT_ASKED,
     AllAnswerTypes,
     ChoiceDict,
+    DateAnswer,
     EmailAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
@@ -489,6 +490,8 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
                 if item.key in answer
             ]
             return MultipleChoiceFromListAnswer(choices=choices)
+        case QuestionDataType.DATE:
+            return DateAnswer(answer=answer)
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
@@ -511,5 +514,7 @@ def _deserialise_question_type(question: "Question", serialised_data: str | int 
             return TypeAdapter(SingleChoiceFromListAnswer).validate_python(serialised_data)
         case QuestionDataType.CHECKBOXES:
             return TypeAdapter(MultipleChoiceFromListAnswer).validate_python(serialised_data)
+        case QuestionDataType.DATE:
+            return TypeAdapter(DateAnswer).validate_python(serialised_data)
 
     raise ValueError(f"Could not deserialise data for question type={question.data_type}")

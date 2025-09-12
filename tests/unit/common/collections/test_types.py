@@ -1,8 +1,10 @@
+import datetime
 import itertools
 
 import pytest
 
 from app.common.collections.types import (
+    DateAnswer,
     EmailAnswer,
     IntegerAnswer,
     SingleChoiceFromListAnswer,
@@ -21,7 +23,7 @@ def test_all_answer_types_tested():
     )
     base_model_types = list(SubmissionAnswerBaseModel.__subclasses__())
 
-    assert len(root_model_types + base_model_types) == 8, (
+    assert len(root_model_types + base_model_types) == 9, (
         "If adding a new answer type, update the appropriate test below"
     )
 
@@ -58,6 +60,7 @@ class TestSubmissionAnswerBaseModels:
             (IntegerAnswer, {"value": 50, "prefix": "£"}, {"value": 50, "prefix": "£"}),
             (IntegerAnswer, {"value": 50, "suffix": "lbs"}, {"value": 50, "suffix": "lbs"}),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, {"key": "key", "label": "label"}),
+            (DateAnswer, {"answer": datetime.date(2023, 10, 5)}, {"answer": "2023-10-05"}),
         ),
     )
     def test_get_value_for_submission(self, model, data, submission_data):
@@ -90,6 +93,7 @@ class TestSubmissionAnswerBaseModels:
             (IntegerAnswer, {"value": 1_000_000, "prefix": "£"}, "£1,000,000"),
             (IntegerAnswer, {"value": 1_000_000, "suffix": "lbs"}, "1,000,000lbs"),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "label"),
+            (DateAnswer, {"answer": datetime.date(2023, 10, 5)}, "2023-10-05"),
         ),
     )
     def test_get_value_for_text_export(self, model, data, text_export_value):

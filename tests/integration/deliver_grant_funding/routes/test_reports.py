@@ -1230,7 +1230,7 @@ class TestChooseQuestionType:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "What type of question do you need?"
 
-            assert len(soup.select("input[type=radio]")) == 8, "Should show an option for each kind of question"
+            assert len(soup.select("input[type=radio]")) == 9, "Should show an option for each kind of question"
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -3036,7 +3036,7 @@ class TestViewSubmission:
         soup = BeautifulSoup(response.data, "html.parser")
 
         assert "Export test form" in soup.text
-        assert len(report.forms[0].cached_questions) == 8, "If more questions added, check+update this test"
+        assert len(report.forms[0].cached_questions) == 9, "If more questions added, check+update this test"
 
         assert "What is your name?" in soup.text
         assert "test name" in soup.text
@@ -3063,3 +3063,6 @@ class TestViewSubmission:
         assert "What are your favourite cheeses?" in soup.text
         assert "Cheddar" in soup.text
         assert "Stilton" in soup.text
+
+        assert "When did you last buy some cheese" in soup.text
+        assert "1 January 2025" in soup.text

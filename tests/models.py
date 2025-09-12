@@ -19,6 +19,7 @@ from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 
 from app.common.collections.types import (
+    DateAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
@@ -342,7 +343,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         form = _FormFactory.create(collection=obj, title="Export test form", slug="export-test-form")
 
         # Assertion to remind us to add more question types here when we start supporting them
-        assert len(QuestionDataType) == 8, "If you have added a new question type, please update this factory."
+        assert len(QuestionDataType) == 9, "If you have added a new question type, please update this factory."
 
         # Create a question of each supported type
         q1 = _QuestionFactory.create(
@@ -384,6 +385,12 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             _DataSourceItemFactory.build(data_source=q8.data_source, key=key, label=label)
             for key, label in [("cheddar", "Cheddar"), ("brie", "Brie"), ("stilton", "Stilton")]
         ]
+        q9 = _QuestionFactory.create(
+            name="Last cheese purchase date",
+            form=form,
+            data_type=QuestionDataType.DATE,
+            text="When did you last buy some cheese?",
+        )
 
         def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
             for _ in range(0, count):
@@ -422,6 +429,11 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                                 {"key": q8.data_source.items[0].key, "label": q8.data_source.items[0].label},
                                 {"key": q8.data_source.items[-1].key, "label": q8.data_source.items[-1].label},
                             ]
+                        ).get_value_for_submission(),
+                        str(q9.id): DateAnswer(
+                            answer=datetime.datetime.strptime(faker.Faker().date(), "%Y-%m-%d").date()
+                            if use_random_data
+                            else datetime.date(2025, 1, 1)
                         ).get_value_for_submission(),
                     },
                 )
