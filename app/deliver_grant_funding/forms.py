@@ -28,6 +28,7 @@ from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import GroupDisplayOptions, MultilineTextInputRows, NumberInputWidths, QuestionDataType
 from app.common.expressions.registry import get_supported_form_questions
+from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
@@ -447,7 +448,7 @@ class ConditionSelectQuestionForm(FlaskForm):
         "Which answer should the condition check?",
         choices=[],
         validators=[DataRequired("Select a question")],
-        widget=GovSelect(),
+        widget=MHCLGAccessibleAutocomplete(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
@@ -456,9 +457,11 @@ class ConditionSelectQuestionForm(FlaskForm):
 
         self.target_question = question
 
-        self.question.choices = [
-            (question.id, f"{question.text} ({question.name})") for question in get_supported_form_questions(question)
-        ]
+        if len(get_supported_form_questions(question)) > 0:
+            self.question.choices = [("", "")] + [
+                (str(question.id), f"{question.text} ({question.name})")
+                for question in get_supported_form_questions(question)
+            ]  # type: ignore[assignment]
 
     def validate_question(self: "ConditionSelectQuestionForm", field: "Field") -> None:
         depends_on_question = get_question_by_id(self.question.data)
