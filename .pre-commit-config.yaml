@@ -33,6 +33,7 @@ repos:
     rev: v2.4
     hooks:
       - id: import-linter
+        language: python
 
   - repo: local
     hooks:
