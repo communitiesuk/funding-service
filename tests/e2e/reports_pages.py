@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import re
 import tempfile
 from typing import cast
@@ -16,6 +17,7 @@ from app.common.data.types import (
 from app.common.expressions.managed import (
     AnyOf,
     Between,
+    BetweenDates,
     GreaterThan,
     LessThan,
     ManagedExpression,
@@ -36,6 +38,15 @@ class ReportsBasePage:
         self.domain = domain
         self.heading = heading
         self.grant_name = grant_name
+
+    @classmethod
+    def fill_in_date_fields(cls, date_group: Locator, date_to_complete: datetime.date) -> None:
+        date_group.get_by_label("Day").click()
+        date_group.get_by_label("Day").fill(str(date_to_complete.day))
+        date_group.get_by_label("Month").click()
+        date_group.get_by_label("Month").fill(str(date_to_complete.month))
+        date_group.get_by_label("Year").click()
+        date_group.get_by_label("Year").fill(str(date_to_complete.year))
 
 
 class GrantReportsPage(ReportsBasePage):
@@ -571,6 +582,16 @@ class AddValidationPage(ReportsBasePage):
                     self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
                 if managed_validation.maximum_inclusive:
                     self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+            case ManagedExpressionsEnum.BETWEEN_DATES:
+                managed_validation = cast(BetweenDates, managed_validation)
+                earliest_date_group = self.page.get_by_role("group", name="Earliest date")
+                ReportsBasePage.fill_in_date_fields(earliest_date_group, managed_validation.earliest_value)
+                if managed_validation.earliest_inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the earliest date is allowed").check()
+                latest_date_group = self.page.get_by_role("group", name="Latest date")
+                ReportsBasePage.fill_in_date_fields(latest_date_group, managed_validation.latest_value)
+                if managed_validation.latest_inclusive:
+                    self.page.get_by_role("checkbox", name="An answer of exactly the latest date is allowed").check()
 
     def click_managed_validation_type(self, managed_validation: ManagedExpression) -> None:
         self.page.get_by_role("radio", name=managed_validation._key.value).click()
@@ -883,12 +904,9 @@ class RunnerQuestionPage(ReportsBasePage):
             else:
                 self.page.get_by_role("radio", name=answer).click()
         elif question_type == QuestionDataType.DATE:
-            self.page.get_by_role("textbox", name="Day").click()
-            self.page.get_by_role("textbox", name="Day").fill(answer[2])
-            self.page.get_by_role("textbox", name="Month").click()
-            self.page.get_by_role("textbox", name="Month").fill(answer[1])
-            self.page.get_by_role("textbox", name="Year").click()
-            self.page.get_by_role("textbox", name="Year").fill(answer[0])
+            ReportsBasePage.fill_in_date_fields(
+                self.page.get_by_role("group", name=question_text), datetime.date(*[int(a) for a in answer])
+            )
         else:
             self.page.get_by_role("textbox", name=question_text).fill(answer)
 

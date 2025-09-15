@@ -758,7 +758,7 @@ class BetweenDates(ManagedExpression):
         #         property on the model
         # todo: make this use expression evaluation/interpolation rather than f-strings
         return (
-            f"The {self.referenced_question.name} must be between "
+            f"The answer must be between "
             f"{format_date_short(self.earliest_value)}{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'}"
             f" and {format_date_short(self.latest_value)}{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
         )

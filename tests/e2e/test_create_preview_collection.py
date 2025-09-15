@@ -19,6 +19,7 @@ from app.common.data.types import (
 from app.common.expressions.managed import (
     AnyOf,
     Between,
+    BetweenDates,
     GreaterThan,
     IsNo,
     IsYes,
@@ -74,20 +75,27 @@ class QuestionGroupDict(TypedDict):
     questions: list[QuestionDict]
 
 
-questions_to_test = {  # }: dict[str, TQuestionToTest] = {
-    "date": {
-        "type": QuestionDataType.DATE,
-        "text": "Enter a date",
-        "name": "date entered",
-        "answers": [
-            # _QuestionResponse(
-            #     ["2003", "2", "01"],
-            #     "The date must be between 01 January 2020 (inclusive) and 01 January 2025 (exclusive)",
-            # ),
+TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
+
+questions_to_test: dict[str, TQuestionToTest] = {
+    "date": QuestionDict(
+        type=QuestionDataType.DATE,
+        text="Enter a date",
+        answers=[
+            _QuestionResponse(
+                ["2003", "2", "01"],
+                "The answer must be between 1 January 2020 (inclusive) and 1 January 2025 (exclusive)",
+            ),
             _QuestionResponse(["2022", "04", "05"]),
         ],
-        "condition": None,
-    },
+        validation=BetweenDates(
+            question_id=uuid.uuid4(),
+            earliest_value=datetime.date(2020, 1, 1),
+            earliest_inclusive=True,
+            latest_value=datetime.date(2025, 1, 1),
+            latest_inclusive=False,
+        ),
+    ),
     "prefix-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter the total cost as a number",
