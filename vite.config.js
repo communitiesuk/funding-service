@@ -21,10 +21,10 @@ export default defineConfig({
     preprocessorOptions: {
       scss: {
         silenceDeprecations: [
-          "mixed-decls",
           "global-builtin",
           "slash-div",
           "import",
+          "color-functions",
         ],
       },
     },
