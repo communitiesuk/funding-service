@@ -882,6 +882,13 @@ class RunnerQuestionPage(ReportsBasePage):
                 element.press("Enter")
             else:
                 self.page.get_by_role("radio", name=answer).click()
+        elif question_type == QuestionDataType.DATE:
+            self.page.get_by_role("textbox", name="Day").click()
+            self.page.get_by_role("textbox", name="Day").fill(answer[2])
+            self.page.get_by_role("textbox", name="Month").click()
+            self.page.get_by_role("textbox", name="Month").fill(answer[1])
+            self.page.get_by_role("textbox", name="Year").click()
+            self.page.get_by_role("textbox", name="Year").fill(answer[0])
         else:
             self.page.get_by_role("textbox", name=question_text).fill(answer)
 
