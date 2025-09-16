@@ -9,6 +9,8 @@
       {{ form.prefix(params={"classes": "govuk-input--width-10", "label": {"classes": "govuk-!-font-weight-bold"} }) }}
       {{ form.suffix(params={"classes": "govuk-input--width-10", "label": {"classes": "govuk-!-font-weight-bold"} }) }}
       {{ form.width(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+    {% elif data_type == enum.question_type.DATE %}
+      {{ form.approximate_date(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
     {% endif %}
   {% endset %}
 
