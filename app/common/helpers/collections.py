@@ -84,9 +84,36 @@ class SubmissionHelper:
             self._get_all_questions_are_answered_for_form
         )
 
+        self.cached_evaluation_context = SubmissionHelper.build_expression_context(
+            collection=self.submission.collection,
+            submission_helper=self,
+        )
+
     @classmethod
     def load(cls, submission_id: uuid.UUID) -> "SubmissionHelper":
         return cls(get_submission(submission_id, with_full_schema=True))
+
+    @staticmethod
+    def build_expression_context(
+        collection: "Collection",
+        submission_helper: Optional["SubmissionHelper"] = None,
+    ) -> ExpressionContext:
+        """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
+        if submission_helper and submission_helper.collection.id != collection.id:
+            raise ValueError("Mismatch between collection and submission.collection")
+
+        submission_data = (
+            {
+                question.safe_qid: answer.get_value_for_expression()
+                for form in submission_helper.collection.forms
+                for question in form.cached_questions
+                if (answer := submission_helper._get_answer_for_question(question.id)) is not None
+            }
+            if submission_helper
+            else {}
+        )
+
+        return ExpressionContext(submission_data=submission_data)
 
     @property
     def grant(self) -> "Grant":
@@ -109,16 +136,6 @@ class SubmissionHelper:
             if (answer := self.cached_get_answer_for_question(question.id)) is not None
         }
         return form_data
-
-    @cached_property
-    def cached_expression_context(self) -> ExpressionContext:
-        submission_data = {
-            question.safe_qid: answer.get_value_for_expression()
-            for form in self.collection.forms
-            for question in form.cached_questions
-            if (answer := self.cached_get_answer_for_question(question.id)) is not None
-        }
-        return ExpressionContext(submission_data=submission_data)
 
     @property
     def all_visible_questions(self) -> dict[UUID, "Question"]:
@@ -261,7 +278,7 @@ class SubmissionHelper:
         return [
             question
             for question in parent.cached_questions
-            if self.is_component_visible(question, self.cached_expression_context)
+            if self.is_component_visible(question, self.cached_evaluation_context)
         ]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:

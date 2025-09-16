@@ -61,7 +61,7 @@ class FormRunner:
             self.form = self.component.form
             _QuestionForm = build_question_form(
                 self.questions,
-                self.submission.cached_expression_context,
+                self.submission.cached_evaluation_context,
             )
             self._question_form = _QuestionForm(data=self.submission.cached_form_data)
 
@@ -102,7 +102,12 @@ class FormRunner:
         elif form_id:
             form = submission.get_form(form_id)
 
-        return cls(submission=submission, question=question, form=form, source=source)
+        return cls(
+            submission=submission,
+            question=question,
+            form=form,
+            source=source,
+        )
 
     @property
     def question_form(self) -> "DynamicQuestionForm":
@@ -195,9 +200,7 @@ class FormRunner:
         if not self.component:
             raise ValueError("Question context not set")
 
-        context = self.submission.cached_expression_context
-
-        if not self.submission.is_component_visible(self.component, context):
+        if not self.submission.is_component_visible(self.component, self.submission.cached_evaluation_context):
             self._valid = False
         elif self.submission.is_completed:
             self._valid = False

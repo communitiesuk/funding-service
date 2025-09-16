@@ -351,7 +351,7 @@ class TestSubmissionHelper:
             question = factories.question.build()
             helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
 
-            assert helper.is_component_visible(question, helper.cached_expression_context) is True
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
 
         def test_is_component_visible_not_visible_with_failing_condition(self, factories):
             question = factories.question.build()
@@ -359,7 +359,7 @@ class TestSubmissionHelper:
 
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
 
-            assert helper.is_component_visible(question, helper.cached_expression_context) is False
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
 
         def test_is_component_visible_visible_with_passing_condition(self, factories):
             question = factories.question.build()
@@ -367,7 +367,7 @@ class TestSubmissionHelper:
 
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
 
-            assert helper.is_component_visible(question, helper.cached_expression_context) is True
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
 
         def test_is_component_visible_not_visible_with_nested_conditions(self, factories):
             group = factories.group.build()
@@ -377,17 +377,17 @@ class TestSubmissionHelper:
 
             expression = factories.expression.build(question=group, type_=ExpressionType.CONDITION, statement="False")
 
-            assert helper.is_component_visible(question, helper.cached_expression_context) is True
-            assert helper.is_component_visible(group, helper.cached_expression_context) is False
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(group, helper.cached_evaluation_context) is False
 
             # when nested sub-components inherit the property of their parents
             question.parent = group
-            assert helper.is_component_visible(question, helper.cached_expression_context) is False
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
 
             # when further nested this still applies
             question.parent = sub_group
-            assert helper.is_component_visible(question, helper.cached_expression_context) is False
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
 
             # if the parents condition changes this is reflected
             expression.statement = "True"
-            assert helper.is_component_visible(question, helper.cached_expression_context) is True
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
