@@ -12,7 +12,6 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextArea,
     GovTextInput,
 )
-from immutabledict import immutabledict
 from wtforms import DateField, Field, Form, RadioField
 from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.numeric import IntegerField
@@ -20,7 +19,7 @@ from wtforms.fields.simple import EmailField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
 
 from app.common.data.models import Expression, Question
-from app.common.data.types import QuestionDataType, immutable_json_flat_scalars
+from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext, evaluate
 from app.common.forms.fields import MHCLGAccessibleAutocomplete, MHCLGCheckboxesInput, MHCLGRadioInput
 from app.common.forms.validators import FinalOptionExclusive, URLWithoutProtocol, WordRange
@@ -39,19 +38,19 @@ class DynamicQuestionForm(FlaskForm):
     _questions: list[Question]
     submit: SubmitField
 
-    def _build_form_context(self) -> immutable_json_flat_scalars:
+    def _build_form_context(self) -> dict[str, Any]:
         """
-        Extract all of the data from the form and return an immutabledict suitable for setting on an expression
-        context (ExpressionContext.form_context). This data will override any data from the existing submission
-        to allow for evaluations against the most up-to-date data (ie from the submission as a whole, plus the data
-        the user has just submitted as part of this form.
+        Extract all of the data from the form and return a dict suitable for using in an ExpressionContext instance.
+        This data will override any data from the existing submission to allow for evaluations against the most
+        up-to-date data (ie from the submission as a whole, plus the data the user has just submitted as part of this
+        form.
         """
         # fixme: when adding multi-field/complex question support, we'll need to think more carefully about
         #        transforming the data here to a format that matches our serialised submission format (which passes
         #        through pydantic models. Otherwise we risk exposing different views of the data to the expressions
         #        system (fully serialised+normalised in the submission context, and more raw in the form context).
         data = {k: v for k, v in self.data.items() if k not in {"csrf_token", "submit"}}
-        return immutabledict(data)
+        return data
 
     def validate(self, extra_validators: Mapping[str, list[Any]] | None = None) -> Any:
         """
@@ -68,7 +67,7 @@ class DynamicQuestionForm(FlaskForm):
         extra_validators = defaultdict(list, extra_validators or {})
 
         # Inject the latest data from this form submission into the context for validators to use.
-        self._expression_context.form_context = self._build_form_context()
+        self._expression_context.update_submission_context_with_form_context(self._build_form_context())
         for q in self._questions:
             # only add custom validators if that question hasn't already failed basic validation
             # (it's may not be well formed data of that type)

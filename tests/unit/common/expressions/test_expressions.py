@@ -1,13 +1,13 @@
 from unittest.mock import Mock
 
 import pytest
-from immutabledict import immutabledict
 
 from app.common.data.models import Expression
 from app.common.expressions import (
     DisallowedExpression,
     ExpressionContext,
     InvalidEvaluationResult,
+    SubmissionContext,
     UndefinedVariableInExpression,
     _evaluate_expression_with_context,
     evaluate,
@@ -95,7 +95,10 @@ class TestEvaluate:
 
     def test_additional_context(self):
         assert (
-            evaluate(Expression(statement="answer == 1"), context=ExpressionContext(immutabledict({"answer": 1})))
+            evaluate(
+                Expression(statement="answer == 1"),
+                context=ExpressionContext(SubmissionContext(submission_data={"answer": 1})),
+            )
             is True
         )
 

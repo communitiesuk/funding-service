@@ -1,10 +1,8 @@
 import ast
-from typing import TYPE_CHECKING, Any, Iterator, cast
+from collections import ChainMap
+from typing import TYPE_CHECKING, Any, MutableMapping
 
 import simpleeval
-from immutabledict import immutabledict
-
-from app.common.data.types import immutable_json_flat_scalars, json_flat_scalars, scalars
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression
@@ -26,132 +24,59 @@ class InvalidEvaluationResult(ManagedExpressionError):
     pass
 
 
-class ExpressionContext(immutable_json_flat_scalars):
+class SubmissionContext(ChainMap[str, Any]):
+    def __init__(self, *, form_data: dict[str, Any] | None = None, submission_data: dict[str, Any] | None = None):
+        self.submission_data = submission_data or {}
+        self.form_data = form_data or {}
+        super().__init__(self.form_data, self.submission_data)
+
+    def set_form_data(self, form_data: dict[str, Any]) -> None:
+        self.maps = [form_data, self.submission_data]
+
+
+class ExpressionContext(ChainMap[str, Any]):
     """
-    A thin wrapper around three immutable dicts, where access to keys is done in priority order:
-    - Keys from the `form` come first (data just submitted by the user answering some questions)
-    - Keys from the `submission` come next (all data currently held about a submission)
-    - Keys from the `expression` come last (DB expression.context)
+    This handles all of the data that we want to be able to pass into an Expression when evaluating it. As of writing,
+    this is two things:
 
-    The only overlap should be between `form` and `submission`, where `form` holds the latest data and `submission`
-    holds the previous answer (until the page is saved).
+    1. the answers provided so far for a submission
+    2. the expression's arbitrary `context` field
 
-    The main reason for this is to treat each of these things as immutable, but overlay them. To do this with a standard
-    dict would mean creating lots of copies/merges/duplicates and juggling them.
+    When thinking about the answers for a submission in the context of an HTTP request, there are two sources for this:
+
+    1. The current state of the submission from the database.
+    2. Any form data in a POST request trying to update the submission.
+
+    When evaluating expressions, we care about the latest view of the world, so form data POST'd in the current request
+    should override any data from the database. We do this via SubmissionContext, which overlays the form data on
+    top of the submission DB data using a ChainMap.
     """
 
     def __init__(
         self,
-        from_form: immutable_json_flat_scalars | None = None,
-        from_submission: immutable_json_flat_scalars | None = None,
-        from_expression: immutable_json_flat_scalars | None = None,
-        *args: Any,
-        **kwargs: Any,
+        submission_context: SubmissionContext | None = None,
+        expression_context: dict[str, Any] | None = None,
     ):
-        # TODO: we will probably end up with some of these dicts having nested data (eg for complex questions like
-        #       address; so `scalars` likely won't last forever.
-        super().__init__(*args, **kwargs)
+        self._submission_context: SubmissionContext = submission_context or SubmissionContext()
+        self._expression_context = expression_context or {}
 
-        if from_form is None:
-            from_form = cast(immutable_json_flat_scalars, immutabledict())
-        if from_submission is None:
-            from_submission = cast(immutable_json_flat_scalars, immutabledict())
-        if from_expression is None:
-            from_expression = cast(immutable_json_flat_scalars, immutabledict())
-
-        self._form_context: immutable_json_flat_scalars = from_form
-        self._submission_context: immutable_json_flat_scalars = from_submission
-        self._expression_context: immutable_json_flat_scalars = from_expression
-        self._update_keys()
+        super().__init__(*self._ordered_contexts)
 
     @property
-    def form_context(self) -> immutable_json_flat_scalars:
-        return self._form_context
-
-    @form_context.setter
-    def form_context(self, value: immutable_json_flat_scalars) -> None:
-        self._form_context = value
-        self._update_keys()
+    def _ordered_contexts(self) -> list[MutableMapping[str, Any]]:
+        return list(filter(None, [self._submission_context, self.expression_context]))
 
     @property
-    def submission_context(self) -> immutable_json_flat_scalars:
-        return self._submission_context
-
-    @submission_context.setter
-    def submission_context(self, value: immutable_json_flat_scalars) -> None:
-        self._submission_context = value
-        self._update_keys()
-
-    @property
-    def expression_context(self) -> immutable_json_flat_scalars:
+    def expression_context(self) -> dict[str, Any]:
         return self._expression_context
 
     @expression_context.setter
-    def expression_context(self, value: immutable_json_flat_scalars) -> None:
-        self._expression_context = value
-        self._update_keys()
+    def expression_context(self, expression_context: dict[str, Any]) -> None:
+        self._expression_context = expression_context
+        self.maps = self._ordered_contexts
 
-    def _update_keys(self) -> None:
-        _form_context: json_flat_scalars = cast(json_flat_scalars, self.form_context or {})
-        _submission_context: json_flat_scalars = cast(json_flat_scalars, self.submission_context or {})
-        _expression_context: json_flat_scalars = cast(json_flat_scalars, self.expression_context or {})
-
-        # note: This feels like it could just be a set, or that a set is a more appropriate data structure. However I've
-        # chosen a dict on purpose because: sets in python are unordered; dicts in python are ordered by insertion
-        # time. ExpressionContext is meant to look and feel like a plain old dict, so maintaining the ordering has been
-        # done semi-intentionally. Of course, there is a slight quirk - ordering is based on both insertion time _and_
-        # the layering. All keys from form context will come first, then any new keys from submission context, then any
-        # new keys from expression context. It may or may not be useful to try to 'maintain' ordering given this, but
-        # maybe it's still "better" than fully-random set ordering.
-        _keys: dict[str, None] = dict()
-
-        for _dict in [_form_context, _submission_context, _expression_context]:
-            for _key in _dict:
-                _keys.setdefault(_key, None)
-
-        self._keys = _keys
-
-    def __getitem__(self, key: str) -> scalars | None:
-        if key in self.form_context:
-            return self.form_context[key]
-        elif key in self.submission_context:
-            return self.submission_context[key]
-        elif key in self.expression_context:
-            return self.expression_context[key]
-        else:
-            raise KeyError(key)
-
-    def get(self, key: str, default: scalars | None = None) -> scalars | None:  # type: ignore[override]
-        try:
-            return self[key]
-        except KeyError:
-            return default
-
-    def __contains__(self, key: object) -> bool:
-        return key in self._keys
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._keys)
-
-    def __len__(self) -> int:
-        return len(self._keys)
-
-    def __repr__(self) -> str:
-        items = {key: self[key] for key in self._keys}
-        return f"ExpressionContext({items})"
-
-    def __str__(self) -> str:
-        items = {key: self[key] for key in self._keys}
-        return str(items)
-
-    def keys(self) -> list[str]:  # type: ignore[override]
-        return list(self._keys)
-
-    def values(self) -> list[scalars | None]:  # type: ignore[override]
-        return [self[key] for key in self._keys]
-
-    def items(self) -> list[tuple[str, scalars | None]]:  # type: ignore[override]
-        return [(key, self[key]) for key in self._keys]
+    def update_submission_context_with_form_context(self, form_context: dict[str, Any]) -> None:
+        self._submission_context.set_form_data(form_context)
 
 
 def _evaluate_expression_with_context(expression: "Expression", context: ExpressionContext | None = None) -> Any:
@@ -167,7 +92,7 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     """
     if context is None:
         context = ExpressionContext()
-    context.expression_context = immutabledict(expression.context or {})
+    context.expression_context = expression.context or {}
 
     evaluator = simpleeval.EvalWithCompoundTypes(names=context, functions=expression.required_functions)  # type: ignore[no-untyped-call]
 
