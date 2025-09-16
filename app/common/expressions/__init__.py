@@ -1,4 +1,5 @@
 import ast
+import re
 from collections import ChainMap
 from typing import TYPE_CHECKING, Any, MutableMapping
 
@@ -127,8 +128,20 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     return result
 
 
-# todo: interpolate an expression (eg for injecting dynamic data into question text, error messages, etc)
-def interpolate(expression: "Expression", context: ExpressionContext | None) -> Any: ...
+def interpolate(text: str, context: ExpressionContext | None) -> str:
+    from app.common.data.models import Expression
+
+    def _interpolate(matchobj: re.Match[Any]) -> str:
+        expr = Expression(statement=matchobj.group(0))
+        value = _evaluate_expression_with_context(expr, context)
+
+        return str(value)
+
+    return re.sub(
+        r"\(\(.+?\)\)",
+        _interpolate,
+        text,
+    )
 
 
 def evaluate(expression: "Expression", context: ExpressionContext | None = None) -> bool:

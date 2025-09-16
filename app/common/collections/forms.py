@@ -20,7 +20,7 @@ from wtforms.validators import DataRequired, Email, InputRequired, Optional, Val
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType
-from app.common.expressions import ExpressionContext, evaluate
+from app.common.expressions import ExpressionContext, evaluate, interpolate
 from app.common.forms.fields import (
     MHCLGAccessibleAutocomplete,
     MHCLGApproximateDateInput,
@@ -39,7 +39,7 @@ _accepted_fields = EmailField | StringField | IntegerField | RadioField | Select
 # by `build_question_form`. This gives us nicer intellisense/etc. The downside is that this class needs to be kept
 # in sync manually with the one inside `build_question_form`.
 class DynamicQuestionForm(FlaskForm):
-    _expression_context: ExpressionContext
+    _evaluation_context: ExpressionContext
     _questions: list[Question]
     submit: SubmitField
 
@@ -74,13 +74,13 @@ class DynamicQuestionForm(FlaskForm):
         # Inject the latest data from this form submission into the context for validators to use. This will override
         # any existing data for expression contexts from the current state of the submission with the data submitted
         # in this form by the user.
-        self._expression_context.update_submission_answers(self._extract_submission_answers())
+        self._evaluation_context.update_submission_answers(self._extract_submission_answers())
 
         for q in self._questions:
             # only add custom validators if that question hasn't already failed basic validation
             # (it's may not be well formed data of that type)
             if not self[q.safe_qid].errors:
-                extra_validators[q.safe_qid].extend(build_validators(q, self._expression_context))
+                extra_validators[q.safe_qid].extend(build_validators(q, self._evaluation_context))
 
         # Do a second validation pass that includes all of our managed/custom validation. This has a small bit of
         # redundancy because it will run the data validation checks again, but it means that all of our own
@@ -118,10 +118,13 @@ def build_validators(question: Question, expression_context: ExpressionContext) 
     return validators
 
 
-def build_question_form(questions: list[Question], expression_context: ExpressionContext) -> type[DynamicQuestionForm]:  # noqa: C901
+def build_question_form(  # noqa: C901
+    questions: list[Question], evaluation_context: ExpressionContext, interpolation_context: ExpressionContext
+) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
-        _expression_context = expression_context
+        _evaluation_context = evaluation_context
+        _interpolation_context = interpolation_context
         _questions = questions
 
         submit = SubmitField("Continue", widget=GovSubmitInput())
@@ -131,8 +134,8 @@ def build_question_form(questions: list[Question], expression_context: Expressio
         match question.data_type:
             case QuestionDataType.EMAIL:
                 field = EmailField(
-                    label=question.text,
-                    description=question.hint or "",
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovTextInput(),
                     validators=[
                         DataRequired(f"Enter the {question.name}"),
@@ -142,15 +145,15 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                 )
             case QuestionDataType.TEXT_SINGLE_LINE:
                 field = StringField(
-                    label=question.text,
-                    description=question.hint or "",
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovTextInput(),
                     validators=[DataRequired(f"Enter the {question.name}")],
                 )
             case QuestionDataType.TEXT_MULTI_LINE:
                 field = StringField(
-                    label=question.text,
-                    description=question.hint or "",
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovCharacterCount() if question.presentation_options.word_limit else GovTextArea(),
                     validators=[DataRequired(f"Enter the {question.name}")]
                     + (
@@ -165,15 +168,15 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                 )
             case QuestionDataType.INTEGER:
                 field = IntegerField(
-                    label=question.text,
-                    description=question.hint or "",
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovTextInput(),
                     validators=[InputRequired(f"Enter the {question.name}")],
                 )
             case QuestionDataType.YES_NO:
                 field = RadioField(
-                    label=question.text,
-                    description=question.hint or "",
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovRadioInput(),
                     choices=[(1, "Yes"), (0, "No")],
                     validators=[InputRequired("Select yes or no")],
@@ -185,8 +188,8 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                         question.data_source.items[-1].label if question.separate_option_if_no_items_match else None
                     )
                     field = SelectField(
-                        label=question.text,
-                        description=question.hint or "",
+                        label=interpolate(text=question.text, context=interpolation_context),
+                        description=interpolate(text=question.hint or "", context=interpolation_context),
                         widget=MHCLGAccessibleAutocomplete(fallback_option=fallback_option),
                         choices=[("", "")] + [(item.key, item.label) for item in question.data_source.items],
                         validators=[DataRequired("Select an option")],
@@ -194,8 +197,8 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                 else:
                     choices = [(item.key, item.label) for item in question.data_source.items]
                     field = RadioField(
-                        label=question.text,
-                        description=question.hint or "",
+                        label=interpolate(text=question.text, context=interpolation_context),
+                        description=interpolate(text=question.hint or "", context=interpolation_context),
                         widget=MHCLGRadioInput(
                             insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
                         ),
@@ -203,8 +206,8 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                     )
             case QuestionDataType.URL:
                 field = StringField(
-                    label=question.text,
-                    description=question.hint or "",
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovTextInput(),
                     validators=[
                         DataRequired(f"Enter the {question.name}"),
@@ -224,8 +227,8 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                     validators.append(FinalOptionExclusive(question_name=question.name))
 
                 field = SelectMultipleField(
-                    label=question.text,
-                    description=question.hint or "",
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=MHCLGCheckboxesInput(
                         insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
                     ),
@@ -235,8 +238,8 @@ def build_question_form(questions: list[Question], expression_context: Expressio
 
             case QuestionDataType.DATE:
                 field = DateField(
-                    label=question.text,
-                    description=question.hint or "",
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovDateInput() if not question.approximate_date else MHCLGApproximateDateInput(),
                     validators=[DataRequired(f"Enter the {question.name}")],
                     format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]

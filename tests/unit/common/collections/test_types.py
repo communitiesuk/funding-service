@@ -45,8 +45,11 @@ class TestSubmissionAnswerRootModels:
     def test_get_value_for_form(self, model, data, expected_text_export):
         assert model(data).get_value_for_form() == data
 
-    def test_get_value_for_expression(self, model, data, expected_text_export):
-        assert model(data).get_value_for_expression() == data
+    def test_get_value_for_evaluation(self, model, data, expected_text_export):
+        assert model(data).get_value_for_evaluation() == data
+
+    def test_get_value_for_interpolation(self, model, data, expected_text_export):
+        assert model(data).get_value_for_interpolation() == expected_text_export
 
     def test_get_value_for_text_export(self, model, data, expected_text_export):
         assert model(data).get_value_for_text_export() == expected_text_export
@@ -86,14 +89,26 @@ class TestSubmissionAnswerBaseModels:
         assert model(**data).get_value_for_form() == form_value
 
     @pytest.mark.parametrize(
-        "model, data, expression_value",
+        "model, data, evaluation_value",
         (
             (IntegerAnswer, {"value": 50}, 50),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "key"),
         ),
     )
-    def test_get_value_for_expression(self, model, data, expression_value):
-        assert model(**data).get_value_for_expression() == expression_value
+    def test_get_value_for_evaluation(self, model, data, evaluation_value):
+        assert model(**data).get_value_for_evaluation() == evaluation_value
+
+    @pytest.mark.parametrize(
+        "model, data, interpolation_value",
+        (
+            (IntegerAnswer, {"value": 50}, "50"),
+            (IntegerAnswer, {"value": 9_999, "prefix": "£"}, "£9,999"),
+            (IntegerAnswer, {"value": 1_000_000, "suffix": "kgs"}, "1,000,000kgs"),
+            (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "label"),
+        ),
+    )
+    def test_get_value_for_interpolation(self, model, data, interpolation_value):
+        assert model(**data).get_value_for_interpolation() == interpolation_value
 
     @pytest.mark.parametrize(
         "model, data, text_export_value",

@@ -7,6 +7,7 @@ from flask import abort, url_for
 from app.common.collections.forms import CheckYourAnswersForm, build_question_form
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, SubmissionStatusEnum, TRunnerUrlMap
+from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 
@@ -61,7 +62,8 @@ class FormRunner:
             self.form = self.component.form
             _QuestionForm = build_question_form(
                 self.questions,
-                self.submission.cached_evaluation_context,
+                evaluation_context=self.submission.cached_evaluation_context,
+                interpolation_context=self.submission.cached_interpolation_context,
             )
             self._question_form = _QuestionForm(data=self.submission.cached_form_data)
 
@@ -131,6 +133,9 @@ class FormRunner:
 
         for question in self.questions:
             self.submission.submit_answer_for_question(question.id, self.question_form)
+
+    def interpolate(self, text: str) -> str:
+        return interpolate(text, context=self.submission.cached_interpolation_context)
 
     def save_is_form_completed(self, user: "User") -> bool:
         if not self.form:

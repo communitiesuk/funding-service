@@ -5,7 +5,7 @@ from datetime import datetime
 from functools import cached_property, lru_cache
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Literal, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -87,6 +87,14 @@ class SubmissionHelper:
         self.cached_evaluation_context = SubmissionHelper.build_expression_context(
             collection=self.submission.collection,
             submission_helper=self,
+            fallback_question_names=False,
+            mode="evaluation",
+        )
+        self.cached_interpolation_context = SubmissionHelper.build_expression_context(
+            collection=self.submission.collection,
+            submission_helper=self,
+            fallback_question_names=True,
+            mode="interpolation",
         )
 
     @classmethod
@@ -96,15 +104,24 @@ class SubmissionHelper:
     @staticmethod
     def build_expression_context(
         collection: "Collection",
+        fallback_question_names: bool,
+        mode: Literal["evaluation", "interpolation"],
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> ExpressionContext:
-        """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
+        """Pulls together all of the context that we want to be able to expose to an expression when evaluating it.
+
+        The placement of this on SubmissionHelper _does_ feel a little odd, as we sometimes will build this context
+        _without_ an actual submission (on the form designer side of Deliver grant funding), but _generally_ we'll
+        be thinking about evaluating expressions in the context of a submission, so for now it lives here.
+        """
         if submission_helper and submission_helper.collection.id != collection.id:
             raise ValueError("Mismatch between collection and submission.collection")
 
         submission_data = (
             {
-                question.safe_qid: answer.get_value_for_expression()
+                question.safe_qid: (
+                    answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation()
+                )
                 for form in submission_helper.collection.forms
                 for question in form.cached_questions
                 if (answer := submission_helper._get_answer_for_question(question.id)) is not None
@@ -112,6 +129,11 @@ class SubmissionHelper:
             if submission_helper
             else {}
         )
+
+        if fallback_question_names:
+            for form in collection.forms:
+                for question in form.cached_questions:
+                    submission_data.setdefault(question.safe_qid, f"(({question.name}))")
 
         return ExpressionContext(submission_data=submission_data)
 
