@@ -111,7 +111,7 @@ def build_validators(question: Question, expression_context: ExpressionContext) 
     return validators
 
 
-def build_question_form(questions: list[Question], expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
+def build_question_form(questions: list[Question], expression_context: ExpressionContext) -> type[DynamicQuestionForm]:  # noqa: C901
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
         _expression_context = expression_context

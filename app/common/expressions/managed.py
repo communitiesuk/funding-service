@@ -654,17 +654,19 @@ class IsBefore(ManagedExpression):
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.latest_value.validators = [DataRequired("Enter the date which this answer must come before")]
+        form.latest_value.validators = [DataRequired("Enter the date which this answer must come before")]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsBefore":
         return IsBefore(
-            question_id=question.id, latest_value=form.latest_value.data, inclusive=form.latest_value_inclusive.data
-        )  # ty: ignore[unresolved-attribute]
+            question_id=question.id,
+            latest_value=form.latest_value.data,  # ty: ignore[unresolved-attribute]
+            inclusive=form.latest_value_inclusive.data,  # ty: ignore[unresolved-attribute]
+        )
 
     @property
     def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
-        return dict(date=datetime.date)
+        return {"date": datetime.date}
 
 
 @register_managed_expression
@@ -723,13 +725,13 @@ class IsAfter(ManagedExpression):
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsAfter":
         return IsAfter(
             question_id=question.id,
-            earliest_value=form.earliest_value.data,
-            inclusive=form.earliest_value_inclusive.data,
-        )  # ty: ignore[unresolved-attribute]
+            earliest_value=form.earliest_value.data,  # ty: ignore[unresolved-attribute]
+            inclusive=form.earliest_value_inclusive.data,  # ty: ignore[unresolved-attribute]
+        )
 
     @property
     def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
-        return dict(date=datetime.date)
+        return {"date": datetime.date}
 
 
 @register_managed_expression
@@ -832,7 +834,7 @@ class BetweenDates(ManagedExpression):
 
     @property
     def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
-        return dict(date=datetime.date)
+        return {"date": datetime.date}
 
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
