@@ -107,7 +107,7 @@
             form.render_question(
               question,
               params={
-                "label": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+                "label": {"classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
                 "classes": "govuk-!-width-full"
               }
             )
