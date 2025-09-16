@@ -20,6 +20,7 @@ services:
       - .:/app
       - /app/node_modules
       - '/app/.venv' # Don't overwrite this directory with local .venv because uv links won't translate in the container
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "5173:5173" # vite server
       - "8080:8080" # application
@@ -46,6 +47,7 @@ services:
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
       REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
       WERKZEUG_DEBUG_PIN: off
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
     depends_on:
       - db
     networks:
