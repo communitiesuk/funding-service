@@ -54,6 +54,7 @@ class QuestionDataType(enum.StrEnum):
     YES_NO = "Yes or no"
     RADIOS = "Select one from a list (radios)"
     CHECKBOXES = "Select one or more from a list (checkboxes)"
+    DATE = "A date"
 
     @staticmethod
     def coerce(value: Any) -> "QuestionDataType":
@@ -108,6 +109,9 @@ class ManagedExpressionsEnum(enum.StrEnum):
     IS_NO = "No"
     ANY_OF = "Any of"
     SPECIFICALLY = "Specifically"
+    IS_BEFORE = "Is before"
+    IS_AFTER = "Is after"
+    BETWEEN_DATES = "Between dates"
 
 
 class FormRunnerState(enum.StrEnum):

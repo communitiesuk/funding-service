@@ -1,7 +1,7 @@
 import csv
 import json
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from io import StringIO
 from unittest import mock
 
@@ -11,6 +11,7 @@ from immutabledict import immutabledict
 from app.common.collections.forms import build_question_form
 from app.common.collections.types import (
     NOT_ASKED,
+    DateAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
@@ -106,7 +107,7 @@ class TestSubmissionHelper:
             assert helper.cached_form_data == {}
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 8, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 9, "Update this test if adding new questions"
 
             form = factories.form.build()
             form_two = factories.form.build(collection=form.collection)
@@ -147,11 +148,15 @@ class TestSubmissionHelper:
                 data_type=QuestionDataType.CHECKBOXES,
                 data_source__items=[],
             )
-
             q8.data_source.items = [
                 factories.data_source_item.build(data_source=q8.data_source, key=key, label=label)
                 for key, label in [("cheddar", "Cheddar"), ("brie", "Brie"), ("stilton", "Stilton")]
             ]
+            q9 = factories.question.build(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429c"),
+                data_type=QuestionDataType.DATE,
+            )
 
             submission = factories.submission.build(
                 collection=form.collection,
@@ -166,6 +171,7 @@ class TestSubmissionHelper:
                     str(q8.id): MultipleChoiceFromListAnswer(
                         choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
                     ).get_value_for_submission(),
+                    str(q9.id): DateAnswer(answer=date(2003, 2, 1)).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -179,6 +185,7 @@ class TestSubmissionHelper:
                 "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
                 "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
                 "q_d696aebc49d24170a92fb6ef4299429b": ["cheddar", "stilton"],
+                "q_d696aebc49d24170a92fb6ef4299429c": date(2003, 2, 1),
             }
 
     class TestExpressionContext:
@@ -195,7 +202,7 @@ class TestSubmissionHelper:
             assert helper.cached_expression_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 8, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 9, "Update this test if adding new questions"
 
             form = factories.form.build()
             form_two = factories.form.build(collection=form.collection)
@@ -243,6 +250,11 @@ class TestSubmissionHelper:
                 factories.data_source_item.build(data_source=q8.data_source, key=key, label=label)
                 for key, label in [("cheddar", "Cheddar"), ("brie", "Brie"), ("stilton", "Stilton")]
             ]
+            q9 = factories.question.build(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429c"),
+                data_type=QuestionDataType.DATE,
+            )
 
             submission = factories.submission.build(
                 collection=form.collection,
@@ -257,6 +269,7 @@ class TestSubmissionHelper:
                     str(q8.id): MultipleChoiceFromListAnswer(
                         choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
                     ).get_value_for_submission(),
+                    str(q9.id): DateAnswer(answer=date(2000, 1, 1)).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -272,6 +285,7 @@ class TestSubmissionHelper:
                         "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
                         "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
                         "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
+                        "q_d696aebc49d24170a92fb6ef4299429c": date(2000, 1, 1),
                     }
                 )
             )
@@ -493,6 +507,7 @@ class TestCollectionHelper:
             "[Export test form] Email address",
             "[Export test form] Website address",
             "[Export test form] Favourite cheeses",
+            "[Export test form] Last cheese purchase date",
         ]
         expected_question_data = {}
         for _, submission in c_helper.submission_helpers.items():
@@ -610,6 +625,7 @@ class TestCollectionHelper:
             "[Export test form] Email address",
             "[Export test form] Website address",
             "[Export test form] Favourite cheeses",
+            "[Export test form] Last cheese purchase date",
         ]
         assert rows[1] == [
             c_helper.submissions[0].reference,
@@ -625,6 +641,7 @@ class TestCollectionHelper:
             "test@email.com",
             "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
             "Cheddar\nStilton",
+            "2025-01-01",
         ]
 
     def test_all_question_types_appear_correctly_in_json_export(self, factories):
@@ -659,6 +676,7 @@ class TestCollectionHelper:
                                 "Website address": "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
                                 "Your name": "test name",
                                 "Your quest": "Line 1\r\nline2\r\nline 3",
+                                "Last cheese purchase date": "2025-01-01",
                             },
                             "name": "Export test form",
                         }

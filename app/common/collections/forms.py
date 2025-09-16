@@ -6,13 +6,14 @@ from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
+    GovDateInput,
     GovRadioInput,
     GovSubmitInput,
     GovTextArea,
     GovTextInput,
 )
 from immutabledict import immutabledict
-from wtforms import Field, Form, RadioField
+from wtforms import DateField, Field, Form, RadioField
 from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField, SubmitField
@@ -24,7 +25,7 @@ from app.common.expressions import ExpressionContext, evaluate
 from app.common.forms.fields import MHCLGAccessibleAutocomplete, MHCLGCheckboxesInput, MHCLGRadioInput
 from app.common.forms.validators import FinalOptionExclusive, URLWithoutProtocol, WordRange
 
-_accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField | SelectMultipleField
+_accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField | SelectMultipleField | DateField
 
 
 # FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
@@ -110,7 +111,7 @@ def build_validators(question: Question, expression_context: ExpressionContext) 
     return validators
 
 
-def build_question_form(questions: list[Question], expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
+def build_question_form(questions: list[Question], expression_context: ExpressionContext) -> type[DynamicQuestionForm]:  # noqa: C901
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
         _expression_context = expression_context
@@ -223,6 +224,15 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                     ),
                     choices=choices,
                     validators=validators,
+                )
+
+            case QuestionDataType.DATE:
+                field = DateField(
+                    label=question.text,
+                    description=question.hint or "",
+                    widget=GovDateInput(),
+                    validators=[DataRequired(f"Enter the {question.name}")],
+                    format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
                 )
 
             case _:

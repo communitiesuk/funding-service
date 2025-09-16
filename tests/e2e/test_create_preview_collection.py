@@ -1,5 +1,6 @@
 import csv
 import dataclasses
+import datetime
 import json
 import uuid
 from typing import Literal, NotRequired, TypedDict, Union
@@ -18,6 +19,7 @@ from app.common.data.types import (
 from app.common.expressions.managed import (
     AnyOf,
     Between,
+    BetweenDates,
     GreaterThan,
     IsNo,
     IsYes,
@@ -75,8 +77,25 @@ class QuestionGroupDict(TypedDict):
 
 TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
 
-
 questions_to_test: dict[str, TQuestionToTest] = {
+    "date": QuestionDict(
+        type=QuestionDataType.DATE,
+        text="Enter a date",
+        answers=[
+            _QuestionResponse(
+                ["2003", "2", "01"],
+                "The answer must be between 1 January 2020 (inclusive) and 1 January 2025 (exclusive)",
+            ),
+            _QuestionResponse(["2022", "04", "05"]),
+        ],
+        validation=BetweenDates(
+            question_id=uuid.uuid4(),
+            earliest_value=datetime.date(2020, 1, 1),
+            earliest_inclusive=True,
+            latest_value=datetime.date(2025, 1, 1),
+            latest_inclusive=False,
+        ),
+    ),
     "prefix-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter the total cost as a number",
@@ -229,6 +248,10 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "condition": Condition(referenced_question="Yes or no", managed_expression=IsNo(question_id=uuid.uuid4())),
     },
 }
+
+
+TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
+
 
 questions_with_groups_to_test: dict[str, TQuestionToTest] = {
     "yes-no": {
@@ -554,6 +577,10 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
             f"{format_thousands(int(question['answers'][-1].answer))}"
             f"{question['options'].suffix or ''}"
         )
+    elif question["type"] == QuestionDataType.DATE:
+        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+            datetime.date(*[int(a) for a in question["answers"][-1].answer]).strftime("%-d %B %-Y")
+        )
     else:
         expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
             question["answers"][-1].answer
@@ -561,6 +588,7 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
 
 
 def assert_view_report_answers(answers_list: Locator, question: TQuestionToTest) -> None:
+    # TODO Can we combine this with the logic in assert_check_your_answers? Feels like duplication
     if "This question should not be shown" in question["text"]:
         return
     if question["type"] == QuestionDataType.CHECKBOXES:
@@ -572,6 +600,12 @@ def assert_view_report_answers(answers_list: Locator, question: TQuestionToTest)
             answers_list.get_by_text(
                 f"{question['text']} {question['options'].prefix or ''}"
                 f"{format_thousands(int(question['answers'][-1].answer))}{question['options'].suffix or ''}"
+            )
+        ).to_be_visible()
+    elif question["type"] == QuestionDataType.DATE:
+        expect(
+            answers_list.get_by_text(
+                datetime.date(*[int(a) for a in question["answers"][-1].answer]).strftime("%-d %B %-Y")
             )
         ).to_be_visible()
     else:
@@ -586,7 +620,7 @@ def test_create_and_preview_report(
         # Sense check that the test includes all question types
         new_question_type_error = None
         try:
-            assert len(QuestionDataType) == 8 and len(questions_to_test) == 12 and len(ManagedExpressionsEnum) == 7, (
+            assert len(QuestionDataType) == 9 and len(questions_to_test) == 13 and len(ManagedExpressionsEnum) == 10, (
                 "If you have added a new question type or managed expression, update this test to include the "
                 "new question type or managed expression in `questions_to_test`."
             )
