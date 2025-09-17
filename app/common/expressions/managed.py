@@ -25,6 +25,7 @@ from wtforms.validators import DataRequired, InputRequired, Optional, Validation
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.filters import format_date_short
+from app.common.forms.fields import MHCLGApproximateDateInput
 from app.common.qid import SafeQidMixin
 from app.types import TRadioItem
 
@@ -622,7 +623,10 @@ class IsBefore(ManagedExpression):
 
     @property
     def message(self) -> str:
-        return f"The answer must be {'on or ' if self.inclusive else ''}before {format_date_short(self.latest_value)}"
+        return (
+            f"The answer must be {'on or ' if self.inclusive else ''}before "
+            + f"{format_date_short(self.latest_value) if not self.referenced_question.approximate_date else self.latest_value.strftime('%B %Y')}"
+        )  # noqa: E501
 
     @property
     def statement(self) -> str:
@@ -641,9 +645,11 @@ class IsBefore(ManagedExpression):
                 default=datetime.datetime.strptime(cast(str, expression.context["latest_value"]), "%Y-%m-%d").date()
                 if expression
                 else None,
-                widget=GovDateInput(),
+                widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
                 validators=[Optional()],
-                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
+                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
+                if not referenced_question.approximate_date
+                else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
             "latest_value_inclusive": BooleanField(
                 "An answer of exactly the latest date is allowed",
@@ -687,7 +693,10 @@ class IsAfter(ManagedExpression):
 
     @property
     def message(self) -> str:
-        return f"The answer must be {'on or ' if self.inclusive else ''}after {format_date_short(self.earliest_value)}"
+        return (
+            f"The answer must be {'on or ' if self.inclusive else ''}after "
+            + f"{format_date_short(self.earliest_value) if not self.referenced_question.approximate_date else self.earliest_value.strftime('%B %Y')}"  # noqa: E501
+        )
 
     @property
     def statement(self) -> str:
@@ -703,12 +712,14 @@ class IsAfter(ManagedExpression):
         return {
             "earliest_value": DateField(
                 "Enter the date which this answer must come after",
-                default=datetime.datetime.strptime(cast(str, expression.context["earliest_value"]), "%Y-%m-%d").date()
+                default=datetime.datetime.strptime(cast(str, expression.context["earliest_value"]), "%Y-%m-%d").date()  # noqa: E501
                 if expression
                 else None,
-                widget=GovDateInput(),
+                widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
                 validators=[Optional()],
-                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
+                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
+                if not referenced_question.approximate_date
+                else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
             "earliest_value_inclusive": BooleanField(
                 "An answer of exactly the earliest date is allowed",
@@ -760,9 +771,11 @@ class BetweenDates(ManagedExpression):
         #         property on the model
         # todo: make this use expression evaluation/interpolation rather than f-strings
         return (
-            f"The answer must be between "
-            f"{format_date_short(self.earliest_value)}{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'}"
-            f" and {format_date_short(self.latest_value)}{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
+            "The answer must be between "
+            f"{format_date_short(self.earliest_value) if not self.referenced_question.approximate_date else self.earliest_value.strftime('%B %Y')}"  # noqa: E501
+            f"{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'}"
+            f" and {format_date_short(self.latest_value) if not self.referenced_question.approximate_date else self.latest_value.strftime('%B %Y')}("  # noqa: E501
+            f"{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
         )
 
     @property
@@ -783,12 +796,14 @@ class BetweenDates(ManagedExpression):
         return {
             "between_bottom_of_range": DateField(
                 "Earliest date",
-                default=datetime.datetime.strptime(cast(str, expression.context["earliest_value"]), "%Y-%m-%d").date()
+                default=datetime.datetime.strptime(cast(str, expression.context["earliest_value"]), "%Y-%m-%d").date()  # noqa: E501
                 if expression
                 else None,
-                widget=GovDateInput(),
+                widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
                 validators=[Optional()],
-                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
+                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
+                if not referenced_question.approximate_date
+                else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
             "between_bottom_inclusive": BooleanField(
                 "An answer of exactly the earliest date is allowed",
@@ -800,9 +815,11 @@ class BetweenDates(ManagedExpression):
                 default=datetime.datetime.strptime(cast(str, expression.context["latest_value"]), "%Y-%m-%d").date()
                 if expression
                 else None,
-                widget=GovDateInput(),
+                widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
                 validators=[Optional()],
-                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
+                format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
+                if not referenced_question.approximate_date
+                else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
             "between_top_inclusive": BooleanField(
                 "An answer of exactly the latest date is allowed",
