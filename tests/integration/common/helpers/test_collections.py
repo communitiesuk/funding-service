@@ -20,7 +20,7 @@ from app.common.collections.types import (
 )
 from app.common.data import interfaces
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum, TasklistTaskStatusEnum
-from app.common.expressions import ExpressionContext, SubmissionContext
+from app.common.expressions import ExpressionContext
 from app.common.filters import format_datetime
 from app.common.helpers.collections import (
     CollectionHelper,
@@ -274,19 +274,17 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert helper.cached_expression_context == ExpressionContext(
-                submission_context=SubmissionContext(
-                    submission_data={
-                        "q_d696aebc49d24170a92fb6ef42994294": "answer",
-                        "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
-                        "q_d696aebc49d24170a92fb6ef42994296": 50,
-                        "q_d696aebc49d24170a92fb6ef42994297": True,
-                        "q_d696aebc49d24170a92fb6ef42994298": "my-key",
-                        "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
-                        "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
-                        "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
-                        "q_d696aebc49d24170a92fb6ef4299429c": date(2000, 1, 1),
-                    }
-                )
+                submission_data={
+                    "q_d696aebc49d24170a92fb6ef42994294": "answer",
+                    "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
+                    "q_d696aebc49d24170a92fb6ef42994296": 50,
+                    "q_d696aebc49d24170a92fb6ef42994297": True,
+                    "q_d696aebc49d24170a92fb6ef42994298": "my-key",
+                    "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
+                    "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
+                    "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
+                    "q_d696aebc49d24170a92fb6ef4299429c": date(2000, 1, 1),
+                }
             )
 
     class TestStatuses:

@@ -43,7 +43,7 @@ class DynamicQuestionForm(FlaskForm):
     _questions: list[Question]
     submit: SubmitField
 
-    def _build_form_context(self) -> dict[str, Any]:
+    def _extract_submission_answers(self) -> dict[str, Any]:
         """
         Extract all of the data from the form and return a dict suitable for using in an ExpressionContext instance.
         This data will override any data from the existing submission to allow for evaluations against the most
@@ -71,8 +71,11 @@ class DynamicQuestionForm(FlaskForm):
 
         extra_validators = defaultdict(list, extra_validators or {})
 
-        # Inject the latest data from this form submission into the context for validators to use.
-        self._expression_context.update_submission_context_with_form_context(self._build_form_context())
+        # Inject the latest data from this form submission into the context for validators to use. This will override
+        # any existing data for expression contexts from the current state of the submission with the data submitted
+        # in this form by the user.
+        self._expression_context.update_submission_answers(self._extract_submission_answers())
+
         for q in self._questions:
             # only add custom validators if that question hasn't already failed basic validation
             # (it's may not be well formed data of that type)

@@ -42,7 +42,6 @@ from app.common.data.types import (
 )
 from app.common.expressions import (
     ExpressionContext,
-    SubmissionContext,
     UndefinedVariableInExpression,
     evaluate,
 )
@@ -119,7 +118,7 @@ class SubmissionHelper:
             for question in form.cached_questions
             if (answer := self.cached_get_answer_for_question(question.id)) is not None
         }
-        return ExpressionContext(submission_context=SubmissionContext(submission_data=submission_data))
+        return ExpressionContext(submission_data=submission_data)
 
     @property
     def all_visible_questions(self) -> dict[UUID, "Question"]:

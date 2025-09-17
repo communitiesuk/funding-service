@@ -78,7 +78,7 @@ class TestBuildQuestionForm:
             )
             assert hasattr(form, "csrf_token")
             assert hasattr(form, "submit")
-            assert form._build_form_context() == {
+            assert form._extract_submission_answers() == {
                 "q_e4bd98ab41ef4d23b1e59c0404891e7a": 500,
                 "q_4d188cd726034fd8955d40e3f65f9312": "Test value",
             }

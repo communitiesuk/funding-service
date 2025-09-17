@@ -7,7 +7,6 @@ from app.common.expressions import (
     DisallowedExpression,
     ExpressionContext,
     InvalidEvaluationResult,
-    SubmissionContext,
     UndefinedVariableInExpression,
     _evaluate_expression_with_context,
     evaluate,
@@ -97,7 +96,7 @@ class TestEvaluate:
         assert (
             evaluate(
                 Expression(statement="answer == 1"),
-                context=ExpressionContext(SubmissionContext(submission_data={"answer": 1})),
+                context=ExpressionContext({"answer": 1}),
             )
             is True
         )
