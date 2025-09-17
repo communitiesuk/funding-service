@@ -5,7 +5,6 @@ import typing
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
-from immutabledict import immutabledict
 from pydantic import BaseModel
 from sqlalchemy import TypeDecorator
 from sqlalchemy.dialects.postgresql import JSONB
@@ -18,7 +17,6 @@ if TYPE_CHECKING:
 scalars = str | int | float | bool | None
 json_scalars = Dict[str, Any]
 json_flat_scalars = Dict[str, scalars]
-immutable_json_flat_scalars = immutabledict[str, scalars]
 
 TRunnerUrlMap = dict[
     "FormRunnerState",

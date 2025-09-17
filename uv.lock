@@ -532,7 +532,6 @@ dependencies = [
     { name = "govuk-frontend-jinja" },
     { name = "govuk-frontend-wtf" },
     { name = "gunicorn", extra = ["gevent"] },
-    { name = "immutabledict" },
     { name = "mistune" },
     { name = "msal" },
     { name = "notifications-python-client" },
@@ -595,7 +594,6 @@ requires-dist = [
     { name = "govuk-frontend-jinja", specifier = "==3.7.0" },
     { name = "govuk-frontend-wtf", specifier = "==3.2.0" },
     { name = "gunicorn", extras = ["gevent"], specifier = "==23.0.0" },
-    { name = "immutabledict", specifier = "==4.2.1" },
     { name = "mistune", specifier = "==3.1.4" },
     { name = "msal", specifier = "==1.33.0" },
     { name = "notifications-python-client", specifier = "==10.0.1" },
@@ -797,15 +795,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f1/70/7703c29685631f5a7590aa73f1f1d3fa9a380e654b86af429e0934a32f7d/idna-3.10.tar.gz", hash = "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9", size = 190490, upload-time = "2024-09-15T18:07:39.745Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/c6/c88e154df9c4e1a2a66ccf0005a88dfb2650c1dffb6f5ce603dfbd452ce3/idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3", size = 70442, upload-time = "2024-09-15T18:07:37.964Z" },
-]
-
-[[package]]
-name = "immutabledict"
-version = "4.2.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e0/c5/4240186fbabc58fba41bbe17c5f0cd37ffd4c0b85a5029ab104f946df175/immutabledict-4.2.1.tar.gz", hash = "sha256:d91017248981c72eb66c8ff9834e99c2f53562346f23e7f51e7a5ebcf66a3bcc", size = 6228, upload-time = "2024-11-17T13:25:21.555Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/56/25ca7b848164b7d93dbd5fc97dd7751700c93e324fe854afbeb562ee2f98/immutabledict-4.2.1-py3-none-any.whl", hash = "sha256:c56a26ced38c236f79e74af3ccce53772827cef5c3bce7cab33ff2060f756373", size = 4700, upload-time = "2024-11-17T13:25:19.52Z" },
 ]
 
 [[package]]
