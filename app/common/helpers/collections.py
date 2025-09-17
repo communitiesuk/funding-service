@@ -491,7 +491,7 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
             ]
             return MultipleChoiceFromListAnswer(choices=choices)
         case QuestionDataType.DATE:
-            return DateAnswer(answer=answer)
+            return DateAnswer(answer=answer, approximate_date=question.approximate_date or False)  # ty: ignore[missing-argument]
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 

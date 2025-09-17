@@ -21,6 +21,7 @@ from app.common.data.types import (
 )
 from app.common.filters import (
     format_date,
+    format_date_approximate,
     format_date_range,
     format_date_short,
     format_datetime,
@@ -167,6 +168,7 @@ def create_app() -> Flask:
         return dict(
             format_date=format_date,
             format_date_short=format_date_short,
+            format_date_approximate=format_date_approximate,
             format_datetime=format_datetime,
             format_date_range=format_date_range,
             format_datetime_range=format_datetime_range,

@@ -21,7 +21,12 @@ from wtforms.validators import DataRequired, Email, InputRequired, Optional, Val
 from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext, evaluate
-from app.common.forms.fields import MHCLGAccessibleAutocomplete, MHCLGCheckboxesInput, MHCLGRadioInput
+from app.common.forms.fields import (
+    GovApproxDateInput,
+    MHCLGAccessibleAutocomplete,
+    MHCLGCheckboxesInput,
+    MHCLGRadioInput,
+)
 from app.common.forms.validators import FinalOptionExclusive, URLWithoutProtocol, WordRange
 
 _accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField | SelectMultipleField | DateField
@@ -229,9 +234,11 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                 field = DateField(
                     label=question.text,
                     description=question.hint or "",
-                    widget=GovDateInput(),
+                    widget=GovDateInput() if not question.approximate_date else GovApproxDateInput(),
                     validators=[DataRequired(f"Enter the {question.name}")],
-                    format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],  # multiple formats to help user input
+                    format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
+                    if not question.approximate_date
+                    else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
                 )
 
             case _:

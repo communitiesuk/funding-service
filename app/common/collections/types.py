@@ -179,6 +179,7 @@ class MultipleChoiceFromListAnswer(SubmissionAnswerBaseModel):
 
 class DateAnswer(SubmissionAnswerBaseModel):
     answer: date
+    approximate_date: bool = False
 
     @property
     def _render_answer_template(self) -> str:
