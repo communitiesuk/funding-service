@@ -770,6 +770,19 @@
         },
         {
           "context": {
+            "inclusive": false,
+            "latest_value": "2025-01-01",
+            "question_id": "a4af0ddd-9d74-49d3-b4ff-3f2504f2a8d3"
+          },
+          "created_by_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
+          "id": "38eb1996-d8f8-44bd-8464-7c992a477123",
+          "managed_name": "Is before",
+          "question_id": "a4af0ddd-9d74-49d3-b4ff-3f2504f2a8d3",
+          "statement": "q_a4af0ddd9d7449d3b4ff3f2504f2a8d3 < date(2025, 1, 1)",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
             "inclusive": true,
             "minimum_value": 0,
             "question_id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0"
@@ -1131,12 +1144,26 @@
           "type": "QUESTION"
         },
         {
+          "data_type": "A date",
+          "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
+          "hint": "",
+          "id": "a4af0ddd-9d74-49d3-b4ff-3f2504f2a8d3",
+          "name": "last reporting period start date",
+          "order": 0,
+          "presentation_options": {
+            "approximate_date": true
+          },
+          "slug": "when-did-the-last-reporting-period-start",
+          "text": "When did the last reporting period start?",
+          "type": "QUESTION"
+        },
+        {
           "data_type": "Whole number",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "",
           "id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0",
           "name": "number of cheeseboards laid out",
-          "order": 0,
+          "order": 1,
           "presentation_options": {
             "prefix": "",
             "suffix": "",
@@ -1152,7 +1179,7 @@
           "hint": "",
           "id": "e3858acb-ac9a-46e3-af20-553b48a9af10",
           "name": "explanation for low cheeseboard count",
-          "order": 1,
+          "order": 2,
           "presentation_options": {
             "rows": 5
           },
@@ -1166,7 +1193,7 @@
           "hint": "",
           "id": "0c48320f-0b45-4686-8bed-5a09509f7f8b",
           "name": "number of cheesemongers supported",
-          "order": 2,
+          "order": 3,
           "presentation_options": {
             "prefix": "",
             "suffix": "",
@@ -1182,7 +1209,7 @@
           "hint": "Enter a percentage score between 0 and 100",
           "id": "0e6df617-b770-4525-9c06-6fdbcca72a10",
           "name": "park visitor satifaction",
-          "order": 3,
+          "order": 4,
           "presentation_options": {
             "prefix": "",
             "suffix": "",
@@ -1198,7 +1225,7 @@
           "hint": "",
           "id": "22613139-724f-41d7-84a3-3549550c6a4b",
           "name": "explanation for low satisfaction",
-          "order": 4,
+          "order": 5,
           "presentation_options": {
             "rows": 5
           },
@@ -12017,16 +12044,6 @@
           "text": "Number of beneficiary groups who left their sponsorship arrangement within 24 months",
           "type": "QUESTION"
         }
-      ],
-      "sections": [
-        {
-          "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
-          "collection_version": 1,
-          "id": "a598c0c4-9e08-4e04-98d2-57f22c6785e1",
-          "order": 0,
-          "slug": "tasks",
-          "title": "Tasks"
-        }
       ]
     },
     {
@@ -12044,7 +12061,23 @@
       "data_source_item_references": [],
       "data_source_items": [],
       "data_sources": [],
-      "expressions": [],
+      "expressions": [
+        {
+          "context": {
+            "earliest_inclusive": true,
+            "earliest_value": "2024-01-01",
+            "latest_inclusive": true,
+            "latest_value": "2024-12-31",
+            "question_id": "fa33970e-caee-47a2-b939-45ba17d40a94"
+          },
+          "created_by_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
+          "id": "0bf6f0b8-c512-4d10-a462-8767b01b34f8",
+          "managed_name": "Between dates",
+          "question_id": "fa33970e-caee-47a2-b939-45ba17d40a94",
+          "statement": "date(2024, 1, 1) <= q_fa33970ecaee47a2b93945ba17d40a94 <= date(2024, 12, 31)",
+          "type_": "VALIDATION"
+        }
+      ],
       "forms": [
         {
           "collection_id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
@@ -12106,6 +12139,20 @@
           },
           "slug": "how-many-picnic-tables-are-available",
           "text": "How many picnic tables are available?",
+          "type": "QUESTION"
+        },
+        {
+          "data_type": "A date",
+          "form_id": "145189e8-f1da-149b-95e1-4afb893c856f",
+          "hint": "",
+          "id": "fa33970e-caee-47a2-b939-45ba17d40a94",
+          "name": "busiest day",
+          "order": 2,
+          "presentation_options": {
+            "approximate_date": false
+          },
+          "slug": "what-was-the-busiest-day-in-the-park-during-2024",
+          "text": "What was the busiest day in the park during 2024?",
           "type": "QUESTION"
         },
         {
@@ -12312,6 +12359,13 @@
       "id": "78371bda-d2e5-4113-8cee-3daad6dd55ab",
       "last_logged_in_at_utc": "Mon, 04 Aug 2025 09:36:18 GMT",
       "name": "Leah Hobbs"
+    },
+    {
+      "azure_ad_subject_id": "aef0d89750aa6dcb4d10040f6e5766c1",
+      "email": "nrose@test.communities.gov.uk",
+      "id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
+      "last_logged_in_at_utc": "Wed, 17 Sep 2025 16:12:09 GMT",
+      "name": "Amber Greene"
     },
     {
       "azure_ad_subject_id": "40e16bf9d02fa7f67c6bb767b197e544",
