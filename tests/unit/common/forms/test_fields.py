@@ -1,9 +1,11 @@
+import datetime
+
 from bs4 import BeautifulSoup
 from flask_wtf import FlaskForm
-from wtforms import RadioField, SelectMultipleField
+from wtforms import DateField, RadioField, SelectMultipleField
 from wtforms.validators import DataRequired
 
-from app.common.forms.fields import MHCLGCheckboxesInput, MHCLGRadioInput
+from app.common.forms.fields import MHCLGApproximateDateInput, MHCLGCheckboxesInput, MHCLGRadioInput
 
 
 class TestMHCLGRadioInput:
@@ -68,3 +70,24 @@ class TestMHCLGCheckboxesInput:
 
         last_checkbox = soup.select("input[type=checkbox]")[-1]
         assert last_checkbox["data-behaviour"] == "exclusive"
+
+
+class TestDateInput:
+    def test_approximate_date_input_renders(self):
+        class TestForm(FlaskForm):
+            field = DateField(
+                "test date",
+                default=datetime.date(2023, 5, 4),
+                widget=MHCLGApproximateDateInput(),
+                format=["%m %Y", "%b %Y", "%B %Y"],
+            )
+
+        form = TestForm()
+
+        soup = BeautifulSoup(str(form.field), "html.parser")
+        all_inputs = soup.find_all("input")
+        assert len(all_inputs) == 2
+        assert all_inputs[0].get("id") == "field-month"
+        assert all_inputs[0].get("value") == "05"
+        assert all_inputs[1].get("id") == "field-year"
+        assert all_inputs[1].get("value") == "2023"

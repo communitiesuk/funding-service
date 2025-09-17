@@ -13,6 +13,7 @@ from app.common.data.types import (
     MultilineTextInputRows,
     NumberInputWidths,
     QuestionDataType,
+    QuestionPresentationOptions,
 )
 from app.common.expressions.managed import (
     AnyOf,
@@ -40,9 +41,12 @@ class ReportsBasePage:
         self.grant_name = grant_name
 
     @classmethod
-    def fill_in_date_fields(cls, date_group: Locator, date_to_complete: datetime.date) -> None:
-        date_group.get_by_label("Day").click()
-        date_group.get_by_label("Day").fill(str(date_to_complete.day))
+    def fill_in_date_fields(
+        cls, date_group: Locator, date_to_complete: datetime.date, approx_date: bool = False
+    ) -> None:
+        if not approx_date:
+            date_group.get_by_label("Day").click()
+            date_group.get_by_label("Day").fill(str(date_to_complete.day))
         date_group.get_by_label("Month").click()
         date_group.get_by_label("Month").fill(str(date_to_complete.month))
         date_group.get_by_label("Year").click()
@@ -555,7 +559,11 @@ class AddValidationPage(ReportsBasePage):
         self.task_name = task_name
         self.add_validation_button = self.page.get_by_role("button", name="Add validation")
 
-    def configure_managed_validation(self, managed_validation: ManagedExpression) -> None:
+    def configure_managed_validation(
+        self,
+        managed_validation: ManagedExpression,
+        presentation_options: QuestionPresentationOptions | None = None,
+    ) -> None:
         self.click_managed_validation_type(managed_validation)
 
         match managed_validation._key:
@@ -585,11 +593,19 @@ class AddValidationPage(ReportsBasePage):
             case ManagedExpressionsEnum.BETWEEN_DATES:
                 managed_validation = cast(BetweenDates, managed_validation)
                 earliest_date_group = self.page.get_by_role("group", name="Earliest date")
-                ReportsBasePage.fill_in_date_fields(earliest_date_group, managed_validation.earliest_value)
+                ReportsBasePage.fill_in_date_fields(
+                    earliest_date_group,
+                    managed_validation.earliest_value,
+                    approx_date=bool(presentation_options.approximate_date) if presentation_options else False,
+                )
                 if managed_validation.earliest_inclusive:
                     self.page.get_by_role("checkbox", name="An answer of exactly the earliest date is allowed").check()
                 latest_date_group = self.page.get_by_role("group", name="Latest date")
-                ReportsBasePage.fill_in_date_fields(latest_date_group, managed_validation.latest_value)
+                ReportsBasePage.fill_in_date_fields(
+                    latest_date_group,
+                    managed_validation.latest_value,
+                    approx_date=bool(presentation_options.approximate_date) if presentation_options else False,
+                )
                 if managed_validation.latest_inclusive:
                     self.page.get_by_role("checkbox", name="An answer of exactly the latest date is allowed").check()
 
@@ -785,6 +801,9 @@ class AddQuestionDetailsPage(ReportsBasePage):
     def select_multiline_input_rows(self, rows: MultilineTextInputRows) -> None:
         self.page.get_by_label("Text area size").select_option(f"{rows.name.title()} ({rows.value} rows)")
 
+    def click_is_approximate_date_checkbox(self) -> None:
+        self.page.get_by_role("checkbox", name="Ask for an approximate date (month and year only)").click()
+
     def click_submit(self) -> "EditQuestionPage":
         self.page.get_by_role("button", name="Add question").click()
         edit_question_page = EditQuestionPage(
@@ -904,8 +923,16 @@ class RunnerQuestionPage(ReportsBasePage):
             else:
                 self.page.get_by_role("radio", name=answer).click()
         elif question_type == QuestionDataType.DATE:
+            approx_date = len(answer) == 2
+            date_to_enter = (
+                datetime.date(*[int(a) for a in answer])
+                if not approx_date
+                else datetime.date(int(answer[0]), int(answer[1]), 1)
+            )
             ReportsBasePage.fill_in_date_fields(
-                self.page.get_by_role("group", name=question_text), datetime.date(*[int(a) for a in answer])
+                self.page.get_by_role("group", name=question_text),
+                date_to_enter,
+                approx_date=approx_date,
             )
         else:
             self.page.get_by_role("textbox", name=question_text).fill(answer)

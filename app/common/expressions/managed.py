@@ -772,7 +772,7 @@ class BetweenDates(ManagedExpression):
             "The answer must be between "
             f"{format_date_short(self.earliest_value) if not self.referenced_question.approximate_date else self.earliest_value.strftime('%B %Y')}"  # noqa: E501
             f"{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'}"
-            f" and {format_date_short(self.latest_value) if not self.referenced_question.approximate_date else self.latest_value.strftime('%B %Y')}("  # noqa: E501
+            f" and {format_date_short(self.latest_value) if not self.referenced_question.approximate_date else self.latest_value.strftime('%B %Y')}"  # noqa: E501
             f"{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
         )
 
