@@ -92,7 +92,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     @staticmethod
     @abc.abstractmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         """
         A hook used by `build_managed_expression_form`. It should return the set of form fields which need to be
@@ -143,9 +143,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         ...
 
     @classmethod
-    def concatenate_all_wtf_fields_html(
-        cls, form: "_ManagedExpressionForm", referenced_question: TOptional["Question"] = None
-    ) -> Markup:
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
         """
         A hook used by `build_managed_expression_form` to support conditionally-revealed the fields that a user needs
         to complete when they select this managed expression type from the radio list of available managed expressions.
@@ -219,7 +217,7 @@ class GreaterThan(ManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         return {
             "greater_than_value": IntegerField(
@@ -275,7 +273,7 @@ class LessThan(ManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         return {
             "less_than_value": IntegerField(
@@ -349,7 +347,7 @@ class Between(ManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         return {
             "between_bottom_of_range": IntegerField(
@@ -436,7 +434,7 @@ class AnyOf(BaseDataSourceManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         if referenced_question is None or referenced_question.data_source is None:
             raise ValueError("The question for the AnyOf expression must have a data source")
@@ -497,7 +495,7 @@ class IsYes(ManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         return {}
 
@@ -534,7 +532,7 @@ class IsNo(ManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         return {}
 
@@ -573,7 +571,7 @@ class Specifically(BaseDataSourceManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         if referenced_question is None or referenced_question.data_source is None:
             raise ValueError("The question for the Specifically expression must have a data source")
@@ -625,8 +623,8 @@ class IsBefore(ManagedExpression):
     def message(self) -> str:
         return (
             f"The answer must be {'on or ' if self.inclusive else ''}before "
-            + f"{format_date_short(self.latest_value) if not self.referenced_question.approximate_date else self.latest_value.strftime('%B %Y')}"
-        )  # noqa: E501
+            + f"{format_date_short(self.latest_value) if not self.referenced_question.approximate_date else self.latest_value.strftime('%B %Y')}"  # noqa: E501
+        )
 
     @property
     def statement(self) -> str:
@@ -637,7 +635,7 @@ class IsBefore(ManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         return {
             "latest_value": DateField(
@@ -707,7 +705,7 @@ class IsAfter(ManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         return {
             "earliest_value": DateField(
@@ -791,7 +789,7 @@ class BetweenDates(ManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        expression: TOptional["Expression"] = None, referenced_question: TOptional["Question"] = None
+        referenced_question: "Question", expression: TOptional["Expression"] = None
     ) -> dict[str, "Field"]:
         return {
             "between_bottom_of_range": DateField(
