@@ -24,7 +24,7 @@ from wtforms.validators import DataRequired, InputRequired, Optional, Validation
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
-from app.common.filters import format_date_short
+from app.common.filters import format_date_approximate, format_date_short
 from app.common.forms.fields import MHCLGApproximateDateInput
 from app.common.qid import SafeQidMixin
 from app.types import TRadioItem
@@ -623,7 +623,7 @@ class IsBefore(ManagedExpression):
     def message(self) -> str:
         return (
             f"The answer must be {'on or ' if self.inclusive else ''}before "
-            + f"{format_date_short(self.latest_value) if not self.referenced_question.approximate_date else self.latest_value.strftime('%B %Y')}"  # noqa: E501
+            + f"{format_date_short(self.latest_value) if not self.referenced_question.approximate_date else format_date_approximate(self.latest_value)}"  # noqa: E501
         )
 
     @property
@@ -693,7 +693,7 @@ class IsAfter(ManagedExpression):
     def message(self) -> str:
         return (
             f"The answer must be {'on or ' if self.inclusive else ''}after "
-            + f"{format_date_short(self.earliest_value) if not self.referenced_question.approximate_date else self.earliest_value.strftime('%B %Y')}"  # noqa: E501
+            + f"{format_date_short(self.earliest_value) if not self.referenced_question.approximate_date else format_date_approximate(self.earliest_value)}"  # noqa: E501
         )
 
     @property
@@ -770,9 +770,9 @@ class BetweenDates(ManagedExpression):
         # todo: make this use expression evaluation/interpolation rather than f-strings
         return (
             "The answer must be between "
-            f"{format_date_short(self.earliest_value) if not self.referenced_question.approximate_date else self.earliest_value.strftime('%B %Y')}"  # noqa: E501
+            f"{format_date_short(self.earliest_value) if not self.referenced_question.approximate_date else format_date_approximate(self.earliest_value)}"  # noqa: E501
             f"{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'}"
-            f" and {format_date_short(self.latest_value) if not self.referenced_question.approximate_date else self.latest_value.strftime('%B %Y')}"  # noqa: E501
+            f" and {format_date_short(self.latest_value) if not self.referenced_question.approximate_date else format_date_approximate(self.latest_value)}"  # noqa: E501
             f"{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
         )
 
