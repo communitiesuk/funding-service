@@ -22,8 +22,8 @@ from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext, evaluate
 from app.common.forms.fields import (
-    GovApproxDateInput,
     MHCLGAccessibleAutocomplete,
+    MHCLGApproximateDateInput,
     MHCLGCheckboxesInput,
     MHCLGRadioInput,
 )
@@ -234,7 +234,7 @@ def build_question_form(questions: list[Question], expression_context: Expressio
                 field = DateField(
                     label=question.text,
                     description=question.hint or "",
-                    widget=GovDateInput() if not question.approximate_date else GovApproxDateInput(),
+                    widget=GovDateInput() if not question.approximate_date else MHCLGApproximateDateInput(),
                     validators=[DataRequired(f"Enter the {question.name}")],
                     format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
                     if not question.approximate_date

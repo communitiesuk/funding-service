@@ -116,7 +116,7 @@ class MHCLGCheckboxesInput(MHCLGDividableIterableBase):
         return params
 
 
-class GovApproxDateInput(GovFormBase):
+class MHCLGApproximateDateInput(GovFormBase):
     """Renders two input fields representing Month and Year.
 
     To be used as a widget for WTForms' DateField or DateTimeField.
