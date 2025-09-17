@@ -1151,7 +1151,7 @@
           "name": "last reporting period start date",
           "order": 0,
           "presentation_options": {
-            "approximate_date": true
+            "approximate_date": false
           },
           "slug": "when-did-the-last-reporting-period-start",
           "text": "When did the last reporting period start?",
@@ -8611,9 +8611,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "523960ce-c055-4c94-9a49-433dc3ffc4d4",
           "name": "date the household moved into property 1",
           "order": 10,
@@ -8624,9 +8624,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "07005828-3b88-49cc-9aba-904b82e0482d",
           "name": "projected move-in date for property 1",
           "order": 11,
@@ -8948,9 +8948,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "a9e3b7d0-323b-4173-9396-f704fe271d50",
           "name": "What date did the household move in to property 2?",
           "order": 10,
@@ -8961,9 +8961,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "bcf1ec8b-de3b-4ee5-ab2d-86f053395a0d",
           "name": "What is the projected move-in date for property 2?",
           "order": 11,
@@ -9285,9 +9285,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "58aa1813-fdf4-4ee0-811b-7807e74e7c8e",
           "name": "What date did the household move in to property 3?",
           "order": 10,
@@ -9298,9 +9298,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "2878dfe1-fc25-4b81-a019-cb115f5be10c",
           "name": "What is the projected move-in date for property 3?",
           "order": 11,
@@ -9622,9 +9622,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "c58eedbb-664d-456c-8168-87c8f8868a03",
           "name": "What date did the household move in to property 4?",
           "order": 10,
@@ -9635,9 +9635,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "52667551-c1a7-4563-9c5c-1dc2690c308d",
           "name": "What is the projected move-in date for property 4?",
           "order": 11,
@@ -9959,9 +9959,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "b30fffe9-edb2-4cd0-a9fe-1767f3694e49",
           "name": "What date did the household move in to property 5?",
           "order": 10,
@@ -9972,9 +9972,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "3d3f5db9-c8cf-448a-a292-fc256a110942",
           "name": "What is the projected move-in date for property 5?",
           "order": 11,
@@ -10296,9 +10296,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "3a1caf91-5d26-4406-80cf-6a292032c29e",
           "name": "What date did the household move in to property 6?",
           "order": 10,
@@ -10309,9 +10309,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "dc4b8dfb-0d84-4733-bc5c-018a061ba394",
           "name": "What is the projected move-in date for property 6?",
           "order": 11,
@@ -10633,9 +10633,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "8deed989-e828-45b7-9119-563652785fdb",
           "name": "What date did the household move in to property 7?",
           "order": 10,
@@ -10646,9 +10646,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "fc7e9303-5867-4088-90e7-6b73f569f8a7",
           "name": "What is the projected move-in date for property 7?",
           "order": 11,
@@ -10970,9 +10970,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "6f46a1c8-8e88-40c7-9988-f31e42840b51",
           "name": "What date did the household move in to property 8?",
           "order": 10,
@@ -10983,9 +10983,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "59acce0b-51b6-440f-897b-2da2a8fd5458",
           "name": "What is the projected move-in date for property 8?",
           "order": 11,
@@ -11307,9 +11307,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "c44d2933-b656-4968-9c23-7c365a0b7e48",
           "name": "What date did the household move in to property 9?",
           "order": 10,
@@ -11320,9 +11320,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "5e9a6254-1f62-4226-b641-017e8b4515b0",
           "name": "What is the projected move-in date for property 9?",
           "order": 11,
@@ -11644,9 +11644,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "5588a671-49fe-4f4a-a7a7-2f3ce16cae18",
           "name": "What date did the household move in to property 10?",
           "order": 10,
@@ -11657,9 +11657,9 @@
           "type": "QUESTION"
         },
         {
-          "data_type": "Single line of text",
+          "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "this should be a date question sorry",
+          "hint": "",
           "id": "e60dc62f-0ec1-4f83-986b-f1728d4cc66e",
           "name": "What is the projected move-in date for property 10?",
           "order": 11,
