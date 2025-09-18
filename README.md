@@ -78,7 +78,8 @@ By default the e2e test config assumes that locally you are running with the stu
 However, if you have enabled SSO locally as per [the instructions above](#sso), you can still run the e2e tests against your local environment as follows:
 - PreRequisites:
     - Login locally using the SSO stub server with the email address `svc-Preaward-Funds@test.communities.gov.uk`, and tick the "Platform admin type login" option.
-- Update your local `.env` file with the UUID that matches the user `svc-Preaward-Funds@test.communities.gov.uk` in your local database: `SELECT id from "user" where email='svc-Preaward-Funds@test.communities.gov.uk';`
+    - Add `svc-Preaward-Funds@communities.gov.uk` to a local grant as a grant team member, and login locally through the SSO stub service using that email address, unticking the "Platform admin type login" option.
+- Update your local `.env` file with the UUIDs that match these users, `svc-Preaward-Funds@test.communities.gov.uk` and `svc-Preaward-Funds@communities.gov.uk`, in your local database: `SELECT * from "user" where email in ('svc-Preaward-Funds@test.communities.gov.uk','svc-Preaward-Funds@communities.gov.uk');`
 - Edit [authenticated_browser_sso()](./tests/e2e/conftest.py) to use 'login_with_session_cookie()' for the local env.
 
 ## Seed data

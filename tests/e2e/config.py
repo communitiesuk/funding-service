@@ -24,6 +24,9 @@ class EndToEndTestSecrets(Protocol):
     @property
     def SSO_PLATFORM_ADMIN_USER_ID(self) -> UUID: ...
 
+    @property
+    def SSO_GRANT_TEAM_MEMBER_USER_ID(self) -> UUID: ...
+
 
 class LocalEndToEndSecrets:
     @property
@@ -57,7 +60,16 @@ class LocalEndToEndSecrets:
         with open(".env") as env_file:
             sso_user_id_line = re.search(r"^SSO_PLATFORM_ADMIN_USER_ID=(.+)$", env_file.read(), flags=re.MULTILINE)
             if not sso_user_id_line:
-                raise ValueError("Could not read SSO user ID from local .env file")
+                raise ValueError("Could not read Platform Admin SSO user ID from local .env file")
+
+            return UUID(sso_user_id_line.group(1))
+
+    @property
+    def SSO_GRANT_TEAM_MEMBER_USER_ID(self) -> UUID:
+        with open(".env") as env_file:
+            sso_user_id_line = re.search(r"^SSO_GRANT_TEAM_MEMBER_USER_ID=(.+)$", env_file.read(), flags=re.MULTILINE)
+            if not sso_user_id_line:
+                raise ValueError("Could not read Grant Team Member SSO user ID from local .env file")
 
             return UUID(sso_user_id_line.group(1))
 
@@ -125,3 +137,9 @@ class AWSEndToEndSecrets:
     @property
     def SSO_PLATFORM_ADMIN_USER_ID(self) -> UUID:
         return UUID(self._read_aws_parameter_store_value("/apprunner/funding-service/E2E_SSO_PLATFORM_ADMIN_USER_ID"))
+
+    @property
+    def SSO_GRANT_TEAM_MEMBER_USER_ID(self) -> UUID:
+        return UUID(
+            self._read_aws_parameter_store_value("/apprunner/funding-service/E2E_SSO_GRANT_TEAM_MEMBER_USER_ID")
+        )
