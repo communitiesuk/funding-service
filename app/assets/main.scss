@@ -235,3 +235,20 @@ $inset-nested-rows: 15px;
   border-color: $govuk-success-colour;
   background-color: $govuk-success-colour;
 }
+
+.app-context-aware--container {
+  margin-bottom: govuk-spacing(0);
+}
+
+// Position "Insert data" buttons at bottom-right corner of text inputs
+.app-context-aware--button {
+  position: relative;
+  float: right;
+  width: auto;
+  margin: -50px - govuk-spacing(4) 10px 10px;
+  z-index: 1;
+
+  @include govuk-media-query($from: tablet) {
+    margin-top: -50px - govuk-spacing(6);
+  }
+}

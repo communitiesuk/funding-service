@@ -47,6 +47,7 @@ from app.common.expressions import (
     interpolate,
 )
 from app.common.filters import format_datetime
+from app.deliver_grant_funding.forms import ContextSourceChoices
 
 if TYPE_CHECKING:
     from app.common.data.models import (
@@ -115,9 +116,14 @@ class SubmissionHelper:
         _without_ an actual submission (on the form designer side of Deliver grant funding), but _generally_ we'll
         be thinking about evaluating expressions in the context of a submission, so for now it lives here.
         """
+        assert len(ContextSourceChoices) == 1, (
+            "When defining a new source of context for expressions, update this method and the ContextSourceChoices enum"
+        )
+
         if submission_helper and submission_helper.collection.id != collection.id:
             raise ValueError("Mismatch between collection and submission.collection")
 
+        # TODO: Namespace this set of data, eg under a `this_submission` prefix/key
         submission_data = (
             {
                 question.safe_qid: (
