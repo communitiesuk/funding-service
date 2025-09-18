@@ -1286,14 +1286,6 @@ class TestAddQuestion:
         report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
 
-        form = QuestionForm(
-            data={
-                "text": "question",
-                "hint": "hint text",
-                "name": "question name",
-            },
-            question_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_question",
@@ -1301,7 +1293,11 @@ class TestAddQuestion:
                 form_id=db_form.id,
                 question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
             ),
-            data=form.data,
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -1320,14 +1316,6 @@ class TestAddQuestion:
         db_form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=db_form, name="Test group", order=0)
 
-        form = QuestionForm(
-            data={
-                "text": "question",
-                "hint": "hint text",
-                "name": "question name",
-            },
-            question_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_question",
@@ -1336,7 +1324,12 @@ class TestAddQuestion:
                 question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
                 parent_id=group.id,
             ),
-            data=form.data,
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 302
