@@ -900,6 +900,24 @@ class TestListGroupQuestions:
         if can_edit:
             assert delete_group_link.get("href") == AnyStringMatching(r"\?delete")
 
+    def test_get_shows_interpolated_questions(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        q1 = factories.question.create(form=form, name="my question name")
+        group = factories.group.create(form=form, name="Test group", order=1)
+        factories.question.create(form=form, parent=group, text=f"Reference to (({q1.safe_qid}))")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        assert "Reference to ((my question name))" in response.text
+
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
@@ -1004,6 +1022,23 @@ class TestListTaskQuestions:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_button(soup, "Yes, delete this task")
+
+    def test_get_shows_interpolated_questions(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        q1 = factories.question.create(form=form, name="my question name")
+        factories.question.create(form=form, text=f"Reference to (({q1.safe_qid}))")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_task_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        assert "Reference to ((my question name))" in response.text
 
     def test_cannot_delete_with_live_submissions(self, authenticated_grant_admin_client, factories, db_session, caplog):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
