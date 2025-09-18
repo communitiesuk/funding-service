@@ -904,6 +904,9 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         grant=question.form.collection.grant,
         question=question,
         form=form,
+        interpolate=SubmissionHelper.get_interpolator(
+            collection=question.form.collection, fallback_question_names=True
+        ),
     )
 
 
