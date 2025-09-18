@@ -38,7 +38,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "beautifulsoup4==4.13.5",
-    "debugpy==1.8.16",
+    "debugpy==1.8.17",
     "factory-boy==3.3.3",
     "flask-debugtoolbar==0.16.0",
     "mypy==1.18.1",
@@ -59,8 +59,8 @@ dev = [
     "html5lib==1.1",
     "types-html5lib==1.1.11.20250917",
     "types-pytz==2025.2.0.20250809",
-    "boto3==1.40.32",
-    "types-boto3==1.40.32",
+    "boto3==1.40.33",
+    "types-boto3==1.40.33",
     "freezegun==1.5.5",
     "import-linter==2.5",
     "ty==0.0.1a20",
