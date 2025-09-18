@@ -542,6 +542,7 @@ class AddGuidanceForm(FlaskForm):
         widget=GovTextArea(),
         filters=[strip_string_if_not_empty],
     )
+    add_context = SubmitField(widget=GovSubmitInput())
 
     preview = SubmitField("Save and preview guidance", widget=GovSubmitInput())
     submit = SubmitField("Save guidance", widget=GovSubmitInput())
@@ -559,6 +560,9 @@ class AddGuidanceForm(FlaskForm):
             return False
 
         return result
+
+    def is_submitted_to_add_context(self) -> bool:
+        return self.is_submitted() and self.add_context.data
 
 
 class PreviewGuidanceForm(FlaskForm):

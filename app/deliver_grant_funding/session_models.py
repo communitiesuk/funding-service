@@ -39,3 +39,16 @@ class AddContextToQuestionSessionModel(BaseModel):
 
     question_id: UUID | None = None
     parent_id: UUID | None = None
+
+
+class AddContextToQuestionGuidanceSessionModel(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
+    field: Literal["guidance"] = "guidance"
+
+    guidance_body: str
+    guidance_heading: str
+
+    data_source: ContextSourceChoices | None = None
+
+    question_id: UUID | None = None
