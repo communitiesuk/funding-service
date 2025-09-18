@@ -47,6 +47,7 @@ from tests.e2e.reports_pages import (
 class _QuestionResponse:
     answer: str | list[str]
     error_message: str | None = None
+    check_your_answers_text: str | None = None
 
 
 @dataclasses.dataclass
@@ -86,13 +87,32 @@ questions_to_test: dict[str, TQuestionToTest] = {
                 ["2003", "2", "01"],
                 "The answer must be between 1 January 2020 (inclusive) and 1 January 2025 (exclusive)",
             ),
-            _QuestionResponse(["2022", "04", "05"]),
+            _QuestionResponse(answer=["2022", "04", "05"], check_your_answers_text="5 April 2022"),
         ],
         validation=BetweenDates(
             question_id=uuid.uuid4(),
             earliest_value=datetime.date(2020, 1, 1),
             earliest_inclusive=True,
             latest_value=datetime.date(2025, 1, 1),
+            latest_inclusive=False,
+        ),
+    ),
+    "approx_date": QuestionDict(
+        type=QuestionDataType.DATE,
+        text="Enter an approximate date",
+        answers=[
+            _QuestionResponse(
+                ["2003", "2"],
+                "The answer must be between April 2020 (inclusive) and March 2022 (exclusive)",
+            ),
+            _QuestionResponse(["2021", "04"], check_your_answers_text="April 2021"),
+        ],
+        options=QuestionPresentationOptions(approximate_date=True),
+        validation=BetweenDates(
+            question_id=uuid.uuid4(),
+            earliest_value=datetime.date(2020, 4, 1),
+            earliest_inclusive=True,
+            latest_value=datetime.date(2022, 3, 1),
             latest_inclusive=False,
         ),
     ),
@@ -386,7 +406,8 @@ def create_question(question_definition: TQuestionToTest, manage_page: ManageTas
             question_details_page.enter_other_option_text()
 
     if (
-        question_definition["type"] in [QuestionDataType.INTEGER, QuestionDataType.TEXT_MULTI_LINE]
+        question_definition["type"]
+        in [QuestionDataType.INTEGER, QuestionDataType.TEXT_MULTI_LINE, QuestionDataType.DATE]
         and question_definition.get("options") is not None
     ):
         add_advanced_formatting(question_definition, question_details_page)
@@ -396,7 +417,12 @@ def create_question(question_definition: TQuestionToTest, manage_page: ManageTas
     if question_definition.get("guidance") is not None:
         add_question_guidance(question_definition, edit_question_page)
     if question_definition.get("validation") is not None:
-        add_validation(edit_question_page, question_definition["text"], question_definition["validation"])
+        add_validation(
+            edit_question_page,
+            question_definition["text"],
+            question_definition["validation"],
+            question_definition.get("options", None),
+        )
     if question_definition.get("condition") is not None:
         add_condition(edit_question_page, question_definition["text"], question_definition["condition"])
 
@@ -424,6 +450,9 @@ def add_advanced_formatting(
                 question_details_page.fill_suffix(options.suffix)
             if options.width is not None:
                 question_details_page.select_input_width(options.width)
+        case QuestionDataType.DATE:
+            if options.approximate_date is True:
+                question_details_page.click_is_approximate_date_checkbox()
         case _:
             pass  # No advanced formatting for other question types
 
@@ -444,9 +473,14 @@ def add_question_guidance(
         add_guidance_page.click_save_guidance_button(edit_question_page)
 
 
-def add_validation(edit_question_page: EditQuestionPage, question_text: str, validation: ManagedExpression) -> None:
+def add_validation(
+    edit_question_page: EditQuestionPage,
+    question_text: str,
+    validation: ManagedExpression,
+    presentation_options: QuestionPresentationOptions | None = None,
+) -> None:
     add_validation_page = edit_question_page.click_add_validation()
-    add_validation_page.configure_managed_validation(validation)
+    add_validation_page.configure_managed_validation(validation, presentation_options)
     edit_question_page = add_validation_page.click_add_validation()
 
 
@@ -579,7 +613,7 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
         )
     elif question["type"] == QuestionDataType.DATE:
         expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
-            datetime.date(*[int(a) for a in question["answers"][-1].answer]).strftime("%-d %B %-Y")
+            question["answers"][-1].check_your_answers_text
         )
     else:
         expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
@@ -603,11 +637,7 @@ def assert_view_report_answers(answers_list: Locator, question: TQuestionToTest)
             )
         ).to_be_visible()
     elif question["type"] == QuestionDataType.DATE:
-        expect(
-            answers_list.get_by_text(
-                datetime.date(*[int(a) for a in question["answers"][-1].answer]).strftime("%-d %B %-Y")
-            )
-        ).to_be_visible()
+        expect(answers_list.get_by_text(question["answers"][-1].check_your_answers_text)).to_be_visible()
     else:
         expect(answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}")).to_be_visible()
 
@@ -620,7 +650,7 @@ def test_create_and_preview_report(
         # Sense check that the test includes all question types
         new_question_type_error = None
         try:
-            assert len(QuestionDataType) == 9 and len(questions_to_test) == 13 and len(ManagedExpressionsEnum) == 10, (
+            assert len(QuestionDataType) == 9 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 10, (
                 "If you have added a new question type or managed expression, update this test to include the "
                 "new question type or managed expression in `questions_to_test`."
             )

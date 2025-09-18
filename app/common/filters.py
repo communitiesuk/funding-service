@@ -20,6 +20,14 @@ def format_date_short(value: date | datetime) -> str:
     return value.strftime("%-d %B %-Y")
 
 
+def format_date_approximate(value: date | datetime) -> str:
+    """Format a date or datetime as follows:
+
+    > May 2025
+    """
+    return value.strftime("%B %-Y")
+
+
 def format_datetime(value: datetime) -> str:
     """Format a datetime as follows:
 

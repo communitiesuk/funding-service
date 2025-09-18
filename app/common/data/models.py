@@ -373,6 +373,10 @@ class Question(Component, SafeQidMixin):
             else None
         )
 
+    @property
+    def approximate_date(self) -> bool | None:
+        return self.presentation_options.approximate_date if self.data_type == QuestionDataType.DATE else None
+
     # END: Helper properties for populating `QuestionForm` instances
 
 

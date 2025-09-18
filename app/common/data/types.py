@@ -159,6 +159,9 @@ class QuestionPresentationOptions(BaseModel):
     # Groups
     show_questions_on_the_same_page: bool | None = None
 
+    # Dates
+    approximate_date: bool | None = None
+
     @staticmethod
     def from_question_form(form: "QuestionForm") -> QuestionPresentationOptions:
         match form._question_type:
@@ -177,6 +180,8 @@ class QuestionPresentationOptions(BaseModel):
                     suffix=form.suffix.data,
                     width=form.width.data,
                 )
+            case QuestionDataType.DATE:
+                return QuestionPresentationOptions(approximate_date=form.approximate_date.data)
             case _:
                 return QuestionPresentationOptions()
 

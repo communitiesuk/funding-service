@@ -1,6 +1,6 @@
 from typing import Any
 
-from govuk_frontend_wtf.gov_form_base import GovIterableBase
+from govuk_frontend_wtf.gov_form_base import GovFormBase, GovIterableBase
 from govuk_frontend_wtf.wtforms_widgets import GovSelect
 from wtforms import Field
 
@@ -112,5 +112,70 @@ class MHCLGCheckboxesInput(MHCLGDividableIterableBase):
                     "text": field.label.text,
                 },
             },
+        )
+        return params
+
+
+class MHCLGApproximateDateInput(GovFormBase):
+    """Renders two input fields representing Month and Year.
+
+    To be used as a widget for WTForms' DateField or DateTimeField.
+    The input field labels are hardcoded to "Month" and "Year".
+    The provided label is set as a legend above the input fields.
+    The field names MUST all be the same for this widget to work.
+    """
+
+    template = "govuk_frontend_wtf/date.html"
+
+    def __call__(self, field, **kwargs):  # type: ignore
+        kwargs.setdefault("id", field.id)
+        if "value" not in kwargs:
+            kwargs["value"] = field._value()
+        if "required" not in kwargs and "required" in getattr(field, "flags", []):
+            kwargs["required"] = True
+        return super().__call__(field, **kwargs)
+
+    def map_gov_params(self, field, **kwargs):  # type: ignore
+        params = super().map_gov_params(field, **kwargs)
+        month, year = [None] * 2
+        if field.raw_data is not None:
+            month, year = field.raw_data
+        elif field.data:
+            month, year = field.data.strftime("%m %Y").split(" ")
+
+        params.setdefault(
+            "fieldset",
+            {
+                "legend": {"text": field.label.text},
+            },
+        )
+        params.setdefault(
+            "items",
+            [
+                {
+                    "label": "Month",
+                    "id": "{}-month".format(field.name),
+                    "name": field.name,
+                    "classes": " ".join(
+                        [
+                            "govuk-input--width-2",
+                            "govuk-input--error" if field.errors else "",
+                        ]
+                    ).strip(),
+                    "value": month,
+                },
+                {
+                    "label": "Year",
+                    "id": "{}-year".format(field.name),
+                    "name": field.name,
+                    "classes": " ".join(
+                        [
+                            "govuk-input--width-4",
+                            "govuk-input--error" if field.errors else "",
+                        ]
+                    ).strip(),
+                    "value": year,
+                },
+            ],
         )
         return params

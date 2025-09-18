@@ -179,6 +179,7 @@ class MultipleChoiceFromListAnswer(SubmissionAnswerBaseModel):
 
 class DateAnswer(SubmissionAnswerBaseModel):
     answer: date
+    approximate_date: bool = False
 
     @property
     def _render_answer_template(self) -> str:
@@ -194,10 +195,10 @@ class DateAnswer(SubmissionAnswerBaseModel):
         return self.answer
 
     def get_value_for_text_export(self) -> str:
-        return self.answer.isoformat()
+        return self.answer.isoformat() if not self.approximate_date else self.answer.strftime("%B %-Y")
 
     def get_value_for_json_export(self) -> str:
-        return self.answer.isoformat()
+        return self.answer.isoformat() if not self.approximate_date else self.answer.strftime("%B %-Y")
 
 
 AllAnswerTypes = Union[

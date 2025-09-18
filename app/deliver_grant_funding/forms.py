@@ -306,6 +306,13 @@ class QuestionForm(FlaskForm):
         default=NumberInputWidths.BILLIONS.value,
     )
 
+    # Date field presentation options
+    approximate_date = BooleanField(
+        "Ask for an approximate date (month and year only)",
+        validators=[Optional()],
+        widget=GovCheckboxInput(),
+    )
+
     submit = SubmitField(widget=GovSubmitInput())
 
     def __init__(
