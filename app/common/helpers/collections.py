@@ -2,10 +2,10 @@ import csv
 import json
 import uuid
 from datetime import datetime
-from functools import cached_property, lru_cache
+from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -44,6 +44,7 @@ from app.common.expressions import (
     ExpressionContext,
     UndefinedVariableInExpression,
     evaluate,
+    interpolate,
 )
 from app.common.filters import format_datetime
 
@@ -136,6 +137,20 @@ class SubmissionHelper:
                     submission_data.setdefault(question.safe_qid, f"(({question.name}))")
 
         return ExpressionContext(submission_data=submission_data)
+
+    @staticmethod
+    def get_interpolator(
+        collection: "Collection", fallback_question_names: bool, submission_helper: Optional["SubmissionHelper"] = None
+    ) -> Callable[[str], str]:
+        return partial(
+            interpolate,
+            context=SubmissionHelper.build_expression_context(
+                collection=collection,
+                fallback_question_names=fallback_question_names,
+                mode="interpolation",
+                submission_helper=submission_helper,
+            ),
+        )
 
     @property
     def grant(self) -> "Grant":
