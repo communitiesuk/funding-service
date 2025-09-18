@@ -231,7 +231,7 @@ class QuestionForm(FlaskForm):
         description="The text grant recipients will see on their report",
         validators=[DataRequired("Enter the question text")],
         filters=[strip_string_if_not_empty],
-        widget=GovTextInput(),
+        widget=GovTextArea(),
     )
     text_add_context = SubmitField(widget=GovSubmitInput())
     hint = StringField(
@@ -401,7 +401,7 @@ class DataSourceChoices(enum.StrEnum):
 
 class AddContextSelectDataSourceForm(FlaskForm):
     data_source = RadioField(
-        "Select a thing",
+        "Select a data source",
         choices=[(choice.name, choice.value) for choice in DataSourceChoices],
         widget=GovRadioInput(),
     )
