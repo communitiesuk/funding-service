@@ -4,6 +4,8 @@ from typing import Any, Protocol, TypedDict, Union, cast
 
 from pydantic import BaseModel, RootModel
 
+from app.common.filters import format_date, format_date_approximate
+
 NOT_ASKED = "NOT_ASKED"
 NOT_ANSWERED = "NOT_ANSWERED"
 
@@ -22,7 +24,8 @@ class SubmissionAnswerProtocol(Protocol):
 
     def get_value_for_submission(self) -> Any: ...
     def get_value_for_form(self) -> Any: ...
-    def get_value_for_expression(self) -> Any: ...
+    def get_value_for_evaluation(self) -> Any: ...
+    def get_value_for_interpolation(self) -> str: ...
     def get_value_for_text_export(self) -> str: ...
 
 
@@ -37,8 +40,11 @@ class SubmissionAnswerRootModel[T](RootModel[T]):
     def get_value_for_form(self) -> T:
         return self.root
 
-    def get_value_for_expression(self) -> T:
+    def get_value_for_evaluation(self) -> T:
         return self.root
+
+    def get_value_for_interpolation(self) -> str:
+        return str(self.root)
 
     def get_value_for_text_export(self) -> str:
         return str(self.root)
@@ -56,7 +62,9 @@ class SubmissionAnswerBaseModel(BaseModel, abc.ABC):
     @abc.abstractmethod
     def get_value_for_form(self) -> Any: ...
     @abc.abstractmethod
-    def get_value_for_expression(self) -> Any: ...
+    def get_value_for_evaluation(self) -> Any: ...
+    @abc.abstractmethod
+    def get_value_for_interpolation(self) -> str: ...
     @abc.abstractmethod
     def get_value_for_text_export(self) -> str: ...
     @abc.abstractmethod
@@ -94,6 +102,9 @@ class YesNoAnswer(SubmissionAnswerRootModel[bool]):
     def get_value_for_text_export(self) -> str:
         return "Yes" if self.root else "No"
 
+    def get_value_for_interpolation(self) -> str:
+        return "Yes" if self.root else "No"
+
     def get_value_for_json_export(self) -> bool:
         return cast(bool, self.model_dump(mode="json"))
 
@@ -113,8 +124,11 @@ class IntegerAnswer(SubmissionAnswerBaseModel):
     def get_value_for_form(self) -> int:
         return self.value
 
-    def get_value_for_expression(self) -> int:
+    def get_value_for_evaluation(self) -> int:
         return self.value
+
+    def get_value_for_interpolation(self) -> str:
+        return self.get_value_for_text_export()
 
     def get_value_for_text_export(self) -> str:
         return f"{self.prefix or ''}{self.value:,d}{self.suffix or ''}"
@@ -144,8 +158,11 @@ class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):
     def get_value_for_form(self) -> str:
         return self.key
 
-    def get_value_for_expression(self) -> str:
+    def get_value_for_evaluation(self) -> str:
         return self.key
+
+    def get_value_for_interpolation(self) -> str:
+        return self.label
 
     def get_value_for_text_export(self) -> str:
         return self.label
@@ -167,8 +184,12 @@ class MultipleChoiceFromListAnswer(SubmissionAnswerBaseModel):
     def get_value_for_form(self) -> list[str]:
         return [choice["key"] for choice in self.choices]
 
-    def get_value_for_expression(self) -> set[str]:
+    def get_value_for_evaluation(self) -> set[str]:
         return {choice["key"] for choice in self.choices}
+
+    def get_value_for_interpolation(self) -> str:
+        # This feels like quite an iffy representation for interpolation; I'm not sure what we should _actually_ do here
+        return ", ".join(choice["label"] for choice in self.choices)
 
     def get_value_for_text_export(self) -> str:
         return "\n".join(choice["label"] for choice in self.choices)
@@ -191,8 +212,11 @@ class DateAnswer(SubmissionAnswerBaseModel):
     def get_value_for_form(self) -> date:
         return self.answer
 
-    def get_value_for_expression(self) -> date:
+    def get_value_for_evaluation(self) -> date:
         return self.answer
+
+    def get_value_for_interpolation(self) -> str:
+        return format_date(self.answer) if not self.approximate_date else format_date_approximate(self.answer)
 
     def get_value_for_text_export(self) -> str:
         return self.answer.isoformat() if not self.approximate_date else self.answer.strftime("%B %-Y")

@@ -2,7 +2,7 @@
 {% from "common/macros/collections.html" import collection_before with context %}
 {% extends "developers/deliver/access_grant_funding_base.html" %}
 
-{% set page_title = runner.component.text ~ " - " ~ runner.form.title %}
+{% set page_title = runner.interpolate(runner.component.text) ~ " - " ~ runner.form.title %}
 
 {# configure the page for the base error summary #}
 {# todo: probably worth just aliasing this in the render call #}

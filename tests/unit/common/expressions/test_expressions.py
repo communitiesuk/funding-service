@@ -7,10 +7,10 @@ from app.common.expressions import (
     DisallowedExpression,
     ExpressionContext,
     InvalidEvaluationResult,
-    SubmissionContext,
     UndefinedVariableInExpression,
     _evaluate_expression_with_context,
     evaluate,
+    interpolate,
 )
 
 
@@ -97,7 +97,7 @@ class TestEvaluate:
         assert (
             evaluate(
                 Expression(statement="answer == 1"),
-                context=ExpressionContext(SubmissionContext(submission_data={"answer": 1})),
+                context=ExpressionContext({"answer": 1}),
             )
             is True
         )
@@ -105,3 +105,70 @@ class TestEvaluate:
     def test_raise_on_non_boolean_result(self):
         with pytest.raises(InvalidEvaluationResult):
             evaluate(Expression(statement="1"), context=ExpressionContext())
+
+
+class TestInterpolate:
+    def test_no_interpolation_patterns(self):
+        assert interpolate("This is plain text with no patterns", None) == "This is plain text with no patterns"
+
+    def test_single_integer_interpolation(self):
+        assert interpolate("The answer is ((42))", None) == "The answer is 42"
+
+    def test_single_string_interpolation(self):
+        assert interpolate("Hello (('world'))", None) == "Hello world"
+
+    def test_multiple_interpolations(self):
+        assert interpolate("First: ((10)), Second: (('test'))", None) == "First: 10, Second: test"
+
+    def test_integer_formatting_with_commas(self):
+        assert interpolate("Large number: ((1000000))", None) == "Large number: 1000000"
+
+    def test_interpolation_with_context(self):
+        assert (
+            interpolate("Value: ((value)), Name: ((name))", ExpressionContext({"value": 123, "name": "test"}))
+            == "Value: 123, Name: test"
+        )
+
+    def test_interpolation_with_expressions(self):
+        assert interpolate("Sum: ((x + y))", ExpressionContext({"x": 10, "y": 20})) == "Sum: 30"
+
+    def test_nested_parentheses_in_interpolation(self):
+        assert interpolate("First: ((values[0]))", ExpressionContext({"values": [1, 2, 3]})) == "First: 1"
+
+    def test_complex_expression_with_string_result(self):
+        assert (
+            interpolate("Message: ((first + ' ' + second))", ExpressionContext({"first": "Hello", "second": "World"}))
+            == "Message: Hello World"
+        )
+
+    def test_zero_integer_formatting(self):
+        assert interpolate("Zero: ((0))", None) == "Zero: 0"
+
+    def test_negative_integer_formatting(self):
+        assert interpolate("Negative: ((-1234))", None) == "Negative: -1234"
+
+    def test_empty_string_interpolation(self):
+        assert interpolate("Empty: ((''))", None) == "Empty: "
+
+    def test_expression_error_propagates(self):
+        with pytest.raises(UndefinedVariableInExpression):
+            interpolate("Error: ((undefined_variable))", None)
+
+    def test_multiple_patterns_with_mixed_types(self):
+        assert (
+            interpolate(
+                "There are ((count)) ((message)) in total", ExpressionContext({"count": 42, "message": "items"})
+            )
+            == "There are 42 items in total"
+        )
+
+    def test_adjacent_interpolation_patterns(self):
+        assert interpolate("((10))((20))", None) == "1020"
+
+    def test_interpolation_with_context_override(self):
+        assert (
+            interpolate(
+                "Value: ((value))", ExpressionContext(submission_data={"value": 100}, expression_context={"value": 200})
+            )
+            == "Value: 100"
+        )

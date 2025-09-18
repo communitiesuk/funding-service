@@ -20,7 +20,7 @@ from app.common.collections.types import (
 )
 from app.common.data import interfaces
 from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum, TasklistTaskStatusEnum
-from app.common.expressions import ExpressionContext, SubmissionContext
+from app.common.expressions import ExpressionContext
 from app.common.filters import format_datetime
 from app.common.helpers.collections import (
     CollectionHelper,
@@ -41,7 +41,7 @@ class TestSubmissionHelper:
 
             assert helper.cached_get_answer_for_question(question.id) is None
 
-            form = build_question_form([question], expression_context=EC())(
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994294="User submitted data"
             )
             helper.submit_answer_for_question(question.id, form)
@@ -55,7 +55,9 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=question.form.collection)
             helper = SubmissionHelper(submission)
 
-            form = build_question_form([question], expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=5)
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294=5
+            )
             helper.submit_answer_for_question(question.id, form)
 
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=5)
@@ -67,7 +69,9 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=question.form.collection)
             helper = SubmissionHelper(submission)
 
-            form = build_question_form([question], expression_context=EC())(q_d696aebc49d24170a92fb6ef42994294=0)
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294=0
+            )
             helper.submit_answer_for_question(question.id, form)
 
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=0)
@@ -77,7 +81,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=question.form.collection)
             helper = SubmissionHelper(submission)
 
-            form = build_question_form([question], expression_context=EC())(
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994294="User submitted data"
             )
             helper.submit_answer_for_question(question.id, form)
@@ -198,7 +202,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.cached_expression_context == ExpressionContext()
+            assert helper.cached_evaluation_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
             assert len(QuestionDataType) == 9, "Update this test if adding new questions"
@@ -273,20 +277,18 @@ class TestSubmissionHelper:
             )
             helper = SubmissionHelper(submission)
 
-            assert helper.cached_expression_context == ExpressionContext(
-                submission_context=SubmissionContext(
-                    submission_data={
-                        "q_d696aebc49d24170a92fb6ef42994294": "answer",
-                        "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
-                        "q_d696aebc49d24170a92fb6ef42994296": 50,
-                        "q_d696aebc49d24170a92fb6ef42994297": True,
-                        "q_d696aebc49d24170a92fb6ef42994298": "my-key",
-                        "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
-                        "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
-                        "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
-                        "q_d696aebc49d24170a92fb6ef4299429c": date(2000, 1, 1),
-                    }
-                )
+            assert helper.cached_evaluation_context == ExpressionContext(
+                submission_data={
+                    "q_d696aebc49d24170a92fb6ef42994294": "answer",
+                    "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
+                    "q_d696aebc49d24170a92fb6ef42994296": 50,
+                    "q_d696aebc49d24170a92fb6ef42994297": True,
+                    "q_d696aebc49d24170a92fb6ef42994298": "my-key",
+                    "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
+                    "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
+                    "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
+                    "q_d696aebc49d24170a92fb6ef4299429c": date(2000, 1, 1),
+                }
             )
 
     class TestStatuses:
@@ -307,7 +309,7 @@ class TestSubmissionHelper:
 
             helper.submit_answer_for_question(
                 question_one.id,
-                build_question_form([question_one], expression_context=EC())(
+                build_question_form([question_one], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
             )
@@ -317,7 +319,7 @@ class TestSubmissionHelper:
 
             helper.submit_answer_for_question(
                 question_two.id,
-                build_question_form([question_two], expression_context=EC())(
+                build_question_form([question_two], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994295="User submitted data"
                 ),
             )
@@ -333,7 +335,7 @@ class TestSubmissionHelper:
             # make sure the second form is unaffected by the first forms status
             helper.submit_answer_for_question(
                 question_three.id,
-                build_question_form([question_three], expression_context=EC())(
+                build_question_form([question_three], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994296="User submitted data"
                 ),
             )
@@ -359,7 +361,7 @@ class TestSubmissionHelper:
 
             helper.submit_answer_for_question(
                 question.id,
-                build_question_form([question], expression_context=EC())(
+                build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
             )
@@ -371,7 +373,7 @@ class TestSubmissionHelper:
 
             helper.submit_answer_for_question(
                 question_two.id,
-                build_question_form([question_two], expression_context=EC())(
+                build_question_form([question_two], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994295="User submitted data"
                 ),
             )
@@ -401,7 +403,7 @@ class TestSubmissionHelper:
 
             helper.submit_answer_for_question(
                 question.id,
-                build_question_form([question], expression_context=EC())(
+                build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
             )
@@ -425,7 +427,7 @@ class TestSubmissionHelper:
 
             helper.submit_answer_for_question(
                 question.id,
-                build_question_form([question], expression_context=EC())(
+                build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
             )
@@ -446,7 +448,7 @@ class TestSubmissionHelper:
 
             helper.submit_answer_for_question(
                 question.id,
-                build_question_form([question], expression_context=EC())(
+                build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
             )

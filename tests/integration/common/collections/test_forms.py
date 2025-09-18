@@ -33,7 +33,9 @@ def test_validation_attached_to_field_and_runs__text(factories, value, error_mes
         name="test_text",
     )
 
-    _FormClass = build_question_form([question], expression_context=ExpressionContext())
+    _FormClass = build_question_form(
+        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+    )
     form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7b": str(value)}))
 
     valid = form.validate()
@@ -70,7 +72,9 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
         question, user, LessThan(question_id=question.id, maximum_value=100, inclusive=False)
     )
 
-    _FormClass = build_question_form([question], expression_context=ExpressionContext())
+    _FormClass = build_question_form(
+        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+    )
     form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7a": str(value)}))
 
     valid = form.validate()
@@ -91,7 +95,7 @@ def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_sess
         data_type=QuestionDataType.RADIOS,
         items=[str(i) for i in range(25)],
     )
-    form = build_question_form([q], expression_context=EC())()
+    form = build_question_form([q], evaluation_context=EC(), interpolation_context=EC())()
 
     question_field = form.get_question_field(q)
     assert isinstance(question_field, SelectField)
@@ -112,7 +116,9 @@ def test_validation_attached_to_multiple_fields(factories, db_session):
         q2, user, GreaterThan(question_id=q2.id, minimum_value=100, inclusive=True)
     )
 
-    _FormClass = build_question_form([q1, q2, q3], expression_context=ExpressionContext())
+    _FormClass = build_question_form(
+        [q1, q2, q3], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+    )
     form = _FormClass(formdata=MultiDict({q1.safe_qid: "", q2.safe_qid: 50, q3.safe_qid: True}))
 
     valid = form.validate()
@@ -141,7 +147,9 @@ def test_email_strips_empty_chars(factories, user_input, will_validate, saved_in
         data_type=QuestionDataType.EMAIL,
         name="test email",
     )
-    _FormClass = build_question_form([question], expression_context=ExpressionContext())
+    _FormClass = build_question_form(
+        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+    )
     form = _FormClass(formdata=MultiDict({question.safe_qid: user_input}))
     valid = form.validate()
     assert valid is will_validate
@@ -161,7 +169,9 @@ def test_url_strips_empty_chars(factories, user_input, will_validate, saved_inpu
         data_type=QuestionDataType.URL,
         name="test url",
     )
-    _FormClass = build_question_form([question], expression_context=ExpressionContext())
+    _FormClass = build_question_form(
+        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+    )
     form = _FormClass(formdata=MultiDict({question.safe_qid: user_input}))
     valid = form.validate()
     assert valid is will_validate

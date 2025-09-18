@@ -22,8 +22,8 @@
 
     <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
     {% if runner.component.guidance_heading %}
-      <h1 class="govuk-heading-l">{{ runner.component.guidance_heading }}</h1>
-      {{ runner.component.guidance_body | govuk_markdown }}
+      <h1 class="govuk-heading-l">{{ runner.interpolate(runner.component.guidance_heading) }}</h1>
+      {{ runner.interpolate(runner.component.guidance_body) | govuk_markdown }}
     {% elif is_group %}
       <h1 class="govuk-heading-l">{{ runner.component.name }}</h1>
     {% endif %}
@@ -73,7 +73,7 @@
           form.render_question(
             question,
             params={
-              "fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+              "fieldset": {"legend": {"text": runner.interpolate(question.text), "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
               "classes": "govuk-radios--inline"
             }
           )
@@ -83,7 +83,7 @@
           form.render_question(
             question,
             params={
-              "fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+              "fieldset": {"legend": {"text": runner.interpolate(question.text), "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
             }
           )
         }}
@@ -92,7 +92,7 @@
           form.render_question(
             question,
             params={
-              "fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+              "fieldset": {"legend": {"text": runner.interpolate(question.text), "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
               "spellcheck": false
             }
           )
@@ -117,7 +117,7 @@
             form.render_question(
               question,
               params={
-                "fieldset": {"legend": {"text": question.text, "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+                "fieldset": {"legend": {"text": runner.interpolate(question.text), "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
               }
             )
           }}
@@ -159,7 +159,7 @@
       %}
       {%
         do rows.append({
-          "key": {"text": question.text},
+          "key": {"text": runner.interpolate(question.text)},
           "value": {"html": value_html},
           "actions": {"items": actions},
         })
@@ -170,7 +170,7 @@
       {% endset %}
       {%
         do rows.append({
-          "key": {"text": question.text},
+          "key": {"text": runner.interpolate(question.text)},
           "value": {"html": valueLink}
         })
       %}

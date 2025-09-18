@@ -5,56 +5,48 @@ import pytest
 
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType
-from app.common.expressions import DisallowedExpression, ExpressionContext, SubmissionContext, evaluate
+from app.common.expressions import DisallowedExpression, ExpressionContext, evaluate
 from app.common.expressions.managed import GreaterThan
 
 
 class TestExpressionContext:
     def test_layering(self):
-        from_form = {"a": 1, "b": 1, "e": 1}
-        from_submission = {"a": 2, "c": 2}
         ex = ExpressionContext(
-            submission_context=SubmissionContext(form_data=from_form, submission_data=from_submission),
-            expression_context={"a": 3, "c": 3, "d": 3},
+            submission_data={"a": 1, "b": 1, "e": 1},
+            expression_context={"a": 2, "c": 2, "d": 2},
         )
         assert ex["a"] == 1
         assert ex["b"] == 1
         assert ex["c"] == 2
-        assert ex["d"] == 3
+        assert ex["d"] == 2
         assert ex["e"] == 1
 
         with pytest.raises(KeyError):
             assert ex["f"]
 
     def test_get(self):
-        from_form = {"a": 1, "b": 1, "e": 1}
-        from_submission = {"a": 2, "c": 2}
         ex = ExpressionContext(
-            submission_context=SubmissionContext(form_data=from_form, submission_data=from_submission),
-            expression_context={"a": 3, "c": 3, "d": 3},
+            submission_data={"a": 1, "b": 1, "e": 1},
+            expression_context={"a": 2, "c": 2, "d": 2},
         )
         assert ex.get("a") == 1
         assert ex.get("b") == 1
         assert ex.get("c") == 2
-        assert ex.get("d") == 3
+        assert ex.get("d") == 2
         assert ex.get("e") == 1
         assert ex.get("f") is None
 
     def test_length(self):
-        from_form = {"a": 1, "b": 1, "e": 1}
-        from_submission = {"a": 2, "c": 2}
         ex = ExpressionContext(
-            submission_context=SubmissionContext(form_data=from_form, submission_data=from_submission),
-            expression_context={"a": 3, "c": 3, "d": 3},
+            submission_data={"a": 1, "b": 1, "e": 1},
+            expression_context={"a": 2, "c": 2, "d": 2},
         )
         assert len(ex) == 5
 
     def test_contains(self):
-        from_form = {"a": 1, "b": 1, "e": 1}
-        from_submission = {"a": 2, "c": 2}
         ex = ExpressionContext(
-            submission_context=SubmissionContext(form_data=from_form, submission_data=from_submission),
-            expression_context={"a": 3, "c": 3, "d": 3},
+            submission_data={"a": 1, "b": 1, "e": 1},
+            expression_context={"a": 2, "c": 2, "d": 2},
         )
         assert "a" in ex
         assert "b" in ex
@@ -97,12 +89,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
             new_callable=PropertyMock,
             return_value={"date": datetime.date},
         )
-        assert (
-            evaluate(
-                expr, ExpressionContext(submission_context=SubmissionContext(submission_data={"q_123": question_value}))
-            )
-            is expected_result
-        )
+        assert evaluate(expr, ExpressionContext(submission_data={"q_123": question_value})) is expected_result
 
     @pytest.mark.parametrize(
         "question_value, expected_result",
@@ -120,12 +107,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
             new_callable=PropertyMock,
             return_value={"min": min},
         )
-        assert (
-            evaluate(
-                expr, ExpressionContext(submission_context=SubmissionContext(submission_data={"q_123": question_value}))
-            )
-            is expected_result
-        )
+        assert evaluate(expr, ExpressionContext(submission_data={"q_123": question_value})) is expected_result
 
     @pytest.mark.parametrize(
         "question_value, expected_result",
@@ -146,19 +128,14 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
             new_callable=PropertyMock,
             return_value={"calculate_result": _custom_test_function},
         )
-        assert (
-            evaluate(
-                expr, ExpressionContext(submission_context=SubmissionContext(submission_data={"q_123": question_value}))
-            )
-            is expected_result
-        )
+        assert evaluate(expr, ExpressionContext(submission_data={"q_123": question_value})) is expected_result
 
     def test_managed_expression_with_required_function_builtin_not_present_builtin(self, factories):
         # test with a builtin function that isn't on the allowed list
         expr = factories.expression.build(statement="q_123 > max(1,2)", type_=ExpressionType.VALIDATION)
         # Don't patch the required_functions property, so it returns an empty dict
         with pytest.raises(DisallowedExpression):
-            evaluate(expr, ExpressionContext(submission_context=SubmissionContext(submission_data={"q_123": 123})))
+            evaluate(expr, ExpressionContext(submission_data={"q_123": 123}))
 
     def test_managed_expression_with_required_function_not_present_custom(self, factories):
         def _custom_test_function():
@@ -168,4 +145,4 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
         expr = factories.expression.build(statement="q_123 > _custom_test_function()", type_=ExpressionType.VALIDATION)
         # Don't patch the required_functions property, so it returns an empty dict
         with pytest.raises(DisallowedExpression):
-            evaluate(expr, ExpressionContext(submission_context=SubmissionContext(submission_data={"q_123": 123})))
+            evaluate(expr, ExpressionContext(submission_data={"q_123": 123}))

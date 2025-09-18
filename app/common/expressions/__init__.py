@@ -1,4 +1,5 @@
 import ast
+import re
 from collections import ChainMap
 from typing import TYPE_CHECKING, Any, MutableMapping
 
@@ -24,16 +25,6 @@ class InvalidEvaluationResult(ManagedExpressionError):
     pass
 
 
-class SubmissionContext(ChainMap[str, Any]):
-    def __init__(self, *, form_data: dict[str, Any] | None = None, submission_data: dict[str, Any] | None = None):
-        self.submission_data = submission_data or {}
-        self.form_data = form_data or {}
-        super().__init__(self.form_data, self.submission_data)
-
-    def set_form_data(self, form_data: dict[str, Any]) -> None:
-        self.maps = [form_data, self.submission_data]
-
-
 class ExpressionContext(ChainMap[str, Any]):
     """
     This handles all of the data that we want to be able to pass into an Expression when evaluating it. As of writing,
@@ -48,23 +39,24 @@ class ExpressionContext(ChainMap[str, Any]):
     2. Any form data in a POST request trying to update the submission.
 
     When evaluating expressions, we care about the latest view of the world, so form data POST'd in the current request
-    should override any data from the database. We do this via SubmissionContext, which overlays the form data on
-    top of the submission DB data using a ChainMap.
+    should override any data from the database. We do this by starting with a dictionary of answers from the existing
+    submission in the DB, and then (assuming the data passes some basic validation checks), we mutate the dictionary
+    with answers from the current form submission (DynamicQuestionForm).
     """
 
     def __init__(
         self,
-        submission_context: SubmissionContext | None = None,
+        submission_data: dict[str, Any] | None = None,
         expression_context: dict[str, Any] | None = None,
     ):
-        self._submission_context: SubmissionContext = submission_context or SubmissionContext()
+        self._submission_data = submission_data or {}
         self._expression_context = expression_context or {}
 
         super().__init__(*self._ordered_contexts)
 
     @property
     def _ordered_contexts(self) -> list[MutableMapping[str, Any]]:
-        return list(filter(None, [self._submission_context, self.expression_context]))
+        return list(filter(None, [self._submission_data, self.expression_context]))
 
     @property
     def expression_context(self) -> dict[str, Any]:
@@ -75,8 +67,17 @@ class ExpressionContext(ChainMap[str, Any]):
         self._expression_context = expression_context
         self.maps = self._ordered_contexts
 
-    def update_submission_context_with_form_context(self, form_context: dict[str, Any]) -> None:
-        self._submission_context.set_form_data(form_context)
+    def update_submission_answers(self, submission_answers_from_form: dict[str, Any]) -> None:
+        """The default submission data we use for expression context is all of the data from the Submission DB record.
+        However, if we're processing things on a POST request when a user is submitting data for a question, then we
+        need to override any existing answer in the DB with the latest answer from the current POST request. This
+        happens during the question form validation, after we know that the answer the user has submitted is broadly
+        valid (ie of the correct data type). This can't happen during the initial instantiation of the
+        ExpressionContext, because of the way we use WTForms and the way it validates data. So this is the (currently)
+        one place where you just have to be aware that state can be mutated mid-request and in a slightly hard-to-trace
+        way.
+        """
+        self._submission_data.update(**submission_answers_from_form)
 
 
 def _evaluate_expression_with_context(expression: "Expression", context: ExpressionContext | None = None) -> Any:
@@ -127,8 +128,20 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     return result
 
 
-# todo: interpolate an expression (eg for injecting dynamic data into question text, error messages, etc)
-def interpolate(expression: "Expression", context: ExpressionContext | None) -> Any: ...
+def interpolate(text: str, context: ExpressionContext | None) -> str:
+    from app.common.data.models import Expression
+
+    def _interpolate(matchobj: re.Match[Any]) -> str:
+        expr = Expression(statement=matchobj.group(0))
+        value = _evaluate_expression_with_context(expr, context)
+
+        return str(value)
+
+    return re.sub(
+        r"\(\(.+?\)\)",
+        _interpolate,
+        text,
+    )
 
 
 def evaluate(expression: "Expression", context: ExpressionContext | None = None) -> bool:

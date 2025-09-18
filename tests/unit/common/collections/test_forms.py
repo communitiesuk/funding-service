@@ -32,7 +32,9 @@ class TestBuildQuestionForm:
             id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"), data_type=QuestionDataType.INTEGER
         )
 
-        _FormClass = build_question_form([question], expression_context=ExpressionContext())
+        _FormClass = build_question_form(
+            [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        )
         form = _FormClass()
 
         assert not hasattr(form, "csrf_token")
@@ -42,7 +44,9 @@ class TestBuildQuestionForm:
     def test_multiple_questions_attached_by_id(self, factories):
         questions = factories.question.build_batch(5, data_type=QuestionDataType.INTEGER)
 
-        _FormClass = build_question_form(questions, expression_context=ExpressionContext())
+        _FormClass = build_question_form(
+            questions, evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        )
         form = _FormClass()
 
         for question in questions:
@@ -70,7 +74,9 @@ class TestBuildQuestionForm:
                 id=uuid.UUID("4d188cd7-2603-4fd8-955d-40e3f65f9312"), data_type=QuestionDataType.TEXT_SINGLE_LINE
             )
 
-            _FormClass = build_question_form([q1, q2], expression_context=ExpressionContext())
+            _FormClass = build_question_form(
+                [q1, q2], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+            )
             form = _FormClass(
                 formdata=MultiDict(
                     {"q_e4bd98ab41ef4d23b1e59c0404891e7a": "500", "q_4d188cd726034fd8955d40e3f65f9312": "Test value"}
@@ -78,7 +84,7 @@ class TestBuildQuestionForm:
             )
             assert hasattr(form, "csrf_token")
             assert hasattr(form, "submit")
-            assert form._build_form_context() == {
+            assert form._extract_submission_answers() == {
                 "q_e4bd98ab41ef4d23b1e59c0404891e7a": 500,
                 "q_4d188cd726034fd8955d40e3f65f9312": "Test value",
             }
@@ -89,7 +95,7 @@ class TestBuildQuestionForm:
             text="Question text",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
-        form = build_question_form([q], expression_context=EC())
+        form = build_question_form([q], evaluation_context=EC(), interpolation_context=EC())
         assert hasattr(form, "q_31673d5195b04589b25433b866dfd94f")
         assert hasattr(form, "submit")
 
@@ -122,7 +128,7 @@ class TestBuildQuestionForm:
         q = factories.question.build(
             text="Question text", hint="Question hint", data_type=data_type, presentation_options=presentation_options
         )
-        form = build_question_form([q], expression_context=EC())()
+        form = build_question_form([q], evaluation_context=EC(), interpolation_context=EC())()
 
         question_field = form.get_question_field(q)
         assert isinstance(question_field, expected_field_type)
@@ -134,3 +140,18 @@ class TestBuildQuestionForm:
 
     def test_break_if_new_question_types_added(self):
         assert len(QuestionDataType) == 9, "Add a new parameter option above if adding a new question type"
+
+    def test_question_text_and_hint_interpolation(self, factories):
+        question = factories.question.build(
+            text="How much do you like ((thing)) out of ((max_value))?",
+            hint="If it's not at least ((suggested_min)) then maybe you should think again.",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        context = ExpressionContext({"thing": "LOTR", "max_value": "10", "suggested_min": "7"})
+        form_class = build_question_form([question], evaluation_context=context, interpolation_context=context)
+        form = form_class()
+
+        question_field = form.get_question_field(question)
+        assert question_field.label.text == "How much do you like LOTR out of 10?"
+        assert question_field.description == "If it's not at least 7 then maybe you should think again."

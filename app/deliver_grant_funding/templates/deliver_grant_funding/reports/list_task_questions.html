@@ -65,7 +65,7 @@
       {% if not db_form.cached_questions %}
         <p class="govuk-body">This task has no questions.</p>
       {% else %}
-        {{ question_table(db_form, role_can_edit=grant_admin) }}
+        {{ question_table(db_form, interpolate, role_can_edit=grant_admin) }}
       {% endif %}
 
       {% if grant_admin %}
