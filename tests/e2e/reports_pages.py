@@ -687,11 +687,12 @@ class AddConditionPage(ReportsBasePage):
     def select_condition_question(self, condition_question: str) -> None:
         # We don't easily know randomly generated uuid apended to the previous question texts, so have to grab it to
         # select the correct option
-        question_select_locator = self.page.get_by_label(" What answer should the condition check? ")
-        full_question_text = (
-            question_select_locator.locator("option").filter(has_text=condition_question).first.get_attribute("value")
-        )
-        question_select_locator.select_option(full_question_text)
+        expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
+        element = self.page.get_by_role("combobox")
+        element.click()
+        element.fill(condition_question)
+        element.press("Enter")
+
         self.continue_button.click()
 
     def click_add_condition(
