@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import re
 import tempfile
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from playwright.sync_api import Locator, Page, expect
 
@@ -25,6 +25,9 @@ from app.common.expressions.managed import (
     Specifically,
 )
 from tests.e2e.dataclasses import GuidanceText
+
+if TYPE_CHECKING:
+    from tests.e2e.pages import GrantTeamPage, SSOSignInPage
 
 
 class ReportsBasePage:
@@ -51,6 +54,20 @@ class ReportsBasePage:
         date_group.get_by_label("Month").fill(str(date_to_complete.month))
         date_group.get_by_label("Year").click()
         date_group.get_by_label("Year").fill(str(date_to_complete.year))
+
+    def click_nav_sign_out(self) -> SSOSignInPage:
+        from tests.e2e.pages import SSOSignInPage
+
+        self.page.get_by_role("link", name="Sign out").click()
+        sso_sign_in_page = SSOSignInPage(self.page, self.domain)
+        return sso_sign_in_page
+
+    def click_nav_grant_team(self) -> GrantTeamPage:
+        from tests.e2e.pages import GrantTeamPage
+
+        self.page.get_by_role("link", name="Grant team").click()
+        sso_sign_in_page = GrantTeamPage(self.page, self.domain)
+        return sso_sign_in_page
 
 
 class GrantReportsPage(ReportsBasePage):

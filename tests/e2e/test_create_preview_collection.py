@@ -29,8 +29,14 @@ from app.common.expressions.managed import (
 )
 from app.common.filters import format_thousands
 from tests.e2e.config import EndToEndTestSecrets
+from tests.e2e.conftest import (
+    DeliverGrantFundingUserType,
+    e2e_user_configs,
+    login_with_session_cookie,
+    login_with_stub_sso,
+)
 from tests.e2e.dataclasses import E2ETestUser, GuidanceText
-from tests.e2e.pages import AllGrantsPage, GrantDashboardPage
+from tests.e2e.pages import AllGrantsPage, GrantDashboardPage, GrantDetailsPage
 from tests.e2e.reports_pages import (
     AddQuestionDetailsPage,
     EditQuestionGroupPage,
@@ -642,9 +648,24 @@ def assert_view_report_answers(answers_list: Locator, question: TQuestionToTest)
         expect(answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}")).to_be_visible()
 
 
+def switch_user(
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    user_type: DeliverGrantFundingUserType,
+    email_address: str,
+) -> E2ETestUser:
+    grant_dashboard_page = GrantDashboardPage(page, domain)
+    grant_dashboard_page.click_sign_out()
+    if e2e_test_secrets.E2E_ENV == "local":
+        return login_with_stub_sso(domain, page, email_address, user_type)
+    else:
+        return login_with_session_cookie(page, domain, e2e_test_secrets, user_type)
+
+
 @pytest.mark.skip_in_environments(["prod"])
 def test_create_and_preview_report(
-    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser, email
 ) -> None:
     try:
         # Sense check that the test includes all question types
@@ -697,8 +718,22 @@ def test_create_and_preview_report(
         for question_to_test in questions_to_test.values():
             create_question_or_group(question_to_test, manage_task_page)
 
+        # Add grant team member
+        grant_team_page = manage_task_page.click_nav_grant_team()
+        add_grant_team_member_page = grant_team_page.click_add_grant_team_member()
+        grant_team_email = e2e_user_configs[DeliverGrantFundingUserType.GRANT_TEAM_MEMBER].email
+        add_grant_team_member_page.fill_in_user_email(grant_team_email)
+        grant_team_page = add_grant_team_member_page.click_continue()
+
+        # Sign out and switch to grant team member
+        switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER, grant_team_email)
+
         # Preview the report
-        report_tasks_page = navigate_to_report_tasks_page(page, domain, new_grant_name, new_report_name)
+        grant_details_page = GrantDetailsPage(page, domain, new_grant_name)
+        grant_reports_page = grant_details_page.click_reports(new_grant_name)
+        report_tasks_page = grant_reports_page.click_manage_tasks(
+            grant_name=new_grant_name, report_name=new_report_name
+        )
         tasklist_page = report_tasks_page.click_preview_report()
 
         # Check the tasklist has loaded
@@ -770,6 +805,9 @@ def test_create_and_preview_report(
             assert isinstance(export_data["submissions"][0], dict)
 
     finally:
+        # Sign out and switch to platform admin
+        switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
+
         # Tidy up by deleting the grant, which will cascade to all related entities
         all_grants_page.navigate()
         grant_dashboard_page = all_grants_page.click_grant(new_grant_name)

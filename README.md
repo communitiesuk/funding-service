@@ -65,6 +65,13 @@ To slow the test down, add `--slowmo 1000` to have Playwright insert 1 second pa
 
 [This function](./tests/conftest.py#L22) skips e2e or non-e2e tests depending on if they are in the `e2e` module under `tests`, so no individual tests need to be marked with the `e2e` marker.
 
+### Pre-requisites for E2E tests in deployed environments
+In order for the E2E tests to run against deployed environments (either kicked off locally or as part of the deployment pipeline) we mock session cookies for specific user types (currently a Platform Admin and a Grant Team Member on Deliver Grant Funding). These require us to have users with specific email addresses created in the database, and in the case of the Platform Admin they need the Platform Admin role. The IDs of these pre-existing users are stored in the AWS Parameter Store for each environment.
+
+If the database is reset and wiped, these two users and the role will need to be manually added to the databases online - `svc-Preaward-Funds@test.communities.gov.uk` as the Platform Admin user and role, and `svc-Preaward-Funds@communities.gov.uk` as a normal user without any role.
+
+If adding them to an empty database (either via the ad-hoc script or via the Query editor in AWS), be sure to use the correct IDs from the Parameter Store as the IDs of these users.
+
 ### Run E2E tests against an AWS environment
 
 Additional flags must be passed to the `pytest` command:
