@@ -138,7 +138,7 @@ def interpolate(text: str, context: ExpressionContext | None) -> str:
         return str(value)
 
     return re.sub(
-        r"\(\(.+?\)\)",
+        r"\(\([^\(]+?\)\)",
         _interpolate,
         text,
     )

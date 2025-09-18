@@ -33,9 +33,22 @@ class AddContextToQuestionSessionModel(BaseModel):
     name: str
     hint: str
 
-    context_field: Literal["text", "hint"]
+    field: Literal["text", "hint"]
 
     data_source: DataSourceChoices | None = None
 
     question_id: UUID | None = None
     parent_id: UUID | None = None
+
+
+class AddContextToQuestionGuidanceSessionModel(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
+    field: Literal["guidance"] = "guidance"
+
+    guidance_body: str
+    guidance_heading: str
+
+    data_source: DataSourceChoices | None = None
+
+    question_id: UUID | None = None

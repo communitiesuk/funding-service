@@ -14,7 +14,6 @@ from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
-    AddGuidanceForm,
     AddTaskForm,
     GroupDisplayOptionsForm,
     GroupForm,
@@ -2697,15 +2696,17 @@ class TestManageGuidance:
     def test_post_add_guidance(self, authenticated_grant_admin_client, factories, db_session):
         question = factories.question.create(form__collection__grant=authenticated_grant_admin_client.grant)
 
-        form = AddGuidanceForm(guidance_heading="How to answer", guidance_body="Please provide detailed information")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={
+                "guidance_heading": "How to answer",
+                "guidance_body": "Please provide detailed information",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
 
@@ -2725,15 +2726,13 @@ class TestManageGuidance:
             guidance_body="Old body",
         )
 
-        form = AddGuidanceForm(guidance_heading="Updated heading", guidance_body="Updated body")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={"guidance_heading": "Updated heading", "guidance_body": "Updated body", "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2751,15 +2750,13 @@ class TestManageGuidance:
             guidance_body="Existing body",
         )
 
-        form = AddGuidanceForm(guidance_heading="", guidance_body="")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={"guidance_heading": "", "guidance_body": "", "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2769,7 +2766,7 @@ class TestManageGuidance:
         assert updated_question.guidance_heading == ""
         assert updated_question.guidance_body == ""
 
-    def test_post_guidance_with_heading_or_text_but_not_Both(
+    def test_post_guidance_with_heading_or_text_but_not_both(
         self, authenticated_grant_admin_client, factories, db_session
     ):
         question = factories.question.create(
@@ -2778,15 +2775,13 @@ class TestManageGuidance:
             guidance_body="Existing body",
         )
 
-        form = AddGuidanceForm(guidance_heading="Existing heading", guidance_body="")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={"guidance_heading": "Existing heading", "guidance_body": "", "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2826,15 +2821,13 @@ class TestManageGuidance:
             guidance_body="Old body",
         )
 
-        form = AddGuidanceForm(guidance_heading="Updated heading", guidance_body="Updated body")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=group.id,
             ),
-            data={k: v for k, v in form.data.items() if k not in ["preview"]},
+            data={"guidance_heading": "Updated heading", "guidance_body": "Updated body", "submit": "y"},
             follow_redirects=False,
         )
 
