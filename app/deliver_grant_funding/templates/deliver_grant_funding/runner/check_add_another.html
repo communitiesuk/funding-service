@@ -1,0 +1,86 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "common/macros/collections.html" import collection_check_your_answers with context %}
+{% from "common/macros/collections.html" import collection_before with context %}
+{% extends "developers/deliver/access_grant_funding_base.html" %}
+
+{% set page_title = "Check your answers - " ~ runner.form.title %}
+
+{% set form = runner.check_your_answers_form %}
+
+{% block beforeContent %}
+  {{ collection_before(runner, override_back_link=None if not is_first_question_in_task_preview else url_for("deliver_grant_funding.list_task_questions", grant_id=runner.submission.grant.id, form_id=runner.form.id)) }}
+{% endblock beforeContent %}
+
+{% set form = runner.add_another_form %}
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {# probably doesn't work nicely for groups, currently the list is flat rather than { qid } #}
+      {# for things like this where we're reading lists its maybe better for them all to be qid indexed so theres no difference? #}
+      {% set answers = runner.submission.cached_get_answer_for_question(runner.component.id) or [] %}
+
+      {# move this to a collections macro #}
+      <h1 class="govuk-heading-l">You have added {{ answers|length }} {{ runner.component.name or "answers" }}</h1>
+      {# {{ collection_check_your_answers(runner) }} #}
+
+      {# i can only do this because its one answer - if it was a group it would need to get each answer separately #}
+      {% set rows = [] %}
+      {% for answer in answers %}
+        {% set question = runner.component %}
+        {% set value_html %}
+          {% include answer._render_answer_template %}
+        {% endset %}
+
+        {%
+          set actions = (
+          [
+            {
+              "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.component, source=enum.form_runner_state.CHECK_ADD_ANOTHER, add_another_index=loop.index - 1),
+              "text": "Change",
+              "visuallyHiddenText": runner.component.name
+            },
+            {
+              "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.component, source=enum.form_runner_state.CHECK_ADD_ANOTHER),
+              "text": "Remove",
+              "visuallyHiddenText": runner.component.name
+            },
+          ]
+          )
+        %}
+
+        {# "key": {"text": question.text}, #}
+        {# personally I think this looks better without the index #}
+        {# just easier to match the macro options for now #}
+        {%
+          do rows.append({
+            "key": { "text": loop.index, "classes": "govuk-!-width-one-quarter"  },
+            "value": {"html": value_html},
+            "actions": {"items": actions, "classes": "govuk-!-width-one-third"},
+          })
+        %}
+      {% endfor %}
+
+      {# "classes": "govuk-!-margin-bottom-9", #}
+      {{
+        govukSummaryList({
+          "rows": rows
+        })
+      }}
+      <form method="post" novalidate>
+        {{ runner.add_another_form.csrf_token }}
+        {{
+          runner.add_another_form.add_another(params={
+            "fieldset": {
+              "legend": {
+                "text": "Do you need to add another answer?",
+                "isPageHeading": false,
+                "classes": "govuk-fieldset__legend--m"
+              }
+            }
+          })
+        }}
+        {{ runner.add_another_form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

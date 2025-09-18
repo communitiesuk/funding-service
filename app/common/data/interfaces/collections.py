@@ -115,15 +115,29 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
 # a list or not and whatevers returning the answer type will be returning a list of them or not?
 
 
+# todo: on check your answers when getting the answer
+#       currently _only_ goes through questions - do we have a similar check that our question isn't part of an add another group
+#       OR do we change to iterate through components (which include groups)
 def update_submission_data(
     submission: Submission, question: Question, data: AllAnswerTypes, *, add_another_index: Optional[int] = None
 ) -> Submission:
+    # todo: all of this will need to be indexed by the question id for any thinking about groups
     if question.is_add_another:
-        if add_another_index is None:
+        # likely a sub-optimal check but
+        if (
+            add_another_index is None
+            or submission.data.get(str(question.id)) is None
+            or (
+                submission.data.get(str(question.id)) is not None
+                and len(submission.data.get(str(question.id))) <= add_another_index
+            )
+        ):
             submission.data.setdefault(str(question.id), []).append(data.get_value_for_submission())
+            # submission.data.setdefault(str(question.id), []).append({ str(question.id): data.get_value_for_submission()})
         else:
             # todo: when we're doing question groups and each entry can be multiple questions this will need to be another dictionary of question ids to answers
             #       should we just do that up front?
+            # submission.data[str(question.id)][add_another_index] = {str(question.id): data.get_value_for_submission()}
             submission.data[str(question.id)][add_another_index] = data.get_value_for_submission()
     else:
         submission.data[str(question.id)] = data.get_value_for_submission()

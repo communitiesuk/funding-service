@@ -9,7 +9,8 @@
 {% set form = runner.question_form %}
 
 {% block beforeContent %}
-  {{ collection_before(runner, override_back_link=None if not is_first_question_in_task_preview else url_for("deliver_grant_funding.list_task_questions", grant_id=runner.submission.grant.id, form_id=runner.form.id)) }}
+  {# we should be going back to the check add another but this logic isn't at all clear, also doesn't factor in the right behaviour if we're auto jumping to the question to be filled in if not in group #}
+  {{ collection_before(runner, override_back_link=None if (not is_first_question_in_task_preview or runner.add_another_index != None) else url_for("deliver_grant_funding.list_task_questions", grant_id=runner.submission.grant.id, form_id=runner.form.id)) }}
 {% endblock beforeContent %}
 
 {% block content %}

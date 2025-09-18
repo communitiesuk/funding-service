@@ -79,6 +79,9 @@ class DynamicQuestionForm(FlaskForm):
         # validators can rely on the data being, at the least, the right shape.
         return super().validate(extra_validators)
 
+    # todo: thoughts in progress - we're going to need to pass the add another index through everywhere that we
+    #       use the questions safe_qid - I wonder if we can set the add another index on the question so that it just
+    #       propegates everywhere
     @classmethod
     def attach_field(cls, question: Question, field: Field) -> None:
         setattr(cls, question.safe_qid, cast(_accepted_fields, field))
@@ -110,16 +113,21 @@ def build_validators(question: Question, expression_context: ExpressionContext) 
     return validators
 
 
-def build_question_form(questions: list[Question], expression_context: ExpressionContext) -> type[DynamicQuestionForm]:
+def build_question_form(
+    questions: list[Question], expression_context: ExpressionContext, *, add_another_index: int | None = None
+) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
         _expression_context = expression_context
         _questions = questions
+        _add_another_index = add_another_index
 
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
     field: _accepted_fields
     for question in questions:
+        if add_another_index is not None:
+            question.add_another_index = add_another_index
         match question.data_type:
             case QuestionDataType.EMAIL:
                 field = EmailField(
@@ -249,3 +257,13 @@ class CheckYourAnswersForm(FlaskForm):
             self.section_completed.validators = [DataRequired("Select if you have completed this task")]
         else:
             self.section_completed.validators = [Optional()]
+
+
+class AddAnotherForm(FlaskForm):
+    add_another = RadioField(
+        "Do you need to add another answer?",
+        choices=[("yes", "Yes"), ("no", "No")],
+        widget=GovRadioInput(),
+        validators=[DataRequired("Select yes if you need to add another answer")],
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())

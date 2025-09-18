@@ -40,7 +40,7 @@
       {% set value_html %}
         {% if answer_value %}
           {% if question.is_add_another %}
-            <ul class="govuk-list govuk-list--bullet">
+            <ul class="govuk-list govuk-list--number">
               {% for answer in answer_value %}
                 <li>{% include answer._render_answer_template %}</li>
               {% endfor %}

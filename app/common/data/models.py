@@ -301,10 +301,25 @@ class Component(BaseModel):
 class Question(Component, SafeQidMixin):
     __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._add_another_index: Optional[int] = None
+
     if TYPE_CHECKING:
         # database constraints ensure the question component will have a data_type
         # we reflect that its required on the question component but don't hook in a competing migration
         data_type: QuestionDataType
+
+    @property
+    def add_another_index(self) -> Optional[int]:
+        # fixme: not sure why this isn't always set
+        if hasattr(self, "_add_another_index"):
+            return self._add_another_index
+        return None
+
+    @add_another_index.setter
+    def add_another_index(self, value: Optional[int]) -> None:
+        self._add_another_index = value
 
     @property
     def question_id(self) -> uuid.UUID:  # type: ignore[override]

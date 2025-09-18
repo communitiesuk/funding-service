@@ -106,15 +106,29 @@ class SubmissionHelper:
         #       otherwise you can't show a single form value
         #       where this is then used on the summary page will need some tweaking
         form_data = {}
+
+        # context: prepopulating the form while still being able to submit answers
         for form in self.submission.collection.forms:
             for question in form.cached_questions:
                 if (answer := self.cached_get_answer_for_question(question.id)) is not None:
                     if not question.is_add_another:
                         form_data[question.safe_qid] = answer.get_value_for_form()
                     else:
+                        # todo: needs to think about what it would do if its parsing a groups answer - this may not be needed
+                        #       if we're not fetching a groups answer directly and depends on the read model
                         for another in answer:
+                            # todo: don't mutate here for now because this context could change?
+                            #  .    it should still use the same property to get this formatted for consistency
+                            # question.add_another_index = answer.index(another)
+                            # form_data[question.safe_qid] = another.get_value_for_form()
+
                             # todo: this would need to be unit tested extensively - one place should know how to create these
-                            form_data[question.safe_qid + str(answer.index(another))] = another.get_value_for_form()
+                            form_data[f"q_{question.question_id.hex}_{answer.index(another)}"] = (
+                                another.get_value_for_form()
+                            )
+
+                            # fixme: I'm not sure _where_ this is being set elsewhere but it seems to be so I'm just going to leave it for now
+                            # form_data[question.safe_qid] = another.get_value_for_form()
         # form_data = {
         #     question.safe_qid: answer.get_value_for_form()
         #     for form in self.submission.collection.forms
@@ -301,6 +315,8 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
+    # maybe - gut feel is that this is what turns it into a list of answers if its add another - and calls deserialise on each question
+    # if its a group then the answer returned will be a dict[qid, deserialised_answer]
     def _get_answer_for_question(self, question_id: UUID) -> AllAnswerTypes | list[AllAnswerTypes] | None:
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
@@ -515,9 +531,52 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
 
+# at the question answer level - it feels wrong (doing too much?)
+
+# { "qid" : "answer" }
+# { "qid" : [ "answer", "answer2" ] }
+
+# group - project milestones (one per page, same page)
+# q1 - description
+# q2 - date
+
+# currently:
+# { "q1": "description", "q2": "2000-04-01" }
+
+# ----
+
+# { "gid" : [ { "q1": "answer", "q2": "answer2" }, { "q1": "answer2", "q2": "answer3"i } ] }
+
+
+# { "qid": "answer" }
+# option 1 - { "qid": [ "answer", "answer2" ] }
+# option 2 - { "qid" : [ { "qid": "answer" }, { "qid": "answer2" } ] }
+# { "gid" : [ { "qid": "answer", "q1id": "answer2" }, { "qid": "answer2", "q1id": "answer3" } ] }
+
+
+# line of thought
+# - are we calling deserialise on the group all at once or do we have a middle thing that goes through each item in the group and calls deserialise
+
+# so we _need_ to know the question _type_ of each question within the group
+# could happen within deserialise
+
+
 def _deserialise_question_type(
     question: "Question", serialised_data: str | int | float | bool
 ) -> AllAnswerTypes | list[AllAnswerTypes]:
+    # return TypeAdapter(AllAnswerTypes).validate_python(serialised_data)
+
+    # fuck - maybe this just does read it all and pass it back up based on each individual question type
+    # lets think that through
+    # it's between this and the get answer for balanace
+
+    # some options
+    # - add an internal type discriminator to submission pydantic models - allow pydantic to parse AllAnswerTypes
+    # OR
+    # - keep deserialise at an individual question level - 'Get answer for question' will need to factor in that
+    #   it might be a list of multiple questions
+    GenericGroupWrapper = RootModel[List[dict[str, AllAnswerTypes]]]
+
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
             # todo: make a map of question type to answer type and then validate once - which will include this iteration logic
@@ -528,6 +587,7 @@ def _deserialise_question_type(
                 # todo: this could be reflected in _either_ the answer serialised type, its a list or a single answer
                 #       or here in this interface - I'm not sure yet which is best
                 return TypeAdapter(Wrapper).validate_python(serialised_data).root
+                # return TypeAdapter(GenericGroupWrapper).validate_python(serialised_data).root
             else:
                 return TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)
         case QuestionDataType.URL:

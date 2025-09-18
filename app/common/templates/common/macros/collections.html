@@ -132,7 +132,8 @@
       {% set value_html %}
         {# todo: this is a very temporary solution - we might want this to be done elsewhere as its used in CSV, JSON, etc. but maybe they do each need to do something unique #}
         {% if question.is_add_another %}
-          <ul class="govuk-list govuk-list--bullet">
+          <ul class="govuk-list govuk-list--number">
+            {# {% for key, answer in answer_value %} #}
             {% for answer in answer_value %}
               <li>{% include answer._render_answer_template %}</li>
             {% endfor %}
@@ -272,4 +273,7 @@
       </div>
     </div>
   {% endif %}
+{% endmacro %}
+
+{% macro check_add_another(runner) %}
 {% endmacro %}

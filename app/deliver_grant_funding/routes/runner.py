@@ -48,12 +48,21 @@ def submission_tasklist(grant_id: UUID, submission_id: UUID) -> ResponseReturnVa
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"]
 )
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>",
+    methods=["GET", "POST"],
+)
 @has_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
-def ask_a_question(grant_id: UUID, submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
+def ask_a_question(
+    grant_id: UUID, submission_id: UUID, question_id: UUID, add_another_index: int | None = None
+) -> ResponseReturnValue:
     source = request.args.get("source")
     runner = DGFFormRunner.load(
-        submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
+        submission_id=submission_id,
+        question_id=question_id,
+        source=FormRunnerState(source) if source else None,
+        add_another_index=add_another_index,
     )
 
     if not runner.validate_can_show_question_page():
@@ -101,3 +110,42 @@ def check_your_answers(grant_id: UUID, submission_id: UUID, form_id: UUID) -> Re
             return redirect(runner.next_url)
 
     return render_template("deliver_grant_funding/runner/check_your_answers.html", runner=runner)
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/check-add-another",
+    methods=["GET", "POST"],
+)
+@has_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def check_add_another(grant_id: UUID, submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    source = request.args.get("source")
+    runner = DGFFormRunner.load(
+        submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
+    )
+
+    # the runner lib should deal with checking things like being in a group or same page
+    # todo: update the question page to be able to include the add anothers index (_optionally_) - that will probably need to be
+    #       propegated through the runner
+
+    # the add another from probably managed by the runner lib for parity with other routes, it will
+    # only be populated if the question/ group type is add another etc.
+
+    # one way of telling that you're on the check page might be that no index is specified and you're add another?
+    # would need to reason about if thats intuitive for devs
+
+    if runner.add_another_form and runner.add_another_form.validate_on_submit():
+        # todo: where should this decision be made, probably in the runner lib
+        #       we're getting a yes/ no answer from the from (which technically the runner has)
+        return redirect(runner.next_url)
+
+    is_first_question_in_task_preview = False
+    if session.get("test_submission_form_id", None):
+        question = runner.questions[0]
+        is_first_question_in_task_preview = question == question.form.cached_questions[0]
+
+    return render_template(
+        "deliver_grant_funding/runner/check_add_another.html",
+        runner=runner,
+        is_first_question_in_task_preview=is_first_question_in_task_preview,
+    )
