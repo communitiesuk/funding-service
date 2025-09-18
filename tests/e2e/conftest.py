@@ -1,4 +1,6 @@
+import enum
 import os
+import re
 from typing import Generator, cast
 from unittest.mock import patch
 
@@ -14,10 +16,29 @@ from app import create_app
 from app.common.data.models_user import User
 from app.common.data.types import AuthMethodEnum
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
-from tests.e2e.dataclasses import E2ETestUser
+from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig
 from tests.e2e.helpers import retrieve_magic_link
 from tests.e2e.pages import RequestALinkToSignInPage, SSOSignInPage, StubSSOEmailLoginPage
 from tests.utils import build_db_config
+
+
+class DeliverGrantFundingUserType(enum.StrEnum):
+    PLATFORM_ADMIN = "platform admin"
+    GRANT_TEAM_MEMBER = "grant team member"
+
+
+e2e_user_configs: dict[DeliverGrantFundingUserType, E2ETestUserConfig] = {
+    DeliverGrantFundingUserType.PLATFORM_ADMIN: E2ETestUserConfig(
+        user_id="SSO_PLATFORM_ADMIN_USER_ID",
+        email="svc-Preaward-Funds@test.communities.gov.uk",
+        expected_login_url_pattern="{domain}/deliver/grants",
+    ),
+    DeliverGrantFundingUserType.GRANT_TEAM_MEMBER: E2ETestUserConfig(
+        user_id="SSO_GRANT_TEAM_MEMBER_USER_ID",
+        email="svc-Preaward-Funds@communities.gov.uk",
+        expected_login_url_pattern="^{domain}/deliver/grant/[a-f0-9-]{{36}}/details$",
+    ),
+}
 
 
 @pytest.fixture(autouse=True)
@@ -98,7 +119,7 @@ def authenticated_browser_magic_link(
     return E2ETestUser(email_address=email)
 
 
-def login_with_stub_sso(domain: str, page: Page, email: str) -> E2ETestUser:
+def login_with_stub_sso(domain: str, page: Page, email: str, user_type: DeliverGrantFundingUserType) -> E2ETestUser:
     """
     Logs in using the stub SSO flow, used for local development and running tests against docker compose in github
     """
@@ -108,19 +129,25 @@ def login_with_stub_sso(domain: str, page: Page, email: str) -> E2ETestUser:
 
     sso_email_login_page = StubSSOEmailLoginPage(page, domain)
     sso_email_login_page.fill_email_address(email)
+    if user_type == DeliverGrantFundingUserType.GRANT_TEAM_MEMBER:
+        sso_email_login_page.uncheck_platform_admin_checkbox()
     sso_email_login_page.click_sign_in()
 
     return E2ETestUser(email_address=email)
 
 
-def login_with_session_cookie(page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets) -> E2ETestUser:
+def login_with_session_cookie(
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, user_type: DeliverGrantFundingUserType
+) -> E2ETestUser:
     """
     Creates an instance of the app with an additional route that uses flask_login to log in the test user. Retrieves the
     session cookie from the response headers and adds it to the browser context cookies. Then that browser behaves as if
     it is logged in with a valid session cookie. This bypasses the need to use the real SSO flow.
 
     """
-    user_obj = User(name="E2E Test User", id=e2e_test_secrets.SSO_PLATFORM_ADMIN_USER_ID)
+    user_config = e2e_user_configs[user_type]
+
+    user_obj = User(name="E2E Test User", id=getattr(e2e_test_secrets, user_config.user_id))
     with patch.dict(os.environ, build_db_config(None)):
         new_app = create_app()
     new_app.config["SECRET_KEY"] = e2e_test_secrets.SECRET_KEY
@@ -156,9 +183,17 @@ def login_with_session_cookie(page: Page, domain: str, e2e_test_secrets: EndToEn
         ]
     )
     sso_sign_in_page.navigate()
-    # If the browser contains a valid cookie, it should redirect to the grants page
-    expect(page).to_have_url(f"{domain}/deliver/grants")
-    return E2ETestUser(email_address="svc-Preaward-Funds@test.communities.gov.uk")
+
+    url_pattern = user_config.expected_login_url_pattern.format(domain=domain)
+    expected_url: str | re.Pattern[str]
+    if url_pattern.startswith("^"):
+        expected_url = re.compile(url_pattern)
+    else:
+        expected_url = url_pattern
+
+    # If the browser contains a valid cookie, it should redirect to the grants page or a specific grant page
+    expect(page).to_have_url(expected_url)
+    return E2ETestUser(email_address=user_config.email)
 
 
 @pytest.fixture()
@@ -166,8 +201,8 @@ def authenticated_browser_sso(
     domain: str, e2e_test_secrets: EndToEndTestSecrets, page: Page, email: str
 ) -> E2ETestUser:
     if e2e_test_secrets.E2E_ENV == "local":
-        return login_with_stub_sso(domain, page, email)
+        return login_with_stub_sso(domain, page, email, DeliverGrantFundingUserType.PLATFORM_ADMIN)
     elif e2e_test_secrets.E2E_ENV in {"dev", "test"}:
-        return login_with_session_cookie(page, domain, e2e_test_secrets)
+        return login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
     else:
         raise ValueError(f"Unknown e2e_env: {e2e_test_secrets.E2E_ENV}. Cannot authenticate browser with SSO.")

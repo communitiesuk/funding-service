@@ -14,3 +14,10 @@ class GuidanceText:
     body_link_url: str
     body_ul_items: list[str]
     body_ol_items: list[str]
+
+
+@dataclass
+class E2ETestUserConfig:
+    user_id: str
+    email: str
+    expected_login_url_pattern: str

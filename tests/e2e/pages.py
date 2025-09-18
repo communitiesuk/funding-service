@@ -60,7 +60,11 @@ class SSOSignInPage(BasePage):
     def navigate(self) -> None:
         self.page.goto(f"{self.domain}/sso/sign-in")
         # If already logged in, this will redirect to /grants
-        expect(self.title.or_(self.page.get_by_role("heading", name="Grants"))).to_be_visible()
+        expect(
+            self.title.or_(self.page.get_by_role("heading", name="Grants")).or_(
+                self.page.get_by_role("heading", name="Grant details")
+            )
+        ).to_be_visible()
 
     def click_sign_in(self) -> None:
         self.sign_in.click()
@@ -78,6 +82,9 @@ class StubSSOEmailLoginPage(BasePage):
 
     def fill_email_address(self, email_address: str) -> None:
         self.email_address.fill(email_address)
+
+    def uncheck_platform_admin_checkbox(self) -> None:
+        self.page.get_by_role("checkbox", name="Platform admin type login").uncheck()
 
 
 class MicrosoftLoginBasePage(BasePage):
@@ -276,21 +283,19 @@ class GrantSetupConfirmationPage(TopNavMixin, BasePage):
 
 
 class GrantDashboardBasePage(TopNavMixin, BasePage):
-    dashboard_nav: Locator
     settings_nav: Locator
     developers_nav: Locator
     reports_nav: Locator
+    grant_team_nav: Locator
+    sign_out_nav: Locator
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.dashboard_nav = self.page.get_by_role("link", name="Grant home")
         self.settings_nav = self.page.get_by_role("link", name="Grant details")
         self.developers_nav = self.page.get_by_role("link", name="Developers")
         self.reports_nav = self.page.get_by_role("link", name="Reports")
-
-    def click_dashboard(self) -> GrantDashboardPage:
-        self.dashboard_nav.click()
-        return GrantDashboardPage(self.page, self.domain)
+        self.grant_team_nav = self.page.get_by_role("link", name="Grant team")
+        self.sign_out_nav = self.page.get_by_role("link", name="Sign out")
 
     def click_settings(self, grant_name: str) -> GrantDetailsPage:
         self.settings_nav.click()
@@ -312,6 +317,18 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
         grant_reports_page = GrantReportsPage(self.page, self.domain, grant_name=grant_name)
         expect(grant_reports_page.heading).to_be_visible()
         return grant_reports_page
+
+    def click_grant_team(self) -> GrantTeamPage:
+        self.reports_nav.click()
+        grant_team_page = GrantTeamPage(self.page, self.domain)
+        expect(grant_team_page.title).to_be_visible()
+        return grant_team_page
+
+    def click_sign_out(self) -> SSOSignInPage:
+        self.sign_out_nav.click()
+        sso_sign_in_page = SSOSignInPage(self.page, self.domain)
+        expect(sso_sign_in_page.title).to_be_visible()
+        return sso_sign_in_page
 
 
 class GrantDashboardPage(GrantDashboardBasePage):
@@ -454,3 +471,35 @@ class ChangeGrantMainContactPage(GrantDashboardBasePage):
         grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
         expect(grant_details_page.title).to_be_visible()
         return grant_details_page
+
+
+class GrantTeamPage(GrantDashboardBasePage):
+    title: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = page.get_by_role("heading", name="Grant team")
+
+    def click_add_grant_team_member(self) -> AddGrantTeamMemberPage:
+        self.page.get_by_role("button", name="Add grant team member").click()
+        add_grant_team_member_page = AddGrantTeamMemberPage(self.page, self.domain)
+        expect(add_grant_team_member_page.title).to_be_visible()
+        return add_grant_team_member_page
+
+
+class AddGrantTeamMemberPage(GrantDashboardBasePage):
+    title: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = page.get_by_role("heading", name="What’s their email address?")
+
+    def fill_in_user_email(self, email_address: str) -> None:
+        self.page.get_by_role("textbox").fill(email_address)
+
+    def click_continue(self) -> GrantTeamPage:
+        self.page.get_by_role("button", name="Continue").click()
+        grant_team_page = GrantTeamPage(self.page, self.domain)
+        expect(grant_team_page.page.get_by_role("heading", name="Grant team member added")).to_be_visible()
+        expect(grant_team_page.page.get_by_role("alert", name="Success")).to_be_visible()
+        return grant_team_page

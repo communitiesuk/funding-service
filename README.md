@@ -65,6 +65,13 @@ To slow the test down, add `--slowmo 1000` to have Playwright insert 1 second pa
 
 [This function](./tests/conftest.py#L22) skips e2e or non-e2e tests depending on if they are in the `e2e` module under `tests`, so no individual tests need to be marked with the `e2e` marker.
 
+### Pre-requisites for E2E tests in deployed environments
+In order for the E2E tests to run against deployed environments (either kicked off locally or as part of the deployment pipeline) we mock session cookies for specific user types (currently a Platform Admin and a Grant Team Member on Deliver Grant Funding). These require us to have users with specific email addresses created in the database, and in the case of the Platform Admin they need the Platform Admin role. The IDs of these pre-existing users are stored in the AWS Parameter Store for each environment.
+
+If the database is reset and wiped, these two users and the role will need to be manually added to the databases online - `svc-Preaward-Funds@test.communities.gov.uk` as the Platform Admin user and role, and `svc-Preaward-Funds@communities.gov.uk` as a normal user without any role.
+
+If adding them to an empty database (either via the ad-hoc script or via the Query editor in AWS), be sure to use the correct IDs from the Parameter Store as the IDs of these users.
+
 ### Run E2E tests against an AWS environment
 
 Additional flags must be passed to the `pytest` command:
@@ -78,7 +85,8 @@ By default the e2e test config assumes that locally you are running with the stu
 However, if you have enabled SSO locally as per [the instructions above](#sso), you can still run the e2e tests against your local environment as follows:
 - PreRequisites:
     - Login locally using the SSO stub server with the email address `svc-Preaward-Funds@test.communities.gov.uk`, and tick the "Platform admin type login" option.
-- Update your local `.env` file with the UUID that matches the user `svc-Preaward-Funds@test.communities.gov.uk` in your local database: `SELECT id from "user" where email='svc-Preaward-Funds@test.communities.gov.uk';`
+    - Add `svc-Preaward-Funds@communities.gov.uk` to a local grant as a grant team member, and login locally through the SSO stub service using that email address, unticking the "Platform admin type login" option.
+- Update your local `.env` file with the UUIDs that match these users, `svc-Preaward-Funds@test.communities.gov.uk` and `svc-Preaward-Funds@communities.gov.uk`, in your local database: `SELECT * from "user" where email in ('svc-Preaward-Funds@test.communities.gov.uk','svc-Preaward-Funds@communities.gov.uk');`
 - Edit [authenticated_browser_sso()](./tests/e2e/conftest.py) to use 'login_with_session_cookie()' for the local env.
 
 ## Seed data
