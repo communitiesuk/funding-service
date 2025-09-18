@@ -41,6 +41,10 @@ def strip_string_if_not_empty(value: str) -> str | None:
     return value.strip() if value else value
 
 
+def strip_newlines(value: str) -> str | None:
+    return value.replace("\n", "") if value else value
+
+
 def empty_string_to_none(value: str) -> str | None:
     return value if value else None
 
@@ -230,7 +234,7 @@ class QuestionForm(FlaskForm):
         "Question text",
         description="The text grant recipients will see on their report",
         validators=[DataRequired("Enter the question text")],
-        filters=[strip_string_if_not_empty],
+        filters=[strip_string_if_not_empty, strip_newlines],
         widget=GovTextArea(),
     )
     text_add_context = SubmitField(widget=GovSubmitInput())
@@ -250,7 +254,7 @@ class QuestionForm(FlaskForm):
         description=(
             "A short name for this question that will be used for reference in monitoring reports (use lower-case text)"
         ),
-        filters=[strip_string_if_not_empty],
+        filters=[strip_string_if_not_empty, strip_newlines],
         widget=GovTextInput(),
     )
 
