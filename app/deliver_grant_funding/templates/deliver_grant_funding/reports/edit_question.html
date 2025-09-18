@@ -90,6 +90,9 @@
         {{ form.csrf_token }}
         {{ form.form_id }}
 
+        {# Duplicate the submit button, fully hidden, so that the default action for the form is to submit it (rather than add data to a field) #}
+        {{ form.submit(params={"classes": "govuk-!-display-none"}) }}
+
 
         {% set addDataButton %}
           {{ form.text_add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button"}) }}
