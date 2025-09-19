@@ -82,7 +82,7 @@
           <div class="app-markdown-editor__preview-area" data-ajax-markdown-target="">{{ question.guidance_body | govuk_markdown | safe }}</div>
         {% endset %}
 
-        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('common_api.markdown_to_html') }}">
+        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', grant_id=grant.id) }}">
           {{
             govukTabs(params={
               "items": [

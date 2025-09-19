@@ -557,3 +557,7 @@ class AddGuidanceForm(FlaskForm):
             return False
 
         return result
+
+
+class PreviewGuidanceForm(FlaskForm):
+    guidance = StringField(validators=[DataRequired("`guidance` is missing")])
