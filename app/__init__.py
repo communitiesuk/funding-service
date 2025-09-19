@@ -215,7 +215,6 @@ def create_app() -> Flask:
     _register_custom_converters(app)
 
     from app.access_grant_funding.routes import access_grant_funding_blueprint
-    from app.common.api_routes import common_api_blueprint
     from app.common.auth import auth_blueprint
     from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
     from app.developers import developers_blueprint
@@ -226,7 +225,6 @@ def create_app() -> Flask:
     app.register_blueprint(deliver_grant_funding_blueprint)
     app.register_blueprint(developers_blueprint)
     app.register_blueprint(auth_blueprint)
-    app.register_blueprint(common_api_blueprint)
 
     _register_global_error_handlers(app)
 

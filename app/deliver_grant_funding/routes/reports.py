@@ -1,6 +1,5 @@
 import io
 import uuid
-from functools import partial
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
@@ -51,23 +50,29 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionModeEnum,
 )
-from app.common.expressions import interpolate
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import (
+    AddContextSelectDataSourceForm,
     AddGuidanceForm,
     AddTaskForm,
     ConditionSelectQuestionForm,
+    DataSourceChoices,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
     QuestionTypeForm,
+    SelectDataSourceQuestionForm,
     SetUpReportForm,
 )
 from app.deliver_grant_funding.helpers import start_testing_submission
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
+from app.deliver_grant_funding.session_models import (
+    AddContextToQuestionGuidanceSessionModel,
+    AddContextToQuestionSessionModel,
+)
 from app.extensions import auto_commit_after_request
 from app.types import FlashMessageType
 
@@ -393,12 +398,7 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         db_form=db_form,
         delete_form=delete_wtform,
         form=preview_form,
-        interpolate=partial(
-            interpolate,
-            context=SubmissionHelper.build_expression_context(
-                collection=db_form.collection, fallback_question_names=True, mode="interpolation"
-            ),
-        ),
+        interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection, fallback_question_names=True),
     )
 
 
@@ -433,12 +433,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         db_form=group.form,
         delete_form=delete_wtform,
         group=group,
-        interpolate=partial(
-            interpolate,
-            context=SubmissionHelper.build_expression_context(
-                collection=group.form.collection, fallback_question_names=True, mode="interpolation"
-            ),
-        ),
+        interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection, fallback_question_names=True),
     )
 
 
@@ -595,6 +590,53 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     )
 
 
+def _extract_add_context_data_from_session(
+    clean_session: bool = False,
+) -> AddContextToQuestionSessionModel | AddContextToQuestionGuidanceSessionModel | None:
+    add_context_data: AddContextToQuestionSessionModel | AddContextToQuestionGuidanceSessionModel | None = None
+    if session_data := session.get("question"):
+        if session_data["field"] == "guidance":
+            add_context_data = AddContextToQuestionGuidanceSessionModel(**session_data)  # ty: ignore[missing-argument]
+        else:
+            add_context_data = AddContextToQuestionSessionModel(**session_data)  # ty: ignore[missing-argument]
+
+        if clean_session:
+            del session["question"]
+
+    return add_context_data
+
+
+def _store_question_state_and_redirect_to_add_context(
+    form: QuestionForm | AddGuidanceForm,
+    grant_id: UUID,
+    form_id: UUID,
+    question_id: UUID | None = None,
+    parent_id: UUID | None = None,
+) -> ResponseReturnValue:
+    add_context_data: AddContextToQuestionSessionModel | AddContextToQuestionGuidanceSessionModel
+    if isinstance(form, QuestionForm):
+        add_context_data = AddContextToQuestionSessionModel(
+            data_type=form._question_type,
+            text=form.text.data or "",
+            name=form.name.data or "",
+            hint=form.hint.data or "",
+            field="text" if form.text_add_context.data else "hint",
+            question_id=question_id,
+            parent_id=parent_id,
+        )
+    else:
+        add_context_data = AddContextToQuestionGuidanceSessionModel(
+            guidance_heading=form.guidance_heading.data or "",
+            guidance_body=form.guidance_body.data or "",
+            question_id=question_id,
+        )
+    # TODO: define a parent pydantic model for all of our session context
+    session["question"] = add_context_data.model_dump(mode="json")
+    return redirect(
+        url_for("deliver_grant_funding.select_data_source", grant_id=grant_id, form_id=form_id, parent_id=parent_id)
+    )
+
+
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/questions/add",
     methods=["GET", "POST"],
@@ -605,11 +647,23 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
-    parent_id = request.args.get("parent_id", None)
-    parent = get_group_by_id(UUID(parent_id)) if parent_id else None
+    raw_parent_id = request.args.get("parent_id", None)
+    parent_id = UUID(raw_parent_id) if raw_parent_id else None
+    parent = get_group_by_id(parent_id) if parent_id else None
 
     wt_form = QuestionForm(question_type=question_data_type_enum)
-    if wt_form.validate_on_submit():
+    add_context_data = _extract_add_context_data_from_session(clean_session=True)
+    if add_context_data and isinstance(add_context_data, AddContextToQuestionSessionModel):
+        wt_form.text.data = add_context_data.text
+        wt_form.name.data = add_context_data.name
+        wt_form.hint.data = add_context_data.hint
+
+    if wt_form.is_submitted_to_add_context():
+        return _store_question_state_and_redirect_to_add_context(
+            wt_form, grant_id=grant_id, form_id=form_id, parent_id=parent_id
+        )
+
+    elif wt_form.validate_on_submit():
         try:
             assert wt_form.text.data is not None
             assert wt_form.hint.data is not None
@@ -649,6 +703,92 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/task/<uuid:form_id>/select-data-source", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.ADMIN)
+def select_data_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id)
+    add_context_data = _extract_add_context_data_from_session(clean_session=False)
+    if not add_context_data:
+        return abort(400)
+
+    wtform = AddContextSelectDataSourceForm()
+    if wtform.validate_on_submit():
+        add_context_data.data_source = DataSourceChoices[wtform.data_source.data]
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(
+            url_for("deliver_grant_funding.select_data_source_question", grant_id=grant_id, form_id=form_id)
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/select_data_source.html",
+        grant=db_form.collection.grant,
+        db_form=db_form,
+        form=wtform,
+        add_context_data=add_context_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/task/<uuid:form_id>/select-question", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.ADMIN)
+def select_data_source_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id)
+    wtform = SelectDataSourceQuestionForm(
+        form=db_form,
+        interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection, fallback_question_names=True),
+    )
+    add_context_data = _extract_add_context_data_from_session(clean_session=False)
+    if not add_context_data:
+        return abort(400)
+
+    if wtform.validate_on_submit():
+        referenced_question = get_question_by_id(UUID(wtform.question.data))
+        match add_context_data:
+            case AddContextToQuestionSessionModel():
+                return_url = (
+                    url_for(
+                        "deliver_grant_funding.add_question",
+                        grant_id=grant_id,
+                        form_id=form_id,
+                        parent_id=add_context_data.parent_id,
+                    )
+                    if add_context_data.question_id is None
+                    else url_for(
+                        "deliver_grant_funding.edit_question",
+                        grant_id=grant_id,
+                        question_id=add_context_data.question_id,
+                    )
+                )
+
+                match add_context_data.field:
+                    case "text":
+                        add_context_data.text += f" (({referenced_question.safe_qid}))"
+                    case "hint":
+                        add_context_data.hint += f" (({referenced_question.safe_qid}))"
+                    case _:
+                        abort(400)
+
+            case AddContextToQuestionGuidanceSessionModel():
+                return_url = url_for(
+                    "deliver_grant_funding.manage_guidance", grant_id=grant_id, question_id=add_context_data.question_id
+                )
+                add_context_data.guidance_body += f" (({referenced_question.safe_qid}))"
+
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(return_url)
+
+    return render_template(
+        "deliver_grant_funding/reports/select_data_source_question.html",
+        grant=db_form.collection.grant,
+        db_form=db_form,
+        form=wtform,
+        add_context_data=add_context_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/question/<uuid:question_id>",
     methods=["GET", "POST"],
 )
@@ -661,7 +801,19 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     #        'add question' flow that question record doesn't exist yet. We'd need to cache info about
     #        validation+conditions that need to be added to the question, when the question itself is created.
     question = get_question_by_id(question_id=question_id)
+
     wt_form = QuestionForm(obj=question, question_type=question.data_type)
+
+    add_context_data = _extract_add_context_data_from_session(clean_session=True)
+    if add_context_data and isinstance(add_context_data, AddContextToQuestionSessionModel):
+        wt_form.text.data = add_context_data.text
+        wt_form.name.data = add_context_data.name
+        wt_form.hint.data = add_context_data.hint
+
+    if wt_form.is_submitted_to_add_context():
+        return _store_question_state_and_redirect_to_add_context(
+            wt_form, grant_id=grant_id, form_id=question.form_id, question_id=question.id
+        )
 
     confirm_deletion_form = GenericConfirmDeletionForm()
     if "delete" in request.args:
@@ -728,6 +880,9 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         managed_validation_available=get_managed_validators_by_data_type(question.data_type),
+        interpolate=SubmissionHelper.get_interpolator(
+            collection=question.form.collection, fallback_question_names=True
+        ),
     )
 
 
@@ -739,6 +894,16 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_component_by_id(component_id=question_id)
     form = AddGuidanceForm(obj=question)
+
+    add_context_data = _extract_add_context_data_from_session(clean_session=True)
+    if add_context_data and isinstance(add_context_data, AddContextToQuestionGuidanceSessionModel):
+        form.guidance_heading.data = add_context_data.guidance_heading
+        form.guidance_body.data = add_context_data.guidance_body
+
+    if form.is_submitted_to_add_context():
+        return _store_question_state_and_redirect_to_add_context(
+            form, grant_id=grant_id, form_id=question.form_id, question_id=question_id
+        )
 
     if form.validate_on_submit():
         # todo: both of these are equivalent as this is a property of the underlying component
@@ -777,6 +942,9 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         grant=question.form.collection.grant,
         question=question,
         form=form,
+        interpolate=SubmissionHelper.get_interpolator(
+            collection=question.form.collection, fallback_question_names=True
+        ),
     )
 
 

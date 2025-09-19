@@ -54,7 +54,7 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">{{ question.text }}</span>
+      <span class="govuk-caption-l">{{ interpolate(question.text) }}</span>
       <h2 class="govuk-heading-l">{{ page_title }}</h2>
       <p class="govuk-body">Use guidance if you need to:</p>
       <ul class="govuk-list govuk-list--bullet">
@@ -68,7 +68,10 @@
 
 
         {% set write_guidance_html %}
-          {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-module": "markdown-editor-toolbar", "data-allow-headings": "true", "data-i18n": "{}", "data-ajax-markdown-source": ""} }) }}
+          {% set addDataButton %}
+            {{ form.add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in guidance</span>", "classes": "govuk-button--secondary app-context-aware--button"}) }}
+          {% endset %}
+          {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-module": "markdown-editor-toolbar", "data-allow-headings": "true", "data-i18n": "{}", "data-ajax-markdown-source": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
           {{ govukDetails(params={"summaryText": "Formatting help", "html": guidance_help}) }}
           {{ form.preview(params={"classes": "govuk-button--secondary app-markdown-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
         {% endset %}
@@ -79,10 +82,10 @@
             <h2 class="govuk-heading-m">Preview your guidance below</h2>
             <p class="govuk-body">Below is a preview of how your guidance content will be shown to the person completing your form.</p>
           </div>
-          <div class="app-markdown-editor__preview-area" data-ajax-markdown-target="">{{ question.guidance_body | govuk_markdown | safe }}</div>
+          <div class="app-markdown-editor__preview-area" data-ajax-markdown-target="">{{ interpolate(question.guidance_body) | govuk_markdown | safe }}</div>
         {% endset %}
 
-        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('common_api.markdown_to_html') }}">
+        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', collection_id=question.form.collection_id) }}">
           {{
             govukTabs(params={
               "items": [

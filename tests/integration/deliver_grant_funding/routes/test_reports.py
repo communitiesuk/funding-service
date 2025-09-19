@@ -14,7 +14,6 @@ from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
-    AddGuidanceForm,
     AddTaskForm,
     GroupDisplayOptionsForm,
     GroupForm,
@@ -1286,14 +1285,6 @@ class TestAddQuestion:
         report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
 
-        form = QuestionForm(
-            data={
-                "text": "question",
-                "hint": "hint text",
-                "name": "question name",
-            },
-            question_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_question",
@@ -1301,7 +1292,11 @@ class TestAddQuestion:
                 form_id=db_form.id,
                 question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
             ),
-            data=form.data,
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -1320,14 +1315,6 @@ class TestAddQuestion:
         db_form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=db_form, name="Test group", order=0)
 
-        form = QuestionForm(
-            data={
-                "text": "question",
-                "hint": "hint text",
-                "name": "question name",
-            },
-            question_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_question",
@@ -1336,7 +1323,12 @@ class TestAddQuestion:
                 question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
                 parent_id=group.id,
             ),
-            data=form.data,
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -2704,15 +2696,17 @@ class TestManageGuidance:
     def test_post_add_guidance(self, authenticated_grant_admin_client, factories, db_session):
         question = factories.question.create(form__collection__grant=authenticated_grant_admin_client.grant)
 
-        form = AddGuidanceForm(guidance_heading="How to answer", guidance_body="Please provide detailed information")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={
+                "guidance_heading": "How to answer",
+                "guidance_body": "Please provide detailed information",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
 
@@ -2732,15 +2726,13 @@ class TestManageGuidance:
             guidance_body="Old body",
         )
 
-        form = AddGuidanceForm(guidance_heading="Updated heading", guidance_body="Updated body")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={"guidance_heading": "Updated heading", "guidance_body": "Updated body", "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2758,15 +2750,13 @@ class TestManageGuidance:
             guidance_body="Existing body",
         )
 
-        form = AddGuidanceForm(guidance_heading="", guidance_body="")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={"guidance_heading": "", "guidance_body": "", "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2776,7 +2766,7 @@ class TestManageGuidance:
         assert updated_question.guidance_heading == ""
         assert updated_question.guidance_body == ""
 
-    def test_post_guidance_with_heading_or_text_but_not_Both(
+    def test_post_guidance_with_heading_or_text_but_not_both(
         self, authenticated_grant_admin_client, factories, db_session
     ):
         question = factories.question.create(
@@ -2785,15 +2775,13 @@ class TestManageGuidance:
             guidance_body="Existing body",
         )
 
-        form = AddGuidanceForm(guidance_heading="Existing heading", guidance_body="")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={"guidance_heading": "Existing heading", "guidance_body": "", "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2833,15 +2821,13 @@ class TestManageGuidance:
             guidance_body="Old body",
         )
 
-        form = AddGuidanceForm(guidance_heading="Updated heading", guidance_body="Updated body")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=group.id,
             ),
-            data={k: v for k, v in form.data.items() if k not in ["preview"]},
+            data={"guidance_heading": "Updated heading", "guidance_body": "Updated body", "submit": "y"},
             follow_redirects=False,
         )
 
