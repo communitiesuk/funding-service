@@ -82,7 +82,7 @@
             <h2 class="govuk-heading-m">Preview your guidance below</h2>
             <p class="govuk-body">Below is a preview of how your guidance content will be shown to the person completing your form.</p>
           </div>
-          <div class="app-markdown-editor__preview-area" data-ajax-markdown-target="">{{ question.guidance_body | govuk_markdown | safe }}</div>
+          <div class="app-markdown-editor__preview-area" data-ajax-markdown-target="">{{ interpolate(question.guidance_body) | govuk_markdown | safe }}</div>
         {% endset %}
 
         <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', collection_id=question.form.collection_id) }}">
