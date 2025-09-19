@@ -30,7 +30,7 @@
         {{ form.name(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
         {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
 
-        {% if chosen_question_data_type in [enum.question_type.TEXT_SINGLE_LINE, enum.question_type.TEXT_MULTI_LINE] %}
+        {% if chosen_question_data_type in [enum.question_type.TEXT_SINGLE_LINE, enum.question_type.TEXT_MULTI_LINE, enum.question_type.EMAIL, enum.question_type.URL, enum.question_type.INTEGER] %}
           {{
             form.add_another(params={
               "fieldset": {

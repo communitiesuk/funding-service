@@ -11,7 +11,6 @@ from uuid import UUID
 from immutabledict import immutabledict
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import RootModel, TypeAdapter
-from pydantic_core import ValidationError
 
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.collections.types import (
@@ -578,42 +577,66 @@ def _deserialise_question_type(
     #   it might be a list of multiple questions
     GenericGroupWrapper = RootModel[List[dict[str, AllAnswerTypes]]]
 
-    match question.data_type:
-        # todo: all of this wrapper behaviour would be made generic for all question types
-        case QuestionDataType.TEXT_SINGLE_LINE:
-            # todo: make a map of question type to answer type and then validate once - which will include this iteration logic
-            Wrapper = RootModel[List[TextSingleLineAnswer]]
-            if question.is_add_another:
-                # todo: should this be used to serialise as well (rather than a manual append in submit)
+    type_mapper = {
+        QuestionDataType.TEXT_SINGLE_LINE: TextSingleLineAnswer,
+        QuestionDataType.URL: UrlAnswer,
+        QuestionDataType.EMAIL: EmailAnswer,
+        QuestionDataType.TEXT_MULTI_LINE: TextMultiLineAnswer,
+        QuestionDataType.INTEGER: IntegerAnswer,
+        QuestionDataType.YES_NO: YesNoAnswer,
+        QuestionDataType.RADIOS: SingleChoiceFromListAnswer,
+        QuestionDataType.CHECKBOXES: MultipleChoiceFromListAnswer,
+    }
 
-                # todo: this could be reflected in _either_ the answer serialised type, its a list or a single answer
-                #       or here in this interface - I'm not sure yet which is best
+    answer_type = type_mapper.get(question.data_type)
 
-                # fixme: we should have a clear handling of this for when it switches, it shouldn't be this but it demonstrates its a thing in preview before a form version is "saved"
-                try:
-                    return TypeAdapter(Wrapper).validate_python(serialised_data).root
-                except ValidationError:
-                    # fallback on trying a single answer format in case the preview has changed
-                    return [TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)]
-                # return TypeAdapter(GenericGroupWrapper).validate_python(serialised_data).root
-            else:
-                try:
-                    return TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)
-                except ValidationError:
-                    return TypeAdapter(Wrapper).validate_python(serialised_data).root[0]
-        case QuestionDataType.URL:
-            return TypeAdapter(UrlAnswer).validate_python(serialised_data)
-        case QuestionDataType.EMAIL:
-            return TypeAdapter(EmailAnswer).validate_python(serialised_data)
-        case QuestionDataType.TEXT_MULTI_LINE:
-            return TypeAdapter(TextMultiLineAnswer).validate_python(serialised_data)
-        case QuestionDataType.INTEGER:
-            return TypeAdapter(IntegerAnswer).validate_python(serialised_data)
-        case QuestionDataType.YES_NO:
-            return TypeAdapter(YesNoAnswer).validate_python(serialised_data)
-        case QuestionDataType.RADIOS:
-            return TypeAdapter(SingleChoiceFromListAnswer).validate_python(serialised_data)
-        case QuestionDataType.CHECKBOXES:
-            return TypeAdapter(MultipleChoiceFromListAnswer).validate_python(serialised_data)
+    if answer_type:
+        Wrapper = RootModel[List[answer_type]]
 
-    raise ValueError(f"Could not deserialise data for question type={question.data_type}")
+        # todo: doesn't consider if you're moving from add another configured to not for now
+        #       in preview we probably just want to handle the error and remove the answer
+        if question.is_add_another:
+            return TypeAdapter(Wrapper).validate_python(serialised_data).root
+        else:
+            return TypeAdapter(answer_type).validate_python(serialised_data)
+    else:
+        raise ValueError(f"Could not deserialise data for question type={question.data_type}")
+
+    # match question.data_type:
+    # todo: all of this wrapper behaviour would be made generic for all question types
+    # case QuestionDataType.TEXT_SINGLE_LINE:
+    # todo: make a map of question type to answer type and then validate once - which will include this iteration logic
+    # Wrapper = RootModel[List[TextSingleLineAnswer]]
+    # if question.is_add_another:
+    # todo: should this be used to serialise as well (rather than a manual append in submit)
+
+    # todo: this could be reflected in _either_ the answer serialised type, its a list or a single answer
+    #       or here in this interface - I'm not sure yet which is best
+
+    # fixme: we should have a clear handling of this for when it switches, it shouldn't be this but it demonstrates its a thing in preview before a form version is "saved"
+    # try:
+    # return TypeAdapter(Wrapper).validate_python(serialised_data).root
+    # except ValidationError:
+    # fallback on trying a single answer format in case the preview has changed
+    # return [TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)]
+    # else:
+    # try:
+    #                 return TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)
+    #             except ValidationError:
+    #                 return TypeAdapter(Wrapper).validate_python(serialised_data).root[0]
+    #     case QuestionDataType.URL:
+    #         return TypeAdapter(UrlAnswer).validate_python(serialised_data)
+    #     case QuestionDataType.EMAIL:
+    #         return TypeAdapter(EmailAnswer).validate_python(serialised_data)
+    #     case QuestionDataType.TEXT_MULTI_LINE:
+    #         return TypeAdapter(TextMultiLineAnswer).validate_python(serialised_data)
+    #     case QuestionDataType.INTEGER:
+    #         return TypeAdapter(IntegerAnswer).validate_python(serialised_data)
+    #     case QuestionDataType.YES_NO:
+    #         return TypeAdapter(YesNoAnswer).validate_python(serialised_data)
+    #     case QuestionDataType.RADIOS:
+    #         return TypeAdapter(SingleChoiceFromListAnswer).validate_python(serialised_data)
+    #     case QuestionDataType.CHECKBOXES:
+    #         return TypeAdapter(MultipleChoiceFromListAnswer).validate_python(serialised_data)
+
+    # raise ValueError(f"Could not deserialise data for question type={question.data_type}")

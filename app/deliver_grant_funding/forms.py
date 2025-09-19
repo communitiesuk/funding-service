@@ -353,7 +353,12 @@ class QuestionForm(FlaskForm):
                 self.rows.validators = [_validate_textarea_size]
                 self.add_another.validators = [DataRequired("Select ‘Yes’ if someone can add more than one answer")]
 
-            case QuestionDataType.TEXT_SINGLE_LINE:
+            case (
+                QuestionDataType.TEXT_SINGLE_LINE
+                | QuestionDataType.EMAIL
+                | QuestionDataType.URL
+                | QuestionDataType.INTEGER
+            ):
                 self.add_another.validators = [DataRequired("Select ‘Yes’ if someone can add more than one answer")]
 
     @property
