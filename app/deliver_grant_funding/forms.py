@@ -249,6 +249,15 @@ class QuestionForm(FlaskForm):
         widget=GovTextInput(),
     )
 
+    add_another = RadioField(
+        "Should people be able to answer this question more than once?",
+        choices=[("yes", "Yes"), ("no", "No - this question can only be answered once")],
+        validators=[Optional()],
+        widget=GovRadioInput(),
+        description="Select ‘Yes’ if you want to let someone add more than one answer - for example, listing all their current household members",
+        coerce=lambda v: "yes" if v is True else "no" if v is False else v,
+    )
+
     # Note: the next fields all read from properties on the `Question` model because the names match. This
     # implicit connection needs to be maintained.
     data_source_items = StringField(
@@ -342,6 +351,10 @@ class QuestionForm(FlaskForm):
 
             case QuestionDataType.TEXT_MULTI_LINE:
                 self.rows.validators = [_validate_textarea_size]
+                self.add_another.validators = [DataRequired("Select ‘Yes’ if someone can add more than one answer")]
+
+            case QuestionDataType.TEXT_SINGLE_LINE:
+                self.add_another.validators = [DataRequired("Select ‘Yes’ if someone can add more than one answer")]
 
     @property
     def normalised_data_source_items(self) -> list[str] | None:

@@ -93,6 +93,21 @@
         {{ form.name(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
         {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
 
+        {% if question.data_type in [enum.question_type.TEXT_SINGLE_LINE, enum.question_type.TEXT_MULTI_LINE] %}
+          {{
+            form.add_another(params={
+              "fieldset": {
+                "legend": {
+                  "text": "Should people be able to answer this question more than once?",
+                  "isPageHeading": false,
+                  "classes": "govuk-!-font-weight-bold"
+                }
+              },
+              "items": [{ "hint": { "text": "After adding their first answer we’ll ask if they need to add another" } }, {}]
+            })
+          }}
+        {% endif %}
+
         {% if question.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
           {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
 

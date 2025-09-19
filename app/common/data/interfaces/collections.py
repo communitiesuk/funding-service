@@ -405,6 +405,7 @@ def create_question(
     parent: Optional[Group] = None,
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
+    add_another: Optional[bool] = False,
 ) -> Question:
     question = Question(
         text=text,
@@ -415,6 +416,7 @@ def create_question(
         data_type=data_type,
         presentation_options=presentation_options,
         parent_id=parent.id if parent else None,
+        add_another=add_another,
     )
     owner = parent or form
     owner.components.append(question)
@@ -742,6 +744,7 @@ def update_question(
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
     guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    add_another: bool | TNotProvided = NOT_PROVIDED,
 ) -> Question:
     if text is not NOT_PROVIDED and text is not None:
         question.text = text  # ty: ignore[invalid-assignment]
@@ -764,6 +767,9 @@ def update_question(
 
     if items is not NOT_PROVIDED and items is not None:
         _update_data_source(question, items)  # ty: ignore[invalid-argument-type]
+
+    if add_another is not NOT_PROVIDED:
+        question.add_another = add_another  # ty: ignore[invalid-assignment]
 
     try:
         db.session.flush()

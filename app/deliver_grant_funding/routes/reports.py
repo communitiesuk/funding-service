@@ -610,6 +610,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 items=wt_form.normalised_data_source_items,
                 presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
                 parent=parent,
+                add_another=wt_form.add_another.data == "yes",
             )
             flash("Question created", FlashMessageType.QUESTION_CREATED)
             return redirect(
@@ -647,6 +648,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     #        'add question' flow that question record doesn't exist yet. We'd need to cache info about
     #        validation+conditions that need to be added to the question, when the question itself is created.
     question = get_question_by_id(question_id=question_id)
+    # todo: coerce this nicely in the field definition, something wasn't lining up for me
     wt_form = QuestionForm(obj=question, question_type=question.data_type)
 
     confirm_deletion_form = GenericConfirmDeletionForm()
@@ -683,6 +685,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
                 name=wt_form.name.data,
                 items=wt_form.normalised_data_source_items,
                 presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
+                add_another=wt_form.add_another.data == "yes",
             )
             return redirect(
                 url_for(

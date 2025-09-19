@@ -258,6 +258,8 @@ class Component(BaseModel):
         collection_class=ordering_list("order"),
     )
 
+    add_another: Mapped[bool] = mapped_column(default=False, server_default="false")
+
     @property
     def conditions(self) -> list["Expression"]:
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.CONDITION]
@@ -282,7 +284,8 @@ class Component(BaseModel):
 
     @property
     def is_add_another(self) -> bool:
-        return self.data_type == QuestionDataType.TEXT_SINGLE_LINE
+        # return self.data_type == QuestionDataType.TEXT_SINGLE_LINE
+        return self.add_another
 
     __table_args__ = (
         UniqueConstraint("order", "parent_id", "form_id", name="uq_component_order_form", deferrable=True),
