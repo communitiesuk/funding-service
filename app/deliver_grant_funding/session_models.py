@@ -46,9 +46,8 @@ class AddContextToQuestionGuidanceSessionModel(BaseModel):
 
     field: Literal["guidance"] = "guidance"
 
+    question_id: UUID | None = None
     guidance_body: str
     guidance_heading: str
 
     data_source: ContextSourceChoices | None = None
-
-    question_id: UUID | None = None

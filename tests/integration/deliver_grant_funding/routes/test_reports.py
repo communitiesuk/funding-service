@@ -1346,6 +1346,48 @@ class TestAddQuestion:
         assert get_h1_text(soup) == "Edit question"
         assert get_h2_text(soup) == "Question created"
 
+    def test_post_from_add_context_success_cleans_that_bit_of_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        session_data = AddContextToQuestionSessionModel(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Test question text",
+            name="Test question name",
+            hint="Test question hint",
+            field="text",
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
+            ),
+            data={
+                "text": "Test question text",
+                "name": "Test question name",
+                "hint": "Test question hint",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+
+        # Stretching the test case a little but validates the flash message
+        response = authenticated_grant_admin_client.get(response.location)
+        assert response.status_code == 200
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert "question" not in sess
+
     def test_post_add_to_group(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
@@ -1420,10 +1462,6 @@ class TestAddQuestion:
 
         hint_textarea = soup.find("textarea", {"name": "hint"})
         assert hint_textarea.text.strip() == "Test question hint"
-
-        # Verify that session data is cleared after extraction
-        with authenticated_grant_admin_client.session_transaction() as sess:
-            assert "question" not in sess
 
 
 class TestAddQuestionGroup:
@@ -1792,6 +1830,52 @@ class TestEditQuestion:
         assert response.status_code == 302
         assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
 
+    def test_post_from_add_context_success_cleans_that_bit_of_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        session_data = AddContextToQuestionSessionModel(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Test question text",
+            name="Test question name",
+            hint="Test question hint",
+            field="text",
+            question_id=question.id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=question.id,
+            ),
+            data={
+                "text": "Test question text",
+                "name": "Test question name",
+                "hint": "Test question hint",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert "question" not in sess
+
     @pytest.mark.xfail
     def test_post_dependency_order_errors(self):
         # TODO: write me, followup PR, sorry
@@ -1825,6 +1909,7 @@ class TestEditQuestion:
             name="Updated question name from session",
             hint="Updated question hint from session",
             field="text",
+            question_id=question.id,
             parent_id=None,
         )
 
@@ -1848,10 +1933,6 @@ class TestEditQuestion:
 
         hint_textarea = soup.find("textarea", {"name": "hint"})
         assert hint_textarea.text.strip() == "Updated question hint from session"
-
-        # Verify that session data is cleared after extraction
-        with authenticated_grant_admin_client.session_transaction() as sess:
-            assert "question" not in sess
 
 
 class TestAddQuestionConditionSelectQuestion:
