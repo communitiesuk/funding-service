@@ -97,7 +97,8 @@ routes_with_no_expected_access_restrictions = [
     "static",
     "healthcheck.healthcheck",
     "index",
-    "common_api.markdown_to_html",  # authorisation done within the endpoint, to avoid redirects+session hijacking
+    # \/ authorisation done within the endpoint, to avoid redirects+session hijacking \/
+    "deliver_grant_funding.api.preview_guidance",
 ]
 
 

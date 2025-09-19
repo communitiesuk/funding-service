@@ -37,13 +37,13 @@ const triggerAjaxMarkdownPreview = async () => {
         referrerPolicy: 'same-origin',
         body: JSON.stringify({
           csrf_token: store.csrfToken,
-          markdown: store.source.value,
+          guidance: store.source.value,
         })
       })
 
       // insert the preview into the DOM
       const json = await response.json()
-      store.target.innerHTML = json.preview_html
+      store.target.innerHTML = json.guidance_html
       if (json.errors.length > 0) {
         addErrorToField(json.errors[0])
         addErrorClass()
