@@ -14,12 +14,12 @@ import {
 let source, target
 
 const jsonResponse = {
-  preview_html: '<h2 class="govuk-heading-m">This is a heading</h2>',
+  guidance_html: '<h2 class="govuk-heading-m">This is a heading</h2>',
   errors: []
 }
 
 const jsonResponseWithError = {
-  preview_html: '<p>This is a level one heading</p>',
+  guidance_html: '<p>This is a level one heading</p>',
   errors: [
     'Guidance text can only contain formatting for links, subheadings (##), bulleted lists (*), or numbered lists (1.)'
   ]
@@ -85,10 +85,10 @@ describe('AJAX Markdown preview', () => {
     })
 
     test('preview is called on page load', async () => {
-      expect(target.innerHTML).toBe(jsonResponse.preview_html)
+      expect(target.innerHTML).toBe(jsonResponse.guidance_html)
 
       expect(global.fetch).toHaveBeenCalledWith('/endpoint', {
-        body: '{"markdown":"## This is a markdown heading"}',
+        body: '{"guidance":"## This is a markdown heading"}',
         cache: 'no-cache',
         credentials: 'same-origin',
         headers: {
@@ -120,7 +120,7 @@ describe('AJAX Markdown preview', () => {
 
       await vi.runAllTimersAsync()
 
-      expect(target.innerHTML).toBe(jsonResponse.preview_html)
+      expect(target.innerHTML).toBe(jsonResponse.guidance_html)
     })
 
     test('preview event only fires once if the user makes multiple changes in quick succession', async () => {
@@ -269,7 +269,7 @@ describe('AJAX Markdown preview', () => {
 
       await vi.advanceTimersByTimeAsync(500)
 
-      expect(target.innerHTML).toBe(jsonResponse.preview_html)
+      expect(target.innerHTML).toBe(jsonResponse.guidance_html)
     })
 
     test('message is pushed to aria-live region when the page loads', async () => {

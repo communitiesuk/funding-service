@@ -28,11 +28,9 @@ class TestCollectionQuestionMacro:
         ref_qid = reference_question.safe_qid
 
         test_question_text = f"Test question for {question_type.value} with reference (({ref_qid}))"
-        test_hint_text = "Test hint: referenced value is (({reference_qid}))".format(reference_qid=ref_qid)
-        test_guidance_heading_text = "Guidance for (({reference_qid}))".format(reference_qid=ref_qid)
-        test_guidance_body_text = "Test guidance: the reference answer is (({reference_qid}))".format(
-            reference_qid=ref_qid
-        )
+        test_hint_text = f"Test hint: referenced value is (({ref_qid}))"
+        test_guidance_heading_text = "Guidance for ((2))"
+        test_guidance_body_text = f"Test guidance: the reference answer is (({ref_qid}))"
 
         main_question = factories.question.create(
             data_type=question_type,
@@ -64,7 +62,7 @@ class TestCollectionQuestionMacro:
 
         expected_question_text = f"Test question for {question_type.value} with reference {reference_answer_value}"
         expected_hint_text = f"Test hint: referenced value is {reference_answer_value}"
-        expected_guidance_heading = f"Guidance for {reference_answer_value}"
+        expected_guidance_heading = "Guidance for ((2))"  # does not get interpolated currently
         expected_guidance_body = f"Test guidance: the reference answer is {reference_answer_value}"
 
         assert expected_question_text in page_text

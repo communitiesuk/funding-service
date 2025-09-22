@@ -14,14 +14,15 @@ from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
-    AddGuidanceForm,
     AddTaskForm,
+    ContextSourceChoices,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
     QuestionTypeForm,
     SetUpReportForm,
 )
+from app.deliver_grant_funding.session_models import AddContextToQuestionSessionModel
 from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_button, page_has_error, page_has_link
 
 
@@ -900,6 +901,24 @@ class TestListGroupQuestions:
         if can_edit:
             assert delete_group_link.get("href") == AnyStringMatching(r"\?delete")
 
+    def test_get_shows_interpolated_questions(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        q1 = factories.question.create(form=form, name="my question name")
+        group = factories.group.create(form=form, name="Test group", order=1)
+        factories.question.create(form=form, parent=group, text=f"Reference to (({q1.safe_qid}))")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        assert "Reference to ((my question name))" in response.text
+
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
@@ -1004,6 +1023,23 @@ class TestListTaskQuestions:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_button(soup, "Yes, delete this task")
+
+    def test_get_shows_interpolated_questions(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        q1 = factories.question.create(form=form, name="my question name")
+        factories.question.create(form=form, text=f"Reference to (({q1.safe_qid}))")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_task_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        assert "Reference to ((my question name))" in response.text
 
     def test_cannot_delete_with_live_submissions(self, authenticated_grant_admin_client, factories, db_session, caplog):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -1286,14 +1322,6 @@ class TestAddQuestion:
         report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
 
-        form = QuestionForm(
-            data={
-                "text": "question",
-                "hint": "hint text",
-                "name": "question name",
-            },
-            question_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_question",
@@ -1301,7 +1329,11 @@ class TestAddQuestion:
                 form_id=db_form.id,
                 question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
             ),
-            data=form.data,
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -1314,20 +1346,54 @@ class TestAddQuestion:
         assert get_h1_text(soup) == "Edit question"
         assert get_h2_text(soup) == "Question created"
 
+    def test_post_from_add_context_success_cleans_that_bit_of_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        session_data = AddContextToQuestionSessionModel(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Test question text",
+            name="Test question name",
+            hint="Test question hint",
+            field="text",
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
+            ),
+            data={
+                "text": "Test question text",
+                "name": "Test question name",
+                "hint": "Test question hint",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+
+        # Stretching the test case a little but validates the flash message
+        response = authenticated_grant_admin_client.get(response.location)
+        assert response.status_code == 200
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert "question" not in sess
+
     def test_post_add_to_group(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=db_form, name="Test group", order=0)
 
-        form = QuestionForm(
-            data={
-                "text": "question",
-                "hint": "hint text",
-                "name": "question name",
-            },
-            question_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_question",
@@ -1336,7 +1402,12 @@ class TestAddQuestion:
                 question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
                 parent_id=group.id,
             ),
-            data=form.data,
+            data={
+                "text": "question",
+                "hint": "hint text",
+                "name": "question name",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -1349,6 +1420,48 @@ class TestAddQuestion:
         assert get_h1_text(soup) == "Edit question"
         assert get_h2_text(soup) == "Question created"
         assert page_has_link(soup, "Return to the question group")
+
+    def test_restore_from_session_when_returning_from_add_session_flow(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", order=0)
+
+        session_data = AddContextToQuestionSessionModel(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Test question text",
+            name="Test question name",
+            hint="Test question hint",
+            field="text",
+            parent_id=group.id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
+                parent_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        # Verify that the session data is restored to the form
+        text_input = soup.find("textarea", {"name": "text"})
+        assert text_input.text.strip() == "Test question text"
+
+        name_input = soup.find("input", {"name": "name"})
+        assert name_input["value"] == "Test question name"
+
+        hint_textarea = soup.find("textarea", {"name": "hint"})
+        assert hint_textarea.text.strip() == "Test question hint"
 
 
 class TestAddQuestionGroup:
@@ -1469,6 +1582,153 @@ class TestAddQuestionGroup:
         assert page_has_error(soup, "A question group with this name already exists")
 
 
+class TestSelectContextSource:
+    def test_get_fails_with_empty_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 400
+
+    def test_get_shows_available_context_source_choices(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToQuestionSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                text="Test question",
+                name="test_question",
+                hint="Test hint",
+                field="text",
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select a data source" in soup.text
+
+    def test_post_redirect_and_updates_session(self, authenticated_grant_admin_client, factories):
+        assert len(ContextSourceChoices) == 1, "Check all redirects if adding new context source choices"
+
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToQuestionSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                text="Test question",
+                name="test_question",
+                hint="Test hint",
+                field="text",
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"data_source": "TASK"},
+        )
+        assert response.status_code == 302
+        assert response.location.endswith(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+
+class TestSelectContextSourceQuestion:
+    def test_get_fails_with_invalid_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 400
+
+    def test_get_lists_questions(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question1 = factories.question.create(form=form, text="Question 1")
+        question2 = factories.question.create(form=form, text="Question 2")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToQuestionSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                text="Test question",
+                name="test_question",
+                hint="Test hint",
+                field="text",
+                data_source=ContextSourceChoices.TASK,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select which question's answer to use" in soup.text
+        assert question1.text in soup.text
+        assert question2.text in soup.text
+
+    def test_post_redirects_and_updates_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, text="Source question")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToQuestionSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                text="Test question",
+                name="test_question",
+                hint="Test hint",
+                field="text",
+                data_source=ContextSourceChoices.TASK,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"question": str(question.id)},
+        )
+        assert response.status_code == 302
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            assert question_data["text"] == f"Test question (({question.safe_qid}))"
+
+
 class TestEditQuestion:
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(
@@ -1570,6 +1830,52 @@ class TestEditQuestion:
         assert response.status_code == 302
         assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
 
+    def test_post_from_add_context_success_cleans_that_bit_of_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        session_data = AddContextToQuestionSessionModel(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Test question text",
+            name="Test question name",
+            hint="Test question hint",
+            field="text",
+            question_id=question.id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=question.id,
+            ),
+            data={
+                "text": "Test question text",
+                "name": "Test question name",
+                "hint": "Test question hint",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert "question" not in sess
+
     @pytest.mark.xfail
     def test_post_dependency_order_errors(self):
         # TODO: write me, followup PR, sorry
@@ -1583,6 +1889,50 @@ class TestEditQuestion:
         # If you're a dev and you're looking at this please consider doing a kindness and taking 10 mins to write a nice
         # test here.
         raise AssertionError()
+
+    def test_restore_from_session_when_returning_from_add_session_flow(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        question = factories.question.create(
+            form=form,
+            text="Existing question text",
+            name="Existing question name",
+            hint="Existing question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        session_data = AddContextToQuestionSessionModel(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Updated question text from session",
+            name="Updated question name from session",
+            hint="Updated question hint from session",
+            field="text",
+            question_id=question.id,
+            parent_id=None,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        # Verify that the session data overrides the existing question data
+        text_input = soup.find("textarea", {"name": "text"})
+        assert text_input.text.strip() == "Updated question text from session"
+
+        hint_textarea = soup.find("textarea", {"name": "hint"})
+        assert hint_textarea.text.strip() == "Updated question hint from session"
 
 
 class TestAddQuestionConditionSelectQuestion:
@@ -2704,15 +3054,17 @@ class TestManageGuidance:
     def test_post_add_guidance(self, authenticated_grant_admin_client, factories, db_session):
         question = factories.question.create(form__collection__grant=authenticated_grant_admin_client.grant)
 
-        form = AddGuidanceForm(guidance_heading="How to answer", guidance_body="Please provide detailed information")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={
+                "guidance_heading": "How to answer",
+                "guidance_body": "Please provide detailed information",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
 
@@ -2732,15 +3084,13 @@ class TestManageGuidance:
             guidance_body="Old body",
         )
 
-        form = AddGuidanceForm(guidance_heading="Updated heading", guidance_body="Updated body")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={"guidance_heading": "Updated heading", "guidance_body": "Updated body", "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2758,15 +3108,13 @@ class TestManageGuidance:
             guidance_body="Existing body",
         )
 
-        form = AddGuidanceForm(guidance_heading="", guidance_body="")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={"guidance_heading": "", "guidance_body": "", "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2776,7 +3124,7 @@ class TestManageGuidance:
         assert updated_question.guidance_heading == ""
         assert updated_question.guidance_body == ""
 
-    def test_post_guidance_with_heading_or_text_but_not_Both(
+    def test_post_guidance_with_heading_or_text_but_not_both(
         self, authenticated_grant_admin_client, factories, db_session
     ):
         question = factories.question.create(
@@ -2785,15 +3133,13 @@ class TestManageGuidance:
             guidance_body="Existing body",
         )
 
-        form = AddGuidanceForm(guidance_heading="Existing heading", guidance_body="")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data={"guidance_heading": "Existing heading", "guidance_body": "", "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2833,15 +3179,13 @@ class TestManageGuidance:
             guidance_body="Old body",
         )
 
-        form = AddGuidanceForm(guidance_heading="Updated heading", guidance_body="Updated body")
-
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.manage_guidance",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=group.id,
             ),
-            data={k: v for k, v in form.data.items() if k not in ["preview"]},
+            data={"guidance_heading": "Updated heading", "guidance_body": "Updated body", "submit": "y"},
             follow_redirects=False,
         )
 

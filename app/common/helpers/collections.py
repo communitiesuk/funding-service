@@ -2,10 +2,10 @@ import csv
 import json
 import uuid
 from datetime import datetime
-from functools import cached_property, lru_cache
+from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -44,8 +44,10 @@ from app.common.expressions import (
     ExpressionContext,
     UndefinedVariableInExpression,
     evaluate,
+    interpolate,
 )
 from app.common.filters import format_datetime
+from app.deliver_grant_funding.forms import ContextSourceChoices
 
 if TYPE_CHECKING:
     from app.common.data.models import (
@@ -114,9 +116,14 @@ class SubmissionHelper:
         _without_ an actual submission (on the form designer side of Deliver grant funding), but _generally_ we'll
         be thinking about evaluating expressions in the context of a submission, so for now it lives here.
         """
+        assert len(ContextSourceChoices) == 1, (
+            "When defining a new source of context for expressions, update this method and the ContextSourceChoices enum"
+        )
+
         if submission_helper and submission_helper.collection.id != collection.id:
             raise ValueError("Mismatch between collection and submission.collection")
 
+        # TODO: Namespace this set of data, eg under a `this_submission` prefix/key
         submission_data = (
             {
                 question.safe_qid: (
@@ -136,6 +143,20 @@ class SubmissionHelper:
                     submission_data.setdefault(question.safe_qid, f"(({question.name}))")
 
         return ExpressionContext(submission_data=submission_data)
+
+    @staticmethod
+    def get_interpolator(
+        collection: "Collection", fallback_question_names: bool, submission_helper: Optional["SubmissionHelper"] = None
+    ) -> Callable[[str], str]:
+        return partial(
+            interpolate,
+            context=SubmissionHelper.build_expression_context(
+                collection=collection,
+                fallback_question_names=fallback_question_names,
+                mode="interpolation",
+                submission_helper=submission_helper,
+            ),
+        )
 
     @property
     def grant(self) -> "Grant":

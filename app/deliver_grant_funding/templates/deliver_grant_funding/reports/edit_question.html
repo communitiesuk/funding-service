@@ -89,9 +89,23 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.form_id }}
-        {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+
+        {# Duplicate the submit button, fully hidden, so that the default action for the form is to submit it (rather than add data to a field) #}
+        {{ form.submit(params={"classes": "govuk-!-display-none"}) }}
+
+
+        {% set addDataButton %}
+          {{ form.text_add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button"}) }}
+        {% endset %}
+        {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines"}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
+
         {{ form.name(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
-        {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+
+
+        {% set addDataButton %}
+          {{ form.hint_add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question hint</span>", "classes": "govuk-button--secondary app-context-aware--button"}) }}
+        {% endset %}
+        {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines"}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
 
         {% if question.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
           {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
@@ -118,7 +132,7 @@
 
             {% if question.guidance_body %}
               {% set guidance_text %}
-                <pre class="app-pre-markdown">{{ question.guidance_body }}</pre>
+                <pre class="app-pre-markdown">{{ interpolate(question.guidance_body) }}</pre>
               {% endset %}
               {{
                 govukSummaryList({

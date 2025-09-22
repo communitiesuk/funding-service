@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, cast
+import enum
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, Union, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -32,11 +33,16 @@ from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Question
+    from app.common.data.models import Component, Form, Question
+    from app.deliver_grant_funding.session_models import AddContextToQuestionSessionModel
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
     return value.strip() if value else value
+
+
+def strip_newlines(value: str) -> str | None:
+    return value.replace("\n", "") if value else value
 
 
 def empty_string_to_none(value: str) -> str | None:
@@ -228,9 +234,10 @@ class QuestionForm(FlaskForm):
         "Question text",
         description="The text grant recipients will see on their report",
         validators=[DataRequired("Enter the question text")],
-        filters=[strip_string_if_not_empty],
-        widget=GovTextInput(),
+        filters=[strip_string_if_not_empty, strip_newlines],
+        widget=GovTextArea(),
     )
+    text_add_context = SubmitField(widget=GovSubmitInput())
     hint = StringField(
         "Question hint (optional)",
         filters=[strip_string_if_not_empty],
@@ -240,13 +247,14 @@ class QuestionForm(FlaskForm):
         ),
         render_kw={"params": {"rows": 2}},
     )
+    hint_add_context = SubmitField(widget=GovSubmitInput())
     name = StringField(
         "Question name",
         validators=[DataRequired("Enter the question name")],
         description=(
             "A short name for this question that will be used for reference in monitoring reports (use lower-case text)"
         ),
-        filters=[strip_string_if_not_empty],
+        filters=[strip_string_if_not_empty, strip_newlines],
         widget=GovTextInput(),
     )
 
@@ -317,7 +325,11 @@ class QuestionForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
     def __init__(
-        self, *args: Any, question_type: QuestionDataType, obj: TOptional["Question"] = None, **kwargs: Any
+        self,
+        *args: Any,
+        question_type: QuestionDataType,
+        obj: TOptional[Union["Question", "AddContextToQuestionSessionModel"]] = None,
+        **kwargs: Any,
     ) -> None:
         super(QuestionForm, self).__init__(*args, obj=obj, **kwargs)
 
@@ -382,6 +394,43 @@ class QuestionForm(FlaskForm):
     def validate_suffix(self, field: Field) -> None:
         if self.prefix.data and self.suffix.data:
             raise ValidationError("Remove the prefix if you need a suffix")
+
+    def is_submitted_to_add_context(self) -> bool:
+        return self.is_submitted() and (self.text_add_context.data or self.hint_add_context.data)
+
+
+class ContextSourceChoices(enum.StrEnum):
+    TASK = "A previous question in this task"
+
+
+class AddContextSelectSourceForm(FlaskForm):
+    data_source = RadioField(
+        "Select a data source",
+        choices=[(choice.name, choice.value) for choice in ContextSourceChoices],
+        widget=GovRadioInput(),
+    )
+
+    submit = SubmitField(widget=GovSubmitInput())
+
+
+class SelectDataSourceQuestionForm(FlaskForm):
+    question = SelectField(
+        "Select which question's answer to use",
+        choices=[],
+        validators=[DataRequired("Select the question")],
+        widget=MHCLGAccessibleAutocomplete(),
+    )
+
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, form: "Form", interpolate: Callable[[str], str], *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        # TODO: Only show questions `before` the one being edited (ie that can be validly referenced)
+
+        self.question.choices = [("", "")] + [
+            (str(question.id), interpolate(question.text)) for question in form.cached_questions
+        ]  # type: ignore[assignment]
 
 
 class GrantAddUserForm(FlaskForm):
@@ -493,6 +542,7 @@ class AddGuidanceForm(FlaskForm):
         widget=GovTextArea(),
         filters=[strip_string_if_not_empty],
     )
+    add_context = SubmitField(widget=GovSubmitInput())
 
     preview = SubmitField("Save and preview guidance", widget=GovSubmitInput())
     submit = SubmitField("Save guidance", widget=GovSubmitInput())
@@ -510,3 +560,10 @@ class AddGuidanceForm(FlaskForm):
             return False
 
         return result
+
+    def is_submitted_to_add_context(self) -> bool:
+        return self.is_submitted() and self.add_context.data
+
+
+class PreviewGuidanceForm(FlaskForm):
+    guidance = StringField()

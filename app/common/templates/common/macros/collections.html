@@ -22,7 +22,7 @@
 
     <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
     {% if runner.component.guidance_heading %}
-      <h1 class="govuk-heading-l">{{ runner.interpolate(runner.component.guidance_heading) }}</h1>
+      <h1 class="govuk-heading-l">{{ runner.component.guidance_heading }}</h1>
       {{ runner.interpolate(runner.component.guidance_body) | govuk_markdown }}
     {% elif is_group %}
       <h1 class="govuk-heading-l">{{ runner.component.name }}</h1>

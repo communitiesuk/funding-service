@@ -3,6 +3,7 @@ import accessibleAutocomplete from 'accessible-autocomplete';
 import markdownEditorToolbar from "./js/markdown-editor-toolbar";
 import { pasteListener } from './js/paste-html-to-markdown';
 import ajaxMarkdownPreview from './js/ajax-markdown-preview';
+import textareaNoNewlines from "./js/textarea-no-newlines/index.js";
 
 initAll();
 
@@ -53,4 +54,10 @@ document
     .querySelectorAll('[data-module="paste-html-bullets-as-markdown"]')
     .forEach(element => {
         element.addEventListener('paste', pasteListener);
+    });
+
+document
+    .querySelectorAll('[data-module="textarea-no-newlines"]')
+    .forEach(element => {
+        textareaNoNewlines(element);
     });
