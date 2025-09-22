@@ -27,6 +27,7 @@ from app.common.collections.types import (
     TextSingleLineAnswer,
     YesNoAnswer,
 )
+from app.common.data.interfaces.collections import _validate_and_sync_component_references
 from app.common.data.models import (
     Collection,
     DataSource,
@@ -594,6 +595,16 @@ class _QuestionFactory(SQLAlchemyModelFactory):
 
         if create:
             db.session.add(expression)
+            db.session.commit()
+
+    @factory.post_generation  # type: ignore[misc]
+    def _references(self: "Question", create: bool, extracted: list[Any], **kwargs: Any) -> None:
+        if not create:
+            return
+
+        _validate_and_sync_component_references(self)
+
+        if create:
             db.session.commit()
 
 

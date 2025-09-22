@@ -7,15 +7,17 @@ from typing import Any, TypedDict
 import click
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
-from sqlalchemy import inspect
+from sqlalchemy import delete, inspect
 from sqlalchemy.exc import NoResultFound
 
 from app.common.data.base import BaseModel
+from app.common.data.interfaces.collections import _validate_and_sync_component_references
 from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.temporary import delete_grant
 from app.common.data.models import (
     Collection,
     Component,
+    ComponentReference,
     DataSource,
     DataSourceItem,
     DataSourceItemReference,
@@ -277,3 +279,24 @@ def add_all_components_flat(component: Component, users: set[User], grant_export
     if component.is_group:
         for sub_component in component.components:
             add_all_components_flat(sub_component, users, grant_export)
+
+
+@developers_blueprint.cli.command(
+    "sync-component-references", help="Scan all components and expressions and denormalise their references into the DB"
+)
+def sync_component_references() -> None:
+    click.echo("Syncing all component references.")
+
+    count = db.session.query(Component).count()
+    click.echo(f"Deleting {count} component references.")
+
+    db.session.execute(delete(ComponentReference))
+
+    for component in db.session.query(Component).all():
+        _validate_and_sync_component_references(component)
+
+    count = db.session.query(Component).count()
+
+    db.session.commit()
+
+    click.echo(f"Done; created {count} component references.")

@@ -1,7 +1,11 @@
 import pytest
+from psycopg.errors import ForeignKeyViolation
+from sqlalchemy.exc import IntegrityError
 
 from app import QuestionDataType
+from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
+from app.common.expressions.managed import GreaterThan
 
 
 class TestSubmissionModel:
@@ -109,3 +113,53 @@ class TestGroupModel:
         )
 
         assert group.same_page is show_questions_on_the_same_page
+
+
+class TestComponentReferenceModel:
+    def test_deleting_a_component_with_a_reference_is_blocked(self, factories, db_session):
+        q1 = factories.question.create()
+        factories.question.create(form=q1.form, text=f"Reference to (({q1.safe_qid}))")
+
+        with pytest.raises(IntegrityError) as e:
+            db_session.delete(q1)
+            db_session.commit()
+
+        assert isinstance(e.value.__cause__, ForeignKeyViolation)
+        assert 'update or delete on table "component" violates foreign key constraint' in str(e.value.__cause__)
+
+    def test_deleting_a_component_holding_a_reference_is_allowed(self, factories, db_session):
+        q1 = factories.question.create()
+        q2 = factories.question.create(form=q1.form, text=f"Reference to (({q1.safe_qid}))")
+
+        db_session.delete(q2)
+        db_session.commit()
+
+        assert db_session.query(ComponentReference).count() == 0
+
+    def test_deleting_a_component_with_an_expression_reference_is_blocked(self, factories, db_session):
+        user = factories.user.create()
+        q1 = factories.question.create()
+        factories.question.create(
+            form=q1.form,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=3000), user)],
+        )
+
+        with pytest.raises(IntegrityError) as e:
+            db_session.delete(q1)
+            db_session.commit()
+
+        assert isinstance(e.value.__cause__, ForeignKeyViolation)
+        assert 'update or delete on table "component" violates foreign key constraint' in str(e.value.__cause__)
+
+    def test_deleting_an_expression_holding_a_reference_is_allowed(self, factories, db_session):
+        user = factories.user.create()
+        q1 = factories.question.create()
+        q2 = factories.question.create(
+            form=q1.form,
+            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=3000), user)],
+        )
+
+        db_session.delete(q2.expressions[0])
+        db_session.commit()
+
+        assert db_session.query(ComponentReference).count() == 0

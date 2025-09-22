@@ -2,11 +2,11 @@ import uuid
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, select, text
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, foreign, mapped_column, relationship
 from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
@@ -258,6 +258,30 @@ class Component(BaseModel):
         collection_class=ordering_list("order"),
     )
 
+    owned_component_references: Mapped[list["ComponentReference"]] = relationship(
+        "ComponentReference",
+        back_populates="component",
+        cascade="all, delete-orphan",
+        foreign_keys="ComponentReference.component_id",
+        order_by=lambda: (
+            ComponentReference._sort_form_id,
+            ComponentReference._sort_parent_id,
+            ComponentReference._sort_order,
+        ),
+    )
+    depended_on_by: Mapped[list["ComponentReference"]] = relationship(
+        "ComponentReference",
+        back_populates="depends_on_component",
+        # explicitly disable cascading deletes so that ComponentReference can protect the Component
+        passive_deletes="all",
+        foreign_keys="ComponentReference.depends_on_component_id",
+        order_by=lambda: (
+            ComponentReference._sort_form_id,
+            ComponentReference._sort_parent_id,
+            ComponentReference._sort_order,
+        ),
+    )
+
     @property
     def conditions(self) -> list["Expression"]:
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.CONDITION]
@@ -442,6 +466,11 @@ class Expression(BaseModel):
     data_source_item_references: Mapped[list["DataSourceItemReference"]] = relationship(
         "DataSourceItemReference", back_populates="expression", cascade="all, delete-orphan"
     )
+    component_references: Mapped[list["ComponentReference"]] = relationship(
+        "ComponentReference",
+        back_populates="expression",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         Index(
@@ -462,6 +491,10 @@ class Expression(BaseModel):
             unique=True,
         ),
     )
+
+    @property
+    def is_managed(self) -> bool:
+        return bool(self.managed_name)
 
     @property
     def managed(self) -> "ManagedExpression":
@@ -537,3 +570,42 @@ class DataSourceItemReference(BaseModel):
 
     data_source_item: Mapped[DataSourceItem] = relationship("DataSourceItem", back_populates="references")
     expression: Mapped[Expression] = relationship("Expression", back_populates="data_source_item_references")
+
+
+class ComponentReference(BaseModel):
+    """A table to track when components (and their expressions) create a dependency upon another component.
+
+    As of creating this table, the common examples are:
+
+    q2 has a condition (c) that checks the answer to q1 to decide if q2 should be shown:
+      => ComponentReference(component_id=q2.id, expression_id=c.id, depends_on_component_id=q1.id)
+
+    q2 has text that shows the answer to q1:
+      => ComponentReference(component_id=q2.id, expression_id=None, depends_on_component_id=q1.id)
+    """
+
+    __tablename__ = "component_reference"
+
+    component_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
+    component: Mapped[Component] = relationship(
+        "Component", foreign_keys=[component_id], back_populates="owned_component_references"
+    )
+
+    expression_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("expression.id"))
+    expression: Mapped[Expression | None] = relationship("Expression")
+
+    depends_on_component_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
+    depends_on_component: Mapped[Component] = relationship(
+        "Component", foreign_keys=[depends_on_component_id], back_populates="depended_on_by"
+    )
+
+    # Mirror columns from the referenced component for ordering the Component.component_references relationship
+    _sort_form_id: Mapped[uuid.UUID] = column_property(
+        select(Component.form_id).where(Component.id == foreign(depends_on_component_id)).scalar_subquery()
+    )
+    _sort_parent_id: Mapped[uuid.UUID | None] = column_property(
+        select(Component.parent_id).where(Component.id == foreign(depends_on_component_id)).scalar_subquery()
+    )
+    _sort_order: Mapped[int] = column_property(
+        select(Component.order).where(Component.id == foreign(depends_on_component_id)).scalar_subquery()
+    )

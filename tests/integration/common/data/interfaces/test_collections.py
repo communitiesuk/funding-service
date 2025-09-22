@@ -7,6 +7,8 @@ from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
+    _validate_and_sync_component_references,
+    _validate_and_sync_expression_references,
     add_component_condition,
     add_question_validation,
     add_submission_event,
@@ -41,9 +43,10 @@ from app.common.data.interfaces.collections import (
     update_question_expression,
     update_submission_data,
 )
-from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.interfaces.exceptions import ComplexExpressionException, DuplicateValueError
 from app.common.data.models import (
     Collection,
+    ComponentReference,
     DataSourceItem,
     Expression,
     Form,
@@ -1868,3 +1871,199 @@ class TestDeleteCollectionSubmissions:
 
         for submission in test_submissions_from_db:
             assert submission.created_by is not user
+
+
+class TestValidateAndSyncExpressionReferences:
+    def test_creates_component_reference_for_managed_expression(self, db_session, factories):
+        user = factories.user.create()
+        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        dependent_question = factories.question.create(form=referenced_question.form)
+
+        expression = Expression.from_managed(GreaterThan(question_id=referenced_question.id, minimum_value=100), user)
+        dependent_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        _validate_and_sync_expression_references(expression)
+
+        assert len(expression.component_references) == 1
+        reference = expression.component_references[0]
+        assert reference.component == dependent_question
+        assert reference.expression == expression
+        assert reference.depends_on_component == referenced_question
+
+    def test_raises_not_implemented_for_unmanaged_expression(self, db_session, factories):
+        user = factories.user.create()
+        question = factories.question.create()
+
+        expression = Expression(
+            statement="1 + 1",
+            context={},
+            created_by=user,
+            type_=ExpressionType.CONDITION,
+            managed_name=None,
+        )
+        question.expressions.append(expression)
+        db_session.add(expression)
+
+        with pytest.raises(NotImplementedError):
+            _validate_and_sync_expression_references(expression)
+
+    def test_replaces_existing_component_references(self, db_session, factories):
+        user = factories.user.create()
+        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        dependent_question = factories.question.create(form=referenced_question.form)
+
+        managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
+        expression = Expression.from_managed(managed_expression, user)
+        dependent_question.expressions.append(expression)
+        db_session.add(expression)
+
+        existing_reference = ComponentReference(
+            depends_on_component=referenced_question, component=dependent_question, expression=expression
+        )
+        expression.component_references = [existing_reference]
+        db_session.add(existing_reference)
+        db_session.flush()
+
+        original_reference_id = existing_reference.id
+
+        _validate_and_sync_expression_references(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 1
+        new_reference = expression.component_references[0]
+        assert new_reference.id != original_reference_id
+        assert new_reference.depends_on_component == referenced_question
+        assert new_reference.component == dependent_question
+        assert new_reference.expression == expression
+
+
+class TestValidateAndSyncComponentReferences:
+    def test_creates_references_for_supported_fields(self, db_session, factories):
+        text_question = factories.question.create()
+        hint_question = factories.question.create(form=text_question.form)
+        guidance_body_question = factories.question.create(form=text_question.form)
+        dependent_question = factories.question.create(
+            form=text_question.form,
+            text=f"Reference to (({text_question.safe_qid}))",
+            hint=f"Reference to (({hint_question.safe_qid}))",
+            guidance_body=f"Reference to (({guidance_body_question.safe_qid}))",
+        )
+
+        # The factories create component references automatically; this will generally be the desirable behaviour
+        # for tests.
+        db_session.query(ComponentReference).delete()
+
+        initial_refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
+        assert len(initial_refs) == 0
+
+        _validate_and_sync_component_references(dependent_question)
+
+        refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
+        assert {ref.depends_on_component for ref in refs} == {text_question, hint_question, guidance_body_question}
+
+    def test_handles_multiple_interpolations(self, db_session, factories):
+        ref_question1 = factories.question.create()
+        ref_question2 = factories.question.create(form=ref_question1.form)
+        dependent_question = factories.question.create(
+            form=ref_question1.form, text=f"Compare (({ref_question1.safe_qid})) with (({ref_question2.safe_qid}))"
+        )
+
+        _validate_and_sync_component_references(dependent_question)
+        db_session.flush()
+
+        refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
+        assert {ref.depends_on_component for ref in refs} == {ref_question1, ref_question2}
+
+    def test_handles_expression_references(self, db_session, factories):
+        user = factories.user.create()
+        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        dependent_question = factories.question.create(form=referenced_question.form)
+
+        managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
+        expression = Expression.from_managed(managed_expression, user)
+        dependent_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        _validate_and_sync_component_references(dependent_question)
+        db_session.flush()
+
+        refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
+        assert len(refs) == 1
+        assert refs[0].depends_on_component == referenced_question
+        assert refs[0].expression == expression
+
+    def test_ignores_non_question_references(self, db_session, factories):
+        dependent_question = factories.question.create(text="Reference to ((some.non.question.ref)) here")
+
+        _validate_and_sync_component_references(dependent_question)
+        db_session.flush()
+
+        refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
+        assert len(refs) == 0
+
+    def test_raises_complex_expression_exception(self, db_session, factories):
+        referenced_question = factories.question.create()
+        dependent_question = factories.question.create(form=referenced_question.form, text="Initial text")
+
+        dependent_question.text = f"Complex expression (({referenced_question.safe_qid} + 100)) not allowed"
+
+        with pytest.raises(ComplexExpressionException) as exc_info:
+            _validate_and_sync_component_references(dependent_question)
+
+        assert "Expression interpolation only supports a single value" in str(exc_info.value)
+        assert dependent_question == exc_info.value.component
+
+    def test_raises_complex_expression_for_special_characters(self, db_session, factories):
+        dependent_question = factories.question.create(text="Initial text")
+
+        # Update after creation because the factory would try to create a ComponentReference and throw an error
+        dependent_question.text = "Invalid expression ((question.id & something)) here"
+
+        with pytest.raises(ComplexExpressionException) as exc_info:
+            _validate_and_sync_component_references(dependent_question)
+
+        assert "Expression interpolation only supports a single value" in str(exc_info.value)
+        assert "question.id & something" in str(exc_info.value)
+
+    def test_removes_existing_references_before_creating_new_ones(self, db_session, factories):
+        old_referenced_question = factories.question.create()
+        new_referenced_question = factories.question.create(form=old_referenced_question.form)
+        dependent_question = factories.question.create(
+            form=old_referenced_question.form, text=f"Reference to (({old_referenced_question.safe_qid}))"
+        )
+
+        refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
+        old_referenced_id = refs[0].id
+        assert len(refs) == 1
+        assert refs[0].depends_on_component == old_referenced_question
+
+        dependent_question.text = f"Now references (({new_referenced_question.safe_qid}))"
+
+        _validate_and_sync_component_references(dependent_question)
+        db_session.flush()
+
+        # Old reference should be deleted
+        old_ref = db_session.get(ComponentReference, old_referenced_id)
+        assert old_ref is None
+
+        # New one should exist
+        refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
+        assert len(refs) == 1
+        assert refs[0].depends_on_component == new_referenced_question
+
+    def test_works_with_groups(self, db_session, factories):
+        form = factories.form.create()
+        referenced_question = factories.question.create(form=form)
+        group = factories.group.create(form=form, text=f"Group referencing ((({referenced_question.safe_qid})))")
+
+        _validate_and_sync_component_references(group)
+        db_session.flush()
+
+        refs = db_session.query(ComponentReference).filter_by(component=group).all()
+        assert len(refs) == 1
+        assert refs[0].depends_on_component == referenced_question
