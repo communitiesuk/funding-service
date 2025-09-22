@@ -128,6 +128,9 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     return result
 
 
+INTERPOLATE_REGEX = re.compile(r"\(\([^\(]+?\)\)")
+
+
 def interpolate(text: str | None, context: ExpressionContext | None) -> str:
     from app.common.data.models import Expression
 
@@ -140,8 +143,7 @@ def interpolate(text: str | None, context: ExpressionContext | None) -> str:
 
         return str(value)
 
-    return re.sub(
-        r"\(\([^\(]+?\)\)",
+    return INTERPOLATE_REGEX.sub(
         _interpolate,
         text,
     )
