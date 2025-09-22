@@ -38,7 +38,11 @@ from app.common.data.interfaces.collections import (
     update_group,
     update_question,
 )
-from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.interfaces.exceptions import (
+    ComplexExpressionException,
+    DuplicateValueError,
+    InvalidQuestionReference,
+)
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
@@ -703,6 +707,12 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+        except ComplexExpressionException as e:
+            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
+        except InvalidQuestionReference as e:
+            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"Remove reference to unknown question: {e.bad_reference}")  # type:ignore[attr-defined]
 
     return render_template(
         "deliver_grant_funding/reports/add_question.html",
@@ -813,7 +823,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
 )
 @has_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # noqa: C901
     # FIXME: It would be better if the add_question and edit_question endpoints were an all-in-one. The complication
     #        for doing this is around adding conditions and validations when creating a new question. At the moment
     #        both of those endpoints expect to attach it to an existing question in the DB, but through an
@@ -883,6 +893,12 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+        except ComplexExpressionException as e:
+            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
+        except InvalidQuestionReference as e:
+            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"Remove reference to unknown question: {e.bad_reference}")  # type:ignore[attr-defined]
         except DataSourceItemReferenceDependencyException as e:
             for flash_context in e.as_flash_contexts():
                 flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]
@@ -933,39 +949,47 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         )
 
     if form.validate_on_submit():
-        # todo: both of these are equivalent as this is a property of the underlying component
-        #       should there be an update that handles either
-        if question.is_group:
-            update_group(
-                cast("Group", question),
-                guidance_heading=form.guidance_heading.data,
-                guidance_body=form.guidance_body.data,
-            )
-        else:
-            update_question(
-                cast("Question", question),
-                guidance_heading=form.guidance_heading.data,
-                guidance_body=form.guidance_body.data,
-            )
-
-        if "question" in session:
-            del session["question"]
-
-        if form.preview.data:
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.manage_guidance",
-                    grant_id=grant_id,
-                    question_id=question_id,
-                    _anchor="preview-guidance",
+        try:
+            # todo: both of these are equivalent as this is a property of the underlying component
+            #       should there be an update that handles either
+            if question.is_group:
+                update_group(
+                    cast("Group", question),
+                    guidance_heading=form.guidance_heading.data,
+                    guidance_body=form.guidance_body.data,
                 )
+            else:
+                update_question(
+                    cast("Question", question),
+                    guidance_heading=form.guidance_heading.data,
+                    guidance_body=form.guidance_body.data,
+                )
+
+            if "question" in session:
+                del session["question"]
+
+            if form.preview.data:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.manage_guidance",
+                        grant_id=grant_id,
+                        question_id=question_id,
+                        _anchor="preview-guidance",
+                    )
+                )
+
+            return redirect(
+                url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id)
+                if not question.is_group
+                else url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=question.id)
             )
 
-        return redirect(
-            url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id)
-            if not question.is_group
-            else url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=question.id)
-        )
+        except ComplexExpressionException as e:
+            field_with_error: Field = getattr(form, e.field_name)
+            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
+        except InvalidQuestionReference as e:
+            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(f"Remove reference to unknown question: {e.bad_reference}")  # type:ignore[attr-defined]
 
     return render_template(
         "deliver_grant_funding/reports/manage_guidance.html",

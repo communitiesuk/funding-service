@@ -2015,8 +2015,9 @@ class TestValidateAndSyncComponentReferences:
         with pytest.raises(ComplexExpressionException) as exc_info:
             _validate_and_sync_component_references(dependent_question)
 
-        assert "Expression interpolation only supports a single value" in str(exc_info.value)
-        assert dependent_question == exc_info.value.component
+        assert exc_info.value.component == dependent_question
+        assert exc_info.value.field_name == "text"
+        assert exc_info.value.bad_reference == f"(({referenced_question.safe_qid} + 100))"
 
     def test_raises_complex_expression_for_special_characters(self, db_session, factories):
         dependent_question = factories.question.create(text="Initial text")
@@ -2027,8 +2028,9 @@ class TestValidateAndSyncComponentReferences:
         with pytest.raises(ComplexExpressionException) as exc_info:
             _validate_and_sync_component_references(dependent_question)
 
-        assert "Expression interpolation only supports a single value" in str(exc_info.value)
-        assert "question.id & something" in str(exc_info.value)
+        assert exc_info.value.component == dependent_question
+        assert exc_info.value.field_name == "text"
+        assert exc_info.value.bad_reference == "((question.id & something))"
 
     def test_removes_existing_references_before_creating_new_ones(self, db_session, factories):
         old_referenced_question = factories.question.create()

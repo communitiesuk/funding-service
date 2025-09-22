@@ -1,4 +1,3 @@
-import re
 import uuid
 from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
 from uuid import UUID
@@ -37,7 +36,7 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
 )
-from app.common.expressions import INTERPOLATE_REGEX
+from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
@@ -397,6 +396,7 @@ def create_question(
     db.session.add(question)
 
     try:
+        _validate_and_sync_component_references(question)
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
@@ -408,6 +408,9 @@ def create_question(
         if e.orig.diag and e.orig.diag.constraint_name and e.orig.diag.constraint_name.startswith("uq_"):  # type: ignore[union-attr]
             raise DuplicateValueError(e) from e
         raise e
+    except (ComplexExpressionException, InvalidQuestionReference):
+        db.session.rollback()
+        raise
 
     if items is not None:
         _create_data_source(question, items)
@@ -706,7 +709,7 @@ def update_group(
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
-    except InvalidQuestionReference:
+    except (ComplexExpressionException, InvalidQuestionReference):
         db.session.rollback()
         raise
     return group
@@ -751,7 +754,7 @@ def update_question(
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
-    except InvalidQuestionReference:
+    except (ComplexExpressionException, InvalidQuestionReference):
         db.session.rollback()
         raise
     return question
@@ -823,15 +826,11 @@ def _validate_and_sync_component_references(component: Component) -> None:
         for match in INTERPOLATE_REGEX.finditer(value):
             ref = match.group(1).strip()
 
-            # If any interpolation references contain characters other than alphanumeric, full stops or underscores,
-            # then we'll hard stop that for now. As of this implementation, only single variable references are allowed.
-            # We expect to want complex expressions in the future, but are hard limiting that for now as a specific
-            # product/tech edge case restriction.
-            if re.search(r"[^A-Za-z0-9_.]", ref) is not None:
+            if ALLOWED_INTERPOLATION_REGEX.search(ref) is not None:
                 raise ComplexExpressionException(
                     component=component,
                     field_name=field_name,
-                    bad_reference=ref,
+                    bad_reference=match.group(0),
                 )
 
             # TODO: split out detection of 'known' context variables to a separate function/handler
@@ -847,13 +846,13 @@ def _validate_and_sync_component_references(component: Component) -> None:
                     raise InvalidQuestionReference(
                         f"Reference to question {question_id} (in {ref}) in a different form is not allowed",
                         field_name=field_name,
-                        bad_reference=ref,
+                        bad_reference=match.group(0),
                     )
             except NoResultFound as e:
                 raise InvalidQuestionReference(
                     f"Reference to non-existence question {question_id} in {ref}",
                     field_name=field_name,
-                    bad_reference=ref,
+                    bad_reference=match.group(0),
                 ) from e
 
             references_to_set_up.add((component.id, question.id))
