@@ -117,7 +117,8 @@ class SubmissionHelper:
         be thinking about evaluating expressions in the context of a submission, so for now it lives here.
         """
         assert len(ContextSourceChoices) == 1, (
-            "When defining a new source of context for expressions, update this method and the ContextSourceChoices enum"
+            "When defining a new source of context for expressions, "
+            "update this method and the ContextSourceChoices enum"
         )
 
         if submission_helper and submission_helper.collection.id != collection.id:
