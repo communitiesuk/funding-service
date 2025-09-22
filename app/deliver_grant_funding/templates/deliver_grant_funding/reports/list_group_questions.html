@@ -72,17 +72,20 @@
           "rows": [
             {
               "key": {"text": "Display"},
-              "value": {"text": "All questions on the same page" if group.presentation_options.show_questions_on_the_same_page else "One question per page"},
+              "value": {"text": "All questions on the same page" if group.same_page else "One question per page"},
               "actions": {
                 "items": [{
                   "text": "Change",
                   "href": url_for("deliver_grant_funding.change_group_display_options", grant_id=grant.id, group_id=group.id)
                 }]
-              }
+              } if not group.has_nested_groups else {}
             },
           ]
         })
       }}
+      {% if group.has_nested_groups %}
+        <p class="govuk-body">You cannot change the display type because this group has one or more nested groups.</p>
+      {% endif %}
     </div>
   </div>
   <div class="govuk-grid-row">
@@ -99,6 +102,14 @@
           <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id, parent_id=group.id) }}"
             >{{ "Add another question" if group.cached_questions else "Add a question" }}</a
           >
+          {% if group.is_allowed_nested_groups and not group.presentation_options.show_questions_on_the_same_page %}
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_question_group_name', grant_id=grant.id, form_id=db_form.id, parent_id=group.id) }}"> {{ "Add a question group" }}</a>
+          {% endif %}
+          {% if not group.is_allowed_nested_groups %}
+            <p class="govuk-body">You cannot add a nested group because this group is already nested.</p>
+          {% elif group.same_page %}
+            <p class="govuk-body">You cannot add a nested group when display is set to show all questions on the same page.</p>
+          {% endif %}
         {% endif %}
       </div>
     </div>

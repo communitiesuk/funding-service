@@ -65,12 +65,12 @@
     {%
       do rows.append(
       {
-        "key": {"html": keyHtml, "classes": "govuk-!-font-weight-regular govuk-!-width-one-half" },
+        "key": {"html": keyHtml, "classes": "govuk-!-width-one-half " + ("govuk-!-font-weight-regular" if not question.is_group else "") },
         "value": {"text": question.data_type if not question.is_group else "", "classes": "govuk-!-width-one-third" if not actions else ""},
         "actions": {
           "items": actions,
         } if actions else {},
-        "classes": "app-summary-list-group-row " if question.is_group else "" ~ ("app-summary-list-group-nested " if nested else "") ~ ("app-summary-list-group-nested--final " if nested_last else ""),
+        "classes": "app-summary-list-group-row " if question.is_group and (question.parent.id == parent.id or not question.parent) else "" ~ ("app-summary-list-group-nested " if nested else "") ~ ("app-summary-list-group-nested--final " if nested_last else ""),
       })
     %}
   {% endfor %}
