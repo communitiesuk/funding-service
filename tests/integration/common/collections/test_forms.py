@@ -88,6 +88,7 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
 def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_session):
     form = factories.form.create()
     q = create_question(
+        expression_context=EC(),
         form=form,
         text="Question text",
         hint="Question hint",

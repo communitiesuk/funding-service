@@ -29,6 +29,7 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import User
 from app.common.data.types import ComponentType, QuestionPresentationOptions
+from app.common.expressions import ExpressionContext
 from app.developers import developers_blueprint
 from app.extensions import db
 
@@ -304,7 +305,12 @@ def sync_component_references() -> None:
     db.session.execute(delete(ComponentReference))
 
     for component in db.session.query(Component).all():
-        _validate_and_sync_component_references(component)
+        _validate_and_sync_component_references(
+            component,
+            ExpressionContext.build_expression_context(
+                collection=component.form.collection, fallback_question_names=True, mode="interpolation"
+            ),
+        )
 
     count = db.session.query(Component).count()
 

@@ -50,6 +50,7 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
 )
+from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import AnyOf, BaseDataSourceManagedExpression, GreaterThan, Specifically
 from app.extensions import db
 from app.types import TRadioItem
@@ -602,7 +603,15 @@ class _QuestionFactory(SQLAlchemyModelFactory):
         if not create:
             return
 
-        _validate_and_sync_component_references(self)
+        _validate_and_sync_component_references(
+            self,
+            ExpressionContext.build_expression_context(
+                collection=self.form.collection, fallback_question_names=True, mode="interpolation"
+            ),
+        )
+
+        # Wipe the cache of questions on a form - because we're likely to be creating more forms/questions
+        del self.form.cached_questions
 
         if create:
             db.session.commit()

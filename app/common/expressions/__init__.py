@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any, Literal, MutableMapping, Optional
 
 import simpleeval
 
+from app.types import NOT_PROVIDED
+
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Expression
     from app.common.helpers.collections import SubmissionHelper
@@ -129,6 +131,18 @@ class ExpressionContext(ChainMap[str, Any]):
                     submission_data.setdefault(question.safe_qid, f"(({question.name}))")
 
         return ExpressionContext(submission_data=submission_data)
+
+    def is_valid_reference(self, reference: str) -> bool:
+        layers = reference.split(".")
+
+        context = self
+        for layer in layers:
+            value = context.get(layer, NOT_PROVIDED)
+            if value is NOT_PROVIDED:
+                return False
+            context = value
+
+        return True
 
 
 def _evaluate_expression_with_context(expression: "Expression", context: ExpressionContext | None = None) -> Any:
