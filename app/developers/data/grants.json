@@ -12,6 +12,14 @@
           "version": 1
         }
       ],
+      "component_references": [
+        {
+          "component_id": "b9da63b3-2cff-4523-93ef-d282670ba61e",
+          "depends_on_component_id": "65664e18-722d-484f-8488-c851c5c5de36",
+          "expression_id": "a314e646-7871-4d3c-b2f4-b7bd3ec54a57",
+          "id": "ba518076-96cd-464a-a566-52c2a6bbda8e"
+        }
+      ],
       "data_source_item_references": [
         {
           "data_source_item_id": "12a0b4a5-18e6-4a43-a72d-4a5cde866efd",
@@ -1539,6 +1547,374 @@
           "slug": "communities-for-afghans-phase-2",
           "type": "monitoring report",
           "version": 1
+        }
+      ],
+      "component_references": [
+        {
+          "component_id": "3ab8c5fd-d327-4101-a138-21640e4e99c6",
+          "depends_on_component_id": "f0a87151-83ac-41fa-a57b-ab47b480d551",
+          "expression_id": "aec51b61-ed67-4b10-8288-4ad261270f8c",
+          "id": "1c360fc5-b28e-4dc6-8a4d-0bd8b3747343"
+        },
+        {
+          "component_id": "5571c974-e874-457d-9a05-650faeae651b",
+          "depends_on_component_id": "f0a87151-83ac-41fa-a57b-ab47b480d551",
+          "expression_id": "593a31f5-a83e-4f08-8016-93a416424bae",
+          "id": "ab4daad3-50cb-4ade-a379-841ae5300904"
+        },
+        {
+          "component_id": "22304888-7f6b-44c2-b73e-547e1c04378b",
+          "depends_on_component_id": "5571c974-e874-457d-9a05-650faeae651b",
+          "expression_id": "7f17374d-0e02-4bea-8398-2835ab20a78e",
+          "id": "09e24ec7-5cdd-48eb-ab04-0a7d450d9f21"
+        },
+        {
+          "component_id": "fc126325-bbb2-4f21-9a4e-31251eb3697c",
+          "depends_on_component_id": "5571c974-e874-457d-9a05-650faeae651b",
+          "expression_id": "3586d88a-e61b-445f-ac34-533170e8f4b1",
+          "id": "3822adf9-caa7-4f2b-847c-6b41f488ad29"
+        },
+        {
+          "component_id": "e0ae0406-e445-45d3-be39-5d1e19c812d6",
+          "depends_on_component_id": "fc126325-bbb2-4f21-9a4e-31251eb3697c",
+          "expression_id": "920fd926-1b22-459b-b397-1f9d205b215c",
+          "id": "82109433-0bf7-4303-8924-811237e7fb57"
+        },
+        {
+          "component_id": "d88b714e-9b30-4039-9e2c-e520a25385f8",
+          "depends_on_component_id": "fc126325-bbb2-4f21-9a4e-31251eb3697c",
+          "expression_id": "145666ef-07bb-4662-94b8-73a83433921f",
+          "id": "50ef5ed1-03c2-42b8-aa22-67a7bc4c7846"
+        },
+        {
+          "component_id": "c89af7cf-9e5e-49d4-bb4f-9d611eb6bd98",
+          "depends_on_component_id": "bbb1a854-1c4f-4985-ad7d-20b75f7b4fd6",
+          "expression_id": "4fc80c64-ca6f-47ac-9732-4455314fe5d2",
+          "id": "bcd609cb-28c0-4b29-be63-263ec54b1c86"
+        },
+        {
+          "component_id": "d1ab24a4-d46e-4638-8699-8be3c79e4946",
+          "depends_on_component_id": "bbb1a854-1c4f-4985-ad7d-20b75f7b4fd6",
+          "expression_id": "0a6e7dc4-34d3-40bd-85ff-6e8eb3b367b9",
+          "id": "aacf2b2f-93b6-415b-bd86-72c9e557b25f"
+        },
+        {
+          "component_id": "77f6d299-9d08-4daf-8efd-373195cb5689",
+          "depends_on_component_id": "d1ab24a4-d46e-4638-8699-8be3c79e4946",
+          "expression_id": "e167202b-6cc5-4db5-a9d6-8d094d6b1700",
+          "id": "8b20a439-2495-43a9-a094-7d2bfe7c631d"
+        },
+        {
+          "component_id": "c478266e-514c-4e76-b345-ccfba158ee4b",
+          "depends_on_component_id": "d1ab24a4-d46e-4638-8699-8be3c79e4946",
+          "expression_id": "5780b20e-669f-490e-9e52-67bb1c6ddb9d",
+          "id": "c6f1d28d-4a6d-497b-8e24-cce47cde5e2a"
+        },
+        {
+          "component_id": "daec248d-53bf-4d9b-8f64-7c032b73733a",
+          "depends_on_component_id": "c478266e-514c-4e76-b345-ccfba158ee4b",
+          "expression_id": "ea76361a-4cd8-4bcb-a96a-075b418179b1",
+          "id": "453b0a70-a6ee-4b37-bf6b-588372ca80b7"
+        },
+        {
+          "component_id": "b57e7d88-b163-4a5e-8864-91d4f55e3a5a",
+          "depends_on_component_id": "c478266e-514c-4e76-b345-ccfba158ee4b",
+          "expression_id": "161656f2-60b8-4fac-8add-eae45154c649",
+          "id": "798a002b-8475-4f40-8971-9de76c256238"
+        },
+        {
+          "component_id": "0608dbc6-b72d-40a9-a620-be533528b31e",
+          "depends_on_component_id": "50848909-069a-4205-b2d3-9f2ac9017ef7",
+          "expression_id": "0a613c08-3b0f-4d3f-ac94-900308b94140",
+          "id": "c496d565-6a09-49d5-b4e7-147a57a6ada5"
+        },
+        {
+          "component_id": "15fb67b7-34a5-4ccc-ba08-6c123a6e9d99",
+          "depends_on_component_id": "50848909-069a-4205-b2d3-9f2ac9017ef7",
+          "expression_id": "8bfb533b-0ce7-4b3f-8e05-8ca242b8732a",
+          "id": "6a97fb53-f0b4-44dd-b139-f0270cff4b7c"
+        },
+        {
+          "component_id": "87b53086-1443-4abd-ac67-9055b0bea28f",
+          "depends_on_component_id": "15fb67b7-34a5-4ccc-ba08-6c123a6e9d99",
+          "expression_id": "f2ccb607-ff48-4e89-9834-1f7f97bf0c50",
+          "id": "003def45-68e7-4f01-81b6-43e1692de617"
+        },
+        {
+          "component_id": "476da932-931b-4400-8dc4-0d099a600b2e",
+          "depends_on_component_id": "15fb67b7-34a5-4ccc-ba08-6c123a6e9d99",
+          "expression_id": "a814bfba-7567-4d0e-933a-f0f1ca87c6f6",
+          "id": "40001d55-766a-4de3-ab49-d8b1f350885c"
+        },
+        {
+          "component_id": "a8dc7b13-c97f-44c6-9126-8e8cb30d0cbd",
+          "depends_on_component_id": "476da932-931b-4400-8dc4-0d099a600b2e",
+          "expression_id": "116ac303-4bab-4d34-a40c-54da4ea81d71",
+          "id": "b5c5534f-fa27-4e5f-8be5-9ab9a4dfbb07"
+        },
+        {
+          "component_id": "8c620851-63ba-4e45-90ea-5be7323e72dc",
+          "depends_on_component_id": "476da932-931b-4400-8dc4-0d099a600b2e",
+          "expression_id": "b28c623b-6664-4069-b0a4-dc3006ef8f94",
+          "id": "60f55675-6e2b-47aa-9df2-4cc2269c4e9b"
+        },
+        {
+          "component_id": "2ca17f58-bc73-454d-b4ac-0eb64483e16c",
+          "depends_on_component_id": "4d5445bb-adfc-424f-9497-80d1fe293fba",
+          "expression_id": "4c584a4d-92da-40d8-9124-effee01584a8",
+          "id": "65203e81-a34b-41f5-ad06-fcdeae939579"
+        },
+        {
+          "component_id": "e360f77a-35e8-4b7b-b9ea-b0d84a2309ca",
+          "depends_on_component_id": "4d5445bb-adfc-424f-9497-80d1fe293fba",
+          "expression_id": "df264d83-ad48-433d-b204-b340f13f4ac9",
+          "id": "2ae6e035-b111-460e-a692-1a947363524d"
+        },
+        {
+          "component_id": "464484ab-318e-47b5-942e-9f2896426e60",
+          "depends_on_component_id": "e360f77a-35e8-4b7b-b9ea-b0d84a2309ca",
+          "expression_id": "f12601cd-2bb6-4b89-8d89-63ddc5bc40cb",
+          "id": "b9e7e4d8-f681-4930-906d-18fcd23d96e3"
+        },
+        {
+          "component_id": "f9f98dc9-bda4-4b54-98a4-f45d18fa737f",
+          "depends_on_component_id": "e360f77a-35e8-4b7b-b9ea-b0d84a2309ca",
+          "expression_id": "3fe5e155-c32d-490f-bc5f-51040f5cf2d8",
+          "id": "077a49b3-c21b-49f0-957c-1bd1b6f32d9e"
+        },
+        {
+          "component_id": "2b46de4a-b94f-4984-a435-a82e40618a84",
+          "depends_on_component_id": "f9f98dc9-bda4-4b54-98a4-f45d18fa737f",
+          "expression_id": "b3865837-9ef4-4b6a-8d41-764084f96bd8",
+          "id": "ee8a0017-4272-47f9-8f8c-f1abb587b9b9"
+        },
+        {
+          "component_id": "0978070e-a3b0-4210-8983-19c6882f917e",
+          "depends_on_component_id": "f9f98dc9-bda4-4b54-98a4-f45d18fa737f",
+          "expression_id": "3a1c96c6-6522-4f62-91fd-fee806f6b2cc",
+          "id": "daf475d8-e00a-4436-99f8-48f8e7472972"
+        },
+        {
+          "component_id": "10484a3a-3b98-4350-8a46-b72895a43519",
+          "depends_on_component_id": "bd1649ca-b738-483a-8051-f92d6e7ac0c9",
+          "expression_id": "338d5764-ce69-423b-a9f9-6c5bcae20151",
+          "id": "2fc92ff6-e6a3-4d24-b98a-7c2b813c0e25"
+        },
+        {
+          "component_id": "63fd61ba-1f22-47af-8d79-a634bde591ce",
+          "depends_on_component_id": "bd1649ca-b738-483a-8051-f92d6e7ac0c9",
+          "expression_id": "4630e201-7cdc-4551-8af2-f5ccd16e468a",
+          "id": "2759f11d-2094-4c02-bdb4-c800a410b13f"
+        },
+        {
+          "component_id": "7ebb6a6e-c978-460d-a705-9a997ef5d659",
+          "depends_on_component_id": "63fd61ba-1f22-47af-8d79-a634bde591ce",
+          "expression_id": "023b7e11-adca-4ca0-95de-b4545786a769",
+          "id": "2981582a-4932-421a-9d86-524177ed8fe2"
+        },
+        {
+          "component_id": "44904406-7db2-41ac-a14a-b805c0573142",
+          "depends_on_component_id": "63fd61ba-1f22-47af-8d79-a634bde591ce",
+          "expression_id": "82c2378f-c681-4733-bb1c-954f418d5f36",
+          "id": "2b4be1a6-0bff-482c-90c6-5d7a8a30eb3b"
+        },
+        {
+          "component_id": "68a54922-7b04-46e1-8965-e9c24892a0b2",
+          "depends_on_component_id": "44904406-7db2-41ac-a14a-b805c0573142",
+          "expression_id": "26fb781b-00dd-4477-9ee9-ad5a7587522e",
+          "id": "85eb585d-990b-46e4-86c2-891c5bab541c"
+        },
+        {
+          "component_id": "224a66d9-a3eb-44d0-90f1-9eb6a28b08b9",
+          "depends_on_component_id": "44904406-7db2-41ac-a14a-b805c0573142",
+          "expression_id": "5fa8c945-b8d4-4a42-a13e-57cc6ce67443",
+          "id": "aa948577-66ad-4e95-b4e9-d36c61d195e7"
+        },
+        {
+          "component_id": "5c938513-f61f-4494-8c4e-fcf67ef5c3e2",
+          "depends_on_component_id": "48e1a5da-33e2-48f5-bac4-2ddf685d206c",
+          "expression_id": "1a9b0763-8bb8-4c15-93ae-4336f8722fc3",
+          "id": "2ab7116a-dc19-42cc-a1c6-7f35f3b3078c"
+        },
+        {
+          "component_id": "c9315cc3-343b-4725-8f39-2783d57b08ee",
+          "depends_on_component_id": "48e1a5da-33e2-48f5-bac4-2ddf685d206c",
+          "expression_id": "93e19ace-bef7-426a-9fe2-4e144a5bc092",
+          "id": "1c22f90d-5371-479c-b317-6a3fc3d1f666"
+        },
+        {
+          "component_id": "4bc54c85-8f53-49ee-98a8-a465006626e0",
+          "depends_on_component_id": "c9315cc3-343b-4725-8f39-2783d57b08ee",
+          "expression_id": "b0b1399a-d6bb-4392-94e4-79927c0a77ae",
+          "id": "faec9967-7412-47fa-b905-78ef5497c8d7"
+        },
+        {
+          "component_id": "35797a4a-2786-4c35-8b95-bbf97bf862f5",
+          "depends_on_component_id": "c9315cc3-343b-4725-8f39-2783d57b08ee",
+          "expression_id": "6edd87d4-649a-4b41-9b81-531d76b074f9",
+          "id": "54574427-54f1-4adc-93ae-d023244d52d8"
+        },
+        {
+          "component_id": "99f1463d-ef2c-4d5f-8887-0b7e52a7b95f",
+          "depends_on_component_id": "35797a4a-2786-4c35-8b95-bbf97bf862f5",
+          "expression_id": "125c449c-04b2-4761-8f5a-58ffa055b461",
+          "id": "ca3377e2-d748-4401-a886-d49083aa3133"
+        },
+        {
+          "component_id": "9f6d8899-f9b1-43bb-8880-e4958af1c246",
+          "depends_on_component_id": "35797a4a-2786-4c35-8b95-bbf97bf862f5",
+          "expression_id": "d0aac74a-7b1a-4ee8-a13d-b543b5b245b9",
+          "id": "29a6c77c-a176-4d1a-a7e9-6ee6e7b7b49a"
+        },
+        {
+          "component_id": "3264d996-d5df-437f-bbf9-3f56bfb775df",
+          "depends_on_component_id": "3bbec300-d427-4d00-9eda-d8fa885fec4b",
+          "expression_id": "f0211d5c-bddf-48f1-91e9-dc899ebda121",
+          "id": "134a6dc9-77e2-42db-879e-a5e7f737e7c5"
+        },
+        {
+          "component_id": "02cb0ee6-a52a-4a63-9877-ccdfa240f05c",
+          "depends_on_component_id": "3bbec300-d427-4d00-9eda-d8fa885fec4b",
+          "expression_id": "06965856-d37a-4a15-87b2-d0e1566bc619",
+          "id": "c5156035-ffc1-4279-ac0f-9d3292aaa689"
+        },
+        {
+          "component_id": "c7f2e4b7-41e4-4745-a6a8-eab3e4ae9b9d",
+          "depends_on_component_id": "02cb0ee6-a52a-4a63-9877-ccdfa240f05c",
+          "expression_id": "11f26acf-946f-4c27-9777-73f6be550da1",
+          "id": "60856289-0940-4197-a29f-4ff9de5aa86c"
+        },
+        {
+          "component_id": "936fe1a3-05ef-4131-801a-ae338392974d",
+          "depends_on_component_id": "02cb0ee6-a52a-4a63-9877-ccdfa240f05c",
+          "expression_id": "e604cafe-ba9d-4c0f-9044-a0c965f051ca",
+          "id": "e0ca188d-0f4e-42fd-bfea-a0be860b1cdd"
+        },
+        {
+          "component_id": "50ea5880-a22a-4cfa-b74f-f8cb916722d3",
+          "depends_on_component_id": "936fe1a3-05ef-4131-801a-ae338392974d",
+          "expression_id": "36cc394f-89d1-4326-a148-68e253e0453a",
+          "id": "e303ca60-c835-48c2-a93c-5ade2010a532"
+        },
+        {
+          "component_id": "b1e39c24-e432-4553-9f7a-3f2f1acf3c06",
+          "depends_on_component_id": "936fe1a3-05ef-4131-801a-ae338392974d",
+          "expression_id": "6ed438d4-fc71-47ae-a23c-90e83acf2ddf",
+          "id": "e530869d-76c0-4629-9b03-50f445ee9469"
+        },
+        {
+          "component_id": "b60911f3-0fc5-4a4b-83c0-172621a4add1",
+          "depends_on_component_id": "b252b233-3e6e-4eab-91a6-29526c507750",
+          "expression_id": "2ee80d2a-f600-4796-bc35-a98ab9ca744b",
+          "id": "308854f8-106c-4d65-8b63-af189c3cd543"
+        },
+        {
+          "component_id": "9435c337-48af-40f7-9501-133c5e3a698d",
+          "depends_on_component_id": "b252b233-3e6e-4eab-91a6-29526c507750",
+          "expression_id": "4a315251-f88a-4469-be32-3527ddd29c72",
+          "id": "138288f9-7a1e-4cbc-81e9-e80aa1f05998"
+        },
+        {
+          "component_id": "19964ced-e0d1-440b-aad8-163996324d72",
+          "depends_on_component_id": "9435c337-48af-40f7-9501-133c5e3a698d",
+          "expression_id": "c9d443b5-b85f-45fe-b175-393e37fc81b8",
+          "id": "24a004c9-21ba-4282-9339-3b4f4075df5a"
+        },
+        {
+          "component_id": "469c222e-1b8d-4df6-9c89-7a4478b19807",
+          "depends_on_component_id": "9435c337-48af-40f7-9501-133c5e3a698d",
+          "expression_id": "bb89f98b-066d-4f3f-b686-14bb7dc1d4e5",
+          "id": "5f77cd3d-5e3f-4513-bef3-4193540b39cb"
+        },
+        {
+          "component_id": "879e465b-f0b0-4ead-be95-054aad8894e1",
+          "depends_on_component_id": "469c222e-1b8d-4df6-9c89-7a4478b19807",
+          "expression_id": "c094ed25-cb77-4592-b535-210a5d051642",
+          "id": "f50cbe53-ba93-4174-b635-610f48538549"
+        },
+        {
+          "component_id": "faa9e407-7dae-4ab3-b1cd-f2d789e9c64b",
+          "depends_on_component_id": "469c222e-1b8d-4df6-9c89-7a4478b19807",
+          "expression_id": "4e35ff66-57cd-48ce-8a74-0a0989ecd77b",
+          "id": "00a06ba9-2c8f-4532-8a0d-ee1cab4b0340"
+        },
+        {
+          "component_id": "809898a4-98de-4247-972a-35e270d05cef",
+          "depends_on_component_id": "c3d08b10-15db-416f-bb7c-5e72b6744c9a",
+          "expression_id": "bc32f36d-1436-4c8a-afa8-06963611582d",
+          "id": "3aa810ea-ecb3-43d1-9fc5-1045997e7b44"
+        },
+        {
+          "component_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
+          "depends_on_component_id": "c3d08b10-15db-416f-bb7c-5e72b6744c9a",
+          "expression_id": "9bdd2cd6-b1b7-4c4a-8c74-9e99ea222e82",
+          "id": "7f573ea3-818a-4281-85f5-51e8c3ab1e07"
+        },
+        {
+          "component_id": "9ffa1b0f-2b65-4c8a-aa93-2baca979b121",
+          "depends_on_component_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
+          "expression_id": "63403169-567e-47d0-8b4d-8f3bb936306e",
+          "id": "7b01a74d-adf6-4b06-80fb-0f8afc2863a3"
+        },
+        {
+          "component_id": "68430940-6e9f-48ab-a090-60894958a04d",
+          "depends_on_component_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
+          "expression_id": "f5c285bf-fe4a-4deb-b85f-58ae4380a2df",
+          "id": "004e6aa0-9f89-4256-9669-34ca1d11b1c4"
+        },
+        {
+          "component_id": "f63782e3-b9b5-4e21-afd1-b653bfe6ed38",
+          "depends_on_component_id": "68430940-6e9f-48ab-a090-60894958a04d",
+          "expression_id": "3dbfbef3-f59b-4f7f-8c05-7042a1716151",
+          "id": "fc2f557f-a208-4e28-a876-8476ae6e6d83"
+        },
+        {
+          "component_id": "908ae5f1-4488-4f8c-ba9e-5903764f959a",
+          "depends_on_component_id": "68430940-6e9f-48ab-a090-60894958a04d",
+          "expression_id": "98939fdf-55b8-4bce-8731-473fc397d1cb",
+          "id": "d353e89e-8fc1-4c72-a76b-2fc548ad0390"
+        },
+        {
+          "component_id": "67b6100e-9846-4c50-84c7-bd49eedc4410",
+          "depends_on_component_id": "2796c1e7-5333-4c67-82fe-8dd1951d5842",
+          "expression_id": "ad159625-faf7-435e-a9c3-499994fb74db",
+          "id": "afcde708-76e2-4e39-a67d-ea15ea79ec41"
+        },
+        {
+          "component_id": "6c85eb6f-a9d8-4afa-a117-759186908d11",
+          "depends_on_component_id": "2796c1e7-5333-4c67-82fe-8dd1951d5842",
+          "expression_id": "834eebba-b796-4268-9138-87ae713ede0d",
+          "id": "73588356-c593-46cd-8fcd-5dee1459047d"
+        },
+        {
+          "component_id": "0cf6b8e0-b8c5-4968-a7c7-5c37bb51e2b9",
+          "depends_on_component_id": "6c85eb6f-a9d8-4afa-a117-759186908d11",
+          "expression_id": "d84939b1-f9e3-420f-a350-e08c7ec4ac24",
+          "id": "904dfa26-f8c9-49c8-8e59-0f25c70fb591"
+        },
+        {
+          "component_id": "6e10a5dd-0db4-4a98-9d8a-6229c711e5c6",
+          "depends_on_component_id": "6c85eb6f-a9d8-4afa-a117-759186908d11",
+          "expression_id": "86366137-d945-4bd3-8ee9-baee101d41ab",
+          "id": "d7272b26-2ff4-49d5-b938-0265741c7b41"
+        },
+        {
+          "component_id": "da515367-b3a9-4d78-8ed0-416e16214276",
+          "depends_on_component_id": "6e10a5dd-0db4-4a98-9d8a-6229c711e5c6",
+          "expression_id": "cd9c41a4-9a24-42a7-a8f3-0b626d40675a",
+          "id": "84c63baa-5ea0-4cf5-9773-642567cbd87a"
+        },
+        {
+          "component_id": "87b57cd9-538e-4fe1-b051-82f817b54579",
+          "depends_on_component_id": "6e10a5dd-0db4-4a98-9d8a-6229c711e5c6",
+          "expression_id": "a86daf2d-e500-448a-aa8b-d5fbc4901b27",
+          "id": "4a5b9c98-65c4-4ee0-92ca-b8e5b932d902"
+        },
+        {
+          "component_id": "ad5778cf-c5e7-4acf-8d15-58f5ba0745c5",
+          "depends_on_component_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768",
+          "expression_id": "5e64ca3e-7957-4a6b-b689-52325bcc772b",
+          "id": "7b6206bf-9e03-49ba-b5d7-28d1e35c7051"
         }
       ],
       "data_source_item_references": [
@@ -12058,6 +12434,7 @@
           "version": 1
         }
       ],
+      "component_references": [],
       "data_source_item_references": [],
       "data_source_items": [],
       "data_sources": [],
@@ -12199,6 +12576,7 @@
           "version": 1
         }
       ],
+      "component_references": [],
       "data_source_item_references": [],
       "data_source_items": [],
       "data_sources": [],
