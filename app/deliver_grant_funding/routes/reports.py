@@ -60,6 +60,7 @@ from app.deliver_grant_funding.forms import (
     ConditionSelectQuestionForm,
     GroupDisplayOptionsForm,
     GroupForm,
+    ManageAddAnotherForm,
     QuestionForm,
     QuestionTypeForm,
     SetUpReportForm,
@@ -300,6 +301,34 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/change_question_group_name.html",
+        grant=db_group.form.collection.grant,
+        group=db_group,
+        db_form=db_group.form,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-add-another", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def change_group_add_another(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    db_group = get_group_by_id(group_id)
+
+    form = ManageAddAnotherForm(obj=db_group)
+    if form.validate_on_submit():
+        update_group(db_group, add_another=form.add_another.data == "yes")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=grant_id,
+                group_id=db_group.id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/change_question_group_add_another.html",
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,

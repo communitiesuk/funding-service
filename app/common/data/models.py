@@ -285,7 +285,8 @@ class Component(BaseModel):
     @property
     def is_add_another(self) -> bool:
         # return self.data_type == QuestionDataType.TEXT_SINGLE_LINE
-        return self.add_another
+        # todo: this will eventually need to factor in that you could be in a group within a group
+        return self.add_another or (self.parent and self.parent.add_another)
 
     __table_args__ = (
         UniqueConstraint("order", "parent_id", "form_id", name="uq_component_order_form", deferrable=True),

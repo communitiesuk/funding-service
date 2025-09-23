@@ -222,6 +222,17 @@ class GroupDisplayOptionsForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
+class ManageAddAnotherForm(FlaskForm):
+    add_another = RadioField(
+        "Should people be able to answer all questions in this question group more than once?",
+        choices=[("yes", "Yes"), ("no", "No - questions can only be answered once")],
+        validators=[DataRequired("Select ‘Yes’ if people can add answers for this question group more than once")],
+        widget=GovRadioInput(),
+        coerce=lambda v: "yes" if v is True else "no" if v is False else v,
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
 class QuestionForm(FlaskForm):
     text = StringField(
         "Question text",

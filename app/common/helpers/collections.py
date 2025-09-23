@@ -110,25 +110,38 @@ class SubmissionHelper:
         # context: prepopulating the form while still being able to submit answers
         for form in self.submission.collection.forms:
             for question in form.cached_questions:
-                if (answer := self.cached_get_answer_for_question(question.id)) is not None:
-                    if not question.is_add_another:
-                        form_data[question.safe_qid] = answer.get_value_for_form()
-                    else:
-                        # todo: needs to think about what it would do if its parsing a groups answer - this may not be needed
-                        #       if we're not fetching a groups answer directly and depends on the read model
-                        for another in answer:
-                            # todo: don't mutate here for now because this context could change?
-                            #  .    it should still use the same property to get this formatted for consistency
-                            # question.add_another_index = answer.index(another)
-                            # form_data[question.safe_qid] = another.get_value_for_form()
-
-                            # todo: this would need to be unit tested extensively - one place should know how to create these
-                            form_data[f"q_{question.question_id.hex}_{answer.index(another)}"] = (
-                                another.get_value_for_form()
+                if question.parent and question.parent.add_another:
+                    # the question is inside a list dict
+                    for i in range(0, self.get_count_group_total(question.parent.id)):
+                        if (
+                            answer := self.cached_get_answer_for_question(
+                                question.id, add_another_index=i, add_another_group_id=question.parent.id
                             )
+                        ) is not None:
+                            form_data[f"q_{question.question_id.hex}_{i}"] = answer.get_value_for_form()
 
-                            # fixme: I'm not sure _where_ this is being set elsewhere but it seems to be so I'm just going to leave it for now
-                            # form_data[question.safe_qid] = another.get_value_for_form()
+                else:
+                    if (answer := self.cached_get_answer_for_question(question.id)) is not None:
+                        if not question.is_add_another:
+                            form_data[question.safe_qid] = answer.get_value_for_form()
+
+                        # todo: this should go through by count and fetch out answers using the index not expect the deserialised to be a list - this will make it uniform with structured and shortcut a lot of the code
+                        else:
+                            # todo: needs to think about what it would do if its parsing a groups answer - this may not be needed
+                            #       if we're not fetching a groups answer directly and depends on the read model
+                            for another in answer:
+                                # todo: don't mutate here for now because this context could change?
+                                #  .    it should still use the same property to get this formatted for consistency
+                                # question.add_another_index = answer.index(another)
+                                # form_data[question.safe_qid] = another.get_value_for_form()
+
+                                # todo: this would need to be unit tested extensively - one place should know how to create these
+                                form_data[f"q_{question.question_id.hex}_{answer.index(another)}"] = (
+                                    another.get_value_for_form()
+                                )
+
+                                # fixme: I'm not sure _where_ this is being set elsewhere but it seems to be so I'm just going to leave it for now
+                                # form_data[question.safe_qid] = another.get_value_for_form()
         # form_data = {
         #     question.safe_qid: answer.get_value_for_form()
         #     for form in self.submission.collection.forms
@@ -233,6 +246,19 @@ class SubmissionHelper:
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
 
+    def get_component(self, component_id: uuid.UUID) -> "Question":
+        try:
+            return next(
+                filter(
+                    lambda q: q.id == component_id,
+                    chain.from_iterable(form.cached_all_components for form in self.collection.forms),
+                )
+            )
+        except StopIteration as e:
+            raise ValueError(
+                f"Could not find a component with id={component_id} in collection={self.collection.id}"
+            ) from e
+
     def _get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
         visible_questions = self.cached_get_ordered_visible_questions(form)
         answers = [
@@ -317,13 +343,44 @@ class SubmissionHelper:
 
     # maybe - gut feel is that this is what turns it into a list of answers if its add another - and calls deserialise on each question
     # if its a group then the answer returned will be a dict[qid, deserialised_answer]
-    def _get_answer_for_question(self, question_id: UUID) -> AllAnswerTypes | list[AllAnswerTypes] | None:
+
+    # todo: currently readers for simple type list values are reading this and parsing the list
+    #       to make it uniform with structured groups they should pass in the index and we'll return the value at that index
+    #       they'll need to do the looping but then the reading will be consistent
+    def _get_answer_for_question(
+        self, question_id: UUID, *, add_another_index: Optional[int] = None, add_another_group_id: Optional[UUID] = None
+    ) -> AllAnswerTypes | list[AllAnswerTypes] | None:
         question = self.get_question(question_id)
-        serialised_data = self.submission.data.get(str(question_id))
-        return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
+        _ = self.get_component(add_another_group_id) if add_another_group_id else None
+
+        if add_another_group_id:
+            serialised_data = self.submission.data.get(str(add_another_group_id))
+            return (
+                _deserialise_question_type(question, serialised_data[add_another_index].get(str(question_id)))
+                if serialised_data and serialised_data[add_another_index].get(str(question_id))
+                else None
+            )
+        else:
+            serialised_data = self.submission.data.get(str(question_id))
+            return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
+
+    def get_count_group_total(self, group_id: UUID) -> int:
+        _ = self.get_component(group_id)
+        serialised_data = self.submission.data.get(str(group_id))
+        if serialised_data:
+            # WrapperModel = RootModel[list[dict[str, Any]]]
+            # return len(TypeAdapter(WrapperModel).validate_python(serialised_data).root)
+            return len(serialised_data)
+        else:
+            return 0
 
     def submit_answer_for_question(
-        self, question_id: UUID, form: DynamicQuestionForm, *, add_another_index: Optional[int] = None
+        self,
+        question_id: UUID,
+        form: DynamicQuestionForm,
+        *,
+        add_another_index: Optional[int] = None,
+        add_another_group_id: Optional[UUID] = None,
     ) -> None:
         if self.is_completed:
             raise ValueError(
@@ -332,9 +389,15 @@ class SubmissionHelper:
             )
 
         question = self.get_question(question_id)
+        _ = self.get_component(add_another_group_id) if add_another_group_id else None
+
         data = _form_data_to_question_type(question, form)
         interfaces.collections.update_submission_data(
-            self.submission, question, data, add_another_index=add_another_index
+            self.submission,
+            question,
+            data,
+            add_another_index=add_another_index,
+            add_another_group_id=add_another_group_id,
         )
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
@@ -561,6 +624,9 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
 # could happen within deserialise
 
 
+# todo:
+# fixme: make this uniform with the structured group method - this should be called on a known single entry and always return once
+#        the method above will have had the index passed in
 def _deserialise_question_type(
     question: "Question", serialised_data: str | int | float | bool
 ) -> AllAnswerTypes | list[AllAnswerTypes]:
@@ -595,7 +661,10 @@ def _deserialise_question_type(
 
         # todo: doesn't consider if you're moving from add another configured to not for now
         #       in preview we probably just want to handle the error and remove the answer
-        if question.is_add_another:
+
+        # todo: for now this checks if this question itself is add another rather than is_add_another
+        #       in reality this won't need to check if indexes are managed outside (we'll see how this feels)
+        if question.add_another:
             return TypeAdapter(Wrapper).validate_python(serialised_data).root
         else:
             return TypeAdapter(answer_type).validate_python(serialised_data)

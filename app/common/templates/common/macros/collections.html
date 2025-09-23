@@ -125,56 +125,100 @@
   <span class="govuk-caption-l">{{ form.title }}</span>
   <h1 class="govuk-heading-l">{{ "Your submitted answers" if submission.is_completed else "Check your answers" }}</h1>
 
+  {% set add_another_groups_registered = [] %}
+
   {% set rows = [] %}
   {% for question in submission.cached_get_ordered_visible_questions(form) %}
-    {% set answer_value = submission.cached_get_answer_for_question(question.id) %}
-    {% if answer_value is not none %}
-      {% set value_html %}
-        {# todo: this is a very temporary solution - we might want this to be done elsewhere as its used in CSV, JSON, etc. but maybe they do each need to do something unique #}
-        {% if question.is_add_another %}
-          <ul class="govuk-list govuk-list--number">
-            {# {% for key, answer in answer_value %} #}
-            {% for answer in answer_value %}
-              <li>{% include answer._render_answer_template %}</li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          {% set answer = answer_value %}
-          {% include answer._render_answer_template %}
-        {% endif %}
-      {% endset %}
 
-      {# todo: can we "anchor" or link to the specific question if we're going to be changing a question on a same page group #}
-      {%
-        set actions = (
-        []
-        if submission.is_completed else
-        [
-          {
-            "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
-            "text": "Change",
-            "visuallyHiddenText": question.name
-          }
-        ]
-        )
-      %}
-      {%
-        do rows.append({
-          "key": {"text": question.text},
-          "value": {"html": value_html},
-          "actions": {"items": actions},
-        })
-      %}
-    {% else %}
-      {% set valueLink %}
-        <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
-      {% endset %}
-      {%
-        do rows.append({
-          "key": {"text": question.text},
-          "value": {"html": valueLink}
-        })
-      %}
+    {% if not question.parent or (question.parent.id not in add_another_groups_registered) %}
+
+      {% set state = namespace(all_questions_answered=true) %}
+
+      {# todo: strange workaround for deserialising returning a list - this will be a lot more uniform if the interface for get answer is uniformly used by simple lists and structured #}
+      {# todo: we definitely want a utility that returns a one line text summary of a groups answer at an index #}
+      {% set answer_value = submission.cached_get_answer_for_question(question.id) if not (question.parent and question.parent.add_another) else submission.get_count_group_total(question.parent.id) %}
+      {% if answer_value is not none and not (question.parent and question.parent.add_another) or (question.parent and question.parent.add_another) and answer_value > 0 %}
+        {% set value_html %}
+          {# todo: this is a very temporary solution - we might want this to be done elsewhere as its used in CSV, JSON, etc. but maybe they do each need to do something unique #}
+          {# todo: the behaviours here can likely be very similar between structured (groups) and unstructured lists #}
+          {% if question.add_another %}
+            <ul class="govuk-list govuk-list--number">
+              {# {% for key, answer in answer_value %} #}
+              {% for answer in answer_value %}
+                <li>{% include answer._render_answer_template %}</li>
+              {% endfor %}
+            </ul>
+          {% elif question.parent and question.parent.add_another %}
+            {% do add_another_groups_registered.append(question.parent.id) %}
+
+            <ul class="govuk-list govuk-list--number">
+              {# we need to loop through the number of answers we have for the group and then for each question in the group get the answer at that index #}
+              {% for i in range(0, submission.get_count_group_total(question.parent.id)) %}
+                {% set answers = [] %}
+                {% for q in question.parent.cached_questions %}
+                  {% set answer = runner.submission.cached_get_answer_for_question(q.id, add_another_group_id=question.parent.id, add_another_index=i) %}
+                  {% if answer %}
+                    {% do answers.append(answer.get_value_for_text_export()) %}
+                  {% else %}
+                    {% set state.all_questions_answered = false %}
+                  {% endif %}
+                {% endfor %}
+
+                <li>{{ answers | join(", ") }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            {% set answer = answer_value %}
+            {% include answer._render_answer_template %}
+          {% endif %}
+        {% endset %}
+
+        {# todo: can we "anchor" or link to the specific question if we're going to be changing a question on a same page group #}
+        {%
+          set actions = (
+          []
+          if submission.is_completed else
+          [
+            {
+              "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
+              "text": "Change",
+              "visuallyHiddenText": question.name
+            }
+          ]
+          )
+        %}
+
+        {% if not state.all_questions_answered %}
+          {% set value_html %}
+            <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state"
+              >Finish entering {{ question.name if not (question.parent and question.parent.add_another) else question.parent.name | lower }}</a
+            >
+          {% endset %}
+        {% endif %}
+        {%
+          do rows.append({
+            "key": {"text": question.text if not (question.parent and question.parent.add_another) else question.parent.name},
+            "value": {"html": value_html},
+            "actions": {"items": actions if state.all_questions_answered else [] },
+          })
+        %}
+      {% else %}
+
+        {% if question.parent and question.parent.add_another %}
+          {% do add_another_groups_registered.append(question.parent.id) %}
+        {% endif %}
+        {% set valueLink %}
+          <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state"
+            >Enter {{ question.name if not (question.parent and question.parent.add_another) else question.parent.name | lower }}</a
+          >
+        {% endset %}
+        {%
+          do rows.append({
+            "key": {"text": question.text if not (question.parent and question.parent.add_another) else question.parent.name},
+            "value": {"html": valueLink}
+          })
+        %}
+      {% endif %}
     {% endif %}
   {% endfor %}
 

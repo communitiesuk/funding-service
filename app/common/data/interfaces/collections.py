@@ -119,26 +119,51 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
 #       currently _only_ goes through questions - do we have a similar check that our question isn't part of an add another group
 #       OR do we change to iterate through components (which include groups)
 def update_submission_data(
-    submission: Submission, question: Question, data: AllAnswerTypes, *, add_another_index: Optional[int] = None
+    submission: Submission,
+    question: Question,
+    data: AllAnswerTypes,
+    *,
+    add_another_index: Optional[int] = None,
+    add_another_group_id: Optional[UUID] = None,
 ) -> Submission:
     # todo: all of this will need to be indexed by the question id for any thinking about groups
     if question.is_add_another:
-        # likely a sub-optimal check but
-        if (
-            add_another_index is None
-            or submission.data.get(str(question.id)) is None
-            or (
-                submission.data.get(str(question.id)) is not None
-                and len(submission.data.get(str(question.id))) <= add_another_index
-            )
-        ):
-            submission.data.setdefault(str(question.id), []).append(data.get_value_for_submission())
-            # submission.data.setdefault(str(question.id), []).append({ str(question.id): data.get_value_for_submission()})
+        if add_another_group_id:
+            # we're working on a list with structured data
+            # todo: we might line these up so that they work the same way with structured qid even for simple question types
+            #       but for now consumers will deal with them differently?
+            # assumption: we need an explicit index to add to a structured
+            if not submission.data.get(str(add_another_group_id)) or (
+                submission.data.get(str(add_another_group_id)) is not None
+                and len(submission.data.get(str(add_another_group_id))) <= add_another_index
+            ):
+                # todo: if this is a repeat over the default will have to include empty dicts for all of the values
+                submission.data.setdefault(str(add_another_group_id), []).append(
+                    {str(question.id): data.get_value_for_submission()}
+                )
+            else:
+                submission.data[str(add_another_group_id)][add_another_index][str(question.id)] = (
+                    data.get_value_for_submission()
+                )
+
         else:
-            # todo: when we're doing question groups and each entry can be multiple questions this will need to be another dictionary of question ids to answers
-            #       should we just do that up front?
-            # submission.data[str(question.id)][add_another_index] = {str(question.id): data.get_value_for_submission()}
-            submission.data[str(question.id)][add_another_index] = data.get_value_for_submission()
+            # we're operating on a single value list
+            # likely a sub-optimal check but
+            if (
+                add_another_index is None
+                or submission.data.get(str(question.id)) is None
+                or (
+                    submission.data.get(str(question.id)) is not None
+                    and len(submission.data.get(str(question.id))) <= add_another_index
+                )
+            ):
+                submission.data.setdefault(str(question.id), []).append(data.get_value_for_submission())
+                # submission.data.setdefault(str(question.id), []).append({ str(question.id): data.get_value_for_submission()})
+            else:
+                # todo: when we're doing question groups and each entry can be multiple questions this will need to be another dictionary of question ids to answers
+                #       should we just do that up front?
+                # submission.data[str(question.id)][add_another_index] = {str(question.id): data.get_value_for_submission()}
+                submission.data[str(question.id)][add_another_index] = data.get_value_for_submission()
     else:
         submission.data[str(question.id)] = data.get_value_for_submission()
     db.session.flush()
@@ -702,6 +727,7 @@ def update_group(
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
     guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    add_another: bool | None | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
         group.name = name  # ty: ignore[invalid-assignment]
@@ -725,6 +751,9 @@ def update_group(
 
     if guidance_body is not NOT_PROVIDED:
         group.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
+
+    if add_another is not NOT_PROVIDED:
+        group.add_another = add_another
 
     try:
         db.session.flush()

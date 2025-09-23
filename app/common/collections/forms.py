@@ -260,10 +260,15 @@ class CheckYourAnswersForm(FlaskForm):
 
 
 class AddAnotherForm(FlaskForm):
+    def __init__(self, *args: Any, is_group_first: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if not is_group_first:
+            self.add_another.validators = [DataRequired("Select yes if you need to add another answer")]
+
     add_another = RadioField(
         "Do you need to add another answer?",
         choices=[("yes", "Yes"), ("no", "No")],
         widget=GovRadioInput(),
-        validators=[DataRequired("Select yes if you need to add another answer")],
+        validators=[Optional()],
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())

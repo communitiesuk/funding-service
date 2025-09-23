@@ -49,6 +49,12 @@ class FormRunner:
         if question and question.parent and question.parent.same_page:
             self.component = question.parent
             self.questions = self.submission.cached_get_ordered_visible_questions(self.component)
+
+        # here wants to differentiatae between a group page loading the add another check page and a question itself being loaded
+        elif question and question.parent and question.parent.is_add_another and self.add_another_index is None:
+            self.component = question.parent
+            # todo: this could pass in the index which _could_ allow conditions to reference quesstions within their loop
+            self.questions = self.submission.cached_get_ordered_visible_questions(self.component)
         else:
             self.component = question
             self.questions = [self.component] if self.component else []
@@ -74,7 +80,10 @@ class FormRunner:
             self._question_form = _QuestionForm(data=self.submission.cached_form_data)
 
             if self.component.is_add_another and not self.add_another_index:
-                self._add_another_form = AddAnotherForm()
+                is_group_first = self.component.is_group and not self.submission.get_count_group_total(
+                    self.component.id
+                )
+                self._add_another_form = AddAnotherForm(is_group_first=is_group_first)
 
         if self.form:
             all_questions_answered, _ = self.submission.cached_get_all_questions_are_answered_for_form(self.form)
@@ -110,6 +119,8 @@ class FormRunner:
         question, form = None, None
 
         if question_id:
+            # it would be nice to assert this is a question any time that its not an add another list page
+            # question = submission.get_component(question_id)
             question = submission.get_question(question_id)
         elif form_id:
             form = submission.get_form(form_id)
@@ -147,8 +158,16 @@ class FormRunner:
         # presume the runner knows the list ID/ index by the time its loading up the question form
         # either its new and there is no ID/ index or its adding multiple questions to a given identifier or updating a known answer
         for question in self.questions:
+            add_another_group_id = None
+            if self.component.parent and self.component.parent.is_group and self.add_another_index is not None:
+                add_another_group_id = self.component.parent.id
+            if self.component.is_group and self.component.add_another and self.add_another_index is not None:
+                add_another_group_id = self.component.id
             self.submission.submit_answer_for_question(
-                question.id, self.question_form, add_another_index=self.add_another_index
+                question.id,
+                self.question_form,
+                add_another_index=self.add_another_index,
+                add_another_group_id=add_another_group_id,
             )
 
     def save_is_form_completed(self, user: "User") -> bool:
@@ -204,9 +223,19 @@ class FormRunner:
                         answer = self.submission.cached_get_answer_for_question(self.component.id)
 
                         # we'll go straight to the question if its simpler and not part of a group
-                        if not answer:
+                        # for group specific behaviour - a question won't be add another specifically if its part of an add another group
+                        # the "add to a list" behaviour should start on the list page to give you context thats what you're doing
+                        if not answer and self.component.add_another:
                             return self.to_url(FormRunnerState.QUESTION, question=last_question, add_another_index=0)
-                    return self.to_url(FormRunnerState.CHECK_ADD_ANOTHER, question=last_question)
+
+                        # we'll always go to the list first when adding multiple structured bits of data, the page should reflect that
+                        # (likely group name heading at the top, a paragraph saying you haven't added anything, or how many you've added)
+                        if self.component.parent:
+                            # need to decide if this is desirable or not, we probably do want any "change" within the group to end up here
+                            return self.to_url(
+                                FormRunnerState.CHECK_ADD_ANOTHER, question=self.component, source=self.source
+                            )
+                    return self.to_url(FormRunnerState.CHECK_ADD_ANOTHER, question=last_question, source=self.source)
                 else:
                     return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
@@ -215,7 +244,29 @@ class FormRunner:
             #       thats then probably checking for something breaking out of that group or something
             # todo: is this the thing that decides to forward you on to answering the first question if its _not_ a group
             if self.component.is_add_another or last_question.is_add_another:
+                # routing for groups will need to be a bit more sophisticated
                 if self.add_another_index is not None:
+                    # fixme: there will be a crossover of same page and add another that won't be covered here which will need thinking through
+                    # fixme: right now same page means everything has to be asked at once - if you can have group in a group this logic will need to be more robust
+                    if self.component.parent and not self.component.parent.same_page:
+                        next_question = self.submission.get_next_question(last_question.id)
+
+                        while (
+                            next_question
+                            and self.submission.cached_get_answer_for_question(next_question.id) is not None
+                        ):
+                            next_question = self.submission.get_next_question(next_question.id)
+
+                        return (
+                            self.to_url(
+                                FormRunnerState.QUESTION,
+                                question=next_question,
+                                add_another_index=self.add_another_index,
+                            )
+                            if next_question and next_question.parent == self.component.parent
+                            else self.to_url(FormRunnerState.CHECK_ADD_ANOTHER, question=self.component)
+                        )
+
                     # we'll go to the check add another
                     # this _feels_ like its runner specific and the submission should focus on the next logical quqestion
                     return self.to_url(FormRunnerState.CHECK_ADD_ANOTHER, question=last_question)
@@ -223,12 +274,23 @@ class FormRunner:
                     # todo: this should be calculated somewhere thats easy to cover and tweak based on business logic
                     # todo: how we're getting the answer for groups and checking its valid etc. needs to be thought through
                     # this is always a list by this point although types will need some convincing
-                    answer = self.submission.cached_get_answer_for_question(self.component.id)
-                    new_index = len(answer) if answer else 0
+
+                    # todo: this should use a generic count that could be used by a structured group or simple list
+                    if self.component.is_group:
+                        new_index = self.submission.get_count_group_total(self.component.id)
+                    else:
+                        answer = self.submission.cached_get_answer_for_question(self.component.id)
+                        new_index = len(answer) if answer else 0
 
                     # todo: this will have to do something to point to the _first_ question in the group
                     #       if it is a group but for now it can just go to the question with a newly created index
-                    return self.to_url(FormRunnerState.QUESTION, question=last_question, add_another_index=new_index)
+                    return self.to_url(
+                        FormRunnerState.QUESTION, question=self.questions[0], add_another_index=new_index
+                    )
+                elif self.component.is_group and not self.submission.get_count_group_total(self.component.id):
+                    # kick off the first answer
+                    return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=0)
+
                 # else:
             next_question = self.submission.get_next_question(last_question.id)
 
@@ -281,10 +343,18 @@ class FormRunner:
             return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
         if self.component:
+            first_question = self.questions[0] if self.component.is_group else self.component
+            if self.component.parent and self.component.parent.add_another:
+                previous_question = self.submission.get_previous_question(first_question.id)
+                if previous_question and (previous_question.parent == self.component.parent):
+                    return self.to_url(
+                        FormRunnerState.QUESTION, question=previous_question, add_another_index=self.add_another_index
+                    )
+
             # todo: this will need to factor in more scenarios if its a group but for now
             if self.component.is_add_another and self.add_another_index is not None:
                 return self.to_url(FormRunnerState.CHECK_ADD_ANOTHER, question=self.component)
-            first_question = self.questions[0] if self.component.is_group else self.component
+
             previous_question = self.submission.get_previous_question(first_question.id)
         elif self.form:
             previous_question = self.submission.get_last_question_for_form(self.form)

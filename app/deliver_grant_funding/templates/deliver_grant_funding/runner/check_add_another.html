@@ -1,4 +1,5 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "common/macros/collections.html" import collection_check_your_answers with context %}
 {% from "common/macros/collections.html" import collection_before with context %}
 {% extends "developers/deliver/access_grant_funding_base.html" %}
@@ -12,75 +13,229 @@
 {% endblock beforeContent %}
 
 {% set form = runner.add_another_form %}
+
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {# probably doesn't work nicely for groups, currently the list is flat rather than { qid } #}
       {# for things like this where we're reading lists its maybe better for them all to be qid indexed so theres no difference? #}
-      {% set answers = runner.submission.cached_get_answer_for_question(runner.component.id) or [] %}
 
-      {# move this to a collections macro #}
-      <h1 class="govuk-heading-l">You have added {{ answers|length }} {{ runner.component.name or "answers" }}</h1>
-      {# {{ collection_check_your_answers(runner) }} #}
+      {# this is now going to need to work for groups but just commenting out briefly to make the page load #}
+      {# {% set answers = [] %} #}
 
-      {# i can only do this because its one answer - if it was a group it would need to get each answer separately #}
-      {% set rows = [] %}
-      {% for answer in answers %}
-        {% set question = runner.component %}
-        {% set value_html %}
-          {% include answer._render_answer_template %}
-        {% endset %}
+      {# _either_ getting the answer for the whole group returns everything needed in a nicely formatted way #}
+      {# _or_ the reader has to get answers for each question in the group separately, providing the index #}
+      {# the latter keeps the interface uniform for getting 1 serialised thing per request, but means each consumer has to reproduce the looping through answers logic #}
+      {# consumers are: the add another list page, the check your answers page, the submission data view page, CSV export, JSON export #}
+      {# the latter also likely needs a way to count how many submissions have been answered for a group #}
 
-        {%
-          set actions = (
-          [
-            {
-              "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.component, source=enum.form_runner_state.CHECK_ADD_ANOTHER, add_another_index=loop.index - 1),
-              "text": "Change",
-              "visuallyHiddenText": runner.component.name
-            },
-            {
-              "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.component, source=enum.form_runner_state.CHECK_ADD_ANOTHER),
-              "text": "Remove",
-              "visuallyHiddenText": runner.component.name
-            },
-          ]
-          )
-        %}
+      {# set total = runner.submission.cached_count_submissions_for_group(runner.component.id) #}
+      {# {% for i in range(1, total) %} #}
+      {#   {% set answer = runner.submission.cached_get_answer_for_question(runner.component.id, add_another_group=runner.component.id, add_another_index = i) #}
+      {# {% endfor %} #}
 
-        {# "key": {"text": question.text}, #}
-        {# personally I think this looks better without the index #}
-        {# just easier to match the macro options for now #}
-        {%
-          do rows.append({
-            "key": { "text": loop.index, "classes": "govuk-!-width-one-quarter"  },
-            "value": {"html": value_html},
-            "actions": {"items": actions, "classes": "govuk-!-width-one-third"},
-          })
-        %}
-      {% endfor %}
+      {# using this method - the read model here will want to take care of #}
+      {# - making sure the questions are visible (there should be a helper method for that, just looking at "questions" in the runner) #}
+      {# - showing in the summary table only the question answers the form designer has configured to show up to represent it #}
 
-      {# "classes": "govuk-!-margin-bottom-9", #}
-      {{
-        govukSummaryList({
-          "rows": rows
-        })
-      }}
-      <form method="post" novalidate>
-        {{ runner.add_another_form.csrf_token }}
+      {# for "repeats over" all of these things will likely want to be able to interpolate over the context of the group and submission #}
+
+      {% if not runner.component.is_group %}
+        {% set answers = runner.submission.cached_get_answer_for_question(runner.component.id) or [] %}
+        {# move this to a collections macro #}
+        <h1 class="govuk-heading-l">You have added {{ answers|length }} {{ runner.component.name or "answers" }}</h1>
+        {# {{ collection_check_your_answers(runner) }} #}
+
+        {# i can only do this because its one answer - if it was a group it would need to get each answer separately #}
+        {% set rows = [] %}
+        {% for answer in answers %}
+          {% set question = runner.component %}
+          {% set value_html %}
+            {% include answer._render_answer_template %}
+          {% endset %}
+
+          {%
+            set actions = (
+            [
+              {
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.component, source=enum.form_runner_state.CHECK_ADD_ANOTHER, add_another_index=loop.index - 1),
+                "text": "Change",
+                "visuallyHiddenText": runner.component.name
+              },
+              {
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.component, source=enum.form_runner_state.CHECK_ADD_ANOTHER),
+                "text": "Remove",
+                "visuallyHiddenText": runner.component.name
+              },
+            ]
+            )
+          %}
+
+          {# "key": {"text": question.text}, #}
+          {# personally I think this looks better without the index #}
+          {# just easier to match the macro options for now #}
+          {%
+            do rows.append({
+              "key": { "text": loop.index, "classes": "govuk-!-width-one-quarter"  },
+              "value": {"html": value_html},
+              "actions": {"items": actions, "classes": "govuk-!-width-one-third"},
+            })
+          %}
+        {% endfor %}
+
+        {# "classes": "govuk-!-margin-bottom-9", #}
         {{
-          runner.add_another_form.add_another(params={
-            "fieldset": {
-              "legend": {
-                "text": "Do you need to add another answer?",
-                "isPageHeading": false,
-                "classes": "govuk-fieldset__legend--m"
-              }
-            }
+          govukSummaryList({
+            "rows": rows
           })
         }}
-        {{ runner.add_another_form.submit }}
-      </form>
+
+        <form method="post" novalidate>
+          {{ runner.add_another_form.csrf_token }}
+          {{
+            runner.add_another_form.add_another(params={
+              "fieldset": {
+                "legend": {
+                  "text": "Do you need to add another answer?",
+                  "isPageHeading": false,
+                  "classes": "govuk-fieldset__legend--m"
+                }
+              }
+            })
+          }}
+          {{ runner.add_another_form.submit }}
+        </form>
+      {% else %}
+        <h1 class="govuk-heading-l">{{ runner.component.name }}</h1>
+
+        {% set rows = [] %}
+        {% set question = runner.questions[0] %}
+
+        {# todo: if the questions in an add another group have conditions presumably each entry in the list could have different relevant questions #}
+        {# currently it fetches the "visible" questions for the form entirely but it might be that we need to pass in the group and index override to get the truthful answer per repitition #}
+        {% for i in range(0, runner.submission.get_count_group_total(runner.component.id)) %}
+          {# these are rightfully visible based on questions outside of this group but won't be appropriately checking for answers within the group and relevant index - something else is going to have to iterate over that and check #}
+          {# todo: potentially the expression itself needs to have the index suffixed at calculaton time? #}
+          {#       in the context qid_xxx_index will be attached already #}
+
+          {# fixme: think through corner cases - a condition based on something else in the form changes and now answers are empty - should they now be discounted? #}
+          {#        also has an impact on if this add another should be considered answered #}
+          {# todo: this add another needs to know how to be considered answered or not and be mandatory, alongside its questions having checks that know they're nested in list dict #}
+          {# {% set value_html %}{% endset %} #}
+
+          {% set answers = [] %}
+          {# {% set value = namespace(text="") %} #}
+
+          {# todo: #}
+          {# fixme: there should be a helper on the submission that says if an add another group is fully answered - it should be used in calculating if the full form is submitted too #}
+          {# the check your answers page should also try and avoid showing partial results and have a similar prompt link to "Finish entering X" #}
+
+          {% set state = namespace(all_questions_answered=true) %}
+          {% for question in runner.questions %}
+            {% set answer = runner.submission.cached_get_answer_for_question(question.id, add_another_group_id=runner.component.id, add_another_index=i) %}
+            {% if answer %}
+              {% do answers.append(answer.get_value_for_text_export()) %}
+            {% else %}
+              {% set state.all_questions_answered = false %}
+            {% endif %}
+
+            {# {% if answer %}
+              {% set value.text = value.text ~ " " ~ answer.get_value_for_text_export() %} #}
+            {# {% endif %} #}
+          {% endfor %}
+
+          {% set value = answers | join(", ") %}
+
+          {# it would be nice to see some of the identifying structured values if they had been entered #}
+          {# a way of accomplishing that would be to have the value and then just switch actions to "Finish" but that would be less visually distinctive #}
+
+          {% if not state.all_questions_answered %}
+            {# todo: the remove action maybe wants to stay #}
+            {% set value %}
+              <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], source=enum.form_runner_state.CHECK_ADD_ANOTHER, add_another_index=i) }}" class="govuk-link govuk-link--no-visited-state">
+                Finish entering {{ runner.component.name | lower }}
+              </a>
+            {% endset %}
+          {% endif %}
+
+          {%
+            set actions = (
+            [
+              {
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_ADD_ANOTHER, add_another_index=i),
+                "text": "Change",
+                "visuallyHiddenText": question.text
+              },
+              {
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_ADD_ANOTHER),
+                "text": "Remove",
+                "visuallyHiddenText": question.text
+              },
+            ]
+            )
+          %}
+          {%
+            do rows.append({
+              "key": { "text": loop.index, "classes": "govuk-!-width-one-quarter"  },
+              "value": {"html": value},
+              "actions": {"items": actions if state.all_questions_answered else [], "classes": "govuk-!-width-one-third"},
+            })
+          %}
+        {% endfor %}
+
+        {# "classes": "govuk-!-margin-bottom-9", #}
+
+        {% if rows %}
+          {{
+            govukSummaryList({
+              "rows": rows
+            })
+          }}
+
+          <form method="post" novalidate>
+            {{ runner.add_another_form.csrf_token }}
+            {{
+              runner.add_another_form.add_another(params={
+                "fieldset": {
+                  "legend": {
+                    "text": "Do you need to add another answer?",
+                    "isPageHeading": false,
+                    "classes": "govuk-fieldset__legend--m"
+                  }
+                }
+              })
+            }}
+            {{ runner.add_another_form.submit }}
+          </form>
+        {% else %}
+          <p class="govuk-body">You have not added any {{ runner.component.name | lower }}.</p>
+
+          <form method="post" novalidate>
+            {{ runner.add_another_form.csrf_token }}
+
+            {{
+              runner.add_another_form.submit(params={
+                "text": "Add an answer",
+                "classes": "govuk-button--secondary"
+              })
+            }}
+          </form>
+        {% endif %}
+        {# {% endif %} #}
+      {% endif %}
+
+      {% if runner.component.is_group and not answers %}
+        {# do we want to have a separate concept from guidance or allow you to set guidance here - feels like this page might often want to explain the structured things you're going to have to provide here #}
+        {# once you're adding them - do we want the caption to show the "key" of the thing you're adding if its available? #}
+        {# this makes it necessary to add an answer before continuing (unless you back out and come to check your answers) but that is how the other questions work so far #}
+
+        {# presumably after the first question is submitted for an index that has started it and if you press back you'll have to go back in to resume it #}
+        {# presumably if you haven't finished answering it the check you answers page should read "Finish adding {{ question name }} #}
+        {# the link here should probably indicate if its finished to, changing from "Change" to "Finish answers" or similar #}
+        {# similar behaviour for unfinished structured question groups and repeat over when the repeat isn't finished #}
+      {% else %}
+
+      {% endif %}
     </div>
   </div>
 {% endblock content %}

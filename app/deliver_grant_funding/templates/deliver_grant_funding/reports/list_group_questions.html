@@ -80,9 +80,20 @@
                 }]
               }
             },
+            {
+              "key": {"text": "Add another"},
+              "value": {"text": "People can add answers for this group more than once" if group.add_another else "Questions are answered once"},
+              "actions": {
+                "items": [{
+                  "text": "Change",
+                  "href": url_for("deliver_grant_funding.change_group_add_another", grant_id=grant.id, group_id=group.id)
+                }]
+              }
+            },
           ]
         })
       }}
+      {# value is "Add another" if its basic or "Repeats 10 times" or "Repeats over data source" #}
     </div>
   </div>
   <div class="govuk-grid-row">
