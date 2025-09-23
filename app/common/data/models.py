@@ -436,8 +436,12 @@ class Group(Component):
         return 1 + group._count_nested_group_levels(group=group.parent)
 
     @cached_property
+    def nested_group_levels(self) -> int:
+        return Group._count_nested_group_levels(group=self)
+
+    @cached_property
     def is_allowed_nested_groups(self) -> bool:
-        return bool(Group._count_nested_group_levels(group=self) < current_app.config["MAX_NESTED_GROUP_LEVELS"])
+        return bool(self.nested_group_levels < current_app.config["MAX_NESTED_GROUP_LEVELS"])
 
 
 class SubmissionEvent(BaseModel):

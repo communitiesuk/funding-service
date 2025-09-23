@@ -10,6 +10,8 @@ from app.common.data.interfaces.collections import (
     DependencyOrderException,
     _validate_and_sync_component_references,
     _validate_and_sync_expression_references,
+    NestedGroupDisplayTypeSamePageException,
+    NestedGroupException,
     add_component_condition,
     add_question_validation,
     add_submission_event,
@@ -378,7 +380,7 @@ class TestCreateGroup:
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
         )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(NestedGroupDisplayTypeSamePageException):
             create_group(
                 form=form,
                 text="Test group child",
@@ -400,7 +402,7 @@ class TestCreateGroup:
             parent=grand_parent_group,
         )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(NestedGroupException):
             create_group(
                 form=form,
                 text="Child group Level 3",
@@ -465,7 +467,7 @@ class TestUpdateGroup:
             parent=parent_group,
         )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(NestedGroupDisplayTypeSamePageException):
             update_group(
                 parent_group,
                 presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),

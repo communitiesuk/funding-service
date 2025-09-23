@@ -14,6 +14,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
+    NestedGroupDisplayTypeSamePageException,
     create_collection,
     create_form,
     create_group,
@@ -360,6 +361,10 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
         except DependencyOrderException:
             form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
                 "A question group cannot display on the same page if questions depend on answers within the group"
+            )
+        except NestedGroupDisplayTypeSamePageException:
+            form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
+                "A question group cannot display on the same page if it contains a nested group"
             )
 
     return render_template(
