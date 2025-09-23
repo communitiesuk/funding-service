@@ -3,10 +3,12 @@ import uuid
 
 from sqlalchemy import and_, func, select, update
 
+from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models_user import MagicLink, User
 from app.extensions import db
 
 
+@flush_and_rollback_on_exceptions
 def create_magic_link(email: str, *, user: User | None, redirect_to_path: str) -> MagicLink:
     # This db query checks if any magic links exist for this user/email and if so it expires the magic link before
     # creating a new one.
@@ -24,7 +26,6 @@ def create_magic_link(email: str, *, user: User | None, redirect_to_path: str) -
     )
 
     db.session.add(magic_link)
-    db.session.flush()
 
     return magic_link
 
@@ -45,9 +46,9 @@ def get_magic_link(id_: uuid.UUID | None = None, code: str | None = None) -> Mag
     return db.session.scalar(stmt)
 
 
+@flush_and_rollback_on_exceptions
 def claim_magic_link(magic_link: MagicLink, user: User | None) -> None:
     if not user:
         raise ValueError("User must be provided")
     magic_link.claimed_at_utc = func.now()
     magic_link.user = user
-    db.session.flush()
