@@ -1,10 +1,13 @@
-from typing import cast
+from functools import wraps
+from typing import Any, Callable, Sequence, cast, overload
 
 from flask import current_app
 from psycopg.errors import CheckViolation, UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.models import Component
+from app.extensions import db
+from app.types import NOT_PROVIDED, TNotProvided
 
 
 class DuplicateValueError(Exception):
@@ -79,3 +82,49 @@ class ComplexExpressionException(Exception):
         self.component = component
         self.field_name = field_name
         self.bad_reference = bad_reference
+
+
+@overload
+def flush_and_rollback_on_exceptions[T](
+    func: Callable[..., T],
+    *,
+    coerce_exceptions: Sequence[tuple[type[Exception], type[Exception]]] | None | TNotProvided = NOT_PROVIDED,
+) -> Callable[..., T]: ...
+
+
+@overload
+def flush_and_rollback_on_exceptions[T](
+    func: None = None,
+    *,
+    coerce_exceptions: Sequence[tuple[type[Exception], type[Exception]]] | None | TNotProvided = NOT_PROVIDED,
+) -> Callable[[Callable[..., T]], Callable[..., T]]: ...
+
+
+def flush_and_rollback_on_exceptions[T](
+    func: Callable[..., T] | None = None,
+    *,
+    coerce_exceptions: Sequence[tuple[type[Exception], type[Exception]]] | None | TNotProvided = NOT_PROVIDED,
+) -> Callable[..., T] | Callable[[Callable[..., T]], Callable[..., T]]:
+    def decorator(f: Callable[..., T]) -> Callable[..., T]:
+        @wraps(f)
+        def wrapper(*args: Any, **kwargs: Any) -> T:
+            try:
+                retval = f(*args, **kwargs)
+                db.session.flush()
+                return retval
+            except Exception as e:
+                db.session.rollback()
+
+                if coerce_exceptions is not None and coerce_exceptions is not NOT_PROVIDED:
+                    for from_exception, to_exception in coerce_exceptions:  # ty: ignore[not-iterable]
+                        if isinstance(e, from_exception):
+                            raise to_exception(e) from e
+
+                raise e
+
+        return wrapper
+
+    if func is not None:
+        return decorator(func)
+
+    return decorator

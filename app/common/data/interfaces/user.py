@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
-from app.common.data.interfaces.exceptions import InvalidUserRoleError
+from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_and_rollback_on_exceptions
 from app.common.data.models import Grant, Organisation
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
@@ -99,6 +99,7 @@ def upsert_user_by_azure_ad_subject_id(
     return user
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, InvalidUserRoleError)])
 def upsert_user_role(
     user: User, role: RoleEnum, organisation_id: uuid.UUID | None = None, grant_id: uuid.UUID | None = None
 ) -> UserRole:
@@ -106,26 +107,24 @@ def upsert_user_role(
     # except in that case the DB won't return any rows. So we use the same behaviour as above to ensure we always get a
     # result back regardless of if its doing an insert or an 'update'.
 
-    try:
-        user_role = db.session.scalars(
-            postgresql_upsert(UserRole)
-            .values(
-                user_id=user.id,
-                organisation_id=organisation_id,
-                grant_id=grant_id,
-                role=role,
-            )
-            .on_conflict_do_update(
-                index_elements=["user_id", "organisation_id", "grant_id"],
-                set_={
-                    "role": role,
-                },
-            )
-            .returning(UserRole),
-            execution_options={"populate_existing": True},
-        ).one()
-    except IntegrityError as e:
-        raise InvalidUserRoleError(e) from e
+    user_role = db.session.scalars(
+        postgresql_upsert(UserRole)
+        .values(
+            user_id=user.id,
+            organisation_id=organisation_id,
+            grant_id=grant_id,
+            role=role,
+        )
+        .on_conflict_do_update(
+            index_elements=["user_id", "organisation_id", "grant_id"],
+            set_={
+                "role": role,
+            },
+        )
+        .returning(UserRole),
+        execution_options={"populate_existing": True},
+    ).one()
+    db.session.flush()
     db.session.expire(user)
     return user_role
 

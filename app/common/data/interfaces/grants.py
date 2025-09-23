@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.interfaces.exceptions import DuplicateValueError, flush_and_rollback_on_exceptions
 from app.common.data.models import Collection, Grant
 from app.common.data.models_user import User
 from app.extensions import db
@@ -56,6 +56,7 @@ def get_all_grants() -> Sequence[Grant]:
     return db.session.scalars(statement).all()
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def create_grant(
     *,
     ggis_number: str,
@@ -72,15 +73,10 @@ def create_grant(
         primary_contact_email=primary_contact_email,
     )
     db.session.add(grant)
-
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
     return grant
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_grant(
     grant: Grant,
     *,
@@ -100,9 +96,4 @@ def update_grant(
         grant.primary_contact_name = primary_contact_name  # ty: ignore[invalid-assignment]
     if primary_contact_email is not NOT_PROVIDED:
         grant.primary_contact_email = primary_contact_email  # ty: ignore[invalid-assignment]
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
     return grant

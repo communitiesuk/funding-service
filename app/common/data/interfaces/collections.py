@@ -11,6 +11,7 @@ from app.common.data.interfaces.exceptions import (
     ComplexExpressionException,
     DuplicateValueError,
     InvalidQuestionReference,
+    flush_and_rollback_on_exceptions,
 )
 from app.common.data.models import (
     Collection,
@@ -47,16 +48,10 @@ if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def create_collection(*, name: str, user: User, grant: Grant, version: int = 1, type_: CollectionType) -> Collection:
     collection = Collection(name=name, created_by=user, grant=grant, version=version, slug=slugify(name), type=type_)
     db.session.add(collection)
-
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
-
     return collection
 
 
@@ -103,14 +98,10 @@ def get_collection(
     )
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_collection(collection: Collection, *, name: str) -> Collection:
     collection.name = name
     collection.slug = slugify(name)
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
     return collection
 
 
@@ -261,6 +252,7 @@ def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questio
     return db.session.execute(query).scalar_one()
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def create_form(*, title: str, collection: Collection) -> Form:
     form = Form(
         title=title,
@@ -270,12 +262,6 @@ def create_form(*, title: str, collection: Collection) -> Form:
     )
     collection.forms.append(form)
     db.session.add(form)
-
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
     return form
 
 
@@ -289,15 +275,10 @@ def move_form_down(form: Form) -> Form:
     return form
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_form(form: Form, *, title: str) -> Form:
     form.title = title
     form.slug = slugify(title)
-
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
     return form
 
 
@@ -319,6 +300,7 @@ def _create_data_source(question: Question, items: list[str]) -> None:
     db.session.flush()
 
 
+@flush_and_rollback_on_exceptions
 def _update_data_source(question: Question, items: list[str]) -> None:
     existing_choices_map = {choice.key: choice for choice in question.data_source.items}
     for item in items:
@@ -348,12 +330,6 @@ def _update_data_source(question: Question, items: list[str]) -> None:
     question.data_source.items = new_choices
     question.data_source.items.reorder()  # type: ignore[attr-defined]
 
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise e
-
 
 def _update_data_source_references(
     expression: "Expression", managed_expression: "BaseDataSourceManagedExpression"
@@ -370,6 +346,7 @@ def _update_data_source_references(
     return expression
 
 
+@flush_and_rollback_on_exceptions
 def create_question(
     form: Form,
     *,
@@ -399,8 +376,6 @@ def create_question(
         _validate_and_sync_component_references(question)
         db.session.flush()
     except IntegrityError as e:
-        db.session.rollback()
-
         # todo: check devs view on this, this is because other constraints (like the check constraint introduced here)
         #       are not because of duplicated values - the convention based method doesn't feel ideal but this setup
         #       is already working on a few assumptions of things lining up in different places. This just raises
@@ -408,17 +383,14 @@ def create_question(
         if e.orig.diag and e.orig.diag.constraint_name and e.orig.diag.constraint_name.startswith("uq_"):  # type: ignore[union-attr]
             raise DuplicateValueError(e) from e
         raise e
-    except (ComplexExpressionException, InvalidQuestionReference):
-        db.session.rollback()
-        raise
 
     if items is not None:
         _create_data_source(question, items)
-        db.session.flush()
 
     return question
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def create_group(
     form: Form,
     *,
@@ -438,13 +410,6 @@ def create_group(
     owner = parent or form
     owner.components.append(group)
     db.session.add(group)
-
-    try:
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
-
     return group
 
 
@@ -671,6 +636,7 @@ def group_name_exists(name: str, form_id: UUID) -> bool:
     return group is not None
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_group(
     group: Group,
     *,
@@ -702,19 +668,12 @@ def update_group(
     if guidance_body is not NOT_PROVIDED:
         group.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
 
-    try:
-        _validate_and_sync_component_references(group)
+    _validate_and_sync_component_references(group)
 
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
-    except (ComplexExpressionException, InvalidQuestionReference):
-        db.session.rollback()
-        raise
     return group
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_question(
     question: Question,
     *,
@@ -748,15 +707,7 @@ def update_question(
     if items is not NOT_PROVIDED and items is not None:
         _update_data_source(question, items)  # ty: ignore[invalid-argument-type]
 
-    try:
-        _validate_and_sync_component_references(question)
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
-    except (ComplexExpressionException, InvalidQuestionReference):
-        db.session.rollback()
-        raise
+    _validate_and_sync_component_references(question)
     return question
 
 
@@ -861,6 +812,7 @@ def _validate_and_sync_component_references(component: Component) -> None:
         db.session.add(ComponentReference(component_id=component_id, depends_on_component_id=depends_on_component_id))
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def add_component_condition(component: Component, user: User, managed_expression: "ManagedExpression") -> Component:
     if not is_component_dependency_order_valid(component, managed_expression.referenced_question):
         raise DependencyOrderException(
@@ -872,27 +824,20 @@ def add_component_condition(component: Component, user: User, managed_expression
     expression = Expression.from_managed(managed_expression, user)
     component.expressions.append(expression)
 
-    try:
-        if component.parent and component.parent.same_page:
-            raise_if_group_questions_depend_on_each_other(component.parent)
+    if component.parent and component.parent.same_page:
+        raise_if_group_questions_depend_on_each_other(component.parent)
 
-        _validate_and_sync_expression_references(expression)
+    _validate_and_sync_expression_references(expression)
 
-        if (
-            isinstance(managed_expression, BaseDataSourceManagedExpression)
-            and managed_expression.referenced_question.data_source
-        ):
-            expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
-    except DependencyOrderException as e:
-        db.session.rollback()
-        raise e
+    if (
+        isinstance(managed_expression, BaseDataSourceManagedExpression)
+        and managed_expression.referenced_question.data_source
+    ):
+        _update_data_source_references(expression=expression, managed_expression=managed_expression)
     return component
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def add_question_validation(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
     expression = Expression(
         statement=managed_expression.statement,
@@ -902,12 +847,7 @@ def add_question_validation(question: Question, user: User, managed_expression: 
         managed_name=managed_expression._key,
     )
     question.expressions.append(expression)
-    try:
-        _validate_and_sync_expression_references(expression)
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
+    _validate_and_sync_expression_references(expression)
     return question
 
 
@@ -921,6 +861,7 @@ def remove_question_expression(question: Component, expression: Expression) -> C
     return question
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_question_expression(expression: Expression, managed_expression: "ManagedExpression") -> Expression:
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
@@ -932,13 +873,7 @@ def update_question_expression(expression: Expression, managed_expression: "Mana
     ):
         expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
 
-    try:
-        _validate_and_sync_expression_references(expression)
-
-        db.session.flush()
-    except IntegrityError as e:
-        db.session.rollback()
-        raise DuplicateValueError(e) from e
+    _validate_and_sync_expression_references(expression)
     return expression
 
 
