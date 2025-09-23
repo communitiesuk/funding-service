@@ -105,9 +105,9 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
     return collection
 
 
+@flush_and_rollback_on_exceptions
 def update_submission_data(submission: Submission, question: Question, data: AllAnswerTypes) -> Submission:
     submission.data[str(question.id)] = data.get_value_for_submission()
-    db.session.flush()
     return submission
 
 
@@ -193,6 +193,7 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
     return db.session.get_one(Submission, submission_id, options=options, populate_existing=bool(options))
 
 
+@flush_and_rollback_on_exceptions
 def create_submission(*, collection: Collection, created_by: User, mode: SubmissionModeEnum) -> Submission:
     submission = Submission(
         collection=collection,
@@ -201,11 +202,10 @@ def create_submission(*, collection: Collection, created_by: User, mode: Submiss
         data={},
     )
     db.session.add(submission)
-    db.session.flush()
     return submission
 
 
-def swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, index_b: int) -> list[Any]:
+def _swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, index_b: int) -> list[Any]:
     """Swaps the elements at the specified indices in the supplied list.
     If either index is outside the valid range, returns the list unchanged.
 
@@ -265,13 +265,15 @@ def create_form(*, title: str, collection: Collection) -> Form:
     return form
 
 
+@flush_and_rollback_on_exceptions
 def move_form_up(form: Form) -> Form:
-    swap_elements_in_list_and_flush(form.collection.forms, form.order, form.order - 1)
+    _swap_elements_in_list_and_flush(form.collection.forms, form.order, form.order - 1)
     return form
 
 
+@flush_and_rollback_on_exceptions
 def move_form_down(form: Form) -> Form:
-    swap_elements_in_list_and_flush(form.collection.forms, form.order, form.order + 1)
+    _swap_elements_in_list_and_flush(form.collection.forms, form.order, form.order + 1)
     return form
 
 
@@ -282,6 +284,7 @@ def update_form(form: Form, *, title: str) -> Form:
     return form
 
 
+@flush_and_rollback_on_exceptions
 def _create_data_source(question: Question, items: list[str]) -> None:
     data_source = DataSource(id=uuid.uuid4(), question_id=question.id)
     db.session.add(data_source)
@@ -296,8 +299,6 @@ def _create_data_source(question: Question, items: list[str]) -> None:
     for choice in items:
         data_source_items.append(DataSourceItem(data_source_id=data_source.id, key=slugify(choice), label=choice))
     data_source.items = data_source_items
-
-    db.session.flush()
 
 
 @flush_and_rollback_on_exceptions
@@ -331,6 +332,7 @@ def _update_data_source(question: Question, items: list[str]) -> None:
     question.data_source.items.reorder()  # type: ignore[attr-defined]
 
 
+@flush_and_rollback_on_exceptions
 def _update_data_source_references(
     expression: "Expression", managed_expression: "BaseDataSourceManagedExpression"
 ) -> Expression:
@@ -616,17 +618,19 @@ def raise_if_data_source_item_reference_dependency(
     return None
 
 
+@flush_and_rollback_on_exceptions
 def move_component_up(component: Component) -> Component:
     swap_component = component.container.components[component.order - 1]
     _check_component_order_dependency(component, swap_component)
-    swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
+    _swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
     return component
 
 
+@flush_and_rollback_on_exceptions
 def move_component_down(component: Component) -> Component:
     swap_component = component.container.components[component.order + 1]
     _check_component_order_dependency(component, swap_component)
-    swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
+    _swap_elements_in_list_and_flush(component.container.components, component.order, swap_component.order)
     return component
 
 
@@ -711,17 +715,17 @@ def update_question(
     return question
 
 
+@flush_and_rollback_on_exceptions
 def add_submission_event(
     submission: Submission, key: SubmissionEventKey, user: User, form: Form | None = None
 ) -> Submission:
     submission.events.append(SubmissionEvent(key=key, created_by=user, form=form))
-    db.session.flush()
     return submission
 
 
+@flush_and_rollback_on_exceptions
 def clear_submission_events(submission: Submission, key: SubmissionEventKey, form: Form | None = None) -> Submission:
     submission.events = [x for x in submission.events if not (x.key == key and (x.form == form if form else True))]
-    db.session.flush()
     return submission
 
 
@@ -855,9 +859,9 @@ def get_expression(expression_id: UUID) -> Expression:
     return db.session.get_one(Expression, expression_id)
 
 
+@flush_and_rollback_on_exceptions
 def remove_question_expression(question: Component, expression: Expression) -> Component:
     question.expressions.remove(expression)
-    db.session.flush()
     return question
 
 
@@ -877,23 +881,24 @@ def update_question_expression(expression: Expression, managed_expression: "Mana
     return expression
 
 
+@flush_and_rollback_on_exceptions
 def delete_collection(collection: Collection) -> None:
     if collection.live_submissions:
         db.session.rollback()
         raise ValueError("Cannot delete collection with live submissions")
 
     db.session.delete(collection)
-    db.session.flush()
 
 
+@flush_and_rollback_on_exceptions
 def delete_form(form: Form) -> None:
     db.session.delete(form)
     form.collection.forms = [f for f in form.collection.forms if f.id != form.id]  # type: ignore[assignment]
     form.collection.forms.reorder()  # Force all other forms to update their `order` attribute
     db.session.execute(text("SET CONSTRAINTS uq_form_order_collection DEFERRED"))
-    db.session.flush()
 
 
+@flush_and_rollback_on_exceptions
 def delete_question(question: Question | Group) -> None:
     raise_if_question_has_any_dependencies(question)
     db.session.delete(question)
@@ -901,9 +906,9 @@ def delete_question(question: Question | Group) -> None:
         question.container.components.remove(question)
     question.container.components.reorder()
     db.session.execute(text("SET CONSTRAINTS uq_component_order_form DEFERRED"))
-    db.session.flush()
 
 
+@flush_and_rollback_on_exceptions
 def delete_collection_test_submissions_created_by_user(collection: Collection, created_by_user: User) -> None:
     # We're trying to rely less on ORM relationships and cascades in delete queries so here we explicitly delete all
     # SubmissionEvents related to the `created_by_user`'s test submissions for that collection version, and then
@@ -925,5 +930,3 @@ def delete_collection_test_submissions_created_by_user(collection: Collection, c
             Submission.id.in_(submission_ids),
         )
     )
-
-    db.session.flush()

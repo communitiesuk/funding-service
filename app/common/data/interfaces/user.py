@@ -34,11 +34,13 @@ def get_user_by_azure_ad_subject_id(azure_ad_subject_id: str) -> User | None:
     return db.session.execute(select(User).where(User.azure_ad_subject_id == azure_ad_subject_id)).scalar_one_or_none()
 
 
+@flush_and_rollback_on_exceptions
 def set_user_last_logged_in_at_utc(user: User) -> User:
     user.last_logged_in_at_utc = func.now()
     return user
 
 
+@flush_and_rollback_on_exceptions
 def upsert_user_by_email(
     email_address: str,
     *,
@@ -70,6 +72,7 @@ def upsert_user_by_email(
     return user
 
 
+@flush_and_rollback_on_exceptions
 def upsert_user_by_azure_ad_subject_id(
     azure_ad_subject_id: str,
     *,
@@ -129,6 +132,7 @@ def upsert_user_role(
     return user_role
 
 
+@flush_and_rollback_on_exceptions
 def set_platform_admin_role_for_user(user: User) -> UserRole:
     # Before making someone a platform admin we should remove any other roles they might have assigned to them, as a
     # platform admin should only ever have that one role
@@ -137,6 +141,7 @@ def set_platform_admin_role_for_user(user: User) -> UserRole:
     return platform_admin_role
 
 
+@flush_and_rollback_on_exceptions
 def remove_platform_admin_role_from_user(user: User) -> None:
     statement = delete(UserRole).where(
         and_(
@@ -147,7 +152,7 @@ def remove_platform_admin_role_from_user(user: User) -> None:
         )
     )
     db.session.execute(statement)
-    db.session.flush()
+    db.session.flush()  # we still manually flush here so that we can expire the user and force a re-fetch
     db.session.expire(user)
 
 
@@ -156,6 +161,7 @@ def set_grant_team_role_for_user(user: User, grant: Grant, role: RoleEnum) -> Us
     return grant_team_role
 
 
+@flush_and_rollback_on_exceptions
 def remove_grant_team_role_from_user(user: User, grant_id: uuid.UUID) -> None:
     statement = delete(UserRole).where(
         and_(
@@ -164,10 +170,11 @@ def remove_grant_team_role_from_user(user: User, grant_id: uuid.UUID) -> None:
         )
     )
     db.session.execute(statement)
-    db.session.flush()
+    db.session.flush()  # we still manually flush here so that we can expire the user and force a re-fetch
     db.session.expire(user)
 
 
+@flush_and_rollback_on_exceptions
 def create_invitation(
     email: str,
     grant: Grant | None = None,
@@ -196,14 +203,14 @@ def create_invitation(
         expires_at_utc=func.now() + datetime.timedelta(days=7),
     )
     db.session.add(invitation)
-    db.session.flush()
     return invitation
 
 
+@flush_and_rollback_on_exceptions
 def remove_all_roles_from_user(user: User) -> None:
     statement = delete(UserRole).where(UserRole.user_id == user.id)
     db.session.execute(statement)
-    db.session.flush()
+    db.session.flush()  # we still manually flush here so that we can expire the user and force a re-fetch
     db.session.expire(user)
 
 
@@ -217,14 +224,15 @@ def get_usable_invitations_by_email(email: str) -> Sequence[Invitation]:
     ).all()
 
 
+@flush_and_rollback_on_exceptions
 def claim_invitation(invitation: Invitation, user: User) -> Invitation:
     invitation.claimed_at_utc = func.now()
     invitation.user = user
     db.session.add(invitation)
-    db.session.flush()
     return invitation
 
 
+@flush_and_rollback_on_exceptions
 def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: str, name: str) -> User:
     # We do a check that there are invitations that exist for this email address before calling this function, but it's
     # safer to do this check again in here to avoid passing in invitations that don't belong to this user. SQLAlchemy
@@ -241,6 +249,7 @@ def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: s
     return user
 
 
+@flush_and_rollback_on_exceptions
 def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_address: str, name: str) -> User:
     user = upsert_user_by_azure_ad_subject_id(
         azure_ad_subject_id=azure_ad_subject_id,
@@ -256,6 +265,7 @@ def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_addr
     return user
 
 
+@flush_and_rollback_on_exceptions
 def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant) -> None:
     existing_user = get_user_by_email(email_address=email_address)
     if existing_user:
