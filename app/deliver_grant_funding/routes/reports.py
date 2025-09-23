@@ -988,7 +988,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
             field_with_error: Field = getattr(form, e.field_name)
             field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
         except InvalidQuestionReference as e:
-            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error = getattr(form, e.field_name)
             field_with_error.errors.append(f"Remove reference to unknown question: {e.bad_reference}")  # type:ignore[attr-defined]
 
     return render_template(

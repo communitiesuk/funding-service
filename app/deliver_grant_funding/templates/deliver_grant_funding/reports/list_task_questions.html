@@ -46,7 +46,7 @@
 
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value]) %}
         {% if flashes %}
-          {{ dependency_banner(flashes[0]) }}
+          {{ dependency_banner(flashes[0], interpolate=interpolate) }}
         {% endif %}
       {% endwith %}
 
