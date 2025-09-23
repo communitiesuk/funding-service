@@ -2,6 +2,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
 from uuid import UUID
 
+from flask import current_app
 from sqlalchemy import ScalarResult, delete, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
@@ -402,6 +403,17 @@ def create_group(
     parent: Optional[Group] = None,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Group:
+    # If this group is nested, ensure it meets rules for nesting groups
+    # This is a safety check as we don't allow users to create nested groups when these rules aren't met
+    if parent:
+        if not parent.is_allowed_nested_groups:
+            raise ValueError(
+                f"You cannot nest groups more than {current_app.config['MAX_NESTED_GROUP_LEVELS']} level deep"
+            )
+        if parent.same_page:
+            raise ValueError(
+                "You cannot create a nested group if the parent is set to display all questions on the same page "
+            )
     group = Group(
         text=text,
         name=name or text,
@@ -653,6 +665,8 @@ def update_group(
         group.slug = slugify(name)  # ty: ignore[invalid-argument-type]
 
     if presentation_options is not NOT_PROVIDED:
+        if presentation_options.show_questions_on_the_same_page and group.has_nested_groups:  # ty:ignore [possibly-unbound-attribute]
+            raise ValueError("You cannot set a group to display all questions on the same page if it has nested groups")
         if (
             not group.presentation_options.show_questions_on_the_same_page
             and presentation_options.show_questions_on_the_same_page  # ty:ignore [possibly-unbound-attribute]

@@ -302,7 +302,7 @@ class TestCreateGroup:
         assert form.components[0] == group
         assert group.presentation_options.show_questions_on_the_same_page is True
 
-    def test_create_nested_components(self, db_session, factories, track_sql_queries):
+    def test_create_nested_components(self, db_session, factories, track_sql_queries, app, monkeypatch):
         form = factories.form.create()
 
         group = create_group(
@@ -320,6 +320,7 @@ class TestCreateGroup:
         )
 
         depth = 2
+        monkeypatch.setitem(app.config, "MAX_NESTED_GROUP_LEVELS", depth)
 
         def add_sub_group(parent, current_depth):
             # todo: separate tests to only cover one thing - the separate read from db here should be
@@ -369,6 +370,43 @@ class TestCreateGroup:
         assert len(from_db.components) == 2
         assert len(from_db.cached_questions) == 5
 
+    def test_cannot_create_nested_groups_with_show_questions_on_the_same_page(self, db_session, factories):
+        form = factories.form.create()
+        parent_group = create_group(
+            form=form,
+            text="Test group top",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+
+        with pytest.raises(ValueError):
+            create_group(
+                form=form,
+                text="Test group child",
+                parent=parent_group,
+            )
+
+    def test_cannot_create_nested_group_with_more_than_max_levels_of_nesting(self, app, db_session, factories):
+        assert app.config["MAX_NESTED_GROUP_LEVELS"] == 1, (
+            "If changing the max level of nested groups, ensure you add tests to that level of nesting"
+        )
+        form = factories.form.create()
+        grand_parent_group = create_group(
+            form=form,
+            text="Level 1",
+        )
+        parent_group = create_group(
+            form=form,
+            text="Level 2",
+            parent=grand_parent_group,
+        )
+
+        with pytest.raises(ValueError):
+            create_group(
+                form=form,
+                text="Child group Level 3",
+                parent=parent_group,
+            )
+
 
 class TestUpdateGroup:
     def test_update_group(self, db_session, factories):
@@ -413,6 +451,26 @@ class TestUpdateGroup:
                 expression_context=ExpressionContext(),
                 name="Overlap group name",
             )
+
+    def test_update_group_with_nested_groups_cant_enable_same_page(self, db_session, factories):
+        form = factories.form.create()
+        parent_group = create_group(
+            form=form,
+            text="Test group top",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        create_group(
+            form=form,
+            text="Test group child",
+            parent=parent_group,
+        )
+
+        with pytest.raises(ValueError):
+            update_group(
+                parent_group,
+                presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+            )
+        assert parent_group.presentation_options.show_questions_on_the_same_page is False
 
     def test_update_group_with_question_dependencies_cant_enable_same_page(self, db_session, factories):
         form = factories.form.create()
