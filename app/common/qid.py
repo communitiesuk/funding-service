@@ -17,3 +17,10 @@ class SafeQidMixin:
         feeding into some of our dynamic systems (form generation, expression evaluation, etc).
         """
         return "q_" + self.question_id.hex
+
+    @staticmethod
+    def safe_qid_to_id(safe_qid: str) -> uuid.UUID:
+        if safe_qid.startswith("q_"):
+            return uuid.UUID(safe_qid[2:])
+
+        raise ValueError(f"Invalid safe question ID: {safe_qid}")

@@ -9,6 +9,14 @@ if TYPE_CHECKING:
     from app.common.data.models import Expression
 
 
+INTERPOLATE_REGEX = re.compile(r"\(\(([^\(]+?)\)\)")
+# If any interpolation references contain characters other than alphanumeric, full stops or underscores,
+# then we'll hard stop that for now. As of this implementation, only single variable references are allowed.
+# We expect to want complex expressions in the future, but are hard limiting that for now as a specific
+# product/tech edge case restriction.
+ALLOWED_INTERPOLATION_REGEX = re.compile(r"[^A-Za-z0-9_.]")
+
+
 class ManagedExpressionError(Exception):
     pass
 
@@ -140,8 +148,7 @@ def interpolate(text: str | None, context: ExpressionContext | None) -> str:
 
         return str(value)
 
-    return re.sub(
-        r"\(\([^\(]+?\)\)",
+    return INTERPOLATE_REGEX.sub(
         _interpolate,
         text,
     )

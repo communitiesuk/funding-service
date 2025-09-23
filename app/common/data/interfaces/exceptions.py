@@ -4,6 +4,8 @@ from flask import current_app
 from psycopg.errors import CheckViolation, UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
+from app.common.data.models import Component
+
 
 class DuplicateValueError(Exception):
     model_name: str | None
@@ -61,3 +63,19 @@ class InvalidUserRoleError(Exception):
             ),
         )
         super().__init__(self.message)
+
+
+class InvalidQuestionReference(Exception):
+    def __init__(self, message: str, field_name: str, bad_reference: str):
+        super().__init__(message)
+        self.message = message
+        self.field_name = field_name
+        self.bad_reference = bad_reference
+
+
+class ComplexExpressionException(Exception):
+    def __init__(self, component: Component, field_name: str, bad_reference: str):
+        super().__init__()
+        self.component = component
+        self.field_name = field_name
+        self.bad_reference = bad_reference

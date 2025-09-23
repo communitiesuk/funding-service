@@ -1,6 +1,6 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
-{% macro dependency_banner(error) %}
+{% macro dependency_banner(error, interpolate) %}
   {% set question_link = url_for("deliver_grant_funding.edit_question", grant_id=error.grant_id, question_id=error.question_id) if not error.question_is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=error.grant_id, group_id=error.question_id) %}
   {% set depends_on_link = url_for("deliver_grant_funding.edit_question", grant_id=error.grant_id, question_id=error.depends_on_question_id) if not error.depends_on_question_is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=error.grant_id, group_id=error.depends_on_question_id) %}
 
@@ -9,14 +9,14 @@
     <p class="govuk-body govuk-!-font-weight-bold">{{ error.message }}</p>
     <p class="govuk-body govuk-!-font-weight-bold">
       {{ "Question group" if error.question_is_group else "Question" }}:
-      <a class="govuk-notification-banner__link" href="{{ question_link }}">{{ error.question_text }}</a>
+      <a class="govuk-notification-banner__link" href="{{ question_link }}">{{ interpolate(error.question_text) }}</a>
     </p>
     <p class="govuk-body govuk-!-font-weight-bold">
       Depends on the answer to:
-      <a class="govuk-notification-banner__link" href="{{ depends_on_link }}">{{ error.depends_on_question_text }}</a>
+      <a class="govuk-notification-banner__link" href="{{ depends_on_link }}">{{ interpolate(error.depends_on_question_text) }}</a>
     </p>
     {% if "depends_on_items_text" in error %}
-      <p class="govuk-body govuk-!-font-weight-bold">Depends on the options: {{ error.depends_on_items_text }}</p>
+      <p class="govuk-body govuk-!-font-weight-bold">Depends on the options: {{ interpolate(error.depends_on_items_text) }}</p>
     {% endif %}
   {% endset %}
 

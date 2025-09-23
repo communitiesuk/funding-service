@@ -59,12 +59,12 @@ def test_validation_attached_to_field_and_runs__text(factories, value, error_mes
     ),
 )
 def test_validation_attached_to_field_and_runs__integer(factories, value, error_message):
-    question = factories.question.build(
+    question = factories.question.create(
         id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"),
         data_type=QuestionDataType.INTEGER,
         name="test_integer",
     )
-    user = factories.user.build()
+    user = factories.user.create()
     interfaces.collections.add_question_validation(
         question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True)
     )
@@ -107,10 +107,10 @@ def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_sess
 
 
 def test_validation_attached_to_multiple_fields(factories, db_session):
-    user = factories.user.build()
-    q1 = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE, name="q0")
-    q2 = factories.question.build(data_type=QuestionDataType.INTEGER)
-    q3 = factories.question.build(data_type=QuestionDataType.YES_NO)
+    user = factories.user.create()
+    q1 = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE, name="q0")
+    q2 = factories.question.create(data_type=QuestionDataType.INTEGER)
+    q3 = factories.question.create(data_type=QuestionDataType.YES_NO)
 
     interfaces.collections.add_question_validation(
         q2, user, GreaterThan(question_id=q2.id, minimum_value=100, inclusive=True)

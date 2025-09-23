@@ -38,7 +38,7 @@ class TestCollectionQuestionMacro:
             hint=test_hint_text,
             guidance_heading=test_guidance_heading_text,
             guidance_body=test_guidance_body_text,
-            form__collection=reference_question.form.collection,  # Same collection for interpolation context
+            form=reference_question.form,  # Same collection for interpolation context
         )
 
         submission = factories.submission.create(

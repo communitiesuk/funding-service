@@ -7,15 +7,17 @@ from typing import Any, TypedDict
 import click
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
-from sqlalchemy import inspect
+from sqlalchemy import delete, inspect
 from sqlalchemy.exc import NoResultFound
 
 from app.common.data.base import BaseModel
+from app.common.data.interfaces.collections import _validate_and_sync_component_references
 from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.temporary import delete_grant
 from app.common.data.models import (
     Collection,
     Component,
+    ComponentReference,
     DataSource,
     DataSourceItem,
     DataSourceItemReference,
@@ -39,6 +41,7 @@ def to_dict(instance: BaseModel) -> dict[str, Any]:
         for prop in inspect(instance.__class__).column_attrs
         if (field := getattr(instance, prop.key)) is not None
         and prop.columns[0].name not in {"created_at_utc", "updated_at_utc"}
+        and not prop.key.startswith("_")
     }
 
 
@@ -56,6 +59,7 @@ GrantExport = TypedDict(
         "data_sources": list[Any],
         "data_source_items": list[Any],
         "data_source_item_references": list[Any],
+        "component_references": list[Any],
     },
 )
 ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list[Any]})
@@ -104,6 +108,7 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
             "data_sources": [],
             "data_source_items": [],
             "data_source_item_references": [],
+            "component_references": [],
         }
 
         export_data["grants"].append(grant_export)
@@ -214,6 +219,11 @@ def seed_grants() -> None:  # noqa: C901
             data_source_item_reference = DataSourceItemReference(**data_source_item_reference)
             db.session.add(data_source_item_reference)
 
+        for component_reference in grant_data["component_references"]:
+            component_reference["id"] = uuid.UUID(component_reference["id"])
+            component_reference = ComponentReference(**component_reference)
+            db.session.add(component_reference)
+
     db.session.commit()
     click.echo(f"Loaded/synced {len(export_data['grants'])} grant(s) into the database.")
 
@@ -274,6 +284,30 @@ def add_all_components_flat(component: Component, users: set[User], grant_export
             for reference in data_source_item.references:
                 grant_export["data_source_item_references"].append(to_dict(reference))
 
+        for component_reference in component.owned_component_references:
+            grant_export["component_references"].append(to_dict(component_reference))
+
     if component.is_group:
         for sub_component in component.components:
             add_all_components_flat(sub_component, users, grant_export)
+
+
+@developers_blueprint.cli.command(
+    "sync-component-references", help="Scan all components and expressions and denormalise their references into the DB"
+)
+def sync_component_references() -> None:
+    click.echo("Syncing all component references.")
+
+    count = db.session.query(Component).count()
+    click.echo(f"Deleting {count} component references.")
+
+    db.session.execute(delete(ComponentReference))
+
+    for component in db.session.query(Component).all():
+        _validate_and_sync_component_references(component)
+
+    count = db.session.query(Component).count()
+
+    db.session.commit()
+
+    click.echo(f"Done; created {count} component references.")

@@ -3,14 +3,19 @@ from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
 from uuid import UUID
 
 from sqlalchemy import ScalarResult, delete, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.collections.types import AllAnswerTypes
-from app.common.data.interfaces.exceptions import DuplicateValueError
+from app.common.data.interfaces.exceptions import (
+    ComplexExpressionException,
+    DuplicateValueError,
+    InvalidQuestionReference,
+)
 from app.common.data.models import (
     Collection,
     Component,
+    ComponentReference,
     DataSource,
     DataSourceItem,
     DataSourceItemReference,
@@ -31,7 +36,9 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
 )
+from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX
 from app.common.expressions.managed import BaseDataSourceManagedExpression
+from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
@@ -389,6 +396,7 @@ def create_question(
     db.session.add(question)
 
     try:
+        _validate_and_sync_component_references(question)
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
@@ -400,6 +408,9 @@ def create_question(
         if e.orig.diag and e.orig.diag.constraint_name and e.orig.diag.constraint_name.startswith("uq_"):  # type: ignore[union-attr]
             raise DuplicateValueError(e) from e
         raise e
+    except (ComplexExpressionException, InvalidQuestionReference):
+        db.session.rollback()
+        raise
 
     if items is not None:
         _create_data_source(question, items)
@@ -585,22 +596,21 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
 
 
 def raise_if_question_has_any_dependencies(question: Question | Group) -> Never | None:
-    # fetching the entire schema means whatever is calling this doesn't have to worry about
-    # guaranteeing lazy loading performance behaviour
-    form = get_form_by_id(question.form_id, with_all_questions=True)
-
-    # all of the child components that might be removed or impacted with a change to this components
     child_components_ids = [
         c.id for c in [question] + (question.cached_all_components if isinstance(question, Group) else [])
     ]
+    component_reference = (
+        db.session.query(ComponentReference)
+        .where(ComponentReference.depends_on_component_id.in_(child_components_ids))
+        .all()
+    )
+    if component_reference:
+        raise DependencyOrderException(
+            "You cannot delete an answer that other questions depend on",
+            component_reference[0].component,
+            question,  # TODO: this could be component_reference[0].depends_on_component?
+        )
 
-    # go through all components in this schema and compare against any related child components
-    for target_question in form.cached_all_components:
-        for condition in target_question.conditions:
-            if condition.managed and condition.managed.question_id in child_components_ids:
-                raise DependencyOrderException(
-                    "You cannot delete an answer that other questions depend on", target_question, question
-                )
     return None
 
 
@@ -693,10 +703,15 @@ def update_group(
         group.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
 
     try:
+        _validate_and_sync_component_references(group)
+
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
+    except (ComplexExpressionException, InvalidQuestionReference):
+        db.session.rollback()
+        raise
     return group
 
 
@@ -734,10 +749,14 @@ def update_question(
         _update_data_source(question, items)  # ty: ignore[invalid-argument-type]
 
     try:
+        _validate_and_sync_component_references(question)
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
         raise DuplicateValueError(e) from e
+    except (ComplexExpressionException, InvalidQuestionReference):
+        db.session.rollback()
+        raise
     return question
 
 
@@ -767,6 +786,81 @@ def get_referenced_data_source_items_by_managed_expression(
     return referenced_data_source_items
 
 
+def _validate_and_sync_expression_references(expression: Expression) -> None:
+    if not expression.is_managed:
+        raise NotImplementedError("Cannot handle un-managed expressions yet")
+
+    reference = ComponentReference(
+        depends_on_component=expression.managed.referenced_question,
+        component=expression.question,
+        expression=expression,
+    )
+    db.session.add(reference)
+    expression.component_references = [reference]
+
+
+def _validate_and_sync_component_references(component: Component) -> None:
+    """Scan the given component for references to another component in its text, hint, and guidance.
+
+    Enforce our current feature scope constraint: any expression for interpolation currently must be a 'simple'
+    statement. By that we mean: use a single value and do nothing else to it.
+
+    This is a product constraint rather than a strict technical constraint right now as it simplifies
+    implementation and removes a number of edge cases/concerns. We may remove this scope limiter in the future
+    but recognise that doing so will need further product+design+technical thinking, which we're avoiding
+    for now.
+    """
+    # Remove any references that are coming *from* `component`; we'll regenerate them all below
+    db.session.execute(delete(ComponentReference).where(ComponentReference.component == component))
+
+    for expression in component.expressions:
+        _validate_and_sync_expression_references(expression)
+
+    references_to_set_up: set[tuple[UUID, UUID]] = set()
+    field_names = ["text", "hint", "guidance_body"]
+    for field_name in field_names:
+        value = getattr(component, field_name)
+        if value is None:
+            continue
+
+        for match in INTERPOLATE_REGEX.finditer(value):
+            ref = match.group(1).strip()
+
+            if ALLOWED_INTERPOLATION_REGEX.search(ref) is not None:
+                raise ComplexExpressionException(
+                    component=component,
+                    field_name=field_name,
+                    bad_reference=match.group(0),
+                )
+
+            # TODO: split out detection of 'known' context variables to a separate function/handler
+            try:
+                question_id = SafeQidMixin.safe_qid_to_id(ref)
+            except ValueError:
+                # If the reference is not to a question, we don't need to do anything here
+                continue
+
+            try:
+                question = db.session.get_one(Component, question_id)
+                if question.form_id != component.form_id:
+                    raise InvalidQuestionReference(
+                        f"Reference to question {question_id} (in {ref}) in a different form is not allowed",
+                        field_name=field_name,
+                        bad_reference=match.group(0),
+                    )
+            except NoResultFound as e:
+                raise InvalidQuestionReference(
+                    f"Reference to non-existence question {question_id} in {ref}",
+                    field_name=field_name,
+                    bad_reference=match.group(0),
+                ) from e
+
+            references_to_set_up.add((component.id, question.id))
+
+    for component_id, depends_on_component_id in references_to_set_up:
+        db.session.add(ComponentReference(component_id=component_id, depends_on_component_id=depends_on_component_id))
+
+
 def add_component_condition(component: Component, user: User, managed_expression: "ManagedExpression") -> Component:
     if not is_component_dependency_order_valid(component, managed_expression.referenced_question):
         raise DependencyOrderException(
@@ -781,6 +875,8 @@ def add_component_condition(component: Component, user: User, managed_expression
     try:
         if component.parent and component.parent.same_page:
             raise_if_group_questions_depend_on_each_other(component.parent)
+
+        _validate_and_sync_expression_references(expression)
 
         if (
             isinstance(managed_expression, BaseDataSourceManagedExpression)
@@ -807,6 +903,7 @@ def add_question_validation(question: Question, user: User, managed_expression: 
     )
     question.expressions.append(expression)
     try:
+        _validate_and_sync_expression_references(expression)
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
@@ -836,6 +933,8 @@ def update_question_expression(expression: Expression, managed_expression: "Mana
         expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
 
     try:
+        _validate_and_sync_expression_references(expression)
+
         db.session.flush()
     except IntegrityError as e:
         db.session.rollback()
