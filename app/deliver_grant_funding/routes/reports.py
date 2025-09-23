@@ -54,7 +54,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionModeEnum,
 )
-from app.common.expressions import ContextSourceChoices
+from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
@@ -737,11 +737,11 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
     wtform = AddContextSelectSourceForm()
     if wtform.validate_on_submit():
-        add_context_data.data_source = ContextSourceChoices[wtform.data_source.data]
+        add_context_data.data_source = ExpressionContext.ContextSources[wtform.data_source.data]
         session["question"] = add_context_data.model_dump(mode="json")
 
         match add_context_data.data_source:
-            case ContextSourceChoices.TASK:
+            case ExpressionContext.ContextSources.TASK:
                 return redirect(
                     url_for("deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id)
                 )

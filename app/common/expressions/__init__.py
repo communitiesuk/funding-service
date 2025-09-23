@@ -34,10 +34,6 @@ class InvalidEvaluationResult(ManagedExpressionError):
     pass
 
 
-class ContextSourceChoices(enum.StrEnum):
-    TASK = "A previous question in this task"
-
-
 class ExpressionContext(ChainMap[str, Any]):
     """
     This handles all of the data that we want to be able to pass into an Expression when evaluating it. As of writing,
@@ -56,6 +52,11 @@ class ExpressionContext(ChainMap[str, Any]):
     submission in the DB, and then (assuming the data passes some basic validation checks), we mutate the dictionary
     with answers from the current form submission (DynamicQuestionForm).
     """
+
+    class ContextSources(enum.StrEnum):
+        # We actually expose all questions in the collection, but for now we're limited contextual references to
+        # just questions in the same task.
+        TASK = "A previous question in this task"
 
     def __init__(
         self,
@@ -101,7 +102,7 @@ class ExpressionContext(ChainMap[str, Any]):
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
-        assert len(ContextSourceChoices) == 1, (
+        assert len(ExpressionContext.ContextSources) == 1, (
             "When defining a new source of context for expressions, "
             "update this method and the ContextSourceChoices enum"
         )
@@ -122,7 +123,6 @@ class ExpressionContext(ChainMap[str, Any]):
             if submission_helper
             else {}
         )
-
         if fallback_question_names:
             for form in collection.forms:
                 for question in form.cached_questions:

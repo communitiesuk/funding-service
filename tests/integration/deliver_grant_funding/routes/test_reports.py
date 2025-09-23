@@ -10,7 +10,7 @@ from app import QuestionDataType
 from app.common.data import interfaces
 from app.common.data.models import Collection, Expression, Form, Group, Question
 from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
-from app.common.expressions import ContextSourceChoices
+from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
@@ -1622,7 +1622,7 @@ class TestSelectContextSource:
         assert "Select a data source" in soup.text
 
     def test_post_redirect_and_updates_session(self, authenticated_grant_admin_client, factories):
-        assert len(ContextSourceChoices) == 1, "Check all redirects if adding new context source choices"
+        assert len(ExpressionContext.ContextSources) == 1, "Check all redirects if adding new context source choices"
 
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
@@ -1681,7 +1681,7 @@ class TestSelectContextSourceQuestion:
                 name="test_question",
                 hint="Test hint",
                 field="text",
-                data_source=ContextSourceChoices.TASK,
+                data_source=ExpressionContext.ContextSources.TASK,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -1710,7 +1710,7 @@ class TestSelectContextSourceQuestion:
                 name="test_question",
                 hint="Test hint",
                 field="text",
-                data_source=ContextSourceChoices.TASK,
+                data_source=ExpressionContext.ContextSources.TASK,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.post(

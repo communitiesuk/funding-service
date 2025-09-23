@@ -84,7 +84,6 @@ class SubmissionHelper:
         self.cached_get_all_questions_are_answered_for_form = lru_cache(maxsize=None)(
             self._get_all_questions_are_answered_for_form
         )
-
         self.cached_evaluation_context = ExpressionContext.build_expression_context(
             collection=self.submission.collection,
             submission_helper=self,

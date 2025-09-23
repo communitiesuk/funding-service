@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from app.common.data.types import QuestionDataType
-from app.common.expressions import ContextSourceChoices
+from app.common.expressions import ExpressionContext
 
 
 class GrantSetupSession(BaseModel):
@@ -35,7 +35,7 @@ class AddContextToQuestionSessionModel(BaseModel):
 
     field: Literal["text", "hint"]
 
-    data_source: ContextSourceChoices | None = None
+    data_source: ExpressionContext.ContextSources | None = None
 
     question_id: UUID | None = None
     parent_id: UUID | None = None
@@ -50,4 +50,4 @@ class AddContextToQuestionGuidanceSessionModel(BaseModel):
     guidance_body: str
     guidance_heading: str
 
-    data_source: ContextSourceChoices | None = None
+    data_source: ExpressionContext.ContextSources | None = None
