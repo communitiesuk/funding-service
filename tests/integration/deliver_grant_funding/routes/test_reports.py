@@ -10,12 +10,12 @@ from app import QuestionDataType
 from app.common.data import interfaces
 from app.common.data.models import Collection, Expression, Form, Group, Question
 from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
+from app.common.expressions import ContextSourceChoices
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddTaskForm,
-    ContextSourceChoices,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,

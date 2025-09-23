@@ -5,7 +5,7 @@ from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -47,7 +47,6 @@ from app.common.expressions import (
     interpolate,
 )
 from app.common.filters import format_datetime
-from app.deliver_grant_funding.forms import ContextSourceChoices
 
 if TYPE_CHECKING:
     from app.common.data.models import (
@@ -86,13 +85,13 @@ class SubmissionHelper:
             self._get_all_questions_are_answered_for_form
         )
 
-        self.cached_evaluation_context = SubmissionHelper.build_expression_context(
+        self.cached_evaluation_context = ExpressionContext.build_expression_context(
             collection=self.submission.collection,
             submission_helper=self,
             fallback_question_names=False,
             mode="evaluation",
         )
-        self.cached_interpolation_context = SubmissionHelper.build_expression_context(
+        self.cached_interpolation_context = ExpressionContext.build_expression_context(
             collection=self.submission.collection,
             submission_helper=self,
             fallback_question_names=True,
@@ -104,54 +103,12 @@ class SubmissionHelper:
         return cls(get_submission(submission_id, with_full_schema=True))
 
     @staticmethod
-    def build_expression_context(
-        collection: "Collection",
-        fallback_question_names: bool,
-        mode: Literal["evaluation", "interpolation"],
-        submission_helper: Optional["SubmissionHelper"] = None,
-    ) -> ExpressionContext:
-        """Pulls together all of the context that we want to be able to expose to an expression when evaluating it.
-
-        The placement of this on SubmissionHelper _does_ feel a little odd, as we sometimes will build this context
-        _without_ an actual submission (on the form designer side of Deliver grant funding), but _generally_ we'll
-        be thinking about evaluating expressions in the context of a submission, so for now it lives here.
-        """
-        assert len(ContextSourceChoices) == 1, (
-            "When defining a new source of context for expressions, "
-            "update this method and the ContextSourceChoices enum"
-        )
-
-        if submission_helper and submission_helper.collection.id != collection.id:
-            raise ValueError("Mismatch between collection and submission.collection")
-
-        # TODO: Namespace this set of data, eg under a `this_submission` prefix/key
-        submission_data = (
-            {
-                question.safe_qid: (
-                    answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation()
-                )
-                for form in submission_helper.collection.forms
-                for question in form.cached_questions
-                if (answer := submission_helper._get_answer_for_question(question.id)) is not None
-            }
-            if submission_helper
-            else {}
-        )
-
-        if fallback_question_names:
-            for form in collection.forms:
-                for question in form.cached_questions:
-                    submission_data.setdefault(question.safe_qid, f"(({question.name}))")
-
-        return ExpressionContext(submission_data=submission_data)
-
-    @staticmethod
     def get_interpolator(
         collection: "Collection", fallback_question_names: bool, submission_helper: Optional["SubmissionHelper"] = None
     ) -> Callable[[str], str]:
         return partial(
             interpolate,
-            context=SubmissionHelper.build_expression_context(
+            context=ExpressionContext.build_expression_context(
                 collection=collection,
                 fallback_question_names=fallback_question_names,
                 mode="interpolation",

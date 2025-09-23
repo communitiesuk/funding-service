@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from app.common.data.types import QuestionDataType
-from app.deliver_grant_funding.forms import ContextSourceChoices
+from app.common.expressions import ContextSourceChoices
 
 
 class GrantSetupSession(BaseModel):

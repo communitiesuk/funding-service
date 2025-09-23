@@ -54,6 +54,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionModeEnum,
 )
+from app.common.expressions import ContextSourceChoices
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
@@ -63,7 +64,6 @@ from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddTaskForm,
     ConditionSelectQuestionForm,
-    ContextSourceChoices,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
