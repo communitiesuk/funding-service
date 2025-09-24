@@ -8,10 +8,10 @@ from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
-    _validate_and_sync_component_references,
-    _validate_and_sync_expression_references,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
+    _validate_and_sync_component_references,
+    _validate_and_sync_expression_references,
     add_component_condition,
     add_question_validation,
     add_submission_event,
