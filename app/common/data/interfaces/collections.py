@@ -396,7 +396,7 @@ def create_question(
 
 def raise_if_nested_group_creation_not_valid_here(parent: Group | None = None) -> None:
     if parent:
-        if not parent.is_allowed_nested_groups:
+        if not parent.can_have_child_group:
             raise NestedGroupException(
                 "You cannot create a nested group at this level",
                 parent_group=parent,

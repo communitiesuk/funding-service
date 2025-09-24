@@ -440,7 +440,9 @@ class Group(Component):
         return Group._count_nested_group_levels(group=self)
 
     @cached_property
-    def is_allowed_nested_groups(self) -> bool:
+    def can_have_child_group(self) -> bool:
+        """Whether or not this groups is allowed to have a child group,
+        based on the maximum number of levels of nested groups"""
         return bool(self.nested_group_levels < current_app.config["MAX_NESTED_GROUP_LEVELS"])
 
 
