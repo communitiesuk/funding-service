@@ -62,7 +62,7 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Questions</h2>
-      {% if not db_form.cached_questions %}
+      {% if not db_form.cached_all_components %}
         <p class="govuk-body">This task has no questions.</p>
       {% else %}
         {{ question_table(db_form, interpolate, role_can_edit=grant_admin) }}

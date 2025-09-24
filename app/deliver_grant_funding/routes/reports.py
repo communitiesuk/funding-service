@@ -442,7 +442,14 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
             raise_if_question_has_any_dependencies(group)
             if delete_wtform.validate_on_submit() and delete_wtform.confirm_deletion.data:
                 delete_question(group)
-
+                if group.parent and group.parent.is_group:
+                    return redirect(
+                        url_for(
+                            "deliver_grant_funding.list_group_questions",
+                            grant_id=grant_id,
+                            group_id=group.parent.id,
+                        )
+                    )
                 return redirect(
                     url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=group.form_id)
                 )
@@ -890,6 +897,14 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 
             if confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
                 delete_question(question)
+                if question.parent and question.parent.is_group:
+                    return redirect(
+                        url_for(
+                            "deliver_grant_funding.list_group_questions",
+                            grant_id=grant_id,
+                            group_id=question.parent.id,
+                        )
+                    )
                 return redirect(
                     url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=question.form_id)
                 )
