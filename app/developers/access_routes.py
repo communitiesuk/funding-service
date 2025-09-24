@@ -98,7 +98,13 @@ def ask_a_question(submission_id: uuid.UUID, question_id: uuid.UUID) -> Response
         runner.save_question_answer()
         return redirect(runner.next_url)
 
-    return render_template("developers/access/ask_a_question.html", runner=runner)
+    return render_template(
+        "developers/access/ask_a_question.html",
+        runner=runner,
+        interpolate=SubmissionHelper.get_interpolator(
+            runner.submission.collection, fallback_question_names=True, submission_helper=runner.submission
+        ),
+    )
 
 
 @developers_access_blueprint.route(

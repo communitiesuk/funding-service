@@ -159,7 +159,7 @@
 
             {% set key_html %}
               {# todo: would users find it useful to be able to link to the question being depended on from here? #}
-              <span>{{ depends_on.text }}</span>
+              <span>{{ interpolate(depends_on.text) }}</span>
             {% endset %}
 
 

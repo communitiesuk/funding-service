@@ -42,7 +42,7 @@
     {% set actions = [] %}
     {% set parent_has_multiple_questions_to_move = (question.parent.components if nested else parent.components)|length > 1 %}
     {% if role_can_edit and parent_has_multiple_questions_to_move %}
-      {% set visually_hidden_text = ("group of questions: " ~ question.text) if question.is_group else question.text %}
+      {% set visually_hidden_text = interpolate(("group of questions: " ~ question.text) if question.is_group else question.text) %}
       {%
         do actions.append({
           "text": "Move up",
