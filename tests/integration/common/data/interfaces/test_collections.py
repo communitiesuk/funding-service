@@ -2240,6 +2240,21 @@ class TestValidateAndSyncComponentReferences:
         assert refs[0].depends_on_component == referenced_question
         assert refs[0].expression == expression
 
+    def test_throws_error_on_referencing_later_question_in_form(self, db_session, factories):
+        dependent_question = factories.question.create()
+        referenced_question = factories.question.create(
+            form=dependent_question.form, data_type=QuestionDataType.INTEGER
+        )
+        dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
+
+        with pytest.raises(InvalidReferenceInExpression):
+            _validate_and_sync_component_references(
+                dependent_question,
+                ExpressionContext.build_expression_context(
+                    collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                ),
+            )
+
     def test_throws_error_on_unknown_references(self, db_session, factories):
         dependent_question = factories.question.create()
 
