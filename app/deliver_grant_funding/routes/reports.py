@@ -41,7 +41,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import (
     ComplexExpressionException,
     DuplicateValueError,
-    InvalidQuestionReference,
+    InvalidReferenceInExpression,
 )
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
@@ -724,8 +724,8 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
         except ComplexExpressionException as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
-        except InvalidQuestionReference as e:
+            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_expression}")  # type:ignore[attr-defined]
+        except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
             field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
 
@@ -913,8 +913,8 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
         except ComplexExpressionException as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
-        except InvalidQuestionReference as e:
+            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_expression}")  # type:ignore[attr-defined]
+        except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
             field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
         except DataSourceItemReferenceDependencyException as e:
@@ -1010,8 +1010,8 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
         except ComplexExpressionException as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
-        except InvalidQuestionReference as e:
+            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_expression}")  # type:ignore[attr-defined]
+        except InvalidReferenceInExpression as e:
             field_with_error = getattr(form, e.field_name)
             field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
 

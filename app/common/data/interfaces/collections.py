@@ -10,7 +10,7 @@ from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import (
     ComplexExpressionException,
     DuplicateValueError,
-    InvalidQuestionReference,
+    InvalidReferenceInExpression,
     flush_and_rollback_on_exceptions,
 )
 from app.common.data.models import (
@@ -788,13 +788,13 @@ def _validate_and_sync_component_references(component: Component, expression_con
                 raise ComplexExpressionException(
                     component=component,
                     field_name=field_name,
-                    bad_reference=match.group(0),
+                    bad_expression=match.group(0),
                 )
 
             # TODO: When we allow complex references (eg not just a single reference but some combination of references
             #       such as `q_id1 + q_id2`) then this logic will need to handle that.
             if not expression_context.is_valid_reference(inner_ref):
-                raise InvalidQuestionReference(
+                raise InvalidReferenceInExpression(
                     f"Reference is not valid: {wrapped_ref}",
                     field_name=field_name,
                     bad_reference=wrapped_ref,
@@ -805,7 +805,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
             if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
                 question = db.session.get_one(Question, question_id)
                 if question.form_id != component.form_id:
-                    raise InvalidQuestionReference(
+                    raise InvalidReferenceInExpression(
                         f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                     )
 

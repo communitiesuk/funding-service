@@ -46,7 +46,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import (
     ComplexExpressionException,
     DuplicateValueError,
-    InvalidQuestionReference,
+    InvalidReferenceInExpression,
 )
 from app.common.data.models import (
     Collection,
@@ -2073,7 +2073,7 @@ class TestValidateAndSyncComponentReferences:
         # Set the text with an invalid reference after creation so that ComponentReferences aren't created; they'd error
         dependent_question.text = "Reference to ((some.non.question.ref)) here"
 
-        with pytest.raises(InvalidQuestionReference):
+        with pytest.raises(InvalidReferenceInExpression):
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(
@@ -2100,7 +2100,7 @@ class TestValidateAndSyncComponentReferences:
 
         assert exc_info.value.component == dependent_question
         assert exc_info.value.field_name == "text"
-        assert exc_info.value.bad_reference == f"(({referenced_question.safe_qid} + 100))"
+        assert exc_info.value.bad_expression == f"(({referenced_question.safe_qid} + 100))"
 
     def test_raises_complex_expression_for_special_characters(self, db_session, factories):
         dependent_question = factories.question.create(text="Initial text")
@@ -2118,7 +2118,7 @@ class TestValidateAndSyncComponentReferences:
 
         assert exc_info.value.component == dependent_question
         assert exc_info.value.field_name == "text"
-        assert exc_info.value.bad_reference == "((question.id & something))"
+        assert exc_info.value.bad_expression == "((question.id & something))"
 
     def test_removes_existing_references_before_creating_new_ones(self, db_session, factories):
         old_referenced_question = factories.question.create()
