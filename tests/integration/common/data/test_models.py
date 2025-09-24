@@ -3,7 +3,7 @@ from psycopg.errors import ForeignKeyViolation
 from sqlalchemy.exc import IntegrityError
 
 from app import QuestionDataType
-from app.common.data.models import ComponentReference, Expression
+from app.common.data.models import ComponentReference, Expression, Group
 from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
 from app.common.expressions.managed import GreaterThan
 
@@ -113,6 +113,20 @@ class TestGroupModel:
         )
 
         assert group.same_page is show_questions_on_the_same_page
+
+    def test_max_levels_of_nesting_not_changed(self, app):
+        assert app.config["MAX_NESTED_GROUP_LEVELS"] == 1, (
+            "If changing the max level of nested groups, ensure you add tests to that level of nesting"
+        )
+
+    def test_count_nested_group_levels(self, factories):
+        top_group = factories.group.create()
+        middle_group = factories.group.create(parent=top_group)
+        bottom_group = factories.group.create(parent=middle_group)
+
+        assert Group._count_nested_group_levels(group=top_group) == 0
+        assert Group._count_nested_group_levels(group=middle_group) == 1
+        assert Group._count_nested_group_levels(group=bottom_group) == 2
 
 
 class TestComponentReferenceModel:

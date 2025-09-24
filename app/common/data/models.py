@@ -2,6 +2,7 @@ import uuid
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
+from flask import current_app
 from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, select, text
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
@@ -423,6 +424,26 @@ class Group(Component):
     @property
     def same_page(self) -> bool:
         return bool(self.presentation_options.show_questions_on_the_same_page) if self.presentation_options else False
+
+    @cached_property
+    def has_nested_groups(self) -> bool:
+        return any([q for q in self.components if q.is_group])
+
+    @classmethod
+    def _count_nested_group_levels(cls, group: "Group") -> int:
+        if not group.parent:
+            return 0
+        return 1 + group._count_nested_group_levels(group=group.parent)
+
+    @cached_property
+    def nested_group_levels(self) -> int:
+        return Group._count_nested_group_levels(group=self)
+
+    @cached_property
+    def can_have_child_group(self) -> bool:
+        """Whether or not this groups is allowed to have a child group,
+        based on the maximum number of levels of nested groups"""
+        return bool(self.nested_group_levels < current_app.config["MAX_NESTED_GROUP_LEVELS"])
 
 
 class SubmissionEvent(BaseModel):

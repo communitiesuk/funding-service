@@ -1,0 +1,20 @@
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+
+{% macro group_nesting_error_banner(error, interpolate) %}
+  {% set parent_group_link = url_for("deliver_grant_funding.list_group_questions", grant_id=error.grant_id, group_id=error.parent_group_id) %}
+
+
+  {% set banner_html %}
+    <p class="govuk-body govuk-!-font-weight-bold">{{ error.message }}</p>
+    <p class="govuk-body govuk-!-font-weight-bold">
+      {{ error.parent_group_name }}
+      {% if "nesting_level" in error %}
+        is already nested so creating this group would result in too many levels of nested groups.
+      {% else %}
+        is set to display all questions on the same page, so you cannot create a nested group within it.
+      {% endif %}
+    </p>
+  {% endset %}
+
+  {{ govukNotificationBanner(params={"role": "alert", "titleText": "Error", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+{% endmacro %}

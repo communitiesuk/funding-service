@@ -2,6 +2,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
 from uuid import UUID
 
+from flask import current_app
 from sqlalchemy import ScalarResult, delete, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
@@ -393,6 +394,21 @@ def create_question(
     return question
 
 
+def raise_if_nested_group_creation_not_valid_here(parent: Group | None = None) -> None:
+    if parent:
+        if not parent.can_have_child_group:
+            raise NestedGroupException(
+                "You cannot create a nested group at this level",
+                parent_group=parent,
+                nesting_level=parent.nested_group_levels + 1,
+            )
+        if parent.same_page:
+            raise NestedGroupDisplayTypeSamePageException(
+                "You cannot create a nested group if the parent is set to display all questions on the same page",
+                parent_group=parent,
+            )
+
+
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def create_group(
     form: Form,
@@ -402,6 +418,9 @@ def create_group(
     parent: Optional[Group] = None,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Group:
+    # If this group is nested, ensure it meets rules for nesting groups
+    # This is a safety check as we don't allow users to create nested groups when these rules aren't met
+    raise_if_nested_group_creation_not_valid_here(parent=parent)
     group = Group(
         text=text,
         name=name or text,
@@ -511,6 +530,57 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
                 "depends_on_items_text": ", ".join(data_source_item.label for data_source_item in data_source_items),
             }
             flash_contexts.append(flash_context)
+        return flash_contexts
+
+
+class NestedGroupException(Exception, FlashableException):
+    def __init__(self, message: str, parent_group: Group, nesting_level: int):
+        super().__init__(message)
+        self.message = message
+        self.parent_group = parent_group
+        self.nesting_level = nesting_level
+
+    def as_flash_context(self) -> dict[str, str | bool]:
+        contexts = self.as_flash_contexts()
+        return contexts[0] if contexts else {}
+
+    def as_flash_contexts(self) -> list[dict[str, str | bool]]:
+        flash_contexts = []
+        flash_context: dict[str, str | bool] = {
+            "message": self.message,
+            "parent_group_name": self.parent_group.name,
+            "parent_group_id": str(self.parent_group.id),
+            "nesting_level": str(self.nesting_level),
+            "max_nesting_level": str(current_app.config["MAX_NESTED_GROUP_LEVELS"]),
+            "grant_id": str(self.parent_group.form.collection.grant_id),
+        }
+        flash_contexts.append(flash_context)
+        return flash_contexts
+
+
+class NestedGroupDisplayTypeSamePageException(Exception, FlashableException):
+    def __init__(
+        self,
+        message: str,
+        parent_group: Group,
+    ):
+        super().__init__(message)
+        self.message = message
+        self.parent_group = parent_group
+
+    def as_flash_context(self) -> dict[str, str | bool]:
+        contexts = self.as_flash_contexts()
+        return contexts[0] if contexts else {}
+
+    def as_flash_contexts(self) -> list[dict[str, str | bool]]:
+        flash_contexts = []
+        flash_context: dict[str, str | bool] = {
+            "message": self.message,
+            "parent_group_name": self.parent_group.name,
+            "parent_group_id": str(self.parent_group.id),
+            "grant_id": str(self.parent_group.form.collection.grant_id),
+        }
+        flash_contexts.append(flash_context)
         return flash_contexts
 
 
@@ -654,9 +724,14 @@ def update_group(
 
     if presentation_options is not NOT_PROVIDED:
         if (
-            not group.presentation_options.show_questions_on_the_same_page
-            and presentation_options.show_questions_on_the_same_page  # ty:ignore [possibly-unbound-attribute]
+            group.presentation_options.show_questions_on_the_same_page is not True
+            and presentation_options.show_questions_on_the_same_page is True  # ty:ignore [possibly-unbound-attribute]
         ):
+            if group.has_nested_groups:  # ty:ignore [possibly-unbound-attribute]
+                raise NestedGroupDisplayTypeSamePageException(
+                    "You cannot set a group to display all questions on the same page if it has nested groups",
+                    parent_group=group,
+                )  # ty:ignore [possibly-unbound-attribute]
             try:
                 raise_if_group_questions_depend_on_each_other(group)
             except DependencyOrderException as e:

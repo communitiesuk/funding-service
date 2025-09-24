@@ -258,6 +258,9 @@ class _SharedConfig(_BaseConfig):
     MAX_DATA_SOURCE_ITEMS_RADIOS: int = 100
     MAX_DATA_SOURCE_ITEMS_CHECKBOXES: int = 10
 
+    # Max number of levels of nested groups
+    MAX_NESTED_GROUP_LEVELS: int = 1
+
     # Grant setup
     GGIS_TEAM_EMAIL: str = "ggis@communities.gov.uk"
     PIPELINE_GRANTS_SCHEME_FORM_URL: str = "https://forms.office.com.mcas.ms/pages/responsepage.aspx?id=EGg0v32c3kOociSi7zmVqBUKhC0CqZtGmIj1YcYa53xUNTFRWkRXQ1ZJUEJMOTg1UllGWEpCNDQ4NSQlQCN0PWcu&route=shorturl"

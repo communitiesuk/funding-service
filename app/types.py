@@ -18,6 +18,7 @@ class FlashMessageType(StrEnum):
     DATA_SOURCE_ITEM_DEPENDENCY_ERROR = "data_source_item_dependency_error"
     SUBMISSION_TESTING_COMPLETE = "submission_testing_complete"
     QUESTION_CREATED = "question_created"
+    NESTED_GROUP_ERROR = "nested_group_error"
 
 
 TRadioItem = TypedDict("TRadioItem", {"key": str, "label": str})
