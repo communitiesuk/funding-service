@@ -26,7 +26,7 @@ def test_start_testing_submission(authenticated_grant_admin_client, db_session, 
     # Test that old submissions are deleted and you get redirected to the preview tasklist
     response = start_testing_submission(collection=collection)
     assert response.status_code == 302
-    assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}")
+    assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}$")
     test_submissions_from_db = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.TEST).all()
     assert len(test_submissions_from_db) == 1
     assert test_submissions_from_db[0].id is not old_test_submissions_from_db[0].id

@@ -3,7 +3,7 @@ from flask import url_for
 
 from app.common.data.models import Grant
 from app.deliver_grant_funding.forms import GrantContactForm, GrantDescriptionForm, GrantGGISForm, GrantNameForm
-from tests.utils import get_h1_text, get_h2_text
+from tests.utils import get_form_data, get_h1_text, get_h2_text
 
 
 class TestViewGrantDetails:
@@ -78,7 +78,7 @@ class TestChangeGGIS:
         form.ggis_number.data = "New number"
         result = authenticated_platform_admin_client.post(
             url_for("deliver_grant_funding.grant_change_ggis", grant_id=grant.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
         assert result.status_code == 302
@@ -112,7 +112,7 @@ class TestChangeGrantName:
         form.name.data = "New name"
         result = authenticated_platform_admin_client.post(
             url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
         assert result.status_code == 302
@@ -133,7 +133,7 @@ class TestChangeGrantName:
         form = GrantNameForm(data={"name": grants[1].name})
         result = authenticated_platform_admin_client.post(
             url_for("deliver_grant_funding.grant_change_name", grant_id=grants[0].id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
         assert result.status_code == 200
@@ -164,7 +164,7 @@ class TestChangeGrantDescription:
         form.description.data = "New description"
         result = authenticated_platform_admin_client.post(
             url_for("deliver_grant_funding.grant_change_description", grant_id=grant.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
         assert result.status_code == 302
@@ -199,7 +199,7 @@ class TestChangeGrantContact:
         form.primary_contact_email.data = "new@email.com"
         result = authenticated_platform_admin_client.post(
             url_for("deliver_grant_funding.grant_change_contact", grant_id=grant.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
         assert result.status_code == 302

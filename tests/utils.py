@@ -6,6 +6,7 @@ from types import MappingProxyType
 from typing import Any, Callable, Dict, Mapping, cast
 
 from bs4 import BeautifulSoup, Tag
+from flask_wtf import FlaskForm
 from testcontainers.postgres import PostgresContainer
 
 
@@ -141,3 +142,18 @@ def page_has_button(soup: BeautifulSoup, button_text: str) -> Tag | None:
             return button
 
     return None
+
+
+def get_form_data(form: FlaskForm) -> dict[str, Any]:
+    """Get the data from a flask form suitable for passing as `data` to a Flask test client's `post` method.
+
+    Specifically we need to strip out any null/falsey data, which can be stringified into eg `"False"` and ends up
+    being processed as "truthy".
+    """
+    data = {k: v for k, v in form.data.items() if v}
+
+    # If we're getting the form data, we want to submit the form
+    if hasattr(form, "submit"):
+        data["submit"] = "y"
+
+    return data
