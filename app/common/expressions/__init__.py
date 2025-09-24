@@ -133,6 +133,15 @@ class ExpressionContext(ChainMap[str, Any]):
         return ExpressionContext(submission_data=submission_data)
 
     def is_valid_reference(self, reference: str) -> bool:
+        """For a given ExpressionContext, work out if this reference resolves to a real value or not.
+
+        Examples of valid references might be:
+        - A question's safe_qid (points to a specific question in a collection)
+
+        And, as of writing, in the future:
+        - `grant.name` -> A string containing the name of the grant
+        - `recipient.funding_allocation` -> The amount of money the grant recipient has been allocated
+        """
         layers = reference.split(".")
 
         context = self
