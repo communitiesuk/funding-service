@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
 from uuid import UUID
 
 from flask import current_app
-from sqlalchemy import ScalarResult, delete, select, text
+from sqlalchemy import ScalarResult, and_, delete, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -649,18 +649,24 @@ def raise_if_question_has_any_dependencies(question: Question | Group) -> Never 
 
 
 def raise_if_group_questions_depend_on_each_other(group: Group) -> Never | None:
-    # fetching the entire schema means whatever is calling this doesn't have to worry about
-    # guaranteeing lazy loading performance behaviour - should investigate fetching the group with all
-    # questions and expressions standalone, consider shared join options for components
-    _ = get_form_by_id(group.form_id, with_all_questions=True)
-    for question in group.cached_questions:
-        for condition in question.conditions:
-            if condition.managed and condition.managed.question_id in [q.id for q in group.cached_questions]:
-                raise DependencyOrderException(
-                    "You cannot set a group to be same page if it contains questions that depend on each other",
-                    question,
-                    condition.managed.referenced_question,
-                )
+    child_components_ids = [c.id for c in group.cached_questions]
+    component_reference = (
+        db.session.query(ComponentReference)
+        .where(
+            and_(
+                ComponentReference.component_id.in_(child_components_ids),
+                ComponentReference.depends_on_component_id.in_(child_components_ids),
+            )
+        )
+        .all()
+    )
+    if component_reference:
+        raise DependencyOrderException(
+            "You cannot set a group to be same page if it contains questions that depend on each other",
+            component_reference[0].component,
+            component_reference[0].depends_on_component,
+        )
+
     return None
 
 
@@ -747,6 +753,12 @@ def update_group(
 
     _validate_and_sync_component_references(group, expression_context)
 
+    # This is extreme and reasonably un-optimised, but it does provide a high level of assurance against being able to
+    # break references within any child components. We should aim to have suitable checks higher up to provide a better
+    # user experience/error handling though.
+    for child in group.cached_all_components:
+        _validate_and_sync_component_references(child, expression_context)
+
     return group
 
 
@@ -828,7 +840,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
     expression.component_references = [reference]
 
 
-def _validate_and_sync_component_references(component: Component, expression_context: ExpressionContext) -> None:
+def _validate_and_sync_component_references(component: Component, expression_context: ExpressionContext) -> None:  # noqa: C901
     """Scan the given component for references to another component in its text, hint, and guidance.
 
     Enforce our current feature scope constraint: any expression for interpolation currently must be a 'simple'
@@ -886,6 +898,18 @@ def _validate_and_sync_component_references(component: Component, expression_con
                         f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                     )
 
+                if (
+                    question.parent
+                    and component.parent
+                    and question.parent.is_group
+                    and component.parent.is_group
+                    and question.parent.id == component.parent.id
+                ):
+                    if question.parent.same_page:
+                        raise InvalidReferenceInExpression(
+                            f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
+                        )
+
                 references_to_set_up.add((component.id, question.id))
 
     for component_id, depends_on_component_id in references_to_set_up:
@@ -904,16 +928,17 @@ def add_component_condition(component: Component, user: User, managed_expression
     expression = Expression.from_managed(managed_expression, user)
     component.expressions.append(expression)
 
-    if component.parent and component.parent.same_page:
-        raise_if_group_questions_depend_on_each_other(component.parent)
-
-    _validate_and_sync_expression_references(expression)
-
     if (
         isinstance(managed_expression, BaseDataSourceManagedExpression)
         and managed_expression.referenced_question.data_source
     ):
         _update_data_source_references(expression=expression, managed_expression=managed_expression)
+
+    _validate_and_sync_expression_references(expression)
+
+    if component.parent and component.parent.same_page:
+        raise_if_group_questions_depend_on_each_other(component.parent)
+
     return component
 
 

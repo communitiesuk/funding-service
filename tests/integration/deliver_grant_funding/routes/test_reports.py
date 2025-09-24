@@ -642,7 +642,7 @@ class TestChangeQuestionGroupName:
         assert page_has_error(soup, "A question group with this name already exists")
 
 
-class TestChangeQuestionGroupDisplay:
+class TestChangeGroupDisplayOptions:
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(
             url_for("deliver_grant_funding.change_group_display_options", grant_id=uuid.uuid4(), group_id=uuid.uuid4())
@@ -736,6 +736,37 @@ class TestChangeQuestionGroupDisplay:
             expressions=[
                 Expression.from_managed(GreaterThan(question_id=db_question1.id, minimum_value=1000), db_user)
             ],
+        )
+
+        form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "all-questions-on-same-page"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_display_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup, "A question group cannot display on the same page if questions depend on answers within the group"
+        )
+
+    def test_post_change_same_page_with_internal_question_references(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_group = factories.group.create(
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        db_question1 = factories.question.create(form=db_group.form, parent=db_group)
+        factories.question.create(
+            form=db_group.form,
+            parent=db_group,
+            text=f"Reference to (({db_question1.safe_qid}))",
         )
 
         form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "all-questions-on-same-page"})

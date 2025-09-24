@@ -423,12 +423,22 @@ class AddContextSelectSourceForm(FlaskForm):
             # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
             # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
             # centralise this logic sensibly.
+            def _questions_in_same_page_group(q1: "Question", q2: "Question") -> bool:
+                # If two questions are in the same group, and that group shows on the same page, then they can't
+                # reference each other. Note: this relies on a current tech/product constraint that the "same page"
+                # setting can only be turned on for the leaf group in a set of nested groups (so we don't have to check
+                # parent groups for the same-page setting).
+                return True if q1.parent and q2.parent and q1.parent == q2.parent and q1.parent.same_page else False
+
             available_questions = [
                 q
                 for q in self.form.cached_questions
                 if (
                     self.current_question is None
-                    or self.form.global_component_index(q) < self.form.global_component_index(self.current_question)
+                    or (
+                        self.form.global_component_index(q) < self.form.global_component_index(self.current_question)
+                        and not _questions_in_same_page_group(q, self.current_question)
+                    )
                 )
             ]
             if not available_questions:
@@ -457,12 +467,26 @@ class SelectDataSourceQuestionForm(FlaskForm):
 
         # If we're editing an existing question, then only list questions that are "before" this one in the form.
         # If it's not an existing question, then it gets added to the end of the form, so all questions are "before".
+
+        # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
+        # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
+        # centralise this logic sensibly.
+        def _questions_in_same_page_group(q1: "Question", q2: "Question") -> bool:
+            # If two questions are in the same group, and that group shows on the same page, then they can't
+            # reference each other. Note: this relies on a current tech/product constraint that the "same page"
+            # setting can only be turned on for the leaf group in a set of nested groups (so we don't have to check
+            # parent groups for the same-page setting).
+            return True if q1.parent and q2.parent and q1.parent == q2.parent and q1.parent.same_page else False
+
         self.question.choices = [("", "")] + [
             (str(question.id), interpolate(question.text))
             for question in form.cached_questions
             if (
                 current_question is None
-                or form.global_component_index(question) < form.global_component_index(current_question)
+                or (
+                    form.global_component_index(question) < form.global_component_index(current_question)
+                    and not _questions_in_same_page_group(question, current_question)
+                )
             )
         ]  # type: ignore[assignment]
 

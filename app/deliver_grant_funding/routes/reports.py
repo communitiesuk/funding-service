@@ -361,6 +361,7 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
                 )
             )
         except DependencyOrderException:
+            # TODO: can we show the user the problematic questions like we do when rendering flashable exceptions?
             form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
                 "A question group cannot display on the same page if questions depend on answers within the group"
             )
