@@ -1696,6 +1696,7 @@ class TestSelectContextSource:
 
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
+        factories.question.create(form=form)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToQuestionSessionModel(
