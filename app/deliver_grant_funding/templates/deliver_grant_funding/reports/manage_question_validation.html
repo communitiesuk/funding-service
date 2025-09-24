@@ -42,7 +42,7 @@
         govukSummaryList({
           "rows": [
             {"key": {"text": "Task"}, "value": {"text": question.form.title} },
-            {"key": {"text": "Question"}, "value": {"text": question.text} },
+            {"key": {"text": "Question"}, "value": {"text": interpolate(question.text)} },
           ],
           "classes": "app-!-border-top-line"
         })
@@ -50,7 +50,7 @@
 
       {% if form is not none %}
         {% set label_html %}
-          What does the answer <span class="govuk-visually-hidden">to {{ question.text }}</span> need to be?
+          What does the answer <span class="govuk-visually-hidden">to {{ interpolate(question.text) }}</span> need to be?
         {% endset %}
 
         {{ render_managed_expression_form(form, label_html=label_html, submit_label=submit_label) }}

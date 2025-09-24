@@ -47,7 +47,7 @@
 
       {% if form is not none %}
         {% set label_html %}
-          What does the answer <span class="govuk-visually-hidden">to {{ depends_on_question.text }}</span> need to be?
+          What does the answer <span class="govuk-visually-hidden">to {{ interpolate(depends_on_question.text) }}</span> need to be?
         {% endset %}
         {{ render_managed_expression_form(form, label_html=label_html, submit_label=submit_label) }}
       {% else %}

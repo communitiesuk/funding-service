@@ -531,14 +531,14 @@ class ConditionSelectQuestionForm(FlaskForm):
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
-    def __init__(self, *args, question: "Component", **kwargs):  # type: ignore[no-untyped-def]
+    def __init__(self, *args, question: "Component", interpolate: Callable[[str], str], **kwargs):  # type: ignore[no-untyped-def]
         super().__init__(*args, **kwargs)
 
         self.target_question = question
 
         if len(get_supported_form_questions(question)) > 0:
             self.question.choices = [("", "")] + [
-                (str(question.id), f"{question.text} ({question.name})")
+                (str(question.id), f"{interpolate(question.text)} ({question.name})")
                 for question in get_supported_form_questions(question)
             ]  # type: ignore[assignment]
 

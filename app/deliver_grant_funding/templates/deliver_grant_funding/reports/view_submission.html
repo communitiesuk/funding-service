@@ -47,7 +47,7 @@
       {%
         do rows.append({
           "key": {
-            "text": question.text,
+            "text": interpolate(question.text),
             "classes": "govuk-!-font-weight-regular",
           },
           "value": {

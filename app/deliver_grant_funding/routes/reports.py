@@ -1078,7 +1078,12 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 @has_grant_role(RoleEnum.ADMIN)
 def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
-    form = ConditionSelectQuestionForm(question=component)
+    form = ConditionSelectQuestionForm(
+        question=component,
+        interpolate=SubmissionHelper.get_interpolator(
+            collection=component.form.collection, fallback_question_names=True
+        ),
+    )
 
     if form.validate_on_submit():
         depends_on_question = get_question_by_id(form.question.data)
@@ -1096,6 +1101,7 @@ def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -
         component=component,
         grant=component.form.collection.grant,
         form=form,
+        interpolate=SubmissionHelper.get_interpolator(component.form.collection, fallback_question_names=True),
     )
 
 
@@ -1142,6 +1148,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
         grant=component.form.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
+        interpolate=SubmissionHelper.get_interpolator(component.form.collection, fallback_question_names=True),
     )
 
 
@@ -1194,6 +1201,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         expression=expression,
         QuestionDataType=QuestionDataType,
         depends_on_question=depends_on_question,
+        interpolate=SubmissionHelper.get_interpolator(component.form.collection, fallback_question_names=True),
     )
 
 
@@ -1232,6 +1240,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         grant=question.form.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
+        interpolate=SubmissionHelper.get_interpolator(question.form.collection, fallback_question_names=True),
     )
 
 
@@ -1292,6 +1301,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,
         QuestionDataType=QuestionDataType,
+        interpolate=SubmissionHelper.get_interpolator(question.form.collection, fallback_question_names=True),
     )
 
 
@@ -1358,4 +1368,7 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/reports/view_submission.html",
         grant=helper.grant,
         helper=helper,
+        interpolate=SubmissionHelper.get_interpolator(
+            collection=helper.collection, fallback_question_names=True, submission_helper=helper
+        ),
     )
