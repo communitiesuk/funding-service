@@ -946,6 +946,14 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             if "question" in session:
                 del session["question"]
 
+            if question.parent and question.parent.is_group:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.list_group_questions",
+                        grant_id=grant_id,
+                        group_id=question.parent.id,
+                    )
+                )
             return redirect(
                 url_for(
                     "deliver_grant_funding.list_task_questions",

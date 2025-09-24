@@ -1903,6 +1903,40 @@ class TestEditQuestion:
         assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions$")
         assert spy_validate.call_count == 1
 
+    def test_post_update_question_in_group_redirects_to_group_questions_page(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        group = factories.group.create(form__collection__grant=grant)
+        question = factories.question.create(
+            form=group.form,
+            parent=group,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        form = QuestionForm(
+            data={
+                "text": "Updated question",
+                "hint": "Updated hint",
+                "name": "Updated name",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions$")
+
     def test_post_with_invalid_context_references(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
