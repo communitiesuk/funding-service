@@ -7,11 +7,13 @@ from werkzeug.datastructures import MultiDict
 from wtforms import ValidationError
 
 from app.common.data.types import QuestionDataType, RoleEnum
+from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
     GrantGGISForm,
     GrantNameForm,
     QuestionForm,
+    SelectDataSourceQuestionForm,
     _validate_no_blank_lines,
     _validate_no_duplicates,
     strip_string_if_not_empty,
@@ -224,3 +226,22 @@ class TestQuestionForm:
             "prefix": ["Remove the suffix if you need a prefix"],
             "suffix": ["Remove the prefix if you need a suffix"],
         }
+
+
+class TestSelectDataSourceQuestionForm:
+    def test_only_includes_earlier_questions_in_the_form_if_given_a_current_question(self, app, factories, mocker):
+        questions = factories.question.build_batch(5, data_type=QuestionDataType.INTEGER)
+
+        mocker.patch.object(questions[2].form, "cached_questions", questions)
+
+        form = SelectDataSourceQuestionForm(
+            form=questions[2].form,
+            interpolate=SubmissionHelper.get_interpolator(
+                collection=questions[2].form.collection, fallback_question_names=True
+            ),
+            current_question=questions[2],
+        )
+
+        assert len(form.question.choices) == 3
+        # '' is the default "no answer" choice
+        assert {q[0] for q in form.question.choices} == {"", str(questions[0].id), str(questions[1].id)}

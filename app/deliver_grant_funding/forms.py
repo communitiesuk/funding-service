@@ -408,6 +408,30 @@ class AddContextSelectSourceForm(FlaskForm):
 
     submit = SubmitField(widget=GovSubmitInput())
 
+    def __init__(self, *args: Any, form: "Form", current_question: TOptional["Question"], **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.form = form
+        self.current_question = current_question
+
+    def validate_data_source(self, field: Field) -> None:
+        try:
+            choice = ExpressionContext.ContextSources[field.data]
+        except KeyError:
+            return
+
+        if choice == ExpressionContext.ContextSources.TASK:
+            # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
+            # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
+            # centralise this logic sensibly.
+            available_questions = [
+                q
+                for q in self.form.cached_questions
+                if self.current_question is None
+                or self.form.global_question_index(q) < self.form.global_question_index(self.current_question)
+            ]
+            if not available_questions:
+                raise ValidationError("There are no available questions before this one in the form")
+
 
 class SelectDataSourceQuestionForm(FlaskForm):
     question = SelectField(
@@ -419,13 +443,23 @@ class SelectDataSourceQuestionForm(FlaskForm):
 
     submit = SubmitField(widget=GovSubmitInput())
 
-    def __init__(self, form: "Form", interpolate: Callable[[str], str], *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        form: "Form",
+        interpolate: Callable[[str], str],
+        current_question: TOptional["Question"],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
 
-        # TODO: Only show questions `before` the one being edited (ie that can be validly referenced)
-
+        # If we're editing an existing question, then only list questions that are "before" this one in the form.
+        # If it's not an existing question, then it gets added to the end of the form, so all questions are "before".
         self.question.choices = [("", "")] + [
-            (str(question.id), interpolate(question.text)) for question in form.cached_questions
+            (str(question.id), interpolate(question.text))
+            for question in form.cached_questions
+            if current_question is None
+            or form.global_question_index(question) < form.global_question_index(current_question)
         ]  # type: ignore[assignment]
 
 

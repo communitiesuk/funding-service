@@ -781,7 +781,10 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     if not add_context_data:
         return abort(400)
 
-    wtform = AddContextSelectSourceForm()
+    wtform = AddContextSelectSourceForm(
+        form=db_form,
+        current_question=get_question_by_id(add_context_data.question_id) if add_context_data.question_id else None,
+    )
     if wtform.validate_on_submit():
         add_context_data.data_source = ExpressionContext.ContextSources[wtform.data_source.data]
         session["question"] = add_context_data.model_dump(mode="json")
@@ -805,18 +808,21 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/task/<uuid:form_id>/add-context/select-question-from-collection", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/task/<uuid:form_id>/add-context/select-question-from-task", methods=["GET", "POST"]
 )
 @has_grant_role(RoleEnum.ADMIN)
 def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
-    wtform = SelectDataSourceQuestionForm(
-        form=db_form,
-        interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection, fallback_question_names=True),
-    )
+
     add_context_data = _extract_add_context_data_from_session()
     if not add_context_data:
         return abort(400)
+
+    wtform = SelectDataSourceQuestionForm(
+        form=db_form,
+        interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection, fallback_question_names=True),
+        current_question=get_question_by_id(add_context_data.question_id) if add_context_data.question_id else None,
+    )
 
     if wtform.validate_on_submit():
         referenced_question = get_question_by_id(UUID(wtform.question.data))

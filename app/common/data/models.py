@@ -196,6 +196,9 @@ class Form(BaseModel):
         """Consistently returns all questions in the form, respecting order and any level of nesting."""
         return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
 
+    def global_question_index(self, question: "Question") -> int:
+        return self.cached_questions.index(question)
+
     @cached_property
     def cached_all_components(self) -> list["Component"]:
         return get_ordered_nested_components(self.components)
