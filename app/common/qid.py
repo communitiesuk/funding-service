@@ -19,8 +19,8 @@ class SafeQidMixin:
         return "q_" + self.question_id.hex
 
     @staticmethod
-    def safe_qid_to_id(safe_qid: str) -> uuid.UUID:
+    def safe_qid_to_id(safe_qid: str) -> uuid.UUID | None:
         if safe_qid.startswith("q_"):
             return uuid.UUID(safe_qid[2:])
 
-        raise ValueError(f"Invalid safe question ID: {safe_qid}")
+        return None

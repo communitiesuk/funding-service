@@ -10,12 +10,13 @@ from app import QuestionDataType
 from app.common.data import interfaces
 from app.common.data.models import Collection, Expression, Form, Group, Question
 from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
+from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
+    AddGuidanceForm,
     AddTaskForm,
-    ContextSourceChoices,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
@@ -23,7 +24,15 @@ from app.deliver_grant_funding.forms import (
     SetUpReportForm,
 )
 from app.deliver_grant_funding.session_models import AddContextToQuestionSessionModel
-from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_button, page_has_error, page_has_link
+from tests.utils import (
+    AnyStringMatching,
+    get_form_data,
+    get_h1_text,
+    get_h2_text,
+    page_has_button,
+    page_has_error,
+    page_has_link,
+)
 
 
 class TestListReports:
@@ -144,12 +153,12 @@ class TestListReports:
         form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
         response = client.post(
             url_for("deliver_grant_funding.list_reports", grant_id=client.grant.id, delete=report.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/reports")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
 
         deleted_report = db_session.get(Collection, (report.id, report.version))
         assert (deleted_report is None) == can_delete
@@ -196,7 +205,7 @@ class TestSetUpReport:
         form = SetUpReportForm(data={"name": "Test monitoring report"})
         response = client.post(
             url_for("deliver_grant_funding.set_up_report", grant_id=client.grant.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -204,7 +213,7 @@ class TestSetUpReport:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/reports")
+            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
 
             assert len(client.grant.reports) == 1
             assert client.grant.reports[0].name == "Test monitoring report"
@@ -216,7 +225,7 @@ class TestSetUpReport:
         form = SetUpReportForm(data={"name": "Monitoring report"})
         response = authenticated_grant_admin_client.post(
             url_for("deliver_grant_funding.set_up_report", grant_id=authenticated_grant_admin_client.grant.id),
-            data=form.data,
+            data=get_form_data(form),
         )
         soup = BeautifulSoup(response.data, "html.parser")
 
@@ -286,7 +295,7 @@ class TestChangeReportName:
         form = SetUpReportForm(data={"name": "Updated Name"})
         response = client.post(
             url_for("deliver_grant_funding.change_report_name", grant_id=client.grant.id, report_id=report.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -294,7 +303,7 @@ class TestChangeReportName:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/reports")
+            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
 
             updated_report = db_session.get(Collection, (report.id, report.version))
             assert updated_report.name == "Updated Name"
@@ -310,7 +319,7 @@ class TestChangeReportName:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report2.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
         )
 
         assert response.status_code == 200
@@ -330,12 +339,12 @@ class TestChangeReportName:
                 report_id=report.id,
                 delete="",
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/reports")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
 
         updated_report = db_session.get(Collection, (report.id, report.version))
         assert updated_report is not None
@@ -383,7 +392,7 @@ class TestAddTask:
         form = AddTaskForm(data={"title": "Organisation information"})
         response = client.post(
             url_for("deliver_grant_funding.add_task", grant_id=client.grant.id, report_id=report.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -391,7 +400,7 @@ class TestAddTask:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}")
+            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}$")
 
             assert len(report.forms) == 1
             assert report.forms[0].title == "Organisation information"
@@ -407,7 +416,7 @@ class TestAddTask:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
         )
         soup = BeautifulSoup(response.data, "html.parser")
 
@@ -494,7 +503,7 @@ class TestListReportTasks:
         form = GenericSubmitForm()
         response = client.post(
             url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=report.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -502,7 +511,7 @@ class TestListReportTasks:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}")
+            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}$")
 
 
 class TestMoveTask:
@@ -600,12 +609,12 @@ class TestChangeQuestionGroupName:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 group_id=db_group.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions$")
 
         updated_group = db_session.get(Group, db_group.id)
         assert updated_group.name == "Updated test group"
@@ -624,7 +633,7 @@ class TestChangeQuestionGroupName:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 group_id=db_group.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -698,12 +707,12 @@ class TestChangeQuestionGroupDisplay:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 group_id=db_group.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions$")
 
         updated_group = db_session.get(Group, db_group.id)
         assert updated_group.presentation_options.show_questions_on_the_same_page is True
@@ -736,7 +745,7 @@ class TestChangeQuestionGroupDisplay:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 group_id=db_group.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -817,7 +826,7 @@ class TestChangeFormName:
         form = AddTaskForm(data={"title": "Updated Name"})
         response = client.post(
             url_for("deliver_grant_funding.change_form_name", grant_id=client.grant.id, form_id=db_form.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -825,7 +834,7 @@ class TestChangeFormName:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
+            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions$")
 
             updated_form = db_session.get(Form, db_form.id)
             assert updated_form.title == "Updated Name"
@@ -843,7 +852,7 @@ class TestChangeFormName:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=db_form2.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
         )
 
         assert response.status_code == 200
@@ -1279,7 +1288,7 @@ class TestChooseQuestionType:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=db_form.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -1337,7 +1346,7 @@ class TestAddQuestion:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}$")
 
         # Stretching the test case a little but validates the flash message
         response = authenticated_grant_admin_client.get(response.location)
@@ -1345,6 +1354,62 @@ class TestAddQuestion:
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Edit question"
         assert get_h2_text(soup) == "Question created"
+
+    def test_post_with_invalid_context_references(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                question_type=QuestionDataType.TEXT_SINGLE_LINE.name,
+            ),
+            data={
+                "text": "question ((invalid_reference))",
+                "hint": "hint text",
+                "name": "question name",
+            },
+            follow_redirects=False,
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        assert page_has_error(soup, "Reference is not valid: ((invalid_reference))")
+
+    @pytest.mark.parametrize("context_field", ["text", "hint"])
+    def test_post_to_add_context_redirects_and_sets_up_session(
+        self, authenticated_grant_admin_client, factories, db_session, mocker, context_field
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        form = QuestionForm(
+            data={
+                "text": "Updated question",
+                "hint": "Updated hint",
+                "name": "Updated name",
+                f"{context_field}_add_context": "y",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        spy_validate = mocker.spy(interfaces.collections, "_validate_and_sync_component_references")
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.add_question", grant_id=grant.id, form_id=db_form.id),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+        )
+        assert spy_validate.call_count == 0
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert sess["question"]["field"] == context_field
 
     def test_post_from_add_context_success_cleans_that_bit_of_session(
         self, authenticated_grant_admin_client, factories, db_session
@@ -1375,11 +1440,12 @@ class TestAddQuestion:
                 "text": "Test question text",
                 "name": "Test question name",
                 "hint": "Test question hint",
+                "submit": "y",
             },
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}$")
 
         # Stretching the test case a little but validates the flash message
         response = authenticated_grant_admin_client.get(response.location)
@@ -1411,7 +1477,7 @@ class TestAddQuestion:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}$")
 
         # Stretching the test case a little but validates the group specific flash message
         response = authenticated_grant_admin_client.get(response.location)
@@ -1500,11 +1566,11 @@ class TestAddQuestionGroup:
                 grant_id=grant.id,
                 form_id=db_form.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add$")
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
@@ -1549,11 +1615,13 @@ class TestAddQuestionGroup:
         )
         response = authenticated_grant_admin_client.post(
             url_for("deliver_grant_funding.add_question_group_display_options", grant_id=grant.id, form_id=db_form.id),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching(
+            r"^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions\?form_id=[a-z0-9-]{36}$"
+        )
 
     def test_post_duplicate(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
@@ -1573,7 +1641,7 @@ class TestAddQuestionGroup:
                 form_id=db_form.id,
                 name="Duplicate test group",
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -1622,7 +1690,7 @@ class TestSelectContextSource:
         assert "Select a data source" in soup.text
 
     def test_post_redirect_and_updates_session(self, authenticated_grant_admin_client, factories):
-        assert len(ContextSourceChoices) == 1, "Check all redirects if adding new context source choices"
+        assert len(ExpressionContext.ContextSources) == 1, "Check all redirects if adding new context source choices"
 
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
@@ -1681,7 +1749,7 @@ class TestSelectContextSourceQuestion:
                 name="test_question",
                 hint="Test hint",
                 field="text",
-                data_source=ContextSourceChoices.TASK,
+                data_source=ExpressionContext.ContextSources.TASK,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -1710,7 +1778,7 @@ class TestSelectContextSourceQuestion:
                 name="test_question",
                 hint="Test hint",
                 field="text",
-                data_source=ContextSourceChoices.TASK,
+                data_source=ExpressionContext.ContextSources.TASK,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.post(
@@ -1798,7 +1866,7 @@ class TestEditQuestion:
         assert "This question is part of a group of questions that are all on the same page." in soup.text
         assert page_has_link(soup, "question group")
 
-    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+    def test_post(self, authenticated_grant_admin_client, factories, db_session, mocker):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
@@ -1809,7 +1877,6 @@ class TestEditQuestion:
             hint="Question hint",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
-
         form = QuestionForm(
             data={
                 "text": "Updated question",
@@ -1818,17 +1885,97 @@ class TestEditQuestion:
             },
             question_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
+        spy_validate = mocker.spy(interfaces.collections, "_validate_and_sync_component_references")
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.edit_question",
                 grant_id=grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
+
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions$")
+        assert spy_validate.call_count == 1
+
+    def test_post_with_invalid_context_references(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        form = QuestionForm(
+            data={
+                "text": "Updated question",
+                "hint": "Updated hint ((invalid_reference))",
+                "name": "Updated name",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        assert page_has_error(soup, "Reference is not valid: ((invalid_reference))")
+
+    @pytest.mark.parametrize("context_field", ["text", "hint"])
+    def test_post_to_add_context_redirects_and_sets_up_session(
+        self, authenticated_grant_admin_client, factories, db_session, mocker, context_field
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        form = QuestionForm(
+            data={
+                "text": "Updated question",
+                "hint": "Updated hint",
+                "name": "Updated name",
+                f"{context_field}_add_context": "y",
+            },
+            question_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        spy_validate = mocker.spy(interfaces.collections, "_validate_and_sync_component_references")
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+        )
+        assert spy_validate.call_count == 0
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert sess["question"]["field"] == context_field
 
     def test_post_from_add_context_success_cleans_that_bit_of_session(
         self, authenticated_grant_admin_client, factories, db_session
@@ -1871,7 +2018,7 @@ class TestEditQuestion:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions$")
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             assert "question" not in sess
@@ -2213,7 +2360,7 @@ class TestAddQuestionCondition:
                 component_id=target_question.id,
                 depends_on_question_id=depends_on_question.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -2254,7 +2401,7 @@ class TestAddQuestionCondition:
                 component_id=target_group.id,
                 depends_on_question_id=depends_on_question.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -2303,7 +2450,7 @@ class TestAddQuestionCondition:
                 component_id=target_question.id,
                 depends_on_question_id=depends_on_question.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -2449,7 +2596,7 @@ class TestEditQuestionCondition:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 expression_id=expression_id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -2489,7 +2636,7 @@ class TestEditQuestionCondition:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 expression_id=expression_id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -2545,7 +2692,7 @@ class TestEditQuestionCondition:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 expression_id=yes_expression_id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -2583,7 +2730,7 @@ class TestEditQuestionCondition:
                 expression_id=expression_id,
                 delete="",
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -2696,7 +2843,7 @@ class TestAddQuestionValidation:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -2883,7 +3030,7 @@ class TestEditQuestionValidation:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 expression_id=expression_id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -2939,7 +3086,7 @@ class TestEditQuestionValidation:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 expression_id=greater_than_expression_id,
             ),
-            data=form.data,
+            data=get_form_data(form),
             follow_redirects=False,
         )
 
@@ -3077,6 +3224,32 @@ class TestManageGuidance:
         assert updated_question.guidance_heading == "How to answer"
         assert updated_question.guidance_body == "Please provide detailed information"
 
+    def test_post_to_add_context_redirects_and_sets_up_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        question = factories.question.create(form__collection__grant=authenticated_grant_admin_client.grant)
+
+        form = AddGuidanceForm(
+            guidance_heading="How to answer", guidance_body="Please provide detailed information", add_context="y"
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            r"^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert sess["question"]["field"] == "guidance"
+
     def test_post_update_guidance(self, authenticated_grant_admin_client, factories, db_session):
         question = factories.question.create(
             form__collection__grant=authenticated_grant_admin_client.grant,
@@ -3095,7 +3268,7 @@ class TestManageGuidance:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}$")
 
         updated_question = db_session.get(Question, question.id)
         assert updated_question.guidance_heading == "Updated heading"
@@ -3190,7 +3363,7 @@ class TestManageGuidance:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions$")
 
         updated_group = db_session.get(Group, group.id)
         assert updated_group.guidance_heading == "Updated heading"

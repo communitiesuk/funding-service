@@ -3,14 +3,14 @@ from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
 from uuid import UUID
 
 from sqlalchemy import ScalarResult, delete, select, text
-from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import (
     ComplexExpressionException,
     DuplicateValueError,
-    InvalidQuestionReference,
+    InvalidReferenceInExpression,
     flush_and_rollback_on_exceptions,
 )
 from app.common.data.models import (
@@ -37,7 +37,7 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
 )
-from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX
+from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
@@ -356,6 +356,7 @@ def create_question(
     hint: str,
     name: str,
     data_type: QuestionDataType,
+    expression_context: ExpressionContext,
     parent: Optional[Group] = None,
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
@@ -375,7 +376,7 @@ def create_question(
     db.session.add(question)
 
     try:
-        _validate_and_sync_component_references(question)
+        _validate_and_sync_component_references(question, expression_context)
         db.session.flush()
     except IntegrityError as e:
         # todo: check devs view on this, this is because other constraints (like the check constraint introduced here)
@@ -643,6 +644,7 @@ def group_name_exists(name: str, form_id: UUID) -> bool:
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_group(
     group: Group,
+    expression_context: ExpressionContext,
     *,
     name: str | TNotProvided = NOT_PROVIDED,
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
@@ -672,7 +674,7 @@ def update_group(
     if guidance_body is not NOT_PROVIDED:
         group.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
 
-    _validate_and_sync_component_references(group)
+    _validate_and_sync_component_references(group, expression_context)
 
     return group
 
@@ -680,6 +682,7 @@ def update_group(
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_question(
     question: Question,
+    expression_context: ExpressionContext,
     *,
     text: str | TNotProvided = NOT_PROVIDED,
     name: str | TNotProvided = NOT_PROVIDED,
@@ -711,7 +714,7 @@ def update_question(
     if items is not NOT_PROVIDED and items is not None:
         _update_data_source(question, items)  # ty: ignore[invalid-argument-type]
 
-    _validate_and_sync_component_references(question)
+    _validate_and_sync_component_references(question, expression_context)
     return question
 
 
@@ -754,7 +757,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
     expression.component_references = [reference]
 
 
-def _validate_and_sync_component_references(component: Component) -> None:
+def _validate_and_sync_component_references(component: Component, expression_context: ExpressionContext) -> None:
     """Scan the given component for references to another component in its text, hint, and guidance.
 
     Enforce our current feature scope constraint: any expression for interpolation currently must be a 'simple'
@@ -779,38 +782,34 @@ def _validate_and_sync_component_references(component: Component) -> None:
             continue
 
         for match in INTERPOLATE_REGEX.finditer(value):
-            ref = match.group(1).strip()
+            wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
 
-            if ALLOWED_INTERPOLATION_REGEX.search(ref) is not None:
+            if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
                 raise ComplexExpressionException(
                     component=component,
                     field_name=field_name,
-                    bad_reference=match.group(0),
+                    bad_expression=match.group(0),
                 )
 
-            # TODO: split out detection of 'known' context variables to a separate function/handler
-            try:
-                question_id = SafeQidMixin.safe_qid_to_id(ref)
-            except ValueError:
-                # If the reference is not to a question, we don't need to do anything here
-                continue
-
-            try:
-                question = db.session.get_one(Component, question_id)
-                if question.form_id != component.form_id:
-                    raise InvalidQuestionReference(
-                        f"Reference to question {question_id} (in {ref}) in a different form is not allowed",
-                        field_name=field_name,
-                        bad_reference=match.group(0),
-                    )
-            except NoResultFound as e:
-                raise InvalidQuestionReference(
-                    f"Reference to non-existence question {question_id} in {ref}",
+            # TODO: When we allow complex references (eg not just a single reference but some combination of references
+            #       such as `q_id1 + q_id2`) then this logic will need to handle that.
+            if not expression_context.is_valid_reference(inner_ref):
+                raise InvalidReferenceInExpression(
+                    f"Reference is not valid: {wrapped_ref}",
                     field_name=field_name,
-                    bad_reference=match.group(0),
-                ) from e
+                    bad_reference=wrapped_ref,
+                )
 
-            references_to_set_up.add((component.id, question.id))
+            # If `is_valid_referencee` above is True, then we know that we have a QID that points to a question in the
+            # same collection - but not necessarily the same form.
+            if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
+                question = db.session.get_one(Question, question_id)
+                if question.form_id != component.form_id:
+                    raise InvalidReferenceInExpression(
+                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
+                    )
+
+                references_to_set_up.add((component.id, question.id))
 
     for component_id, depends_on_component_id in references_to_set_up:
         db.session.add(ComponentReference(component_id=component_id, depends_on_component_id=depends_on_component_id))

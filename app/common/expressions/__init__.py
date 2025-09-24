@@ -1,13 +1,16 @@
 import ast
+import enum
 import re
 from collections import ChainMap
-from typing import TYPE_CHECKING, Any, MutableMapping
+from typing import TYPE_CHECKING, Any, Literal, MutableMapping, Optional
 
 import simpleeval
 
-if TYPE_CHECKING:
-    from app.common.data.models import Expression
+from app.types import NOT_PROVIDED
 
+if TYPE_CHECKING:
+    from app.common.data.models import Collection, Expression
+    from app.common.helpers.collections import SubmissionHelper
 
 INTERPOLATE_REGEX = re.compile(r"\(\(([^\(]+?)\)\)")
 # If any interpolation references contain characters other than alphanumeric, full stops or underscores,
@@ -52,6 +55,11 @@ class ExpressionContext(ChainMap[str, Any]):
     with answers from the current form submission (DynamicQuestionForm).
     """
 
+    class ContextSources(enum.StrEnum):
+        # We actually expose all questions in the collection, but for now we're limited contextual references to
+        # just questions in the same task.
+        TASK = "A previous question in this task"
+
     def __init__(
         self,
         submission_data: dict[str, Any] | None = None,
@@ -86,6 +94,55 @@ class ExpressionContext(ChainMap[str, Any]):
         way.
         """
         self._submission_data.update(**submission_answers_from_form)
+
+    @staticmethod
+    def build_expression_context(
+        collection: "Collection",
+        fallback_question_names: bool,
+        mode: Literal["evaluation", "interpolation"],
+        submission_helper: Optional["SubmissionHelper"] = None,
+    ) -> "ExpressionContext":
+        """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
+
+        assert len(ExpressionContext.ContextSources) == 1, (
+            "When defining a new source of context for expressions, "
+            "update this method and the ContextSourceChoices enum"
+        )
+
+        if submission_helper and submission_helper.collection.id != collection.id:
+            raise ValueError("Mismatch between collection and submission.collection")
+
+        # TODO: Namespace this set of data, eg under a `this_submission` prefix/key
+        submission_data = (
+            {
+                question.safe_qid: (
+                    answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation()
+                )
+                for form in submission_helper.collection.forms
+                for question in form.cached_questions
+                if (answer := submission_helper._get_answer_for_question(question.id)) is not None
+            }
+            if submission_helper
+            else {}
+        )
+        if fallback_question_names:
+            for form in collection.forms:
+                for question in form.cached_questions:
+                    submission_data.setdefault(question.safe_qid, f"(({question.name}))")
+
+        return ExpressionContext(submission_data=submission_data)
+
+    def is_valid_reference(self, reference: str) -> bool:
+        layers = reference.split(".")
+
+        context = self
+        for layer in layers:
+            value = context.get(layer, NOT_PROVIDED)
+            if value is NOT_PROVIDED:
+                return False
+            context = value
+
+        return True
 
 
 def _evaluate_expression_with_context(expression: "Expression", context: ExpressionContext | None = None) -> Any:

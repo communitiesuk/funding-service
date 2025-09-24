@@ -1,4 +1,3 @@
-import enum
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, Union, cast
 from typing import Optional as TOptional
 from uuid import UUID
@@ -28,6 +27,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import GroupDisplayOptions, MultilineTextInputRows, NumberInputWidths, QuestionDataType
+from app.common.expressions import ExpressionContext
 from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.validators import CommunitiesEmail, WordRange
@@ -399,14 +399,10 @@ class QuestionForm(FlaskForm):
         return self.is_submitted() and (self.text_add_context.data or self.hint_add_context.data)
 
 
-class ContextSourceChoices(enum.StrEnum):
-    TASK = "A previous question in this task"
-
-
 class AddContextSelectSourceForm(FlaskForm):
     data_source = RadioField(
         "Select a data source",
-        choices=[(choice.name, choice.value) for choice in ContextSourceChoices],
+        choices=[(choice.name, choice.value) for choice in ExpressionContext.ContextSources],
         widget=GovRadioInput(),
     )
 

@@ -41,7 +41,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import (
     ComplexExpressionException,
     DuplicateValueError,
-    InvalidQuestionReference,
+    InvalidReferenceInExpression,
 )
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
@@ -54,6 +54,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionModeEnum,
 )
+from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
@@ -63,7 +64,6 @@ from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddTaskForm,
     ConditionSelectQuestionForm,
-    ContextSourceChoices,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
@@ -298,7 +298,13 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     if form.validate_on_submit():
         assert form.name.data
         try:
-            update_group(db_group, name=form.name.data)
+            update_group(
+                db_group,
+                expression_context=ExpressionContext.build_expression_context(
+                    collection=db_group.form.collection, fallback_question_names=True, mode="interpolation"
+                ),
+                name=form.name.data,
+            )
             return redirect(
                 url_for(
                     "deliver_grant_funding.list_group_questions",
@@ -337,7 +343,13 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
             #       into the template so that we can grey out the option before reaching this point
             #       will need to decide how thats displayed: p text before the radio might work - grey hint
             #       on grey hint bad
-            update_group(db_group, presentation_options=QuestionPresentationOptions.from_group_form(form))
+            update_group(
+                db_group,
+                expression_context=ExpressionContext.build_expression_context(
+                    collection=db_group.form.collection, fallback_question_names=True, mode="interpolation"
+                ),
+                presentation_options=QuestionPresentationOptions.from_group_form(form),
+            )
             return redirect(
                 url_for(
                     "deliver_grant_funding.list_group_questions",
@@ -690,6 +702,9 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 data_type=question_data_type_enum,
                 items=wt_form.normalised_data_source_items,
                 presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
+                expression_context=ExpressionContext.build_expression_context(
+                    collection=form.collection, fallback_question_names=True, mode="interpolation"
+                ),
                 parent=parent,
             )
             flash("Question created", FlashMessageType.QUESTION_CREATED)
@@ -709,10 +724,10 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
         except ComplexExpressionException as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
-        except InvalidQuestionReference as e:
+            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_expression}")  # type:ignore[attr-defined]
+        except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"Remove reference to unknown question: {e.bad_reference}")  # type:ignore[attr-defined]
+            field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
 
     return render_template(
         "deliver_grant_funding/reports/add_question.html",
@@ -737,11 +752,11 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
     wtform = AddContextSelectSourceForm()
     if wtform.validate_on_submit():
-        add_context_data.data_source = ContextSourceChoices[wtform.data_source.data]
+        add_context_data.data_source = ExpressionContext.ContextSources[wtform.data_source.data]
         session["question"] = add_context_data.model_dump(mode="json")
 
         match add_context_data.data_source:
-            case ContextSourceChoices.TASK:
+            case ExpressionContext.ContextSources.TASK:
                 return redirect(
                     url_for("deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id)
                 )
@@ -873,6 +888,9 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             assert wt_form.name.data is not None
             update_question(
                 question=question,
+                expression_context=ExpressionContext.build_expression_context(
+                    collection=question.form.collection, fallback_question_names=True, mode="interpolation"
+                ),
                 text=wt_form.text.data,
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
@@ -895,10 +913,10 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
         except ComplexExpressionException as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
-        except InvalidQuestionReference as e:
+            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_expression}")  # type:ignore[attr-defined]
+        except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"Remove reference to unknown question: {e.bad_reference}")  # type:ignore[attr-defined]
+            field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
         except DataSourceItemReferenceDependencyException as e:
             for flash_context in e.as_flash_contexts():
                 flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]
@@ -955,12 +973,18 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
             if question.is_group:
                 update_group(
                     cast("Group", question),
+                    expression_context=ExpressionContext.build_expression_context(
+                        collection=question.form.collection, fallback_question_names=True, mode="interpolation"
+                    ),
                     guidance_heading=form.guidance_heading.data,
                     guidance_body=form.guidance_body.data,
                 )
             else:
                 update_question(
                     cast("Question", question),
+                    expression_context=ExpressionContext.build_expression_context(
+                        collection=question.form.collection, fallback_question_names=True, mode="interpolation"
+                    ),
                     guidance_heading=form.guidance_heading.data,
                     guidance_body=form.guidance_body.data,
                 )
@@ -986,10 +1010,10 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
         except ComplexExpressionException as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_reference}")  # type:ignore[attr-defined]
-        except InvalidQuestionReference as e:
+            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_expression}")  # type:ignore[attr-defined]
+        except InvalidReferenceInExpression as e:
             field_with_error = getattr(form, e.field_name)
-            field_with_error.errors.append(f"Remove reference to unknown question: {e.bad_reference}")  # type:ignore[attr-defined]
+            field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
 
     return render_template(
         "deliver_grant_funding/reports/manage_guidance.html",

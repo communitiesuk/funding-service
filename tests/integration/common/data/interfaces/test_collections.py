@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.common.collections.types import TextSingleLineAnswer
+from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
@@ -43,7 +44,11 @@ from app.common.data.interfaces.collections import (
     update_question_expression,
     update_submission_data,
 )
-from app.common.data.interfaces.exceptions import ComplexExpressionException, DuplicateValueError
+from app.common.data.interfaces.exceptions import (
+    ComplexExpressionException,
+    DuplicateValueError,
+    InvalidReferenceInExpression,
+)
 from app.common.data.models import (
     Collection,
     ComponentReference,
@@ -66,6 +71,7 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
 )
+from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import AnyOf, GreaterThan, LessThan, Specifically
 
 
@@ -310,6 +316,7 @@ class TestCreateGroup:
             hint="Top Level Question Hint",
             name="Top Level Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expression_context=ExpressionContext(),
         )
 
         depth = 2
@@ -324,6 +331,7 @@ class TestCreateGroup:
                     hint=f"Sub Question Hint {current_depth} {i}",
                     name=f"Sub Question Name {current_depth} {i}",
                     data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                    expression_context=ExpressionContext(),
                     parent=parent,
                 )
             sub_group = create_group(form=form, text=f"Sub Group {current_depth}", parent=parent)
@@ -375,6 +383,7 @@ class TestUpdateGroup:
 
         updated_group = update_group(
             group,
+            expression_context=ExpressionContext(),
             name="Updated test group",
         )
 
@@ -384,6 +393,7 @@ class TestUpdateGroup:
 
         updated_group = update_group(
             group,
+            expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
         )
 
@@ -400,6 +410,7 @@ class TestUpdateGroup:
         with pytest.raises(DuplicateValueError):
             update_group(
                 group,
+                expression_context=ExpressionContext(),
                 name="Overlap group name",
             )
 
@@ -421,6 +432,7 @@ class TestUpdateGroup:
         with pytest.raises(DependencyOrderException):
             update_group(
                 group,
+                expression_context=ExpressionContext(),
                 presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
             )
         assert group.presentation_options.show_questions_on_the_same_page is False
@@ -442,6 +454,7 @@ class TestUpdateGroup:
 
         update_group(
             group,
+            expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
         )
         assert group.presentation_options.show_questions_on_the_same_page is False
@@ -458,12 +471,35 @@ class TestUpdateGroup:
 
         updated_group = update_group(
             group=group,
+            expression_context=ExpressionContext(),
             guidance_heading="How to answer this question",
             guidance_body="This is detailed guidance with **markdown** formatting.",
         )
 
         assert updated_group.guidance_heading == "How to answer this question"
         assert updated_group.guidance_body == "This is detailed guidance with **markdown** formatting."
+
+    def test_synced_component_references(self, db_session, factories, mocker):
+        form = factories.form.create()
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        add_component_condition(group, user, GreaterThan(question_id=q1.id, minimum_value=100))
+
+        spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
+        spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
+
+        update_group(
+            group,
+            expression_context=ExpressionContext(),
+        )
+
+        assert spy_validate1.call_count == 1
+        assert spy_validate2.call_count == 1  # Called once for each expression
 
 
 class TestCreateQuestion:
@@ -483,6 +519,7 @@ class TestCreateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=question_type,
+            expression_context=ExpressionContext(),
         )
         assert question is not None
         assert question.id is not None
@@ -502,6 +539,7 @@ class TestCreateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.INTEGER,
+            expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
         )
         assert question is not None
@@ -525,6 +563,7 @@ class TestCreateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_MULTI_LINE,
+            expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(rows=MultilineTextInputRows.SMALL, word_limit=500),
         )
         assert question is not None
@@ -547,6 +586,7 @@ class TestCreateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.YES_NO,
+            expression_context=ExpressionContext(),
         )
         assert question is not None
         assert question.id is not None
@@ -566,6 +606,7 @@ class TestCreateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.RADIOS,
+            expression_context=ExpressionContext(),
             items=["one", "two", "three"],
             presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
         )
@@ -589,6 +630,7 @@ class TestCreateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.CHECKBOXES,
+            expression_context=ExpressionContext(),
             items=["one", "two", "three"],
             presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
         )
@@ -612,6 +654,7 @@ class TestCreateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.DATE,
+            expression_context=ExpressionContext(),
         )
         assert question is not None
         assert question.id is not None
@@ -635,6 +678,7 @@ class TestCreateQuestion:
                 hint="Test Hint",
                 name="Test Question Name",
                 data_type=None,
+                expression_context=ExpressionContext(),
             )
         assert "ck_component_type_question_requires_data_type" in str(e.value)
 
@@ -647,10 +691,28 @@ class TestCreateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expression_context=ExpressionContext(),
             parent=group,
         )
         assert question.parent == group
         assert question.order == 0
+
+    def test_validates_component_references(self, db_session, factories, mocker):
+        form = factories.form.create()
+        spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
+        spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
+
+        create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expression_context=ExpressionContext(),
+        )
+
+        assert spy_validate1.call_count == 1
+        assert spy_validate2.call_count == 0  # No expressions to validate
 
 
 class TestUpdateQuestion:
@@ -670,12 +732,14 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=question_type,
+            expression_context=ExpressionContext(),
         )
         assert question is not None
         assert question.data_source is None
 
         updated_question = update_question(
             question=question,
+            expression_context=ExpressionContext(),
             text="Updated Question",
             hint="Updated Hint",
             name="Updated Question Name",
@@ -696,12 +760,14 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.INTEGER,
+            expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
         )
         assert question is not None
 
         updated_question = update_question(
             question=question,
+            expression_context=ExpressionContext(),
             text="Updated Question",
             hint="Updated Hint",
             name="Updated Question Name",
@@ -727,12 +793,14 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_MULTI_LINE,
+            expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(rows=MultilineTextInputRows.SMALL, word_limit=500),
         )
         assert question is not None
 
         updated_question = update_question(
             question=question,
+            expression_context=ExpressionContext(),
             text="Updated Question",
             hint="Updated Hint",
             name="Updated Question Name",
@@ -755,11 +823,13 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.YES_NO,
+            expression_context=ExpressionContext(),
         )
         assert question is not None
 
         updated_question = update_question(
             question=question,
+            expression_context=ExpressionContext(),
             text="Updated Question",
             hint="Updated Hint",
             name="Updated Question Name",
@@ -779,6 +849,7 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.RADIOS,
+            expression_context=ExpressionContext(),
             items=["option 1", "option 2", "option 3"],
             presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=False),
         )
@@ -789,6 +860,7 @@ class TestUpdateQuestion:
 
         updated_question = update_question(
             question=question,
+            expression_context=ExpressionContext(),
             text="Updated Question",
             hint="Updated Hint",
             name="Updated Question Name",
@@ -824,6 +896,7 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.RADIOS,
+            expression_context=ExpressionContext(),
             items=["option 1", "option 2", "option 3"],
         )
         assert referenced_question is not None
@@ -846,6 +919,7 @@ class TestUpdateQuestion:
         with pytest.raises(DataSourceItemReferenceDependencyException) as error:
             update_question(
                 question=referenced_question,
+                expression_context=ExpressionContext(),
                 text="Updated Question",
                 hint="Updated Hint",
                 name="Updated Question Name",
@@ -866,6 +940,7 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.CHECKBOXES,
+            expression_context=ExpressionContext(),
             items=["option 1", "option 2", "option 3"],
         )
         assert referenced_question is not None
@@ -888,6 +963,7 @@ class TestUpdateQuestion:
         with pytest.raises(DataSourceItemReferenceDependencyException) as error:
             update_question(
                 question=referenced_question,
+                expression_context=ExpressionContext(),
                 text="Updated Question",
                 hint="Updated Hint",
                 name="Updated Question Name",
@@ -907,6 +983,7 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.CHECKBOXES,
+            expression_context=ExpressionContext(),
             items=["option 1", "option 2", "option 3"],
             presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=False),
         )
@@ -917,6 +994,7 @@ class TestUpdateQuestion:
 
         updated_question = update_question(
             question=question,
+            expression_context=ExpressionContext(),
             text="Updated Question",
             hint="Updated Hint",
             name="Updated Question Name",
@@ -951,6 +1029,7 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.DATE,
+            expression_context=ExpressionContext(),
             items=None,
             presentation_options=QuestionPresentationOptions(),
         )
@@ -961,6 +1040,7 @@ class TestUpdateQuestion:
 
         updated_question = update_question(
             question=question,
+            expression_context=ExpressionContext(),
             text="Updated Question",
             hint="Updated Hint",
             name="Updated Question Name",
@@ -983,10 +1063,12 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expression_context=ExpressionContext(),
         )
 
         updated_question = update_question(
             question=question,
+            expression_context=ExpressionContext(),
             guidance_heading="How to answer this question",
             guidance_body="This is detailed guidance with **markdown** formatting.",
         )
@@ -1002,12 +1084,17 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expression_context=ExpressionContext(),
         )
 
         question.guidance_heading = "Initial heading"
         question.guidance_body = "Initial body"
 
-        updated_question = update_question(question=question, text="Updated Question Text")
+        updated_question = update_question(
+            question=question,
+            expression_context=ExpressionContext(),
+            text="Updated Question Text",
+        )
 
         assert updated_question.text == "Updated Question Text"
         assert updated_question.guidance_heading == "Initial heading"
@@ -1021,15 +1108,47 @@ class TestUpdateQuestion:
             hint="Test Hint",
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expression_context=ExpressionContext(),
         )
 
         question.guidance_heading = "Initial heading"
         question.guidance_body = "Initial body"
 
-        updated_question = update_question(question=question, guidance_heading=None, guidance_body=None)
+        updated_question = update_question(
+            question=question,
+            expression_context=ExpressionContext(),
+            guidance_heading=None,
+            guidance_body=None,
+        )
 
         assert updated_question.guidance_heading is None
         assert updated_question.guidance_body is None
+
+    def test_validates_component_and_expression_references(self, db_session, factories, mocker):
+        form = factories.form.create()
+        user = factories.user.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.INTEGER,
+            expression_context=ExpressionContext(),
+        )
+        add_question_validation(question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True))
+
+        spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
+        spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
+
+        update_question(
+            question=question,
+            expression_context=ExpressionContext(),
+            guidance_heading=None,
+            guidance_body=None,
+        )
+
+        assert spy_validate1.call_count == 1
+        assert spy_validate2.call_count == 1  # called once for each expression on the question
 
 
 def test_move_question_up_down(db_session, factories):
@@ -1251,6 +1370,7 @@ def test_raise_if_radios_data_source_item_reference_dependency(db_session, facto
         hint="Test Hint",
         name="Test Question Name",
         data_type=QuestionDataType.RADIOS,
+        expression_context=ExpressionContext(),
         items=["option 1", "option 2", "option 3"],
         presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
     )
@@ -1278,6 +1398,7 @@ def test_raise_if_checkboxes_data_source_item_reference_dependency(db_session, f
         hint="Test Hint",
         name="Test Question Name",
         data_type=QuestionDataType.CHECKBOXES,
+        expression_context=ExpressionContext(),
         items=["option 1", "option 2", "option 3"],
         presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
     )
@@ -1960,7 +2081,12 @@ class TestValidateAndSyncComponentReferences:
         initial_refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
         assert len(initial_refs) == 0
 
-        _validate_and_sync_component_references(dependent_question)
+        _validate_and_sync_component_references(
+            dependent_question,
+            ExpressionContext.build_expression_context(
+                collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+            ),
+        )
 
         refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
         assert {ref.depends_on_component for ref in refs} == {text_question, hint_question, guidance_body_question}
@@ -1972,7 +2098,12 @@ class TestValidateAndSyncComponentReferences:
             form=ref_question1.form, text=f"Compare (({ref_question1.safe_qid})) with (({ref_question2.safe_qid}))"
         )
 
-        _validate_and_sync_component_references(dependent_question)
+        _validate_and_sync_component_references(
+            dependent_question,
+            ExpressionContext.build_expression_context(
+                collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+            ),
+        )
         db_session.flush()
 
         refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
@@ -1989,7 +2120,12 @@ class TestValidateAndSyncComponentReferences:
         db_session.add(expression)
         db_session.flush()
 
-        _validate_and_sync_component_references(dependent_question)
+        _validate_and_sync_component_references(
+            dependent_question,
+            ExpressionContext.build_expression_context(
+                collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+            ),
+        )
         db_session.flush()
 
         refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
@@ -1997,11 +2133,19 @@ class TestValidateAndSyncComponentReferences:
         assert refs[0].depends_on_component == referenced_question
         assert refs[0].expression == expression
 
-    def test_ignores_non_question_references(self, db_session, factories):
-        dependent_question = factories.question.create(text="Reference to ((some.non.question.ref)) here")
+    def test_throws_error_on_unknown_references(self, db_session, factories):
+        dependent_question = factories.question.create()
 
-        _validate_and_sync_component_references(dependent_question)
-        db_session.flush()
+        # Set the text with an invalid reference after creation so that ComponentReferences aren't created; they'd error
+        dependent_question.text = "Reference to ((some.non.question.ref)) here"
+
+        with pytest.raises(InvalidReferenceInExpression):
+            _validate_and_sync_component_references(
+                dependent_question,
+                ExpressionContext.build_expression_context(
+                    collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                ),
+            )
 
         refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
         assert len(refs) == 0
@@ -2013,11 +2157,16 @@ class TestValidateAndSyncComponentReferences:
         dependent_question.text = f"Complex expression (({referenced_question.safe_qid} + 100)) not allowed"
 
         with pytest.raises(ComplexExpressionException) as exc_info:
-            _validate_and_sync_component_references(dependent_question)
+            _validate_and_sync_component_references(
+                dependent_question,
+                ExpressionContext.build_expression_context(
+                    collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                ),
+            )
 
         assert exc_info.value.component == dependent_question
         assert exc_info.value.field_name == "text"
-        assert exc_info.value.bad_reference == f"(({referenced_question.safe_qid} + 100))"
+        assert exc_info.value.bad_expression == f"(({referenced_question.safe_qid} + 100))"
 
     def test_raises_complex_expression_for_special_characters(self, db_session, factories):
         dependent_question = factories.question.create(text="Initial text")
@@ -2026,11 +2175,16 @@ class TestValidateAndSyncComponentReferences:
         dependent_question.text = "Invalid expression ((question.id & something)) here"
 
         with pytest.raises(ComplexExpressionException) as exc_info:
-            _validate_and_sync_component_references(dependent_question)
+            _validate_and_sync_component_references(
+                dependent_question,
+                ExpressionContext.build_expression_context(
+                    collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                ),
+            )
 
         assert exc_info.value.component == dependent_question
         assert exc_info.value.field_name == "text"
-        assert exc_info.value.bad_reference == "((question.id & something))"
+        assert exc_info.value.bad_expression == "((question.id & something))"
 
     def test_removes_existing_references_before_creating_new_ones(self, db_session, factories):
         old_referenced_question = factories.question.create()
@@ -2046,7 +2200,12 @@ class TestValidateAndSyncComponentReferences:
 
         dependent_question.text = f"Now references (({new_referenced_question.safe_qid}))"
 
-        _validate_and_sync_component_references(dependent_question)
+        _validate_and_sync_component_references(
+            dependent_question,
+            ExpressionContext.build_expression_context(
+                collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+            ),
+        )
         db_session.flush()
 
         # Old reference should be deleted
@@ -2063,7 +2222,12 @@ class TestValidateAndSyncComponentReferences:
         referenced_question = factories.question.create(form=form)
         group = factories.group.create(form=form, text=f"Group referencing ((({referenced_question.safe_qid})))")
 
-        _validate_and_sync_component_references(group)
+        _validate_and_sync_component_references(
+            group,
+            ExpressionContext.build_expression_context(
+                collection=referenced_question.form.collection, fallback_question_names=True, mode="interpolation"
+            ),
+        )
         db_session.flush()
 
         refs = db_session.query(ComponentReference).filter_by(component=group).all()

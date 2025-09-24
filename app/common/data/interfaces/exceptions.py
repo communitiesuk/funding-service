@@ -68,7 +68,7 @@ class InvalidUserRoleError(Exception):
         super().__init__(self.message)
 
 
-class InvalidQuestionReference(Exception):
+class InvalidReferenceInExpression(Exception):
     def __init__(self, message: str, field_name: str, bad_reference: str):
         super().__init__(message)
         self.message = message
@@ -77,11 +77,11 @@ class InvalidQuestionReference(Exception):
 
 
 class ComplexExpressionException(Exception):
-    def __init__(self, component: Component, field_name: str, bad_reference: str):
+    def __init__(self, component: Component, field_name: str, bad_expression: str):
         super().__init__()
         self.component = component
         self.field_name = field_name
-        self.bad_reference = bad_reference
+        self.bad_expression = bad_expression
 
 
 @overload
