@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.common.collections.types import TextSingleLineAnswer
+from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
@@ -478,6 +479,28 @@ class TestUpdateGroup:
         assert updated_group.guidance_heading == "How to answer this question"
         assert updated_group.guidance_body == "This is detailed guidance with **markdown** formatting."
 
+    def test_synced_component_references(self, db_session, factories, mocker):
+        form = factories.form.create()
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        add_component_condition(group, user, GreaterThan(question_id=q1.id, minimum_value=100))
+
+        spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
+        spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
+
+        update_group(
+            group,
+            expression_context=ExpressionContext(),
+        )
+
+        assert spy_validate1.call_count == 1
+        assert spy_validate2.call_count == 1  # Called once for each expression
+
 
 class TestCreateQuestion:
     @pytest.mark.parametrize(
@@ -673,6 +696,23 @@ class TestCreateQuestion:
         )
         assert question.parent == group
         assert question.order == 0
+
+    def test_validates_component_references(self, db_session, factories, mocker):
+        form = factories.form.create()
+        spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
+        spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
+
+        create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expression_context=ExpressionContext(),
+        )
+
+        assert spy_validate1.call_count == 1
+        assert spy_validate2.call_count == 0  # No expressions to validate
 
 
 class TestUpdateQuestion:
@@ -1083,6 +1123,32 @@ class TestUpdateQuestion:
 
         assert updated_question.guidance_heading is None
         assert updated_question.guidance_body is None
+
+    def test_validates_component_and_expression_references(self, db_session, factories, mocker):
+        form = factories.form.create()
+        user = factories.user.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.INTEGER,
+            expression_context=ExpressionContext(),
+        )
+        add_question_validation(question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True))
+
+        spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
+        spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
+
+        update_question(
+            question=question,
+            expression_context=ExpressionContext(),
+            guidance_heading=None,
+            guidance_body=None,
+        )
+
+        assert spy_validate1.call_count == 1
+        assert spy_validate2.call_count == 1  # called once for each expression on the question
 
 
 def test_move_question_up_down(db_session, factories):
