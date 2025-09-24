@@ -5,6 +5,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "deliver_grant_funding/macros/question_table.html" import question_table %}
+{% from "deliver_grant_funding/macros/group_nesting_error_banner.html" import group_nesting_error_banner %}
 
 {% set page_title = group.name ~ " - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
@@ -36,6 +37,13 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.NESTED_GROUP_ERROR.value]) %}
+        {% if flashes %}
+          {% for error in flashes %}
+            {{ group_nesting_error_banner(error, interpolate=interpolate) }}
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DEPENDENCY_ORDER_ERROR.value, enum.flash_message_type.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value]) %}
         {% if flashes %}
           {% for error in flashes %}

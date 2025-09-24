@@ -394,6 +394,21 @@ def create_question(
     return question
 
 
+def raise_if_nested_group_creation_not_valid_here(parent: Group | None = None) -> None:
+    if parent:
+        if not parent.is_allowed_nested_groups:
+            raise NestedGroupException(
+                "You cannot create a nested group at this level",
+                parent_group=parent,
+                nesting_level=parent.nested_group_levels + 1,
+            )
+        if parent.same_page:
+            raise NestedGroupDisplayTypeSamePageException(
+                "You cannot create a nested group if the parent is set to display all questions on the same page",
+                parent_group=parent,
+            )
+
+
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def create_group(
     form: Form,
@@ -405,19 +420,7 @@ def create_group(
 ) -> Group:
     # If this group is nested, ensure it meets rules for nesting groups
     # This is a safety check as we don't allow users to create nested groups when these rules aren't met
-    if parent:
-        if not parent.is_allowed_nested_groups:
-            raise NestedGroupException(
-                "You cannot create a nested group at this level",
-                parent_group=parent,
-                child_group_name=name or text,
-                nesting_level=parent.nested_group_levels + 1,
-            )
-        if parent.same_page:
-            raise NestedGroupDisplayTypeSamePageException(
-                "You cannot create a nested group if the parent is set to display all questions on the same page",
-                parent_group=parent,
-            )
+    raise_if_nested_group_creation_not_valid_here(parent=parent)
     group = Group(
         text=text,
         name=name or text,
@@ -531,11 +534,10 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
 
 
 class NestedGroupException(Exception, FlashableException):
-    def __init__(self, message: str, parent_group: Group, child_group_name: str, nesting_level: int):
+    def __init__(self, message: str, parent_group: Group, nesting_level: int):
         super().__init__(message)
         self.message = message
         self.parent_group = parent_group
-        self.child_group_name = child_group_name
         self.nesting_level = nesting_level
 
     def as_flash_context(self) -> dict[str, str | bool]:
@@ -548,9 +550,9 @@ class NestedGroupException(Exception, FlashableException):
             "message": self.message,
             "parent_group_name": self.parent_group.name,
             "parent_group_id": str(self.parent_group.id),
-            "child_group_name": self.child_group_name,
             "nesting_level": str(self.nesting_level),
             "max_nesting_level": str(current_app.config["MAX_NESTED_GROUP_LEVELS"]),
+            "grant_id": str(self.parent_group.form.collection.grant_id),
         }
         flash_contexts.append(flash_context)
         return flash_contexts
@@ -576,6 +578,7 @@ class NestedGroupDisplayTypeSamePageException(Exception, FlashableException):
             "message": self.message,
             "parent_group_name": self.parent_group.name,
             "parent_group_id": str(self.parent_group.id),
+            "grant_id": str(self.parent_group.form.collection.grant_id),
         }
         flash_contexts.append(flash_context)
         return flash_contexts

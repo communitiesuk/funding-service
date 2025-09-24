@@ -15,6 +15,7 @@ from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     NestedGroupDisplayTypeSamePageException,
+    NestedGroupException,
     create_collection,
     create_form,
     create_group,
@@ -32,6 +33,7 @@ from app.common.data.interfaces.collections import (
     move_component_up,
     move_form_down,
     move_form_up,
+    raise_if_nested_group_creation_not_valid_here,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
     update_collection,
@@ -482,6 +484,15 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
 
+    if parent:
+        try:
+            raise_if_nested_group_creation_not_valid_here(parent=parent)
+        except (NestedGroupException, NestedGroupDisplayTypeSamePageException) as e:
+            flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # type: ignore[arg-type]
+            return redirect(
+                url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=parent.id)
+            )
+
     wt_form = GroupForm(name=group_name, check_name_exists=True, group_form_id=form_id)
 
     if wt_form.validate_on_submit():
@@ -532,16 +543,23 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
     wt_form = GroupDisplayOptionsForm()
 
     if wt_form.validate_on_submit():
-        group = create_group(
-            text=add_question_group.group_name,
-            form=form,
-            parent=parent,
-            presentation_options=QuestionPresentationOptions.from_group_form(wt_form),
-        )
-        session.pop("add_question_group", None)
-        return redirect(
-            url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, form_id=form_id, group_id=group.id)
-        )
+        try:
+            group = create_group(
+                text=add_question_group.group_name,
+                form=form,
+                parent=parent,
+                presentation_options=QuestionPresentationOptions.from_group_form(wt_form),
+            )
+            session.pop("add_question_group", None)
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_group_questions", grant_id=grant_id, form_id=form_id, group_id=group.id
+                )
+            )
+        except NestedGroupDisplayTypeSamePageException as e:
+            flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # type: ignore[arg-type]
+        except NestedGroupException as e:
+            flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # type: ignore[arg-type]
 
     return render_template(
         "deliver_grant_funding/reports/add_question_group_display_options.html",
@@ -550,6 +568,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
         group_name=add_question_group.group_name,
         form=wt_form,
         parent=parent,
+        interpolate=SubmissionHelper.get_interpolator(collection=form.collection, fallback_question_names=True),
     )
 
 
