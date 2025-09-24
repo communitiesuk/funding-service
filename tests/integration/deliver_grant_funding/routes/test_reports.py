@@ -904,8 +904,10 @@ class TestListGroupQuestions:
 
         # todo: extend with "change name" and "question group settings"
         delete_group_link = page_has_link(soup, "Delete question group")
+        add_question_group = page_has_link(soup, "Add a question group")
 
         assert (delete_group_link is not None) is can_edit
+        assert (add_question_group is not None) is can_edit
 
         if can_edit:
             assert delete_group_link.get("href") == AnyStringMatching(r"\?delete")
