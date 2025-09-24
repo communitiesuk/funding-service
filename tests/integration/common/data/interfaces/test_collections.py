@@ -470,6 +470,7 @@ class TestUpdateGroup:
         with pytest.raises(NestedGroupDisplayTypeSamePageException):
             update_group(
                 parent_group,
+                expression_context=ExpressionContext(),
                 presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
             )
         assert parent_group.presentation_options.show_questions_on_the_same_page is False
