@@ -972,9 +972,6 @@ class TestUpdateQuestion:
         add_component_condition(first_dependent_question, user, anyof_expression)
 
         second_dependent_question = factories.question.create(form=form)
-
-        # todo: for test setup do we want factories to clear the cache to make tests a bit more readable
-        del form.cached_all_components
         add_component_condition(second_dependent_question, user, anyof_expression)
 
         with pytest.raises(DataSourceItemReferenceDependencyException) as error:
@@ -1017,8 +1014,6 @@ class TestUpdateQuestion:
         add_component_condition(first_dependent_question, user, specifically_expression)
 
         second_dependent_question = factories.question.create(form=form)
-
-        del form.cached_all_components
         add_component_condition(second_dependent_question, user, specifically_expression)
 
         with pytest.raises(DataSourceItemReferenceDependencyException) as error:
