@@ -149,6 +149,7 @@ def build_question_form(  # noqa: C901
                     description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovTextInput(),
                     validators=[DataRequired(f"Enter the {question.name}")],
+                    filters=[lambda x: x.strip() if x else x],
                 )
             case QuestionDataType.TEXT_MULTI_LINE:
                 field = StringField(
@@ -165,6 +166,7 @@ def build_question_form(  # noqa: C901
                         if question.presentation_options.word_limit
                         else []
                     ),
+                    filters=[lambda x: x.strip() if x else x],
                 )
             case QuestionDataType.INTEGER:
                 field = IntegerField(
