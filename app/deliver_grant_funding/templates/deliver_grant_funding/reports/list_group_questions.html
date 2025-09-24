@@ -110,10 +110,10 @@
           <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id, parent_id=group.id) }}"
             >{{ "Add another question" if group.cached_questions else "Add a question" }}</a
           >
-          {% if group.is_allowed_nested_groups and not group.presentation_options.show_questions_on_the_same_page %}
+          {% if group.can_have_child_group and not group.presentation_options.show_questions_on_the_same_page %}
             <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_question_group_name', grant_id=grant.id, form_id=db_form.id, parent_id=group.id) }}"> {{ "Add a question group" }}</a>
           {% endif %}
-          {% if not group.is_allowed_nested_groups %}
+          {% if not group.can_have_child_group %}
             <p class="govuk-body">You cannot add a nested group because this group is already nested.</p>
           {% elif group.same_page %}
             <p class="govuk-body">You cannot add a nested group when display is set to show all questions on the same page.</p>
