@@ -531,25 +531,21 @@ def _check_component_order_dependency(component: Component, swap_component: Comp
     )
 
     for c in child_components:
-        for condition in c.conditions:
-            # check against each of the possible options we're comparing against
-            if condition.managed and condition.managed.question_id in [c.id for c in child_swap_components]:
+        component_name = "question_groups" if c.is_group else "questions"
+        for cr in c.owned_component_references:
+            if cr.depends_on_component in child_swap_components:
                 raise DependencyOrderException(
-                    "You cannot move "
-                    + ("question groups" if c.is_group else "questions")
-                    + " above answers they depend on",
+                    f"You cannot move {component_name} above answers they depend on",
                     component,
                     swap_component,
                 )
 
     for c in child_swap_components:
-        for condition in c.conditions:
-            # check against each of the possible options we're comparing against
-            if condition.managed and condition.managed.question_id in [c.id for c in child_components]:
+        component_name = "question_groups" if c.is_group else "questions"
+        for cr in c.owned_component_references:
+            if cr.depends_on_component in child_components:
                 raise DependencyOrderException(
-                    "You cannot move answers below "
-                    + ("question groups" if c.is_group else "questions")
-                    + " that depend on them",
+                    f"You cannot move answers below {component_name} that depend on them",
                     swap_component,
                     component,
                 )

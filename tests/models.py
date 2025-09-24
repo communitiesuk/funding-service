@@ -612,9 +612,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
 
         # Wipe the cache of questions on a form - because we're likely to be creating more forms/questions
         del self.form.cached_questions
-
-        if create:
-            db.session.commit()
+        db.session.commit()
 
 
 class _GroupFactory(SQLAlchemyModelFactory):
@@ -667,6 +665,22 @@ class _GroupFactory(SQLAlchemyModelFactory):
 
         if create:
             db.session.commit()
+
+    @factory.post_generation  # type: ignore[misc]
+    def _references(self: "Group", create: bool, extracted: list[Any], **kwargs: Any) -> None:
+        if not create:
+            return
+
+        _validate_and_sync_component_references(
+            self,
+            ExpressionContext.build_expression_context(
+                collection=self.form.collection, fallback_question_names=True, mode="interpolation"
+            ),
+        )
+
+        # Wipe the cache of questions on a form - because we're likely to be creating more forms/questions
+        del self.form.cached_questions
+        db.session.commit()
 
 
 class _SubmissionEventFactory(SQLAlchemyModelFactory):
