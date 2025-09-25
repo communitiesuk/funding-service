@@ -880,6 +880,12 @@ def _validate_and_sync_component_references(component: Component, expression_con
                         f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                     )
 
+                # Prevent manually injecting a reference to a question that appears later in the same form
+                if question.form.global_component_index(question) > question.form.global_component_index(component):
+                    raise InvalidReferenceInExpression(
+                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
+                    )
+
                 references_to_set_up.add((component.id, question.id))
 
     for component_id, depends_on_component_id in references_to_set_up:

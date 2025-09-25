@@ -612,6 +612,10 @@ class _QuestionFactory(SQLAlchemyModelFactory):
 
         # Wipe the cache of questions on a form - because we're likely to be creating more forms/questions
         del self.form.cached_questions
+        try:
+            del self.form.cached_all_components
+        except AttributeError:
+            pass
         db.session.commit()
 
 
@@ -680,6 +684,10 @@ class _GroupFactory(SQLAlchemyModelFactory):
 
         # Wipe the cache of questions on a form - because we're likely to be creating more forms/questions
         del self.form.cached_questions
+        try:
+            del self.form.cached_all_components
+        except AttributeError:
+            pass
         db.session.commit()
 
 

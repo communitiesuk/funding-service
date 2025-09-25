@@ -233,6 +233,7 @@ class TestSelectDataSourceQuestionForm:
         questions = factories.question.build_batch(5, data_type=QuestionDataType.INTEGER)
 
         mocker.patch.object(questions[2].form, "cached_questions", questions)
+        mocker.patch.object(questions[2].form, "cached_all_components", questions)
 
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,

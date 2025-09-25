@@ -426,8 +426,10 @@ class AddContextSelectSourceForm(FlaskForm):
             available_questions = [
                 q
                 for q in self.form.cached_questions
-                if self.current_question is None
-                or self.form.global_question_index(q) < self.form.global_question_index(self.current_question)
+                if (
+                    self.current_question is None
+                    or self.form.global_component_index(q) < self.form.global_component_index(self.current_question)
+                )
             ]
             if not available_questions:
                 raise ValidationError("There are no available questions before this one in the form")
@@ -458,8 +460,10 @@ class SelectDataSourceQuestionForm(FlaskForm):
         self.question.choices = [("", "")] + [
             (str(question.id), interpolate(question.text))
             for question in form.cached_questions
-            if current_question is None
-            or form.global_question_index(question) < form.global_question_index(current_question)
+            if (
+                current_question is None
+                or form.global_component_index(question) < form.global_component_index(current_question)
+            )
         ]  # type: ignore[assignment]
 
 
