@@ -285,8 +285,8 @@ def add_all_components_flat(component: Component, users: set[User], grant_export
             for reference in data_source_item.references:
                 grant_export["data_source_item_references"].append(to_dict(reference))
 
-        for component_reference in component.owned_component_references:
-            grant_export["component_references"].append(to_dict(component_reference))
+    for component_reference in component.owned_component_references:
+        grant_export["component_references"].append(to_dict(component_reference))
 
     if component.is_group:
         for sub_component in component.components:
@@ -299,7 +299,7 @@ def add_all_components_flat(component: Component, users: set[User], grant_export
 def sync_component_references() -> None:
     click.echo("Syncing all component references.")
 
-    count = db.session.query(Component).count()
+    count = db.session.query(ComponentReference).count()
     click.echo(f"Deleting {count} component references.")
 
     db.session.execute(delete(ComponentReference))
@@ -310,7 +310,7 @@ def sync_component_references() -> None:
             ExpressionContext.build_expression_context(collection=component.form.collection, mode="interpolation"),
         )
 
-    count = db.session.query(Component).count()
+    count = db.session.query(ComponentReference).count()
 
     db.session.commit()
 
