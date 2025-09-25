@@ -2168,6 +2168,28 @@ class TestValidateAndSyncExpressionReferences:
         assert new_reference.component == dependent_question
         assert new_reference.expression == expression
 
+    def test_creates_references_to_data_source_items(self, db_session, factories):
+        user = factories.user.create()
+        referenced_question = factories.question.create(data_type=QuestionDataType.RADIOS)
+        dependent_question = factories.question.create(form=referenced_question.form)
+
+        managed_expression = Specifically(
+            question_id=referenced_question.id,
+            item={
+                "key": referenced_question.data_source.items[0].key,
+                "label": referenced_question.data_source.items[0].label,
+            },
+        )
+        expression = Expression.from_managed(managed_expression, user)
+        dependent_question.expressions.append(expression)
+        db_session.add(expression)
+        assert len(expression.component_references) == 0
+
+        _validate_and_sync_expression_references(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 1
+
 
 class TestValidateAndSyncComponentReferences:
     def test_creates_references_for_supported_fields(self, db_session, factories):

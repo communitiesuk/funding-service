@@ -831,13 +831,39 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
     if not expression.is_managed:
         raise NotImplementedError("Cannot handle un-managed expressions yet")
 
-    reference = ComponentReference(
-        depends_on_component=expression.managed.referenced_question,
-        component=expression.question,
-        expression=expression,
-    )
-    db.session.add(reference)
-    expression.component_references = [reference]
+    # TODO: When an expression can target multiple questions, this will need refactoring to support that.
+    references: list[ComponentReference] = []
+
+    if not expression.is_managed:
+        raise ValueError("Cannot handle un-managed expressions yet")
+
+    managed = expression.managed
+    if isinstance(managed, BaseDataSourceManagedExpression):
+        referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
+            managed_expression=managed
+        )
+
+        # TODO: Support data sources that are independent of components(questions), eg when ee have platform-level
+        #       data sources.
+        for referenced_data_source_item in referenced_data_source_items:
+            cr = ComponentReference(
+                component=expression.question,
+                expression=expression,
+                depends_on_component=referenced_data_source_item.data_source.question,
+                depends_on_data_source_item=referenced_data_source_item,
+            )
+            db.session.add(cr)
+            references.append(cr)
+    else:
+        cr = ComponentReference(
+            depends_on_component=expression.managed.referenced_question,
+            component=expression.question,
+            expression=expression,
+        )
+        db.session.add(cr)
+        references.append(cr)
+
+    expression.component_references = references
 
 
 def _validate_and_sync_component_references(component: Component, expression_context: ExpressionContext) -> None:  # noqa: C901
