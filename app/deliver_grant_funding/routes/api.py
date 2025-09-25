@@ -29,7 +29,7 @@ def preview_guidance(collection_id: UUID) -> ResponseReturnValue:
 
     form = PreviewGuidanceForm()
     if form.validate_on_submit():
-        interpolate = SubmissionHelper.get_interpolator(collection, fallback_question_names=True)
+        interpolate = SubmissionHelper.get_interpolator(collection)
         return jsonify(
             PreviewGuidanceSuccessResponse(
                 guidance_html=interpolate(current_app.extensions["govuk_markdown"].convert(form.guidance.data))

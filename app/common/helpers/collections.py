@@ -87,13 +87,11 @@ class SubmissionHelper:
         self.cached_evaluation_context = ExpressionContext.build_expression_context(
             collection=self.submission.collection,
             submission_helper=self,
-            fallback_question_names=False,
             mode="evaluation",
         )
         self.cached_interpolation_context = ExpressionContext.build_expression_context(
             collection=self.submission.collection,
             submission_helper=self,
-            fallback_question_names=True,
             mode="interpolation",
         )
 
@@ -103,13 +101,12 @@ class SubmissionHelper:
 
     @staticmethod
     def get_interpolator(
-        collection: "Collection", fallback_question_names: bool, submission_helper: Optional["SubmissionHelper"] = None
+        collection: "Collection", submission_helper: Optional["SubmissionHelper"] = None
     ) -> Callable[[str], str]:
         return partial(
             interpolate,
             context=ExpressionContext.build_expression_context(
                 collection=collection,
-                fallback_question_names=fallback_question_names,
                 mode="interpolation",
                 submission_helper=submission_helper,
             ),

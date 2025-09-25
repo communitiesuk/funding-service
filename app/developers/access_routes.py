@@ -102,7 +102,7 @@ def ask_a_question(submission_id: uuid.UUID, question_id: uuid.UUID) -> Response
         "developers/access/ask_a_question.html",
         runner=runner,
         interpolate=SubmissionHelper.get_interpolator(
-            runner.submission.collection, fallback_question_names=True, submission_helper=runner.submission
+            runner.submission.collection, submission_helper=runner.submission
         ),
     )
 

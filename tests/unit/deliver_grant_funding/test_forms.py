@@ -237,9 +237,7 @@ class TestSelectDataSourceQuestionForm:
 
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,
-            interpolate=SubmissionHelper.get_interpolator(
-                collection=questions[2].form.collection, fallback_question_names=True
-            ),
+            interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
             current_question=questions[2],
         )
 
@@ -258,9 +256,7 @@ class TestSelectDataSourceQuestionForm:
 
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,
-            interpolate=SubmissionHelper.get_interpolator(
-                collection=questions[2].form.collection, fallback_question_names=True
-            ),
+            interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
             current_question=questions[2],
         )
 
@@ -271,9 +267,7 @@ class TestSelectDataSourceQuestionForm:
         group.presentation_options.show_questions_on_the_same_page = True
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,
-            interpolate=SubmissionHelper.get_interpolator(
-                collection=questions[2].form.collection, fallback_question_names=True
-            ),
+            interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
             current_question=questions[2],
         )
 
