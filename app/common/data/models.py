@@ -579,6 +579,12 @@ class DataSourceItem(BaseModel):
     references: Mapped[list["DataSourceItemReference"]] = relationship(
         "DataSourceItemReference", back_populates="data_source_item"
     )
+    component_references: Mapped[list["ComponentReference"]] = relationship(
+        "ComponentReference",
+        back_populates="depends_on_data_source_item",
+        # explicitly disable cascading deletes so that ComponentReference can protect the DataSourceItems
+        passive_deletes="all",
+    )
 
     __table_args__ = (
         UniqueConstraint("data_source_id", "order", name="uq_data_source_id_order", deferrable=True),
@@ -622,6 +628,9 @@ class ComponentReference(BaseModel):
     depends_on_component: Mapped[Component] = relationship(
         "Component", foreign_keys=[depends_on_component_id], back_populates="depended_on_by"
     )
+
+    depends_on_data_source_item_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("data_source_item.id"))
+    depends_on_data_source_item: Mapped[DataSourceItem | None] = relationship("DataSourceItem")
 
     # Mirror columns from the referenced component for ordering the Component.component_references relationship
     _sort_form_id: Mapped[uuid.UUID] = column_property(
