@@ -200,7 +200,8 @@ follow_untyped_imports = true
 [tool.pytest.ini_options]
 env = [
     "FLASK_ENV=unit_test",
-    "DATABASE_URL=postgresql+psycopg://overridden-by-fixture"
+    "DATABASE_URL=postgresql+psycopg://overridden-by-fixture",
+    "PGGSSENCMODE=disable" #https://github.com/ged/ruby-pg/issues/538#issuecomment-1591629049
 ]
 markers = [
     "e2e: Run E2E (browser) tests using playwright",
