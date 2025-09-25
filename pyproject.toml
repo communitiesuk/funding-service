@@ -53,14 +53,14 @@ dev = [
     "responses==0.25.8",
     "ruff==0.13.1",
     "sqlalchemy-utils==0.42.0",
-    "testcontainers[postgres]==4.13.0",
+    "testcontainers[postgres]==4.13.1",
     "types-flask-migrate==4.1.0.20250809",
     "types-wtforms==3.2.1.20250809",
     "html5lib==1.1",
     "types-html5lib==1.1.11.20250917",
     "types-pytz==2025.2.0.20250809",
-    "boto3==1.40.37",
-    "types-boto3==1.40.37",
+    "boto3==1.40.38",
+    "types-boto3==1.40.38",
     "freezegun==1.5.5",
     "import-linter==2.5",
     "ty==0.0.1a21",
@@ -200,7 +200,8 @@ follow_untyped_imports = true
 [tool.pytest.ini_options]
 env = [
     "FLASK_ENV=unit_test",
-    "DATABASE_URL=postgresql+psycopg://overridden-by-fixture"
+    "DATABASE_URL=postgresql+psycopg://overridden-by-fixture",
+    "PGGSSENCMODE=disable" #https://github.com/ged/ruby-pg/issues/538#issuecomment-1591629049
 ]
 markers = [
     "e2e: Run E2E (browser) tests using playwright",
