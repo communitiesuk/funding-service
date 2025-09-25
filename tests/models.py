@@ -32,7 +32,6 @@ from app.common.data.models import (
     Collection,
     DataSource,
     DataSourceItem,
-    DataSourceItemReference,
     Expression,
     Form,
     Grant,
@@ -51,7 +50,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import AnyOf, BaseDataSourceManagedExpression, GreaterThan, Specifically
+from app.common.expressions.managed import AnyOf, GreaterThan, Specifically
 from app.extensions import db
 from app.types import TRadioItem
 
@@ -571,27 +570,6 @@ class _QuestionFactory(SQLAlchemyModelFactory):
             return
         for expression in extracted:
             expression.question_id = self.id
-
-            if (
-                isinstance(expression.managed, BaseDataSourceManagedExpression)
-                and expression.managed.referenced_question.data_source
-            ):
-                # Longwindedly doing this via ORM to avoid additional DB queries when we switch the data export
-                # performance tests back on
-                all_referenced_question_data_source_items = expression.managed.referenced_question.data_source.items
-                expression_referenced_data_source_items = expression.managed.referenced_data_source_items
-                referenced_items = [
-                    item
-                    for item in all_referenced_question_data_source_items
-                    if any(
-                        item.key == expression_ref_item["key"]
-                        for expression_ref_item in expression_referenced_data_source_items
-                    )
-                ]
-                expression.data_source_item_references = [
-                    DataSourceItemReference(expression_id=expression.id, data_source_item_id=item.id)
-                    for item in referenced_items
-                ]
             self.expressions.append(expression)
 
         if create:
@@ -640,28 +618,6 @@ class _GroupFactory(SQLAlchemyModelFactory):
             return
         for expression in extracted:
             expression.question_id = self.id
-
-            if (
-                isinstance(expression.managed, BaseDataSourceManagedExpression)
-                and expression.managed.referenced_question.data_source
-            ):
-                # Longwindedly doing this via ORM to avoid additional DB queries when we switch the data export
-                # performance tests back on
-                all_referenced_question_data_source_items = expression.managed.referenced_question.data_source.items
-                expression_referenced_data_source_items = expression.managed.referenced_data_source_items
-                referenced_items = [
-                    item
-                    for item in all_referenced_question_data_source_items
-                    if any(
-                        item.key == expression_ref_item["key"]
-                        for expression_ref_item in expression_referenced_data_source_items
-                    )
-                ]
-                expression.data_source_item_references = [
-                    DataSourceItemReference(expression_id=expression.id, data_source_item_id=item.id)
-                    for item in referenced_items
-                ]
-
             db.session.add(expression)
             self.expressions.append(expression)
 

@@ -1,10 +1,9 @@
 import pytest
 from psycopg.errors import ForeignKeyViolation
-from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 
 from app import QuestionDataType
-from app.common.data.models import ComponentReference, DataSourceItemReference, Expression, Group
+from app.common.data.models import ComponentReference, Expression, Group
 from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
 from app.common.expressions.managed import GreaterThan, Specifically
 
@@ -198,9 +197,6 @@ class TestComponentReferenceModel:
             ],
         )
 
-        db_session.execute(delete(DataSourceItemReference))  # TODO: remove me when table goes
-        db_session.commit()
-
         with pytest.raises(IntegrityError) as e:
             db_session.delete(q1.data_source.items[0])
             db_session.commit()
@@ -226,9 +222,6 @@ class TestComponentReferenceModel:
                 ),
             ],
         )
-
-        db_session.execute(delete(DataSourceItemReference))  # TODO: remove me when table goes
-        db_session.commit()
 
         db_session.delete(q2.expressions[0])
         db_session.commit()

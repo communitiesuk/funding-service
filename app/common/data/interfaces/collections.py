@@ -20,7 +20,6 @@ from app.common.data.models import (
     ComponentReference,
     DataSource,
     DataSourceItem,
-    DataSourceItemReference,
     Expression,
     Form,
     Grant,
@@ -331,22 +330,6 @@ def _update_data_source(question: Question, items: list[str]) -> None:
         db.session.delete(item_to_delete)
     question.data_source.items = new_choices
     question.data_source.items.reorder()  # type: ignore[attr-defined]
-
-
-@flush_and_rollback_on_exceptions
-def _update_data_source_references(
-    expression: "Expression", managed_expression: "BaseDataSourceManagedExpression"
-) -> Expression:
-    referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
-        managed_expression=managed_expression
-    )
-    for dsir in expression.data_source_item_references:
-        db.session.delete(dsir)
-    expression.data_source_item_references = [
-        DataSourceItemReference(expression_id=expression.id, data_source_item_id=referenced_data_source_item.id)
-        for referenced_data_source_item in referenced_data_source_items
-    ]
-    return expression
 
 
 @flush_and_rollback_on_exceptions
@@ -675,11 +658,11 @@ def raise_if_data_source_item_reference_dependency(
 ) -> Never | None:
     data_source_item_dependency_map: dict[Component, set[DataSourceItem]] = {}
     for data_source_item in items_to_delete:
-        for reference in data_source_item.references:
-            dependent_question = reference.expression.question
-            if dependent_question not in data_source_item_dependency_map:
-                data_source_item_dependency_map[dependent_question] = set()
-            data_source_item_dependency_map[dependent_question].add(data_source_item)
+        for reference in data_source_item.component_references:
+            dependent_component = reference.component
+            if dependent_component not in data_source_item_dependency_map:
+                data_source_item_dependency_map[dependent_component] = set()
+            data_source_item_dependency_map[dependent_component].add(data_source_item)
 
     if data_source_item_dependency_map:
         db.session.rollback()
@@ -954,12 +937,6 @@ def add_component_condition(component: Component, user: User, managed_expression
     expression = Expression.from_managed(managed_expression, user)
     component.expressions.append(expression)
 
-    if (
-        isinstance(managed_expression, BaseDataSourceManagedExpression)
-        and managed_expression.referenced_question.data_source
-    ):
-        _update_data_source_references(expression=expression, managed_expression=managed_expression)
-
     _validate_and_sync_expression_references(expression)
 
     if component.parent and component.parent.same_page:
@@ -997,12 +974,6 @@ def update_question_expression(expression: Expression, managed_expression: "Mana
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key
-
-    if (
-        isinstance(managed_expression, BaseDataSourceManagedExpression)
-        and managed_expression.referenced_question.data_source
-    ):
-        expression = _update_data_source_references(expression=expression, managed_expression=managed_expression)
 
     _validate_and_sync_expression_references(expression)
     return expression

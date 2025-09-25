@@ -487,9 +487,6 @@ class Expression(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
-    data_source_item_references: Mapped[list["DataSourceItemReference"]] = relationship(
-        "DataSourceItemReference", back_populates="expression", cascade="all, delete-orphan"
-    )
     component_references: Mapped[list["ComponentReference"]] = relationship(
         "ComponentReference",
         back_populates="expression",
@@ -576,9 +573,6 @@ class DataSourceItem(BaseModel):
     label: Mapped[str]
 
     data_source: Mapped[DataSource] = relationship("DataSource", back_populates="items", uselist=False)
-    references: Mapped[list["DataSourceItemReference"]] = relationship(
-        "DataSourceItemReference", back_populates="data_source_item"
-    )
     component_references: Mapped[list["ComponentReference"]] = relationship(
         "ComponentReference",
         back_populates="depends_on_data_source_item",
@@ -590,16 +584,6 @@ class DataSourceItem(BaseModel):
         UniqueConstraint("data_source_id", "order", name="uq_data_source_id_order", deferrable=True),
         UniqueConstraint("data_source_id", "key", name="uq_data_source_id_key"),
     )
-
-
-class DataSourceItemReference(BaseModel):
-    __tablename__ = "data_source_item_reference"
-
-    data_source_item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_source_item.id"))
-    expression_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("expression.id"))
-
-    data_source_item: Mapped[DataSourceItem] = relationship("DataSourceItem", back_populates="references")
-    expression: Mapped[Expression] = relationship("Expression", back_populates="data_source_item_references")
 
 
 class ComponentReference(BaseModel):
