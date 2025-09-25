@@ -2191,7 +2191,7 @@ class TestValidateAndSyncComponentReferences:
         _validate_and_sync_component_references(
             dependent_question,
             ExpressionContext.build_expression_context(
-                collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                collection=dependent_question.form.collection, mode="interpolation"
             ),
         )
 
@@ -2208,7 +2208,7 @@ class TestValidateAndSyncComponentReferences:
         _validate_and_sync_component_references(
             dependent_question,
             ExpressionContext.build_expression_context(
-                collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                collection=dependent_question.form.collection, mode="interpolation"
             ),
         )
         db_session.flush()
@@ -2230,7 +2230,7 @@ class TestValidateAndSyncComponentReferences:
         _validate_and_sync_component_references(
             dependent_question,
             ExpressionContext.build_expression_context(
-                collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                collection=dependent_question.form.collection, mode="interpolation"
             ),
         )
         db_session.flush()
@@ -2251,7 +2251,7 @@ class TestValidateAndSyncComponentReferences:
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(
-                    collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                    collection=dependent_question.form.collection, mode="interpolation"
                 ),
             )
 
@@ -2262,9 +2262,7 @@ class TestValidateAndSyncComponentReferences:
         with pytest.raises(InvalidReferenceInExpression):
             _validate_and_sync_component_references(
                 question,
-                ExpressionContext.build_expression_context(
-                    collection=question.form.collection, fallback_question_names=True, mode="interpolation"
-                ),
+                ExpressionContext.build_expression_context(collection=question.form.collection, mode="interpolation"),
             )
 
     def test_throws_error_on_unknown_references(self, db_session, factories):
@@ -2277,7 +2275,7 @@ class TestValidateAndSyncComponentReferences:
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(
-                    collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                    collection=dependent_question.form.collection, mode="interpolation"
                 ),
             )
 
@@ -2294,7 +2292,7 @@ class TestValidateAndSyncComponentReferences:
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(
-                    collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                    collection=dependent_question.form.collection, mode="interpolation"
                 ),
             )
 
@@ -2312,7 +2310,7 @@ class TestValidateAndSyncComponentReferences:
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(
-                    collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                    collection=dependent_question.form.collection, mode="interpolation"
                 ),
             )
 
@@ -2337,7 +2335,7 @@ class TestValidateAndSyncComponentReferences:
         _validate_and_sync_component_references(
             dependent_question,
             ExpressionContext.build_expression_context(
-                collection=dependent_question.form.collection, fallback_question_names=True, mode="interpolation"
+                collection=dependent_question.form.collection, mode="interpolation"
             ),
         )
         db_session.flush()
@@ -2359,7 +2357,7 @@ class TestValidateAndSyncComponentReferences:
         _validate_and_sync_component_references(
             group,
             ExpressionContext.build_expression_context(
-                collection=referenced_question.form.collection, fallback_question_names=True, mode="interpolation"
+                collection=referenced_question.form.collection, mode="interpolation"
             ),
         )
         db_session.flush()

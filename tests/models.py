@@ -605,9 +605,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
 
         _validate_and_sync_component_references(
             self,
-            ExpressionContext.build_expression_context(
-                collection=self.form.collection, fallback_question_names=True, mode="interpolation"
-            ),
+            ExpressionContext.build_expression_context(collection=self.form.collection, mode="interpolation"),
         )
 
         # Wipe the cache of questions on a form - because we're likely to be creating more forms/questions
@@ -677,9 +675,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
 
         _validate_and_sync_component_references(
             self,
-            ExpressionContext.build_expression_context(
-                collection=self.form.collection, fallback_question_names=True, mode="interpolation"
-            ),
+            ExpressionContext.build_expression_context(collection=self.form.collection, mode="interpolation"),
         )
 
         # Wipe the cache of questions on a form - because we're likely to be creating more forms/questions

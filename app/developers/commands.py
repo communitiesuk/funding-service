@@ -307,9 +307,7 @@ def sync_component_references() -> None:
     for component in db.session.query(Component).all():
         _validate_and_sync_component_references(
             component,
-            ExpressionContext.build_expression_context(
-                collection=component.form.collection, fallback_question_names=True, mode="interpolation"
-            ),
+            ExpressionContext.build_expression_context(collection=component.form.collection, mode="interpolation"),
         )
 
     count = db.session.query(Component).count()

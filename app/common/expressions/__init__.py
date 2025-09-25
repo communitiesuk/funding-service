@@ -98,11 +98,11 @@ class ExpressionContext(ChainMap[str, Any]):
     @staticmethod
     def build_expression_context(
         collection: "Collection",
-        fallback_question_names: bool,
         mode: Literal["evaluation", "interpolation"],
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
+        fallback_question_names = mode == "interpolation"
 
         assert len(ExpressionContext.ContextSources) == 1, (
             "When defining a new source of context for expressions, "
