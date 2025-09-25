@@ -4,6 +4,7 @@
 {% set page_title = "Select a question - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
 {% set back_url = url_for("deliver_grant_funding.select_context_source", grant_id=grant.id, form_id=db_form.id) %}
+{% set cancel_url = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=add_context_data.question_id) if add_context_data.question_id else url_for('deliver_grant_funding.add_question', grant_id=grant.id, form_id=db_form.id, parent_id=add_context_data.parent_id) %}
 
 {% block beforeContent %}
   {{
@@ -26,7 +27,7 @@
         <span class="govuk-button-group">
           {{ form.submit(params={"text": "Use data"}) }}
 
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ back_url }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ cancel_url }}">Cancel</a>
         </span>
       </form>
     </div>

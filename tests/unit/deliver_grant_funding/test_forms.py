@@ -6,7 +6,7 @@ from flask import Flask, request
 from werkzeug.datastructures import MultiDict
 from wtforms import ValidationError
 
-from app.common.data.types import QuestionDataType, RoleEnum
+from app.common.data.types import QuestionDataType, QuestionPresentationOptions, RoleEnum
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
@@ -246,3 +246,36 @@ class TestSelectDataSourceQuestionForm:
         assert len(form.question.choices) == 3
         # '' is the default "no answer" choice
         assert {q[0] for q in form.question.choices} == {"", str(questions[0].id), str(questions[1].id)}
+
+    def test_questions_in_a_same_page_group_excluded(self, app, factories, mocker):
+        group = factories.group.build(
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False)
+        )
+        questions = factories.question.build_batch(5, parent=group, data_type=QuestionDataType.INTEGER)
+
+        mocker.patch.object(questions[2].form, "cached_questions", questions)
+        mocker.patch.object(questions[2].form, "cached_all_components", [group] + questions)
+
+        form = SelectDataSourceQuestionForm(
+            form=questions[2].form,
+            interpolate=SubmissionHelper.get_interpolator(
+                collection=questions[2].form.collection, fallback_question_names=True
+            ),
+            current_question=questions[2],
+        )
+
+        assert len(form.question.choices) == 3
+        # '' is the default "no answer" choice
+        assert {q[0] for q in form.question.choices} == {"", str(questions[0].id), str(questions[1].id)}
+
+        group.presentation_options.show_questions_on_the_same_page = True
+        form = SelectDataSourceQuestionForm(
+            form=questions[2].form,
+            interpolate=SubmissionHelper.get_interpolator(
+                collection=questions[2].form.collection, fallback_question_names=True
+            ),
+            current_question=questions[2],
+        )
+
+        assert len(form.question.choices) == 1
+        assert {q[0] for q in form.question.choices} == {""}
