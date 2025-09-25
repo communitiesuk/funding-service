@@ -893,7 +893,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
                     )
 
                 # Prevent manually injecting a reference to a question that appears later in the same form
-                if question.form.global_component_index(question) > question.form.global_component_index(component):
+                if question.form.global_component_index(question) >= question.form.global_component_index(component):
                     raise InvalidReferenceInExpression(
                         f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                     )
