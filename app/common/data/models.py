@@ -325,6 +325,9 @@ class Component(BaseModel):
 class Question(Component, SafeQidMixin):
     __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
 
+    # db field 'add another' for single field add anothers (on component as groups can also be add another)
+    # separate property on question to return true if question is part of an add another group (parent)
+
     if TYPE_CHECKING:
         # database constraints ensure the question component will have a data_type
         # we reflect that its required on the question component but don't hook in a competing migration

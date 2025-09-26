@@ -107,6 +107,16 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
 
 @flush_and_rollback_on_exceptions
 def update_submission_data(submission: Submission, question: Question, data: AllAnswerTypes) -> Submission:
+    # TODO add another: need to know the index of the add another item to upate the right one
+    # write unit tests:
+    # - updating a non-add another question
+    #    - updating a question with no existing answer
+    #    - updating a question with an existing answer
+    #    - updating but passing in an add_another_index - should fail
+    # - updating an add another question
+    #    - updating a question with no existing answer (need to create list)
+    #    - updating a question with an existing answer (update correct place in list)
+    #    - updating without passing in an add_another_index - should fail
     submission.data[str(question.id)] = data.get_value_for_submission()
     return submission
 

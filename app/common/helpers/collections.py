@@ -216,7 +216,11 @@ class SubmissionHelper:
             ) from e
 
     def _get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
-        visible_questions = self.cached_get_ordered_visible_questions(form)
+        # update checks to account for a question being part of add another
+        # if add another group, check that each item in the group is fully completed (ie all 3 questions in group are answered, not just 2)
+        visible_questions = self.cached_get_ordered_visible_questions(
+            form
+        )  # think about how this works with add another
         answers = [
             answer for q in visible_questions if (answer := self.cached_get_answer_for_question(q.id)) is not None
         ]
@@ -298,6 +302,7 @@ class SubmissionHelper:
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
     def _get_answer_for_question(self, question_id: UUID) -> AllAnswerTypes | None:
+        # TODO add another: take in the index of the add another item - validate if index provided or not vs whether it's an add another question
         question = self.get_question(question_id)
         serialised_data = self.submission.data.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
