@@ -111,23 +111,6 @@
           "id": "9a08fda4-6587-45a9-bfec-6b83a39c9c06"
         }
       ],
-      "data_source_item_references": [
-        {
-          "data_source_item_id": "12a0b4a5-18e6-4a43-a72d-4a5cde866efd",
-          "expression_id": "a314e646-7871-4d3c-b2f4-b7bd3ec54a57",
-          "id": "3834b6c6-1b63-4d4a-aaff-318b284ca68b"
-        },
-        {
-          "data_source_item_id": "11dd117b-48b5-45a3-b838-a34d7e3fc405",
-          "expression_id": "6e5f0e5d-42b3-45ba-a363-0cf4023755de",
-          "id": "35af743a-3b9c-41b6-bf49-bea301255c4e"
-        },
-        {
-          "data_source_item_id": "625963b4-06f8-44fe-bcc6-afde03b20040",
-          "expression_id": "28687a63-37b5-44f6-94a6-aa81d6310b7d",
-          "id": "63c275ff-a415-4aa3-a00a-bfafad6efb07"
-        }
-      ],
       "data_source_items": [
         {
           "data_source_id": "ad9f66a7-3843-4fce-ab66-80314ab821c4",
@@ -3255,93 +3238,6 @@
           "depends_on_data_source_item_id": "68d510eb-1f24-424c-bf33-4c0ebed2042c",
           "expression_id": "bbc9b30e-82cb-4558-b96d-f707a6c5ccad",
           "id": "5f1f6994-d19e-48e1-8906-c3b412caa1be"
-        }
-      ],
-      "data_source_item_references": [
-        {
-          "data_source_item_id": "c10ee801-4e5b-45d9-b82d-d5fc167cb1a3",
-          "expression_id": "593a31f5-a83e-4f08-8016-93a416424bae",
-          "id": "3ee7ea2b-61d0-4b8e-bc3b-bf44e17e691b"
-        },
-        {
-          "data_source_item_id": "289d0349-a14a-40f7-987d-825a8ce61b59",
-          "expression_id": "aec51b61-ed67-4b10-8288-4ad261270f8c",
-          "id": "253e0072-3d00-4366-89ef-10986d21e9cc"
-        },
-        {
-          "data_source_item_id": "aacd8075-8c5b-435b-b80b-eb45f2c731dd",
-          "expression_id": "71cd0bb7-a982-4102-a1e3-71c3a23b2cd8",
-          "id": "753293ed-65e0-4ec3-98b7-dfc40ce043ba"
-        },
-        {
-          "data_source_item_id": "910ab0c5-3401-4940-ae8c-ca318ced95e6",
-          "expression_id": "c5d07a72-a471-41f4-a62c-0231ec633000",
-          "id": "9bb7ba39-fa1a-43cb-9305-f57e74ed157b"
-        },
-        {
-          "data_source_item_id": "910ab0c5-3401-4940-ae8c-ca318ced95e6",
-          "expression_id": "791c4a9b-8bb4-41e0-9b7a-e76d18fb449d",
-          "id": "f5622e23-040b-4001-929e-764a9984197e"
-        },
-        {
-          "data_source_item_id": "910ab0c5-3401-4940-ae8c-ca318ced95e6",
-          "expression_id": "ea51e8a4-f2f3-419b-8d12-3ccb29cc675f",
-          "id": "2f189366-735f-492c-b661-4adb0aefdede"
-        },
-        {
-          "data_source_item_id": "910ab0c5-3401-4940-ae8c-ca318ced95e6",
-          "expression_id": "3586d88a-e61b-445f-ac34-533170e8f4b1",
-          "id": "9d840c80-1a1b-4551-b0bd-5878fb3df121"
-        },
-        {
-          "data_source_item_id": "d31dd20c-4c10-420a-afab-600f68219cc4",
-          "expression_id": "7f17374d-0e02-4bea-8398-2835ab20a78e",
-          "id": "8e3ff578-b4a5-485b-b4c7-713dabd81a7f"
-        },
-        {
-          "data_source_item_id": "8d1c87ad-a1b2-49c5-9352-ee214d367193",
-          "expression_id": "f84c9671-6b09-4ce3-bece-7a6e46affbc8",
-          "id": "9d281663-ec86-430a-b800-f00ea37e5b31"
-        },
-        {
-          "data_source_item_id": "c4ce11f4-6879-43a0-8815-79ea6d190060",
-          "expression_id": "145666ef-07bb-4662-94b8-73a83433921f",
-          "id": "9d24dc87-824f-40df-b6ae-652f37c28f5d"
-        },
-        {
-          "data_source_item_id": "e5ea629f-d9ec-44b9-881b-160f0b3982d7",
-          "expression_id": "920fd926-1b22-459b-b397-1f9d205b215c",
-          "id": "cf685144-a726-4a98-a670-d75dc8c93cb4"
-        },
-        {
-          "data_source_item_id": "e5ea629f-d9ec-44b9-881b-160f0b3982d7",
-          "expression_id": "145666ef-07bb-4662-94b8-73a83433921f",
-          "id": "6a310412-e336-4279-9b55-fbadc727abe3"
-        },
-        {
-          "data_source_item_id": "05cb8ddf-8877-47d9-8bd3-d77af3eae32e",
-          "expression_id": "31e7fb1a-cec9-4666-b1ff-abfa61f0b337",
-          "id": "d708920c-c92d-44f8-8e59-feee18ac64b8"
-        },
-        {
-          "data_source_item_id": "69d2fa7c-a196-4ee0-97b7-3ae909ec3670",
-          "expression_id": "ce208a2d-d6ed-4088-a30f-18f80b330fdb",
-          "id": "09b1405a-b693-43d9-bbcd-8c2ef488f43a"
-        },
-        {
-          "data_source_item_id": "ad82169e-8a46-4bfa-8427-7cf484837f12",
-          "expression_id": "18f191dd-b272-4c4c-bac2-3dacca7061ce",
-          "id": "f2555a33-7d93-4a58-b79c-4ae97163e624"
-        },
-        {
-          "data_source_item_id": "8ccda5ff-b1f5-4dff-9720-38dea6bb55ff",
-          "expression_id": "fd81e893-ac66-4e91-a155-f3dec42e6110",
-          "id": "f58e69ce-9e58-496e-a8e1-3f5c0ddde0d5"
-        },
-        {
-          "data_source_item_id": "68d510eb-1f24-424c-bf33-4c0ebed2042c",
-          "expression_id": "bbc9b30e-82cb-4558-b96d-f707a6c5ccad",
-          "id": "50d3d6c3-b979-41dc-bfd9-74266b2179ca"
         }
       ],
       "data_source_items": [
@@ -13751,7 +13647,6 @@
           "id": "480d8a4b-5523-4ee9-a347-76e9405beace"
         }
       ],
-      "data_source_item_references": [],
       "data_source_items": [],
       "data_sources": [],
       "expressions": [
@@ -13893,7 +13788,6 @@
         }
       ],
       "component_references": [],
-      "data_source_item_references": [],
       "data_source_items": [],
       "data_sources": [],
       "expressions": [],
