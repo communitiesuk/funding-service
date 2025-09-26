@@ -1,4 +1,4 @@
-"""empty message
+"""start tracking dependencies on data source items in the component reference table
 
 Revision ID: 004_migrate_data_source_refs
 Revises: 003_db_component_refs
