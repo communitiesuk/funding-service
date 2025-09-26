@@ -39,6 +39,7 @@ from app.common.data.interfaces.collections import (
     move_form_up,
     raise_if_data_source_item_reference_dependency,
     raise_if_group_questions_depend_on_each_other,
+    raise_if_nested_group_creation_not_valid_here,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
     update_group,
@@ -1412,6 +1413,107 @@ def test_move_group_with_group_dependencies(db_session, factories):
         move_component_down(group)
     assert e.value.question == group2  # ty: ignore[unresolved-attribute]
     assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+
+
+def test_move_nested_group_with_previous_question_dependencies(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    parent_group = factories.group.create(form=form)
+    q1_in_parent_group = factories.question.create(form=form, parent=parent_group)
+    child_group = factories.group.create(form=form, parent=parent_group)
+    factories.question.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000), user)],
+        parent=child_group,
+    )
+
+    # you can't move a nested group above a quetsion it depends on
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(child_group)
+    assert e.value.question == child_group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1_in_parent_group  # ty: ignore[unresolved-attribute]
+
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(q1_in_parent_group)
+    assert e.value.question == child_group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1_in_parent_group  # ty: ignore[unresolved-attribute]
+
+
+def test_move_question_with_dependencies_on_nested_group(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    parent_group = factories.group.create(form=form)
+    child_group = factories.group.create(form=form, parent=parent_group)
+    q1_in_child_group = factories.question.create(
+        form=form,
+        parent=child_group,
+    )
+    q2_in_parent_group = factories.question.create(
+        form=form,
+        parent=parent_group,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000), user)],
+    )
+
+    # you can't move a nested group below a quetsion that depends on it
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_down(child_group)
+    assert e.value.question == q2_in_parent_group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == child_group  # ty: ignore[unresolved-attribute]
+
+    with pytest.raises(DependencyOrderException) as e:
+        move_component_up(q2_in_parent_group)
+    assert e.value.question == q2_in_parent_group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == child_group  # ty: ignore[unresolved-attribute]
+
+
+def test_delete_depended_on_nested_group(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    parent_group = factories.group.create(form=form)
+    child_group = factories.group.create(form=form, parent=parent_group)
+    q1_in_child_group = factories.question.create(
+        form=form,
+        parent=child_group,
+    )
+    q2_in_parent_group = factories.question.create(
+        form=form,
+        parent=parent_group,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000), user)],
+    )
+
+    # you can't move a nested group below a quetsion that depends on it
+    with pytest.raises(DependencyOrderException) as e:
+        delete_question(child_group)
+    assert e.value.question == q2_in_parent_group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == child_group  # ty: ignore[unresolved-attribute]
+
+
+def test_raise_if_nested_group_creation_not_valid_here(db_session, factories):
+    form = factories.form.create()
+    parent_group = factories.group.create(form=form)
+    child_group = factories.group.create(form=form, parent=parent_group)
+
+    raise_if_nested_group_creation_not_valid_here(parent_group)
+    with pytest.raises(NestedGroupException):
+        raise_if_nested_group_creation_not_valid_here(child_group)
+
+
+def test_delete_question_depended_on_by_nested_group(db_session, factories):
+    form = factories.form.create()
+    user = factories.user.create()
+    parent_group = factories.group.create(form=form)
+    q1_in_parent_group = factories.question.create(form=form, parent=parent_group)
+    child_group = factories.group.create(form=form, parent=parent_group)
+    q1_in_child_group = factories.question.create(
+        form=form,
+        expressions=[Expression.from_managed(GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000), user)],
+        parent=child_group,
+    )
+
+    with pytest.raises(DependencyOrderException) as e:
+        delete_question(q1_in_parent_group)
+    assert e.value.question == q1_in_child_group  # ty: ignore[unresolved-attribute]
+    assert e.value.depends_on_question == q1_in_parent_group  # ty: ignore[unresolved-attribute]
 
 
 def test_raise_if_question_has_any_dependencies(db_session, factories):
