@@ -347,6 +347,25 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
                     _QuestionResponse("group2@example.com"),
                 ],
             },
+            {
+                "type": "group",
+                "text": "Nested Group",
+                "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+                "questions": [
+                    {
+                        "type": QuestionDataType.TEXT_SINGLE_LINE,
+                        "text": "Nested group single line of text",
+                        "answers": [_QuestionResponse("E2E question text single line nested group")],
+                    },
+                    {
+                        "type": QuestionDataType.EMAIL,
+                        "text": "Nested group Enter an email address",
+                        "answers": [
+                            _QuestionResponse("nested_group@example.com"),
+                        ],
+                    },
+                ],
+            },
         ],
     },
 }
@@ -369,13 +388,17 @@ def create_grant(new_grant_name: str, all_grants_page: AllGrantsPage) -> GrantDa
     return grant_dashboard_page
 
 
-def create_question_or_group(question_definition: TQuestionToTest, manage_task_page: ManageTaskPage):
+def create_question_or_group(
+    question_definition: TQuestionToTest,
+    manage_task_page: ManageTaskPage | EditQuestionGroupPage,
+    parent_group_name: str | None = None,
+):
     if question_definition["type"] == "group":
         add_question_group_page = manage_task_page.click_add_question_group(question_definition["text"])
         add_question_group_page.fill_in_question_group_name()
         group_display_options_page = add_question_group_page.click_continue()
         group_display_options_page.click_question_group_display_type(question_definition["display_options"])
-        edit_question_group_page = group_display_options_page.click_submit()
+        edit_question_group_page = group_display_options_page.click_submit(parent_group_name)
         if (
             question_definition.get("guidance") is not None
             and question_definition.get("display_options") == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
@@ -384,8 +407,11 @@ def create_question_or_group(question_definition: TQuestionToTest, manage_task_p
         if question_definition.get("condition") is not None:
             add_condition(edit_question_group_page, question_definition["text"], question_definition["condition"])
         for question in question_definition["questions"]:
-            create_question(question, edit_question_group_page)
-        manage_task_page = edit_question_group_page.click_task_breadcrumb()
+            create_question_or_group(question, edit_question_group_page, parent_group_name=question_definition["text"])
+        if parent_group_name:
+            edit_question_group_page.click_parent_group_breadcrumb()
+        else:
+            edit_question_group_page.click_task_breadcrumb()
     else:
         create_question(question_definition, manage_task_page)
 
@@ -503,25 +529,33 @@ def complete_question_group(
     question_page: RunnerQuestionPage,
     tasklist_page: RunnerTasklistPage,
     grant_name: str,
-    question_to_test: TQuestionToTest,
+    group_to_test: TQuestionToTest,
 ):
-    if question_to_test.get("guidance") is not None:
-        assert_question_visibility(question_page, question_to_test)
-    for nested_question in question_to_test["questions"]:
-        if question_to_test.get("guidance") is None:
+    if group_to_test.get("guidance") is not None:
+        assert_question_visibility(question_page, group_to_test)
+    for nested_question in group_to_test["questions"]:
+        if group_to_test.get("guidance") is None:
             question_page = RunnerQuestionPage(
-                tasklist_page.page, tasklist_page.domain, grant_name, nested_question["text"]
+                tasklist_page.page,
+                tasklist_page.domain,
+                grant_name,
+                nested_question["text"],
+                is_in_a_same_page_group=group_to_test["display_options"]
+                == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
             )
             assert_question_visibility(question_page, nested_question)
-        for question_response in nested_question["answers"]:
-            question_page.respond_to_question(
-                question_type=nested_question["type"],
-                question_text=nested_question["text"],
-                answer=question_response.answer,
-            )
-        if question_to_test["display_options"] == GroupDisplayOptions.ONE_QUESTION_PER_PAGE:
+        if nested_question["type"] == "group":
+            complete_question_group(question_page, tasklist_page, grant_name, nested_question)
+        else:
+            for question_response in nested_question["answers"]:
+                question_page.respond_to_question(
+                    question_type=nested_question["type"],
+                    question_text=nested_question["text"],
+                    answer=question_response.answer,
+                )
+        if group_to_test["display_options"] == GroupDisplayOptions.ONE_QUESTION_PER_PAGE:
             question_page.click_continue()
-    if question_to_test["display_options"] == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE:
+    if group_to_test["display_options"] == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE:
         question_page.click_continue()
 
 
@@ -558,12 +592,14 @@ def task_check_your_answers(
 ):
     check_your_answers_page = RunnerCheckYourAnswersPage(tasklist_page.page, tasklist_page.domain, grant_name)
 
-    for question_to_test in questions_to_test.values():
-        if question_to_test["type"] == "group":
-            for nested_question in question_to_test["questions"]:
-                assert_check_your_answers(check_your_answers_page, nested_question)
-        else:
-            assert_check_your_answers(check_your_answers_page, question_to_test)
+    def _assert_check_your_answers(questions_to_check: list[TQuestionToTest]):
+        for question_to_check in questions_to_check:
+            if question_to_check["type"] == "group":
+                _assert_check_your_answers(question_to_check["questions"])
+            else:
+                assert_check_your_answers(check_your_answers_page, question_to_check)
+
+    _assert_check_your_answers(list(questions_to_test.values()))
 
     expect(check_your_answers_page.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
 
@@ -773,17 +809,19 @@ def test_create_and_preview_report(
 
         answers_list = view_submission_page.get_questions_list_for_task(first_task_name)
         expect(answers_list).to_be_visible()
-        for question in questions_with_groups_to_test.values():
-            if question["type"] == "group":
-                for nested_question in question["questions"]:
-                    assert_view_report_answers(answers_list, nested_question)
-            else:
-                assert_view_report_answers(answers_list, question)
+
+        def _assert_view_report_answers(report_answers_list: Locator, questions_to_check: list[TQuestionToTest]):
+            for question_to_check in questions_to_check:
+                if question_to_check["type"] == "group":
+                    _assert_view_report_answers(report_answers_list, question_to_check["questions"])
+                else:
+                    assert_view_report_answers(report_answers_list, question_to_check)
+
+        _assert_view_report_answers(answers_list, list(questions_with_groups_to_test.values()))
 
         answers_list = view_submission_page.get_questions_list_for_task(second_task_name)
         expect(answers_list).to_be_visible()
-        for question in questions_to_test.values():
-            assert_view_report_answers(answers_list, question)
+        _assert_view_report_answers(answers_list, list(questions_to_test.values()))
 
         submissions_list_page = view_submission_page.click_submissions_breadcrumb()
 

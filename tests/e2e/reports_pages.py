@@ -911,12 +911,15 @@ class RunnerQuestionPage(ReportsBasePage):
         domain: str,
         grant_name: str,
         question_name: str,
+        is_in_a_same_page_group: bool = False,
     ) -> None:
         super().__init__(
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=question_name),
+            heading=page.get_by_text(question_name, exact=True)
+            if is_in_a_same_page_group
+            else page.get_by_role("heading", name=question_name),
         )
         self.question_name = question_name
         self.continue_button = page.get_by_role("button", name="Continue")
@@ -1101,7 +1104,7 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
             case _:
                 raise ValueError("Unknown group display option: {_}")
 
-    def click_submit(self) -> EditQuestionGroupPage:
+    def click_submit(self, parent_group_name: str | None = None) -> EditQuestionGroupPage:
         self.page.get_by_role("button", name="Add question group").click()
         reports_page = EditQuestionGroupPage(
             self.page,
@@ -1110,6 +1113,7 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
             report_name=self.report_name,
             task_name=self.task_name,
             group_name=self.group_name,
+            parent_group_name=parent_group_name,
         )
         expect(reports_page.heading).to_be_visible()
         return reports_page
@@ -1117,14 +1121,23 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
 
 class EditQuestionGroupPage(ReportsBasePage):
     task_breadcrumb: Locator
+    parent_breadcrumb: Locator | None
     change_display_options_link: Locator
     add_question_button: Locator
     add_guidance_button: Locator
     add_condition_button: Locator
     change_guidance_link: Locator
+    add_question_group_button: Locator
 
     def __init__(
-        self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str, group_name: str
+        self,
+        page: Page,
+        domain: str,
+        grant_name: str,
+        report_name: str,
+        task_name: str,
+        group_name: str,
+        parent_group_name: str | None = None,
     ) -> None:
         super().__init__(
             page,
@@ -1132,12 +1145,15 @@ class EditQuestionGroupPage(ReportsBasePage):
             grant_name=grant_name,
             heading=page.get_by_role("heading", name=group_name),
         )
+        self.parent_group_name = parent_group_name
         self.report_name = report_name
         self.task_name = task_name
         self.group_name = group_name
         self.task_breadcrumb = self.page.locator("a.govuk-breadcrumbs__link").filter(
             has=page.get_by_text(f"{task_name}")
         )
+        self.parent_breadcrumb = self.page.get_by_role("link", name=parent_group_name) if parent_group_name else None
+
         self.add_question_button = self.page.get_by_role("link", name="Add a question", exact=True).or_(
             self.page.get_by_role("link", name="Add another question")
         )
@@ -1145,6 +1161,7 @@ class EditQuestionGroupPage(ReportsBasePage):
         self.add_guidance_button = self.page.get_by_role("link", name="Add guidance")
         self.change_display_options_link = self.page.get_by_role("link", name="Change")
         self.change_guidance_link = self.page.get_by_role("link", name="Change  page heading")
+        self.add_question_group_button = self.page.get_by_role("link", name="Add a question group", exact=True)
 
     def click_task_breadcrumb(self) -> ManageTaskPage:
         self.task_breadcrumb.click()
@@ -1157,6 +1174,34 @@ class EditQuestionGroupPage(ReportsBasePage):
         )
         expect(manage_task_page.heading).to_be_visible()
         return manage_task_page
+
+    def click_parent_group_breadcrumb(self) -> EditQuestionGroupPage:
+        assert self.parent_breadcrumb
+        self.parent_breadcrumb.click()
+        manage_parent_group_page = EditQuestionGroupPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+            group_name=self.parent_group_name,  # type: ignore[arg-type]
+        )
+        expect(manage_parent_group_page.heading).to_be_visible()
+        return manage_parent_group_page
+
+    def click_add_question_group(self, group_name: str) -> AddQuestionGroupPage:
+        self.add_question_group_button.click()
+
+        add_question_group_page = AddQuestionGroupPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+            group_name=group_name,
+        )
+        expect(add_question_group_page.heading).to_be_visible()
+        return add_question_group_page
 
     def click_add_question(self) -> SelectQuestionTypePage:
         self.add_question_button.click()
