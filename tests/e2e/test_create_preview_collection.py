@@ -672,7 +672,15 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
         )
 
 
-def assert_view_report_answers(answers_list: Locator, question: TQuestionToTest) -> None:
+def assert_check_your_answer_for_all_questions(questions_to_check: list[TQuestionToTest], report_answers_list: Locator):
+    for question_to_check in questions_to_check:
+        if question_to_check["type"] == "group":
+            assert_check_your_answer_for_all_questions(question_to_check["questions"], report_answers_list)
+        else:
+            assert_check_your_answer_for_question(question_to_check, report_answers_list)
+
+
+def assert_check_your_answer_for_question(question: TQuestionToTest, answers_list: Locator) -> None:
     # TODO Can we combine this with the logic in assert_check_your_answers? Feels like duplication
     if "This question should not be shown" in question["text"]:
         return
@@ -819,18 +827,11 @@ def test_create_and_preview_report(
         answers_list = view_submission_page.get_questions_list_for_task(first_task_name)
         expect(answers_list).to_be_visible()
 
-        def _assert_view_report_answers(report_answers_list: Locator, questions_to_check: list[TQuestionToTest]):
-            for question_to_check in questions_to_check:
-                if question_to_check["type"] == "group":
-                    _assert_view_report_answers(report_answers_list, question_to_check["questions"])
-                else:
-                    assert_view_report_answers(report_answers_list, question_to_check)
-
-        _assert_view_report_answers(answers_list, list(questions_with_groups_to_test.values()))
+        assert_check_your_answer_for_all_questions(list(questions_with_groups_to_test.values()), answers_list)
 
         answers_list = view_submission_page.get_questions_list_for_task(second_task_name)
         expect(answers_list).to_be_visible()
-        _assert_view_report_answers(answers_list, list(questions_to_test.values()))
+        assert_check_your_answer_for_all_questions(list(questions_to_test.values()), answers_list)
 
         submissions_list_page = view_submission_page.click_submissions_breadcrumb()
 
