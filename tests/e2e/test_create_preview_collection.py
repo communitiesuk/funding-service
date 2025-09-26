@@ -64,7 +64,7 @@ class Condition:
 
 class QuestionDict(TypedDict):
     type: QuestionDataType
-    text: str  # this is mutated by the test runner to store the unique (uuid'd) question name
+    text: str
     answers: list[_QuestionResponse]
     choices: NotRequired[list[str]]
     options: NotRequired[QuestionPresentationOptions]
@@ -422,18 +422,17 @@ def create_question(question_definition: TQuestionToTest, manage_page: ManageTas
     question_details_page = question_type_page.click_continue()
 
     expect(question_details_page.page.get_by_text(question_definition["type"].value, exact=True)).to_be_visible()
-    question_uuid = uuid.uuid4()
-    question_text = f"{question_definition['text']} - {question_uuid}"
-    question_definition["text"] = question_text
+    question_text = question_definition["text"]
     expect(
         question_details_page.page.locator(".app-context-aware-editor__visible-textarea[id='text']")
     ).to_be_attached()
-    question_details_page.fill_question_text(question_text)
-    question_details_page.fill_question_name(f"e2e_question_{question_uuid}")
     expect(
         question_details_page.page.locator(".app-context-aware-editor__visible-textarea[id='hint']")
     ).to_be_attached()
-    question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
+
+    question_details_page.fill_question_text(question_text)
+    question_details_page.fill_question_name(question_text.lower())
+    question_details_page.fill_question_hint(f"Hint text for: {question_text}")
 
     if question_definition["type"] in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
         question_details_page.fill_data_source_items(question_definition["choices"])
@@ -686,19 +685,22 @@ def assert_check_your_answer_for_question(question: TQuestionToTest, answers_lis
         return
     if question["type"] == QuestionDataType.CHECKBOXES:
         expect(
-            answers_list.get_by_text(f"{question['text']} {' '.join(question['answers'][-1].answer)}")
+            answers_list.get_by_text(f"{question['text']} {' '.join(question['answers'][-1].answer)}", exact=True)
         ).to_be_visible()
     elif question["type"] == QuestionDataType.INTEGER:
         expect(
             answers_list.get_by_text(
                 f"{question['text']} {question['options'].prefix or ''}"
-                f"{format_thousands(int(question['answers'][-1].answer))}{question['options'].suffix or ''}"
+                f"{format_thousands(int(question['answers'][-1].answer))}{question['options'].suffix or ''}",
+                exact=True,
             )
         ).to_be_visible()
     elif question["type"] == QuestionDataType.DATE:
-        expect(answers_list.get_by_text(question["answers"][-1].check_your_answers_text)).to_be_visible()
+        expect(answers_list.get_by_text(question["answers"][-1].check_your_answers_text, exact=True)).to_be_visible()
     else:
-        expect(answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}")).to_be_visible()
+        expect(
+            answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}", exact=True)
+        ).to_be_visible()
 
 
 def switch_user(
@@ -750,7 +752,7 @@ def test_create_and_preview_report(
 
         # Add a first task and a questions/question group
         add_task_page = grant_reports_page.click_add_task(report_name=new_report_name, grant_name=new_grant_name)
-        first_task_name = f"E2E question group task {uuid.uuid4()}"
+        first_task_name = "E2E first task - grouped questions"
         add_task_page.fill_in_task_name(first_task_name)
         report_tasks_page = add_task_page.click_add_task()
         report_tasks_page.check_task_exists(first_task_name)
@@ -762,7 +764,7 @@ def test_create_and_preview_report(
         # Add a second task and a question of each type to the task
         report_tasks_page = navigate_to_report_tasks_page(page, domain, new_grant_name, new_report_name)
         add_task_page = report_tasks_page.click_add_task()
-        second_task_name = f"E2E task {uuid.uuid4()}"
+        second_task_name = "E2E second task - all question types"
         add_task_page.fill_in_task_name(second_task_name)
         report_tasks_page = add_task_page.click_add_task()
         report_tasks_page.check_task_exists(second_task_name)
