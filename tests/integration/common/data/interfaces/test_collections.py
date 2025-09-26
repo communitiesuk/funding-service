@@ -1688,9 +1688,13 @@ class TestExpressions:
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.ANY_OF
         assert q0.safe_qid and items[0].key and items[1].key in from_db.expressions[0].statement
 
-        assert len(from_db.expressions[0].data_source_item_references) == 2
-        assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[0].id
-        assert from_db.expressions[0].data_source_item_references[1].data_source_item_id == q0.data_source.items[1].id
+        assert len(from_db.expressions[0].component_references) == 2
+        assert (
+            from_db.expressions[0].component_references[0].depends_on_data_source_item_id == q0.data_source.items[0].id
+        )
+        assert (
+            from_db.expressions[0].component_references[1].depends_on_data_source_item_id == q0.data_source.items[1].id
+        )
 
         with pytest.raises(DuplicateValueError):
             add_component_condition(question, user, managed_expression)
@@ -1713,8 +1717,10 @@ class TestExpressions:
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.SPECIFICALLY
         assert q0.safe_qid and items[0].key in from_db.expressions[0].statement
 
-        assert len(from_db.expressions[0].data_source_item_references) == 1
-        assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[0].id
+        assert len(from_db.expressions[0].component_references) == 1
+        assert (
+            from_db.expressions[0].component_references[0].depends_on_data_source_item_id == q0.data_source.items[0].id
+        )
 
         with pytest.raises(DuplicateValueError):
             add_component_condition(question, user, managed_expression)
@@ -1785,8 +1791,10 @@ class TestExpressions:
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.ANY_OF
         assert q0.safe_qid and items[2].key in from_db.expressions[0].statement
 
-        assert len(from_db.expressions[0].data_source_item_references) == 1
-        assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[2].id
+        assert len(from_db.expressions[0].component_references) == 1
+        assert (
+            from_db.expressions[0].component_references[0].depends_on_data_source_item_id == q0.data_source.items[2].id
+        )
 
     def test_update_specifically_expression(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
@@ -1812,8 +1820,10 @@ class TestExpressions:
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.SPECIFICALLY
         assert q0.safe_qid and items[1].key in from_db.expressions[0].statement
 
-        assert len(from_db.expressions[0].data_source_item_references) == 1
-        assert from_db.expressions[0].data_source_item_references[0].data_source_item_id == q0.data_source.items[1].id
+        assert len(from_db.expressions[0].component_references) == 1
+        assert (
+            from_db.expressions[0].component_references[0].depends_on_data_source_item_id == q0.data_source.items[1].id
+        )
 
     def test_update_expression_errors_on_validation_overlap(self, db_session, factories):
         question = factories.question.create()
@@ -2167,6 +2177,28 @@ class TestValidateAndSyncExpressionReferences:
         assert new_reference.depends_on_component == referenced_question
         assert new_reference.component == dependent_question
         assert new_reference.expression == expression
+
+    def test_creates_references_to_data_source_items(self, db_session, factories):
+        user = factories.user.create()
+        referenced_question = factories.question.create(data_type=QuestionDataType.RADIOS)
+        dependent_question = factories.question.create(form=referenced_question.form)
+
+        managed_expression = Specifically(
+            question_id=referenced_question.id,
+            item={
+                "key": referenced_question.data_source.items[0].key,
+                "label": referenced_question.data_source.items[0].label,
+            },
+        )
+        expression = Expression.from_managed(managed_expression, user)
+        dependent_question.expressions.append(expression)
+        db_session.add(expression)
+        assert len(expression.component_references) == 0
+
+        _validate_and_sync_expression_references(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 1
 
 
 class TestValidateAndSyncComponentReferences:

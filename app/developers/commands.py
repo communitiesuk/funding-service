@@ -20,7 +20,6 @@ from app.common.data.models import (
     ComponentReference,
     DataSource,
     DataSourceItem,
-    DataSourceItemReference,
     Expression,
     Form,
     Grant,
@@ -59,7 +58,6 @@ GrantExport = TypedDict(
         "expressions": list[Any],
         "data_sources": list[Any],
         "data_source_items": list[Any],
-        "data_source_item_references": list[Any],
         "component_references": list[Any],
     },
 )
@@ -108,7 +106,6 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
             "expressions": [],
             "data_sources": [],
             "data_source_items": [],
-            "data_source_item_references": [],
             "component_references": [],
         }
 
@@ -215,11 +212,6 @@ def seed_grants() -> None:  # noqa: C901
             data_source_item = DataSourceItem(**data_source_item)
             db.session.add(data_source_item)
 
-        for data_source_item_reference in grant_data["data_source_item_references"]:
-            data_source_item_reference["id"] = uuid.UUID(data_source_item_reference["id"])
-            data_source_item_reference = DataSourceItemReference(**data_source_item_reference)
-            db.session.add(data_source_item_reference)
-
         for component_reference in grant_data["component_references"]:
             component_reference["id"] = uuid.UUID(component_reference["id"])
             component_reference = ComponentReference(**component_reference)
@@ -282,11 +274,8 @@ def add_all_components_flat(component: Component, users: set[User], grant_export
         for data_source_item in component.data_source.items:
             grant_export["data_source_items"].append(to_dict(data_source_item))
 
-            for reference in data_source_item.references:
-                grant_export["data_source_item_references"].append(to_dict(reference))
-
-        for component_reference in component.owned_component_references:
-            grant_export["component_references"].append(to_dict(component_reference))
+    for component_reference in component.owned_component_references:
+        grant_export["component_references"].append(to_dict(component_reference))
 
     if component.is_group:
         for sub_component in component.components:
@@ -299,7 +288,7 @@ def add_all_components_flat(component: Component, users: set[User], grant_export
 def sync_component_references() -> None:
     click.echo("Syncing all component references.")
 
-    count = db.session.query(Component).count()
+    count = db.session.query(ComponentReference).count()
     click.echo(f"Deleting {count} component references.")
 
     db.session.execute(delete(ComponentReference))
@@ -310,7 +299,7 @@ def sync_component_references() -> None:
             ExpressionContext.build_expression_context(collection=component.form.collection, mode="interpolation"),
         )
 
-    count = db.session.query(Component).count()
+    count = db.session.query(ComponentReference).count()
 
     db.session.commit()
 
