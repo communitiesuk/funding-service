@@ -23,7 +23,11 @@
     <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
     {% if runner.component.guidance_heading %}
       <h1 class="govuk-heading-l">{{ runner.component.guidance_heading }}</h1>
-      {{ runner.component.guidance_body | govuk_markdown }}
+
+      {# fixme: hack for now - what if you wanted both? should they therefore be separate markdown supported fields #}
+      {% if not runner.component.add_another %}
+        {{ runner.component.guidance_body | govuk_markdown }}
+      {% endif %}
     {% elif is_group %}
       <h1 class="govuk-heading-l">{{ runner.component.name }}</h1>
     {% endif %}
@@ -148,10 +152,12 @@
                 <li>{% include answer._render_answer_template %}</li>
               {% endfor %}
             </ul>
+
+            {# fixme: these should work on the same underlying check index method + count number of entires, only some small details should change for structured answers #}
           {% elif question.parent and question.parent.add_another %}
             {% do add_another_groups_registered.append(question.parent.id) %}
 
-            <ul class="govuk-list govuk-list--number">
+            <ul class="govuk-list govuk-list--bullet">
               {# we need to loop through the number of answers we have for the group and then for each question in the group get the answer at that index #}
               {% for i in range(0, submission.get_count_group_total(question.parent.id)) %}
                 {% set answers = [] %}

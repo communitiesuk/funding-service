@@ -44,6 +44,7 @@
         {% set answers = runner.submission.cached_get_answer_for_question(runner.component.id) or [] %}
         {# move this to a collections macro #}
         <h1 class="govuk-heading-l">You have added {{ answers|length }} {{ runner.component.name or "answers" }}</h1>
+
         {# {{ collection_check_your_answers(runner) }} #}
 
         {# i can only do this because its one answer - if it was a group it would need to get each answer separately #}
@@ -106,7 +107,13 @@
           {{ runner.add_another_form.submit }}
         </form>
       {% else %}
-        <h1 class="govuk-heading-l">{{ runner.component.name }}</h1>
+
+        {% if runner.component.guidance_heading %}
+          <h1 class="govuk-heading-l">{{ runner.component.guidance_heading }}</h1>
+          {{ runner.component.guidance_body | govuk_markdown }}
+        {% else %}
+          <h1 class="govuk-heading-l">{{ runner.component.name }}</h1>
+        {% endif %}
 
         {% set rows = [] %}
         {% set question = runner.questions[0] %}
@@ -174,10 +181,11 @@
             ]
             )
           %}
+          {# "value": {"html": value}, #}
           {%
             do rows.append({
-              "key": { "text": loop.index, "classes": "govuk-!-width-one-quarter"  },
-              "value": {"html": value},
+              "key": { "html": value, "classes": "govuk-!-font-weight-regular govuk-!-width-two-thirds"  },
+              "value": { "text": "", "classes": "govuk-!-hidden"  },
               "actions": {"items": actions if state.all_questions_answered else [], "classes": "govuk-!-width-one-third"},
             })
           %}
@@ -186,6 +194,7 @@
         {# "classes": "govuk-!-margin-bottom-9", #}
 
         {% if rows %}
+          <h2 class="govuk-heading-s">You have added {{ rows | length }} {{ runner.component.name | lower }}</h2>
           {{
             govukSummaryList({
               "rows": rows
@@ -215,8 +224,8 @@
 
             {{
               runner.add_another_form.submit(params={
-                "text": "Add an answer",
-                "classes": "govuk-button--secondary"
+                "text": "Add the first " ~ (runner.component.name | lower),
+                "classes": "govuk-!-margin-top-3"
               })
             }}
           </form>

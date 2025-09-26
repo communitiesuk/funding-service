@@ -344,12 +344,16 @@ class FormRunner:
 
         if self.component:
             first_question = self.questions[0] if self.component.is_group else self.component
-            if self.component.parent and self.component.parent.add_another:
+            if (self.component.is_group and self.component.add_another) or (
+                self.component.parent and self.component.parent.add_another
+            ):
                 previous_question = self.submission.get_previous_question(first_question.id)
                 if previous_question and (previous_question.parent == self.component.parent):
                     return self.to_url(
                         FormRunnerState.QUESTION, question=previous_question, add_another_index=self.add_another_index
                     )
+                else:
+                    return self.to_url(FormRunnerState.CHECK_ADD_ANOTHER, question=first_question)
 
             # todo: this will need to factor in more scenarios if its a group but for now
             if self.component.is_add_another and self.add_another_index is not None:

@@ -361,6 +361,20 @@ class SubmissionHelper:
                 else None
             )
         else:
+            # fixme - big hack, for now I just want the form to work as normal so if checking without an index (in the standard check) - it will just check for anything
+            # if question.parent and question.parent.add_another:
+            #     serialised_data = self.submission.data.get(str(question.parent.id))
+            #     if len(serialised_data):
+            #         add_another_index = 0
+            #         chose_question = question.parent.cached_questions[0]
+            #         return (
+            #             _deserialise_question_type(chose_question, serialised_data[add_another_index].get(str(chose_question.id)))
+            #             if serialised_data and serialised_data[add_another_index].get(str(chose_question.id))
+            #             else None
+            #         )
+            #     else:
+            #         return None
+            # else:
             serialised_data = self.submission.data.get(str(question_id))
             return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
 

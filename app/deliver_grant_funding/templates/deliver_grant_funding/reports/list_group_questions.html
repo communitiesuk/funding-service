@@ -116,7 +116,8 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% if group.same_page %}
+      {# todo: just doing this for now to let me use this on the page - a separate property from guidance might be clearer from a form designer or code structured point of view #}
+      {% if group.same_page or group.add_another %}
         <div class="govuk-body govuk-form-group">
           <h2 class="govuk-heading-m govuk-!-margin-top-5">Guidance</h2>
           <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question group, or to format your content with paragraphs, headings, lists or links.</p>
