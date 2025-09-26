@@ -65,6 +65,7 @@ class Condition:
 class QuestionDict(TypedDict):
     type: QuestionDataType
     text: str
+    display_text: str
     answers: list[_QuestionResponse]
     choices: NotRequired[list[str]]
     options: NotRequired[QuestionPresentationOptions]
@@ -88,6 +89,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "date": QuestionDict(
         type=QuestionDataType.DATE,
         text="Enter a date",
+        display_text="Enter a date",
         answers=[
             _QuestionResponse(
                 ["2003", "2", "01"],
@@ -106,6 +108,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "approx_date": QuestionDict(
         type=QuestionDataType.DATE,
         text="Enter an approximate date",
+        display_text="Enter an approximate date",
         answers=[
             _QuestionResponse(
                 ["2003", "2"],
@@ -125,6 +128,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "prefix-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter the total cost as a number",
+        "display_text": "Enter the total cost as a number",
         "answers": [
             _QuestionResponse("0", "The answer must be greater than 1"),
             _QuestionResponse("10000"),
@@ -137,6 +141,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "suffix-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter the total weight as a number",
+        "display_text": "Enter the total weight as a number",
         "answers": [
             _QuestionResponse("101", "The answer must be less than or equal to 100"),
             _QuestionResponse("100"),
@@ -153,6 +158,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "between-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter a number between 20 and 100",
+        "display_text": "Enter a number between 20 and 100",
         "answers": [
             _QuestionResponse("101", "The answer must be between 20 (inclusive) and 100 (exclusive)"),
             _QuestionResponse("20"),
@@ -173,6 +179,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "yes-no": {
         "type": QuestionDataType.YES_NO,
         "text": "Yes or no",
+        "display_text": "Yes or no",
         "answers": [
             _QuestionResponse("Yes"),
         ],
@@ -190,6 +197,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "radio": {
         "type": QuestionDataType.RADIOS,
         "text": "Select an option",
+        "display_text": "Select an option",
         "choices": ["option 1", "option 2", "option 3"],
         "answers": [
             _QuestionResponse("option 2"),
@@ -199,6 +207,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "autocomplete": {
         "type": QuestionDataType.RADIOS,
         "text": "Select an option from the accessible autocomplete",
+        "display_text": "Select an option from the accessible autocomplete",
         "choices": [f"option {x}" for x in range(1, 30)],
         "answers": [
             _QuestionResponse("Other"),
@@ -215,6 +224,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "checkboxes": {
         "type": QuestionDataType.CHECKBOXES,
         "text": "Select one or more options",
+        "display_text": "Select one or more options",
         "choices": ["option 1", "option 2", "option 3", "option 4"],
         "answers": [
             _QuestionResponse(["option 2", "option 3"]),
@@ -228,6 +238,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "email": {
         "type": QuestionDataType.EMAIL,
         "text": "Enter an email address",
+        "display_text": "Enter an email address",
         "answers": [
             _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
             _QuestionResponse("name@example.com"),
@@ -240,6 +251,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "text-single-line": {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
         "text": "Enter a single line of text",
+        "display_text": "Enter a single line of text",
         "answers": [_QuestionResponse("E2E question text single line")],
         "guidance": GuidanceText(
             heading="This is a guidance page heading",
@@ -253,6 +265,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "text-multi-line": {
         "type": QuestionDataType.TEXT_MULTI_LINE,
         "text": "Enter a few lines of text",
+        "display_text": "Enter a few lines of text",
         "answers": [
             _QuestionResponse("E2E question text multi line\nwith a second line that's over the word limit"),
             _QuestionResponse("E2E question text multi line\nwith a second line"),
@@ -262,6 +275,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "url": {
         "type": QuestionDataType.URL,
         "text": "Enter a website address",
+        "display_text": "Enter a website address",
         "answers": [
             _QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
             _QuestionResponse("https://gov.uk"),
@@ -270,6 +284,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "text-single-line-not-shown": {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
         "text": "This question should not be shown",
+        "display_text": "This question should not be shown",
         "answers": [_QuestionResponse("This question shouldn't be shown")],
         "condition": Condition(referenced_question="Yes or no", managed_expression=IsNo(question_id=uuid.uuid4())),
     },
@@ -283,6 +298,7 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
     "yes-no": {
         "type": QuestionDataType.YES_NO,
         "text": "Do you want to show question groups?",
+        "display_text": "Do you want to show question groups?",
         "answers": [
             _QuestionResponse("Yes"),
         ],
@@ -307,11 +323,13 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             {
                 "type": QuestionDataType.TEXT_SINGLE_LINE,
                 "text": "Group Enter a single line of text",
+                "display_text": "Group Enter a single line of text",
                 "answers": [_QuestionResponse("E2E question text single line")],
             },
             {
                 "type": QuestionDataType.URL,
                 "text": "Group Enter a website address",
+                "display_text": "Group Enter a website address",
                 "answers": [
                     _QuestionResponse("https://gov.uk"),
                 ],
@@ -319,6 +337,7 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             {
                 "type": QuestionDataType.EMAIL,
                 "text": "Group Enter an email address",
+                "display_text": "Group Enter an email address",
                 "answers": [
                     _QuestionResponse("group@example.com"),
                 ],
@@ -328,6 +347,7 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
     "text-single-line": {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
         "text": "Enter another single line of text",
+        "display_text": "Enter another single line of text",
         "answers": [_QuestionResponse("E2E question text single line second answer")],
     },
     "question-group-one-per-page": {
@@ -338,11 +358,13 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             {
                 "type": QuestionDataType.TEXT_SINGLE_LINE,
                 "text": "Second group Enter a single line of text",
+                "display_text": "Second group Enter a single line of text",
                 "answers": [_QuestionResponse("E2E question text single line group")],
             },
             {
                 "type": QuestionDataType.EMAIL,
                 "text": "Second group Enter an email address",
+                "display_text": "Second group Enter an email address",
                 "answers": [
                     _QuestionResponse("group2@example.com"),
                 ],
@@ -355,11 +377,13 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
                     {
                         "type": QuestionDataType.TEXT_SINGLE_LINE,
                         "text": "Nested group single line of text",
+                        "display_text": "Nested group single line of text",
                         "answers": [_QuestionResponse("E2E question text single line nested group")],
                     },
                     {
                         "type": QuestionDataType.EMAIL,
                         "text": "Nested group Enter an email address",
+                        "display_text": "Nested group Enter an email address",
                         "answers": [
                             _QuestionResponse("nested_group@example.com"),
                         ],
@@ -558,7 +582,7 @@ def complete_question_group(
             for question_response in nested_question["answers"]:
                 question_page.respond_to_question(
                     question_type=nested_question["type"],
-                    question_text=nested_question["text"],
+                    question_text=nested_question["display_text"],
                     answer=question_response.answer,
                 )
         if group_to_test["display_options"] == GroupDisplayOptions.ONE_QUESTION_PER_PAGE:
@@ -573,7 +597,10 @@ def complete_task(
     tasklist_page.click_on_task(task_name=task_name)
     for question_to_test in questions_to_test.values():
         question_page = RunnerQuestionPage(
-            tasklist_page.page, tasklist_page.domain, grant_name, question_to_test["text"]
+            tasklist_page.page,
+            tasklist_page.domain,
+            grant_name,
+            question_to_test.get("display_text", question_to_test["text"]),
         )
 
         if question_to_test["type"] == "group":
@@ -581,10 +608,10 @@ def complete_task(
         else:
             assert_question_visibility(question_page, question_to_test)
             for question_response in question_to_test["answers"]:
-                if "This question should not be shown" not in question_to_test["text"]:
+                if "This question should not be shown" not in question_to_test["display_text"]:
                     question_page.respond_to_question(
                         question_type=question_to_test["type"],
-                        question_text=question_to_test["text"],
+                        question_text=question_to_test["display_text"],
                         answer=question_response.answer,
                     )
                     question_page.click_continue()
@@ -649,7 +676,7 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
     if "This question should not be shown" in question["text"]:
         return
 
-    question_heading = check_your_answers_page.page.get_by_text(question["text"], exact=True)
+    question_heading = check_your_answers_page.page.get_by_text(question["display_text"], exact=True)
     expect(question_heading).to_be_visible()
 
     if question["type"] == QuestionDataType.CHECKBOXES:
