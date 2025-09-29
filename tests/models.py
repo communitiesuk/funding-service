@@ -562,6 +562,8 @@ class _QuestionFactory(SQLAlchemyModelFactory):
         yes_declaration=factory.RelatedFactory(_DataSourceFactory, factory_related_name="question"),
         no_declaration=None,
     )
+    parent = None
+    parent_id = factory.LazyAttribute(lambda o: o.parent.id if o.parent else None)
 
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
 

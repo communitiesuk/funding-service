@@ -674,6 +674,35 @@ def raise_if_data_source_item_reference_dependency(
     return None
 
 
+class AddAnotherNotValidException(Exception, FlashableException):
+    def __init__(self, message: str, component: Component, add_another_container: Component):
+        super().__init__(message)
+        self.message = message
+        self.component = component
+        self.add_another_container = add_another_container
+
+    def as_flash_context(self) -> dict[str, str | bool]:
+        return {
+            "message": self.message,
+            "grant_id": str(self.component.form.collection.grant_id),  # Required for URL routing
+            "component_id": str(self.component.id),
+            "component_text": self.component.text,
+            "add_another_container_id": str(self.add_another_container.id),
+            "add_another_container_text": self.add_another_container.text,
+        }
+
+
+def raise_if_add_another_not_valid_here(component: Component) -> None:
+    if not component.add_another:
+        return
+    if component.parent and component.parent.add_another_container:
+        raise AddAnotherNotValidException(
+            "You cannot create an add another component within an add another group",
+            component,
+            component.parent.add_another_container,
+        )
+
+
 @flush_and_rollback_on_exceptions
 def move_component_up(component: Component) -> Component:
     swap_component = component.container.components[component.order - 1]
