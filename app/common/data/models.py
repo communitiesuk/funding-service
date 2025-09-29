@@ -322,6 +322,20 @@ class Component(BaseModel):
 
     __mapper_args__ = {"polymorphic_on": type}
 
+    @property
+    def add_another_container(self) -> "Component | None":
+        if self.add_another:
+            return self
+
+        add_another_parent = self.parent
+        while add_another_parent and not add_another_parent.add_another:
+            add_another_parent = add_another_parent.parent
+
+        if add_another_parent and add_another_parent.add_another:
+            return add_another_parent
+
+        return None
+
 
 class Question(Component, SafeQidMixin):
     __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
