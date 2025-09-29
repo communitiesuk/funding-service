@@ -51,7 +51,6 @@ from app.common.data.interfaces.collections import (
     update_submission_data,
 )
 from app.common.data.interfaces.exceptions import (
-    ComplexExpressionException,
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
@@ -2686,7 +2685,7 @@ class TestValidateAndSyncComponentReferences:
 
         dependent_question.text = f"Complex expression (({referenced_question.safe_qid} + 100)) not allowed"
 
-        with pytest.raises(ComplexExpressionException) as exc_info:
+        with pytest.raises(InvalidReferenceInExpression) as exc_info:
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(
@@ -2694,9 +2693,8 @@ class TestValidateAndSyncComponentReferences:
                 ),
             )
 
-        assert exc_info.value.component == dependent_question
         assert exc_info.value.field_name == "text"
-        assert exc_info.value.bad_expression == f"(({referenced_question.safe_qid} + 100))"
+        assert exc_info.value.bad_reference == f"(({referenced_question.safe_qid} + 100))"
 
     def test_raises_complex_expression_for_special_characters(self, db_session, factories):
         dependent_question = factories.question.create(text="Initial text")
@@ -2704,7 +2702,7 @@ class TestValidateAndSyncComponentReferences:
         # Update after creation because the factory would try to create a ComponentReference and throw an error
         dependent_question.text = "Invalid expression ((question.id & something)) here"
 
-        with pytest.raises(ComplexExpressionException) as exc_info:
+        with pytest.raises(InvalidReferenceInExpression) as exc_info:
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(
@@ -2712,9 +2710,8 @@ class TestValidateAndSyncComponentReferences:
                 ),
             )
 
-        assert exc_info.value.component == dependent_question
         assert exc_info.value.field_name == "text"
-        assert exc_info.value.bad_expression == "((question.id & something))"
+        assert exc_info.value.bad_reference == "((question.id & something))"
 
     def test_removes_existing_references_before_creating_new_ones(self, db_session, factories):
         old_referenced_question = factories.question.create()

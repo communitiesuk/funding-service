@@ -42,7 +42,6 @@ from app.common.data.interfaces.collections import (
     update_question,
 )
 from app.common.data.interfaces.exceptions import (
-    ComplexExpressionException,
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
@@ -754,9 +753,6 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-        except ComplexExpressionException as e:
-            field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_expression}")  # type:ignore[attr-defined]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
             field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
@@ -965,9 +961,6 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
-        except ComplexExpressionException as e:
-            field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_expression}")  # type:ignore[attr-defined]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
             field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
@@ -1060,12 +1053,9 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
                 else url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=question.id)
             )
 
-        except ComplexExpressionException as e:
-            field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"Compound references are currently not allowed: {e.bad_expression}")  # type:ignore[attr-defined]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(form, e.field_name)
-            field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
+            field_with_error.errors.append(e.message)
 
     return render_template(
         "deliver_grant_funding/reports/manage_guidance.html",

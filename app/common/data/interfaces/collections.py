@@ -9,7 +9,6 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import (
-    ComplexExpressionException,
     DuplicateValueError,
     InvalidReferenceInExpression,
     flush_and_rollback_on_exceptions,
@@ -946,10 +945,10 @@ def _validate_and_sync_component_references(component: Component, expression_con
             wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
 
             if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
-                raise ComplexExpressionException(
-                    component=component,
+                raise InvalidReferenceInExpression(
+                    f"Reference is not valid: {wrapped_ref}",
                     field_name=field_name,
-                    bad_expression=match.group(0),
+                    bad_reference=wrapped_ref,
                 )
 
             # TODO: When we allow complex references (eg not just a single reference but some combination of references
