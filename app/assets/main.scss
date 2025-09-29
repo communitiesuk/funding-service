@@ -6,7 +6,7 @@ $govuk-brand-colour: #00625e;
 
 @import "../../node_modules/govuk-frontend/dist/govuk";
 @import "../../node_modules/accessible-autocomplete";
-@import "./css/markdown-editor-component";
+@import "./css/context-aware-editor";
 
 .app-\!-no-wrap {
     white-space: nowrap;

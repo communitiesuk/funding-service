@@ -84,7 +84,7 @@ const inputEventListener = () => {
 const addLiveRegion = () => {
   const liveRegion = document.createElement('div')
   liveRegion.setAttribute('role', 'status')
-  liveRegion.classList.add('app-markdown-editor__notification-area')
+  liveRegion.classList.add('app-context-aware-editor__notification-area')
   store.liveRegion = liveRegion
   store.source.after(liveRegion)
 }
@@ -105,7 +105,7 @@ const createErrorArea = () => {
       ?.querySelector('.govuk-error-message') ?? document.createElement('p')
   store.errorArea.classList.add(
     'govuk-error-message',
-    'app-markdown-editor__error-message'
+    'app-context-aware-editor__error-message'
   )
   store.source.closest('.govuk-form-group').prepend(store.errorArea)
   setAriaAttributesForError()

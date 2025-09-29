@@ -425,8 +425,14 @@ def create_question(question_definition: TQuestionToTest, manage_page: ManageTas
     question_uuid = uuid.uuid4()
     question_text = f"{question_definition['text']} - {question_uuid}"
     question_definition["text"] = question_text
+    expect(
+        question_details_page.page.locator(".app-context-aware-editor__visible-textarea[id='text']")
+    ).to_be_attached()
     question_details_page.fill_question_text(question_text)
     question_details_page.fill_question_name(f"e2e_question_{question_uuid}")
+    expect(
+        question_details_page.page.locator(".app-context-aware-editor__visible-textarea[id='hint']")
+    ).to_be_attached()
     question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
 
     if question_definition["type"] in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
@@ -496,6 +502,9 @@ def add_question_guidance(
     if guidance is not None:
         add_guidance_page = edit_question_page.click_add_guidance()
         add_guidance_page.fill_guidance_heading(guidance.heading)
+        expect(
+            add_guidance_page.page.locator(".app-context-aware-editor__visible-textarea[id='guidance_body']")
+        ).to_be_attached()
         add_guidance_page.fill_guidance_default()
         edit_question_page = add_guidance_page.click_save_guidance_button(edit_question_page)
         expect(edit_question_page.page.get_by_text("Page heading", exact=True)).to_be_visible()
