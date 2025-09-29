@@ -549,6 +549,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
         lambda o: len(o.parent.components) if getattr(o, "parent", None) else len(o.form.components)
     )
     data_type = QuestionDataType.TEXT_SINGLE_LINE
+    add_another = False
 
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)
@@ -611,6 +612,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
 
     form = factory.SubFactory(_FormFactory)
     form_id = factory.LazyAttribute(lambda o: o.form.id)
+    add_another = False
 
     parent = None
     parent_id = factory.LazyAttribute(lambda o: o.parent.id if o.parent else None)

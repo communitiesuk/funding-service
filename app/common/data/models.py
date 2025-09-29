@@ -240,6 +240,7 @@ class Component(BaseModel):
     parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("component.id"))
     guidance_heading: Mapped[Optional[str]]
     guidance_body: Mapped[Optional[str]]
+    add_another: Mapped[bool] = mapped_column(default=False)
 
     # Relationships
     # todo: reason about if this should actually back populate _all_components as they might not

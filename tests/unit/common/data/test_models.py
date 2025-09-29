@@ -72,3 +72,13 @@ class TestNestedComponents:
             q2,
         ]
         assert form.cached_questions == [q1, nested_q, q2]
+
+
+class TestAddAnother:
+    def test_add_another_false(self, factories):
+        question = factories.question.build()
+        assert question.add_another is False
+
+    def test_add_another_true(self, factories):
+        question = factories.question.build(add_another=True)
+        assert question.add_another is True
