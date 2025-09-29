@@ -11,7 +11,7 @@ from testcontainers.postgres import PostgresContainer
 
 
 def page_has_error(soup: BeautifulSoup, message: str) -> bool:
-    error_summary = cast(Tag | None, soup.find("div", class_="govuk-error-summary"))
+    error_summary = soup.find("div", class_="govuk-error-summary")
     if not error_summary:
         return False
 
