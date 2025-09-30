@@ -240,6 +240,7 @@ class Component(BaseModel):
     parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("component.id"))
     guidance_heading: Mapped[Optional[str]]
     guidance_body: Mapped[Optional[str]]
+    add_another: Mapped[bool] = mapped_column(default=False)
 
     # Relationships
     # todo: reason about if this should actually back populate _all_components as they might not
@@ -320,6 +321,20 @@ class Component(BaseModel):
     )
 
     __mapper_args__ = {"polymorphic_on": type}
+
+    @property
+    def add_another_container(self) -> "Component | None":
+        if self.add_another:
+            return self
+
+        add_another_parent = self.parent
+        while add_another_parent and not add_another_parent.add_another:
+            add_another_parent = add_another_parent.parent
+
+        if add_another_parent and add_another_parent.add_another:
+            return add_another_parent
+
+        return None
 
 
 class Question(Component, SafeQidMixin):
