@@ -106,8 +106,32 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
 
 
 @flush_and_rollback_on_exceptions
-def update_submission_data(submission: Submission, question: Question, data: AllAnswerTypes) -> Submission:
-    submission.data[str(question.id)] = data.get_value_for_submission()
+def update_submission_data(
+    submission: Submission, question: Question, data: AllAnswerTypes, add_another_index: int | None = None
+) -> Submission:
+    if not question.add_another_container:
+        # this is just a single answer question
+        if add_another_index is not None:
+            raise ValueError("add_another_index cannot be provided for questions not within an add another container")
+        submission.data[str(question.id)] = data.get_value_for_submission()
+        return submission
+
+    if add_another_index is None:
+        raise ValueError("add_another_index must be provided for questions within an add another container")
+
+    parent_container = question.add_another_container
+    existing_answers = submission.data.get(str(parent_container.id), [])
+
+    if add_another_index > len(existing_answers):
+        raise ValueError(
+            f"Cannot update answers at index {add_another_index} as there are "
+            f"only {len(existing_answers)} existing answers"
+        )
+    if len(existing_answers) == add_another_index:
+        existing_answers.append({})
+    existing_answers[add_another_index][str(question.id)] = data.get_value_for_submission()
+
+    submission.data[str(parent_container.id)] = existing_answers
     return submission
 
 

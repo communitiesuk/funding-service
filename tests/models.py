@@ -20,6 +20,7 @@ from flask import url_for
 
 from app.common.collections.types import (
     DateAnswer,
+    EmailAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
@@ -466,6 +467,103 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             _SubmissionFactory.create(collection=obj, mode=SubmissionModeEnum.TEST)
         for _ in range(0, live):
             _SubmissionFactory.create(collection=obj, mode=SubmissionModeEnum.LIVE)
+
+    @factory.post_generation  # type: ignore
+    def create_completed_submissions_add_another_nested_group(  # type: ignore
+        obj: Collection,
+        create,
+        extracted,
+        test: int = 0,
+        live: int = 0,
+        use_random_data: bool = True,
+        **kwargs,
+    ) -> None:
+        if not test and not live:
+            return
+        form = _FormFactory.create(
+            collection=obj, title="Add another nested group test form", slug="add-another-nested-group-test-form"
+        )
+
+        # Create a form with a nested add another group
+        q1 = _QuestionFactory.create(
+            name="Your name", form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE, text="What is your name?"
+        )
+        g1 = _GroupFactory.create(
+            name="Organisation details test group",
+            text="Organisation details test group",
+            slug="org-details-test-group",
+            form=form,
+        )
+        q2 = _QuestionFactory.create(
+            name="Organisation name",
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="What is your organisation name?",
+            parent=g1,
+        )
+        g2 = _GroupFactory.create(
+            name="Organisation contacts test group",
+            text="Organisation contacts test group",
+            slug="org-contacts-test-group",
+            parent=g1,
+            add_another=True,
+            form=form,
+        )
+        q3 = _QuestionFactory.create(
+            name="Contact name",
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="What is the name of this person?",
+            parent=g2,
+        )
+        q4 = _QuestionFactory.create(
+            form=form,
+            data_type=QuestionDataType.EMAIL,
+            text="What is this person's email address?",
+            name="Contact email",
+            parent=g2,
+        )
+        q5 = _QuestionFactory.create(
+            name="Length of service",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="How many years have you worked here?",
+        )
+
+        add_another_responses = []
+        for i in range(0, 5):
+            add_another_responses.append(
+                {
+                    str(q3.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                        faker.Faker().name() if use_random_data else f"test name {i}"
+                    ).get_value_for_submission(),
+                    str(q4.id): EmailAnswer(  # ty:ignore[missing-argument]
+                        faker.Faker().company_email() if use_random_data else f"test_user_{i}@email.com"
+                    ).get_value_for_submission(),
+                }
+            )
+
+        def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
+            for _ in range(0, count):
+                _SubmissionFactory.create(
+                    collection=obj,
+                    mode=submission_mode,
+                    data={
+                        str(q1.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                            faker.Faker().name() if use_random_data else "test name"
+                        ).get_value_for_submission(),
+                        str(q2.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                            faker.Faker().name() if use_random_data else "test org name"
+                        ).get_value_for_submission(),
+                        str(g2.id): add_another_responses,
+                        str(q5.id): IntegerAnswer(
+                            value=random.randint(0, 10) if use_random_data else 3
+                        ).get_value_for_submission(),
+                    },
+                )
+
+        _create_submission_of_type(SubmissionModeEnum.TEST, test)
+        _create_submission_of_type(SubmissionModeEnum.LIVE, live)
 
     @factory.post_generation
     def commit_the_things_to_clean_the_session(self, create, extracted, **kwargs):  # type: ignore

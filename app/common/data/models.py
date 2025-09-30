@@ -322,6 +322,9 @@ class Component(BaseModel):
 
     __mapper_args__ = {"polymorphic_on": type}
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(text={self.text}, is_group={self.is_group}, add_another={self.add_another})"
+
     @property
     def add_another_container(self) -> "Component | None":
         if self.add_another:
