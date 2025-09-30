@@ -106,6 +106,22 @@ def update_collection(collection: Collection, *, name: str) -> Collection:
 
 
 @flush_and_rollback_on_exceptions
+def remove_add_another_answers_at_index(
+    submission: Submission, add_another_container: Component, add_another_index: int
+) -> Submission:
+    existing_answers = submission.data.get(str(add_another_container.id), [])
+    if add_another_index < 0 or add_another_index >= len(existing_answers):
+        raise ValueError(
+            f"Cannot remove answers at index {add_another_index} as there are "
+            f"only {len(existing_answers)} existing answers"
+        )
+
+    existing_answers.pop(add_another_index)
+    submission.data[str(add_another_container.id)] = existing_answers
+    return submission
+
+
+@flush_and_rollback_on_exceptions
 def update_submission_data(
     submission: Submission, question: Question, data: AllAnswerTypes, add_another_index: int | None = None
 ) -> Submission:
@@ -122,7 +138,7 @@ def update_submission_data(
     parent_container = question.add_another_container
     existing_answers = submission.data.get(str(parent_container.id), [])
 
-    if add_another_index > len(existing_answers):
+    if add_another_index > len(existing_answers) or add_another_index < 0:
         raise ValueError(
             f"Cannot update answers at index {add_another_index} as there are "
             f"only {len(existing_answers)} existing answers"
