@@ -242,7 +242,7 @@ describe('AJAX Markdown preview', () => {
         '<p>There was an error</p><button class="govuk-button govuk-button--secondary">Retry preview</button>'
       )
       const ariaLiveRegion = document.querySelector(
-        '.app-markdown-editor__notification-area'
+        '.app-context-aware-editor__notification-area'
       )
       expect(ariaLiveRegion.getAttribute('aria-busy')).toBe('false')
     })
@@ -274,7 +274,7 @@ describe('AJAX Markdown preview', () => {
 
     test('message is pushed to aria-live region when the page loads', async () => {
       const ariaLiveRegion = document.querySelector(
-        '.app-markdown-editor__notification-area'
+        '.app-context-aware-editor__notification-area'
       )
       expect(ariaLiveRegion.getAttribute('aria-busy')).toBe('true')
 

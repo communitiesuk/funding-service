@@ -1,9 +1,9 @@
 import { initAll } from 'govuk-frontend';
 import accessibleAutocomplete from 'accessible-autocomplete';
-import markdownEditorToolbar from "./js/markdown-editor-toolbar";
 import { pasteListener } from './js/paste-html-to-markdown';
 import ajaxMarkdownPreview from './js/ajax-markdown-preview';
 import textareaNoNewlines from "./js/textarea-no-newlines/index.js";
+import contextAwareEditor from "./js/context-aware-editor/index.js";
 
 initAll();
 
@@ -29,26 +29,25 @@ for (let el of document.querySelectorAll("[data-accessible-autocomplete]")) {
 }
 
 document
-  .querySelectorAll('[data-module="markdown-editor-toolbar"]')
-  .forEach(element => {
-    markdownEditorToolbar(
-      element,
-      JSON.parse(element.getAttribute('data-i18n')),
-      element.getAttribute('data-allow-headings') === 'true'
-    );
-    element.addEventListener('paste', pasteListener);
-  });
-
-document
   .querySelectorAll('[data-module="ajax-markdown-preview"]')
   .forEach(element => {
     ajaxMarkdownPreview(
       element.querySelector('[data-ajax-markdown-target]'),
       element.querySelector('[data-ajax-markdown-source]'),
-      element.getAttribute('data-ajax-markdown-endpoint'),
-      JSON.parse(element.getAttribute('data-i18n'))
+      element.getAttribute('data-ajax-markdown-endpoint')
     )
   })
+
+document
+    .querySelectorAll('[data-module="context-aware-editor"]')
+    .forEach(element => {
+        contextAwareEditor(element);
+        // Add paste listener for markdown conversion
+        const textarea = element.querySelector('[data-context-aware-editor-target]');
+        if (textarea) {
+            textarea.addEventListener('paste', pasteListener);
+        }
+    });
 
 document
     .querySelectorAll('[data-module="paste-html-bullets-as-markdown"]')

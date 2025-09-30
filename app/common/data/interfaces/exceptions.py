@@ -5,7 +5,6 @@ from flask import current_app
 from psycopg.errors import CheckViolation, UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
-from app.common.data.models import Component
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
@@ -74,14 +73,6 @@ class InvalidReferenceInExpression(Exception):
         self.message = message
         self.field_name = field_name
         self.bad_reference = bad_reference
-
-
-class ComplexExpressionException(Exception):
-    def __init__(self, component: Component, field_name: str, bad_expression: str):
-        super().__init__()
-        self.component = component
-        self.field_name = field_name
-        self.bad_expression = bad_expression
 
 
 @overload

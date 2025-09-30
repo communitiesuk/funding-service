@@ -9,7 +9,7 @@ import simpleeval
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Expression
+    from app.common.data.models import Collection, Component, Expression
     from app.common.helpers.collections import SubmissionHelper
 
 INTERPOLATE_REGEX = re.compile(r"\(\(([^\(]+?)\)\)")
@@ -99,6 +99,7 @@ class ExpressionContext(ChainMap[str, Any]):
     def build_expression_context(
         collection: "Collection",
         mode: Literal["evaluation", "interpolation"],
+        collection_question_limit: Optional["Component"] = None,
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
@@ -120,7 +121,15 @@ class ExpressionContext(ChainMap[str, Any]):
                 )
                 for form in submission_helper.collection.forms
                 for question in form.cached_questions
-                if (answer := submission_helper._get_answer_for_question(question.id)) is not None
+                if (
+                    collection_question_limit is None
+                    or (
+                        collection_question_limit.form == form
+                        and form.global_component_index(collection_question_limit)
+                        >= form.global_component_index(question)
+                    )
+                )
+                and (answer := submission_helper._get_answer_for_question(question.id)) is not None
             }
             if submission_helper
             else {}
@@ -128,9 +137,30 @@ class ExpressionContext(ChainMap[str, Any]):
         if fallback_question_names:
             for form in collection.forms:
                 for question in form.cached_questions:
+                    if collection_question_limit and (
+                        collection_question_limit.form != form
+                        or form.global_component_index(collection_question_limit)
+                        <= form.global_component_index(question)
+                    ):
+                        continue
+
                     submission_data.setdefault(question.safe_qid, f"(({question.name}))")
 
         return ExpressionContext(submission_data=submission_data)
+
+    @staticmethod
+    def get_context_keys_and_labels(
+        collection: "Collection", collection_question_limit: Optional["Component"] = None
+    ) -> dict[str, str]:
+        """A dict mapping the reference variables (eg question safe_qids) to human-readable labels
+
+        TODO: When we have more than just questions here, we'll need to do more complicated mapping, and possibly
+        find a way to include labels for eg DB model columns, such as the grant name
+        """
+        ec = ExpressionContext.build_expression_context(
+            collection=collection, mode="interpolation", collection_question_limit=collection_question_limit
+        )
+        return {k: v for k, v in ec.items()}
 
     def is_valid_reference(self, reference: str) -> bool:
         """For a given ExpressionContext, work out if this reference resolves to a real value or not.

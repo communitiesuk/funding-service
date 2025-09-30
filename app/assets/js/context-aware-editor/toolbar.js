@@ -1,4 +1,5 @@
-// Largely based on [WAI's toolbar example](https://www.w3.org/WAI/ARIA/apg/patterns/toolbar/examples/toolbar/)
+// Toolbar functionality for markdown editor
+// Refactored from markdown-editor-toolbar to work with any textarea
 
 const blockPrefixPattern = /^(## |### |\* |- |1. )/g
 
@@ -61,10 +62,10 @@ const buttonGroupConfiguration = [
   ]
 ]
 
-const createToolbarForTextArea = textArea => {
+const createToolbar = (textArea) => {
   const toolbar = document.createElement('div')
 
-  toolbar.classList.add('app-markdown-editor__toolbar')
+  toolbar.classList.add('app-context-aware-editor__toolbar')
   toolbar.setAttribute('aria-controls', textArea.id)
   toolbar.setAttribute('role', 'toolbar')
   toolbar.setAttribute('aria-label', 'Markdown formatting')
@@ -84,7 +85,7 @@ const createButtonGroup = (
   allowHeadings
 ) => {
   const buttonGroup = document.createElement('div')
-  buttonGroup.classList.add('app-markdown-editor__toolbar-button-group')
+  buttonGroup.classList.add('app-context-aware-editor__toolbar-button-group')
   const buttons = configurationGroup
     .filter(button => allowHeadings || !button.isHeading)
     .map(buttonConfig =>
@@ -106,8 +107,8 @@ const createButton = (textArea, linkText, callback, identifier) => {
   button.classList.add(
     'govuk-button',
     'govuk-button--secondary',
-    'app-markdown-editor__toolbar-button',
-    `app-markdown-editor__toolbar-button--${identifier}`
+    'app-context-aware-editor__toolbar-button',
+    `app-context-aware-editor__toolbar-button--${identifier}`
   )
   button.setAttribute('title', linkText)
   addClickAndKeyboardEventListeners(textArea, button, callback)
@@ -153,6 +154,7 @@ const updateSelection = (element, start, end, updatedText) => {
   element.setSelectionRange(start, start + updatedText.length)
   element.dispatchEvent(new window.InputEvent('input'))
 }
+
 const removeBlockPrefix = text => text.trim().replace(blockPrefixPattern, '')
 
 const addClickAndKeyboardEventListeners = (textArea, element, callback) => {
@@ -197,14 +199,14 @@ const addButtonFocusEvents = buttons => {
 }
 
 /**
- * Adds a copy button to an element.
- * @param {HTMLElement} textArea - The textarea whose contents are being formatted by the toolbar.
- * @param {Object} i18n - An object containing translations for the toolbar button text.
- * @param {Boolean} allowHeadings - whether the markdown field allows headings
+ * Creates and configures a toolbar for the given textarea
+ * @param {HTMLElement} textArea - The textarea to attach the toolbar to
+ * @param {Object} i18n - Internationalization object for button text
+ * @param {Boolean} allowHeadings - Whether to include heading buttons
+ * @returns {HTMLElement} The created toolbar element
  */
-const markdownEditorToolbar = (textArea, i18n, allowHeadings = true) => {
-  const toolbar = createToolbarForTextArea(textArea)
-  textArea.parentNode.insertBefore(toolbar, textArea)
+const createToolbarForTextArea = (textArea, i18n, allowHeadings = true) => {
+  const toolbar = createToolbar(textArea)
 
   buttonGroupConfiguration
     .map(buttonConfiguration =>
@@ -213,6 +215,8 @@ const markdownEditorToolbar = (textArea, i18n, allowHeadings = true) => {
     .forEach(buttonGroup => toolbar.appendChild(buttonGroup))
 
   addButtonFocusEvents(toolbar.querySelectorAll('button'))
+
+  return toolbar
 }
 
-export default markdownEditorToolbar
+export { createToolbarForTextArea }
