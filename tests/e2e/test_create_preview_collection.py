@@ -679,21 +679,22 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
     question_heading = check_your_answers_page.page.get_by_text(question["display_text"], exact=True)
     expect(question_heading).to_be_visible()
 
+    question_name = question["text"].lower()
     if question["type"] == QuestionDataType.CHECKBOXES:
-        checkbox_answers_list = check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}").locator("li")
+        checkbox_answers_list = check_your_answers_page.page.get_by_test_id(f"answer-{question_name}").locator("li")
         expect(checkbox_answers_list).to_have_text(question["answers"][-1].answer)
     elif question["type"] == QuestionDataType.INTEGER:
-        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
             f"{question['options'].prefix or ''}"
             f"{format_thousands(int(question['answers'][-1].answer))}"
             f"{question['options'].suffix or ''}"
         )
     elif question["type"] == QuestionDataType.DATE:
-        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
             question["answers"][-1].check_your_answers_text
         )
     else:
-        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
             question["answers"][-1].answer
         )
 
