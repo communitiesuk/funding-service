@@ -140,8 +140,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
     },
     "suffix-integer": {
         "type": QuestionDataType.INTEGER,
-        "text": "Enter the total weight as a number",
-        "display_text": "Enter the total weight as a number",
+        "text": "Enter the total weight as a number; cost ((enter the total cost as a number))",
+        "display_text": "Enter the total weight as a number; cost £10,000",
         "answers": [
             _QuestionResponse("101", "The answer must be less than or equal to 100"),
             _QuestionResponse("100"),
