@@ -1862,6 +1862,44 @@ class TestUpdateSubmissionData:
             update_submission_data(submission, question2, q2_data1, 2)
         assert str(e.value) == "Cannot update answers at index 2 as there are only 1 existing answers"
 
+    def test_update_submission_data_many_add_another_entries(self, db_session, factories):
+        collection = factories.collection.create(
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        submission = collection.test_submissions[0]
+        form = collection.forms[0]
+        add_another_group = form.cached_all_components[3]
+        add_another_name_question = form.cached_questions[2]
+        add_another_email_question = form.cached_questions[3]
+
+        update_submission_data(submission, add_another_name_question, TextSingleLineAnswer("Updated 3rd name"), 2)
+        update_submission_data(
+            submission, add_another_email_question, TextSingleLineAnswer("Updated_4th_email@stuff.com"), 3
+        )
+        update_submission_data(submission, add_another_name_question, TextSingleLineAnswer("Added name 6"), 5)
+        updated_submission = update_submission_data(
+            submission, add_another_email_question, TextSingleLineAnswer("Added_email_6@email.com"), 5
+        )
+
+        updated_data = updated_submission.data[str(add_another_group.id)]
+
+        # check the name and email of entries we didn't change are still the same
+        for i in [0, 1, 3, 4]:
+            assert updated_data[i][str(add_another_name_question.id)] == f"test name {i}"
+        for i in [0, 1, 2, 4]:
+            assert updated_data[i][str(add_another_email_question.id)] == f"test_user_{i}@email.com"
+
+        # check the updates we made are present
+        assert updated_data[2][str(add_another_name_question.id)] == "Updated 3rd name"
+        assert updated_data[3][str(add_another_email_question.id)] == "Updated_4th_email@stuff.com"
+
+        # check the entry we added is correct
+        assert updated_data[5] == {
+            str(add_another_name_question.id): "Added name 6",
+            str(add_another_email_question.id): "Added_email_6@email.com",
+        }
+
 
 def test_add_submission_event(db_session, factories):
     user = factories.user.build()
