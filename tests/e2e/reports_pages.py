@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import re
 import tempfile
+import textwrap
 from typing import TYPE_CHECKING, cast
 
 from playwright.sync_api import Locator, Page, expect
@@ -468,7 +469,8 @@ class AddGuidancePage(ReportsBasePage):
         self.guidance_heading_textbox.fill(text)
 
     def fill_guidance_text(self, text: str) -> None:
-        self.guidance_body_textbox.type(text)
+        self.guidance_body_textbox.fill(text)
+        expect(self.guidance_body_textbox).to_have_value(re.compile(re.escape(text)))
 
     def go_to_end_of_guidance_text(self) -> None:
         self.guidance_body_textbox.focus()
@@ -531,26 +533,38 @@ class AddGuidancePage(ReportsBasePage):
         self.clear_guidance_heading()
         self.clear_guidance_body()
         self.fill_guidance_heading(question_definition_guidance.heading)
-        self.fill_guidance_text(f"## {question_definition_guidance.body_heading}")
-        self.add_linebreaks_to_guidance_text()
-        self.fill_guidance_text(
-            f"[{question_definition_guidance.body_link_text}]({question_definition_guidance.body_link_url})"
-        )
-        self.add_linebreaks_to_guidance_text()
-        self.fill_guidance_text("\n".join(f"* {item}" for item in question_definition_guidance.body_ul_items))
-        self.add_linebreaks_to_guidance_text()
-        self.fill_guidance_text(
-            "\n".join(f"{i + 1}. {item}" for i, item in enumerate(question_definition_guidance.body_ol_items))
-        )
+        expect(self.guidance_heading_textbox).to_have_value(question_definition_guidance.heading)
+
+        guidance_text = textwrap.dedent(f"""
+        ## {question_definition_guidance.body_heading}
+
+        [{question_definition_guidance.body_link_text}]({question_definition_guidance.body_link_url})
+
+        {"\n        ".join(f"* {item}" for item in question_definition_guidance.body_ul_items)}
+
+        {"\n        ".join(f"{i + 1}. {item}" for i, item in enumerate(question_definition_guidance.body_ol_items))}
+        """).strip()
+
+        self.fill_guidance_text(guidance_text)
 
     def fill_guidance_default(self) -> None:
         self.click_h2_button()
         self.add_linebreaks_to_guidance_text()
+        expect(self.guidance_body_textbox).to_have_value(re.compile(re.escape("## Heading text")))
+
         self.click_link_button()
         self.add_linebreaks_to_guidance_text()
+        expect(self.guidance_body_textbox).to_have_value(
+            re.compile(re.escape("[Link text](https://www.gov.uk/link-text-url)"))
+        )
+
         self.click_bulleted_list_button()
         self.add_linebreaks_to_guidance_text()
+        expect(self.guidance_body_textbox).to_have_value(re.compile(re.escape("* List item")))
+
         self.click_numbered_list_button()
+        expect(self.guidance_body_textbox).to_have_value(re.compile(re.escape("1. List item")))
+
         self.click_preview_guidance_tab()
         expect(self.page.get_by_role("heading", name="Heading text")).to_be_visible()
         expect(self.page.get_by_role("link", name="Link text")).to_be_visible()
