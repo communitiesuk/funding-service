@@ -270,8 +270,10 @@ const handleDoubleClick = (textarea, event, mappings) => {
   const clickedRef = boundaries.find(b => clickPosition >= b.start && clickPosition <= b.end)
   if (clickedRef) {
     event.preventDefault()
-    // Select entire reference
-    textarea.setSelectionRange(clickedRef.start, clickedRef.end)
+    // Select entire reference - wrap in setTimeout to ensure it happens after the event is fully processed
+    setTimeout(() => {
+      textarea.setSelectionRange(clickedRef.start, clickedRef.end)
+    }, 0)
   }
 }
 
