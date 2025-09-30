@@ -2571,12 +2571,12 @@ class TestAddAnother:
         self, db_session, factories
     ):
         form = factories.form.create()
-        group = factories.group.create(form=form, add_another=False)
-        group4 = factories.group.create(form=form, parent=group, add_another=False)
-        question3 = factories.question.build(form=form, parent=group4, add_another=False)
-        raise_if_add_another_not_valid_here(question3)
-        group5 = factories.group.build(form=form, parent=group4, add_another=False)
-        raise_if_add_another_not_valid_here(group5)
+        group1 = factories.group.create(form=form, add_another=False)
+        group2 = factories.group.create(form=form, parent=group1, add_another=False)
+        question1 = factories.question.build(form=form, parent=group2, add_another=False)
+        raise_if_add_another_not_valid_here(question1)
+        group3 = factories.group.build(form=form, parent=group2, add_another=False)
+        raise_if_add_another_not_valid_here(group3)
 
     def test_raise_if_add_another_not_valid_does_not_raise_for_valid_question(self, db_session, factories):
         form = factories.form.create()
