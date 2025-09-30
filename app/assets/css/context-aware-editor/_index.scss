@@ -90,11 +90,7 @@
   z-index: 0;
 
   // Match textarea font exactly
-  font-family: "GDS Transport", arial, sans-serif;
-  font-size: 19px;
-  font-weight: 400;
-  line-height: 1.25em;
-  -webkit-font-smoothing: antialiased;
+  @include govuk-font($size: 19, $line-height: 1.25em);
 
   // Style for valid references
   .app-context-aware-editor--valid-reference {
