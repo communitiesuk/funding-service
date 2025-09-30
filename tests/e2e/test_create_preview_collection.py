@@ -107,8 +107,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
     ),
     "approx_date": QuestionDict(
         type=QuestionDataType.DATE,
-        text="Enter an approximate date",
-        display_text="Enter an approximate date",
+        text="Enter an approximate date; your exact date was ((enter a date))",
+        display_text="Enter an approximate date; your exact date was Tuesday 5 April 2022",
         answers=[
             _QuestionResponse(
                 ["2003", "2"],
