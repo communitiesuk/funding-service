@@ -476,6 +476,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         test: int = 0,
         live: int = 0,
         use_random_data: bool = True,
+        number_of_add_another_answers: int = 5,
         **kwargs,
     ) -> None:
         if not test and not live:
@@ -531,7 +532,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         )
 
         add_another_responses = []
-        for i in range(0, 5):
+        for i in range(0, number_of_add_another_answers):
             add_another_responses.append(
                 {
                     str(q3.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]

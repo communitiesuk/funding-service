@@ -43,6 +43,7 @@ from app.common.data.interfaces.collections import (
     raise_if_group_questions_depend_on_each_other,
     raise_if_nested_group_creation_not_valid_here,
     raise_if_question_has_any_dependencies,
+    remove_add_another_answers_at_index,
     remove_question_expression,
     update_group,
     update_question,
@@ -1841,7 +1842,7 @@ class TestUpdateSubmissionData:
             update_submission_data(submission, question, data, add_another_index=None)
         assert str(error.value) == "add_another_index must be provided for questions within an add another container"
 
-    def test_update_submission_data_add_another_fail_if_index_greater_than_available(self, db_session, factories):
+    def test_update_submission_data_add_another_fail_if_index_not_available(self, db_session, factories):
         form = factories.form.create()
         group = factories.group.create(form=form, add_another=True)
         question1 = factories.question.create(form=form, parent=group)
@@ -1852,6 +1853,9 @@ class TestUpdateSubmissionData:
         with pytest.raises(ValueError) as e:
             update_submission_data(submission, question2, q1_data1, 1)
         assert str(e.value) == "Cannot update answers at index 1 as there are only 0 existing answers"
+        with pytest.raises(ValueError) as e:
+            update_submission_data(submission, question2, q1_data1, -1)
+        assert str(e.value) == "Cannot update answers at index -1 as there are only 0 existing answers"
 
         updated_submission = update_submission_data(submission, question1, q1_data1, 0)
         assert updated_submission.data[str(group.id)] == [{str(question1.id): "Group 1 - Question 1 - Answer 1"}]
@@ -2865,3 +2869,103 @@ class TestAddAnother:
         group = factories.group.create(form=form)
         group2 = factories.group.build(form=form, parent=group, add_another=True)
         raise_if_add_another_not_valid_here(group2)
+
+    def test_remove_add_another_answers(self, db_session, factories):
+        collection = factories.collection.create(
+            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=5,
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        add_another_group = collection.forms[0].cached_all_components[3]
+        submission = collection.test_submissions[0]
+        add_another_answers = submission.data[str(add_another_group.id)]
+        assert len(add_another_answers) == 5
+
+        updated_submission = remove_add_another_answers_at_index(submission, add_another_group, 2)
+        updated_add_another_answers = updated_submission.data[str(add_another_group.id)]
+
+        # check we have the right number of answers, and what was the second to last item is now last
+        assert len(updated_add_another_answers) == 4
+        assert "test name 4" in list(updated_add_another_answers[-1].values())
+
+    def test_remove_add_another_answers_first_answer(self, db_session, factories):
+        collection = factories.collection.create(
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        add_another_group = collection.forms[0].cached_all_components[3]
+        submission = collection.test_submissions[0]
+        add_another_answers = submission.data[str(add_another_group.id)]
+        assert len(add_another_answers) == 5
+
+        updated_submission = remove_add_another_answers_at_index(submission, add_another_group, 0)
+        updated_add_another_answers = updated_submission.data[str(add_another_group.id)]
+
+        # check we have the right number of answers, and what was the second item is now first
+        assert len(updated_add_another_answers) == 4
+        assert "test name 1" in list(updated_add_another_answers[0].values())
+
+    def test_remove_add_another_answers_last_answer(self, db_session, factories):
+        collection = factories.collection.create(
+            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=5,
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        add_another_group = collection.forms[0].cached_all_components[3]
+        submission = collection.test_submissions[0]
+        add_another_answers = submission.data[str(add_another_group.id)]
+        assert len(add_another_answers) == 5
+
+        updated_submission = remove_add_another_answers_at_index(submission, add_another_group, 4)
+        updated_add_another_answers = updated_submission.data[str(add_another_group.id)]
+
+        # check we have the right number of answers, and what was the second to last item is now last
+        assert len(updated_add_another_answers) == 4
+        assert "test name 3" in list(updated_add_another_answers[-1].values())
+
+    def test_remove_add_another_answers_only_answer(self, db_session, factories):
+        collection = factories.collection.create(
+            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=1,
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        add_another_group = collection.forms[0].cached_all_components[3]
+        submission = collection.test_submissions[0]
+        add_another_answers = submission.data[str(add_another_group.id)]
+        assert len(add_another_answers) == 1
+
+        updated_submission = remove_add_another_answers_at_index(submission, add_another_group, 0)
+        updated_add_another_answers = updated_submission.data[str(add_another_group.id)]
+
+        assert updated_add_another_answers is not None
+        assert len(updated_add_another_answers) == 0
+
+    def test_remove_add_another_answers_validates_add_another_index(self, db_session, factories):
+        collection = factories.collection.create(
+            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=1,
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        add_another_group = collection.forms[0].cached_all_components[3]
+        submission = collection.test_submissions[0]
+        with pytest.raises(ValueError) as e:
+            remove_add_another_answers_at_index(submission, add_another_group, 1)
+        assert str(e.value) == "Cannot remove answers at index 1 as there are only 1 existing answers"
+        with pytest.raises(ValueError) as e:
+            remove_add_another_answers_at_index(submission, add_another_group, -1)
+        assert str(e.value) == "Cannot remove answers at index -1 as there are only 1 existing answers"
+
+    def test_remove_add_another_answers_validates_add_another_index_no_existing_answers(self, db_session, factories):
+        collection = factories.collection.create(
+            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=0,
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        add_another_group = collection.forms[0].cached_all_components[3]
+        submission = collection.test_submissions[0]
+        with pytest.raises(ValueError) as e:
+            remove_add_another_answers_at_index(submission, add_another_group, 1)
+        assert str(e.value) == "Cannot remove answers at index 1 as there are only 0 existing answers"
+        with pytest.raises(ValueError) as e:
+            remove_add_another_answers_at_index(submission, add_another_group, -1)
+        assert str(e.value) == "Cannot remove answers at index -1 as there are only 0 existing answers"
