@@ -10,18 +10,39 @@
 {% set active_item_identifier = "reports" %}
 
 {% block beforeContent %}
+  {% set reports_html %}
+    <span>Reports</span>
+    <span class="govuk-visually-hidden">for {{ grant.name }}</span>
+  {% endset %}
+  {% set report_name_html %}
+    <span class="govuk-visually-hidden">Report:</span>
+    <span>{{ db_form.collection.name }}</span>
+  {% endset %}
+  {% set form_name_html %}
+    <span class="govuk-visually-hidden">Task:</span>
+    <span>{{ db_form.title }}</span>
+  {% endset %}
   {%
     set items = [
-      {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
-      {"text": db_form.collection.name, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=db_form.collection_id)},
-      {"text": db_form.title, "href": url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) },
+      {"html": reports_html, "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
+      {"html": report_name_html, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=db_form.collection_id)},
+      {"html": form_name_html, "href": url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) },
     ]
   %}
 
-  {# todo: when we can have a group in a group include "..." breadcrumb for the parent of any level of nesting above a direct child #}
-
   {% if question.parent %}
-    {% do items.append({"text": question.parent.name, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.parent_id)}) %}
+    {% if question.parent.parent %}
+      {% set ellipsis_html %}
+        <span class="govuk-visually-hidden">1 question group hidden</span>
+        <span aria-hidden="true">...</span>
+      {% endset %}
+      {% do items.append({"html": ellipsis_html}) %}
+    {% endif %}
+    {% set parent_html %}
+      <span class="govuk-visually-hidden">Question group:</span>
+      <span>{{ question.parent.name }}</span>
+    {% endset %}
+    {% do items.append({"html": parent_html, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.parent_id)}) %}
   {% endif %}
   {% do items.append({"text": "Edit " ~ question.name }) %}
 
