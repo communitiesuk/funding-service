@@ -46,6 +46,14 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Disable man-db triggers
+        run: |
+          # https://github.com/actions/runner-images/issues/10977
+          # Disables man-db triggers, which have been a cause of huge (but variable) delays in github action jobs
+          # completing; we're seeing pauses on this step of 120+ seconds in some rare cases.
+          echo "set man-db/auto-update false" | sudo debconf-communicate
+          sudo dpkg-reconfigure man-db
+
       - name: Install playwright browsers
         run: uv run --frozen playwright install --with-deps chromium
 
