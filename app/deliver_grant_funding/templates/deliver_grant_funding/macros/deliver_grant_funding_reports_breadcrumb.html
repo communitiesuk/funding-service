@@ -1,0 +1,51 @@
+{% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
+
+{# render the breadcrumb for deliver grant funding #}
+{% macro deliver_grant_funding_reports_breadcrumb(grant=None, report=None, form=None, immediate_parent_breadcrumb_item=None, this_page_breadcrumb_item=None, truncated=False) %}
+  {% set items=[] %}
+  {% if grant %}
+    {% set reports_html %}
+      <span>Reports</span>
+      <span class="govuk-visually-hidden">for {{ grant.name }}</span>
+    {% endset %}
+    {% do items.append({"html": reports_html, "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)}) %}
+  {% endif %}
+
+  {% if report %}
+    {% set report_name_html %}
+      <span class="govuk-visually-hidden">Report:</span>
+      <span>{{ report.name }}</span>
+    {% endset %}
+    {% do items.append({"html": report_name_html, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=report.id)}) %}
+  {% endif %}
+
+  {% if form %}
+    {% set form_name_html %}
+      <span class="govuk-visually-hidden">Task:</span>
+      <span>{{ form.title }}</span>
+    {% endset %}
+    {% do items.append({"html": form_name_html, "href": url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=form.id) }) %}
+  {% endif %}
+
+  {% if truncated == True %}
+    {% set ellipsis_html %}
+      <span class="govuk-visually-hidden">1 question group hidden</span>
+      <span aria-hidden="true">...</span>
+    {% endset %}
+    {% do items.append({"html": ellipsis_html}) %}
+  {% endif %}
+
+  {% if immediate_parent_breadcrumb_item != None %}
+    {% do items.append(immediate_parent_breadcrumb_item) %}
+  {% endif %}
+
+  {% if this_page_breadcrumb_item %}
+    {% do items.append(this_page_breadcrumb_item) %}
+  {% endif %}
+
+  {{
+    govukBreadcrumbs(params={
+    "items": items
+    })
+  }}
+{% endmacro %}

@@ -1,21 +1,14 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 
 {% set page_title = "Reports" %}
 {% set active_item_identifier = "reports" %}
 {% set grant_admin = authorisation_helper.is_grant_admin(grant.id, current_user) %}
 
 {% block beforeContent %}
-  {{
-    govukBreadcrumbs(params={
-      "items": [
-        {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
-        {"text": report.name},
-      ],
-    })
-  }}
+  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":report.name}) }}
 {% endblock beforeContent %}
 
 {% block content %}

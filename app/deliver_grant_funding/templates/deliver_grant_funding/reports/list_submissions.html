@@ -1,4 +1,4 @@
-{% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 {% from "common/macros/status.html" import status with context %}
@@ -12,16 +12,7 @@
   {% if helper.is_test_mode %}
     {{ mhclgTestBanner("Test submissions") }}
   {% endif %}
-
-  {{
-    govukBreadcrumbs(params={
-      "items": [
-        {"text": "Reports", "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)},
-        {"text": report.name},
-        {"text": "Submissions"},
-      ],
-    })
-  }}
+  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=report, this_page_breadcrumb_item={"text":"Submissions"}) }}
 {% endblock beforeContent %}
 
 {% block content %}
