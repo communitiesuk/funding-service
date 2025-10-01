@@ -16,7 +16,7 @@ on:
   schedule:
   - cron:  '0 2 * * 1'
 jobs:
-  paketo_build:
+  cnb_build:
     name: Build
     uses: ./.github/workflows/package.yml
     secrets:
@@ -37,7 +37,7 @@ jobs:
   deploy_dev:
     name: Deploy to dev
     needs:
-      - paketo_build
+      - cnb_build
     uses: ./.github/workflows/deploy.yml
     concurrency:
       group: fs-deploy-dev

@@ -1,4 +1,4 @@
-name: Paketo build
+name: CNB build
 run-name: Build ${{github.ref_name}}
 
 permissions:
@@ -18,10 +18,9 @@ on:
         required: true
 
 jobs:
-  paketo_build:
+  cnb_build:
     runs-on: ubuntu-latest
-    name: Paketo
-
+    name: Build
     steps:
       - uses: buildpacks/github-actions/setup-pack@f6d0ae15b2e1f021664bf3ee3fc4f9105c1ee4c7 # v5.9.4
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -36,14 +35,6 @@ jobs:
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
         with:
           python-version: 3.13.7
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@b75a909f75acd358c2196fb9a5f1299a9a8868a4 # v6
-        with:
-          enable-cache: true
-
-      - name: install dependencies
-        run: uv sync --no-dev
 
       - name: vite
         run: |
@@ -82,24 +73,20 @@ jobs:
           ECR_IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$IMAGE_TAG"
           echo "::add-mask::$ECR_IMAGE_URI"
 
-          uv export --no-dev --format requirements-txt --no-hashes > requirements.txt
-
-          pack build "$ECR_IMAGE_URI" \
-            --builder paketobuildpacks/builder-jammy-full \
-            --publish
+          pack build "$ECR_IMAGE_URI" --builder heroku/builder:24 --publish
 
 
   notify_slack:
       needs:
-        - paketo_build
-      if: ${{ always() && needs.paketo_build.result == 'failure' && github.ref_name == 'main'}}
+        - cnb_build
+      secrets:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
+      if: ${{ always() && needs.cnb_build.result == 'failure' && github.ref_name == 'main'}}
       uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
       with:
-        app_name: FS Paketo
+        app_name: FS CNB
         env_name: 'build'
         github_username: ${{ github.actor }}
         workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
-      secrets:
-        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-        SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}

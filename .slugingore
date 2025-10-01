@@ -1,0 +1,7 @@
+.flaskenv
+.git
+.github
+.vscode
+.pullpreview
+.pre-commit-config.yaml
+tests

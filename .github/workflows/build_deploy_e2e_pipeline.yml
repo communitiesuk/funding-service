@@ -12,7 +12,7 @@ on:
       - main
 
 jobs:
-  paketo_build:
+  cnb_build:
     name: Build
     uses: ./.github/workflows/package.yml
     secrets:
@@ -32,7 +32,7 @@ jobs:
   deploy_test:
     name: Deploy to test
     needs:
-      - paketo_build
+      - cnb_build
     uses: ./.github/workflows/deploy.yml
     concurrency:
       group: fs-deploy-test
