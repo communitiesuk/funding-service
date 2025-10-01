@@ -832,6 +832,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                         grant_id=grant_id,
                         form_id=form_id,
                         parent_id=add_context_data.parent_id,
+                        question_data_type=add_context_data.data_type.name,
                     )
                     if add_context_data.question_id is None
                     else url_for(
