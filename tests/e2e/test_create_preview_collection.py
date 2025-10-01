@@ -258,8 +258,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
             body_heading="Guidance subheading",
             body_link_text="Design system link text",
             body_link_url="https://design-system.service.gov.uk",
-            body_ol_items=["UL item one", "UL item two"],
-            body_ul_items=["OL item one", "OL item two"],
+            body_ul_items=["UL item one", "UL item two"],
+            body_ol_items=["OL item one", "OL item two"],
         ),
     },
     "text-multi-line": {
@@ -312,8 +312,8 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             body_heading="Guidance subheading",
             body_link_text="Design system link text",
             body_link_url="https://design-system.service.gov.uk",
-            body_ol_items=["UL item one", "UL item two"],
-            body_ul_items=["OL item one", "OL item two"],
+            body_ul_items=["UL item one", "UL item two"],
+            body_ol_items=["OL item one", "OL item two"],
         ),
         "condition": Condition(
             referenced_question="Do you want to show question groups?",
