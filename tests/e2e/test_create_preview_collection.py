@@ -64,7 +64,8 @@ class Condition:
 
 class QuestionDict(TypedDict):
     type: QuestionDataType
-    text: str  # this is mutated by the test runner to store the unique (uuid'd) question name
+    text: str
+    display_text: str
     answers: list[_QuestionResponse]
     choices: NotRequired[list[str]]
     options: NotRequired[QuestionPresentationOptions]
@@ -88,6 +89,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "date": QuestionDict(
         type=QuestionDataType.DATE,
         text="Enter a date",
+        display_text="Enter a date",
         answers=[
             _QuestionResponse(
                 ["2003", "2", "01"],
@@ -105,7 +107,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
     ),
     "approx_date": QuestionDict(
         type=QuestionDataType.DATE,
-        text="Enter an approximate date",
+        text="Enter an approximate date; your exact date was ((enter a date))",
+        display_text="Enter an approximate date; your exact date was Tuesday 5 April 2022",
         answers=[
             _QuestionResponse(
                 ["2003", "2"],
@@ -125,6 +128,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "prefix-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter the total cost as a number",
+        "display_text": "Enter the total cost as a number",
         "answers": [
             _QuestionResponse("0", "The answer must be greater than 1"),
             _QuestionResponse("10000"),
@@ -137,6 +141,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "suffix-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter the total weight as a number",
+        "display_text": "Enter the total weight as a number",
         "answers": [
             _QuestionResponse("101", "The answer must be less than or equal to 100"),
             _QuestionResponse("100"),
@@ -153,6 +158,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "between-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter a number between 20 and 100",
+        "display_text": "Enter a number between 20 and 100",
         "answers": [
             _QuestionResponse("101", "The answer must be between 20 (inclusive) and 100 (exclusive)"),
             _QuestionResponse("20"),
@@ -173,6 +179,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "yes-no": {
         "type": QuestionDataType.YES_NO,
         "text": "Yes or no",
+        "display_text": "Yes or no",
         "answers": [
             _QuestionResponse("Yes"),
         ],
@@ -190,6 +197,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "radio": {
         "type": QuestionDataType.RADIOS,
         "text": "Select an option",
+        "display_text": "Select an option",
         "choices": ["option 1", "option 2", "option 3"],
         "answers": [
             _QuestionResponse("option 2"),
@@ -199,6 +207,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "autocomplete": {
         "type": QuestionDataType.RADIOS,
         "text": "Select an option from the accessible autocomplete",
+        "display_text": "Select an option from the accessible autocomplete",
         "choices": [f"option {x}" for x in range(1, 30)],
         "answers": [
             _QuestionResponse("Other"),
@@ -215,6 +224,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "checkboxes": {
         "type": QuestionDataType.CHECKBOXES,
         "text": "Select one or more options",
+        "display_text": "Select one or more options",
         "choices": ["option 1", "option 2", "option 3", "option 4"],
         "answers": [
             _QuestionResponse(["option 2", "option 3"]),
@@ -228,6 +238,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "email": {
         "type": QuestionDataType.EMAIL,
         "text": "Enter an email address",
+        "display_text": "Enter an email address",
         "answers": [
             _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
             _QuestionResponse("name@example.com"),
@@ -240,6 +251,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "text-single-line": {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
         "text": "Enter a single line of text",
+        "display_text": "Enter a single line of text",
         "answers": [_QuestionResponse("E2E question text single line")],
         "guidance": GuidanceText(
             heading="This is a guidance page heading",
@@ -253,6 +265,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "text-multi-line": {
         "type": QuestionDataType.TEXT_MULTI_LINE,
         "text": "Enter a few lines of text",
+        "display_text": "Enter a few lines of text",
         "answers": [
             _QuestionResponse("E2E question text multi line\nwith a second line that's over the word limit"),
             _QuestionResponse("E2E question text multi line\nwith a second line"),
@@ -262,6 +275,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "url": {
         "type": QuestionDataType.URL,
         "text": "Enter a website address",
+        "display_text": "Enter a website address",
         "answers": [
             _QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
             _QuestionResponse("https://gov.uk"),
@@ -270,6 +284,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
     "text-single-line-not-shown": {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
         "text": "This question should not be shown",
+        "display_text": "This question should not be shown",
         "answers": [_QuestionResponse("This question shouldn't be shown")],
         "condition": Condition(referenced_question="Yes or no", managed_expression=IsNo(question_id=uuid.uuid4())),
     },
@@ -283,6 +298,7 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
     "yes-no": {
         "type": QuestionDataType.YES_NO,
         "text": "Do you want to show question groups?",
+        "display_text": "Do you want to show question groups?",
         "answers": [
             _QuestionResponse("Yes"),
         ],
@@ -307,11 +323,13 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             {
                 "type": QuestionDataType.TEXT_SINGLE_LINE,
                 "text": "Group Enter a single line of text",
+                "display_text": "Group Enter a single line of text",
                 "answers": [_QuestionResponse("E2E question text single line")],
             },
             {
                 "type": QuestionDataType.URL,
                 "text": "Group Enter a website address",
+                "display_text": "Group Enter a website address",
                 "answers": [
                     _QuestionResponse("https://gov.uk"),
                 ],
@@ -319,6 +337,7 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             {
                 "type": QuestionDataType.EMAIL,
                 "text": "Group Enter an email address",
+                "display_text": "Group Enter an email address",
                 "answers": [
                     _QuestionResponse("group@example.com"),
                 ],
@@ -328,6 +347,7 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
     "text-single-line": {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
         "text": "Enter another single line of text",
+        "display_text": "Enter another single line of text",
         "answers": [_QuestionResponse("E2E question text single line second answer")],
     },
     "question-group-one-per-page": {
@@ -338,11 +358,13 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             {
                 "type": QuestionDataType.TEXT_SINGLE_LINE,
                 "text": "Second group Enter a single line of text",
+                "display_text": "Second group Enter a single line of text",
                 "answers": [_QuestionResponse("E2E question text single line group")],
             },
             {
                 "type": QuestionDataType.EMAIL,
                 "text": "Second group Enter an email address",
+                "display_text": "Second group Enter an email address",
                 "answers": [
                     _QuestionResponse("group2@example.com"),
                 ],
@@ -355,11 +377,13 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
                     {
                         "type": QuestionDataType.TEXT_SINGLE_LINE,
                         "text": "Nested group single line of text",
+                        "display_text": "Nested group single line of text",
                         "answers": [_QuestionResponse("E2E question text single line nested group")],
                     },
                     {
                         "type": QuestionDataType.EMAIL,
                         "text": "Nested group Enter an email address",
+                        "display_text": "Nested group Enter an email address",
                         "answers": [
                             _QuestionResponse("nested_group@example.com"),
                         ],
@@ -422,18 +446,17 @@ def create_question(question_definition: TQuestionToTest, manage_page: ManageTas
     question_details_page = question_type_page.click_continue()
 
     expect(question_details_page.page.get_by_text(question_definition["type"].value, exact=True)).to_be_visible()
-    question_uuid = uuid.uuid4()
-    question_text = f"{question_definition['text']} - {question_uuid}"
-    question_definition["text"] = question_text
+    question_text = question_definition["text"]
     expect(
         question_details_page.page.locator(".app-context-aware-editor__visible-textarea[id='text']")
     ).to_be_attached()
-    question_details_page.fill_question_text(question_text)
-    question_details_page.fill_question_name(f"e2e_question_{question_uuid}")
     expect(
         question_details_page.page.locator(".app-context-aware-editor__visible-textarea[id='hint']")
     ).to_be_attached()
-    question_details_page.fill_question_hint(f"e2e_hint_{question_uuid}")
+
+    question_details_page.fill_question_text(question_text)
+    question_details_page.fill_question_name(question_text.lower())
+    question_details_page.fill_question_hint(f"Hint text for: {question_text}")
 
     if question_definition["type"] in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
         question_details_page.fill_data_source_items(question_definition["choices"])
@@ -559,7 +582,7 @@ def complete_question_group(
             for question_response in nested_question["answers"]:
                 question_page.respond_to_question(
                     question_type=nested_question["type"],
-                    question_text=nested_question["text"],
+                    question_text=nested_question["display_text"],
                     answer=question_response.answer,
                 )
         if group_to_test["display_options"] == GroupDisplayOptions.ONE_QUESTION_PER_PAGE:
@@ -574,7 +597,10 @@ def complete_task(
     tasklist_page.click_on_task(task_name=task_name)
     for question_to_test in questions_to_test.values():
         question_page = RunnerQuestionPage(
-            tasklist_page.page, tasklist_page.domain, grant_name, question_to_test["text"]
+            tasklist_page.page,
+            tasklist_page.domain,
+            grant_name,
+            question_to_test.get("display_text", question_to_test["text"]),
         )
 
         if question_to_test["type"] == "group":
@@ -582,10 +608,10 @@ def complete_task(
         else:
             assert_question_visibility(question_page, question_to_test)
             for question_response in question_to_test["answers"]:
-                if "This question should not be shown" not in question_to_test["text"]:
+                if "This question should not be shown" not in question_to_test["display_text"]:
                     question_page.respond_to_question(
                         question_type=question_to_test["type"],
-                        question_text=question_to_test["text"],
+                        question_text=question_to_test["display_text"],
                         answer=question_response.answer,
                     )
                     question_page.click_continue()
@@ -650,47 +676,59 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
     if "This question should not be shown" in question["text"]:
         return
 
-    question_heading = check_your_answers_page.page.get_by_text(question["text"], exact=True)
+    question_heading = check_your_answers_page.page.get_by_text(question["display_text"], exact=True)
     expect(question_heading).to_be_visible()
 
+    question_name = question["text"].lower()
     if question["type"] == QuestionDataType.CHECKBOXES:
-        checkbox_answers_list = check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}").locator("li")
+        checkbox_answers_list = check_your_answers_page.page.get_by_test_id(f"answer-{question_name}").locator("li")
         expect(checkbox_answers_list).to_have_text(question["answers"][-1].answer)
     elif question["type"] == QuestionDataType.INTEGER:
-        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
             f"{question['options'].prefix or ''}"
             f"{format_thousands(int(question['answers'][-1].answer))}"
             f"{question['options'].suffix or ''}"
         )
     elif question["type"] == QuestionDataType.DATE:
-        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
             question["answers"][-1].check_your_answers_text
         )
     else:
-        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question['text']}")).to_have_text(
+        expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
             question["answers"][-1].answer
         )
 
 
-def assert_view_report_answers(answers_list: Locator, question: TQuestionToTest) -> None:
+def assert_check_your_answer_for_all_questions(questions_to_check: list[TQuestionToTest], report_answers_list: Locator):
+    for question_to_check in questions_to_check:
+        if question_to_check["type"] == "group":
+            assert_check_your_answer_for_all_questions(question_to_check["questions"], report_answers_list)
+        else:
+            assert_check_your_answer_for_question(question_to_check, report_answers_list)
+
+
+def assert_check_your_answer_for_question(question: TQuestionToTest, answers_list: Locator) -> None:
     # TODO Can we combine this with the logic in assert_check_your_answers? Feels like duplication
     if "This question should not be shown" in question["text"]:
         return
     if question["type"] == QuestionDataType.CHECKBOXES:
         expect(
-            answers_list.get_by_text(f"{question['text']} {' '.join(question['answers'][-1].answer)}")
+            answers_list.get_by_text(f"{question['text']} {' '.join(question['answers'][-1].answer)}", exact=True)
         ).to_be_visible()
     elif question["type"] == QuestionDataType.INTEGER:
         expect(
             answers_list.get_by_text(
                 f"{question['text']} {question['options'].prefix or ''}"
-                f"{format_thousands(int(question['answers'][-1].answer))}{question['options'].suffix or ''}"
+                f"{format_thousands(int(question['answers'][-1].answer))}{question['options'].suffix or ''}",
+                exact=True,
             )
         ).to_be_visible()
     elif question["type"] == QuestionDataType.DATE:
-        expect(answers_list.get_by_text(question["answers"][-1].check_your_answers_text)).to_be_visible()
+        expect(answers_list.get_by_text(question["answers"][-1].check_your_answers_text, exact=True)).to_be_visible()
     else:
-        expect(answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}")).to_be_visible()
+        expect(
+            answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}", exact=True)
+        ).to_be_visible()
 
 
 def switch_user(
@@ -742,7 +780,7 @@ def test_create_and_preview_report(
 
         # Add a first task and a questions/question group
         add_task_page = grant_reports_page.click_add_task(report_name=new_report_name, grant_name=new_grant_name)
-        first_task_name = f"E2E question group task {uuid.uuid4()}"
+        first_task_name = "E2E first task - grouped questions"
         add_task_page.fill_in_task_name(first_task_name)
         report_tasks_page = add_task_page.click_add_task()
         report_tasks_page.check_task_exists(first_task_name)
@@ -754,7 +792,7 @@ def test_create_and_preview_report(
         # Add a second task and a question of each type to the task
         report_tasks_page = navigate_to_report_tasks_page(page, domain, new_grant_name, new_report_name)
         add_task_page = report_tasks_page.click_add_task()
-        second_task_name = f"E2E task {uuid.uuid4()}"
+        second_task_name = "E2E second task - all question types"
         add_task_page.fill_in_task_name(second_task_name)
         report_tasks_page = add_task_page.click_add_task()
         report_tasks_page.check_task_exists(second_task_name)
@@ -819,18 +857,11 @@ def test_create_and_preview_report(
         answers_list = view_submission_page.get_questions_list_for_task(first_task_name)
         expect(answers_list).to_be_visible()
 
-        def _assert_view_report_answers(report_answers_list: Locator, questions_to_check: list[TQuestionToTest]):
-            for question_to_check in questions_to_check:
-                if question_to_check["type"] == "group":
-                    _assert_view_report_answers(report_answers_list, question_to_check["questions"])
-                else:
-                    assert_view_report_answers(report_answers_list, question_to_check)
-
-        _assert_view_report_answers(answers_list, list(questions_with_groups_to_test.values()))
+        assert_check_your_answer_for_all_questions(list(questions_with_groups_to_test.values()), answers_list)
 
         answers_list = view_submission_page.get_questions_list_for_task(second_task_name)
         expect(answers_list).to_be_visible()
-        _assert_view_report_answers(answers_list, list(questions_to_test.values()))
+        assert_check_your_answer_for_all_questions(list(questions_to_test.values()), answers_list)
 
         submissions_list_page = view_submission_page.click_submissions_breadcrumb()
 
