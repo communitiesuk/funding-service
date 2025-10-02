@@ -437,10 +437,27 @@ def create_question_or_group(
         else:
             edit_question_group_page.click_task_breadcrumb()
     else:
-        create_question(question_definition, manage_task_page)
+        create_question(question_definition, manage_task_page, parent_group_name=parent_group_name)
 
 
-def create_question(question_definition: TQuestionToTest, manage_page: ManageTaskPage | EditQuestionGroupPage) -> None:
+def _assert_reports_breadcrumb_layout(page: Page, parent_group_name: str | None = None) -> None:
+    breadcrumbs = page.locator("a.govuk-breadcrumbs__link")
+    if not parent_group_name:
+        expect(breadcrumbs).to_have_count(3)
+        expect(page.get_by_text("question group hidden ...")).not_to_be_visible()
+    elif parent_group_name == "This is a question group" or parent_group_name == "One question per page group":
+        expect(breadcrumbs).to_have_count(4)
+        expect(page.get_by_text("question group hidden ...")).not_to_be_visible()
+    elif parent_group_name == "Nested Group":
+        expect(breadcrumbs).to_have_count(4)
+        expect(page.get_by_text("question group hidden ...")).to_be_visible()
+
+
+def create_question(
+    question_definition: TQuestionToTest,
+    manage_page: ManageTaskPage | EditQuestionGroupPage,
+    parent_group_name: str = None,
+) -> None:
     question_type_page = manage_page.click_add_question()
     question_type_page.click_question_type(question_definition["type"])
     question_details_page = question_type_page.click_continue()
@@ -474,6 +491,8 @@ def create_question(question_definition: TQuestionToTest, manage_page: ManageTas
         add_advanced_formatting(question_definition, question_details_page)
 
     edit_question_page = question_details_page.click_submit()
+
+    _assert_reports_breadcrumb_layout(edit_question_page.page, parent_group_name=parent_group_name)
 
     if question_definition.get("guidance") is not None:
         add_question_guidance(question_definition, edit_question_page)
