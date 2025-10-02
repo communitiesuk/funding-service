@@ -460,6 +460,32 @@ class TestSubmissionHelper:
                 r"Could not submit submission id=[a-z0-9-]+ because not all forms are complete."
             )
 
+    class TestGetAnswerForQuestion:
+        def test_get_answer_for_question(self, factories):
+            collection = factories.collection.create(
+                create_completed_submissions_each_question_type__test=1,
+                create_completed_submissions_each_question_type__use_random_data=False,
+            )
+            helper = SubmissionHelper(collection.test_submissions[0])
+
+            question = collection.forms[0].cached_questions[0]
+
+            answer = helper._get_answer_for_question(question.id)
+            assert answer == TextSingleLineAnswer("test name")
+
+        def test_get_answer_for_question_not_answered(self, factories, mocker):
+            collection = factories.collection.create(
+                create_completed_submissions_each_question_type__test=1,
+                create_completed_submissions_each_question_type__use_random_data=False,
+            )
+            question = collection.forms[0].cached_questions[0]
+            collection.test_submissions[0].data[str(question.id)] = None
+
+            helper = SubmissionHelper(collection.test_submissions[0])
+            answer = helper._get_answer_for_question(question.id)
+
+            assert answer is None
+
 
 class TestCollectionHelper:
     def test_init_collection_helper(self, factories):
