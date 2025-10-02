@@ -8,19 +8,21 @@ from typing import Optional as TOptional
 # that are built through the UI. These will be used alongside custom expressions
 from uuid import UUID
 
+from flask import render_template
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCheckboxesInput,
     GovCheckboxInput,
     GovDateInput,
     GovRadioInput,
+    GovSubmitInput,
     GovTextInput,
 )
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
-from wtforms import BooleanField, DateField, IntegerField, SelectField, SelectMultipleField
+from wtforms import BooleanField, DateField, IntegerField, SelectField, SelectMultipleField, StringField
 from wtforms.fields.core import Field
-from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
+from wtforms.validators import DataRequired, InputRequired, Optional, ReadOnly, ValidationError
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
@@ -200,7 +202,8 @@ class GreaterThan(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    minimum_value: int
+    minimum_value: int | None
+    minimum_expression: str | None = None
     inclusive: bool = False
 
     @property
@@ -209,11 +212,22 @@ class GreaterThan(ManagedExpression):
 
     @property
     def message(self) -> str:
-        return f"The answer must be greater than {'or equal to ' if self.inclusive else ''}{self.minimum_value}"
+        return (
+            f"The answer must be greater than {'or equal to ' if self.inclusive else ''}"
+            + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
+        )
 
     @property
     def statement(self) -> str:
-        return f"{self.safe_qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
+        return (
+            f"{self.safe_qid} >{'=' if self.inclusive else ''} "
+            + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
+        )
+
+    @property
+    def referenced_ids(self) -> list[UUID]:
+        # This will eventually be used to store any referenced question IDs for context aware conditions
+        return []
 
     @staticmethod
     def get_form_fields(
@@ -222,10 +236,22 @@ class GreaterThan(ManagedExpression):
         return {
             "greater_than_value": IntegerField(
                 "Minimum value",
-                default=cast(int, expression.context["minimum_value"]) if expression else None,
+                default=cast(int, expression.context.get("minimum_value")) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
-                render_kw={"params": {"classes": "govuk-input--width-10"}},
+                render_kw={
+                    "params": {"classes": "govuk-input--width-10"},
+                },
+            ),
+            "greater_than_add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
+            ),
+            "greater_than_expression": StringField(
+                "Minimum expression",
+                default=expression.context.get("minimum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
             ),
             "greater_than_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
@@ -236,15 +262,27 @@ class GreaterThan(ManagedExpression):
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.greater_than_value.validators = [InputRequired("Enter the minimum value allowed for this question")]  # ty: ignore[unresolved-attribute]
+        form.greater_than_value.validators = (
+            [InputRequired("Enter the minimum value allowed for this question")]
+            if not form.greater_than_expression.data
+            else [Optional()]
+        )  # ty: ignore[unresolved-attribute]
+        form.greater_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "GreaterThan":
+    def build_from_form(
+        form: "_ManagedExpressionForm", question: "Question", expression: TOptional["Expression"] = None
+    ) -> "GreaterThan":
         return GreaterThan(
             question_id=question.id,
-            minimum_value=form.greater_than_value.data,  # ty: ignore[unresolved-attribute]
+            minimum_value=form.greater_than_value.data if not form.greater_than_expression.data else None,
+            minimum_expression=form.greater_than_expression.data if form.greater_than_expression.data else None,
             inclusive=form.greater_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @classmethod
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+        return Markup(render_template("deliver_grant_funding/reports/managed_expressions/greater_than.html", form=form))
 
 
 @register_managed_expression

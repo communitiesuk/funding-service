@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput
@@ -7,10 +7,11 @@ from wtforms import RadioField, SubmitField
 from wtforms.validators import DataRequired
 
 from app.common.data.models import Expression, Question
-from app.common.data.types import ExpressionType
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum
 from app.common.expressions.registry import (
     get_managed_conditions_by_data_type,
     get_managed_validators_by_data_type,
+    lookup_managed_expression,
 )
 
 if TYPE_CHECKING:
@@ -37,7 +38,29 @@ class _ManagedExpressionForm(FlaskForm):
             )
         return items
 
+    def is_submitted_to_add_context(self) -> bool:
+        """Check if user clicked any validation context add button"""
+        # FIXME: Using the endswith("_add_context") here is really gross, we should do this better
+        if not self.is_submitted():
+            return False
+        for field_name, field in self._fields.items():
+            if field_name.endswith("_add_context") and hasattr(field, "data") and field.data:
+                return True
+        return False
+
+    def get_expression_form_data(self) -> dict[str, Any]:
+        if not self.type.data:
+            return {}
+        expression_type = ManagedExpressionsEnum(self.type.data)
+        expression = lookup_managed_expression(expression_type)
+        expression_keys = expression.get_form_fields(self._referenced_question).keys()
+        data = {key: data for key, data in self.data.items() if key in expression_keys}
+        return data
+
     def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
+        if self.is_submitted_to_add_context():
+            return True
+
         for _managed_expression in self._managed_expressions:
             if _managed_expression.name == self.type.data:
                 _managed_expression.update_validators(self)
