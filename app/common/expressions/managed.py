@@ -294,7 +294,8 @@ class LessThan(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    maximum_value: int
+    maximum_value: int | None
+    maximum_expression: str | None = None
     inclusive: bool = False
 
     @property
@@ -303,11 +304,22 @@ class LessThan(ManagedExpression):
 
     @property
     def message(self) -> str:
-        return f"The answer must be less than {'or equal to ' if self.inclusive else ''}{self.maximum_value}"
+        return (
+            f"The answer must be less than {'or equal to ' if self.inclusive else ''}"
+            + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+        )
 
     @property
     def statement(self) -> str:
-        return f"{self.safe_qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
+        return (
+            f"{self.safe_qid} <{'=' if self.inclusive else ''}"
+            + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+        )
+
+    @property
+    def referenced_ids(self) -> list[UUID]:
+        # This will eventually be used to store any referenced question IDs for context aware conditions
+        return []
 
     @staticmethod
     def get_form_fields(
@@ -321,6 +333,16 @@ class LessThan(ManagedExpression):
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
+            "less_than_add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
+            ),
+            "less_than_expression": StringField(
+                "Maximum expression",
+                default=expression.context.get("maximum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+            ),
             "less_than_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
                 default=cast(bool, expression.context["inclusive"]) if expression else None,
@@ -330,15 +352,25 @@ class LessThan(ManagedExpression):
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.less_than_value.validators = [InputRequired("Enter the maximum value allowed for this question")]  # ty: ignore[unresolved-attribute]
+        form.less_than_value.validators = (
+            [InputRequired("Enter the maximum value allowed for this question")]
+            if not form.less_than_expression.data
+            else [Optional()]
+        )  # ty: ignore[unresolved-attribute]
+        form.less_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "LessThan":
         return LessThan(
             question_id=question.id,
-            maximum_value=form.less_than_value.data,  # ty: ignore[unresolved-attribute]
+            maximum_value=form.less_than_value.data if not form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
+            maximum_expression=form.less_than_expression.data if form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.less_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @classmethod
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+        return Markup(render_template("deliver_grant_funding/reports/managed_expressions/less_than.html", form=form))
 
 
 @register_managed_expression
@@ -350,9 +382,11 @@ class Between(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    minimum_value: int
+    minimum_value: int | None
+    minimum_expression: str | None = None
     minimum_inclusive: bool = False
-    maximum_value: int
+    maximum_value: int | None
+    maximum_expression: str | None = None
     maximum_inclusive: bool = False
 
     @property
@@ -367,20 +401,22 @@ class Between(ManagedExpression):
         #         property on the model
         # todo: make this use expression evaluation/interpolation rather than f-strings
         return (
-            f"The answer must be between "
-            f"{self.minimum_value}{' (inclusive)' if self.minimum_inclusive else ' (exclusive)'} and "
-            f"{self.maximum_value}{' (inclusive)' if self.maximum_inclusive else ' (exclusive)'}"
+            "The answer must be between "
+            + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
+            + f"{' (inclusive)' if self.minimum_inclusive else ' (exclusive)'} and "
+            + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+            + f"{' (inclusive)' if self.maximum_inclusive else ' (exclusive)'}"
         )
 
     @property
     def statement(self) -> str:
         # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
         return (
-            f"{self.minimum_value} "
+            f"{self.minimum_expression if self.minimum_expression else self.minimum_value} "
             f"<{'=' if self.minimum_inclusive else ''} "
             f"{self.safe_qid} "
             f"<{'=' if self.maximum_inclusive else ''} "
-            f"{self.maximum_value}"
+            f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
         )
 
     @staticmethod
@@ -395,6 +431,16 @@ class Between(ManagedExpression):
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
+            "between_bottom_of_range_add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
+            ),
+            "between_bottom_of_range_expression": StringField(
+                "Minimum expression",
+                default=expression.context.get("minimum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+            ),
             "between_bottom_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
                 default=cast(bool, expression.context["minimum_inclusive"]) if expression else None,
@@ -407,6 +453,16 @@ class Between(ManagedExpression):
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
+            "between_top_of_range_add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
+            ),
+            "between_top_of_range_expression": StringField(
+                "Maximum expression",
+                default=expression.context.get("maximum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+            ),
             "between_top_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
                 default=cast(bool, expression.context["maximum_inclusive"]) if expression else None,
@@ -416,24 +472,48 @@ class Between(ManagedExpression):
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.between_bottom_of_range.validators = [  # ty: ignore[unresolved-attribute]
-            InputRequired("Enter the minimum value allowed for this question"),
-            BottomOfRangeIsLower("The minimum value must be lower than the maximum value"),
-        ]
-        form.between_top_of_range.validators = [  # ty: ignore[unresolved-attribute]
-            InputRequired("Enter the maximum value allowed for this question"),
-            BottomOfRangeIsLower("The maximum value must be higher than the minimum value"),
-        ]
+        form.between_bottom_of_range.validators = (
+            [  # ty: ignore[unresolved-attribute]
+                InputRequired("Enter the minimum value allowed for this question"),
+                BottomOfRangeIsLower("The minimum value must be lower than the maximum value"),
+            ]
+            if not form.between_bottom_of_range_expression.data and not form.between_top_of_range_expression.data
+            else [InputRequired("Enter the minimum value allowed for this question")]
+            if not form.between_bottom_of_range_expression.data
+            else [Optional()]
+        )
+        form.between_top_of_range.validators = (
+            [  # ty: ignore[unresolved-attribute]
+                InputRequired("Enter the maximum value allowed for this question"),
+                BottomOfRangeIsLower("The maximum value must be higher than the minimum value"),
+            ]
+            if not form.between_bottom_of_range_expression.data and not form.between_top_of_range_expression.data
+            else [InputRequired("Enter the maximum value allowed for this question")]
+            if not form.between_top_of_range_expression.data
+            else [Optional()]
+        )
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "Between":
         return Between(
             question_id=question.id,
-            minimum_value=form.between_bottom_of_range.data,  # ty: ignore[unresolved-attribute]
+            minimum_value=form.between_bottom_of_range.data
+            if not form.between_bottom_of_range_expression.data
+            else None,  # ty: ignore[unresolved-attribute]
+            minimum_expression=form.between_bottom_of_range_expression.data
+            if form.between_bottom_of_range_expression.data
+            else None,
             minimum_inclusive=form.between_bottom_inclusive.data,  # ty: ignore[unresolved-attribute]
-            maximum_value=form.between_top_of_range.data,  # ty: ignore[unresolved-attribute]
+            maximum_value=form.between_top_of_range.data if not form.between_top_of_range_expression.data else None,  # ty: ignore[unresolved-attribute]
+            maximum_expression=form.between_top_of_range_expression.data
+            if form.between_top_of_range_expression.data
+            else None,  # ty: ignore[unresolved-attribute]
             maximum_inclusive=form.between_top_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @classmethod
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+        return Markup(render_template("deliver_grant_funding/reports/managed_expressions/between.html", form=form))
 
 
 class BaseDataSourceManagedExpression(ManagedExpression):
