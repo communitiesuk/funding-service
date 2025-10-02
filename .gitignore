@@ -234,7 +234,7 @@ flask_session
 # IntelliJ
 .idea/*
 !.idea/ruff.xml
-!.run/Template Python tests.run.xml
+!.run/
 !.idea/modules.xml
 !.idea/funding-service.iml
 
@@ -258,3 +258,4 @@ node_modules
 app/assets/dist
 
 .import_linter_cache
+/.run/
