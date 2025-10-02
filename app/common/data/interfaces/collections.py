@@ -759,7 +759,7 @@ def move_component_down(component: Component) -> Component:
 
 
 def group_name_exists(name: str, form_id: UUID) -> bool:
-    statement = select(Group).where(Group.name == name and Group.form_id == form_id)
+    statement = select(Group).where(Group.name == name, Group.form_id == form_id)
     group = db.session.scalar(statement)
     return group is not None
 

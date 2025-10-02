@@ -33,6 +33,7 @@ from app.common.data.interfaces.collections import (
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
     get_submission,
+    group_name_exists,
     is_component_dependency_order_valid,
     move_component_down,
     move_component_up,
@@ -411,6 +412,19 @@ class TestCreateGroup:
                 text="Child group Level 3",
                 parent=parent_group,
             )
+
+
+class TestGroupNameExists:
+    def test_group_name_exists(self, db_session, factories):
+        form = factories.form.create()
+        form2 = factories.form.create()
+        assert group_name_exists("Test group", form_id=form.id) is False
+        assert group_name_exists("Test group", form_id=form2.id) is False
+
+        factories.group.create(name="Test group", form=form)
+
+        assert group_name_exists("Test group", form_id=form.id) is True
+        assert group_name_exists("Test group", form_id=form2.id) is False
 
 
 class TestUpdateGroup:
