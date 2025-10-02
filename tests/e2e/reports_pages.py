@@ -882,17 +882,15 @@ class SelectDataSourceQuestionPage(ReportsBasePage):
         )
 
     def choose_question(self, question: str) -> None:
-        accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
-        if accessible_autocomplete:
-            # there is a few ms of delay during the call to "enhanceSelectElement" which allows the select
-            # being progressively enhanced to be selected before its complete as playwright will act immediately
-            # on the role being available - this causes the test to fail particularly when there is network latency.
-            # Wait for the full input + options to be loaded before using it
-            expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
-            element = self.page.get_by_role("combobox")
-            element.click()
-            element.fill(question)
-            element.press("Enter")
+        # there is a few ms of delay during the call to "enhanceSelectElement" which allows the select
+        # being progressively enhanced to be selected before its complete as playwright will act immediately
+        # on the role being available - this causes the test to fail particularly when there is network latency.
+        # Wait for the full input + options to be loaded before using it
+        expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
+        element = self.page.get_by_role("combobox")
+        element.click()
+        element.fill(question)
+        element.press("Enter")
 
     def click_use_data(self) -> None:
         self.page.get_by_role("button", name="Use data").click()
