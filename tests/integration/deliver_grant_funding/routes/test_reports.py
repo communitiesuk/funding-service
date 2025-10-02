@@ -1807,7 +1807,7 @@ class TestSelectContextSourceQuestion:
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToQuestionSessionModel(
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                data_type=QuestionDataType.YES_NO,
                 text="Test question",
                 name="test_question",
                 hint="Test hint",
@@ -1822,8 +1822,12 @@ class TestSelectContextSourceQuestion:
                 form_id=form.id,
             ),
             data={"question": str(question.id)},
+            follow_redirects=False,
         )
         assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            r"^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions/add\?question_data_type=YES_NO$"
+        )
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             question_data = sess.get("question")

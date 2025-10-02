@@ -4,7 +4,7 @@ import datetime
 import re
 import tempfile
 import textwrap
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from playwright.sync_api import Locator, Page, expect
 
@@ -806,6 +806,11 @@ class AddQuestionDetailsPage(ReportsBasePage):
     def fill_question_hint(self, question_hint: str) -> None:
         self.page.get_by_role("textbox", name="Question hint").fill(question_hint)
 
+    def click_insert_data(self, field_name: Literal["text", "hint"], question: str) -> "SelectDataSourcePage":
+        self.page.get_by_role("button", name=f"Insert data in question {field_name}").click()
+
+        return SelectDataSourcePage(page=self.page, domain=self.domain, grant_name=self.grant_name)
+
     def fill_data_source_items(self, items: list[str]) -> None:
         self.page.get_by_role("textbox", name="List of options").fill("\n".join(items))
 
@@ -847,6 +852,50 @@ class AddQuestionDetailsPage(ReportsBasePage):
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
+
+
+class SelectDataSourcePage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page=page,
+            domain=domain,
+            heading=page.get_by_role("heading", name="Select data source"),
+            grant_name=grant_name,
+        )
+
+    def select_data_source(self, data_source: Literal["A previous question in this task"]) -> None:
+        self.page.get_by_role("radio", name=data_source).click()
+
+    def click_select(self) -> "SelectDataSourceQuestionPage":
+        self.page.get_by_role("button", name="Select data source").click()
+
+        return SelectDataSourceQuestionPage(page=self.page, domain=self.domain, grant_name=self.grant_name)
+
+
+class SelectDataSourceQuestionPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page=page,
+            domain=domain,
+            heading=page.get_by_role("heading", name="Select data source"),
+            grant_name=grant_name,
+        )
+
+    def choose_question(self, question: str) -> None:
+        accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
+        if accessible_autocomplete:
+            # there is a few ms of delay during the call to "enhanceSelectElement" which allows the select
+            # being progressively enhanced to be selected before its complete as playwright will act immediately
+            # on the role being available - this causes the test to fail particularly when there is network latency.
+            # Wait for the full input + options to be loaded before using it
+            expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
+            element = self.page.get_by_role("combobox")
+            element.click()
+            element.fill(question)
+            element.press("Enter")
+
+    def click_use_data(self) -> None:
+        self.page.get_by_role("button", name="Use data").click()
 
 
 class AddTaskPage(ReportsBasePage):

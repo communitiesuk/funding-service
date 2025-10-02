@@ -62,10 +62,18 @@ class Condition:
     managed_expression: ManagedExpression
 
 
+@dataclasses.dataclass
+class TextFieldWithData:
+    prefix: str
+    data_from_question: str
+
+
 class QuestionDict(TypedDict):
     type: QuestionDataType
     text: str
     display_text: str
+    hint: NotRequired[TextFieldWithData]  # Allows testing the 'insert data' journey
+    display_hint: NotRequired[str]  # For use with the 'insert data' journey
     answers: list[_QuestionResponse]
     choices: NotRequired[list[str]]
     options: NotRequired[QuestionPresentationOptions]
@@ -107,8 +115,10 @@ questions_to_test: dict[str, TQuestionToTest] = {
     ),
     "approx_date": QuestionDict(
         type=QuestionDataType.DATE,
-        text="Enter an approximate date; your exact date was ((enter a date))",
-        display_text="Enter an approximate date; your exact date was Tuesday 5 April 2022",
+        text="Enter an approximate date",
+        display_text="Enter an approximate date",
+        hint=TextFieldWithData(prefix="You entered an exact date of", data_from_question="Enter a date"),
+        display_hint="You entered an exact date of Tuesday 5 April 2022",
         answers=[
             _QuestionResponse(
                 ["2003", "2"],
@@ -258,8 +268,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
             body_heading="Guidance subheading",
             body_link_text="Design system link text",
             body_link_url="https://design-system.service.gov.uk",
-            body_ol_items=["UL item one", "UL item two"],
-            body_ul_items=["OL item one", "OL item two"],
+            body_ul_items=["UL item one", "UL item two"],
+            body_ol_items=["OL item one", "OL item two"],
         ),
     },
     "text-multi-line": {
@@ -312,8 +322,8 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             body_heading="Guidance subheading",
             body_link_text="Design system link text",
             body_link_url="https://design-system.service.gov.uk",
-            body_ol_items=["UL item one", "UL item two"],
-            body_ul_items=["OL item one", "OL item two"],
+            body_ul_items=["UL item one", "UL item two"],
+            body_ol_items=["OL item one", "OL item two"],
         ),
         "condition": Condition(
             referenced_question="Do you want to show question groups?",
@@ -473,7 +483,18 @@ def create_question(
 
     question_details_page.fill_question_text(question_text)
     question_details_page.fill_question_name(question_text.lower())
-    question_details_page.fill_question_hint(f"Hint text for: {question_text}")
+
+    if hint := question_definition.get("hint"):
+        question_details_page.fill_question_hint(hint.prefix)
+        select_data_source_page = question_details_page.click_insert_data(
+            field_name="hint", question=hint.data_from_question
+        )
+        select_data_source_page.select_data_source("A previous question in this task")
+        select_question_page = select_data_source_page.click_select()
+        select_question_page.choose_question(hint.data_from_question)
+        select_question_page.click_use_data()
+    else:
+        question_details_page.fill_question_hint(f"Hint text for: {question_text}")
 
     if question_definition["type"] in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
         question_details_page.fill_data_source_items(question_definition["choices"])
@@ -671,6 +692,9 @@ def navigate_to_report_tasks_page(page: Page, domain: str, grant_name: str, repo
 
 
 def assert_question_visibility(question_page: RunnerQuestionPage, question_to_test: TQuestionToTest) -> None:
+    if display_hint := question_to_test.get("display_hint"):
+        expect(question_page.page.locator(".govuk-hint", has_text=display_hint)).to_be_visible()
+
     if question_to_test.get("guidance") is None:
         if "This question should not be shown" in question_to_test["text"]:
             expect(question_page.heading).not_to_be_visible()
