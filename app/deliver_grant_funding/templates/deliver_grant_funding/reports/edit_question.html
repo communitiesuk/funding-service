@@ -102,7 +102,7 @@
         <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
           <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
           {% set addDataButton %}
-            {{ form.text_add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button"}) }}
+            {{ form.add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "text"}) }}
           {% endset %}
           {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
         </div>
@@ -112,7 +112,7 @@
         <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
           <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
           {% set addDataButton %}
-            {{ form.hint_add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question hint</span>", "classes": "govuk-button--secondary app-context-aware--button"}) }}
+            {{ form.add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question hint</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "hint"}) }}
           {% endset %}
           {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
         </div>
@@ -176,7 +176,7 @@
             {% set value_html %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, component_id=question.id, expression_id=condition.id) }}">
                 <span class="govuk-visually-hidden">Change condition for</span>
-                {{ condition.managed.message }}
+                {{ interpolate(condition.managed.message) }}
               </a>
             {% endset %}
             {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
@@ -210,7 +210,7 @@
               {% set value_html %}
                 <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}" disabled>
                   <span class="govuk-visually-hidden">Change validation for</span>
-                  {{ validation.managed.message }}
+                  {{ interpolate(validation.managed.message) }}
                 </a>
               {% endset %}
               {%

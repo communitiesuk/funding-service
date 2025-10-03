@@ -8,25 +8,30 @@ from typing import Optional as TOptional
 # that are built through the UI. These will be used alongside custom expressions
 from uuid import UUID
 
+from flask import render_template
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCheckboxesInput,
     GovCheckboxInput,
     GovDateInput,
     GovRadioInput,
+    GovSubmitInput,
     GovTextInput,
 )
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
-from wtforms import BooleanField, DateField, IntegerField, SelectField, SelectMultipleField
+from wtforms import BooleanField, DateField, IntegerField, SelectField, SelectMultipleField, StringField
 from wtforms.fields.core import Field
-from wtforms.validators import DataRequired, InputRequired, Optional, ValidationError
+from wtforms.validators import DataRequired, InputRequired, Optional, ReadOnly, ValidationError
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.filters import format_date_approximate, format_date_short
 from app.common.forms.fields import MHCLGApproximateDateInput
 from app.common.qid import SafeQidMixin
+from app.deliver_grant_funding.session_models import (
+    AddContextToExpressionsModel,
+)
 from app.types import TRadioItem
 
 if TYPE_CHECKING:
@@ -176,6 +181,16 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         """
         ...
 
+    @classmethod
+    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
+        data = {k: v for k, v in add_context_data.expression_form_data.items() if k not in {"add_context"}}
+
+        # Populate the `type` of the form from `build_managed_expression_form` so that the general ManagedExpression
+        # selection is preserved.
+        data["type"] = add_context_data.managed_expression_name
+
+        return data
+
 
 class BottomOfRangeIsLower:
     def __init__(self, message: str | None = None):
@@ -200,7 +215,8 @@ class GreaterThan(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    minimum_value: int
+    minimum_value: int | None
+    minimum_expression: str | None = None
     inclusive: bool = False
 
     @property
@@ -209,11 +225,22 @@ class GreaterThan(ManagedExpression):
 
     @property
     def message(self) -> str:
-        return f"The answer must be greater than {'or equal to ' if self.inclusive else ''}{self.minimum_value}"
+        return (
+            f"The answer must be greater than {'or equal to ' if self.inclusive else ''}"
+            + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
+        )
 
     @property
     def statement(self) -> str:
-        return f"{self.safe_qid} >{'=' if self.inclusive else ''} {self.minimum_value}"
+        return (
+            f"{self.safe_qid} >{'=' if self.inclusive else ''} "
+            + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
+        )
+
+    @property
+    def referenced_ids(self) -> list[UUID]:
+        # This will eventually be used to store any referenced question IDs for context aware conditions
+        return []
 
     @staticmethod
     def get_form_fields(
@@ -222,29 +249,53 @@ class GreaterThan(ManagedExpression):
         return {
             "greater_than_value": IntegerField(
                 "Minimum value",
-                default=cast(int, expression.context["minimum_value"]) if expression else None,
+                default=cast(int, expression.context.get("minimum_value")) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
-                render_kw={"params": {"classes": "govuk-input--width-10"}},
+                render_kw={
+                    "params": {"classes": "govuk-input--width-10"},
+                },
+            ),
+            "greater_than_expression": StringField(
+                "Minimum expression",
+                default=expression.context.get("minimum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "greater_than_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
                 default=cast(bool, expression.context["inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
             ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
+            ),
         }
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.greater_than_value.validators = [InputRequired("Enter the minimum value allowed for this question")]  # ty: ignore[unresolved-attribute]
+        form.greater_than_value.validators = (
+            [InputRequired("Enter the minimum value allowed for this question")]
+            if not form.greater_than_expression.data
+            else [Optional()]
+        )  # ty: ignore[unresolved-attribute]
+        form.greater_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "GreaterThan":
+    def build_from_form(
+        form: "_ManagedExpressionForm", question: "Question", expression: TOptional["Expression"] = None
+    ) -> "GreaterThan":
         return GreaterThan(
             question_id=question.id,
-            minimum_value=form.greater_than_value.data,  # ty: ignore[unresolved-attribute]
+            minimum_value=form.greater_than_value.data if not form.greater_than_expression.data else None,
+            minimum_expression=form.greater_than_expression.data if form.greater_than_expression.data else None,
             inclusive=form.greater_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @classmethod
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+        return Markup(render_template("deliver_grant_funding/reports/managed_expressions/greater_than.html", form=form))
 
 
 @register_managed_expression
@@ -256,7 +307,8 @@ class LessThan(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    maximum_value: int
+    maximum_value: int | None
+    maximum_expression: str | None = None
     inclusive: bool = False
 
     @property
@@ -265,11 +317,22 @@ class LessThan(ManagedExpression):
 
     @property
     def message(self) -> str:
-        return f"The answer must be less than {'or equal to ' if self.inclusive else ''}{self.maximum_value}"
+        return (
+            f"The answer must be less than {'or equal to ' if self.inclusive else ''}"
+            + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+        )
 
     @property
     def statement(self) -> str:
-        return f"{self.safe_qid} <{'=' if self.inclusive else ''} {self.maximum_value}"
+        return (
+            f"{self.safe_qid} <{'=' if self.inclusive else ''}"
+            + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+        )
+
+    @property
+    def referenced_ids(self) -> list[UUID]:
+        # This will eventually be used to store any referenced question IDs for context aware conditions
+        return []
 
     @staticmethod
     def get_form_fields(
@@ -283,24 +346,44 @@ class LessThan(ManagedExpression):
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
+            "less_than_expression": StringField(
+                "Maximum expression",
+                default=expression.context.get("maximum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
+            ),
             "less_than_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
                 default=cast(bool, expression.context["inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
             ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
+            ),
         }
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.less_than_value.validators = [InputRequired("Enter the maximum value allowed for this question")]  # ty: ignore[unresolved-attribute]
+        form.less_than_value.validators = (
+            [InputRequired("Enter the maximum value allowed for this question")]
+            if not form.less_than_expression.data
+            else [Optional()]
+        )  # ty: ignore[unresolved-attribute]
+        form.less_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "LessThan":
         return LessThan(
             question_id=question.id,
-            maximum_value=form.less_than_value.data,  # ty: ignore[unresolved-attribute]
+            maximum_value=form.less_than_value.data if not form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
+            maximum_expression=form.less_than_expression.data if form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.less_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @classmethod
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+        return Markup(render_template("deliver_grant_funding/reports/managed_expressions/less_than.html", form=form))
 
 
 @register_managed_expression
@@ -312,9 +395,11 @@ class Between(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    minimum_value: int
+    minimum_value: int | None
+    minimum_expression: str | None = None
     minimum_inclusive: bool = False
-    maximum_value: int
+    maximum_value: int | None
+    maximum_expression: str | None = None
     maximum_inclusive: bool = False
 
     @property
@@ -329,20 +414,22 @@ class Between(ManagedExpression):
         #         property on the model
         # todo: make this use expression evaluation/interpolation rather than f-strings
         return (
-            f"The answer must be between "
-            f"{self.minimum_value}{' (inclusive)' if self.minimum_inclusive else ' (exclusive)'} and "
-            f"{self.maximum_value}{' (inclusive)' if self.maximum_inclusive else ' (exclusive)'}"
+            "The answer must be between "
+            + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
+            + f"{' (inclusive)' if self.minimum_inclusive else ' (exclusive)'} and "
+            + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+            + f"{' (inclusive)' if self.maximum_inclusive else ' (exclusive)'}"
         )
 
     @property
     def statement(self) -> str:
         # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
         return (
-            f"{self.minimum_value} "
+            f"{self.minimum_expression if self.minimum_expression else self.minimum_value} "
             f"<{'=' if self.minimum_inclusive else ''} "
             f"{self.safe_qid} "
             f"<{'=' if self.maximum_inclusive else ''} "
-            f"{self.maximum_value}"
+            f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
         )
 
     @staticmethod
@@ -357,6 +444,12 @@ class Between(ManagedExpression):
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
+            "between_bottom_of_range_expression": StringField(
+                "Minimum expression",
+                default=expression.context.get("minimum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
+            ),
             "between_bottom_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
                 default=cast(bool, expression.context["minimum_inclusive"]) if expression else None,
@@ -369,33 +462,67 @@ class Between(ManagedExpression):
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
+            "between_top_of_range_expression": StringField(
+                "Maximum expression",
+                default=expression.context.get("maximum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
+            ),
             "between_top_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
                 default=cast(bool, expression.context["maximum_inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
             ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
+            ),
         }
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.between_bottom_of_range.validators = [  # ty: ignore[unresolved-attribute]
-            InputRequired("Enter the minimum value allowed for this question"),
-            BottomOfRangeIsLower("The minimum value must be lower than the maximum value"),
-        ]
-        form.between_top_of_range.validators = [  # ty: ignore[unresolved-attribute]
-            InputRequired("Enter the maximum value allowed for this question"),
-            BottomOfRangeIsLower("The maximum value must be higher than the minimum value"),
-        ]
+        form.between_bottom_of_range.validators = (
+            [  # ty: ignore[unresolved-attribute]
+                InputRequired("Enter the minimum value allowed for this question"),
+                BottomOfRangeIsLower("The minimum value must be lower than the maximum value"),
+            ]
+            if not form.between_bottom_of_range_expression.data and not form.between_top_of_range_expression.data
+            else [InputRequired("Enter the minimum value allowed for this question")]
+            if not form.between_bottom_of_range_expression.data
+            else [Optional()]
+        )
+        form.between_top_of_range.validators = (
+            [  # ty: ignore[unresolved-attribute]
+                InputRequired("Enter the maximum value allowed for this question"),
+                BottomOfRangeIsLower("The maximum value must be higher than the minimum value"),
+            ]
+            if not form.between_bottom_of_range_expression.data and not form.between_top_of_range_expression.data
+            else [InputRequired("Enter the maximum value allowed for this question")]
+            if not form.between_top_of_range_expression.data
+            else [Optional()]
+        )
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "Between":
         return Between(
             question_id=question.id,
-            minimum_value=form.between_bottom_of_range.data,  # ty: ignore[unresolved-attribute]
+            minimum_value=form.between_bottom_of_range.data
+            if not form.between_bottom_of_range_expression.data
+            else None,  # ty: ignore[unresolved-attribute]
+            minimum_expression=form.between_bottom_of_range_expression.data
+            if form.between_bottom_of_range_expression.data
+            else None,
             minimum_inclusive=form.between_bottom_inclusive.data,  # ty: ignore[unresolved-attribute]
-            maximum_value=form.between_top_of_range.data,  # ty: ignore[unresolved-attribute]
+            maximum_value=form.between_top_of_range.data if not form.between_top_of_range_expression.data else None,  # ty: ignore[unresolved-attribute]
+            maximum_expression=form.between_top_of_range_expression.data
+            if form.between_top_of_range_expression.data
+            else None,  # ty: ignore[unresolved-attribute]
             maximum_inclusive=form.between_top_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @classmethod
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+        return Markup(render_template("deliver_grant_funding/reports/managed_expressions/between.html", form=form))
 
 
 class BaseDataSourceManagedExpression(ManagedExpression):
@@ -612,7 +739,8 @@ class IsBefore(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    latest_value: datetime.date
+    latest_value: datetime.date | None
+    latest_expression: str | None = None
     inclusive: bool = False
 
     @property
@@ -621,17 +749,31 @@ class IsBefore(ManagedExpression):
 
     @property
     def message(self) -> str:
-        return (
-            f"The answer must be {'on or ' if self.inclusive else ''}before "
-            + f"{format_date_short(self.latest_value) if not self.referenced_question.approximate_date else format_date_approximate(self.latest_value)}"  # noqa: E501
+        return f"The answer must be {'on or ' if self.inclusive else ''}before " + (
+            self.latest_expression
+            if self.latest_expression
+            else (
+                format_date_short(cast(datetime.date, self.latest_value))
+                if not self.referenced_question.approximate_date
+                else format_date_approximate(cast(datetime.date, self.latest_value))
+            )
         )
 
     @property
     def statement(self) -> str:
-        return (
-            f"{self.safe_qid} <{'=' if self.inclusive else ''} date({self.latest_value.year}, "
-            f"{self.latest_value.month}, {self.latest_value.day})"
+        if not self.latest_expression:
+            assert self.latest_value
+        date_expression = (
+            self.latest_expression
+            if self.latest_expression
+            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
         )
+        return f"{self.safe_qid} <{'=' if self.inclusive else ''} {date_expression}"
+
+    @property
+    def referenced_ids(self) -> list[UUID]:
+        # This will eventually be used to store any referenced question IDs for context aware conditions
+        return []
 
     @staticmethod
     def get_form_fields(
@@ -640,8 +782,8 @@ class IsBefore(ManagedExpression):
         return {
             "latest_value": DateField(
                 "Enter the date which this answer must come before",
-                default=datetime.datetime.strptime(cast(str, expression.context["latest_value"]), "%Y-%m-%d").date()
-                if expression
+                default=datetime.datetime.strptime(cast(str, latest_value), "%Y-%m-%d").date()
+                if expression and (latest_value := expression.context.get("latest_value"))
                 else None,
                 widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
                 validators=[Optional()],
@@ -649,24 +791,53 @@ class IsBefore(ManagedExpression):
                 if not referenced_question.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
-            "latest_value_inclusive": BooleanField(
+            "latest_expression": StringField(
+                "Latest expression",
+                default=cast(str, expression.context.get("latest_expression") or "" if expression else ""),
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
+            ),
+            "latest_inclusive": BooleanField(
                 "An answer of exactly the latest date is allowed",
                 default=cast(bool, expression.context["inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
+            ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
             ),
         }
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.latest_value.validators = [DataRequired("Enter the date which this answer must come before")]  # ty: ignore[unresolved-attribute]
+        form.latest_value.validators = (
+            [DataRequired("Enter the date which this answer must come before")]
+            if not form.latest_expression.data
+            else [Optional()]
+        )  # ty: ignore[unresolved-attribute]
+        form.latest_expression.validators = [ReadOnly()]
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsBefore":
         return IsBefore(
             question_id=question.id,
-            latest_value=form.latest_value.data,  # ty: ignore[unresolved-attribute]
-            inclusive=form.latest_value_inclusive.data,  # ty: ignore[unresolved-attribute]
+            latest_value=form.latest_value.data if not form.latest_expression.data else None,
+            latest_expression=form.latest_expression.data if form.latest_expression.data else None,
+            inclusive=form.latest_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @classmethod
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+        return Markup(render_template("deliver_grant_funding/reports/managed_expressions/is_before.html", form=form))
+
+    @classmethod
+    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
+        data = super().prepare_form_data(add_context_data)
+
+        if data.get("latest_value"):
+            data["latest_value"] = datetime.datetime.strptime(data["latest_value"], "%Y-%m-%d").date()
+
+        return data
 
     @property
     def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
@@ -682,7 +853,8 @@ class IsAfter(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    earliest_value: datetime.date
+    earliest_value: datetime.date | None
+    earliest_expression: str | None = None
     inclusive: bool = False
 
     @property
@@ -691,17 +863,24 @@ class IsAfter(ManagedExpression):
 
     @property
     def message(self) -> str:
-        return (
-            f"The answer must be {'on or ' if self.inclusive else ''}after "
-            + f"{format_date_short(self.earliest_value) if not self.referenced_question.approximate_date else format_date_approximate(self.earliest_value)}"  # noqa: E501
+        return f"The answer must be {'on or ' if self.inclusive else ''}after " + (
+            self.earliest_expression
+            if self.earliest_expression
+            else (
+                format_date_short(cast(datetime.date, self.earliest_value))
+                if not self.referenced_question.approximate_date
+                else format_date_approximate(cast(datetime.date, self.earliest_value))
+            )
         )
 
     @property
     def statement(self) -> str:
-        return (
-            f"{self.safe_qid} >{'=' if self.inclusive else ''} date({self.earliest_value.year}, "
-            f"{self.earliest_value.month}, {self.earliest_value.day})"
+        date_expression = (
+            self.earliest_expression
+            if self.earliest_expression
+            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
         )
+        return f"{self.safe_qid} >{'=' if self.inclusive else ''} {date_expression}"
 
     @staticmethod
     def get_form_fields(
@@ -710,8 +889,8 @@ class IsAfter(ManagedExpression):
         return {
             "earliest_value": DateField(
                 "Enter the date which this answer must come after",
-                default=datetime.datetime.strptime(cast(str, expression.context["earliest_value"]), "%Y-%m-%d").date()  # noqa: E501
-                if expression
+                default=datetime.datetime.strptime(cast(str, earliest_value), "%Y-%m-%d").date()
+                if expression and (earliest_value := expression.context.get("earliest_value"))
                 else None,
                 widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
                 validators=[Optional()],
@@ -719,24 +898,53 @@ class IsAfter(ManagedExpression):
                 if not referenced_question.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
-            "earliest_value_inclusive": BooleanField(
+            "earliest_expression": StringField(
+                "Earliest expression",
+                default=cast(str, expression.context.get("earliest_expression") or "" if expression else ""),
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
+            ),
+            "earliest_inclusive": BooleanField(
                 "An answer of exactly the earliest date is allowed",
                 default=cast(bool, expression.context["inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
+            ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
             ),
         }
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.earliest_value.validators = [InputRequired("Enter the date which this answer must come after")]  # ty: ignore[unresolved-attribute]
+        form.earliest_value.validators = (
+            [DataRequired("Enter the date which this answer must come before")]
+            if not form.earliest_expression.data
+            else [Optional()]
+        )  # ty: ignore[unresolved-attribute]
+        form.earliest_expression.validators = [ReadOnly()]
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsAfter":
         return IsAfter(
             question_id=question.id,
-            earliest_value=form.earliest_value.data,  # ty: ignore[unresolved-attribute]
-            inclusive=form.earliest_value_inclusive.data,  # ty: ignore[unresolved-attribute]
+            earliest_value=form.earliest_value.data if not form.earliest_expression.data else None,
+            earliest_expression=form.earliest_expression.data if form.earliest_expression.data else None,
+            inclusive=form.earliest_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @classmethod
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+        return Markup(render_template("deliver_grant_funding/reports/managed_expressions/is_after.html", form=form))
+
+    @classmethod
+    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
+        data = super().prepare_form_data(add_context_data)
+
+        if data.get("earliest_value"):
+            data["earliest_value"] = datetime.datetime.strptime(data["earliest_value"], "%Y-%m-%d").date()
+
+        return data
 
     @property
     def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
@@ -752,9 +960,11 @@ class BetweenDates(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    earliest_value: datetime.date
+    earliest_value: datetime.date | None
+    earliest_expression: str | None = None
     earliest_inclusive: bool = False
-    latest_value: datetime.date
+    latest_value: datetime.date | None
+    latest_expression: str | None = None
     latest_inclusive: bool = False
 
     @property
@@ -770,21 +980,47 @@ class BetweenDates(ManagedExpression):
         # todo: make this use expression evaluation/interpolation rather than f-strings
         return (
             "The answer must be between "
-            f"{format_date_short(self.earliest_value) if not self.referenced_question.approximate_date else format_date_approximate(self.earliest_value)}"  # noqa: E501
-            f"{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'}"
-            f" and {format_date_short(self.latest_value) if not self.referenced_question.approximate_date else format_date_approximate(self.latest_value)}"  # noqa: E501
-            f"{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
+            + (
+                self.earliest_expression
+                if self.earliest_expression
+                else (
+                    format_date_short(cast(datetime.date, self.earliest_value))
+                    if not self.referenced_question.approximate_date
+                    else format_date_approximate(cast(datetime.date, self.earliest_value))
+                )
+            )
+            + f"{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'} and "
+            + (
+                self.latest_expression
+                if self.latest_expression
+                else (
+                    format_date_short(cast(datetime.date, self.latest_value))
+                    if not self.referenced_question.approximate_date
+                    else format_date_approximate(cast(datetime.date, self.latest_value))
+                )
+            )
+            + f"{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
         )
 
     @property
     def statement(self) -> str:
         # todo: do you refer to the question by ID or slugs - pros and cons - discuss - by the end of the epic
+        earliest_date_expression = (
+            self.earliest_expression
+            if self.earliest_expression
+            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
+        )
+        latest_date_expression = (
+            self.latest_expression
+            if self.latest_expression
+            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
+        )
         return (
-            f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day}) "
-            f"<{'=' if self.earliest_inclusive else ''} "
-            f"{self.safe_qid} "
-            f"<{'=' if self.latest_inclusive else ''} "
-            f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"
+            earliest_date_expression
+            + f"<{'=' if self.earliest_inclusive else ''} "
+            + f"{self.safe_qid} "
+            + f"<{'=' if self.latest_inclusive else ''} "
+            + latest_date_expression
         )
 
     @staticmethod
@@ -794,14 +1030,20 @@ class BetweenDates(ManagedExpression):
         return {
             "between_bottom_of_range": DateField(
                 "Earliest date",
-                default=datetime.datetime.strptime(cast(str, expression.context["earliest_value"]), "%Y-%m-%d").date()  # noqa: E501
-                if expression
+                default=datetime.datetime.strptime(cast(str, earliest_value), "%Y-%m-%d").date()
+                if expression and (earliest_value := expression.context.get("earliest_value"))
                 else None,
                 widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
                 validators=[Optional()],
                 format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
                 if not referenced_question.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
+            ),
+            "between_bottom_of_range_expression": StringField(
+                "Earliest expression",
+                default=expression.context.get("earliest_expression") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "between_bottom_inclusive": BooleanField(
                 "An answer of exactly the earliest date is allowed",
@@ -810,8 +1052,8 @@ class BetweenDates(ManagedExpression):
             ),
             "between_top_of_range": DateField(
                 "Latest date",
-                default=datetime.datetime.strptime(cast(str, expression.context["latest_value"]), "%Y-%m-%d").date()
-                if expression
+                default=datetime.datetime.strptime(cast(str, latest_value), "%Y-%m-%d").date()
+                if expression and (latest_value := expression.context.get("latest_value"))
                 else None,
                 widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
                 validators=[Optional()],
@@ -819,33 +1061,83 @@ class BetweenDates(ManagedExpression):
                 if not referenced_question.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
+            "between_top_of_range_expression": StringField(
+                "Latest expression",
+                default=expression.context.get("latest_expression") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextInput(),
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
+            ),
             "between_top_inclusive": BooleanField(
                 "An answer of exactly the latest date is allowed",
                 default=cast(bool, expression.context["latest_inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
             ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
+            ),
         }
 
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
-        form.between_bottom_of_range.validators = [  # ty: ignore[unresolved-attribute]
-            InputRequired("Enter the earliest date allowed for this question"),
-            BottomOfRangeIsLower("The earliest date must be before the latest date"),
-        ]
-        form.between_top_of_range.validators = [  # ty: ignore[unresolved-attribute]
-            InputRequired("Enter the latest date allowed for this question"),
-            BottomOfRangeIsLower("The latest date must be after the earliest date"),
-        ]
+        form.between_bottom_of_range.validators = (
+            [  # ty: ignore[unresolved-attribute]
+                InputRequired("Enter the earliest date allowed for this question"),
+                BottomOfRangeIsLower("The earliest date must be before the latest date"),
+            ]
+            if not form.between_bottom_of_range_expression.data and not form.between_top_of_range_expression.data
+            else [InputRequired("Enter the earliest date allowed for this question")]
+            if not form.between_bottom_of_range_expression.data
+            else [Optional()]
+        )
+        form.between_top_of_range.validators = (
+            [  # ty: ignore[unresolved-attribute]
+                InputRequired("Enter the latest date allowed for this question"),
+                BottomOfRangeIsLower("The latest date must be after the earliest date"),
+            ]
+            if not form.between_bottom_of_range_expression.data and not form.between_top_of_range_expression.data
+            else [InputRequired("Enter the latest date allowed for this question")]
+            if not form.between_top_of_range_expression.data
+            else [Optional()]
+        )
 
     @staticmethod
     def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "BetweenDates":
         return BetweenDates(
             question_id=question.id,
-            earliest_value=form.between_bottom_of_range.data,  # ty: ignore[unresolved-attribute]
+            earliest_value=form.between_bottom_of_range.data
+            if not form.between_bottom_of_range_expression.data
+            else None,  # ty: ignore[unresolved-attribute]
+            earliest_expression=form.between_bottom_of_range_expression.data
+            if form.between_bottom_of_range_expression.data
+            else None,  # ty: ignore[unresolved-attribute]
             earliest_inclusive=form.between_bottom_inclusive.data,  # ty: ignore[unresolved-attribute]
             latest_value=form.between_top_of_range.data,  # ty: ignore[unresolved-attribute]
+            latest_expression=form.between_top_of_range_expression.data
+            if form.between_top_of_range_expression.data
+            else None,  # ty: ignore[unresolved-attribute]
             latest_inclusive=form.between_top_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @classmethod
+    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+        return Markup(
+            render_template("deliver_grant_funding/reports/managed_expressions/between_dates.html", form=form)
+        )
+
+    @classmethod
+    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
+        data = super().prepare_form_data(add_context_data)
+
+        if data.get("between_bottom_of_range"):
+            data["between_bottom_of_range"] = datetime.datetime.strptime(
+                data["between_bottom_of_range"], "%Y-%m-%d"
+            ).date()
+
+        if data.get("between_top_of_range"):
+            data["between_top_of_range"] = datetime.datetime.strptime(data["between_top_of_range"], "%Y-%m-%d").date()
+
+        return data
 
     @property
     def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:

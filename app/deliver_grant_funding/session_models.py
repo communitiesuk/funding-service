@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.common.data.types import QuestionDataType
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions import ExpressionContext
 
 
@@ -29,14 +29,10 @@ class AddContextToComponentSessionModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     data_type: QuestionDataType
-    text: str
-    name: str
-    hint: str
-
-    field: Literal["text", "hint"]
+    field: Literal["component"] = "component"
+    component_form_data: dict[str, Any]
 
     data_source: ExpressionContext.ContextSources | None = None
-
     component_id: UUID | None = None
     parent_id: UUID | None = None
 
@@ -45,9 +41,24 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     field: Literal["guidance"] = "guidance"
-
-    component_id: UUID | None = None
-    guidance_body: str
-    guidance_heading: str
+    component_form_data: dict[str, Any]
 
     data_source: ExpressionContext.ContextSources | None = None
+    component_id: UUID | None = None
+
+
+class AddContextToExpressionsModel(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
+    _prepared_form_data: dict[str, Any]
+
+    field: ExpressionType
+    managed_expression_name: ManagedExpressionsEnum
+    expression_form_data: dict[str, Any]
+    component_id: UUID
+
+    data_source: ExpressionContext.ContextSources | None = None
+    depends_on_question_id: UUID | None = None
+    expression_id: UUID | None = None
+    value_dependent_question_id: UUID | None = None
+    expression_statement: str | None = None
