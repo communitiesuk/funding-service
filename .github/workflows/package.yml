@@ -31,16 +31,6 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.CI_AWS_ACCOUNT }}:role/terraform-developer
           aws-region: eu-west-2  # adjust as needed
 
-      - name: Set up Python
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
-        with:
-          python-version: 3.13.7
-
-      - name: vite
-        run: |
-          npm ci
-          npm run build
-
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@d63b14614fe5d7fc5e5e52c523dea4e876816cc4
 
