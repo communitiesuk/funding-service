@@ -718,6 +718,8 @@ class _GroupFactory(SQLAlchemyModelFactory):
     parent = None
     parent_id = factory.LazyAttribute(lambda o: o.parent.id if o.parent else None)
 
+    presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
+
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:

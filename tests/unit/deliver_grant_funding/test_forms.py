@@ -238,7 +238,7 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,
             interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
-            current_question=questions[2],
+            current_component=questions[2],
         )
 
         assert len(form.question.choices) == 3
@@ -257,7 +257,7 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,
             interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
-            current_question=questions[2],
+            current_component=questions[2],
         )
 
         assert len(form.question.choices) == 3
@@ -268,7 +268,7 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,
             interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
-            current_question=questions[2],
+            current_component=questions[2],
         )
 
         assert len(form.question.choices) == 1
