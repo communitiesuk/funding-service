@@ -29,6 +29,8 @@ class AddContextToComponentSessionModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     data_type: QuestionDataType
+
+    # FIXME: Make this `component_form_data` with `_prepared_form_data` as per expressions model below
     text: str
     name: str
     hint: str
@@ -55,6 +57,8 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
 
 class AddContextToExpressionsModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
+
+    _prepared_form_data: dict[str, Any]
 
     field: ExpressionType
     managed_expression_name: ManagedExpressionsEnum

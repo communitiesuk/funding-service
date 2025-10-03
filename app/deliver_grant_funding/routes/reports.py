@@ -59,7 +59,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import _ManagedExpressionForm, build_managed_expression_form
-from app.common.expressions.registry import get_managed_validators_by_data_type
+from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -667,6 +667,9 @@ def _extract_add_context_data_from_session(
             ):
                 del session["question"]
                 return None
+
+            managed_expression_cls = lookup_managed_expression(add_context_data.managed_expression_name)
+            add_context_data._prepared_form_data = managed_expression_cls.prepare_form_data(add_context_data)
         else:
             add_context_data = AddContextToComponentSessionModel(**session_data)  # ty: ignore[missing-argument]
             if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
@@ -1198,11 +1201,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
     form = (
-        ConditionForm(
-            data={k: v for k, v in add_context_data.expression_form_data.items() if not k.endswith("_add_context")}
-            if add_context_data
-            else None
-        )
+        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)
         if ConditionForm
         else None
     )
@@ -1298,11 +1297,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question, expression)
     form = (
-        ConditionForm(
-            data={k: v for k, v in add_context_data.expression_form_data.items() if not k.endswith("_add_context")}
-            if add_context_data
-            else None
-        )
+        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)
         if ConditionForm
         else None
     )
@@ -1362,11 +1357,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
     form = (
-        ValidationForm(
-            data={k: v for k, v in add_context_data.expression_form_data.items() if not k.endswith("_add_context")}
-            if add_context_data
-            else None
-        )
+        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)
         if ValidationForm
         else None
     )
@@ -1453,11 +1444,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, cast("Question", question), expression)
     form = (
-        ValidationForm(
-            data={k: v for k, v in add_context_data.expression_form_data.items() if not k.endswith("_add_context")}
-            if add_context_data
-            else None
-        )
+        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)
         if ValidationForm
         else None
     )
