@@ -1,20 +1,23 @@
 <div class="govuk-form-group">
-  {% set addBottomRangeDataButton %}
-    {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "between_bottom_of_range_expression"}) }}
-  {% endset %}
-  {{ form.between_bottom_of_range(params={"classes": "govuk-input--width-10", "formGroup": {"afterInput": {"html": addBottomRangeDataButton } } }) }}
-
-  {{ form.between_bottom_of_range_expression() }}
+  {% if not form.between_bottom_of_range_expression.data %}
+    {% set addBottomRangeDataButton %}
+      {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "between_bottom_of_range_expression"}) }}
+    {% endset %}
+    {{ form.between_bottom_of_range(params={"classes": "govuk-input--width-10", "formGroup": {"afterInput": {"html": addBottomRangeDataButton } } }) }}
+  {% else %}
+    {{ form.between_bottom_of_range_expression() }}
+  {% endif %}
 
   {{ form.between_bottom_inclusive() }}
 
-
-  {% set addTopRangeDataButton %}
-    {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "between_top_of_range_expression"}) }}
-  {% endset %}
-  {{ form.between_top_of_range(params={"classes": "govuk-input--width-10", "formGroup": {"afterInput": {"html": addTopRangeDataButton } } }) }}
-
-  {{ form.between_top_of_range_expression() }}
+  {% if not form.between_top_of_range_expression.data %}
+    {% set addTopRangeDataButton %}
+      {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "between_top_of_range_expression"}) }}
+    {% endset %}
+    {{ form.between_top_of_range(params={"classes": "govuk-input--width-10", "formGroup": {"afterInput": {"html": addTopRangeDataButton } } }) }}
+  {% else %}
+    {{ form.between_top_of_range_expression() }}
+  {% endif %}
 
   {{ form.between_top_inclusive() }}
 </div>
