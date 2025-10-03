@@ -260,7 +260,7 @@ class GreaterThan(ManagedExpression):
                 "Minimum expression",
                 default=expression.context.get("minimum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
                 widget=GovTextInput(),
-                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "greater_than_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
@@ -350,7 +350,7 @@ class LessThan(ManagedExpression):
                 "Maximum expression",
                 default=expression.context.get("maximum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
                 widget=GovTextInput(),
-                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "less_than_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
@@ -448,7 +448,7 @@ class Between(ManagedExpression):
                 "Minimum expression",
                 default=expression.context.get("minimum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
                 widget=GovTextInput(),
-                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "between_bottom_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
@@ -466,7 +466,7 @@ class Between(ManagedExpression):
                 "Maximum expression",
                 default=expression.context.get("maximum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
                 widget=GovTextInput(),
-                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "between_top_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
@@ -795,7 +795,7 @@ class IsBefore(ManagedExpression):
                 "Latest expression",
                 default=cast(str, expression.context.get("latest_expression") or "" if expression else ""),
                 widget=GovTextInput(),
-                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "latest_inclusive": BooleanField(
                 "An answer of exactly the latest date is allowed",
@@ -902,7 +902,7 @@ class IsAfter(ManagedExpression):
                 "Earliest expression",
                 default=cast(str, expression.context.get("earliest_expression") or "" if expression else ""),
                 widget=GovTextInput(),
-                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "earliest_inclusive": BooleanField(
                 "An answer of exactly the earliest date is allowed",
@@ -1043,7 +1043,7 @@ class BetweenDates(ManagedExpression):
                 "Earliest expression",
                 default=expression.context.get("earliest_expression") or "" if expression else "",  # type: ignore[arg-type]
                 widget=GovTextInput(),
-                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "between_bottom_inclusive": BooleanField(
                 "An answer of exactly the earliest date is allowed",
@@ -1065,7 +1065,7 @@ class BetweenDates(ManagedExpression):
                 "Latest expression",
                 default=expression.context.get("latest_expression") or "" if expression else "",  # type: ignore[arg-type]
                 widget=GovTextInput(),
-                render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
+                render_kw={"params": {"classes": "govuk-input--width-20"}},
             ),
             "between_top_inclusive": BooleanField(
                 "An answer of exactly the latest date is allowed",

@@ -5,7 +5,10 @@
     {% endset %}
     {{ form.less_than_value(params={"classes": "govuk-input--width-10", "formGroup": {"afterInput": {"html": addDataButton } } }) }}
   {% else %}
-    {{ form.less_than_expression() }}
+    <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
+      <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+      {{ form.less_than_expression(params={"attributes": {"data-context-aware-editor-target": "", "readonly": "true"}, "formGroup": {"classes": "app-context-aware--container"} }) }}
+    </div>
   {% endif %}
 
   {{ form.less_than_inclusive() }}

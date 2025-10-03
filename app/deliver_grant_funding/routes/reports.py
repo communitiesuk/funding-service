@@ -3,7 +3,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
-from flask import abort, current_app, flash, redirect, render_template, request, send_file, session, url_for
+from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from pydantic import BaseModel, ValidationError
 from wtforms import Field
@@ -1272,6 +1272,11 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
         except DuplicateValueError:
             form.form_errors.append(f"“{expression.description}” condition based on this question already exists.")
 
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=component.form.collection, collection_question_limit=component
+    )
+
     return render_template(
         "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
         component=component,
@@ -1348,6 +1353,11 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
                 f"“{updated_managed_expression.description}” condition based on this question already exists."
             )
 
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=component.form.collection, collection_question_limit=component
+    )
+
     return render_template(
         "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
         component=component,
@@ -1420,6 +1430,11 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
                     question_id=question.id,
                 )
             )
+
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=question.form.collection, collection_question_limit=question
+    )
 
     return render_template(
         "deliver_grant_funding/reports/manage_question_validation.html",
@@ -1502,6 +1517,11 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
                     question_id=question.id,
                 )
             )
+
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=question.form.collection, collection_question_limit=question
+    )
 
     return render_template(
         "deliver_grant_funding/reports/manage_question_validation.html",
