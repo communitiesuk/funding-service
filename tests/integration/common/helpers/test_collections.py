@@ -191,6 +191,25 @@ class TestSubmissionHelper:
                 "q_d696aebc49d24170a92fb6ef4299429c": date(2003, 2, 1),
             }
 
+        def test_with_add_another_groups(self, factories):
+            collection = factories.collection.create(
+                create_completed_submissions_add_another_nested_group__test=1,
+                create_completed_submissions_add_another_nested_group__use_random_data=False,
+                create_completed_submissions_add_another_nested_group__number_of_add_another_answers=2,
+            )
+            questions = collection.forms[0].cached_questions
+            helper = SubmissionHelper(collection.test_submissions[0])
+
+            assert helper.cached_form_data == {
+                f"{questions[0].safe_qid}": "test name",
+                f"{questions[1].safe_qid}": "test org name",
+                f"{questions[2].safe_qid}_0": "test name 0",
+                f"{questions[2].safe_qid}_1": "test name 1",
+                f"{questions[3].safe_qid}_0": "test_user_0@email.com",
+                f"{questions[3].safe_qid}_1": "test_user_1@email.com",
+                f"{questions[4].safe_qid}": 3,
+            }
+
     class TestExpressionContext:
         def test_no_submission_data(self, factories):
             form = factories.form.build()
@@ -288,6 +307,27 @@ class TestSubmissionHelper:
                     "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
                     "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
                     "q_d696aebc49d24170a92fb6ef4299429c": date(2000, 1, 1),
+                }
+            )
+
+        def test_with_add_another_groups(self, factories):
+            collection = factories.collection.create(
+                create_completed_submissions_add_another_nested_group__test=1,
+                create_completed_submissions_add_another_nested_group__use_random_data=False,
+                create_completed_submissions_add_another_nested_group__number_of_add_another_answers=2,
+            )
+            questions = collection.forms[0].cached_questions
+            helper = SubmissionHelper(collection.test_submissions[0])
+
+            assert helper.cached_evaluation_context == ExpressionContext(
+                submission_data={
+                    f"{questions[0].safe_qid}": "test name",
+                    f"{questions[1].safe_qid}": "test org name",
+                    f"{questions[2].safe_qid}_0": "test name 0",
+                    f"{questions[2].safe_qid}_1": "test name 1",
+                    f"{questions[3].safe_qid}_0": "test_user_0@email.com",
+                    f"{questions[3].safe_qid}_1": "test_user_1@email.com",
+                    f"{questions[4].safe_qid}": 3,
                 }
             )
 
