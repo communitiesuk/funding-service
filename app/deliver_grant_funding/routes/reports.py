@@ -914,7 +914,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                 if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
                     add_context_data.expression_form_data.update(
                         {
-                            value: add_context_data.expression_statement
+                            value: f"(({add_context_data.expression_statement}))"
                             for field, value in add_context_data.expression_form_data.items()
                             if field == "add_context" and value is not None
                         }

@@ -176,7 +176,7 @@
             {% set value_html %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, component_id=question.id, expression_id=condition.id) }}">
                 <span class="govuk-visually-hidden">Change condition for</span>
-                {{ condition.managed.message }}
+                {{ interpolate(condition.managed.message) }}
               </a>
             {% endset %}
             {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
@@ -210,7 +210,7 @@
               {% set value_html %}
                 <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}" disabled>
                   <span class="govuk-visually-hidden">Change validation for</span>
-                  {{ validation.managed.message }}
+                  {{ interpolate(validation.managed.message) }}
                 </a>
               {% endset %}
               {%
