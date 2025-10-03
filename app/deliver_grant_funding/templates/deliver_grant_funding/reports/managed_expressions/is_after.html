@@ -1,10 +1,12 @@
 <div class="govuk-form-group">
-  {% set addDataButton %}
-    {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "earliest_expression"}) }}
-  {% endset %}
-  {{ form.earliest_value(params={"formGroup": {"afterInputs": {"html": addDataButton } } }) }}
-
-  {{ form.earliest_expression() }}
+  {% if not form.earliest_expression.data %}
+    {% set addDataButton %}
+      {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "earliest_expression"}) }}
+    {% endset %}
+    {{ form.earliest_value(params={"formGroup": {"afterInputs": {"html": addDataButton } } }) }}
+  {% else %}
+    {{ form.earliest_expression() }}
+  {% endif %}
 
   {{ form.earliest_inclusive() }}
 </div>

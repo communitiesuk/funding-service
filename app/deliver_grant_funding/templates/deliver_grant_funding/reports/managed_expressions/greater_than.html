@@ -1,10 +1,12 @@
 <div class="govuk-form-group">
-  {% set addDataButton %}
-    {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "greater_than_expression"}) }}
-  {% endset %}
-  {{ form.greater_than_value(params={"classes": "govuk-input--width-10", "formGroup": {"afterInput": {"html": addDataButton } } }) }}
-
-  {{ form.greater_than_expression() }}
+  {% if not form.greater_than_expression.data %}
+    {% set addDataButton %}
+      {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "greater_than_expression"}) }}
+    {% endset %}
+    {{ form.greater_than_value(params={"classes": "govuk-input--width-10", "formGroup": {"afterInput": {"html": addDataButton } } }) }}
+  {% else %}
+    {{ form.greater_than_expression() }}
+  {% endif %}
 
   {{ form.greater_than_inclusive() }}
 </div>
