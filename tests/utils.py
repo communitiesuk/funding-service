@@ -144,7 +144,7 @@ def page_has_button(soup: BeautifulSoup, button_text: str) -> Tag | None:
     return None
 
 
-def get_form_data(form: FlaskForm) -> dict[str, Any]:
+def get_form_data(form: FlaskForm, submit: str = "y") -> dict[str, Any]:
     """Get the data from a flask form suitable for passing as `data` to a Flask test client's `post` method.
 
     Specifically we need to strip out any null/falsey data, which can be stringified into eg `"False"` and ends up
@@ -153,7 +153,7 @@ def get_form_data(form: FlaskForm) -> dict[str, Any]:
     data = {k: v for k, v in form.data.items() if v}
 
     # If we're getting the form data, we want to submit the form
-    if hasattr(form, "submit"):
+    if hasattr(form, "submit") and submit:
         data["submit"] = "y"
 
     return data

@@ -237,7 +237,7 @@ class QuestionForm(FlaskForm):
         filters=[strip_string_if_not_empty, strip_newlines],
         widget=GovTextArea(),
     )
-    text_add_context = SubmitField(widget=GovSubmitInput())
+    add_context = StringField(widget=GovSubmitInput())
     hint = StringField(
         "Question hint (optional)",
         filters=[strip_string_if_not_empty],
@@ -247,7 +247,6 @@ class QuestionForm(FlaskForm):
         ),
         render_kw={"params": {"rows": 2}},
     )
-    hint_add_context = SubmitField(widget=GovSubmitInput())
     name = StringField(
         "Question name",
         validators=[DataRequired("Enter the question name")],
@@ -396,7 +395,10 @@ class QuestionForm(FlaskForm):
             raise ValidationError("Remove the prefix if you need a suffix")
 
     def is_submitted_to_add_context(self) -> bool:
-        return self.is_submitted() and (self.text_add_context.data or self.hint_add_context.data)
+        return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
+
+    def get_component_form_data(self) -> dict[str, Any]:
+        return {key: data for key, data in self.data.items() if key not in {"csrf_token", "submit"}}
 
 
 class AddContextSelectSourceForm(FlaskForm):
@@ -600,7 +602,7 @@ class AddGuidanceForm(FlaskForm):
         widget=GovTextArea(),
         filters=[strip_string_if_not_empty],
     )
-    add_context = SubmitField(widget=GovSubmitInput())
+    add_context = StringField(widget=GovSubmitInput(), render_kw={"value": "guidance_body"})
 
     preview = SubmitField("Save and preview guidance", widget=GovSubmitInput())
     submit = SubmitField("Save guidance", widget=GovSubmitInput())
@@ -620,7 +622,10 @@ class AddGuidanceForm(FlaskForm):
         return result
 
     def is_submitted_to_add_context(self) -> bool:
-        return self.is_submitted() and self.add_context.data
+        return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
+
+    def get_component_form_data(self) -> dict[str, Any]:
+        return {key: data for key, data in self.data.items() if key not in {"csrf_token", "submit"}}
 
 
 class PreviewGuidanceForm(FlaskForm):

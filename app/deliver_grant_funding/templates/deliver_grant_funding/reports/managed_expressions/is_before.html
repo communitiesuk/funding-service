@@ -1,6 +1,6 @@
 <div class="govuk-form-group">
   {% set addDataButton %}
-    {{ form.latest_add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "latest_expression"}) }}
+    {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "latest_expression"}) }}
   {% endset %}
   {{ form.latest_value(params={"formGroup": {"afterInputs": {"html": addDataButton } } }) }}
 

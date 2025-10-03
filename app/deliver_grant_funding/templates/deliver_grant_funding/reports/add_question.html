@@ -33,7 +33,7 @@
         <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
           <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
           {% set addDataButton %}
-            {{ form.text_add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button"}) }}
+            {{ form.add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "text"}) }}
           {% endset %}
           {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
 
@@ -43,7 +43,7 @@
         <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
           <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
           {% set addDataButton %}
-            {{ form.hint_add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question hint</span>", "classes": "govuk-button--secondary app-context-aware--button"}) }}
+            {{ form.add_context(params={"html": "Insert data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "hint"}) }}
           {% endset %}
           {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
         </div>

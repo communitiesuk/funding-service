@@ -626,7 +626,7 @@ class AddValidationPage(ReportsBasePage):
                 earliest_date_group = self.page.get_by_role("group", name="Earliest date")
                 ReportsBasePage.fill_in_date_fields(
                     earliest_date_group,
-                    managed_validation.earliest_value,
+                    cast(datetime.date, managed_validation.earliest_value),
                     approx_date=bool(presentation_options.approximate_date) if presentation_options else False,
                 )
                 if managed_validation.earliest_inclusive:
@@ -634,7 +634,7 @@ class AddValidationPage(ReportsBasePage):
                 latest_date_group = self.page.get_by_role("group", name="Latest date")
                 ReportsBasePage.fill_in_date_fields(
                     latest_date_group,
-                    managed_validation.latest_value,
+                    cast(datetime.date, managed_validation.latest_value),
                     approx_date=bool(presentation_options.approximate_date) if presentation_options else False,
                 )
                 if managed_validation.latest_inclusive:

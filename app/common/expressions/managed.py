@@ -30,8 +30,6 @@ from app.common.filters import format_date_approximate, format_date_short
 from app.common.forms.fields import MHCLGApproximateDateInput
 from app.common.qid import SafeQidMixin
 from app.deliver_grant_funding.session_models import (
-    AddContextToComponentGuidanceSessionModel,
-    AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
 )
 from app.types import TRadioItem
@@ -184,13 +182,8 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         ...
 
     @classmethod
-    def prepare_form_data(
-        cls,
-        add_context_data: Union[
-            AddContextToComponentSessionModel | AddContextToComponentGuidanceSessionModel | AddContextToExpressionsModel
-        ],
-    ):
-        data = {k: v for k, v in add_context_data.expression_form_data.items() if not k.endswith("_add_context")}
+    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
+        data = {k: v for k, v in add_context_data.expression_form_data.items() if k not in {"add_context"}}
 
         # Populate the `type` of the form from `build_managed_expression_form` so that the general ManagedExpression
         # selection is preserved.
@@ -263,10 +256,6 @@ class GreaterThan(ManagedExpression):
                     "params": {"classes": "govuk-input--width-10"},
                 },
             ),
-            "greater_than_add_context": StringField(
-                "Insert data",
-                widget=GovSubmitInput(),
-            ),
             "greater_than_expression": StringField(
                 "Minimum expression",
                 default=expression.context.get("minimum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
@@ -277,6 +266,10 @@ class GreaterThan(ManagedExpression):
                 "An answer of exactly the minimum value is allowed",
                 default=cast(bool, expression.context["inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
+            ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
             ),
         }
 
@@ -353,10 +346,6 @@ class LessThan(ManagedExpression):
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
-            "less_than_add_context": StringField(
-                "Insert data",
-                widget=GovSubmitInput(),
-            ),
             "less_than_expression": StringField(
                 "Maximum expression",
                 default=expression.context.get("maximum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
@@ -367,6 +356,10 @@ class LessThan(ManagedExpression):
                 "An answer of exactly the maximum value is allowed",
                 default=cast(bool, expression.context["inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
+            ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
             ),
         }
 
@@ -451,10 +444,6 @@ class Between(ManagedExpression):
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
-            "between_bottom_of_range_add_context": StringField(
-                "Insert data",
-                widget=GovSubmitInput(),
-            ),
             "between_bottom_of_range_expression": StringField(
                 "Minimum expression",
                 default=expression.context.get("minimum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
@@ -473,10 +462,6 @@ class Between(ManagedExpression):
                 validators=[Optional()],
                 render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
-            "between_top_of_range_add_context": StringField(
-                "Insert data",
-                widget=GovSubmitInput(),
-            ),
             "between_top_of_range_expression": StringField(
                 "Maximum expression",
                 default=expression.context.get("maximum_expression", "") or "" if expression else "",  # type: ignore[arg-type]
@@ -487,6 +472,10 @@ class Between(ManagedExpression):
                 "An answer of exactly the maximum value is allowed",
                 default=cast(bool, expression.context["maximum_inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
+            ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
             ),
         }
 
@@ -764,18 +753,20 @@ class IsBefore(ManagedExpression):
             self.latest_expression
             if self.latest_expression
             else (
-                format_date_short(self.latest_value)
+                format_date_short(cast(datetime.date, self.latest_value))
                 if not self.referenced_question.approximate_date
-                else format_date_approximate(self.latest_value)
+                else format_date_approximate(cast(datetime.date, self.latest_value))
             )
         )
 
     @property
     def statement(self) -> str:
+        if not self.latest_expression:
+            assert self.latest_value
         date_expression = (
             self.latest_expression
             if self.latest_expression
-            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"
+            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
         )
         return f"{self.safe_qid} <{'=' if self.inclusive else ''} {date_expression}"
 
@@ -800,13 +791,9 @@ class IsBefore(ManagedExpression):
                 if not referenced_question.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
-            "latest_add_context": StringField(
-                "Insert data",
-                widget=GovSubmitInput(),
-            ),
             "latest_expression": StringField(
                 "Latest expression",
-                default=expression.context.get("latest_expression") or "" if expression else "",
+                default=cast(str, expression.context.get("latest_expression") or "" if expression else ""),
                 widget=GovTextInput(),
                 render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
             ),
@@ -814,6 +801,10 @@ class IsBefore(ManagedExpression):
                 "An answer of exactly the latest date is allowed",
                 default=cast(bool, expression.context["inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
+            ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
             ),
         }
 
@@ -840,12 +831,7 @@ class IsBefore(ManagedExpression):
         return Markup(render_template("deliver_grant_funding/reports/managed_expressions/is_before.html", form=form))
 
     @classmethod
-    def prepare_form_data(
-        cls,
-        add_context_data: [
-            AddContextToComponentSessionModel | AddContextToComponentGuidanceSessionModel | AddContextToExpressionsModel
-        ],
-    ):
+    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
         data = super().prepare_form_data(add_context_data)
 
         if data.get("latest_value"):
@@ -881,9 +867,9 @@ class IsAfter(ManagedExpression):
             self.earliest_expression
             if self.earliest_expression
             else (
-                format_date_short(self.earliest_value)
+                format_date_short(cast(datetime.date, self.earliest_value))
                 if not self.referenced_question.approximate_date
-                else format_date_approximate(self.earliest_value)
+                else format_date_approximate(cast(datetime.date, self.earliest_value))
             )
         )
 
@@ -892,7 +878,7 @@ class IsAfter(ManagedExpression):
         date_expression = (
             self.earliest_expression
             if self.earliest_expression
-            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"
+            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
         )
         return f"{self.safe_qid} >{'=' if self.inclusive else ''} {date_expression}"
 
@@ -912,13 +898,9 @@ class IsAfter(ManagedExpression):
                 if not referenced_question.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
-            "earliest_add_context": StringField(
-                "Insert data",
-                widget=GovSubmitInput(),
-            ),
             "earliest_expression": StringField(
                 "Earliest expression",
-                default=expression.context.get("earliest_expression") or "" if expression else "",
+                default=cast(str, expression.context.get("earliest_expression") or "" if expression else ""),
                 widget=GovTextInput(),
                 render_kw={"params": {"classes": "govuk-input--width-20", "attributes": {"readonly": ""}}},
             ),
@@ -926,6 +908,10 @@ class IsAfter(ManagedExpression):
                 "An answer of exactly the earliest date is allowed",
                 default=cast(bool, expression.context["inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
+            ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
             ),
         }
 
@@ -952,12 +938,7 @@ class IsAfter(ManagedExpression):
         return Markup(render_template("deliver_grant_funding/reports/managed_expressions/is_after.html", form=form))
 
     @classmethod
-    def prepare_form_data(
-        cls,
-        add_context_data: Union[
-            AddContextToComponentSessionModel | AddContextToComponentGuidanceSessionModel | AddContextToExpressionsModel
-        ],
-    ):
+    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
         data = super().prepare_form_data(add_context_data)
 
         if data.get("earliest_value"):
@@ -1003,9 +984,9 @@ class BetweenDates(ManagedExpression):
                 self.earliest_expression
                 if self.earliest_expression
                 else (
-                    format_date_short(self.earliest_value)
+                    format_date_short(cast(datetime.date, self.earliest_value))
                     if not self.referenced_question.approximate_date
-                    else format_date_approximate(self.earliest_value)
+                    else format_date_approximate(cast(datetime.date, self.earliest_value))
                 )
             )
             + f"{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'} and "
@@ -1013,9 +994,9 @@ class BetweenDates(ManagedExpression):
                 self.latest_expression
                 if self.latest_expression
                 else (
-                    format_date_short(self.latest_value)
+                    format_date_short(cast(datetime.date, self.latest_value))
                     if not self.referenced_question.approximate_date
-                    else format_date_approximate(self.latest_value)
+                    else format_date_approximate(cast(datetime.date, self.latest_value))
                 )
             )
             + f"{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
@@ -1027,12 +1008,12 @@ class BetweenDates(ManagedExpression):
         earliest_date_expression = (
             self.earliest_expression
             if self.earliest_expression
-            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"
+            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
         )
         latest_date_expression = (
             self.latest_expression
             if self.latest_expression
-            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"
+            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
         )
         return (
             earliest_date_expression
@@ -1058,10 +1039,6 @@ class BetweenDates(ManagedExpression):
                 if not referenced_question.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
-            "between_bottom_of_range_add_context": StringField(
-                "Insert data",
-                widget=GovSubmitInput(),
-            ),
             "between_bottom_of_range_expression": StringField(
                 "Earliest expression",
                 default=expression.context.get("earliest_expression") or "" if expression else "",  # type: ignore[arg-type]
@@ -1084,10 +1061,6 @@ class BetweenDates(ManagedExpression):
                 if not referenced_question.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
-            "between_top_of_range_add_context": StringField(
-                "Insert data",
-                widget=GovSubmitInput(),
-            ),
             "between_top_of_range_expression": StringField(
                 "Latest expression",
                 default=expression.context.get("latest_expression") or "" if expression else "",  # type: ignore[arg-type]
@@ -1098,6 +1071,10 @@ class BetweenDates(ManagedExpression):
                 "An answer of exactly the latest date is allowed",
                 default=cast(bool, expression.context["latest_inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
+            ),
+            "add_context": StringField(
+                "Insert data",
+                widget=GovSubmitInput(),
             ),
         }
 
@@ -1149,12 +1126,7 @@ class BetweenDates(ManagedExpression):
         )
 
     @classmethod
-    def prepare_form_data(
-        cls,
-        add_context_data: Union[
-            AddContextToComponentSessionModel | AddContextToComponentGuidanceSessionModel | AddContextToExpressionsModel
-        ],
-    ):
+    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
         data = super().prepare_form_data(add_context_data)
 
         if data.get("between_bottom_of_range"):

@@ -40,11 +40,11 @@ class _ManagedExpressionForm(FlaskForm):
 
     def is_submitted_to_add_context(self) -> bool:
         """Check if user clicked any validation context add button"""
-        # FIXME: Using the endswith("_add_context") here is really gross, we should do this better
+        # FIXME: Using == "add_context" here is really gross, we should do this better
         if not self.is_submitted():
             return False
         for field_name, field in self._fields.items():
-            if field_name.endswith("_add_context") and hasattr(field, "data") and field.data:
+            if field_name == "add_context" and hasattr(field, "data") and field.data:
                 return True
         return False
 
