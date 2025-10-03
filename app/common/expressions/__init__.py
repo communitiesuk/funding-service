@@ -114,26 +114,12 @@ class ExpressionContext(ChainMap[str, Any]):
             raise ValueError("Mismatch between collection and submission.collection")
 
         # TODO: Namespace this set of data, eg under a `this_submission` prefix/key
-        submission_data = (
-            {
-                question.safe_qid: (
-                    answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation()
-                )
-                for form in submission_helper.collection.forms
-                for question in form.cached_questions
-                if (
-                    collection_question_limit is None
-                    or (
-                        collection_question_limit.form == form
-                        and form.global_component_index(collection_question_limit)
-                        >= form.global_component_index(question)
-                    )
-                )
-                and (answer := submission_helper._get_answer_for_question(question.id)) is not None
-            }
-            if submission_helper
-            else {}
+        submission_data = ExpressionContext._build_submission_data(
+            mode=mode,
+            collection_question_limit=collection_question_limit,
+            submission_helper=submission_helper,
         )
+
         if fallback_question_names:
             for form in collection.forms:
                 for question in form.cached_questions:
@@ -147,6 +133,42 @@ class ExpressionContext(ChainMap[str, Any]):
                     submission_data.setdefault(question.safe_qid, f"(({question.name}))")
 
         return ExpressionContext(submission_data=submission_data)
+
+    @staticmethod
+    def _build_submission_data(
+        mode: Literal["evaluation", "interpolation"],
+        collection_question_limit: Optional["Component"] = None,
+        submission_helper: Optional["SubmissionHelper"] = None,
+    ) -> dict[str, Any]:
+        submission_data = {}
+        if submission_helper:
+            for form in submission_helper.collection.forms:
+                for question in form.cached_questions:
+                    if collection_question_limit is None or (
+                        collection_question_limit.form == form
+                        and form.global_component_index(collection_question_limit)
+                        >= form.global_component_index(question)
+                    ):
+                        if question.add_another_container:
+                            for i in range(submission_helper.get_count_for_add_another(question.add_another_container)):
+                                answer = submission_helper.cached_get_answer_for_question(
+                                    question.id, add_another_index=i
+                                )
+                                if answer is not None:
+                                    submission_data[question.safe_qid_indexed(i)] = (
+                                        answer.get_value_for_evaluation()
+                                        if mode == "evaluation"
+                                        else answer.get_value_for_interpolation()
+                                    )
+                        else:
+                            answer = submission_helper.cached_get_answer_for_question(question.id)
+                            if answer is not None:
+                                submission_data[question.safe_qid] = (
+                                    answer.get_value_for_evaluation()
+                                    if mode == "evaluation"
+                                    else answer.get_value_for_interpolation()
+                                )
+        return submission_data
 
     @staticmethod
     def get_context_keys_and_labels(
