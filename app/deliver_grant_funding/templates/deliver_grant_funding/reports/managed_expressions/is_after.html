@@ -5,7 +5,10 @@
     {% endset %}
     {{ form.earliest_value(params={"formGroup": {"afterInputs": {"html": addDataButton } } }) }}
   {% else %}
-    {{ form.earliest_expression() }}
+    <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
+      <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+      {{ form.earliest_expression(params={"attributes": {"data-context-aware-editor-target": "", "readonly": ""}, "formGroup": {"classes": "app-context-aware--container"} }) }}
+    </div>
   {% endif %}
 
   {{ form.earliest_inclusive() }}

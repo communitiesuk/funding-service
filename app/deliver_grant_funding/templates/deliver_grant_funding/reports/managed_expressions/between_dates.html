@@ -5,7 +5,10 @@
     {% endset %}
     {{ form.between_bottom_of_range(params={"formGroup": {"afterInputs": {"html": addBottomRangeDataButton } } }) }}
   {% else %}
-    {{ form.between_bottom_of_range_expression() }}
+    <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
+      <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+      {{ form.between_bottom_of_range_expression(params={"attributes": {"data-context-aware-editor-target": "", "readonly": ""}, "formGroup": {"classes": "app-context-aware--container"} }) }}
+    </div>
   {% endif %}
 
   {{ form.between_bottom_inclusive() }}
@@ -16,7 +19,10 @@
     {% endset %}
     {{ form.between_top_of_range(params={"formGroup": {"afterInputs": {"html": addTopRangeDataButton } } }) }}
   {% else %}
-    {{ form.between_top_of_range_expression() }}
+    <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
+      <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+      {{ form.between_top_of_range_expression(params={"attributes": {"data-context-aware-editor-target": "", "readonly": ""}, "formGroup": {"classes": "app-context-aware--container"} }) }}
+    </div>
   {% endif %}
 
   {{ form.between_top_inclusive() }}
