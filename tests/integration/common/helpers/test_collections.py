@@ -486,6 +486,42 @@ class TestSubmissionHelper:
 
             assert answer is None
 
+        def test_get_answer_for_add_another_question_group_missing_index(self, factories):
+            group = factories.group.create(add_another=True)
+            question = factories.question.create(form=group.form, parent=group)
+            submission = factories.submission.create(collection=group.form.collection)
+
+            helper = SubmissionHelper(submission)
+            with pytest.raises(ValueError) as e:
+                helper._get_answer_for_question(question_id=question.id)
+            assert str(e.value) == "add_another_index must be provided for questions within an add another container"
+
+        def test_get_answer_for_add_another_question_group_invalid_idnex(self, factories):
+            group = factories.group.create(add_another=True)
+            question = factories.question.create(form=group.form, parent=group)
+            submission = factories.submission.create(collection=group.form.collection)
+
+            helper = SubmissionHelper(submission)
+            with pytest.raises(ValueError) as e:
+                helper._get_answer_for_question(question_id=question.id, add_another_index=0)
+            assert str(e.value) == "no add another entry exists at this index"
+
+        def test_get_answer_for_add_another_question_group_at_index(self, factories):
+            collection = factories.collection.create(
+                create_completed_submissions_add_another_nested_group__test=1,
+                create_completed_submissions_add_another_nested_group__use_random_data=False,
+            )
+
+            helper = SubmissionHelper(collection.test_submissions[0])
+            question = collection.forms[0].cached_questions[2]
+            assert question.add_another_container is not None
+            assert helper._get_answer_for_question(
+                question_id=question.id, add_another_index=0
+            ) == TextSingleLineAnswer("test name 0")
+            assert helper._get_answer_for_question(
+                question_id=question.id, add_another_index=1
+            ) == TextSingleLineAnswer("test name 1")
+
 
 class TestCollectionHelper:
     def test_init_collection_helper(self, factories):
