@@ -23,7 +23,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SetUpReportForm,
 )
-from app.deliver_grant_funding.session_models import AddContextToQuestionSessionModel
+from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 from tests.utils import (
     AnyStringMatching,
     get_form_data,
@@ -1451,7 +1451,7 @@ class TestAddQuestion:
         report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
 
-        session_data = AddContextToQuestionSessionModel(
+        session_data = AddContextToComponentSessionModel(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             text="Test question text",
             name="Test question name",
@@ -1527,7 +1527,7 @@ class TestAddQuestion:
         form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
 
-        session_data = AddContextToQuestionSessionModel(
+        session_data = AddContextToComponentSessionModel(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             text="Test question text",
             name="Test question name",
@@ -1702,12 +1702,41 @@ class TestSelectContextSource:
         form = factories.form.create(collection=report)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["question"] = AddContextToQuestionSessionModel(
+            sess["question"] = AddContextToComponentSessionModel(
                 data_type=QuestionDataType.TEXT_SINGLE_LINE,
                 text="Test question",
                 name="test_question",
                 hint="Test hint",
                 field="text",
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select a data source" in soup.text
+
+    def test_get_works_for_existing_group_available_context_source_choices(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        group = factories.group.create(form=form)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                text="Test question",
+                name="test_question",
+                hint="Test hint",
+                field="text",
+                component_id=group.id,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -1730,7 +1759,7 @@ class TestSelectContextSource:
         factories.question.create(form=form)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["question"] = AddContextToQuestionSessionModel(
+            sess["question"] = AddContextToComponentSessionModel(
                 data_type=QuestionDataType.TEXT_SINGLE_LINE,
                 text="Test question",
                 name="test_question",
@@ -1777,7 +1806,7 @@ class TestSelectContextSourceQuestion:
         question2 = factories.question.create(form=form, text="Question 2")
 
         with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["question"] = AddContextToQuestionSessionModel(
+            sess["question"] = AddContextToComponentSessionModel(
                 data_type=QuestionDataType.TEXT_SINGLE_LINE,
                 text="Test question",
                 name="test_question",
@@ -1806,7 +1835,7 @@ class TestSelectContextSourceQuestion:
         question = factories.question.create(form=form, text="Source question")
 
         with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["question"] = AddContextToQuestionSessionModel(
+            sess["question"] = AddContextToComponentSessionModel(
                 data_type=QuestionDataType.YES_NO,
                 text="Test question",
                 name="test_question",
@@ -2063,13 +2092,13 @@ class TestEditQuestion:
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
 
-        session_data = AddContextToQuestionSessionModel(
+        session_data = AddContextToComponentSessionModel(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             text="Test question text",
             name="Test question name",
             hint="Test question hint",
             field="text",
-            question_id=question.id,
+            component_id=question.id,
         )
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -2122,13 +2151,13 @@ class TestEditQuestion:
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
 
-        session_data = AddContextToQuestionSessionModel(
+        session_data = AddContextToComponentSessionModel(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             text="Updated question text from session",
             name="Updated question name from session",
             hint="Updated question hint from session",
             field="text",
-            question_id=question.id,
+            component_id=question.id,
             parent_id=None,
         )
 

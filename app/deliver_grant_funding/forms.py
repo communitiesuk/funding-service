@@ -34,7 +34,7 @@ from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
     from app.common.data.models import Component, Form, Question
-    from app.deliver_grant_funding.session_models import AddContextToQuestionSessionModel
+    from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
 def strip_string_if_not_empty(value: str) -> str | None:
@@ -328,7 +328,7 @@ class QuestionForm(FlaskForm):
         self,
         *args: Any,
         question_type: QuestionDataType,
-        obj: TOptional[Union["Question", "AddContextToQuestionSessionModel"]] = None,
+        obj: TOptional[Union["Question", "AddContextToComponentSessionModel"]] = None,
         **kwargs: Any,
     ) -> None:
         super(QuestionForm, self).__init__(*args, obj=obj, **kwargs)
@@ -408,10 +408,10 @@ class AddContextSelectSourceForm(FlaskForm):
 
     submit = SubmitField(widget=GovSubmitInput())
 
-    def __init__(self, *args: Any, form: "Form", current_question: TOptional["Question"], **kwargs: Any):
+    def __init__(self, *args: Any, form: "Form", current_component: TOptional["Component"], **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.form = form
-        self.current_question = current_question
+        self.current_component = current_component
 
     def validate_data_source(self, field: Field) -> None:
         try:
@@ -423,21 +423,21 @@ class AddContextSelectSourceForm(FlaskForm):
             # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
             # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
             # centralise this logic sensibly.
-            def _questions_in_same_page_group(q1: "Question", q2: "Question") -> bool:
+            def _questions_in_same_page_group(c1: "Component", c2: "Component") -> bool:
                 # If two questions are in the same group, and that group shows on the same page, then they can't
                 # reference each other. Note: this relies on a current tech/product constraint that the "same page"
                 # setting can only be turned on for the leaf group in a set of nested groups (so we don't have to check
                 # parent groups for the same-page setting).
-                return True if q1.parent and q2.parent and q1.parent == q2.parent and q1.parent.same_page else False
+                return True if c1.parent and c2.parent and c1.parent == c2.parent and c1.parent.same_page else False
 
             available_questions = [
                 q
                 for q in self.form.cached_questions
                 if (
-                    self.current_question is None
+                    self.current_component is None
                     or (
-                        self.form.global_component_index(q) < self.form.global_component_index(self.current_question)
-                        and not _questions_in_same_page_group(q, self.current_question)
+                        self.form.global_component_index(q) < self.form.global_component_index(self.current_component)
+                        and not _questions_in_same_page_group(q, self.current_component)
                     )
                 )
             ]
@@ -459,7 +459,7 @@ class SelectDataSourceQuestionForm(FlaskForm):
         self,
         form: "Form",
         interpolate: Callable[[str], str],
-        current_question: TOptional["Question"],
+        current_component: TOptional["Component"],
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -471,21 +471,21 @@ class SelectDataSourceQuestionForm(FlaskForm):
         # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
         # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
         # centralise this logic sensibly.
-        def _questions_in_same_page_group(q1: "Question", q2: "Question") -> bool:
+        def _questions_in_same_page_group(c1: "Component", c2: "Component") -> bool:
             # If two questions are in the same group, and that group shows on the same page, then they can't
             # reference each other. Note: this relies on a current tech/product constraint that the "same page"
             # setting can only be turned on for the leaf group in a set of nested groups (so we don't have to check
             # parent groups for the same-page setting).
-            return True if q1.parent and q2.parent and q1.parent == q2.parent and q1.parent.same_page else False
+            return True if c1.parent and c2.parent and c1.parent == c2.parent and c1.parent.same_page else False
 
         self.question.choices = [("", "")] + [
             (str(question.id), interpolate(question.text))
             for question in form.cached_questions
             if (
-                current_question is None
+                current_component is None
                 or (
-                    form.global_component_index(question) < form.global_component_index(current_question)
-                    and not _questions_in_same_page_group(question, current_question)
+                    form.global_component_index(question) < form.global_component_index(current_component)
+                    and not _questions_in_same_page_group(question, current_component)
                 )
             )
         ]  # type: ignore[assignment]

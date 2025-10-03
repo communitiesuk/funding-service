@@ -25,7 +25,7 @@ class GrantSetupSession(BaseModel):
         return cls.model_validate(session_data)
 
 
-class AddContextToQuestionSessionModel(BaseModel):
+class AddContextToComponentSessionModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     data_type: QuestionDataType
@@ -37,16 +37,16 @@ class AddContextToQuestionSessionModel(BaseModel):
 
     data_source: ExpressionContext.ContextSources | None = None
 
-    question_id: UUID | None = None
+    component_id: UUID | None = None
     parent_id: UUID | None = None
 
 
-class AddContextToQuestionGuidanceSessionModel(BaseModel):
+class AddContextToComponentGuidanceSessionModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     field: Literal["guidance"] = "guidance"
 
-    question_id: UUID | None = None
+    component_id: UUID | None = None
     guidance_body: str
     guidance_heading: str
 
