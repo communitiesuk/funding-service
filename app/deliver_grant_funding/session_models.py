@@ -29,11 +29,8 @@ class AddContextToComponentSessionModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     data_type: QuestionDataType
-    text: str
-    name: str
-    hint: str
-
-    field: Literal["text", "hint"]
+    field: Literal["component"] = "component"
+    component_form_data: dict[str, Any]
 
     data_source: ExpressionContext.ContextSources | None = None
 
@@ -45,9 +42,8 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     field: Literal["guidance"] = "guidance"
+    component_form_data: dict[str, Any]
 
     component_id: UUID | None = None
-    guidance_body: str
-    guidance_heading: str
 
     data_source: ExpressionContext.ContextSources | None = None

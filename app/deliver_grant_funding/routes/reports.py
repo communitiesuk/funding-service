@@ -666,15 +666,13 @@ def _store_question_state_and_redirect_to_add_context(
     form_id: UUID,
     question_id: UUID | None = None,
     parent_id: UUID | None = None,
+    form_data: dict[str, Any] | None = None,
 ) -> ResponseReturnValue:
     add_context_data: AddContextToComponentSessionModel | AddContextToComponentGuidanceSessionModel
     if isinstance(form, QuestionForm):
         add_context_data = AddContextToComponentSessionModel(
             data_type=form._question_type,
-            text=form.text.data or "",
-            name=form.name.data or "",
-            hint=form.hint.data or "",
-            field="text" if form.text_add_context.data else "hint",
+            component_form_data=cast(dict[str, Any], form_data),
             component_id=question_id,
             parent_id=parent_id,
         )
@@ -682,8 +680,7 @@ def _store_question_state_and_redirect_to_add_context(
         if question_id is None:
             raise ValueError()
         add_context_data = AddContextToComponentGuidanceSessionModel(
-            guidance_heading=form.guidance_heading.data or "",
-            guidance_body=form.guidance_body.data or "",
+            component_form_data=cast(dict[str, Any], form_data),
             component_id=question_id,
         )
     # TODO: define a parent pydantic model for all of our session context
@@ -707,16 +704,16 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     parent_id = UUID(raw_parent_id) if raw_parent_id else None
     parent = get_group_by_id(parent_id) if parent_id else None
 
-    wt_form = QuestionForm(question_type=question_data_type_enum)
-    add_context_data = _extract_add_context_data_from_session(question_id=None)
-    if request.method == "GET" and add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
-        wt_form.text.data = add_context_data.text
-        wt_form.name.data = add_context_data.name
-        wt_form.hint.data = add_context_data.hint
+    add_context_data = cast(AddContextToComponentSessionModel, _extract_add_context_data_from_session(question_id=None))
+    wt_form = QuestionForm(
+        data=add_context_data.component_form_data if add_context_data else None,
+        question_type=question_data_type_enum,
+    )
 
     if wt_form.is_submitted_to_add_context():
+        form_data = wt_form.get_component_form_data()
         return _store_question_state_and_redirect_to_add_context(
-            wt_form, grant_id=grant_id, form_id=form_id, parent_id=parent_id
+            wt_form, grant_id=grant_id, form_id=form_id, parent_id=parent_id, form_data=form_data
         )
 
     elif wt_form.validate_on_submit():
@@ -842,13 +839,9 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                     )
                 )
 
-                match add_context_data.field:
-                    case "text":
-                        add_context_data.text += f" (({referenced_question.safe_qid}))"
-                    case "hint":
-                        add_context_data.hint += f" (({referenced_question.safe_qid}))"
-                    case _:
-                        abort(400)
+                if add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
+                    target_field = add_context_data.component_form_data["add_context"]
+                    add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
 
             case AddContextToComponentGuidanceSessionModel():
                 return_url = url_for(
@@ -856,7 +849,9 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                     grant_id=grant_id,
                     question_id=add_context_data.component_id,
                 )
-                add_context_data.guidance_body += f" (({referenced_question.safe_qid}))"
+                if add_context_data and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
+                    target_field = add_context_data.component_form_data["add_context"]
+                    add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
 
         session["question"] = add_context_data.model_dump(mode="json")
         return redirect(return_url)
@@ -884,17 +879,19 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
     #        validation+conditions that need to be added to the question, when the question itself is created.
     question = get_question_by_id(question_id=question_id)
 
-    wt_form = QuestionForm(obj=question, question_type=question.data_type)
-
-    add_context_data = _extract_add_context_data_from_session(question_id=question_id)
-    if request.method == "GET" and add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
-        wt_form.text.data = add_context_data.text
-        wt_form.name.data = add_context_data.name
-        wt_form.hint.data = add_context_data.hint
+    add_context_data = cast(
+        AddContextToComponentSessionModel, _extract_add_context_data_from_session(question_id=question_id)
+    )
+    wt_form = QuestionForm(
+        obj=question if not add_context_data else None,
+        data=add_context_data.component_form_data if add_context_data else None,
+        question_type=question.data_type,
+    )
 
     if wt_form.is_submitted_to_add_context():
+        form_data = wt_form.get_component_form_data()
         return _store_question_state_and_redirect_to_add_context(
-            wt_form, grant_id=grant_id, form_id=question.form_id, question_id=question.id
+            wt_form, grant_id=grant_id, form_id=question.form_id, question_id=question.id, form_data=form_data
         )
 
     confirm_deletion_form = GenericConfirmDeletionForm()
@@ -1002,20 +999,22 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 @auto_commit_after_request
 def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_component_by_id(component_id=question_id)
-    form = AddGuidanceForm(obj=question)
-
-    add_context_data = _extract_add_context_data_from_session(question_id=question_id)
-    if (
-        request.method == "GET"
-        and add_context_data
-        and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel)
-    ):
-        form.guidance_heading.data = add_context_data.guidance_heading
-        form.guidance_body.data = add_context_data.guidance_body
+    add_context_data = cast(
+        AddContextToComponentGuidanceSessionModel, _extract_add_context_data_from_session(question_id=question_id)
+    )
+    form = AddGuidanceForm(
+        obj=question if not add_context_data else None,
+        data=add_context_data.component_form_data if add_context_data else None,
+    )
 
     if form.is_submitted_to_add_context():
+        form_data = form.get_component_form_data()
         return _store_question_state_and_redirect_to_add_context(
-            form, grant_id=grant_id, form_id=question.form_id, question_id=question_id
+            form,
+            grant_id=grant_id,
+            form_id=question.form_id,
+            question_id=question_id,
+            form_data=form_data,
         )
 
     if form.validate_on_submit():

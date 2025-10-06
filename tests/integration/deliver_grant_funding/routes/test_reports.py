@@ -1424,14 +1424,14 @@ class TestAddQuestion:
                 "text": "Updated question",
                 "hint": "Updated hint",
                 "name": "Updated name",
-                f"{context_field}_add_context": "y",
+                "add_context": context_field,
             },
             question_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
         spy_validate = mocker.spy(interfaces.collections, "_validate_and_sync_component_references")
         response = authenticated_grant_admin_client.post(
             url_for("deliver_grant_funding.add_question", grant_id=grant.id, form_id=db_form.id),
-            data=get_form_data(form),
+            data=get_form_data(form, submit=""),
             follow_redirects=False,
         )
 
@@ -1442,7 +1442,7 @@ class TestAddQuestion:
         assert spy_validate.call_count == 0
 
         with authenticated_grant_admin_client.session_transaction() as sess:
-            assert sess["question"]["field"] == context_field
+            assert sess["question"]["field"] == "component"
 
     def test_post_from_add_context_success_cleans_that_bit_of_session(
         self, authenticated_grant_admin_client, factories, db_session
@@ -1453,10 +1453,12 @@ class TestAddQuestion:
 
         session_data = AddContextToComponentSessionModel(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            text="Test question text",
-            name="Test question name",
-            hint="Test question hint",
-            field="text",
+            component_form_data={
+                "text": "Test question text",
+                "name": "Test question name",
+                "hint": "Test question hint",
+                "add_context": "text",
+            },
         )
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -1529,10 +1531,12 @@ class TestAddQuestion:
 
         session_data = AddContextToComponentSessionModel(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            text="Test question text",
-            name="Test question name",
-            hint="Test question hint",
-            field="text",
+            component_form_data={
+                "text": "Test question text",
+                "name": "Test question name",
+                "hint": "Test question hint",
+                "add_context": "text",
+            },
             parent_id=group.id,
         )
 
@@ -1704,10 +1708,12 @@ class TestSelectContextSource:
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
                 data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                text="Test question",
-                name="test_question",
-                hint="Test hint",
-                field="text",
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -1732,10 +1738,12 @@ class TestSelectContextSource:
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
                 data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                text="Test question",
-                name="test_question",
-                hint="Test hint",
-                field="text",
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
                 component_id=group.id,
             ).model_dump(mode="json")
 
@@ -1761,10 +1769,12 @@ class TestSelectContextSource:
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
                 data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                text="Test question",
-                name="test_question",
-                hint="Test hint",
-                field="text",
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.post(
@@ -1808,10 +1818,12 @@ class TestSelectContextSourceQuestion:
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
                 data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                text="Test question",
-                name="test_question",
-                hint="Test hint",
-                field="text",
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
                 data_source=ExpressionContext.ContextSources.TASK,
             ).model_dump(mode="json")
 
@@ -1837,10 +1849,12 @@ class TestSelectContextSourceQuestion:
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
                 data_type=QuestionDataType.YES_NO,
-                text="Test question",
-                name="test_question",
-                hint="Test hint",
-                field="text",
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
                 data_source=ExpressionContext.ContextSources.TASK,
             ).model_dump(mode="json")
 
@@ -1861,7 +1875,7 @@ class TestSelectContextSourceQuestion:
         with authenticated_grant_admin_client.session_transaction() as sess:
             question_data = sess.get("question")
             assert question_data is not None
-            assert question_data["text"] == f"Test question (({question.safe_qid}))"
+            assert question_data["component_form_data"]["text"] == f"Test text (({question.safe_qid}))"
 
 
 class TestEditQuestion:
@@ -2054,7 +2068,7 @@ class TestEditQuestion:
                 "text": "Updated question",
                 "hint": "Updated hint",
                 "name": "Updated name",
-                f"{context_field}_add_context": "y",
+                "add_context": context_field,
             },
             question_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
@@ -2065,7 +2079,7 @@ class TestEditQuestion:
                 grant_id=grant.id,
                 question_id=question.id,
             ),
-            data=get_form_data(form),
+            data=get_form_data(form, submit=""),
             follow_redirects=False,
         )
 
@@ -2076,7 +2090,7 @@ class TestEditQuestion:
         assert spy_validate.call_count == 0
 
         with authenticated_grant_admin_client.session_transaction() as sess:
-            assert sess["question"]["field"] == context_field
+            assert sess["question"]["field"] == "component"
 
     def test_post_from_add_context_success_cleans_that_bit_of_session(
         self, authenticated_grant_admin_client, factories, db_session
@@ -2094,10 +2108,11 @@ class TestEditQuestion:
 
         session_data = AddContextToComponentSessionModel(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            text="Test question text",
-            name="Test question name",
-            hint="Test question hint",
-            field="text",
+            component_form_data={
+                "text": "Test question text",
+                "name": "Test question name",
+                "hint": "Test question hint",
+            },
             component_id=question.id,
         )
 
@@ -2153,10 +2168,12 @@ class TestEditQuestion:
 
         session_data = AddContextToComponentSessionModel(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            text="Updated question text from session",
-            name="Updated question name from session",
-            hint="Updated question hint from session",
-            field="text",
+            component_form_data={
+                "text": "Updated question text from session",
+                "name": "Updated question name from session",
+                "hint": "Updated question hint from session",
+                "add_context": "text",
+            },
             component_id=question.id,
             parent_id=None,
         )
@@ -3331,7 +3348,9 @@ class TestManageGuidance:
         question = factories.question.create(form__collection__grant=authenticated_grant_admin_client.grant)
 
         form = AddGuidanceForm(
-            guidance_heading="How to answer", guidance_body="Please provide detailed information", add_context="y"
+            guidance_heading="How to answer",
+            guidance_body="Please provide detailed information",
+            add_context="guidance_body",
         )
         response = authenticated_grant_admin_client.post(
             url_for(
@@ -3339,7 +3358,7 @@ class TestManageGuidance:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 question_id=question.id,
             ),
-            data=get_form_data(form),
+            data=get_form_data(form, submit=""),
             follow_redirects=False,
         )
 
