@@ -51,9 +51,7 @@ jobs:
             echo "image_exists=false" >> $GITHUB_OUTPUT
           fi
 
-
-      # 1) Restore Pack caches from GitHub Actions Cache
-      - name: Cache Pack laters
+      - name: Use Pack cache
         uses: actions/cache@v4
         with:
           path: |
