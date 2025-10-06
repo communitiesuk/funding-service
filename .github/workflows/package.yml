@@ -66,7 +66,7 @@ jobs:
           ECR_CACHE_LAUNCH_IMAGE_URI="$ECR_BASE_URI-cache:launch"
           echo "::add-mask::$ECR_IMAGE_URI"
 
-          pack build "$ECR_IMAGE_URI" --builder heroku/builder:24 --pull-policy if-not-present --cache "type=build;format=image;name=${ECR_CACHE_BUILD_IMAGE_URI}"  --cache "type=launch;format=image;name=${ECR_CACHE_LAUNCH_IMAGE_URI}" --publish
+          pack build "$ECR_IMAGE_URI" --builder heroku/builder:24 --publish
 
 
   notify_slack:
