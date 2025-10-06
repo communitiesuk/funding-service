@@ -61,9 +61,10 @@ jobs:
           IMAGE_TAG=${{ github.sha }}
 
           ECR_IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$IMAGE_TAG"
+          ECR_CACHE_IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME-cache:latest
           echo "::add-mask::$ECR_IMAGE_URI"
 
-          pack build "$ECR_IMAGE_URI" --builder heroku/builder:24 --publish
+          pack build "$ECR_IMAGE_URI" --builder heroku/builder:24 --cache-image "$ECR_CACHE_IMAGE_URI" --publish
 
 
   notify_slack:
