@@ -879,15 +879,8 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                     )
                 )
                 if add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
-                    add_context_data.component_form_data.update(
-                        {
-                            value: (
-                                add_context_data.component_form_data[value] + f" (({referenced_question.safe_qid}))"
-                            )
-                            for field, value in add_context_data.component_form_data.items()
-                            if field == "add_context" and value is not None
-                        }
-                    )
+                    target_field = add_context_data.component_form_data["add_context"]
+                    add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
 
             case AddContextToComponentGuidanceSessionModel():
                 return_url = url_for(
@@ -897,28 +890,16 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                 )
 
                 if add_context_data and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
-                    add_context_data.component_form_data.update(
-                        {
-                            value: (
-                                add_context_data.component_form_data[value] + f" (({referenced_question.safe_qid}))"
-                            )
-                            for field, value in add_context_data.component_form_data.items()
-                            if field == "add_context" and value is not None
-                        }
-                    )
+                    target_field = add_context_data.component_form_data["add_context"]
+                    add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
 
             case AddContextToExpressionsModel():
                 add_context_data.value_dependent_question_id = referenced_question.id
                 add_context_data.expression_statement = referenced_question.safe_qid
 
                 if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
-                    add_context_data.expression_form_data.update(
-                        {
-                            value: f"(({add_context_data.expression_statement}))"
-                            for field, value in add_context_data.expression_form_data.items()
-                            if field == "add_context" and value is not None
-                        }
-                    )
+                    target_field = add_context_data.expression_form_data["add_context"]
+                    add_context_data.expression_form_data[target_field] += f"(({referenced_question.safe_qid}))"
 
                 if add_context_data.field == ExpressionType.CONDITION:
                     if not add_context_data.expression_id:

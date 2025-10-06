@@ -51,10 +51,9 @@ class _ManagedExpressionForm(FlaskForm):
     def get_expression_form_data(self) -> dict[str, Any]:
         if not self.type.data:
             return {}
-        expression_type = ManagedExpressionsEnum(self.type.data)
-        expression = lookup_managed_expression(expression_type)
+        expression = lookup_managed_expression(ManagedExpressionsEnum(self.type.data))
         expression_keys = expression.get_form_fields(self._referenced_question).keys()
-        data = {key: data for key, data in self.data.items() if key in expression_keys}
+        data = {k: v for k, v in self.data.items() if k in expression_keys}
         return data
 
     def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]

@@ -104,6 +104,10 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         added to the managed expression form. The fields returned should collect the data needed to define an instance
         of the managed expression.
 
+        It is also called by `concatenate_all_wtf_fields_html` to support conditionally-revealed the fields that a user
+        needs to complete when they select this managed expression type from the radio list of available managed
+        expressions.
+
         class GreaterThan(ManagedExpression):
             key: ManagedExpressionsEnum = ManagedExpressionsEnum.GREATER_THAN
 
@@ -124,7 +128,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
                 selected.
 
         Note: because these are fed into dynamic form generation, and these dynamic forms are rendered automatically,
-              we need to specify the parameters tweak rendering here. `render_kw['params']` is of the same format
+              we need to specify the parameters that tweak rendering here. `render_kw['params']` is of the same format
               and structure as in Jinja2 templates directly, which closely follows the official GOV.UK Frontend
               nunjucks macros that you can find in the Design System, eg at https://design-system.service.gov.uk/components/text-input/.
         """  # noqa: E501
@@ -153,7 +157,11 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         A hook used by `build_managed_expression_form` to support conditionally-revealed the fields that a user needs
         to complete when they select this managed expression type from the radio list of available managed expressions.
 
-        This does not need to be re-defined on any subclasses; it will work automatically.
+        This hook works automatically for most managed expressions but is re-defined on certain subclasses (specifically
+        those used for numerical and date managed question types) that allow the insertion of contextual data to point
+        to specific templates rather than just concatenating the form fields. This is so we can have more fine-grained
+        control of the templates for these managed expressions eg. including inser data buttons where we need them and
+        conditionally hiding certain form fields.
         """
         # FIXME: Re-using cls.get_form_fields() is a 🤏 bit wasteful (building form fields that aren't used).
         fields = [
@@ -183,7 +191,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
 
     @classmethod
     def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
-        data = {k: v for k, v in add_context_data.expression_form_data.items() if k not in {"add_context"}}
+        data = {k: v for k, v in add_context_data.expression_form_data.items() if k != "add_context"}
 
         # Populate the `type` of the form from `build_managed_expression_form` so that the general ManagedExpression
         # selection is preserved.
@@ -749,14 +757,13 @@ class IsBefore(ManagedExpression):
 
     @property
     def message(self) -> str:
+        formatted_latest_value = (
+            format_date_short(cast(datetime.date, self.latest_value))
+            if not self.referenced_question.approximate_date
+            else format_date_approximate(cast(datetime.date, self.latest_value))
+        )
         return f"The answer must be {'on or ' if self.inclusive else ''}before " + (
-            self.latest_expression
-            if self.latest_expression
-            else (
-                format_date_short(cast(datetime.date, self.latest_value))
-                if not self.referenced_question.approximate_date
-                else format_date_approximate(cast(datetime.date, self.latest_value))
-            )
+            self.latest_expression if self.latest_expression else formatted_latest_value
         )
 
     @property
@@ -863,14 +870,13 @@ class IsAfter(ManagedExpression):
 
     @property
     def message(self) -> str:
+        formatted_earliest_value = (
+            format_date_short(cast(datetime.date, self.earliest_value))
+            if not self.referenced_question.approximate_date
+            else format_date_approximate(cast(datetime.date, self.earliest_value))
+        )
         return f"The answer must be {'on or ' if self.inclusive else ''}after " + (
-            self.earliest_expression
-            if self.earliest_expression
-            else (
-                format_date_short(cast(datetime.date, self.earliest_value))
-                if not self.referenced_question.approximate_date
-                else format_date_approximate(cast(datetime.date, self.earliest_value))
-            )
+            self.earliest_expression if self.earliest_expression else formatted_earliest_value
         )
 
     @property
@@ -978,27 +984,21 @@ class BetweenDates(ManagedExpression):
         #       - does that persist in the context (inherited from ManagedExpression) or as a separate
         #         property on the model
         # todo: make this use expression evaluation/interpolation rather than f-strings
+        formatted_earliest_value = (
+            format_date_short(cast(datetime.date, self.earliest_value))
+            if not self.referenced_question.approximate_date
+            else format_date_approximate(cast(datetime.date, self.earliest_value))
+        )
+        formatted_latest_value = (
+            format_date_short(cast(datetime.date, self.latest_value))
+            if not self.referenced_question.approximate_date
+            else format_date_approximate(cast(datetime.date, self.latest_value))
+        )
         return (
             "The answer must be between "
-            + (
-                self.earliest_expression
-                if self.earliest_expression
-                else (
-                    format_date_short(cast(datetime.date, self.earliest_value))
-                    if not self.referenced_question.approximate_date
-                    else format_date_approximate(cast(datetime.date, self.earliest_value))
-                )
-            )
+            + (self.earliest_expression if self.earliest_expression else formatted_earliest_value)
             + f"{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'} and "
-            + (
-                self.latest_expression
-                if self.latest_expression
-                else (
-                    format_date_short(cast(datetime.date, self.latest_value))
-                    if not self.referenced_question.approximate_date
-                    else format_date_approximate(cast(datetime.date, self.latest_value))
-                )
-            )
+            + (self.latest_expression if self.latest_expression else formatted_latest_value)
             + f"{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
         )
 
