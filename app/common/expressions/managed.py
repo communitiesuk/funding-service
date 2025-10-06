@@ -8,6 +8,7 @@ from typing import Optional as TOptional
 # that are built through the UI. These will be used alongside custom expressions
 from uuid import UUID
 
+from flask import render_template
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCheckboxesInput,
@@ -39,6 +40,7 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     name: ClassVar[ManagedExpressionsEnum]
     supported_condition_data_types: ClassVar[set[QuestionDataType]]
     supported_validator_data_types: ClassVar[set[QuestionDataType]]
+    managed_expression_form_template: ClassVar[str | None]
 
     _key: ManagedExpressionsEnum
     question_id: UUID
@@ -148,8 +150,13 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         A hook used by `build_managed_expression_form` to support conditionally-revealed the fields that a user needs
         to complete when they select this managed expression type from the radio list of available managed expressions.
 
-        This does not need to be re-defined on any subclasses; it will work automatically.
+        This hook should work automatically for all subclasses, but allows each class to define a
+        `managed_expression_form_template` where needed. The use-case for this is when managed expressions can instead
+        refer to pieces of data in the system rather than static values.
         """
+        if cls.managed_expression_form_template:
+            return Markup(render_template(cls.managed_expression_form_template, form=form))
+
         # FIXME: Re-using cls.get_form_fields() is a 🤏 bit wasteful (building form fields that aren't used).
         fields = [
             getattr(form, field_name)()
@@ -196,6 +203,9 @@ class GreaterThan(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.GREATER_THAN
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/greater_than.html"
+    )
 
     _key: ManagedExpressionsEnum = name
 
@@ -225,7 +235,6 @@ class GreaterThan(ManagedExpression):
                 default=cast(int, expression.context["minimum_value"]) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
-                render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
             "greater_than_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
@@ -252,6 +261,9 @@ class LessThan(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.LESS_THAN
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/less_than.html"
+    )
 
     _key: ManagedExpressionsEnum = name
 
@@ -281,7 +293,6 @@ class LessThan(ManagedExpression):
                 default=cast(int, expression.context["maximum_value"]) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
-                render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
             "less_than_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
@@ -308,6 +319,9 @@ class Between(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.BETWEEN
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/between.html"
+    )
 
     _key: ManagedExpressionsEnum = name
 
@@ -355,7 +369,6 @@ class Between(ManagedExpression):
                 default=cast(int, expression.context["minimum_value"]) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
-                render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
             "between_bottom_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
@@ -367,7 +380,6 @@ class Between(ManagedExpression):
                 default=cast(int, expression.context["maximum_value"]) if expression else None,
                 widget=GovTextInput(),
                 validators=[Optional()],
-                render_kw={"params": {"classes": "govuk-input--width-10"}},
             ),
             "between_top_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
@@ -410,6 +422,7 @@ class AnyOf(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.ANY_OF
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    managed_expression_form_template: ClassVar[str | None] = None
 
     _key: ManagedExpressionsEnum = name
 
@@ -476,6 +489,7 @@ class IsYes(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_YES
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.YES_NO}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    managed_expression_form_template: ClassVar[str | None] = None
 
     _key: ManagedExpressionsEnum = name
 
@@ -513,6 +527,7 @@ class IsNo(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_NO
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.YES_NO}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    managed_expression_form_template: ClassVar[str | None] = None
 
     _key: ManagedExpressionsEnum = name
 
@@ -550,6 +565,7 @@ class Specifically(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.SPECIFICALLY
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.CHECKBOXES}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    managed_expression_form_template: ClassVar[str | None] = None
 
     _key: ManagedExpressionsEnum = name
 
@@ -608,6 +624,9 @@ class IsBefore(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_BEFORE
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/is_before.html"
+    )
 
     _key: ManagedExpressionsEnum = name
 
@@ -678,6 +697,9 @@ class IsAfter(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_AFTER
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/is_after.html"
+    )
 
     _key: ManagedExpressionsEnum = name
 
@@ -748,6 +770,9 @@ class BetweenDates(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.BETWEEN_DATES
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/between_dates.html"
+    )
 
     _key: ManagedExpressionsEnum = name
 
