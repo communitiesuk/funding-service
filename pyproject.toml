@@ -19,7 +19,7 @@ dependencies = [
     "psycopg==3.2.10",
     "pydantic==2.11.10",
     "pydantic-settings==2.11.0",
-    "python-json-logger==3.3.0",
+    "python-json-logger==4.0.0",
     "sqlalchemy==2.0.43",
     "wtforms[email]==3.2.1",
     "notifications-python-client==10.0.1",
