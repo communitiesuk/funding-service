@@ -622,7 +622,7 @@ class AddGuidanceForm(FlaskForm):
         return result
 
     def is_submitted_to_add_context(self) -> bool:
-        return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
+        return bool(self.is_submitted() and self.add_context.data and not (self.submit.data or self.preview.data))
 
     def get_component_form_data(self) -> dict[str, Any]:
         return {key: data for key, data in self.data.items() if key not in {"csrf_token", "submit"}}
