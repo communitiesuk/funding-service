@@ -987,7 +987,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
         managed_validation_available=get_managed_validators_by_data_type(question.data_type),
         interpolate=SubmissionHelper.get_interpolator(collection=question.form.collection),
         context_keys_and_labels=ExpressionContext.get_context_keys_and_labels(
-            collection=question.form.collection, collection_question_limit=question
+            collection=question.form.collection, expression_context_end_point=question
         ),
     )
 
@@ -1071,7 +1071,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         form=form,
         interpolate=SubmissionHelper.get_interpolator(collection=question.form.collection),
         context_keys_and_labels=ExpressionContext.get_context_keys_and_labels(
-            collection=question.form.collection, collection_question_limit=question
+            collection=question.form.collection, expression_context_end_point=question
         ),
     )
 

@@ -99,7 +99,7 @@ class ExpressionContext(ChainMap[str, Any]):
     def build_expression_context(
         collection: "Collection",
         mode: Literal["evaluation", "interpolation"],
-        collection_question_limit: Optional["Component"] = None,
+        expression_context_end_point: Optional["Component"] = None,
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
@@ -121,10 +121,10 @@ class ExpressionContext(ChainMap[str, Any]):
                 for form in submission_helper.collection.forms
                 for question in form.cached_questions
                 if (
-                    collection_question_limit is None
+                    expression_context_end_point is None
                     or (
-                        collection_question_limit.form == form
-                        and form.global_component_index(collection_question_limit)
+                        expression_context_end_point.form == form
+                        and form.global_component_index(expression_context_end_point)
                         >= form.global_component_index(question)
                     )
                 )
@@ -136,9 +136,9 @@ class ExpressionContext(ChainMap[str, Any]):
         if mode == "interpolation":
             for form in collection.forms:
                 for question in form.cached_questions:
-                    if collection_question_limit and (
-                        collection_question_limit.form != form
-                        or form.global_component_index(collection_question_limit)
+                    if expression_context_end_point and (
+                        expression_context_end_point.form != form
+                        or form.global_component_index(expression_context_end_point)
                         <= form.global_component_index(question)
                     ):
                         continue
@@ -149,7 +149,7 @@ class ExpressionContext(ChainMap[str, Any]):
 
     @staticmethod
     def get_context_keys_and_labels(
-        collection: "Collection", collection_question_limit: Optional["Component"] = None
+        collection: "Collection", expression_context_end_point: Optional["Component"] = None
     ) -> dict[str, str]:
         """A dict mapping the reference variables (eg question safe_qids) to human-readable labels
 
@@ -157,7 +157,7 @@ class ExpressionContext(ChainMap[str, Any]):
         find a way to include labels for eg DB model columns, such as the grant name
         """
         ec = ExpressionContext.build_expression_context(
-            collection=collection, mode="interpolation", collection_question_limit=collection_question_limit
+            collection=collection, mode="interpolation", expression_context_end_point=expression_context_end_point
         )
         return {k: v for k, v in ec.items()}
 
