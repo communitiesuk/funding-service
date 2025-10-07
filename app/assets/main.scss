@@ -29,7 +29,7 @@ $govuk-brand-colour: #00625e;
     min-height: 300px;
     background-repeat: repeat;
     background-size: 150px 150px;
-    background-image: url($govuk-images-path + 'watermark-developer.svg');
+    background-image: url($govuk-images-path + "watermark-developer.svg");
 }
 
 // Needed to make the watermark above visible
@@ -42,9 +42,8 @@ body.govuk-template__body:has(div.app-body__watermark) {
     background-color: rgba(255, 255, 255, 0.5);
 }
 
-
 .app-move-up-down-table__actions {
-    width: 50%
+    width: 50%;
 }
 
 .app-move-up-down-table__action--disabled {
@@ -109,34 +108,34 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 //
 // Note: all destructive actions must have a confirmation step these links navigate to
 @mixin app-link-style-destructive-no-visited-state {
-  &:link,
-  &:visited {
-    color: $app-destructive-link-colour;
-  }
+    &:link,
+    &:visited {
+        color: $app-destructive-link-colour;
+    }
 
-  &:hover {
-    color: $app-destructive-link-hover-colour;
-  }
+    &:hover {
+        color: $app-destructive-link-hover-colour;
+    }
 
-  // When focussed, the text colour needs to be darker to ensure that colour
-  // contrast is still acceptable against the focus colour
-  // Activated links are usually focused so this applies to them as well
-  &:active,
-  &:focus {
-    color: $app-destructive-link-active-colour;
-  }
+    // When focussed, the text colour needs to be darker to ensure that colour
+    // contrast is still acceptable against the focus colour
+    // Activated links are usually focused so this applies to them as well
+    &:active,
+    &:focus {
+        color: $app-destructive-link-active-colour;
+    }
 }
 
 .app-link--destructive {
-  @include app-link-style-destructive-no-visited-state;
+    @include app-link-style-destructive-no-visited-state;
 }
 
 .app-service-navigation__wrapper--sectional {
-  flex: 1;
+    flex: 1;
 
-  .govuk-service-navigation__item:last-child {
-    margin-left: auto;
-  }
+    .govuk-service-navigation__item:last-child {
+        margin-left: auto;
+    }
 }
 
 .app-tasklist-builder {
@@ -168,87 +167,86 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 }
 
 .autocomplete__dropdown-arrow-down {
-  z-index: 1 !important;
-  pointer-events: none;
+    z-index: 1 !important;
+    pointer-events: none;
 }
 .app-test-data-banner__action {
-  position: absolute;
-  right: 20px;
+    position: absolute;
+    right: 20px;
 }
 
 .move-up-down-link-hidden {
-  visibility: hidden;
+    visibility: hidden;
 }
 
 .app-notification-banner--destructive {
-  border-color: $govuk-error-colour;
-  background-color: $govuk-error-colour;
+    border-color: $govuk-error-colour;
+    background-color: $govuk-error-colour;
 
-  .app-notification-banner__link {
-    @include govuk-link-style-error;
-  }
+    .app-notification-banner__link {
+        @include govuk-link-style-error;
+    }
 }
 
 $inset-nested-rows: 15px;
 
 .app-summary-list-group-row {
-  background-color: govuk-colour("light-grey");
+    background-color: govuk-colour("light-grey");
 }
 
 .app-summary-list-group-row:first-child {
-  border-top: 1px solid $govuk-border-colour;
+    border-top: 1px solid $govuk-border-colour;
 }
 
 .app-summary-list-group-row .govuk-summary-list__key {
-  padding-left: $inset-nested-rows;
-  font-weight: bold !important;
+    padding-left: $inset-nested-rows;
+    font-weight: bold !important;
 }
 
 .app-summary-list-group-nested {
-  box-shadow: inset 4px 0 0 0 $govuk-border-colour;
+    box-shadow: inset 4px 0 0 0 $govuk-border-colour;
 }
 
 .app-summary-list-group-nested .govuk-summary-list__key {
-  padding-left: $inset-nested-rows;
+    padding-left: $inset-nested-rows;
 }
 
 .app-summary-list-group-nested--final {
-  border-bottom: 2px solid $govuk-border-colour;
+    border-bottom: 2px solid $govuk-border-colour;
 }
 
 .app-pre-markdown {
-  @include govuk-font(19);
-  white-space: pre-line;
-  margin-top: 0px;
+    @include govuk-font(19);
+    white-space: pre-line;
+    margin-top: 0px;
 }
-
 
 // Temporary: return notification banners to their correct colours. We have set `govuk-brand-colour`, and currently
 // the notification banner uses that as its border colour. This has been confirmed as unintended by the GDS Design System
 // team. See: https://github.com/alphagov/govuk-design-system/issues/4877
 .govuk-notification-banner {
-  border-color: govuk-colour("blue");
-  background-color: govuk-colour("blue");
+    border-color: govuk-colour("blue");
+    background-color: govuk-colour("blue");
 }
 
 .govuk-notification-banner--success {
-  border-color: $govuk-success-colour;
-  background-color: $govuk-success-colour;
+    border-color: $govuk-success-colour;
+    background-color: $govuk-success-colour;
 }
 
 .app-context-aware--container {
-  margin-bottom: govuk-spacing(0);
+    margin-bottom: govuk-spacing(0);
 }
 
 // Position "Insert data" buttons at bottom-right corner of text inputs
 .app-context-aware--button {
-  position: relative;
-  float: right;
-  width: auto;
-  margin: -50px - govuk-spacing(4) 10px 10px;
-  z-index: 1;
+    position: relative;
+    float: right;
+    width: auto;
+    margin: -50px - govuk-spacing(4) 10px 10px;
+    z-index: 1;
 
-  @include govuk-media-query($from: tablet) {
-    margin-top: -50px - govuk-spacing(6);
-  }
+    @include govuk-media-query($from: tablet) {
+        margin-top: -50px - govuk-spacing(6);
+    }
 }

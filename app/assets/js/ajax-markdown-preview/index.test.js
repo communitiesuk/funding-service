@@ -2,285 +2,294 @@
  * @vitest-environment jsdom
  */
 
-import 'regenerator-runtime/runtime'
-import ajaxMarkdownPreview from '.'
+import "regenerator-runtime/runtime";
+import ajaxMarkdownPreview from ".";
 
 import {
-  mockFetch,
-  mockFetchWithDelay,
-  mockFetchWithServerError
-} from '../../test/test-helpers'
+    mockFetch,
+    mockFetchWithDelay,
+    mockFetchWithServerError,
+} from "../../test/test-helpers";
 
-let source, target
+let source, target;
 
 const jsonResponse = {
-  guidance_html: '<h2 class="govuk-heading-m">This is a heading</h2>',
-  errors: []
-}
+    guidance_html: '<h2 class="govuk-heading-m">This is a heading</h2>',
+    errors: [],
+};
 
 const jsonResponseWithError = {
-  guidance_html: '<p>This is a level one heading</p>',
-  errors: [
-    'Guidance text can only contain formatting for links, subheadings (##), bulleted lists (*), or numbered lists (1.)'
-  ]
-}
+    guidance_html: "<p>This is a level one heading</p>",
+    errors: [
+        "Guidance text can only contain formatting for links, subheadings (##), bulleted lists (*), or numbered lists (1.)",
+    ],
+};
 
-const updateMarkdown = markdownContent => {
-  source.value = markdownContent
-  const event = new window.Event('input')
-  source.dispatchEvent(event)
-}
+const updateMarkdown = (markdownContent) => {
+    source.value = markdownContent;
+    const event = new window.Event("input");
+    source.dispatchEvent(event);
+};
 
 const generateSourceHTML = (markdownContent, includeServerSideError) => {
-  if (includeServerSideError) {
-    return `<div class="govuk-form-group govuk-form-group--error">
+    if (includeServerSideError) {
+        return `<div class="govuk-form-group govuk-form-group--error">
         <p class="govuk-error-message" id="markdown-field-error">
           <span class="govuk-visually-hidden">Error: </span>Guidance text can only contain formatting for links, subheadings (##), bulleted lists (*), or numbered lists (1.)
         </p>
         <textarea aria-describedby="markdown-field-error" data-ajax-markdown-source="true">${markdownContent}</textarea>
-      </div>`
-  } else {
-    return `<div class="govuk-form-group"><textarea data-ajax-markdown-source="true">${markdownContent}</textarea></div>`
-  }
-}
+      </div>`;
+    } else {
+        return `<div class="govuk-form-group"><textarea data-ajax-markdown-source="true">${markdownContent}</textarea></div>`;
+    }
+};
 
 const setupDocument = (markdownContent, includeServerSideError = false) => {
-  const sourceHTML = generateSourceHTML(markdownContent, includeServerSideError)
-  const targetHTML =
-    '<div data-ajax-markdown-target><p>Some old preview content</p></div>'
-  document.body.innerHTML = `<div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="/endpoint">
+    const sourceHTML = generateSourceHTML(
+        markdownContent,
+        includeServerSideError,
+    );
+    const targetHTML =
+        "<div data-ajax-markdown-target><p>Some old preview content</p></div>";
+    document.body.innerHTML = `<div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="/endpoint">
     ${sourceHTML}
     ${targetHTML}
     </div>
-  `
-  document
-    .querySelectorAll('[data-module="ajax-markdown-preview"]')
-    .forEach(element => {
-      ajaxMarkdownPreview(
-        element.querySelector('[data-ajax-markdown-target]'),
-        element.querySelector('[data-ajax-markdown-source]'),
-        element.getAttribute('data-ajax-markdown-endpoint'),
-      )
-    })
+  `;
+    document
+        .querySelectorAll('[data-module="ajax-markdown-preview"]')
+        .forEach((element) => {
+            ajaxMarkdownPreview(
+                element.querySelector("[data-ajax-markdown-target]"),
+                element.querySelector("[data-ajax-markdown-source]"),
+                element.getAttribute("data-ajax-markdown-endpoint"),
+            );
+        });
 
-  source = document.querySelector('[data-ajax-markdown-source]')
-  target = document.querySelector('[data-ajax-markdown-target]')
-}
+    source = document.querySelector("[data-ajax-markdown-source]");
+    target = document.querySelector("[data-ajax-markdown-target]");
+};
 
-describe('AJAX Markdown preview', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.clearAllMocks()
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
-  })
-
-  describe('when the request returns the JSON response with no errors', () => {
+describe("AJAX Markdown preview", () => {
     beforeEach(() => {
-      global.fetch = mockFetch(jsonResponse)
-      setupDocument('## This is a markdown heading')
-    })
+        vi.useFakeTimers();
+    });
 
-    test('preview is called on page load', async () => {
-      expect(target.innerHTML).toBe(jsonResponse.guidance_html)
+    afterEach(() => {
+        vi.clearAllMocks();
+        vi.runOnlyPendingTimers();
+        vi.useRealTimers();
+    });
 
-      expect(global.fetch).toHaveBeenCalledWith('/endpoint', {
-        body: '{"guidance":"## This is a markdown heading"}',
-        cache: 'no-cache',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': undefined
-        },
-        method: 'POST',
-        mode: 'same-origin',
-        redirect: 'follow',
-        referrerPolicy: 'same-origin'
-      })
-      expect(global.fetch).toHaveBeenCalledTimes(1)
-    })
+    describe("when the request returns the JSON response with no errors", () => {
+        beforeEach(() => {
+            global.fetch = mockFetch(jsonResponse);
+            setupDocument("## This is a markdown heading");
+        });
 
-    test('preview event fires if the user makes a change', async () => {
-      expect(global.fetch).toHaveBeenCalledTimes(1)
+        test("preview is called on page load", async () => {
+            expect(target.innerHTML).toBe(jsonResponse.guidance_html);
 
-      updateMarkdown()
+            expect(global.fetch).toHaveBeenCalledWith("/endpoint", {
+                body: '{"guidance":"## This is a markdown heading"}',
+                cache: "no-cache",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": undefined,
+                },
+                method: "POST",
+                mode: "same-origin",
+                redirect: "follow",
+                referrerPolicy: "same-origin",
+            });
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+        });
 
-      await vi.runAllTimersAsync()
+        test("preview event fires if the user makes a change", async () => {
+            expect(global.fetch).toHaveBeenCalledTimes(1);
 
-      expect(global.fetch).toHaveBeenCalledTimes(2)
-    })
+            updateMarkdown();
 
-    test('preview event updates the content correctly', async () => {
-      target.innerHTML = ''
-      const event = new window.Event('input')
-      source.dispatchEvent(event)
+            await vi.runAllTimersAsync();
 
-      await vi.runAllTimersAsync()
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+        });
 
-      expect(target.innerHTML).toBe(jsonResponse.guidance_html)
-    })
+        test("preview event updates the content correctly", async () => {
+            target.innerHTML = "";
+            const event = new window.Event("input");
+            source.dispatchEvent(event);
 
-    test('preview event only fires once if the user makes multiple changes in quick succession', async () => {
-      expect(global.fetch).toHaveBeenCalledTimes(1)
-      ;[...Array(100)].forEach(() => {
-        const event = new window.Event('input')
-        source.dispatchEvent(event)
-      })
+            await vi.runAllTimersAsync();
 
-      await vi.runAllTimersAsync()
+            expect(target.innerHTML).toBe(jsonResponse.guidance_html);
+        });
 
-      expect(global.fetch).toHaveBeenCalledTimes(2)
-    })
-  })
+        test("preview event only fires once if the user makes multiple changes in quick succession", async () => {
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            [...Array(100)].forEach(() => {
+                const event = new window.Event("input");
+                source.dispatchEvent(event);
+            });
 
-  describe('when the request returns the JSON response with errors', () => {
-    describe('when there is no server-side error message present', () => {
-      beforeEach(() => {
-        global.fetch = mockFetch(jsonResponseWithError)
-        setupDocument('# This is a level one heading')
-      })
+            await vi.runAllTimersAsync();
 
-      test('an error message is displayed', () => {
-        expect(document.querySelector('.govuk-error-message').textContent).toBe(
-          `Error: ${jsonResponseWithError.errors[0]}`
-        )
-      })
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+        });
+    });
 
-      test('the error message is associated with the textarea using aria-described', () => {
-        expect(source.getAttribute('aria-describedby')).toContain(
-          document.querySelector('.govuk-error-message').getAttribute('id')
-        )
-      })
+    describe("when the request returns the JSON response with errors", () => {
+        describe("when there is no server-side error message present", () => {
+            beforeEach(() => {
+                global.fetch = mockFetch(jsonResponseWithError);
+                setupDocument("# This is a level one heading");
+            });
 
-      test('the form group has the error class', () => {
-        expect(
-          document.querySelectorAll('.govuk-form-group--error')
-        ).toHaveLength(1)
-      })
+            test("an error message is displayed", () => {
+                expect(
+                    document.querySelector(".govuk-error-message").textContent,
+                ).toBe(`Error: ${jsonResponseWithError.errors[0]}`);
+            });
 
-      describe('when the user fixes the error', () => {
-        beforeEach(async () => {
-          global.fetch = mockFetch(jsonResponse)
-          updateMarkdown('## This is a level two heading')
+            test("the error message is associated with the textarea using aria-described", () => {
+                expect(source.getAttribute("aria-describedby")).toContain(
+                    document
+                        .querySelector(".govuk-error-message")
+                        .getAttribute("id"),
+                );
+            });
 
-          await vi.runAllTimersAsync()
-        })
+            test("the form group has the error class", () => {
+                expect(
+                    document.querySelectorAll(".govuk-form-group--error"),
+                ).toHaveLength(1);
+            });
 
-        test('the error message is removed', () => {
-          expect(
-            document.querySelector('.govuk-error-message').textContent
-          ).toBe('')
-        })
+            describe("when the user fixes the error", () => {
+                beforeEach(async () => {
+                    global.fetch = mockFetch(jsonResponse);
+                    updateMarkdown("## This is a level two heading");
 
-        test('the form group does not have the error class', () => {
-          expect(
-            document.querySelectorAll('.govuk-form-group--error')
-          ).toHaveLength(0)
-        })
-      })
-    })
+                    await vi.runAllTimersAsync();
+                });
 
-    describe('when a server-side error is already present', () => {
-      beforeEach(() => {
-        global.fetch = mockFetch(jsonResponseWithError)
-        setupDocument('# This is a level one heading', true)
-      })
+                test("the error message is removed", () => {
+                    expect(
+                        document.querySelector(".govuk-error-message")
+                            .textContent,
+                    ).toBe("");
+                });
 
-      test('an error message is displayed', () => {
-        expect(document.querySelector('.govuk-error-message').textContent).toBe(
-          `Error: ${jsonResponseWithError.errors[0]}`
-        )
-      })
+                test("the form group does not have the error class", () => {
+                    expect(
+                        document.querySelectorAll(".govuk-form-group--error"),
+                    ).toHaveLength(0);
+                });
+            });
+        });
 
-      test('the error message is associated with the textarea using aria-described', () => {
-        expect(source.getAttribute('aria-describedby')).toContain(
-          document.querySelector('.govuk-error-message').getAttribute('id')
-        )
-      })
+        describe("when a server-side error is already present", () => {
+            beforeEach(() => {
+                global.fetch = mockFetch(jsonResponseWithError);
+                setupDocument("# This is a level one heading", true);
+            });
 
-      test('the form group has the error class', () => {
-        expect(
-          document.querySelectorAll('.govuk-form-group--error')
-        ).toHaveLength(1)
-      })
+            test("an error message is displayed", () => {
+                expect(
+                    document.querySelector(".govuk-error-message").textContent,
+                ).toBe(`Error: ${jsonResponseWithError.errors[0]}`);
+            });
 
-      describe('when the user fixes the error', () => {
-        beforeEach(async () => {
-          global.fetch = mockFetch(jsonResponse)
-          updateMarkdown('## This is a level two heading')
+            test("the error message is associated with the textarea using aria-described", () => {
+                expect(source.getAttribute("aria-describedby")).toContain(
+                    document
+                        .querySelector(".govuk-error-message")
+                        .getAttribute("id"),
+                );
+            });
 
-          await vi.runAllTimersAsync()
-        })
+            test("the form group has the error class", () => {
+                expect(
+                    document.querySelectorAll(".govuk-form-group--error"),
+                ).toHaveLength(1);
+            });
 
-        test('the error message is removed', () => {
-          expect(
-            document.querySelector('.govuk-error-message').textContent
-          ).toBe('')
-        })
+            describe("when the user fixes the error", () => {
+                beforeEach(async () => {
+                    global.fetch = mockFetch(jsonResponse);
+                    updateMarkdown("## This is a level two heading");
 
-        test('the form group does not have the error class', () => {
-          expect(
-            document.querySelectorAll('.govuk-form-group--error')
-          ).toHaveLength(0)
-        })
-      })
-    })
-  })
+                    await vi.runAllTimersAsync();
+                });
 
-  describe('when the AJAX request fails', () => {
-    beforeEach(() => {
-      global.fetch = mockFetchWithServerError()
+                test("the error message is removed", () => {
+                    expect(
+                        document.querySelector(".govuk-error-message")
+                            .textContent,
+                    ).toBe("");
+                });
 
-      setupDocument('## This is a markdown heading')
-    })
+                test("the form group does not have the error class", () => {
+                    expect(
+                        document.querySelectorAll(".govuk-form-group--error"),
+                    ).toHaveLength(0);
+                });
+            });
+        });
+    });
 
-    test('the error message is displayed', () => {
-      expect(target.innerHTML).toBe(
-        '<p>There was an error</p><button class="govuk-button govuk-button--secondary">Retry preview</button>'
-      )
-      const ariaLiveRegion = document.querySelector(
-        '.app-context-aware-editor__notification-area'
-      )
-      expect(ariaLiveRegion.getAttribute('aria-busy')).toBe('false')
-    })
+    describe("when the AJAX request fails", () => {
+        beforeEach(() => {
+            global.fetch = mockFetchWithServerError();
 
-    test('the retry button resends the request', () => {
-      expect(global.fetch).toHaveBeenCalledTimes(1)
+            setupDocument("## This is a markdown heading");
+        });
 
-      const retryButton = target.querySelector('button')
-      retryButton.click()
+        test("the error message is displayed", () => {
+            expect(target.innerHTML).toBe(
+                '<p>There was an error</p><button class="govuk-button govuk-button--secondary">Retry preview</button>',
+            );
+            const ariaLiveRegion = document.querySelector(
+                ".app-context-aware-editor__notification-area",
+            );
+            expect(ariaLiveRegion.getAttribute("aria-busy")).toBe("false");
+        });
 
-      expect(global.fetch).toHaveBeenCalledTimes(2)
-    })
-  })
+        test("the retry button resends the request", () => {
+            expect(global.fetch).toHaveBeenCalledTimes(1);
 
-  describe('when the request is loading', () => {
-    beforeEach(() => {
-      global.fetch = mockFetchWithDelay(jsonResponse, 500)
+            const retryButton = target.querySelector("button");
+            retryButton.click();
 
-      setupDocument('## This is a markdown heading')
-    })
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+        });
+    });
 
-    test('Loading text is displayed before the response arrives', async () => {
-      expect(target.innerHTML).toBe('<p>Preview loading...</p>')
+    describe("when the request is loading", () => {
+        beforeEach(() => {
+            global.fetch = mockFetchWithDelay(jsonResponse, 500);
 
-      await vi.advanceTimersByTimeAsync(500)
+            setupDocument("## This is a markdown heading");
+        });
 
-      expect(target.innerHTML).toBe(jsonResponse.guidance_html)
-    })
+        test("Loading text is displayed before the response arrives", async () => {
+            expect(target.innerHTML).toBe("<p>Preview loading...</p>");
 
-    test('message is pushed to aria-live region when the page loads', async () => {
-      const ariaLiveRegion = document.querySelector(
-        '.app-context-aware-editor__notification-area'
-      )
-      expect(ariaLiveRegion.getAttribute('aria-busy')).toBe('true')
+            await vi.advanceTimersByTimeAsync(500);
 
-      await vi.advanceTimersByTimeAsync(500)
+            expect(target.innerHTML).toBe(jsonResponse.guidance_html);
+        });
 
-      expect(ariaLiveRegion.getAttribute('aria-busy')).toBe('false')
-    })
-  })
-})
+        test("message is pushed to aria-live region when the page loads", async () => {
+            const ariaLiveRegion = document.querySelector(
+                ".app-context-aware-editor__notification-area",
+            );
+            expect(ariaLiveRegion.getAttribute("aria-busy")).toBe("true");
+
+            await vi.advanceTimersByTimeAsync(500);
+
+            expect(ariaLiveRegion.getAttribute("aria-busy")).toBe("false");
+        });
+    });
+});

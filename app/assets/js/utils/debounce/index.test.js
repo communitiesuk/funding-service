@@ -1,34 +1,34 @@
-import debounce from '.'
+import debounce from ".";
 
 // Tell Vitest to mock all timeout functions
-vi.useFakeTimers()
+vi.useFakeTimers();
 
-describe('debounce', () => {
-  let functionToDebounce
-  let debouncedFunc
+describe("debounce", () => {
+    let functionToDebounce;
+    let debouncedFunc;
 
-  beforeEach(() => {
-    functionToDebounce = vi.fn()
-    debouncedFunc = debounce(functionToDebounce, 1000)
-  })
+    beforeEach(() => {
+        functionToDebounce = vi.fn();
+        debouncedFunc = debounce(functionToDebounce, 1000);
+    });
 
-  test('when called once the function executes once', () => {
-    debouncedFunc()
+    test("when called once the function executes once", () => {
+        debouncedFunc();
 
-    // Fast-forward time
-    vi.runAllTimers()
+        // Fast-forward time
+        vi.runAllTimers();
 
-    expect(functionToDebounce).toBeCalledTimes(1)
-  })
+        expect(functionToDebounce).toBeCalledTimes(1);
+    });
 
-  test('when called multiple times the function only executes once', () => {
-    ;[...Array(100)].forEach(() => {
-      debouncedFunc()
-    })
+    test("when called multiple times the function only executes once", () => {
+        [...Array(100)].forEach(() => {
+            debouncedFunc();
+        });
 
-    // Fast-forward time
-    vi.runAllTimers()
+        // Fast-forward time
+        vi.runAllTimers();
 
-    expect(functionToDebounce).toBeCalledTimes(1)
-  })
-})
+        expect(functionToDebounce).toBeCalledTimes(1);
+    });
+});
