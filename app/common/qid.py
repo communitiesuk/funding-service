@@ -18,9 +18,6 @@ class SafeQidMixin:
         """
         return "q_" + self.question_id.hex
 
-    def safe_qid_indexed(self, index: int) -> str:
-        return f"{self.safe_qid}_{index}"
-
     @staticmethod
     def safe_qid_to_id(safe_qid: str) -> uuid.UUID | None:
         if safe_qid.startswith("q_"):
