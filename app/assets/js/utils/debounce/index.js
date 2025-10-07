@@ -1,15 +1,15 @@
 const debounce = (functionToDebounce, waitTime) => {
-  let timeout
+    let timeout;
 
-  return function debouncedFunction (...args) {
-    const later = () => {
-      clearTimeout(timeout)
-      functionToDebounce(...args)
-    }
+    return function debouncedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            functionToDebounce(...args);
+        };
 
-    clearTimeout(timeout)
-    timeout = setTimeout(later, waitTime)
-  }
-}
+        clearTimeout(timeout);
+        timeout = setTimeout(later, waitTime);
+    };
+};
 
-export default debounce
+export default debounce;
