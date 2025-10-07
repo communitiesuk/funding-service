@@ -103,7 +103,6 @@ class ExpressionContext(ChainMap[str, Any]):
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
-        fallback_question_names = mode == "interpolation"
 
         assert len(ExpressionContext.ContextSources) == 1, (
             "When defining a new source of context for expressions, "
@@ -134,7 +133,7 @@ class ExpressionContext(ChainMap[str, Any]):
             if submission_helper
             else {}
         )
-        if fallback_question_names:
+        if mode == "interpolation":
             for form in collection.forms:
                 for question in form.cached_questions:
                     if collection_question_limit and (
