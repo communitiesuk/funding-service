@@ -70,7 +70,7 @@
         "actions": {
           "items": actions,
         } if actions else {},
-        "classes": "app-summary-list-group-row " if question.is_group and (question.parent.id == parent.id or not question.parent) else "" ~ ("app-summary-list-group-nested " if nested else "") ~ ("app-summary-list-group-nested--final " if nested_last else ""),
+        "classes": ("app-summary-list-group-row " if question.is_group else "") ~ ("app-summary-list-group-nested " if nested else "") ~ ("app-summary-list-group-nested--final " if nested_last else ""),
       })
     %}
   {% endfor %}
