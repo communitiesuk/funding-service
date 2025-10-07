@@ -750,7 +750,9 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     parent_id = UUID(raw_parent_id) if raw_parent_id else None
     parent = get_group_by_id(parent_id) if parent_id else None
 
-    add_context_data = cast(AddContextToComponentSessionModel, _extract_add_context_data_from_session(question_id=None))
+    add_context_data = _extract_add_context_data_from_session(question_id=None)
+    if not isinstance(add_context_data, AddContextToComponentSessionModel):
+        add_context_data = None
     wt_form = QuestionForm(
         data=add_context_data.component_form_data if add_context_data else None,
         question_type=question_data_type_enum,
@@ -845,6 +847,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         db_form=db_form,
         form=wtform,
         add_context_data=add_context_data,
+        expression_enum=ExpressionType,
     )
 
 
@@ -944,6 +947,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         db_form=db_form,
         form=wtform,
         add_context_data=add_context_data,
+        expression_enum=ExpressionType,
     )
 
 
@@ -961,9 +965,9 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
     #        validation+conditions that need to be added to the question, when the question itself is created.
     question = get_question_by_id(question_id=question_id)
 
-    add_context_data = cast(
-        AddContextToComponentSessionModel, _extract_add_context_data_from_session(question_id=question_id)
-    )
+    add_context_data = _extract_add_context_data_from_session(question_id=question_id)
+    if not isinstance(add_context_data, AddContextToComponentSessionModel):
+        add_context_data = None
     wt_form = QuestionForm(
         obj=question if not add_context_data else None,
         data=add_context_data.component_form_data if add_context_data else None,
@@ -1081,9 +1085,9 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 @auto_commit_after_request
 def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_component_by_id(component_id=question_id)
-    add_context_data = cast(
-        AddContextToComponentGuidanceSessionModel, _extract_add_context_data_from_session(question_id=question_id)
-    )
+    add_context_data = _extract_add_context_data_from_session(question_id=question_id)
+    if not isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
+        add_context_data = None
     form = AddGuidanceForm(
         obj=question if not add_context_data else None,
         data=add_context_data.component_form_data if add_context_data else None,
@@ -1200,9 +1204,9 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
     component = get_component_by_id(component_id)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
-    add_context_data = cast(
-        AddContextToExpressionsModel, _extract_add_context_data_from_session(question_id=component_id)
-    )
+    add_context_data = _extract_add_context_data_from_session(question_id=component_id)
+    if not isinstance(add_context_data, AddContextToExpressionsModel):
+        add_context_data = None
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
     form = (
@@ -1302,10 +1306,9 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         remove_question_expression(question=component, expression=expression)
         return redirect(return_url)
 
-    add_context_data = cast(
-        AddContextToExpressionsModel,
-        _extract_add_context_data_from_session(question_id=component.id, expression_id=expression_id),
-    )
+    add_context_data = _extract_add_context_data_from_session(question_id=component.id, expression_id=expression_id)
+    if not isinstance(add_context_data, AddContextToExpressionsModel):
+        add_context_data = None
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question, expression)
     form = (
@@ -1369,9 +1372,9 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
 def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
 
-    add_context_data = cast(
-        AddContextToExpressionsModel, _extract_add_context_data_from_session(question_id=question_id)
-    )
+    add_context_data = _extract_add_context_data_from_session(question_id=question.id)
+    if not isinstance(add_context_data, AddContextToExpressionsModel):
+        add_context_data = None
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
     form = (
@@ -1460,10 +1463,9 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
             )
         )
 
-    add_context_data = cast(
-        AddContextToExpressionsModel,
-        _extract_add_context_data_from_session(question_id=question.id, expression_id=expression_id),
-    )
+    add_context_data = _extract_add_context_data_from_session(question_id=question.id, expression_id=expression_id)
+    if not isinstance(add_context_data, AddContextToExpressionsModel):
+        add_context_data = None
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, cast("Question", question), expression)
     form = (
