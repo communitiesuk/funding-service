@@ -11,7 +11,7 @@ from typing import Any, cast
 
 from flask import Flask, Response, current_app, request
 from flask.ctx import has_request_context
-from pythonjsonlogger.core import LogRecord as JSON_LogRecord
+from pythonjsonlogger.core import LogData
 from pythonjsonlogger.json import JsonFormatter as BaseJSONFormatter
 
 
@@ -196,7 +196,7 @@ class JSONFormatter(BaseJSONFormatter):
             )
         return s
 
-    def process_log_record(self, log_record: JSON_LogRecord) -> JSON_LogRecord:
+    def process_log_record(self, log_record: LogData) -> LogData:
         for key, newkey in (
             ("asctime", "time"),
             ("trace_id", "requestId"),
