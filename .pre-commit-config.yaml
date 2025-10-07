@@ -1,6 +1,6 @@
 ci:
   autofix_prs: false
-  skip: ["mypy", "format-html"]
+  skip: [ "mypy", "format-frontend" ]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -14,7 +14,7 @@ repos:
     rev: v0.13.3
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [ --fix ]
       - id: ruff-format
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
@@ -40,15 +40,14 @@ repos:
       - id: mypy
         name: Run type checks
         language: system
-        types: [python]
+        types: [ python ]
         entry: uv run mypy
         pass_filenames: false
-      - id: format-html
-        name: Format Jinja HTML templates with Prettier
-        entry: make format-html
+      - id: format-frontend
+        name: Format frontend files with Prettier
+        entry: make format-frontend
         language: node
-        files: \.html$
         additional_dependencies:
-          - 'prettier@3.6.2'
-          - 'prettier-plugin-jinja-template@2.1.0'
+          - "prettier@3.6.2"
+          - "prettier-plugin-jinja-template@2.1.0"
         pass_filenames: false
