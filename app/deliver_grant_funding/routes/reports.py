@@ -1228,14 +1228,6 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
             depends_on_question_id=depends_on_question_id,
         )
 
-    if (
-        form
-        and request.method == "GET"
-        and add_context_data
-        and isinstance(add_context_data, AddContextToExpressionsModel)
-    ):
-        form.type.data = add_context_data.managed_expression_name
-
     if form and form.validate_on_submit():
         expression = form.get_expression(depends_on_question)
 
@@ -1394,14 +1386,6 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
             expression_type=ExpressionType.VALIDATION,
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
         )
-
-    if (
-        form
-        and request.method == "GET"
-        and add_context_data
-        and isinstance(add_context_data, AddContextToExpressionsModel)
-    ):
-        form.type.data = add_context_data.managed_expression_name
 
     if form and form.validate_on_submit():
         expression = form.get_expression(question)
