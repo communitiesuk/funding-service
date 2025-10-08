@@ -266,7 +266,7 @@ class GreaterThan(ManagedExpression):
                 widget=GovCheckboxInput(),
             ),
             "add_context": StringField(
-                "Insert data",
+                "Reference data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -348,7 +348,7 @@ class LessThan(ManagedExpression):
                 widget=GovCheckboxInput(),
             ),
             "add_context": StringField(
-                "Insert data",
+                "Reference data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -453,7 +453,7 @@ class Between(ManagedExpression):
                 widget=GovCheckboxInput(),
             ),
             "add_context": StringField(
-                "Insert data",
+                "Reference data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -779,7 +779,7 @@ class IsBefore(ManagedExpression):
                 widget=GovCheckboxInput(),
             ),
             "add_context": StringField(
-                "Insert data",
+                "Reference data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -884,7 +884,7 @@ class IsAfter(ManagedExpression):
                 widget=GovCheckboxInput(),
             ),
             "add_context": StringField(
-                "Insert data",
+                "Reference data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -1034,7 +1034,7 @@ class BetweenDates(ManagedExpression):
                 widget=GovCheckboxInput(),
             ),
             "add_context": StringField(
-                "Insert data",
+                "Reference data",
                 widget=GovSubmitInput(),
             ),
         }
