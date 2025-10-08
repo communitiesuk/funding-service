@@ -39,13 +39,14 @@ class _ManagedExpressionForm(FlaskForm):
         return items
 
     def is_submitted_to_add_context(self) -> bool:
-        """Check if user clicked any validation context add button"""
-        if not self.is_submitted():
-            return False
-        for field_name, field in self._fields.items():
-            if field_name == "add_context" and hasattr(field, "data") and field.data:
-                return True
-        return False
+        """Check if user clicked any managed expression Reference Data button"""
+        add_context_field = self._fields.get("add_context")
+        return bool(
+            self.is_submitted()
+            and add_context_field is not None
+            and hasattr(add_context_field, "data")
+            and add_context_field.data
+        )
 
     def get_expression_form_data(self) -> dict[str, Any]:
         if not self.type.data:
