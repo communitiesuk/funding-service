@@ -1,7 +1,7 @@
 <div class="govuk-form-group">
   {% if not form.between_bottom_of_range_expression.data %}
     {% set addBottomRangeDataButton %}
-      {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "between_bottom_of_range_expression"}) }}
+      {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "between_bottom_of_range_expression"}) }}
     {% endset %}
     {{ form.between_bottom_of_range(params={"formGroup": {"afterInputs": {"html": addBottomRangeDataButton } } }) }}
   {% else %}
@@ -15,7 +15,7 @@
 
   {% if not form.between_top_of_range_expression.data %}
     {% set addTopRangeDataButton %}
-      {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "between_top_of_range_expression"}) }}
+      {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "between_top_of_range_expression"}) }}
     {% endset %}
     {{ form.between_top_of_range(params={"formGroup": {"afterInputs": {"html": addTopRangeDataButton } } }) }}
   {% else %}

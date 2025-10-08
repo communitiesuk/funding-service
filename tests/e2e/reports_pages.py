@@ -807,7 +807,7 @@ class AddQuestionDetailsPage(ReportsBasePage):
         self.page.get_by_role("textbox", name="Question hint").fill(question_hint)
 
     def click_insert_data(self, field_name: Literal["text", "hint"], question: str) -> "SelectDataSourcePage":
-        self.page.get_by_role("button", name=f"Insert data in question {field_name}").click()
+        self.page.get_by_role("button", name=f"Reference data in question {field_name}").click()
 
         return SelectDataSourcePage(page=self.page, domain=self.domain, grant_name=self.grant_name)
 
@@ -893,7 +893,7 @@ class SelectDataSourceQuestionPage(ReportsBasePage):
         element.press("Enter")
 
     def click_use_data(self) -> None:
-        self.page.get_by_role("button", name="Use data").click()
+        self.page.get_by_role("button", name="Reference data").click()
 
 
 class AddTaskPage(ReportsBasePage):

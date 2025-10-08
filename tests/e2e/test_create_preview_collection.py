@@ -72,8 +72,8 @@ class QuestionDict(TypedDict):
     type: QuestionDataType
     text: str
     display_text: str
-    hint: NotRequired[TextFieldWithData]  # Allows testing the 'insert data' journey
-    display_hint: NotRequired[str]  # For use with the 'insert data' journey
+    hint: NotRequired[TextFieldWithData]  # Allows testing the 'Reference data' journey
+    display_hint: NotRequired[str]  # For use with the 'Reference data' journey
     answers: list[_QuestionResponse]
     choices: NotRequired[list[str]]
     options: NotRequired[QuestionPresentationOptions]
