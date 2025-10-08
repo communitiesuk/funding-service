@@ -3,7 +3,10 @@ from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from flask import Flask, Response, current_app, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
+from flask_admin import Admin
+from flask_admin.theme import Bootstrap4Theme
 from flask_babel import Babel
+from flask_sqlalchemy_lite import SQLAlchemy
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from sqlalchemy.exc import NoResultFound
@@ -101,6 +104,23 @@ def _register_custom_converters(app: Flask) -> None:
     app.url_map.converters["submission_mode"] = SubmissionModeConverter
 
 
+def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
+    from app.deliver_grant_funding.admin import register_admin_views
+    from app.deliver_grant_funding.routes.admin import PlatformAdminIndexView
+
+    flask_admin = Admin(
+        app,
+        name="Funding Service Admin",
+        endpoint="platform_admin",
+        url="/deliver/admin",
+        index_view=PlatformAdminIndexView(url="/deliver/admin", endpoint="platform_admin"),
+        theme=Bootstrap4Theme(swatch="cerulean"),
+        csp_nonce_generator=app.jinja_env.globals["csp_nonce"],
+    )
+    with app.app_context():
+        register_admin_views(flask_admin, db_)
+
+
 def create_app() -> Flask:
     from app.common.data.base import BaseModel
 
@@ -129,6 +149,8 @@ def create_app() -> Flask:
     register_signals(app)
     record_sqlalchemy_queries.init_app(app, db)
     govuk_markdown.init_app(app)
+
+    _setup_flask_admin(app, db)
 
     @login_manager.user_loader  # type: ignore[misc]
     def load_user(user_id: str) -> Optional["User"]:
