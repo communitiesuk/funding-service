@@ -1,0 +1,24 @@
+{% macro context_source_return_url(add_context_data, grant, db_form, enum) %}
+  {% if add_context_data.field == "component" %}
+    {% if not add_context_data.component_id %}
+      {% set return_url = url_for("deliver_grant_funding.add_question", grant_id=grant.id, form_id=db_form.id, parent_id=add_context_data.parent_id, question_data_type=add_context_data.data_type.name) %}
+    {% else %}
+      {% set return_url = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=add_context_data.component_id) %}
+    {% endif %}
+  {% elif add_context_data.field == "guidance" %}
+    {% set return_url = url_for("deliver_grant_funding.manage_guidance", grant_id=grant.id, question_id=add_context_data.component_id) %}
+  {% elif add_context_data.field == enum.expression_type.CONDITION %}
+    {% if not add_context_data.expression_id %}
+      {% set return_url = url_for("deliver_grant_funding.add_question_condition",grant_id=grant.id, component_id=add_context_data.component_id, depends_on_question_id=add_context_data.depends_on_question_id) %}
+    {% else %}
+      {% set return_url = url_for("deliver_grant_funding.edit_question_condition", grant_id=grant.id, expression_id=add_context_data.expression_id) %}
+    {% endif %}
+  {% elif add_context_data.field == enum.expression_type.VALIDATION %}
+    {% if not add_context_data.expression_id %}
+      {% set return_url = url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=add_context_data.component_id) %}
+    {% else %}
+      {% set return_url = url_for("deliver_grant_funding.edit_question_validation", grant_id=grant.id, expression_id=add_context_data.expression_id) %}
+    {% endif %}
+  {% endif %}
+  {{ return_url }}
+{% endmacro %}

@@ -847,7 +847,6 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         db_form=db_form,
         form=wtform,
         add_context_data=add_context_data,
-        expression_enum=ExpressionType,
     )
 
 
@@ -947,7 +946,6 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         db_form=db_form,
         form=wtform,
         add_context_data=add_context_data,
-        expression_enum=ExpressionType,
     )
 
 
