@@ -1,35 +1,14 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "deliver_grant_funding/macros/select_context_source_header_caption.html" import context_source_heading_caption %}
+{% from "deliver_grant_funding/macros/select_context_source_return_url.html" import context_source_return_url %}
 
 {% set page_title = "Select a data source - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
 
 {# Set heading caption and cancel button to for what initiated the `add data` flow #}
-{% if add_context_data.field == "component" %}
-  {% set heading_caption = add_context_data.component_form_data["add_context"] %}
-  {% if not add_context_data.component_id %}
-    {% set back_url = url_for("deliver_grant_funding.add_question", grant_id=grant.id, form_id=db_form.id, parent_id=add_context_data.parent_id, question_data_type=add_context_data.data_type.name) %}
-  {% else %}
-    {% set back_url = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=add_context_data.component_id) %}
-  {% endif %}
-{% elif add_context_data.field == "guidance" %}
-  {% set heading_caption = add_context_data.field %}
-  {% set back_url = url_for("deliver_grant_funding.manage_guidance", grant_id=grant.id, question_id=add_context_data.component_id) %}
-{% elif add_context_data.field == expression_enum.CONDITION %}
-  {% set heading_caption = add_context_data.field.lower() %}
-  {% if not add_context_data.expression_id %}
-    {% set back_url = url_for("deliver_grant_funding.add_question_condition",grant_id=grant.id, component_id=add_context_data.component_id, depends_on_question_id=add_context_data.depends_on_question_id) %}
-  {% else %}
-    {% set back_url = url_for("deliver_grant_funding.edit_question_condition", grant_id=grant.id, expression_id=add_context_data.expression_id) %}
-  {% endif %}
-{% elif add_context_data.field == expression_enum.VALIDATION %}
-  {% set heading_caption = add_context_data.field.lower() %}
-  {% if not add_context_data.expression_id %}
-    {% set back_url = url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=add_context_data.component_id) %}
-  {% else %}
-    {% set back_url = url_for("deliver_grant_funding.edit_question_validation", grant_id=grant.id, expression_id=add_context_data.expression_id) %}
-  {% endif %}
-{% endif %}
+{% set heading_caption = context_source_heading_caption(add_context_data) %}
+{% set back_url = context_source_return_url(add_context_data, grant, db_form, enum) %}
 
 {% block beforeContent %}
   {{
