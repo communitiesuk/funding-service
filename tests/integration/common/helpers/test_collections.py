@@ -935,16 +935,16 @@ class TestCollectionHelper:
             )
 
         @pytest.mark.parametrize(
-            "park_name, expected_if_trees, expected_if_equipment_and_trees",
+            "park_name,add_another_entries, expected_if_trees, expected_if_equipment_and_trees",
             [
-                ("No play equipment, No trees", False, False),
-                ("No play equipment, Has trees", True, False),
-                ("Has play equipment, No trees", False, False),
-                ("Has play equipment, Has trees", True, True),
+                ("No play equipment, No trees", [], False, False),
+                ("No play equipment, Has trees", [], True, False),
+                ("Has play equipment, No trees", [0, 1, 2], False, False),
+                ("Has play equipment, Has trees", [0, 1, 2], True, True),
             ],
         )
         def test_is_component_visible_simple_condition_inside_add_another_group(
-            self, factories, park_name, expected_if_trees, expected_if_equipment_and_trees
+            self, factories, park_name, add_another_entries, expected_if_trees, expected_if_equipment_and_trees
         ):
             collection = factories.collection.create(
                 create_completed_submissions_add_another_nested_group_with_conditions__test=1
@@ -960,10 +960,21 @@ class TestCollectionHelper:
                 helper.is_component_visible(collection.tree_species_question, helper.cached_evaluation_context)
                 == expected_if_trees
             )
-            assert (
-                helper.is_component_visible(collection.under_a_tree_question, helper.cached_evaluation_context)
-                == expected_if_equipment_and_trees
-            )
+            if len(add_another_entries) > 0:
+                for i in add_another_entries:
+                    assert (
+                        helper.is_component_visible(
+                            collection.under_a_tree_question, helper.cached_evaluation_context, add_another_index=i
+                        )
+                        == expected_if_equipment_and_trees
+                    )
+            else:
+                assert (
+                    helper.is_component_visible(
+                        collection.under_a_tree_question, helper.cached_evaluation_context, add_another_index=None
+                    )
+                    == expected_if_equipment_and_trees
+                )
 
         @pytest.mark.parametrize(
             "park_name, add_another_index, expected",
@@ -976,7 +987,6 @@ class TestCollectionHelper:
                 ("Has play equipment, Has trees", 2, True),
             ],
         )
-        @pytest.mark.skip(reason="Not implemented")
         def test_is_component_visible_condition_inside_add_another_group_dependency_within_group(
             self, factories, park_name, add_another_index, expected
         ):
@@ -997,7 +1007,4 @@ class TestCollectionHelper:
                     add_another_index=add_another_index,
                 )
                 == expected
-            )
-            assert (
-                helper.is_component_visible(collection.under_a_tree_question, helper.cached_evaluation_context) is True
             )

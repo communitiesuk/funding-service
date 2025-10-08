@@ -65,15 +65,39 @@ class ExpressionContext(ChainMap[str, Any]):
         self,
         submission_data: dict[str, Any] | None = None,
         expression_context: dict[str, Any] | None = None,
+        add_another_context: dict[str, Any] | None = None,
     ):
         self._submission_data = submission_data or {}
         self._expression_context = expression_context or {}
+        self._add_another_context = add_another_context or {}
 
         super().__init__(*self._ordered_contexts)
 
+    def with_add_another_context(self, add_another_context: dict[str, Any] | None = None) -> "ExpressionContext":
+        """
+        Creates a new `ExpressionContext` with `add_another_context` set to the provided `add_another_context`, and the
+        other contexts set to the same values as this context
+        """
+        if self._add_another_context:
+            raise ValueError
+        return ExpressionContext(
+            submission_data=self._submission_data,
+            add_another_context=add_another_context,
+            expression_context=self._expression_context,
+        )
+
     @property
     def _ordered_contexts(self) -> list[MutableMapping[str, Any]]:
-        return list(filter(None, [self._submission_data, self.expression_context]))
+        return list(
+            filter(
+                None,
+                [
+                    self._add_another_context,
+                    self._submission_data,
+                    self.expression_context,
+                ],
+            )
+        )
 
     @property
     def expression_context(self) -> dict[str, Any]:
@@ -104,6 +128,7 @@ class ExpressionContext(ChainMap[str, Any]):
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
+        fallback_question_names = mode == "interpolation"
 
         assert len(ExpressionContext.ContextSources) == 1, (
             "When defining a new source of context for expressions, "
@@ -120,7 +145,7 @@ class ExpressionContext(ChainMap[str, Any]):
             submission_helper=submission_helper,
         )
 
-        if mode == "interpolation":
+        if fallback_question_names:
             for form in collection.forms:
                 for question in form.cached_questions:
                     if expression_context_end_point and (
@@ -140,7 +165,7 @@ class ExpressionContext(ChainMap[str, Any]):
         expression_context_end_point: Optional["Component"] = None,
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> dict[str, Any]:
-        submission_data: dict[str, Any] = {}
+        submission_data = {}
         if submission_helper:
             for form in submission_helper.collection.forms:
                 for question in form.cached_questions:

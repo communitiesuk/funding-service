@@ -262,7 +262,9 @@ class SubmissionHelper:
         """Returns the visible, ordered forms based upon the current state of this collection."""
         return sorted(self.collection.forms, key=lambda f: f.order)
 
-    def is_component_visible(self, component: "Component", context: "ExpressionContext") -> bool:
+    def is_component_visible(
+        self, component: "Component", context: "ExpressionContext", add_another_index: int | None = None
+    ) -> bool:
         # we can optimise this to exit early and do this in a sensible order if we switch
         # to going through questions in a nested way rather than flat
         def get_all_conditions(component: "Component") -> list["Expression"]:
@@ -275,7 +277,51 @@ class SubmissionHelper:
             return conditions
 
         try:
-            return all(evaluate(condition, context) for condition in get_all_conditions(component))
+            this_components_conditions = get_all_conditions(component)
+            if not component.add_another_container or (
+                component.add_another_container and not component.add_another_container.is_group
+            ):
+                return all(evaluate(condition, context) for condition in this_components_conditions)
+
+            add_another_context = {}
+            # if component.add_another_container and not component.add_another_container.is_group:
+            #     # ie it's an add another single question
+            #     add_another_context[cast(Question, component).safe_qid] = self._get_answer_for_question(
+            #         component.id, add_another_index
+            #     )
+            #     return all(evaluate(condition, context) for condition in this_components_conditions)
+
+            # TODO change so that any answers to questions in this add another group get put into the temp context for those question IDs
+            # allows for future cases of more complicated conditions that reference stuff in and out of the group
+            if component.add_another_container.is_group and add_another_index is not None:
+                for question in component.add_another_container.cached_questions:
+                    answer = self._get_answer_for_question(question.id, add_another_index=add_another_index)
+                    if answer:
+                        add_another_context[question.safe_qid] = answer.get_value_for_evaluation()
+
+                # for condition in this_components_conditions:
+                #     if (
+                #         condition.managed.referenced_question.add_another_container
+                #         and condition.managed.referenced_question.add_another_container
+                #         == component.add_another_container
+                #     ):
+                #         individual_answer = self._get_answer_for_question(
+                #             condition.managed.referenced_question.id, add_another_index=add_another_index
+                #         )
+                #
+                #         if individual_answer:
+                #             add_another_context[condition.managed.referenced_question.safe_qid] = (
+                #                 individual_answer.get_value_for_evaluation()
+                #             )
+
+            temp_expression_context = context.with_add_another_context(add_another_context)
+            for condition in this_components_conditions:
+                result = evaluate(condition, temp_expression_context)
+                if result:
+                    continue
+                return False
+            return True
+
         except UndefinedVariableInExpression:
             # todo: fail open for now - this method should accept an optional bool that allows this condition to fail
             #       or not- checking visibility on the question page itself should never fail - the summary page could
