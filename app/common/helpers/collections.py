@@ -126,14 +126,14 @@ class SubmissionHelper:
 
     @cached_property
     def cached_form_data(self) -> dict[str, Any]:
-        form_data = {}
+        form_data: dict[str, Any] = {}
         for form in self.collection.forms:
             for question in form.cached_questions:
                 if question.add_another_container:
+                    form_data[question.safe_qid] = []
                     for i in range(self.get_count_for_add_another(question.add_another_container)):
                         answer = self.cached_get_answer_for_question(question.id, add_another_index=i)
-                        if answer is not None:
-                            form_data[question.safe_qid_indexed(i)] = answer.get_value_for_form()
+                        form_data[question.safe_qid].append(answer.get_value_for_form() if answer else None)
                 else:
                     answer = self.cached_get_answer_for_question(question.id)
                     if answer is not None:
@@ -317,7 +317,6 @@ class SubmissionHelper:
         if question.add_another_container:
             if add_another_index is None:
                 raise ValueError("add_another_index must be provided for questions within an add another container")
-            # todo: tidy up the number of places we're accessing this
             if self.submission.data.get(str(question.add_another_container.id)) is None or add_another_index >= len(
                 self.submission.data.get(str(question.add_another_container.id), [])
             ):

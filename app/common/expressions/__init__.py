@@ -139,7 +139,7 @@ class ExpressionContext(ChainMap[str, Any]):
         expression_context_end_point: Optional["Component"] = None,
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> dict[str, Any]:
-        submission_data = {}
+        submission_data: dict[str, Any] = {}
         if submission_helper:
             for form in submission_helper.collection.forms:
                 for question in form.cached_questions:
@@ -149,16 +149,20 @@ class ExpressionContext(ChainMap[str, Any]):
                         >= form.global_component_index(question)
                     ):
                         if question.add_another_container:
+                            submission_data[question.safe_qid] = []
                             for i in range(submission_helper.get_count_for_add_another(question.add_another_container)):
                                 answer = submission_helper.cached_get_answer_for_question(
                                     question.id, add_another_index=i
                                 )
-                                if answer is not None:
-                                    submission_data[question.safe_qid_indexed(i)] = (
+                                submission_data[question.safe_qid].append(
+                                    (
                                         answer.get_value_for_evaluation()
                                         if mode == "evaluation"
                                         else answer.get_value_for_interpolation()
                                     )
+                                    if answer
+                                    else None
+                                )
                         else:
                             answer = submission_helper.cached_get_answer_for_question(question.id)
                             if answer is not None:
