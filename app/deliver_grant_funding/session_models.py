@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.common.data.types import QuestionDataType
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions import ExpressionContext
 
 
@@ -47,3 +47,20 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
     component_id: UUID | None = None
 
     data_source: ExpressionContext.ContextSources | None = None
+
+
+class AddContextToExpressionsModel(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
+    _prepared_form_data: dict[str, Any]
+
+    field: ExpressionType
+    managed_expression_name: ManagedExpressionsEnum
+    expression_form_data: dict[str, Any]
+    component_id: UUID
+
+    data_source: ExpressionContext.ContextSources | None = None
+    depends_on_question_id: UUID | None = None
+    expression_id: UUID | None = None
+    value_dependent_question_id: UUID | None = None
+    expression_statement: str | None = None

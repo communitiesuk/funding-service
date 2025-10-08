@@ -40,6 +40,7 @@ _accepted_fields = EmailField | StringField | IntegerField | RadioField | Select
 # in sync manually with the one inside `build_question_form`.
 class DynamicQuestionForm(FlaskForm):
     _evaluation_context: ExpressionContext
+    _interpolation_context: ExpressionContext
     _questions: list[Question]
     submit: SubmitField
 
@@ -80,7 +81,9 @@ class DynamicQuestionForm(FlaskForm):
             # only add custom validators if that question hasn't already failed basic validation
             # (it's may not be well formed data of that type)
             if not self[q.safe_qid].errors:
-                extra_validators[q.safe_qid].extend(build_validators(q, self._evaluation_context))
+                extra_validators[q.safe_qid].extend(
+                    build_validators(q, self._evaluation_context, self._interpolation_context)
+                )
 
         # Do a second validation pass that includes all of our managed/custom validation. This has a small bit of
         # redundancy because it will run the data validation checks again, but it means that all of our own
@@ -101,7 +104,9 @@ class DynamicQuestionForm(FlaskForm):
         return getattr(self, question.safe_qid).data
 
 
-def build_validators(question: Question, expression_context: ExpressionContext) -> list[Callable[[Form, Field], None]]:
+def build_validators(
+    question: Question, evaluation_context: ExpressionContext, interpolation_context: ExpressionContext
+) -> list[Callable[[Form, Field], None]]:
     validators = []
 
     for _validation in question.validations:
@@ -110,8 +115,8 @@ def build_validators(question: Question, expression_context: ExpressionContext) 
             if not validation.managed:
                 raise RuntimeError("Support for un-managed validation has not been implemented yet.")
 
-            if not evaluate(expression=validation, context=expression_context):
-                raise ValidationError(validation.managed.message)
+            if not evaluate(expression=validation, context=evaluation_context):
+                raise ValidationError(interpolate(validation.managed.message, context=interpolation_context))
 
         validators.append(cast(Callable[[Form, Field], None], partial(run_validation, validation=_validation)))
 

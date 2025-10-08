@@ -1,4 +1,15 @@
 <div class="govuk-form-group">
-  {{ form.less_than_value(params={"classes": "govuk-input--width-10"}) }}
+  {% if not form.less_than_expression.data %}
+    {% set addDataButton %}
+      {{ form.add_context(params={"html": "Use data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "less_than_expression"}) }}
+    {% endset %}
+    {{ form.less_than_value(params={"classes": "govuk-input--width-10", "formGroup": {"afterInput": {"html": addDataButton } } }) }}
+  {% else %}
+    <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
+      <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+      {{ form.less_than_expression(params={"attributes": {"data-context-aware-editor-target": "", "readonly": "true"}, "formGroup": {"classes": "app-context-aware--container govuk-input--width-20"} }) }}
+    </div>
+  {% endif %}
+
   {{ form.less_than_inclusive() }}
 </div>
