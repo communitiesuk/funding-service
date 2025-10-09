@@ -100,6 +100,19 @@ routes_with_no_expected_access_restrictions = [
     # \/ authorisation done within the endpoint, to avoid redirects+session hijacking \/
     "deliver_grant_funding.api.preview_guidance",
 ]
+routes_with_access_controlled_by_flask_admin = [
+    "platform_admin.index",
+    "platform_admin.static",
+    "user.action_view",
+    "user.ajax_lookup",
+    "user.ajax_update",
+    "user.create_view",
+    "user.delete_view",
+    "user.details_view",
+    "user.edit_view",
+    "user.export",
+    "user.index_view",
+]
 
 
 def test_accessibility_for_user_role_to_each_endpoint(app):
@@ -120,7 +133,9 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
         elif rule.endpoint in routes_with_no_expected_access_restrictions:
             # If route is expected to be unauthenticated, check it doesn't have any auth decorators
             assert not any(decorator in all_auth_annotations for decorator in decorators)
-
+        elif rule.endpoint in routes_with_access_controlled_by_flask_admin:
+            # authentication of flask-admin routes is controlled by FlaskAdminPlatformAdminAccessibleMixin
+            pass
         else:
             raise pytest.fail(f"Unexpected endpoint {rule.endpoint}. Add this to the expected_route_access mapping.")  # ty: ignore[call-non-callable]
 
@@ -132,6 +147,7 @@ def test_routes_list_is_valid(app):
         + routes_with_expected_member_only_access
         + routes_with_expected_grant_admin_only_access
         + routes_with_expected_platform_admin_only_access
+        + routes_with_access_controlled_by_flask_admin
     )
 
     all_routes_in_app = [rule.endpoint for rule in app.url_map.iter_rules()]

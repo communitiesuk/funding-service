@@ -31,6 +31,12 @@ class AuthorisationHelper:
 
     @staticmethod
     def is_platform_admin(user: User | AnonymousUserMixin) -> bool:
+        # TODO: This is currently all FSD_ADMIN users; we will soon have two separate Azure AD groups - one for
+        #       Funding Service users (who can eg create and manage monitoring reports) who will stay in FSD_ADMIN,
+        #       and another for Funding Service platform admins (FSD_PLATFORM_ADMIN) who will be able to access the
+        #       Flask-Admin panel for super-user tasks. We'll probably add a new permission/role PLATFORM_ADMIN for
+        #       that azure AD group, and then potentially have Funding Service admin users be managed through that
+        #       rather than the FSD_ADMIN group.
         if isinstance(user, AnonymousUserMixin):
             return False
         return any(

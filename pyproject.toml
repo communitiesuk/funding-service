@@ -33,6 +33,7 @@ dependencies = [
     "num2words==0.5.14",
     "mistune==3.1.4",
     "faker==37.8.0",
+    "flask-admin==2.0.0a4",
 ]
 
 [dependency-groups]
@@ -133,7 +134,7 @@ source_modules = [
     "app.types",
 ]
 ignore_imports = [
-    "app.developers.commands -> app.common.data.models"
+    "app.developers.commands -> app.common.data.models",
 ]
 # Unable to do `exhaustive` here unfortunately, so we won't get told if new modules are added and we forget to put them
 # in here. C'est la vie.
@@ -181,7 +182,7 @@ exclude = [".*test_.*"]
 
 [[tool.mypy.overrides]]
 module = [
-    "flask_wtf", "govuk_frontend_wtf.*", "testcontainers.*", "flask_babel", "sqlalchemy_utils", "flask_talisman.*", "flask_login", "msal.*", "num2words"
+    "flask_wtf", "govuk_frontend_wtf.*", "testcontainers.*", "flask_babel", "sqlalchemy_utils", "flask_talisman.*", "flask_login", "msal.*", "num2words", "flask_admin.*"
 ]
 ignore_missing_imports = true
 
