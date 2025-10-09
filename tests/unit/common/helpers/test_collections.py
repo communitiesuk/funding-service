@@ -391,3 +391,24 @@ class TestSubmissionHelper:
             # if the parents condition changes this is reflected
             expression.statement = "True"
             assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
+
+    class TestGetCountForAddAnother:
+        def test_empty(self, db_session, factories):
+            group = factories.group.build()
+            submission = factories.submission.build(collection=group.form.collection)
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_count_for_add_another(group) == 0
+
+        def test_with_answers(self, db_session, factories):
+            group = factories.group.build()
+            question = factories.question.build(form=group.form, parent=group)
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data[str(group.id)] = [
+                {str(question.id): "answer 0"},
+                {str(question.id): "answer 1"},
+                {str(question.id): "answer 2"},
+            ]
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_count_for_add_another(group) == 3
