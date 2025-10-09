@@ -1,17 +1,15 @@
 from abc import abstractmethod
 
-from flask_admin.contrib import sqla
-from flask_wtf import FlaskForm
 from sqlalchemy import orm
+from wtforms.validators import Email
+from xgovuk_flask_admin import XGovukModelView
 
 from app.common.data.base import BaseModel
 from app.common.data.models_user import User
 from app.deliver_grant_funding.admin.mixins import FlaskAdminPlatformAdminAccessibleMixin
 
 
-class PlatformAdminModelView(FlaskAdminPlatformAdminAccessibleMixin, sqla.ModelView):
-    form_base_class = FlaskForm
-
+class PlatformAdminModelView(FlaskAdminPlatformAdminAccessibleMixin, XGovukModelView):
     page_size = 50
     can_set_page_size = True
 
@@ -54,3 +52,15 @@ class PlatformAdminModelView(FlaskAdminPlatformAdminAccessibleMixin, sqla.ModelV
 
 class PlatformAdminUserView(PlatformAdminModelView):
     _model = User
+
+    column_list = ["email", "name", "last_logged_in_at_utc"]
+    column_searchable_list = ["email", "name"]
+
+    can_edit = True
+
+    column_filters = ["email", "name"]
+
+    form_args = {
+        "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
+        "azure_ad_subject_id": {"filters": [lambda val: val.strip() if isinstance(val, str) else val]},
+    }

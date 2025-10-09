@@ -4,13 +4,14 @@ from typing import TYPE_CHECKING, Any, Literal, Optional
 from flask import Flask, Response, current_app, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 from flask_admin import Admin
-from flask_admin.theme import Bootstrap4Theme
 from flask_babel import Babel
 from flask_sqlalchemy_lite import SQLAlchemy
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from sqlalchemy.exc import NoResultFound
 from werkzeug.routing import BaseConverter
+from xgovuk_flask_admin import XGovukFlaskAdmin
+from xgovuk_flask_admin.theme import XGovukFrontendTheme
 
 from app import logging
 from app.common.auth.authorisation_helper import AuthorisationHelper
@@ -115,9 +116,10 @@ def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
         endpoint="platform_admin",
         url="/deliver/admin",
         index_view=PlatformAdminIndexView(url="/deliver/admin", endpoint="platform_admin"),
-        theme=Bootstrap4Theme(swatch="cerulean"),
+        theme=XGovukFrontendTheme(),
         csp_nonce_generator=app.jinja_env.globals["csp_nonce"],
     )
+    XGovukFlaskAdmin(app, "Funding Service Admin")
     with app.app_context():
         register_admin_views(flask_admin, db_)
 
@@ -178,6 +180,7 @@ def create_app() -> Flask:
             PackageLoader("app.developers"),
             PrefixLoader({"govuk_frontend_jinja": PackageLoader("govuk_frontend_jinja")}),
             PrefixLoader({"govuk_frontend_wtf": PackageLoader("govuk_frontend_wtf")}),
+            PackageLoader("xgovuk_flask_admin"),
         ]
     )
     WTFormsHelpers(app)
@@ -189,6 +192,7 @@ def create_app() -> Flask:
     @app.context_processor
     def _jinja_template_context() -> dict[str, Any]:
         return dict(
+            cspNonce=app.jinja_env.globals["csp_nonce"](),  # type: ignore[operator]
             format_date=format_date,
             format_date_short=format_date_short,
             format_date_approximate=format_date_approximate,
