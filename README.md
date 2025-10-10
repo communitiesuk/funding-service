@@ -7,12 +7,14 @@
 - Node (version defined in  `.nvmrc`). We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage node versions.
 - [uv](https://github.com/astral-sh/uv) installed globally
 - Copy .env.example to fresh .env file and leave values as is, or use [direnv](https://direnv.net/)/.envrc for these variables.
+- [mkcert](https://github.com/FiloSottile/mkcert) installed
 
 ### Quickstart
 
 1. `nvm use`
 2. `make bootstrap`
 3. `make up`
+4. Access at https://funding.communities.gov.localhost:8080/
 
 If you see permission errors around certs (eg. `ERROR: failed to read the CA key: open certs/rootCA-key.pem: permission denied`) follow these instructions instead of step 2. above.
 
