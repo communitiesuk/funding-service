@@ -91,12 +91,17 @@
 
     // Match textarea font exactly
     @include govuk-font($size: 19, $line-height: 1.25em);
+}
 
-    // Style for valid references
-    .app-context-aware-editor--valid-reference {
-        background-color: govuk-colour("yellow");
-        border-radius: 2px;
-    }
+// Style for valid references
+.app-context-aware-editor--valid-reference {
+    background-color: govuk-colour("yellow");
+    border-radius: 2px;
+}
+
+// Improve text contrast when references are within links
+.govuk-link .app-context-aware-editor--valid-reference {
+    color: govuk-colour("dark-blue");
 }
 
 // Notification area for screen readers (if needed for toolbar)

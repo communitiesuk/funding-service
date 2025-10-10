@@ -25,9 +25,9 @@
     {% set keyHtml %}
       {% if role_can_edit %}
         {% set edit_link = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) if not question.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.id) %}
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ edit_link }}">{{ interpolate(question.text) }}</a>
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ edit_link }}">{{ interpolate(question.text, with_interpolation_highlighting=True) }}</a>
       {% else %}
-        {{ interpolate(question.text) }}
+        {{ interpolate(question.text, with_interpolation_highlighting=True) }}
       {% endif %}
       {% if role_can_edit and question.conditions %}
         {{

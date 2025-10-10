@@ -101,7 +101,8 @@ class SubmissionHelper:
 
     @staticmethod
     def get_interpolator(
-        collection: "Collection", submission_helper: Optional["SubmissionHelper"] = None
+        collection: "Collection",
+        submission_helper: Optional["SubmissionHelper"] = None,
     ) -> Callable[[str], str]:
         return partial(
             interpolate,

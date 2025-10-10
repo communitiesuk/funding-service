@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
+from markupsafe import Markup
 
 from app.common.data.models import Expression
 from app.common.expressions import (
@@ -172,3 +173,113 @@ class TestInterpolate:
             )
             == "Value: 100"
         )
+
+    def test_interpolation_with_highlighting_disabled_returns_string(self):
+        result = interpolate("The answer is ((42))", None, with_interpolation_highlighting=False)
+        assert result == "The answer is 42"
+        assert isinstance(result, str)
+        assert not isinstance(result, Markup)
+
+    def test_interpolation_with_highlighting_enabled_returns_markup(self):
+        result = interpolate("The answer is ((42))", None, with_interpolation_highlighting=True)
+        assert result == 'The answer is <span class="app-context-aware-editor--valid-reference">42</span>'
+        assert isinstance(result, Markup)
+
+    def test_interpolation_with_highlighting_multiple_substitutions(self):
+        result = interpolate(
+            "First: ((x)), Second: ((y))", ExpressionContext({"x": 10, "y": 20}), with_interpolation_highlighting=True
+        )
+        assert result == (
+            'First: <span class="app-context-aware-editor--valid-reference">10</span>, '
+            'Second: <span class="app-context-aware-editor--valid-reference">20</span>'
+        )
+        assert isinstance(result, Markup)
+
+    def test_interpolation_with_highlighting_string_value(self):
+        result = interpolate("Hello (('world'))", None, with_interpolation_highlighting=True)
+        assert result == 'Hello <span class="app-context-aware-editor--valid-reference">world</span>'
+        assert isinstance(result, Markup)
+
+    def test_interpolation_with_highlighting_escapes_html_script_tag(self):
+        """Test that HTML script tags are escaped when highlighting is enabled"""
+        malicious_input = "<script>alert('XSS')</script>"
+        result = interpolate(
+            "Value: ((value))", ExpressionContext({"value": malicious_input}), with_interpolation_highlighting=True
+        )
+        # Script tag should be escaped
+        assert "&lt;script&gt;" in result
+        assert "&lt;/script&gt;" in result
+        assert "<script>" not in result
+        assert isinstance(result, Markup)
+
+    def test_interpolation_with_highlighting_escapes_html_img_tag(self):
+        """Test that HTML img tags with onerror are escaped"""
+        malicious_input = '<img src=x onerror="alert(1)">'
+        result = interpolate(
+            "Value: ((value))", ExpressionContext({"value": malicious_input}), with_interpolation_highlighting=True
+        )
+        # Should be fully escaped
+        assert "&lt;img" in result
+        # Quotes should be escaped (either &quot; or &#34;)
+        assert "&quot;" in result or "&#34;" in result
+        assert '<img src=x onerror="alert(1)">' not in result
+        assert isinstance(result, Markup)
+
+    def test_interpolation_with_highlighting_escapes_html_entities(self):
+        """Test that HTML special characters are properly escaped"""
+        special_chars = "<>&\"'"
+        result = interpolate(
+            "Value: ((value))", ExpressionContext({"value": special_chars}), with_interpolation_highlighting=True
+        )
+        # Should contain escaped versions
+        assert "&lt;" in result
+        assert "&gt;" in result
+        assert "&amp;" in result or "&#" in result
+        assert special_chars not in result  # Original unescaped string should not be present
+        assert isinstance(result, Markup)
+
+    def test_interpolation_with_highlighting_escapes_event_handlers(self):
+        """Test that inline event handlers are escaped"""
+        malicious_input = '" onload="alert(1)'
+        result = interpolate(
+            "Value: ((value))", ExpressionContext({"value": malicious_input}), with_interpolation_highlighting=True
+        )
+        # Quotes should be escaped
+        assert "&quot;" in result or "&#34;" in result
+        assert '" onload="alert(1)' not in result
+        assert isinstance(result, Markup)
+
+    def test_interpolation_with_highlighting_multiple_xss_attempts(self):
+        """Test multiple interpolations with XSS attempts"""
+        result = interpolate(
+            "First: ((x)), Second: ((y))",
+            ExpressionContext({"x": "<script>alert(1)</script>", "y": "<img src=x onerror=alert(2)>"}),
+            with_interpolation_highlighting=True,
+        )
+        # Both should be escaped
+        assert "&lt;script&gt;" in result
+        assert "&lt;img" in result
+        assert "<script>" not in result
+        assert "<img src=x onerror=alert(2)>" not in result
+        assert isinstance(result, Markup)
+
+    def test_interpolation_without_highlighting_returns_plain_string_with_html(self):
+        """Test that without highlighting, HTML is returned as plain string (will be auto-escaped by Jinja)"""
+        malicious_input = "<script>alert('XSS')</script>"
+        result = interpolate(
+            "Value: ((value))", ExpressionContext({"value": malicious_input}), with_interpolation_highlighting=False
+        )
+        # Should return plain string containing the HTML (Jinja will escape it)
+        assert result == "Value: <script>alert('XSS')</script>"
+        assert isinstance(result, str)
+        assert not isinstance(result, Markup)
+
+    def test_interpolation_with_highlighting_safe_content_unchanged(self):
+        """Test that safe content is not over-escaped"""
+        safe_input = "Hello World 123"
+        result = interpolate(
+            "Value: ((value))", ExpressionContext({"value": safe_input}), with_interpolation_highlighting=True
+        )
+        assert "Hello World 123" in result
+        assert "&lt;" not in result  # No unnecessary escaping
+        assert isinstance(result, Markup)
