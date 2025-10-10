@@ -2,9 +2,10 @@ import ast
 import enum
 import re
 from collections import ChainMap
-from typing import TYPE_CHECKING, Any, Literal, MutableMapping, Optional
+from typing import TYPE_CHECKING, Any, Literal, MutableMapping, Optional, overload
 
 import simpleeval
+from markupsafe import Markup, escape
 
 from app.types import NOT_PROVIDED
 
@@ -257,22 +258,42 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     return result
 
 
-def interpolate(text: str | None, context: ExpressionContext | None) -> str:
+@overload
+def interpolate(
+    text: str | None, context: ExpressionContext | None, *, with_interpolation_highlighting: Literal[False] = False
+) -> str: ...
+
+
+@overload
+def interpolate(
+    text: str | None, context: ExpressionContext | None, *, with_interpolation_highlighting: Literal[True]
+) -> Markup: ...
+
+
+def interpolate(
+    text: str | None, context: ExpressionContext | None, *, with_interpolation_highlighting: bool = False
+) -> str | Markup:
     from app.common.data.models import Expression
 
     if text is None:
-        return ""
+        return "" if not with_interpolation_highlighting else Markup("")
 
     def _interpolate(matchobj: re.Match[Any]) -> str:
         expr = Expression(statement=matchobj.group(0))
         value = _evaluate_expression_with_context(expr, context)
 
+        if with_interpolation_highlighting:
+            return f'<span class="app-context-aware-editor--valid-reference">{escape(value)}</span>'
         return str(value)
 
-    return INTERPOLATE_REGEX.sub(
+    result = INTERPOLATE_REGEX.sub(
         _interpolate,
         text,
     )
+
+    if with_interpolation_highlighting:
+        return Markup(result)
+    return result
 
 
 def evaluate(expression: "Expression", context: ExpressionContext | None = None) -> bool:

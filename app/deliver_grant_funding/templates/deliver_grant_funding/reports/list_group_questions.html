@@ -149,14 +149,14 @@
 
           {% set key_html %}
             {# todo: would users find it useful to be able to link to the question being depended on from here? #}
-            <span>{{ depends_on.text }}</span>
+            <span>{{ interpolate(depends_on.text, with_interpolation_highlighting=True) }}</span>
           {% endset %}
 
 
           {% set value_html %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, expression_id=condition.id) }}">
               <span class="govuk-visually-hidden">Change condition for</span>
-              {{ condition.managed.message }}
+              {{ interpolate(condition.managed.message, with_interpolation_highlighting=True) }}
             </a>
           {% endset %}
           {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}

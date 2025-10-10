@@ -959,7 +959,8 @@ class TestListGroupQuestions:
         )
 
         assert response.status_code == 200
-        assert "Reference to ((my question name))" in response.text
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Reference to ((my question name))" in soup.text
 
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
