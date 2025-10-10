@@ -280,10 +280,14 @@ def interpolate(
 
     def _interpolate(matchobj: re.Match[Any]) -> str:
         expr = Expression(statement=matchobj.group(0))
-        value = _evaluate_expression_with_context(expr, context)
 
-        if with_interpolation_highlighting:
-            return f'<span class="app-context-aware-editor--valid-reference">{escape(value)}</span>'
+        try:
+            value = _evaluate_expression_with_context(expr, context)
+            if with_interpolation_highlighting:
+                return f'<span class="app-context-aware-editor--valid-reference">{escape(value)}</span>'
+        except (UndefinedVariableInExpression, DisallowedExpression):
+            value = matchobj.group(0)
+
         return str(value)
 
     result = INTERPOLATE_REGEX.sub(

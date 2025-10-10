@@ -151,9 +151,8 @@ class TestInterpolate:
     def test_empty_string_interpolation(self):
         assert interpolate("Empty: ((''))", None) == "Empty: "
 
-    def test_expression_error_propagates(self):
-        with pytest.raises(UndefinedVariableInExpression):
-            interpolate("Error: ((undefined_variable))", None)
+    def test_expression_ignores_undefined_variables(self):
+        assert interpolate("Error: ((undefined_variable))", None) == "Error: ((undefined_variable))"
 
     def test_multiple_patterns_with_mixed_types(self):
         assert (
@@ -282,4 +281,9 @@ class TestInterpolate:
         )
         assert "Hello World 123" in result
         assert "&lt;" not in result  # No unnecessary escaping
+        assert isinstance(result, Markup)
+
+    def test_interpolate_spits_unknown_references_back_out_without_highlighting(self):
+        result = interpolate("Value: ((value))", ExpressionContext({}), with_interpolation_highlighting=True)
+        assert "Value: ((value))" in result
         assert isinstance(result, Markup)
