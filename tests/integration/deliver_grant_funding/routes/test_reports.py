@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import date
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -9,10 +10,15 @@ from flask import url_for
 from app import QuestionDataType
 from app.common.data import interfaces
 from app.common.data.models import Collection, Expression, Form, Group, Question
-from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
+from app.common.data.types import (
+    ExpressionType,
+    ManagedExpressionsEnum,
+    QuestionPresentationOptions,
+    SubmissionModeEnum,
+)
 from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import build_managed_expression_form
-from app.common.expressions.managed import GreaterThan, IsNo, IsYes
+from app.common.expressions.managed import GreaterThan, IsAfter, IsNo, IsYes, LessThan
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
@@ -23,7 +29,11 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SetUpReportForm,
 )
-from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
+from app.deliver_grant_funding.session_models import (
+    AddContextToComponentGuidanceSessionModel,
+    AddContextToComponentSessionModel,
+    AddContextToExpressionsModel,
+)
 from tests.utils import (
     AnyStringMatching,
     get_form_data,
@@ -1842,7 +1852,7 @@ class TestSelectContextSourceQuestion:
         assert question1.text in soup.text
         assert question2.text in soup.text
 
-    def test_post_redirects_and_updates_session(self, authenticated_grant_admin_client, factories):
+    def test_post_redirects_to_component_and_updates_session(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
         question = factories.question.create(form=form, text="Source question")
@@ -1877,6 +1887,131 @@ class TestSelectContextSourceQuestion:
             question_data = sess.get("question")
             assert question_data is not None
             assert question_data["component_form_data"]["text"] == f"Test text (({question.safe_qid}))"
+
+    def test_post_redirects_to_guidance_and_updates_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        referenced_question = factories.question.create(form=form)
+        question = factories.question.create(form=form)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentGuidanceSessionModel(
+                component_form_data={
+                    "add_context": "guidance_body",
+                    "guidance_body": "Some guidance text here",
+                    "guidance_heading": "Guidance header",
+                    "preview": False,
+                },
+                component_id=question.id,
+                data_source=ExpressionContext.ContextSources.TASK,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"question": str(referenced_question.id)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}/guidance"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            assert (
+                question_data["component_form_data"]["guidance_body"]
+                == f"Some guidance text here (({referenced_question.safe_qid}))"
+            )
+
+    @pytest.mark.parametrize(
+        "expression_type, existing_expression",
+        (
+            (ExpressionType.CONDITION, False),
+            (ExpressionType.CONDITION, True),
+            (ExpressionType.VALIDATION, False),
+            (ExpressionType.VALIDATION, True),
+        ),
+    )
+    def test_post_redirects_to_expression_and_updates_session(
+        self, authenticated_grant_admin_client, factories, db_session, expression_type, existing_expression
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        reference_data_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+
+        expression_id = None
+        if existing_expression:
+            expression = GreaterThan(question_id=target_question.id, minimum_value=100)
+            interfaces.collections.add_question_validation(
+                target_question, interfaces.user.get_current_user(), expression
+            )
+            db_session.commit()
+            expression_id = target_question.expressions[0].id
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=expression_type,
+                managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                expression_form_data={
+                    "type": "Greater than",
+                    "greater_than_value": None,
+                    "greater_than_expression": "",
+                    "greater_than_inclusive": False,
+                    "add_context": "greater_than_expression",
+                },
+                component_id=target_question.id,
+                data_source=ExpressionContext.ContextSources.TASK,
+                depends_on_question_id=depends_on_question.id
+                if expression_type is ExpressionType.CONDITION and not existing_expression
+                else None,
+                expression_id=expression_id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"question": str(reference_data_question.id)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            assert (
+                question_data["expression_form_data"]["greater_than_expression"]
+                == f"(({reference_data_question.safe_qid}))"
+            )
+
+        if expression_type is ExpressionType.CONDITION:
+            if existing_expression:
+                assert response.location == AnyStringMatching(
+                    rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/condition/{expression_id}"
+                )
+            else:
+                assert response.location == AnyStringMatching(
+                    rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/"
+                    + rf"{target_question.id}/add-condition/{depends_on_question.id}"
+                )
+        else:
+            if existing_expression:
+                assert response.location == AnyStringMatching(
+                    rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/validation/{expression_id}"
+                )
+            else:
+                assert response.location == AnyStringMatching(
+                    rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}/add-validation"
+                )
 
 
 class TestEditQuestion:
@@ -2577,6 +2712,134 @@ class TestAddQuestionCondition:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "condition based on this question already exists" in soup.text
 
+    def test_post_to_add_context_redirects_and_sets_up_session(
+        self, authenticated_grant_admin_client, factories, db_session, mocker
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Cheese habits")
+
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you eat a month?",
+            name="total cheese eaten",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="Why do you eat so much cheese?",
+            name="why so much cheese",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+        )
+
+        assert len(target_question.expressions) == 0
+
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        form = ConditionForm(
+            data={
+                "type": "Greater than",
+                "greater_than_value": None,
+                "greater_than_expression": "",
+                "greater_than_inclusive": False,
+                "add_context": "greater_than_expression",
+            }
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=target_question.id,
+                depends_on_question_id=depends_on_question.id,
+            ),
+            data=get_form_data(form, submit=""),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+        )
+        assert len(target_question.expressions) == 0
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert session["question"]["field"] == ExpressionType.CONDITION
+
+    def test_post_from_add_context_success_cleans_that_bit_of_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Cheese habits")
+
+        reference_data_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you buy a month?",
+            name="total cheese bought",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you eat a month?",
+            name="total cheese eaten",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="Why do you eat so much cheese?",
+            name="why so much cheese",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+        )
+
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        form = ConditionForm(
+            data={
+                "type": "Greater than",
+                "greater_than_value": None,
+                "greater_than_expression": f"(({reference_data_question.safe_qid}))",
+                "greater_than_inclusive": False,
+            }
+        )
+
+        session_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+            expression_form_data=form.data,
+            component_id=target_question.id,
+            depends_on_question_id=depends_on_question.id,
+            value_dependent_question_id=reference_data_question.id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=target_question.id,
+                depends_on_question_id=depends_on_question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        expression = target_question.expressions[0]
+        assert expression.type_ == ExpressionType.CONDITION
+        assert expression.managed_name == "Greater than"
+        assert expression.managed.referenced_question.id == depends_on_question.id
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert "question" not in session
+
 
 class TestEditQuestionCondition:
     def test_404(self, authenticated_grant_admin_client):
@@ -2860,6 +3123,151 @@ class TestEditQuestionCondition:
 
         assert len(target_question.expressions) == 0
 
+    def test_post_to_add_context_redirects_and_sets_up_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Cheese habits")
+
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="When did you last buy cheese?",
+            name="last cheese purchase",
+            data_type=QuestionDataType.DATE,
+        )
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="Why haven't you bought cheese in such a long time?",
+            name="lack of cheese reason",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+        )
+
+        expression = IsAfter(question_id=depends_on_question.id, earliest_value=date(2025, 1, 1))
+        interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = target_question.expressions[0].id
+
+        assert len(target_question.expressions) == 1
+        assert target_question.expressions[0].managed_name == "Is after"
+
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+        )
+        form = ConditionForm(
+            data={
+                "type": "Is after",
+                "earliest_value": date(2025, 1, 1),
+                "earliest_expression": "",
+                "add_context": "earliest_expression",
+            }
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+            ),
+            data=get_form_data(form, submit=""),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+        )
+        assert len(target_question.expressions) == 1
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert session["question"]["field"] == ExpressionType.CONDITION
+
+    def test_post_from_add_context_success_cleans_that_bit_of_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Cheese habits")
+
+        reference_data_question = factories.question.create(
+            form=db_form,
+            text="When did the year start?",
+            name="start of year",
+            data_type=QuestionDataType.DATE,
+        )
+
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="When did you last buy cheese?",
+            name="last cheese purchase",
+            data_type=QuestionDataType.DATE,
+        )
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="Why haven't you bought cheese in such a long time?",
+            name="lack of cheese reason",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+        )
+
+        expression = IsAfter(question_id=depends_on_question.id, earliest_value=date(2025, 12, 1))
+        interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = target_question.expressions[0].id
+        assert len(target_question.expressions) == 1
+        assert target_question.expressions[0].managed_name == "Is after"
+
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+        )
+        form = ConditionForm(
+            data={
+                "type": "Is after",
+                "earliest_value": None,
+                "earliest_expression": f"(({reference_data_question.safe_qid}))",
+            }
+        )
+
+        session_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            managed_expression_name=ManagedExpressionsEnum.IS_AFTER,
+            expression_id=expression_id,
+            expression_form_data=form.data,
+            component_id=target_question.id,
+            depends_on_question_id=depends_on_question.id,
+            value_dependent_question_id=reference_data_question.id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        expression = target_question.expressions[0]
+        assert expression.type_ == ExpressionType.CONDITION
+        assert expression.managed_name == "Is after"
+        assert expression.managed.referenced_question.id == depends_on_question.id
+        assert expression.statement == f"{depends_on_question.safe_qid} > (({reference_data_question.safe_qid}))"
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert "question" not in session
+
 
 class TestAddQuestionValidation:
     def test_404(self, authenticated_grant_admin_client):
@@ -3010,6 +3418,117 @@ class TestAddQuestionValidation:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "validation already exists on the question" in soup.text
+
+    def test_post_to_add_context_redirects_and_sets_up_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Cheese habits")
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you eat?",
+            name="quantity of cheese",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        assert len(target_question.expressions) == 0
+
+        ValidationForm = build_managed_expression_form(ExpressionType.CONDITION, target_question)
+        form = ValidationForm(
+            data={
+                "type": "Less than",
+                "less_than_value": None,
+                "less_than_expression": "",
+                "less_than_inclusive": False,
+                "add_context": "less_than_expression",
+            }
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=target_question.id,
+            ),
+            data=get_form_data(form, submit=""),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+        )
+        assert len(target_question.expressions) == 0
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert session["question"]["field"] == ExpressionType.VALIDATION
+
+    def test_post_from_add_context_success_cleans_that_bit_of_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Cheese habits")
+
+        reference_data_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you buy a month?",
+            name="total cheese bought",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you eat a month?",
+            name="quantity of cheese",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, target_question)
+        form = ConditionForm(
+            data={
+                "type": "Less than",
+                "less_than_value": None,
+                "less_than_expression": f"(({reference_data_question.safe_qid}))",
+                "less_than_inclusive": True,
+            }
+        )
+
+        session_data = AddContextToExpressionsModel(
+            field=ExpressionType.VALIDATION,
+            managed_expression_name=ManagedExpressionsEnum.LESS_THAN,
+            expression_form_data=form.data,
+            component_id=target_question.id,
+            value_dependent_question_id=reference_data_question.id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=target_question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        expression = target_question.expressions[0]
+        assert expression.type_ == ExpressionType.VALIDATION
+        assert expression.managed_name == "Less than"
+        assert expression.managed.referenced_question.id == target_question.id
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert "question" not in session
 
 
 class TestEditQuestionValidation:
@@ -3252,6 +3771,137 @@ class TestEditQuestionValidation:
         )
 
         assert len(question.expressions) == 0
+
+    def test_post_to_add_context_redirects_and_sets_up_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Cheese habits")
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you eat a month?",
+            name="quantity of cheese",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        expression = LessThan(question_id=target_question.id, maximum_value=1000)
+        interfaces.collections.add_question_validation(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = target_question.expressions[0].id
+        assert target_question.expressions[0].managed_name == "Less than"
+        assert len(target_question.expressions) == 1
+
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, target_question, target_question.expressions[0]
+        )
+        form = ValidationForm(
+            data={
+                "type": "Less than",
+                "less_than_value": 1000,
+                "less_than_expression": "",
+                "less_than_inclusive": False,
+                "add_context": "less_than_expression",
+            }
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+            ),
+            data=get_form_data(form, submit=""),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+        )
+        assert len(target_question.expressions) == 1
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert session["question"]["field"] == ExpressionType.VALIDATION
+
+    def test_post_from_add_context_success_cleans_that_bit_of_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Cheese habits")
+
+        reference_data_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you buy a month?",
+            name="total cheese bought",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you eat a month?",
+            name="quantity of cheese eaten",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        expression = LessThan(question_id=target_question.id, maximum_value=1000)
+        interfaces.collections.add_question_validation(target_question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = target_question.expressions[0].id
+        assert target_question.expressions[0].managed_name == "Less than"
+        assert len(target_question.expressions) == 1
+
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, target_question, target_question.expressions[0]
+        )
+        form = ValidationForm(
+            data={
+                "type": "Less than",
+                "less_than_value": 1000,
+                "less_than_expression": f"(({reference_data_question.safe_qid}))",
+                "less_than_inclusive": True,
+            }
+        )
+
+        session_data = AddContextToExpressionsModel(
+            field=ExpressionType.VALIDATION,
+            managed_expression_name=ManagedExpressionsEnum.LESS_THAN,
+            expression_form_data=form.data,
+            component_id=target_question.id,
+            value_dependent_question_id=reference_data_question.id,
+            expression_id=expression_id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        expression = target_question.expressions[0]
+        assert expression.type_ == ExpressionType.VALIDATION
+        assert expression.managed_name == "Less than"
+        assert expression.managed.referenced_question.id == target_question.id
+        assert expression.statement == f"{target_question.safe_qid} <=(({reference_data_question.safe_qid}))"
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert "question" not in session
 
 
 class TestManageGuidance:
