@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import Mock
 
 import pytest
@@ -39,6 +40,34 @@ class TestInternalEvaluateExpressionWithContext:
             (Expression(statement="10 <= 1"), False),
             (Expression(statement="True"), True),
             (Expression(statement="False"), False),
+            # ast.Compare with reference data - references saved as ((safe_qids)) in statement, (()) are ignored
+            (Expression(statement="variable1 < ((variable2))", context={"variable1": 2, "variable2": 10}), True),
+            (Expression(statement="variable1 >= ((variable2))", context={"variable1": 2, "variable2": 2}), True),
+            (
+                Expression(
+                    statement="((variable1)) >= variable2 > ((variable3))",
+                    context={"variable1": 10, "variable2": 3, "variable3": 3},
+                ),
+                False,
+            ),
+            (
+                Expression(
+                    statement="variable1 < ((variable2))",
+                    context={"variable1": date(2020, 1, 1), "variable2": date(2021, 1, 1)},
+                ),
+                True,
+            ),
+            (
+                Expression(
+                    statement="((variable1)) < variable2 <= ((variable3))",
+                    context={
+                        "variable1": date(2020, 1, 1),
+                        "variable2": date(2020, 1, 1),
+                        "variable3": date(2021, 1, 1),
+                    },
+                ),
+                False,
+            ),
             # ast.Subscript
             (Expression(statement="variable[0]", context={"variable": [1, 2, 3]}), 1),
             # ast.Attribute

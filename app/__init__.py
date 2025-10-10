@@ -16,6 +16,7 @@ from app import logging
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.types import (
+    ExpressionType,
     FormRunnerState,
     QuestionDataType,
     SubmissionModeEnum,
@@ -203,6 +204,7 @@ def create_app() -> Flask:
                 form_runner_state=FormRunnerState,
                 submission_status=SubmissionStatusEnum,
                 tasklist_task_status=TasklistTaskStatusEnum,
+                expression_type=ExpressionType,
             ),
         )
 

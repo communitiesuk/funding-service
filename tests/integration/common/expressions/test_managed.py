@@ -5,6 +5,7 @@ import pytest
 
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
+from app.common.data.types import QuestionDataType
 from app.common.expressions import evaluate
 from app.common.expressions.managed import (
     AnyOf,
@@ -51,6 +52,34 @@ class TestGreaterThanExpression:
         expr = GreaterThan(question_id=uuid.uuid4(), minimum_value=minimum_value, inclusive=inclusive)
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
 
+    @pytest.mark.parametrize(
+        "minimum_expression, inclusive, answer, expected_result",
+        (
+            (1000, False, 999, False),
+            (1000, False, 1000, False),
+            (1000, True, 1000, True),
+            (1000, False, 1001, True),
+        ),
+    )
+    def test_evaluate_with_reference(self, minimum_expression, inclusive, answer, expected_result, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        expr = GreaterThan(
+            question_id=target_question.id,
+            minimum_value=None,
+            minimum_expression=f"(({referenced_question.safe_qid}))",
+            inclusive=inclusive,
+        )
+        assert (
+            evaluate(
+                Expression(
+                    statement=expr.statement,
+                    context={referenced_question.safe_qid: minimum_expression, target_question.safe_qid: answer},
+                )
+            )
+            is expected_result
+        )
+
 
 class TestLessThanExpression:
     @pytest.mark.parametrize(
@@ -65,6 +94,34 @@ class TestLessThanExpression:
     def test_evaluate(self, maximum_value, inclusive, answer, expected_result):
         expr = LessThan(question_id=uuid.uuid4(), maximum_value=maximum_value, inclusive=inclusive)
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+
+    @pytest.mark.parametrize(
+        "maximum_expression, inclusive, answer, expected_result",
+        (
+            (1000, False, 999, True),
+            (1000, False, 1000, False),
+            (1000, True, 1000, True),
+            (1000, False, 1001, False),
+        ),
+    )
+    def test_evaluate_with_reference(self, maximum_expression, inclusive, answer, expected_result, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        expr = LessThan(
+            question_id=target_question.id,
+            maximum_value=None,
+            maximum_expression=f"(({referenced_question.safe_qid}))",
+            inclusive=inclusive,
+        )
+        assert (
+            evaluate(
+                Expression(
+                    statement=expr.statement,
+                    context={referenced_question.safe_qid: maximum_expression, target_question.safe_qid: answer},
+                )
+            )
+            is expected_result
+        )
 
 
 class TestBetweenExpression:
@@ -90,6 +147,47 @@ class TestBetweenExpression:
             maximum_inclusive=maximum_inclusive,
         )
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+
+    @pytest.mark.parametrize(
+        "minimum_value, minimum_inclusive, maximum_expression, maximum_inclusive, answer, expected_result",
+        (
+            (0, False, 1000, False, 0, False),
+            (0, True, 1000, False, 0, True),
+            (0, False, 1000, False, 1, True),
+            (0, False, 1000, False, 999, True),
+            (0, False, 1000, False, 1000, False),
+            (0, True, 1000, True, 1000, True),
+        ),
+    )
+    def test_evaluate_with_reference(
+        self,
+        minimum_value,
+        minimum_inclusive,
+        maximum_expression,
+        maximum_inclusive,
+        answer,
+        expected_result,
+        factories,
+    ):
+        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        expr = Between(
+            question_id=target_question.id,
+            minimum_value=minimum_value,
+            minimum_inclusive=minimum_inclusive,
+            maximum_value=None,
+            maximum_expression=f"(({referenced_question.safe_qid}))",
+            maximum_inclusive=maximum_inclusive,
+        )
+        assert (
+            evaluate(
+                Expression(
+                    statement=expr.statement,
+                    context={referenced_question.safe_qid: maximum_expression, target_question.safe_qid: answer},
+                )
+            )
+            is expected_result
+        )
 
 
 class TestAnyOfExpression:
@@ -181,6 +279,41 @@ class TestIsBeforeExpression:
             is expected_result
         )
 
+    @pytest.mark.parametrize(
+        "inclusive, answer, expected_result",
+        (
+            (False, maximum_value - datetime.timedelta(days=2), True),
+            (False, maximum_value, False),
+            (True, maximum_value, True),
+            (False, maximum_value + datetime.timedelta(days=2), False),
+        ),
+    )
+    def test_evaluate_with_reference(self, inclusive, answer, expected_result, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.DATE)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
+        expr = IsBefore(
+            question_id=target_question.id,
+            latest_value=None,
+            latest_expression=f"(({referenced_question.safe_qid}))",
+            inclusive=inclusive,
+        )
+
+        assert (
+            evaluate(
+                Expression(
+                    statement=expr.statement,
+                    context={
+                        referenced_question.safe_qid: self.maximum_value,
+                        target_question.safe_qid: answer,
+                        "question_id": expr.question_id,
+                        "latest_value": expr.latest_value,
+                    },
+                    managed_name=expr.name,
+                )
+            )
+            is expected_result
+        )
+
 
 class TestIsAfterExpression:
     min_value = datetime.datetime.strptime("2020-01-01", "%Y-%m-%d").date()
@@ -202,6 +335,41 @@ class TestIsAfterExpression:
                     statement=expr.statement,
                     context={
                         expr.safe_qid: answer,
+                        "earliest_value": expr.earliest_value,
+                        "question_id": expr.question_id,
+                    },
+                    managed_name=expr.name,
+                )
+            )
+            is expected_result
+        )
+
+    @pytest.mark.parametrize(
+        " inclusive, answer, expected_result",
+        (
+            (False, min_value - datetime.timedelta(days=2), False),
+            (False, min_value, False),
+            (True, min_value, True),
+            (False, min_value + datetime.timedelta(days=2), True),
+        ),
+    )
+    def test_evaluate_with_reference(self, inclusive, answer, expected_result, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.DATE)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
+        expr = IsAfter(
+            question_id=target_question.id,
+            earliest_value=None,
+            earliest_expression=f"(({referenced_question.safe_qid}))",
+            inclusive=inclusive,
+        )
+
+        assert (
+            evaluate(
+                Expression(
+                    statement=expr.statement,
+                    context={
+                        referenced_question.safe_qid: self.min_value,
+                        target_question.safe_qid: answer,
                         "earliest_value": expr.earliest_value,
                         "question_id": expr.question_id,
                     },
@@ -247,6 +415,54 @@ class TestIsBetweenDatesExpression:
                     statement=expr.statement,
                     context={
                         expr.safe_qid: answer,
+                        "earliest_value": expr.earliest_value,
+                        "latest_value": expr.latest_value,
+                        "earliest_inclusive": expr.earliest_inclusive,
+                        "latest_inclusive": expr.latest_inclusive,
+                        "question_id": expr.question_id,
+                    },
+                    managed_name=expr.name,
+                )
+            )
+            is expected_result
+        )
+
+    @pytest.mark.parametrize(
+        "earliest_inc, latest_inc, answer, expected_result",
+        (
+            (False, False, min_value - datetime.timedelta(days=2), False),
+            (False, False, min_value, False),
+            (True, False, min_value, True),
+            (True, True, min_value, True),
+            (False, False, min_value + datetime.timedelta(days=2), True),
+            (True, False, min_value + datetime.timedelta(days=2), True),
+            (False, False, max_value + datetime.timedelta(days=2), False),
+            (False, False, max_value, False),
+            (True, True, max_value, True),
+            (False, True, max_value, True),
+            (False, False, max_value - datetime.timedelta(days=2), True),
+            (False, True, max_value - datetime.timedelta(days=2), True),
+        ),
+    )
+    def test_evaluate_with_reference(self, earliest_inc, latest_inc, answer, expected_result, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.DATE)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
+        expr = BetweenDates(
+            question_id=target_question.id,
+            earliest_value=self.min_value,
+            earliest_expression=None,
+            latest_value=None,
+            latest_expression=f"(({referenced_question.safe_qid}))",
+            earliest_inclusive=earliest_inc,
+            latest_inclusive=latest_inc,
+        )
+        assert (
+            evaluate(
+                Expression(
+                    statement=expr.statement,
+                    context={
+                        referenced_question.safe_qid: self.max_value,
+                        target_question.safe_qid: answer,
                         "earliest_value": expr.earliest_value,
                         "latest_value": expr.latest_value,
                         "earliest_inclusive": expr.earliest_inclusive,
