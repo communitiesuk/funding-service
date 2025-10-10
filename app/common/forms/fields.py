@@ -3,6 +3,28 @@ from typing import Any
 from govuk_frontend_wtf.gov_form_base import GovFormBase, GovIterableBase
 from govuk_frontend_wtf.wtforms_widgets import GovSelect
 from wtforms import Field
+from wtforms.fields.numeric import IntegerField as WTFormsIntegerField
+
+
+class IntegerWithCommasField(WTFormsIntegerField):
+    """
+    IntegerField that accepts comma-separated input (e.g., "1,000,000").
+    Commas are stripped before integer conversion.
+    """
+
+    def process_formdata(self, valuelist: list[Any]) -> None:
+        """Override to strip commas from input before converting to integer."""
+        if not valuelist:
+            return
+
+        # Strip commas from the input string before conversion
+        cleaned_value = valuelist[0].replace(",", "") if isinstance(valuelist[0], str) else valuelist[0]
+
+        try:
+            self.data = int(cleaned_value)
+        except ValueError as exc:
+            self.data = None
+            raise ValueError(self.gettext("Not a valid integer value.")) from exc
 
 
 class MHCLGAccessibleAutocomplete(GovSelect):

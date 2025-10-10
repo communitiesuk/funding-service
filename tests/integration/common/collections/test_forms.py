@@ -56,6 +56,8 @@ def test_validation_attached_to_field_and_runs__text(factories, value, error_mes
         (None, "Not a valid integer value."),
         ("abcd", "Not a valid integer value."),
         ("", "Enter the test_integer"),
+        ("1,000", "The answer must be less than 100"),  # comma-separated, fails validation
+        ("50,000", "The answer must be less than 100"),  # comma-separated, fails validation
     ),
 )
 def test_validation_attached_to_field_and_runs__integer(factories, value, error_message):
@@ -177,3 +179,35 @@ def test_url_strips_empty_chars(factories, user_input, will_validate, saved_inpu
     valid = form.validate()
     assert valid is will_validate
     assert form.get_answer_to_question(question) == saved_input
+
+
+@pytest.mark.parametrize(
+    "user_input, will_validate, saved_input",
+    [
+        ("1000000", True, 1000000),
+        ("1,000,000", True, 1000000),
+        ("1,000", True, 1000),
+        ("42", True, 42),
+        ("1,2,3,4", True, 1234),
+        ("100,", True, 100),
+        (",100", True, 100),
+        ("1,,000", True, 1000),
+        ("not-a-number", False, None),
+        ("1,000.5", False, None),  # decimal not allowed for integer
+    ],
+)
+def test_integer_accepts_commas(factories, user_input, will_validate, saved_input) -> None:
+    """Test that IntegerField accepts comma-separated input and stores as integer."""
+    question = factories.question.build(
+        id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"),
+        data_type=QuestionDataType.INTEGER,
+        name="test integer",
+    )
+    _FormClass = build_question_form(
+        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+    )
+    form = _FormClass(formdata=MultiDict({question.safe_qid: user_input}))
+    valid = form.validate()
+    assert valid is will_validate
+    if will_validate:
+        assert form.get_answer_to_question(question) == saved_input
