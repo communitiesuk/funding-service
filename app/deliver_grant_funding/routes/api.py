@@ -20,6 +20,12 @@ deliver_grant_funding_api_blueprint = Blueprint("api", __name__)
 
 @deliver_grant_funding_api_blueprint.post("/api/v1/<uuid:collection_id>/preview-guidance")
 def preview_guidance(collection_id: UUID) -> ResponseReturnValue:
+    """
+    This endpoint takes some arbitrary guidance and returns HTML suitable for inserting into the DOM by our
+    ajax-markdown-preview component. Our markdown converter will escape user input, and our interpolator will then
+    insert highlighting spans into that escaped HTML to provide both safety from user input injection vulnerabilities,
+    and highlighting of data references.
+    """
     if not AuthorisationHelper.is_deliver_grant_funding_user(get_current_user()):
         return jsonify(PreviewGuidanceUnauthorisedResponse().model_dump(mode="json")), 401
 
@@ -30,9 +36,15 @@ def preview_guidance(collection_id: UUID) -> ResponseReturnValue:
     form = PreviewGuidanceForm()
     if form.validate_on_submit():
         interpolate = SubmissionHelper.get_interpolator(collection)
+
+        # NOTE: `interpolate(with_interpolation_highlighting=True)` returns HTML that must be known-good (ie escaped)
+        #       suitable for inserting straight into the DOM.
         return jsonify(
             PreviewGuidanceSuccessResponse(
-                guidance_html=interpolate(current_app.extensions["govuk_markdown"].convert(form.guidance.data))
+                guidance_html=interpolate(
+                    current_app.extensions["govuk_markdown"].convert(form.guidance.data),
+                    with_interpolation_highlighting=True,  # type: ignore[call-arg]
+                )
             ).model_dump(mode="json")
         ), 200
 

@@ -45,4 +45,22 @@ class TestPreviewGuidance:
             json=form.data,
         )
         assert response.status_code == 200
-        assert response.json["guidance_html"] == "<p class='govuk-body'>Test interpolation: ((my question name))</p>\n"
+        assert response.json["guidance_html"] == (
+            "<p class='govuk-body'>Test interpolation: "
+            '<span class="app-context-aware-editor--valid-reference">((my question name))</span>'
+            "</p>\n"
+        )
+
+    def test_post_with_script_tags_are_escaped(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        q = factories.question.create(form__collection=collection, name="my question name")
+        form = PreviewGuidanceForm(guidance=f"<script>alert('bad user input')</script>: (({q.safe_qid}))")
+        response = authenticated_grant_member_client.post(
+            url_for("deliver_grant_funding.api.preview_guidance", collection_id=collection.id),
+            json=form.data,
+        )
+        assert response.status_code == 200
+        assert response.json["guidance_html"] == (
+            "&lt;script&gt;alert(&#x27;bad user input&#x27;)&lt;/script&gt;: "
+            '<span class="app-context-aware-editor--valid-reference">((my question name))</span>\n'
+        )
