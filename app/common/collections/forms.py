@@ -22,6 +22,7 @@ from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext, evaluate, interpolate
 from app.common.forms.fields import (
+    IntegerWithCommasField,
     MHCLGAccessibleAutocomplete,
     MHCLGApproximateDateInput,
     MHCLGCheckboxesInput,
@@ -29,7 +30,16 @@ from app.common.forms.fields import (
 )
 from app.common.forms.validators import FinalOptionExclusive, URLWithoutProtocol, WordRange
 
-_accepted_fields = EmailField | StringField | IntegerField | RadioField | SelectField | SelectMultipleField | DateField
+_accepted_fields = (
+    EmailField
+    | StringField
+    | IntegerField
+    | IntegerWithCommasField
+    | RadioField
+    | SelectField
+    | SelectMultipleField
+    | DateField
+)
 
 
 # FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
@@ -174,7 +184,7 @@ def build_question_form(  # noqa: C901
                     filters=[lambda x: x.strip() if x else x],
                 )
             case QuestionDataType.INTEGER:
-                field = IntegerField(
+                field = IntegerWithCommasField(
                     label=interpolate(text=question.text, context=interpolation_context),
                     description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovTextInput(),
