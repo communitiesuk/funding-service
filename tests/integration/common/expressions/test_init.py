@@ -1,12 +1,13 @@
 import datetime
+import uuid
 from unittest.mock import PropertyMock
 
 import pytest
 
 from app.common.data.models import Expression
-from app.common.data.types import ExpressionType
+from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions import DisallowedExpression, ExpressionContext, evaluate
-from app.common.expressions.managed import GreaterThan
+from app.common.expressions.managed import BetweenDates, GreaterThan
 
 
 class TestExpressionContext:
@@ -70,6 +71,80 @@ class TestEvaluatingManagedExpressions:
         assert evaluate(expr, ExpressionContext({q0.safe_qid: 500})) is False
         assert evaluate(expr, ExpressionContext({q0.safe_qid: 3000})) is False
         assert evaluate(expr, ExpressionContext({q0.safe_qid: 3001})) is True
+
+    @pytest.mark.parametrize(
+        "value, expected_result",
+        (
+            (500, False),
+            (3000, False),
+            (3001, True),
+        ),
+    )
+    def test_expression_with_numerical_reference_data(self, factories, value, expected_result):
+        user = factories.user.create()
+        q0 = factories.question.create(data_type=QuestionDataType.INTEGER)
+        qid = uuid.uuid4()
+        q1 = factories.question.create(
+            id=qid,
+            form=q0.form,
+            data_type=QuestionDataType.INTEGER,
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=qid, minimum_value=None, minimum_expression=f"(({q0.safe_qid}))"), user
+                )  # Double brackets should be ignored by the evaluation engine
+            ],
+        )
+
+        expr = q1.expressions[0]
+
+        assert evaluate(expr, ExpressionContext({q0.safe_qid: 3000, q1.safe_qid: value})) is expected_result
+
+    @pytest.mark.parametrize(
+        "value, expected_result",
+        (
+            (datetime.date(2020, 1, 1), False),
+            (datetime.date(2025, 1, 1), False),
+            (datetime.date(2023, 1, 1), True),
+        ),
+    )
+    def test_expression_with_date_reference_data(self, factories, value, expected_result):
+        user = factories.user.create()
+        form = factories.form.create()
+        q0, q1 = factories.question.create_batch(2, form=form, data_type=QuestionDataType.DATE)
+
+        qid = uuid.uuid4()
+        q2 = factories.question.create(
+            id=qid,
+            form=q0.form,
+            expressions=[
+                Expression.from_managed(
+                    BetweenDates(
+                        question_id=qid,
+                        earliest_value=None,
+                        latest_value=None,
+                        earliest_expression=f"(({q0.safe_qid}))",
+                        latest_expression=f"(({q1.safe_qid}))",
+                    ),
+                    user,
+                )  # Double brackets should be ignored by the evaluation engine
+            ],
+        )
+
+        expr = q2.expressions[0]
+
+        assert (
+            evaluate(
+                expr,
+                ExpressionContext(
+                    {
+                        q0.safe_qid: datetime.date(2020, 1, 1),
+                        q1.safe_qid: datetime.date(2025, 1, 1),
+                        q2.safe_qid: value,
+                    }
+                ),
+            )
+            is expected_result
+        )
 
 
 class TestEvaluatingManagedExpressionsWithRequiredFunctions:
