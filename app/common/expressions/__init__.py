@@ -2,7 +2,7 @@ import ast
 import enum
 import re
 from collections import ChainMap
-from typing import TYPE_CHECKING, Any, Literal, MutableMapping, Optional, overload
+from typing import TYPE_CHECKING, Any, Literal, MutableMapping, Optional, cast, overload
 
 import simpleeval
 from markupsafe import Markup, escape
@@ -10,7 +10,7 @@ from markupsafe import Markup, escape
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Component, Expression
+    from app.common.data.models import Collection, Component, Expression, Group, Question
     from app.common.helpers.collections import SubmissionHelper
 
 INTERPOLATE_REGEX = re.compile(r"\(\(([^\(]+?)\)\)")
@@ -73,13 +73,31 @@ class ExpressionContext(ChainMap[str, Any]):
 
         super().__init__(*self._ordered_contexts)
 
-    def with_add_another_context(self, add_another_context: dict[str, Any] | None = None) -> "ExpressionContext":
+    def with_add_another_context(self, component: "Component", *, add_another_index: int) -> "ExpressionContext":
         """
         Creates a new `ExpressionContext` with `add_another_context` set to the provided `add_another_context`, and the
         other contexts set to the same values as this context
         """
         if self._add_another_context:
             raise ValueError("add_another_context is already set on this ExpressionContext")
+
+        if not component.add_another_container:
+            raise ValueError("add_another_context can only be set for add another components")
+
+        # we're evaluating for a specific entry in a list so we'll set the context for the
+        # questions in our container - assume submission context is already set
+        questions = (
+            cast("Group", component.add_another_container).cached_questions
+            if component.add_another_container.is_group
+            else [cast("Question", component.add_another_container)]
+        )
+        add_another_context = {
+            question.safe_qid: submit_data_entry[add_another_index]
+            if (submit_data_entry := self.get(question.safe_qid))
+            else None
+            for question in questions
+        }
+
         return ExpressionContext(
             submission_data=self._submission_data,
             add_another_context=add_another_context,

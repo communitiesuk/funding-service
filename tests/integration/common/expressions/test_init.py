@@ -8,6 +8,7 @@ from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions import DisallowedExpression, ExpressionContext, evaluate
 from app.common.expressions.managed import BetweenDates, GreaterThan
+from app.common.helpers.collections import SubmissionHelper
 
 
 class TestExpressionContext:
@@ -221,3 +222,43 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
         # Don't patch the required_functions property, so it returns an empty dict
         with pytest.raises(DisallowedExpression):
             evaluate(expr, ExpressionContext(submission_data={"q_123": 123}))
+
+
+class TestExtendingWithAddAnotherContext:
+    def test_extending_with_add_another_context(self, factories):
+        group = factories.group.build(add_another=True)
+        q1 = factories.question.build(parent=group)
+        q2 = factories.question.build(parent=group)
+        submission = factories.submission.build(collection=group.form.collection)
+        submission.data = {
+            str(group.id): [
+                {str(q1.id): "v0", str(q2.id): "e0"},
+                {str(q1.id): "v1", str(q2.id): "e1"},
+                {str(q1.id): "v2", str(q2.id): "e2"},
+            ]
+        }
+
+        context = ExpressionContext.build_expression_context(
+            collection=group.form.collection,
+            submission_helper=SubmissionHelper(submission=submission),
+            mode="evaluation",
+        )
+        assert context.get(q1.safe_qid) == ["v0", "v1", "v2"]
+
+        context = context.with_add_another_context(component=q1, add_another_index=1)
+        assert context.get(q1.safe_qid) == "v1"
+        assert context.get(q2.safe_qid) == "e1"
+
+    def test_extending_with_existing_context(self, factories):
+        component = factories.question.build(add_another=True)
+        ex = ExpressionContext(submission_data={"a": [1, 2, 3], "b": 1, "c": 1}, add_another_context={"a": 1})
+        with pytest.raises(ValueError) as e:
+            ex.with_add_another_context(component, add_another_index=0)
+        assert str(e.value) == "add_another_context is already set on this ExpressionContext"
+
+    def test_extending_with_non_add_another_component(self, factories):
+        component = factories.question.build(add_another=False)
+        ex = ExpressionContext(submission_data={"a": [1, 2, 3], "b": 1, "c": 1})
+        with pytest.raises(ValueError) as e:
+            ex.with_add_another_context(component, add_another_index=0)
+        assert str(e.value) == "add_another_context can only be set for add another components"

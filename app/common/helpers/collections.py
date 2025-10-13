@@ -5,7 +5,7 @@ from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -278,21 +278,7 @@ class SubmissionHelper:
 
         try:
             if component.add_another_container and add_another_index is not None:
-                # we're evaluating for a specific entry in a list so we'll set the context for the
-                # questions in our container
-                questions = (
-                    cast("Group", component.add_another_container).cached_questions
-                    if component.add_another_container.is_group
-                    else [cast("Question", component.add_another_container)]
-                )
-                add_another_context = {
-                    question.safe_qid: submit_data_entry[add_another_index]
-                    if (submit_data_entry := context.get(question.safe_qid))
-                    else None
-                    for question in questions
-                }
-
-                context = context.with_add_another_context(add_another_context)
+                context = context.with_add_another_context(component, add_another_index=add_another_index)
 
             return all(evaluate(condition, context) for condition in get_all_conditions(component))
 
