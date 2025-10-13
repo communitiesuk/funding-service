@@ -392,6 +392,28 @@ class TestSubmissionHelper:
             expression.statement = "True"
             assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
 
+        def test_is_component_visible_visible_with_add_another_expression_index(self, factories):
+            group = factories.group.build(add_another=True)
+            q1 = factories.question.build(form=group.form, parent=group)
+            q2 = factories.question.build(form=group.form, parent=group)
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data[str(group.id)] = [{str(q1.id): "True"}, {str(q1.id): "False"}]
+            helper = SubmissionHelper(submission)
+
+            factories.expression.build(
+                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'True'"
+            )
+
+            assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
+
+            # the expression defaults to false if there is an condition on the same add another container and
+            # no index is provided
+            assert helper.is_component_visible(q2, helper.cached_evaluation_context) is False
+
+            # the expression is evaluated appropriately when an index is provided
+            assert helper.is_component_visible(q2, helper.cached_evaluation_context, add_another_index=0) is True
+            assert helper.is_component_visible(q2, helper.cached_evaluation_context, add_another_index=1) is False
+
     class TestGetCountForAddAnother:
         def test_empty(self, db_session, factories):
             group = factories.group.build()

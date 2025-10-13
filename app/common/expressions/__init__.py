@@ -79,7 +79,7 @@ class ExpressionContext(ChainMap[str, Any]):
         other contexts set to the same values as this context
         """
         if self._add_another_context:
-            raise ValueError
+            raise ValueError("add_another_context is already set on this ExpressionContext")
         return ExpressionContext(
             submission_data=self._submission_data,
             add_another_context=add_another_context,
@@ -128,7 +128,6 @@ class ExpressionContext(ChainMap[str, Any]):
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
-        fallback_question_names = mode == "interpolation"
 
         assert len(ExpressionContext.ContextSources) == 1, (
             "When defining a new source of context for expressions, "
@@ -145,7 +144,7 @@ class ExpressionContext(ChainMap[str, Any]):
             submission_helper=submission_helper,
         )
 
-        if fallback_question_names:
+        if mode == "interpolation":
             for form in collection.forms:
                 for question in form.cached_questions:
                     if expression_context_end_point and (
@@ -165,7 +164,7 @@ class ExpressionContext(ChainMap[str, Any]):
         expression_context_end_point: Optional["Component"] = None,
         submission_helper: Optional["SubmissionHelper"] = None,
     ) -> dict[str, Any]:
-        submission_data = {}
+        submission_data: dict[str, Any] = {}
         if submission_helper:
             for form in submission_helper.collection.forms:
                 for question in form.cached_questions:
