@@ -782,13 +782,13 @@ def update_group(
     if presentation_options is not NOT_PROVIDED:
         if (
             group.presentation_options.show_questions_on_the_same_page is not True
-            and presentation_options.show_questions_on_the_same_page is True  # ty:ignore [possibly-unbound-attribute]
+            and presentation_options.show_questions_on_the_same_page is True
         ):
-            if group.has_nested_groups:  # ty:ignore [possibly-unbound-attribute]
+            if group.has_nested_groups:
                 raise NestedGroupDisplayTypeSamePageException(
                     "You cannot set a group to display all questions on the same page if it has nested groups",
                     parent_group=group,
-                )  # ty:ignore [possibly-unbound-attribute]
+                )
             try:
                 raise_if_group_questions_depend_on_each_other(group)
             except DependencyOrderException as e:

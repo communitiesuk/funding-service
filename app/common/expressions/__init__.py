@@ -230,7 +230,7 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     # Remove all nodes except those we explicitly allowlist
     evaluator.nodes = {
         ast_expr: ast_fn
-        for ast_expr, ast_fn in evaluator.nodes.items()  # ty: ignore[possibly-unbound-attribute]
+        for ast_expr, ast_fn in evaluator.nodes.items()  # ty: ignore[possibly-missing-attribute]
         if ast_expr
         in {
             ast.UnaryOp,

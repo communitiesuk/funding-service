@@ -503,7 +503,7 @@ class CollectionHelper:
                     task_data["answers"][question.name] = (
                         answer.get_value_for_json_export() if answer is not None else None
                     )
-                submission_data["tasks"].append(task_data)
+                submission_data["tasks"].append(task_data)  # ty: ignore[possibly-missing-attribute]
 
             submissions_data["submissions"].append(submission_data)
 
