@@ -228,12 +228,43 @@ class SubmissionHelper:
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
 
-    def _get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, list[AllAnswerTypes]]:
-        visible_questions = self.cached_get_ordered_visible_questions(form)
-        answers = [
-            answer for q in visible_questions if (answer := self.cached_get_answer_for_question(q.id)) is not None
-        ]
-        return len(visible_questions) == len(answers), answers
+    def _get_all_questions_are_answered_for_form(
+        self, form: "Form"
+    ) -> tuple[bool, list[AllAnswerTypes | list[AllAnswerTypes]]]:
+        # todo: I think this looks a lot cleaner if instead of pretending you'll use the "answers" response this returns
+        #       if all answered and then if any answered as two seperate return values the code
+        #       then should read more simply
+        all_answered = True
+        answers: list[AllAnswerTypes | list[AllAnswerTypes]] = []
+        # todo: reason about any overlap with the all visible questions method - this definitely wants
+        #       to check all indexes for all entries
+        for question in form.cached_questions:
+            if question.add_another_container:
+                # wip: crude method but for now only include the answer if they're all answered
+                # fixme: you can't rely on this because you don't have a static number of "visible questions" to
+                #        check against, it can be different for each entry
+                entry_list: list[AllAnswerTypes] = []
+                # we'll check that all of the necessary questions are answered for every entry
+                for i in range(self.get_count_for_add_another(question.add_another_container)):
+                    # todo: it would be more optimal here to only create the context once per entry in the group and
+                    #       pass that in rather than have it created every time by the visible check
+                    if self.is_component_visible(question, self.cached_evaluation_context, add_another_index=i):
+                        if (
+                            entry_answer := self.cached_get_answer_for_question(question.id, add_another_index=i)
+                        ) is None:
+                            all_answered = False
+                        else:
+                            entry_list.append(entry_answer)
+                if entry_list:
+                    answers.append(entry_list)
+
+            else:
+                if self.is_component_visible(question, self.cached_evaluation_context):
+                    if (answer := self.cached_get_answer_for_question(question.id)) is None:
+                        all_answered = False
+                    else:
+                        answers.append(answer)
+        return all_answered, answers
 
     @cached_property
     def all_forms_are_completed(self) -> bool:
@@ -289,6 +320,10 @@ class SubmissionHelper:
             #       always suppressing errors and not surfacing issues on misconfigured forms
             return False
 
+    # todo: if you pass in a component AND index in here should it should extend the context with
+    # that so its appropriate OR it accepts the context optionally which you can extend in the thing calling
+    # it with the right component get next and previous then will pass that in if its add another and index
+    # has been passed in
     def _get_ordered_visible_questions(self, parent: Union["Form", "Group"]) -> list["Question"]:
         """Returns the visible, ordered questions based upon the current state of this collection."""
         return [

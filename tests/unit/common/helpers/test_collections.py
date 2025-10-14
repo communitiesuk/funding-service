@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from app.common.data.types import ExpressionType, SubmissionEventKey
+from app.common.data.types import ExpressionType, QuestionDataType, SubmissionEventKey
 from app.common.helpers.collections import SubmissionHelper
 from tests.utils import AnyStringMatching
 
@@ -302,6 +302,99 @@ class TestSubmissionHelper:
             question = helper.get_previous_question(question_three.id)
             assert question
             assert question.id == question_one.id
+
+    class TestGetAllQuestionsAreAnsweredForForm:
+        def test_all_questions_answered(self, factories):
+            q1 = factories.question.build()
+            q2 = factories.question.build(form=q1.form)
+            submission = factories.submission.build(collection=q1.form.collection)
+            submission.data = {str(q1.id): "answer 1"}
+            helper = SubmissionHelper(submission)
+
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(q1.form)
+            assert all_answered is False
+
+            helper.cached_get_answer_for_question.cache_clear()
+            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
+
+            submission.data = {str(q1.id): "answer 1", str(q2.id): "answer 2"}
+
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(q1.form)
+            assert all_answered is True
+
+        # wip: this may sit more nicely as an integration test as its checking expression evaluation
+        #      and other moving parts
+        def test_all_questions_answered_with_conditions(self, factories):
+            q1 = factories.question.build()
+            q2 = factories.question.build(form=q1.form)
+            submission = factories.submission.build(collection=q1.form.collection)
+            submission.data = {str(q1.id): "answer 1"}
+            helper = SubmissionHelper(submission)
+
+            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="False")
+
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(q1.form)
+            assert all_answered is True
+
+        def test_all_questions_answered_with_add_another(self, factories):
+            group = factories.group.build(add_another=True)
+            q1 = factories.question.build(form=group.form, parent=group)
+            q2 = factories.question.build(form=group.form, parent=group)
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data = {
+                str(group.id): [{str(q1.id): "answer 1"}, {str(q1.id): "answer 2", str(q2.id): "answer 2"}]
+            }
+            helper = SubmissionHelper(submission)
+
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(group.form)
+            assert all_answered is False
+
+            helper.cached_get_answer_for_question.cache_clear()
+            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
+
+            submission.data = {
+                str(group.id): [
+                    {str(q1.id): "answer 1", str(q2.id): "answer 1"},
+                    {str(q1.id): "answer 2", str(q2.id): "answer 2"},
+                ]
+            }
+
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(group.form)
+            assert all_answered is True
+
+        # wip: this may sit more nicely as an integration test as its checking expression evaluation
+        #      and other moving parts
+        def test_all_questions_answered_with_add_another_conditions(self, factories):
+            group = factories.group.build(add_another=True)
+            q1 = factories.question.build(form=group.form, parent=group, data_type=QuestionDataType.INTEGER)
+            q2 = factories.question.build(form=group.form, parent=group)
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data = {
+                str(group.id): [
+                    {str(q1.id): {"value": 20}},
+                    {str(q1.id): {"value": 55}, str(q2.id): "answer 2"},
+                    {str(q1.id): {"value": 60}},
+                ]
+            }
+            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
+            helper = SubmissionHelper(submission)
+
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(group.form)
+            assert all_answered is False
+
+            helper.cached_get_answer_for_question.cache_clear()
+            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
+
+            submission.data = {
+                str(group.id): [
+                    {str(q1.id): {"value": 20}},
+                    {str(q1.id): {"value": 55}, str(q2.id): "answer 2"},
+                    {str(q1.id): {"value": 60}, str(q2.id): "answer 3"},
+                ]
+            }
+
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(group.form)
+            assert all_answered is True
 
     class TestStatuses:
         def test_all_forms_are_completed(self, db_session, factories):
