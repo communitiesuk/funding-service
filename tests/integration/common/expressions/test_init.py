@@ -243,7 +243,7 @@ class TestExtendingWithAddAnotherContext:
             submission_helper=SubmissionHelper(submission=submission),
             mode="evaluation",
         )
-        assert context.get(q1.safe_qid) == ["v0", "v1", "v2"]
+        assert context.get(q1.safe_qid_all_answers) == ["v0", "v1", "v2"]
 
         context = context.with_add_another_context(component=q1, add_another_index=1)
         assert context.get(q1.safe_qid) == "v1"
@@ -268,9 +268,9 @@ class TestExtendingWithAddAnotherContext:
             submission_helper=SubmissionHelper(submission=submission),
             mode="evaluation",
         )
-        assert context.get(q1.safe_qid) == ["v0", None, "v2"]
-        assert context.get(q2.safe_qid) == ["e0", "e1", None]
-        assert context.get(q3.safe_qid) == [None, None, None]
+        assert context.get(q1.safe_qid_all_answers) == ["v0", None, "v2"]
+        assert context.get(q2.safe_qid_all_answers) == ["e0", "e1", None]
+        assert context.get(q3.safe_qid_all_answers) == [None, None, None]
 
         context = context.with_add_another_context(component=q1, add_another_index=1)
         assert context.get(q1.safe_qid) is None
