@@ -236,28 +236,24 @@ class SubmissionHelper:
             ) from e
 
     def _get_all_questions_are_answered_for_form(self, form: "Form") -> FormQuestionsAnswered:
-        all_answered = True
-        some_answered = False
+        question_answer_status = []
 
         for question in form.cached_questions:
             if question.add_another_container:
-                # we'll check that all of the necessary questions are answered for every entry
                 for i in range(self.get_count_for_add_another(question.add_another_container)):
                     # todo: it would be more optimal here to only create the context once per entry in the group and
                     #       pass that in rather than have it created every time by the visible check
                     if self.is_component_visible(question, self.cached_evaluation_context, add_another_index=i):
-                        if self.cached_get_answer_for_question(question.id, add_another_index=i) is None:
-                            all_answered = False
-                        else:
-                            some_answered = True
-
+                        question_answer_status.append(
+                            self.cached_get_answer_for_question(question.id, add_another_index=i) is not None
+                        )
             else:
                 if self.is_component_visible(question, self.cached_evaluation_context):
-                    if self.cached_get_answer_for_question(question.id) is None:
-                        all_answered = False
-                    else:
-                        some_answered = True
-        return FormQuestionsAnswered(all_answered=all_answered, some_answered=some_answered)
+                    question_answer_status.append(self.cached_get_answer_for_question(question.id) is not None)
+
+        return FormQuestionsAnswered(
+            all_answered=all(question_answer_status), some_answered=any(question_answer_status)
+        )
 
     @cached_property
     def all_forms_are_completed(self) -> bool:
