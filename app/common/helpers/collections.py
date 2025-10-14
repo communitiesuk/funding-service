@@ -262,7 +262,9 @@ class SubmissionHelper:
         """Returns the visible, ordered forms based upon the current state of this collection."""
         return sorted(self.collection.forms, key=lambda f: f.order)
 
-    def is_component_visible(self, component: "Component", context: "ExpressionContext") -> bool:
+    def is_component_visible(
+        self, component: "Component", context: "ExpressionContext", add_another_index: int | None = None
+    ) -> bool:
         # we can optimise this to exit early and do this in a sensible order if we switch
         # to going through questions in a nested way rather than flat
         def get_all_conditions(component: "Component") -> list["Expression"]:
@@ -275,7 +277,11 @@ class SubmissionHelper:
             return conditions
 
         try:
+            if component.add_another_container and add_another_index is not None:
+                context = context.with_add_another_context(component, add_another_index=add_another_index)
+
             return all(evaluate(condition, context) for condition in get_all_conditions(component))
+
         except UndefinedVariableInExpression:
             # todo: fail open for now - this method should accept an optional bool that allows this condition to fail
             #       or not- checking visibility on the question page itself should never fail - the summary page could
