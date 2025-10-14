@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 import pytest
 from werkzeug.datastructures import MultiDict
@@ -10,7 +11,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import create_question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import GreaterThan, LessThan
+from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 
 EC = ExpressionContext
@@ -135,6 +136,58 @@ def test_validation_attached_to_multiple_fields(factories, db_session):
     assert "The answer must be greater than or equal to 100" in form.errors[q2.safe_qid]
 
     assert q3.safe_qid not in form.errors
+
+
+def test_reference_data_validation__integer(factories, db_session):
+    user = factories.user.create()
+    q1 = factories.question.create(data_type=QuestionDataType.INTEGER, name="First question")
+    q2 = factories.question.create(data_type=QuestionDataType.INTEGER)
+
+    interfaces.collections.add_question_validation(
+        q2,
+        user,
+        GreaterThan(question_id=q2.id, minimum_value=None, minimum_expression=f"(({q1.safe_qid}))", inclusive=True),
+    )
+
+    _FormClass = build_question_form(
+        [q2],
+        evaluation_context=ExpressionContext({q1.safe_qid: 100}),
+        interpolation_context=ExpressionContext({q1.safe_qid: "£100"}),
+    )
+    form = _FormClass(formdata=MultiDict({q2.safe_qid: 50}))
+
+    valid = form.validate()
+
+    assert valid is False
+
+    # Check answer is validated against reference data value
+    assert "The answer must be greater than or equal to £100" in form.errors[q2.safe_qid]
+
+
+def test_reference_data_validation__date(factories, db_session):
+    user = factories.user.create()
+    q1 = factories.question.create(data_type=QuestionDataType.DATE, name="First question")
+    q2 = factories.question.create(data_type=QuestionDataType.DATE, name="Second question")
+
+    interfaces.collections.add_question_validation(
+        q2,
+        user,
+        IsAfter(question_id=q2.id, earliest_value=None, earliest_expression=f"(({q1.safe_qid}))", inclusive=True),
+    )
+
+    _FormClass = build_question_form(
+        [q2],
+        evaluation_context=ExpressionContext({q1.safe_qid: date(2025, 1, 1)}),
+        interpolation_context=ExpressionContext({q1.safe_qid: "1 January 2025"}),
+    )
+    form = _FormClass(formdata=MultiDict({q2.safe_qid: "1 1 2020"}))
+
+    valid = form.validate()
+
+    assert valid is False
+
+    # Check answer is validated against reference data value
+    assert "The answer must be on or after 1 January 2025" in form.errors[q2.safe_qid]
 
 
 @pytest.mark.parametrize(

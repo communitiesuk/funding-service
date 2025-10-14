@@ -1,0 +1,10 @@
+{% macro context_source_heading_caption(add_context_data) %}
+  {% if add_context_data.field == "component" %}
+    {% set heading_caption = add_context_data.component_form_data["add_context"] %}
+  {% elif add_context_data.field == "guidance" %}
+    {% set heading_caption = add_context_data.field %}
+  {% else %}
+    {% set heading_caption = add_context_data.field.lower() %}
+  {% endif %}
+  {{ heading_caption }}
+{% endmacro %}
