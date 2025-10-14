@@ -701,17 +701,17 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             ],
         )
 
-        obj.park_name_question = q0
-        obj.has_trees_question = q1
-        obj.tree_species_question = q2
-        obj.has_equipment_question = q3
-        obj.equipment_number_question = q4
-        obj.equipment_group = g1
-        obj.add_another_group = g2
-        obj.type_of_equipment_question = q5
-        obj.other_equipment_question = q6
-        obj.under_a_tree_question = q8
-        obj.fenced_off_question = q9
+        obj.park_name_question = q0  # ty:ignore[unresolved-attribute]
+        obj.has_trees_question = q1  # ty:ignore[unresolved-attribute]
+        obj.tree_species_question = q2  # ty:ignore[unresolved-attribute]
+        obj.has_equipment_question = q3  # ty:ignore[unresolved-attribute]
+        obj.equipment_number_question = q4  # ty:ignore[unresolved-attribute]
+        obj.equipment_group = g1  # ty:ignore[unresolved-attribute]
+        obj.add_another_group = g2  # ty:ignore[unresolved-attribute]
+        obj.type_of_equipment_question = q5  # ty:ignore[unresolved-attribute]
+        obj.other_equipment_question = q6  # ty:ignore[unresolved-attribute]
+        obj.under_a_tree_question = q8  # ty:ignore[unresolved-attribute]
+        obj.fenced_off_question = q9  # ty:ignore[unresolved-attribute]
 
         add_another_responses = []
         add_another_responses.append(
@@ -830,9 +830,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                         ).get_value_for_submission(),
                     },
                 )
-                sub.data[str(g2.id)][0][str(q8.id)] = YesNoAnswer(True).get_value_for_submission()
-                sub.data[str(g2.id)][1][str(q8.id)] = YesNoAnswer(False).get_value_for_submission()
-                sub.data[str(g2.id)][2][str(q8.id)] = YesNoAnswer(True).get_value_for_submission()
+                sub.data[str(g2.id)][0][str(q8.id)] = YesNoAnswer(True).get_value_for_submission()  # ty:ignore[missing-argument]
+                sub.data[str(g2.id)][1][str(q8.id)] = YesNoAnswer(False).get_value_for_submission()  # ty:ignore[missing-argument]
+                sub.data[str(g2.id)][2][str(q8.id)] = YesNoAnswer(True).get_value_for_submission()  # ty:ignore[missing-argument]
 
         _create_submission_of_type(SubmissionModeEnum.TEST, test)
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
