@@ -241,9 +241,8 @@ class SubmissionHelper:
         for question in form.cached_questions:
             if question.add_another_container:
                 for i in range(self.get_count_for_add_another(question.add_another_container)):
-                    # todo: it would be more optimal here to only create the context once per entry in the group and
-                    #       pass that in rather than have it created every time by the visible check
-                    if self.is_component_visible(question, self.cached_evaluation_context, add_another_index=i):
+                    context = self.cached_evaluation_context.with_add_another_context(question, add_another_index=i)
+                    if self.is_component_visible(question, context):
                         question_answer_status.append(
                             self.cached_get_answer_for_question(question.id, add_another_index=i) is not None
                         )
@@ -309,10 +308,6 @@ class SubmissionHelper:
             #       always suppressing errors and not surfacing issues on misconfigured forms
             return False
 
-    # todo: if you pass in a component AND index in here should it should extend the context with
-    # that so its appropriate OR it accepts the context optionally which you can extend in the thing calling
-    # it with the right component get next and previous then will pass that in if its add another and index
-    # has been passed in
     def _get_ordered_visible_questions(self, parent: Union["Form", "Group"]) -> list["Question"]:
         """Returns the visible, ordered questions based upon the current state of this collection."""
         return [
