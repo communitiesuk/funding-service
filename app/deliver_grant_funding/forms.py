@@ -20,9 +20,7 @@ from wtforms.validators import DataRequired, Email, Optional, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.collections import (
-    get_question_by_id,
     group_name_exists,
-    is_component_dependency_order_valid,
 )
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
@@ -30,6 +28,7 @@ from app.common.data.types import GroupDisplayOptions, MultilineTextInputRows, N
 from app.common.expressions import ExpressionContext
 from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
+from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
@@ -473,23 +472,10 @@ class SelectDataSourceQuestionForm(FlaskForm):
         # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
         # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
         # centralise this logic sensibly.
-        def _questions_in_same_page_group(c1: "Component", c2: "Component") -> bool:
-            # If two questions are in the same group, and that group shows on the same page, then they can't
-            # reference each other. Note: this relies on a current tech/product constraint that the "same page"
-            # setting can only be turned on for the leaf group in a set of nested groups (so we don't have to check
-            # parent groups for the same-page setting).
-            return True if c1.parent and c2.parent and c1.parent == c2.parent and c1.parent.same_page else False
 
         self.question.choices = [("", "")] + [
             (str(question.id), interpolate(question.text))
-            for question in form.cached_questions
-            if (
-                current_component is None
-                or (
-                    form.global_component_index(question) < form.global_component_index(current_component)
-                    and not _questions_in_same_page_group(question, current_component)
-                )
-            )
+            for question in get_referenceable_questions(form, current_component)
         ]  # type: ignore[assignment]
 
 
@@ -561,28 +547,16 @@ class ConditionSelectQuestionForm(FlaskForm):
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
-    def __init__(self, *args, question: "Component", interpolate: Callable[[str], str], **kwargs):  # type: ignore[no-untyped-def]
+    def __init__(self, *args, current_component: "Component", interpolate: Callable[[str], str], **kwargs):  # type: ignore[no-untyped-def]
         super().__init__(*args, **kwargs)
 
-        self.target_question = question
+        self.target_question = current_component
 
-        if len(get_supported_form_questions(question)) > 0:
+        if len(get_supported_form_questions(current_component)) > 0:
             self.question.choices = [("", "")] + [
                 (str(question.id), f"{interpolate(question.text)} ({question.name})")
-                for question in get_supported_form_questions(question)
+                for question in get_supported_form_questions(current_component)
             ]  # type: ignore[assignment]
-
-    def validate_question(self: "ConditionSelectQuestionForm", field: "Field") -> None:
-        depends_on_question = get_question_by_id(self.question.data)
-        if not is_component_dependency_order_valid(self.target_question, depends_on_question):
-            raise ValidationError("Select an answer that comes before this question in the form")
-
-        if (
-            self.target_question.parent
-            and self.target_question.parent.same_page
-            and (depends_on_question.parent == self.target_question.parent)
-        ):
-            raise ValidationError("Select an answer that is not on the same page as this question")
 
 
 class AddGuidanceForm(FlaskForm):

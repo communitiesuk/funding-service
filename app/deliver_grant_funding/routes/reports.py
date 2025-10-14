@@ -1175,7 +1175,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
     form = ConditionSelectQuestionForm(
-        question=component,
+        current_component=component,
         interpolate=SubmissionHelper.get_interpolator(collection=component.form.collection),
     )
 

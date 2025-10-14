@@ -2441,6 +2441,74 @@ class TestAddQuestionConditionSelectQuestion:
             assert "What answer should the condition check?" in soup.text
             assert "Do you like cheese? (cheese question)" in soup.text
 
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_only_lists_referenceable_questions(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        factories.question.create(
+            form=form,
+            text="Do you like cheese?",
+            name="cheese question",
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        factories.question.create(
+            form=form,
+            text="What is your email?",
+            name="email question",
+            data_type=QuestionDataType.EMAIL,
+        )
+
+        factories.question.create(
+            form=form, text="How much cheese do you buy?", name="how much cheese", data_type=QuestionDataType.INTEGER
+        )
+
+        group = factories.group.create(
+            form=form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        factories.question.create(
+            form=form,
+            parent=group,
+            text="What is the most cheese you've ever eaten?",
+            name="most cheese",
+            data_type=QuestionDataType.INTEGER,
+        )
+        second_group_question = factories.question.create(
+            form=form,
+            parent=group,
+            text="What is the least cheese you've ever eaten?",
+            name="least cheese",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=client.grant.id,
+                component_id=second_group_question.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "What answer should the condition check?" in soup.text
+            assert "Do you like cheese? (cheese question)" in soup.text
+            assert "How much cheese do you buy? (how much cheese)" in soup.text
+            assert "What is your email? (email question)" not in soup.text
+            assert "What is the most cheese you've ever eaten? (most question)" not in soup.text
+            assert "What is the least cheese you've ever eaten? (least cheese)" not in soup.text
+
     def test_post(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
@@ -2474,26 +2542,18 @@ class TestAddQuestionConditionSelectQuestion:
             rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{second_question.id}/add-condition/{first_question.id}"
         )
 
-    def test_post_rejects_same_page_group(self, authenticated_grant_admin_client, factories):
+    def test_wtforms_validation_prevents_invalid_choice_from_manipulation(
+        self, authenticated_grant_admin_client, factories
+    ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
         group = factories.group.create(
             form=form,
-            name="Test group",
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
         )
-        q1 = factories.question.create(
-            form=form,
-            parent=group,
-            text="Do you like cheese?",
-            name="cheese question",
-            data_type=QuestionDataType.YES_NO,
-        )
-
-        q2 = factories.question.create(
-            form=form, parent=group, text="What is your email?", name="email question", data_type=QuestionDataType.EMAIL
-        )
+        q1 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.YES_NO)
+        q2 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.EMAIL)
 
         response = authenticated_grant_admin_client.post(
             url_for(
@@ -2507,7 +2567,7 @@ class TestAddQuestionConditionSelectQuestion:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
-        assert page_has_error(soup, "Select an answer that is not on the same page as this question")
+        assert page_has_error(soup, "Not a valid choice")
 
 
 class TestAddQuestionCondition:

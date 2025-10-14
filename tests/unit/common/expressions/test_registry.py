@@ -1,4 +1,4 @@
-from app.common.data.types import QuestionDataType
+from app.common.data.types import QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.registry import (
     _registry_by_expression_enum,
     get_managed_conditions_by_data_type,
@@ -33,11 +33,27 @@ class TestManagedExpressions:
         assert get_supported_form_questions(valid_question) == []
 
         second_question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
-        del form.cached_questions
+        del form.cached_all_components
 
         # make sure the original question under test does show up in the correct circumstances
         assert get_supported_form_questions(second_question) == [valid_question]
-        assert get_supported_form_questions(valid_question) == [second_question]
+        # make sure the second question doesn't show up as it comes after the first
+        assert get_supported_form_questions(valid_question) != [second_question]
+
+    def test_get_supported_form_questions_filters_out_same_page_group_questions(self, factories):
+        form = factories.form.build()
+        valid_question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
+        assert get_supported_form_questions(valid_question) == []
+        group = factories.group.build(
+            form=form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        group_integer_questions = factories.question.build_batch(
+            3, parent=group, data_type=QuestionDataType.INTEGER, form=form
+        )
+        del form.cached_all_components
+
+        # make sure the original question under test does show up in the correct circumstances
+        assert get_supported_form_questions(group_integer_questions[2]) == [valid_question]
 
     def test_new_managed_expressions_added(self):
         assert len(_registry_by_expression_enum) == 10, (
