@@ -132,7 +132,7 @@ class TestSubmissionHelper:
 
             helper = SubmissionHelper(submission)
             question = helper.get_first_question_for_form(form)
-            assert question.id == uuid.UUID("00000000-0000-0000-0000-000000000000")  # ty: ignore[possibly-unbound-attribute]
+            assert question.id == uuid.UUID("00000000-0000-0000-0000-000000000000")
 
         def test_no_visible_questions_in_form(self, db_session, factories):
             form = factories.form.build()
@@ -153,7 +153,7 @@ class TestSubmissionHelper:
 
             helper = SubmissionHelper(submission)
             question = helper.get_last_question_for_form(form)
-            assert question.id == uuid.UUID("00000000-0000-0000-0000-000000000004")  # ty: ignore[possibly-unbound-attribute]
+            assert question.id == uuid.UUID("00000000-0000-0000-0000-000000000004")
 
         def test_no_visible_questions_in_form(self, db_session, factories):
             form = factories.form.build()
@@ -202,10 +202,10 @@ class TestSubmissionHelper:
 
             helper = SubmissionHelper(submission)
 
-            assert helper.get_next_question(uuid.UUID(int=0)).id == uuid.UUID(int=1)  # ty: ignore[possibly-unbound-attribute]
-            assert helper.get_next_question(uuid.UUID(int=1)).id == uuid.UUID(int=2)  # ty: ignore[possibly-unbound-attribute]
-            assert helper.get_next_question(uuid.UUID(int=2)).id == uuid.UUID(int=3)  # ty: ignore[possibly-unbound-attribute]
-            assert helper.get_next_question(uuid.UUID(int=3)).id == uuid.UUID(int=4)  # ty: ignore[possibly-unbound-attribute]
+            assert helper.get_next_question(uuid.UUID(int=0)).id == uuid.UUID(int=1)
+            assert helper.get_next_question(uuid.UUID(int=1)).id == uuid.UUID(int=2)
+            assert helper.get_next_question(uuid.UUID(int=2)).id == uuid.UUID(int=3)
+            assert helper.get_next_question(uuid.UUID(int=3)).id == uuid.UUID(int=4)
 
         def test_current_question_exists_but_is_last_question(self, db_session, factories):
             form = factories.form.build()
@@ -257,10 +257,10 @@ class TestSubmissionHelper:
 
             helper = SubmissionHelper(submission)
 
-            assert helper.get_previous_question(uuid.UUID(int=1)).id == uuid.UUID(int=0)  # ty: ignore[possibly-unbound-attribute]
-            assert helper.get_previous_question(uuid.UUID(int=2)).id == uuid.UUID(int=1)  # ty: ignore[possibly-unbound-attribute]
-            assert helper.get_previous_question(uuid.UUID(int=3)).id == uuid.UUID(int=2)  # ty: ignore[possibly-unbound-attribute]
-            assert helper.get_previous_question(uuid.UUID(int=4)).id == uuid.UUID(int=3)  # ty: ignore[possibly-unbound-attribute]
+            assert helper.get_previous_question(uuid.UUID(int=1)).id == uuid.UUID(int=0)
+            assert helper.get_previous_question(uuid.UUID(int=2)).id == uuid.UUID(int=1)
+            assert helper.get_previous_question(uuid.UUID(int=3)).id == uuid.UUID(int=2)
+            assert helper.get_previous_question(uuid.UUID(int=4)).id == uuid.UUID(int=3)
 
         def test_current_question_exists_but_is_first_question(self, db_session, factories):
             form = factories.form.build()
