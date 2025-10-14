@@ -93,7 +93,7 @@ class ExpressionContext(ChainMap[str, Any]):
         )
         add_another_context = {
             question.safe_qid: submit_data_entry[add_another_index]
-            if (submit_data_entry := self.get(question.safe_qid))
+            if (submit_data_entry := self.get(question.safe_qid_all_answers))
             else None
             for question in questions
         }
@@ -192,12 +192,12 @@ class ExpressionContext(ChainMap[str, Any]):
                         >= form.global_component_index(question)
                     ):
                         if question.add_another_container:
-                            submission_data[question.safe_qid] = []
+                            submission_data[question.safe_qid_all_answers] = []
                             for i in range(submission_helper.get_count_for_add_another(question.add_another_container)):
                                 answer = submission_helper.cached_get_answer_for_question(
                                     question.id, add_another_index=i
                                 )
-                                submission_data[question.safe_qid].append(
+                                submission_data[question.safe_qid_all_answers].append(
                                     (
                                         answer.get_value_for_evaluation()
                                         if mode == "evaluation"
@@ -250,6 +250,11 @@ class ExpressionContext(ChainMap[str, Any]):
             context = value
 
         return True
+
+    def __hash__(self) -> int:
+        # separate immutable instances are used when a context is extended so the instance id
+        # should be sufficient for the lru_cache
+        return hash(id(self))
 
 
 def _evaluate_expression_with_context(expression: "Expression", context: ExpressionContext | None = None) -> Any:

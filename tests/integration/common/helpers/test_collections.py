@@ -206,8 +206,8 @@ class TestSubmissionHelper:
             assert helper.cached_form_data == {
                 f"{questions[0].safe_qid}": "test name",
                 f"{questions[1].safe_qid}": "test org name",
-                f"{questions[2].safe_qid}": ["test name 0", "test name 1"],
-                f"{questions[3].safe_qid}": ["test_user_0@email.com", "test_user_1@email.com"],
+                f"{questions[2].safe_qid_all_answers}": ["test name 0", "test name 1"],
+                f"{questions[3].safe_qid_all_answers}": ["test_user_0@email.com", "test_user_1@email.com"],
                 f"{questions[4].safe_qid}": 3,
             }
 
@@ -327,8 +327,8 @@ class TestSubmissionHelper:
                 submission_data={
                     f"{questions[0].safe_qid}": "test name",
                     f"{questions[1].safe_qid}": "test org name",
-                    f"{questions[2].safe_qid}": ["test name 0", "test name 1"],
-                    f"{questions[3].safe_qid}": ["test_user_0@email.com", "test_user_1@email.com"],
+                    f"{questions[2].safe_qid_all_answers}": ["test name 0", "test name 1"],
+                    f"{questions[3].safe_qid_all_answers}": ["test_user_0@email.com", "test_user_1@email.com"],
                     f"{questions[4].safe_qid}": 3,
                 }
             )

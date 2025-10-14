@@ -18,6 +18,10 @@ class SafeQidMixin:
         """
         return "q_" + self.question_id.hex
 
+    @property
+    def safe_qid_all_answers(self) -> str:
+        return f"{self.safe_qid}__all_answers"
+
     @staticmethod
     def safe_qid_to_id(safe_qid: str) -> uuid.UUID | None:
         if safe_qid.startswith("q_"):
