@@ -461,6 +461,7 @@ class SelectDataSourceQuestionForm(FlaskForm):
         form: "Form",
         interpolate: Callable[[str], str],
         current_component: TOptional["Component"],
+        expression: bool = False,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -476,7 +477,8 @@ class SelectDataSourceQuestionForm(FlaskForm):
         self.question.choices = [("", "")] + [
             (str(question.id), interpolate(question.text))
             for question in get_referenceable_questions(form, current_component)
-        ]  # type: ignore[assignment]
+            if (not expression or question.data_type == current_component.data_type)  # type: ignore[assignment, union-attr]
+        ]
 
 
 class GrantAddUserForm(FlaskForm):

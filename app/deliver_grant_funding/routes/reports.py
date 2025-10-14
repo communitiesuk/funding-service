@@ -866,10 +866,20 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
     if not add_context_data:
         return abort(400)
 
+    # TODO: Add depends_on_question_id as a nullable attribute to all session models to simplify this check?
+    current_component = (
+        get_component_by_id(add_context_data.depends_on_question_id)  # type: ignore[union-attr, arg-type]
+        if getattr(add_context_data, "depends_on_question_id", None)
+        else get_component_by_id(add_context_data.component_id)
+        if add_context_data.component_id
+        else None
+    )
+
     wtform = SelectDataSourceQuestionForm(
         form=db_form,
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
-        current_component=get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None,
+        current_component=current_component,
+        expression=isinstance(add_context_data, AddContextToExpressionsModel),
     )
 
     if wtform.validate_on_submit():

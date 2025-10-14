@@ -273,3 +273,78 @@ class TestSelectDataSourceQuestionForm:
 
         assert len(form.question.choices) == 1
         assert {q[0] for q in form.question.choices} == {""}
+
+    def test_show_all_question_datatypes_if_no_expression(self, app, factories, mocker):
+        text_question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        yes_no_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.YES_NO)
+        date_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.DATE)
+        integer_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.INTEGER)
+
+        all_questions = [text_question, yes_no_question, date_question, integer_question]
+
+        mocker.patch.object(text_question.form, "cached_questions", all_questions)
+        mocker.patch.object(text_question.form, "cached_all_components", all_questions)
+
+        form = SelectDataSourceQuestionForm(
+            form=text_question.form,
+            interpolate=SubmissionHelper.get_interpolator(collection=text_question.form.collection),
+            current_component=integer_question,
+        )
+
+        assert len(form.question.choices) == 4
+        # '' is the default "no answer" choice
+        assert {q[0] for q in form.question.choices} == {
+            "",
+            str(text_question.id),
+            str(yes_no_question.id),
+            str(date_question.id),
+        }
+
+    def test_expressions_reference_only_show_questions_of_same_datatype(self, app, factories, mocker):
+        text_question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        yes_no_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.YES_NO)
+        integer_questions = factories.question.build_batch(
+            4, form=text_question.form, data_type=QuestionDataType.INTEGER
+        )
+
+        all_questions = [text_question, yes_no_question] + integer_questions
+
+        mocker.patch.object(text_question.form, "cached_questions", all_questions)
+        mocker.patch.object(text_question.form, "cached_all_components", all_questions)
+
+        form = SelectDataSourceQuestionForm(
+            form=text_question.form,
+            interpolate=SubmissionHelper.get_interpolator(collection=text_question.form.collection),
+            current_component=integer_questions[2],
+            expression=True,
+        )
+
+        assert len(form.question.choices) == 3
+        # '' is the default "no answer" choice
+        assert {q[0] for q in form.question.choices} == {"", str(integer_questions[0].id), str(integer_questions[1].id)}
+
+    def test_expressions_reference_exclude_same_page_groups_and_other_question_datatypes(self, app, factories, mocker):
+        integer_q1 = factories.question.build(data_type=QuestionDataType.INTEGER)
+        integer_q2 = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.INTEGER)
+        text_question = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        group = factories.group.build(
+            form=integer_q1.form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        integer_q3 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.INTEGER)
+        integer_q4 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.INTEGER)
+
+        all_questions = [integer_q1, integer_q2, text_question, integer_q3, integer_q4]
+
+        mocker.patch.object(group.form, "cached_questions", all_questions)
+        mocker.patch.object(group.form, "cached_all_components", [group] + all_questions)
+
+        form = SelectDataSourceQuestionForm(
+            form=group.form,
+            interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
+            current_component=integer_q4,
+            expression=True,
+        )
+
+        assert len(form.question.choices) == 3
+        assert {q[0] for q in form.question.choices} == {"", str(integer_q1.id), str(integer_q2.id)}
