@@ -51,7 +51,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import AnyOf, GreaterThan, Specifically
+from app.common.expressions.managed import AnyOf, GreaterThan, IsYes, Specifically
 from app.extensions import db
 from app.types import TRadioItem
 
@@ -562,6 +562,277 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                         ).get_value_for_submission(),
                     },
                 )
+
+        _create_submission_of_type(SubmissionModeEnum.TEST, test)
+        _create_submission_of_type(SubmissionModeEnum.LIVE, live)
+
+    # TODO can we streamline these different options for creating collections or will that make it more complicated
+    @factory.post_generation  # type: ignore
+    def create_completed_submissions_add_another_nested_group_with_conditions(  # type: ignore
+        obj: Collection,
+        create,
+        extracted,
+        test: int = 0,
+        live: int = 0,
+        **kwargs,
+    ) -> None:
+        if not test and not live:
+            return
+        form = _FormFactory.create(
+            collection=obj, title="Add another nested group test form", slug="add-another-nested-group-test-form"
+        )
+
+        # Create a form with a nested add another group
+        q0 = _QuestionFactory.create(
+            name="Park name",
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="What is the name of your park?",
+            add_another=False,
+        )
+        q1 = _QuestionFactory.create(
+            name="Has trees", form=form, data_type=QuestionDataType.YES_NO, text="Does your park have trees?"
+        )
+        q2 = _QuestionFactory.create(
+            name="Tree species",
+            expressions=[
+                Expression.from_managed(
+                    IsYes(
+                        question_id=q1.id,
+                    ),
+                    _UserFactory.create(),
+                )
+            ],
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="What type of tree species do you have?",
+            add_another=True,
+        )
+        q3 = _QuestionFactory.create(
+            name="Has play equipment",
+            form=form,
+            data_type=QuestionDataType.YES_NO,
+            text="Does your park have play equipment?",
+        )
+        q9 = _QuestionFactory.create(
+            name="Equipment fenced off",
+            form=form,
+            data_type=QuestionDataType.YES_NO,
+            text="Is the equipment fenced off?",
+            expressions=[
+                Expression.from_managed(
+                    IsYes(
+                        question_id=q3.id,
+                    ),
+                    _UserFactory.create(),
+                )
+            ],
+        )
+
+        g1 = _GroupFactory.create(
+            name="Play equipment details group",
+            text="Tell us about your play equipment",
+            slug="play-equipment-test-group",
+            form=form,
+            expressions=[
+                Expression.from_managed(
+                    IsYes(
+                        question_id=q3.id,
+                    ),
+                    _UserFactory.create(),
+                )
+            ],
+        )
+        q4 = _QuestionFactory.create(
+            name="Number of pieces of equipment",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="How many pieces of play equipment do you have?",
+            parent=g1,
+        )
+        g2 = _GroupFactory.create(
+            name="Equipment details",
+            text="Tell us about each piece of equipment",
+            slug="equipment-add-another-group",
+            parent=g1,
+            add_another=True,
+            form=form,
+        )
+        q5 = _QuestionFactory.create(
+            name="Type of equipment",
+            form=form,
+            data_type=QuestionDataType.RADIOS,
+            text="What is this piece of equipment?",
+            data_source__items=["swing", "slide", "other"],
+            parent=g2,
+        )
+        q6 = _QuestionFactory.create(
+            form=form,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Describe this piece of equipment",
+            name="Equipment type - Other",
+            expressions=[
+                Expression.from_managed(
+                    AnyOf(question_id=q5.id, items=[{"key": "other", "label": "other"}]), _UserFactory.create()
+                )
+            ],
+            parent=g2,
+        )
+        q7 = _QuestionFactory.create(
+            name="How many years old is this piece of equipment?",
+            form=form,
+            data_type=QuestionDataType.INTEGER,
+            text="Age",
+            parent=g2,
+        )
+        q8 = _QuestionFactory.create(
+            name="Under a tree",
+            form=form,
+            data_type=QuestionDataType.YES_NO,
+            text="Is this piece of equipment under a tree?",
+            parent=g2,
+            expressions=[
+                Expression.from_managed(
+                    IsYes(
+                        question_id=q1.id,
+                    ),
+                    _UserFactory.create(),
+                )
+            ],
+        )
+
+        obj.park_name_question = q0
+        obj.has_trees_question = q1
+        obj.tree_species_question = q2
+        obj.has_equipment_question = q3
+        obj.equipment_number_question = q4
+        obj.equipment_group = g1
+        obj.add_another_group = g2
+        obj.type_of_equipment_question = q5
+        obj.other_equipment_question = q6
+        obj.under_a_tree_question = q8
+        obj.fenced_off_question = q9
+
+        add_another_responses = []
+        add_another_responses.append(
+            {
+                str(q5.id): SingleChoiceFromListAnswer(key="slide", label="slide").get_value_for_submission(),
+                str(q7.id): IntegerAnswer(value=1).get_value_for_submission(),
+            }
+        )
+        add_another_responses.append(
+            {
+                str(q5.id): SingleChoiceFromListAnswer(key="swing", label="swing").get_value_for_submission(),
+                str(q7.id): IntegerAnswer(value=2).get_value_for_submission(),
+            }
+        )
+        add_another_responses.append(
+            {
+                str(q5.id): SingleChoiceFromListAnswer(key="other", label="other").get_value_for_submission(),
+                str(q6.id): TextSingleLineAnswer("It's a seasaw").get_value_for_submission(),  # type:ignore[dict-item]
+                str(q7.id): IntegerAnswer(value=3).get_value_for_submission(),
+            }
+        )
+
+        def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
+            for _ in range(count):
+                _SubmissionFactory.create(
+                    collection=obj,
+                    mode=submission_mode,
+                    data={
+                        str(q0.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                            "No play equipment, No trees"
+                        ).get_value_for_submission(),
+                        str(q1.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            False
+                        ).get_value_for_submission(),
+                        str(q3.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            False
+                        ).get_value_for_submission(),
+                    },
+                )
+                _SubmissionFactory.create(
+                    collection=obj,
+                    mode=submission_mode,
+                    data={
+                        str(q0.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                            "No play equipment, Has trees"
+                        ).get_value_for_submission(),
+                        str(q1.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            True
+                        ).get_value_for_submission(),
+                        str(q2.id): [
+                            {
+                                str(q2.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                                    "Oak"
+                                ).get_value_for_submission()
+                            },
+                            {
+                                str(q2.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                                    "Sycamore"
+                                ).get_value_for_submission()
+                            },
+                        ],
+                        str(q3.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            False
+                        ).get_value_for_submission(),
+                    },
+                )
+                _SubmissionFactory.create(
+                    collection=obj,
+                    mode=submission_mode,
+                    data={
+                        str(q0.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                            "Has play equipment, No trees"
+                        ).get_value_for_submission(),
+                        str(q1.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            False
+                        ).get_value_for_submission(),
+                        str(q3.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            True
+                        ).get_value_for_submission(),
+                        str(q4.id): IntegerAnswer(value=1).get_value_for_submission(),
+                        str(g2.id): add_another_responses,
+                        str(q9.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            False
+                        ).get_value_for_submission(),
+                    },
+                )
+                sub = _SubmissionFactory.create(
+                    collection=obj,
+                    mode=submission_mode,
+                    data={
+                        str(q0.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                            "Has play equipment, Has trees"
+                        ).get_value_for_submission(),
+                        str(q1.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            True
+                        ).get_value_for_submission(),
+                        str(q2.id): [
+                            {
+                                str(q2.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                                    "Oak"
+                                ).get_value_for_submission()
+                            },
+                            {
+                                str(q2.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                                    "Sycamore"
+                                ).get_value_for_submission()
+                            },
+                        ],
+                        str(q3.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            True
+                        ).get_value_for_submission(),
+                        str(q4.id): IntegerAnswer(value=1).get_value_for_submission(),
+                        str(g2.id): add_another_responses,
+                        str(q9.id): YesNoAnswer(  # ty:ignore[missing-argument]
+                            True
+                        ).get_value_for_submission(),
+                    },
+                )
+                sub.data[str(g2.id)][0][str(q8.id)] = YesNoAnswer(True).get_value_for_submission()
+                sub.data[str(g2.id)][1][str(q8.id)] = YesNoAnswer(False).get_value_for_submission()
+                sub.data[str(g2.id)][2][str(q8.id)] = YesNoAnswer(True).get_value_for_submission()
 
         _create_submission_of_type(SubmissionModeEnum.TEST, test)
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
