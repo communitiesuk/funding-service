@@ -234,7 +234,7 @@ class TestExtendingWithAddAnotherContext:
             str(group.id): [
                 {str(q1.id): "v0", str(q2.id): "e0"},
                 {str(q1.id): "v1", str(q2.id): "e1"},
-                {str(q1.id): "v2", str(q2.id): "e2"},
+                {str(q1.id): "v2"},
             ]
         }
 
@@ -248,6 +248,34 @@ class TestExtendingWithAddAnotherContext:
         context = context.with_add_another_context(component=q1, add_another_index=1)
         assert context.get(q1.safe_qid) == "v1"
         assert context.get(q2.safe_qid) == "e1"
+
+    def test_extending_with_add_another_context_with_partial_submit_data(self, factories):
+        group = factories.group.build(add_another=True)
+        q1 = factories.question.build(parent=group)
+        q2 = factories.question.build(parent=group)
+        q3 = factories.question.build(parent=group)
+        submission = factories.submission.build(collection=group.form.collection)
+        submission.data = {
+            str(group.id): [
+                {str(q1.id): "v0", str(q2.id): "e0"},
+                {str(q2.id): "e1"},
+                {str(q1.id): "v2"},
+            ]
+        }
+
+        context = ExpressionContext.build_expression_context(
+            collection=group.form.collection,
+            submission_helper=SubmissionHelper(submission=submission),
+            mode="evaluation",
+        )
+        assert context.get(q1.safe_qid) == ["v0", None, "v2"]
+        assert context.get(q2.safe_qid) == ["e0", "e1", None]
+        assert context.get(q3.safe_qid) == [None, None, None]
+
+        context = context.with_add_another_context(component=q1, add_another_index=1)
+        assert context.get(q1.safe_qid) is None
+        assert context.get(q2.safe_qid) == "e1"
+        assert context.get(q3.safe_qid) is None
 
     def test_extending_with_existing_context(self, factories):
         component = factories.question.build(add_another=True)
