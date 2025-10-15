@@ -136,6 +136,7 @@ source_modules = [
 ]
 ignore_imports = [
     "app.developers.commands -> app.common.data.models",
+    "app.deliver_grant_funding.admin.entities -> app.common.data.models"
 ]
 # Unable to do `exhaustive` here unfortunately, so we won't get told if new modules are added and we forget to put them
 # in here. C'est la vie.
