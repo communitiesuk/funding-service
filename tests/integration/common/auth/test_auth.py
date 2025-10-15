@@ -203,7 +203,7 @@ class TestSSOSignInView:
 
 
 class TestSSOGetTokenView:
-    def test_get_without_fsd_admin_role_and_with_no_assigned_roles(self, app, anonymous_client):
+    def test_get_without_fs_platform_admin_role_and_with_no_assigned_roles(self, app, anonymous_client):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
@@ -270,7 +270,7 @@ class TestSSOGetTokenView:
                 "id_token_claims": {
                     "preferred_username": "test@test.communities.gov.uk",
                     "name": "SSO User",
-                    "roles": ["FSD_ADMIN"],
+                    "roles": ["FS_PLATFORM_ADMIN"],
                     "sub": "subject_id",
                 }
             }
@@ -294,7 +294,7 @@ class TestSSOGetTokenView:
                 "id_token_claims": {
                     "preferred_username": "test.member@communities.gov.uk",
                     "name": "SSO User",
-                    "roles": ["FSD_ADMIN"],
+                    "roles": ["FS_PLATFORM_ADMIN"],
                     "sub": "abc123",
                 }
             }
@@ -304,7 +304,7 @@ class TestSSOGetTokenView:
         assert response.status_code == 200
         assert AuthorisationHelper.is_platform_admin(user)
 
-    def test_platform_admin_with_fsd_admin_role_removed(self, anonymous_client, factories, db_session):
+    def test_platform_admin_with_fs_platform_admin_role_removed(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
             user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="abc123")
             factories.user_role.create(user=user, role=RoleEnum.ADMIN)
@@ -325,7 +325,7 @@ class TestSSOGetTokenView:
 
         assert response.status_code == 403
 
-    def test_platform_admin_with_grant_member_role_fsd_admin_role_removed(
+    def test_platform_admin_with_grant_member_role_fs_platform_admin_role_removed(
         self, anonymous_client, factories, db_session
     ):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
@@ -366,7 +366,7 @@ class TestSSOGetTokenView:
                 "id_token_claims": {
                     "preferred_username": "test.member@communities.gov.uk",
                     "name": "SSO User",
-                    "roles": ["FSD_ADMIN"],
+                    "roles": ["FS_PLATFORM_ADMIN"],
                     "sub": "wer234",
                 }
             }
@@ -389,7 +389,7 @@ class TestSSOGetTokenView:
                 "id_token_claims": {
                     "preferred_username": "test@communities.gov.uk",
                     "name": "SSO User",
-                    "roles": ["FSD_ADMIN"],
+                    "roles": ["FS_PLATFORM_ADMIN"],
                     "sub": "wer234",
                 }
             }
