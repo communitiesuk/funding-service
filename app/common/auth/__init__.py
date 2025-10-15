@@ -125,7 +125,7 @@ def sso_get_token() -> ResponseReturnValue:
     user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id=sso_user["sub"])
 
     # Platform admin route
-    if "FSD_ADMIN" in sso_user.get("roles", []):
+    if "FS_PLATFORM_ADMIN" in sso_user.get("roles", []):
         user = interfaces.user.upsert_user_and_set_platform_admin_role(
             azure_ad_subject_id=sso_user["sub"], email_address=sso_user["preferred_username"], name=sso_user["name"]
         )
