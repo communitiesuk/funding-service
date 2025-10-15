@@ -239,14 +239,16 @@ class TestExtendingWithAddAnotherContext:
             ]
         }
 
+        helper = SubmissionHelper(submission=submission)
+
         context = ExpressionContext.build_expression_context(
             collection=group.form.collection,
-            submission_helper=SubmissionHelper(submission=submission),
+            submission_helper=helper,
             mode="evaluation",
         )
-        assert context.get(q1.safe_qid_all_answers) == ["v0", "v1", "v2"]
+        assert context.get(q1.safe_qid) is None
 
-        context = context.with_add_another_context(component=q1, add_another_index=1)
+        context = context.with_add_another_context(component=q1, submission_helper=helper, add_another_index=1)
         assert context.get(q1.safe_qid) == "v1"
         assert context.get(q2.safe_qid) == "e1"
 
@@ -264,30 +266,33 @@ class TestExtendingWithAddAnotherContext:
             ]
         }
 
+        helper = SubmissionHelper(submission=submission)
         context = ExpressionContext.build_expression_context(
             collection=group.form.collection,
-            submission_helper=SubmissionHelper(submission=submission),
+            submission_helper=helper,
             mode="evaluation",
         )
-        assert context.get(q1.safe_qid_all_answers) == ["v0", None, "v2"]
-        assert context.get(q2.safe_qid_all_answers) == ["e0", "e1", None]
-        assert context.get(q3.safe_qid_all_answers) == [None, None, None]
+        assert context.get(q1.safe_qid) is None
+        assert context.get(q2.safe_qid) is None
+        assert context.get(q3.safe_qid) is None
 
-        context = context.with_add_another_context(component=q1, add_another_index=1)
+        context = context.with_add_another_context(component=q1, submission_helper=helper, add_another_index=1)
         assert context.get(q1.safe_qid) is None
         assert context.get(q2.safe_qid) == "e1"
         assert context.get(q3.safe_qid) is None
 
     def test_extending_with_existing_context(self, factories):
         component = factories.question.create(add_another=True)
+        submission = factories.submission.create(collection=component.form.collection)
         ex = ExpressionContext(submission_data={"a": [1, 2, 3], "b": 1, "c": 1}, add_another_context={"a": 1})
         with pytest.raises(ValueError) as e:
-            ex.with_add_another_context(component, add_another_index=0)
+            ex.with_add_another_context(component, submission_helper=SubmissionHelper(submission), add_another_index=0)
         assert str(e.value) == "add_another_context is already set on this ExpressionContext"
 
     def test_extending_with_non_add_another_component(self, factories):
         component = factories.question.create(add_another=False)
+        submission = factories.submission.create(collection=component.form.collection)
         ex = ExpressionContext(submission_data={"a": [1, 2, 3], "b": 1, "c": 1})
         with pytest.raises(ValueError) as e:
-            ex.with_add_another_context(component, add_another_index=0)
+            ex.with_add_another_context(component, submission_helper=SubmissionHelper(submission), add_another_index=0)
         assert str(e.value) == "add_another_context can only be set for add another components"
