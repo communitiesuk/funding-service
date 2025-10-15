@@ -137,12 +137,9 @@ class SubmissionHelper:
         form_data: dict[str, Any] = {}
         for form in self.collection.forms:
             for question in form.cached_questions:
-                if question.add_another_container:
-                    form_data[question.safe_qid_all_answers] = []
-                    for i in range(self.get_count_for_add_another(question.add_another_container)):
-                        answer = self.cached_get_answer_for_question(question.id, add_another_index=i)
-                        form_data[question.safe_qid_all_answers].append(answer.get_value_for_form() if answer else None)
-                else:
+                # we'll only add add another answers if a context is provided which will be hooked in
+                # with the form runner
+                if not question.add_another_container:
                     answer = self.cached_get_answer_for_question(question.id)
                     if answer is not None:
                         form_data[question.safe_qid] = answer.get_value_for_form()
@@ -241,7 +238,9 @@ class SubmissionHelper:
         for question in form.cached_questions:
             if question.add_another_container:
                 for i in range(self.get_count_for_add_another(question.add_another_container)):
-                    context = self.cached_evaluation_context.with_add_another_context(question, add_another_index=i)
+                    context = self.cached_evaluation_context.with_add_another_context(
+                        question, submission_helper=self, add_another_index=i
+                    )
                     if self.is_component_visible(question, context):
                         question_answer_status.append(
                             self.cached_get_answer_for_question(question.id, add_another_index=i) is not None
@@ -297,7 +296,9 @@ class SubmissionHelper:
 
         try:
             if component.add_another_container and add_another_index is not None:
-                context = context.with_add_another_context(component, add_another_index=add_another_index)
+                context = context.with_add_another_context(
+                    component, submission_helper=self, add_another_index=add_another_index
+                )
 
             return all(evaluate(condition, context) for condition in get_all_conditions(component))
 
@@ -418,7 +419,7 @@ class SubmissionHelper:
         context_override = None
         if question.add_another_container and add_another_index is not None:
             context_override = self.cached_evaluation_context.with_add_another_context(
-                question, add_another_index=add_another_index
+                question, submission_helper=self, add_another_index=add_another_index
             )
 
         questions = self.cached_get_ordered_visible_questions(
@@ -445,7 +446,7 @@ class SubmissionHelper:
         context_override = None
         if question.add_another_container and add_another_index is not None:
             context_override = self.cached_evaluation_context.with_add_another_context(
-                question, add_another_index=add_another_index
+                question, submission_helper=self, add_another_index=add_another_index
             )
 
         questions = self.cached_get_ordered_visible_questions(

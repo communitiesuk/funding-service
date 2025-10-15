@@ -73,7 +73,9 @@ class ExpressionContext(ChainMap[str, Any]):
 
         super().__init__(*self._ordered_contexts)
 
-    def with_add_another_context(self, component: "Component", *, add_another_index: int) -> "ExpressionContext":
+    def with_add_another_context(
+        self, component: "Component", submission_helper: "SubmissionHelper", *, add_another_index: int
+    ) -> "ExpressionContext":
         """
         Creates a new `ExpressionContext` with `add_another_context` set to the provided `add_another_context`, and the
         other contexts set to the same values as this context
@@ -91,9 +93,15 @@ class ExpressionContext(ChainMap[str, Any]):
             if component.add_another_container.is_group
             else [cast("Question", component.add_another_container)]
         )
+
         add_another_context = {
-            question.safe_qid: submit_data_entry[add_another_index]
-            if (submit_data_entry := self.get(question.safe_qid_all_answers))
+            question.safe_qid: answer.get_value_for_evaluation()
+            if (
+                answer := submission_helper.cached_get_answer_for_question(
+                    question.id, add_another_index=add_another_index
+                )
+            )
+            is not None
             else None
             for question in questions
         }
@@ -191,22 +199,9 @@ class ExpressionContext(ChainMap[str, Any]):
                         and form.global_component_index(expression_context_end_point)
                         >= form.global_component_index(question)
                     ):
-                        if question.add_another_container:
-                            submission_data[question.safe_qid_all_answers] = []
-                            for i in range(submission_helper.get_count_for_add_another(question.add_another_container)):
-                                answer = submission_helper.cached_get_answer_for_question(
-                                    question.id, add_another_index=i
-                                )
-                                submission_data[question.safe_qid_all_answers].append(
-                                    (
-                                        answer.get_value_for_evaluation()
-                                        if mode == "evaluation"
-                                        else answer.get_value_for_interpolation()
-                                    )
-                                    if answer
-                                    else None
-                                )
-                        else:
+                        # until we do support aggregate methods in expressions we only support add another
+                        # question answers through an explicit `with_add_another_context` which sets the context
+                        if not question.add_another_container:
                             answer = submission_helper.cached_get_answer_for_question(question.id)
                             if answer is not None:
                                 submission_data[question.safe_qid] = (
