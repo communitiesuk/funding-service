@@ -72,6 +72,8 @@ class _GrantFactory(SQLAlchemyModelFactory):
     description = factory.Faker("text", max_nb_chars=200)
     primary_contact_name = factory.Faker("name")
     primary_contact_email = factory.Faker("email")
+    organisation_id = factory.LazyAttribute(lambda o: o.organisation.id)
+    organisation = factory.SubFactory("tests.models._OrganisationFactory")
 
 
 class _UserFactory(SQLAlchemyModelFactory):

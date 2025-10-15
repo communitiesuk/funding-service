@@ -40,8 +40,12 @@ class Grant(BaseModel):
     description: Mapped[str]
     primary_contact_name: Mapped[str]
     primary_contact_email: Mapped[str]
+    organisation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organisation.id"), nullable=True
+    )  # TODO: make non-nullable
 
     collections: Mapped[list["Collection"]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
+    organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="grants")
 
     users: Mapped[list["User"]] = relationship(
         "User",
@@ -67,6 +71,23 @@ class Organisation(BaseModel):
     name: Mapped[CIStr] = mapped_column(unique=True)
     roles: Mapped[list["UserRole"]] = relationship(
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"
+    )
+    can_manage_grants: Mapped[bool] = mapped_column(default=False)
+    grants: Mapped[list["Grant"]] = relationship("Grant", back_populates="organisation")
+
+    __table_args__ = (
+        # NOTE: make it so that only a single organisation can manage grants in the platform at the moment. When we come
+        #       to onboard other government departments as grant owners, we'll need to release this constraint and
+        #       ensure that Deliver grant funding has appropriate designs to understand and handle multiple grant
+        #       owning orgs. For now this lets us keep the idea of org switching out of Deliver grant funding, and our
+        #       queries can just find the only organisation with 'can_manage_grants=true'.
+        Index(
+            "uq_organisation_name_can_manage_grants",
+            "name",
+            "can_manage_grants",
+            unique=True,
+            postgresql_where=can_manage_grants.is_(True),
+        ),
     )
 
 
