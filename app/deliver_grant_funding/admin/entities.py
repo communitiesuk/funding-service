@@ -130,9 +130,9 @@ class PlatformAdminOrganisationView(PlatformAdminModelView):
     can_delete = True
 
     column_list = ["name", "can_manage_grants"]
-    column_filters = [
-        "name"
-    ]  # filtering for `can_manage_grants` currently broken in xgovuk-flask-admin or flask-admin =[
+    # TODO: https://github.com/pallets-eco/flask-admin/issues/2674
+    #       filtering on boolean fields currently broken in flask-admin when using psycopg(3) lib =[
+    column_filters = ["name"]
 
     form_columns = ["name", "can_manage_grants"]
 

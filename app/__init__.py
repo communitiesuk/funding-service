@@ -16,6 +16,7 @@ from xgovuk_flask_admin.theme import XGovukFrontendTheme
 from app import logging
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
+from app.common.data.interfaces.system import seed_system_data
 from app.common.data.types import (
     ExpressionType,
     FormRunnerState,
@@ -124,7 +125,7 @@ def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
         register_admin_views(flask_admin, db_)
 
 
-def create_app() -> Flask:
+def create_app(_seed_system_data: bool = True) -> Flask:
     from app.common.data.base import BaseModel
 
     app = Flask(__name__, static_folder="assets/dist/", static_url_path="/static")
@@ -153,6 +154,7 @@ def create_app() -> Flask:
     record_sqlalchemy_queries.init_app(app, db)
     govuk_markdown.init_app(app)
 
+    Babel(app)
     _setup_flask_admin(app, db)
 
     @login_manager.user_loader  # type: ignore[misc]
@@ -185,7 +187,6 @@ def create_app() -> Flask:
     )
     WTFormsHelpers(app)
 
-    Babel(app)
     app.jinja_env.add_extension("jinja2.ext.i18n")
     app.jinja_env.add_extension("jinja2.ext.do")
 
@@ -255,6 +256,10 @@ def create_app() -> Flask:
     app.register_blueprint(auth_blueprint)
 
     _register_global_error_handlers(app)
+
+    if _seed_system_data:
+        with app.app_context():
+            seed_system_data(app)
 
     @app.route("/", methods=["GET"])
     def index() -> ResponseReturnValue:

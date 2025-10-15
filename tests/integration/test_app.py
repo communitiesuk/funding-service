@@ -23,7 +23,7 @@ def app_with_basic_auth(setup_db_container: PostgresContainer, db: SQLAlchemy) -
             **build_db_config(setup_db_container),
         },
     ):
-        app = create_app()
+        app = create_app(_seed_system_data=False)
 
     app.config.update({"TESTING": True})
     yield app
@@ -45,7 +45,7 @@ class TestBasicAuth:
             },
         ):
             with pytest.raises(ValueError) as e:
-                create_app()
+                create_app(_seed_system_data=False)
 
             assert "BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD must be set if BASIC_AUTH_ENABLED is true." in str(
                 e.value

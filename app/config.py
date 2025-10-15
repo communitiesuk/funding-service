@@ -265,6 +265,8 @@ class _SharedConfig(_BaseConfig):
     GGIS_TEAM_EMAIL: str = "ggis@communities.gov.uk"
     PIPELINE_GRANTS_SCHEME_FORM_URL: str = "https://forms.office.com.mcas.ms/pages/responsepage.aspx?id=EGg0v32c3kOociSi7zmVqBUKhC0CqZtGmIj1YcYa53xUNTFRWkRXQ1ZJUEJMOTg1UllGWEpCNDQ4NSQlQCN0PWcu&route=shorturl"
 
+    PLATFORM_DEPARTMENT_NAME: str = "Ministry of Housing, Communities and Local Government"
+
     @property
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD

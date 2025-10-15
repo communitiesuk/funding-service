@@ -26,7 +26,7 @@ def _unit_test_timeout(request: FixtureRequest) -> None:
 @pytest.fixture(scope="session")
 def app() -> Generator[Flask, None, None]:
     with patch.dict(os.environ, build_db_config(None)):
-        app = create_app()
+        app = create_app(_seed_system_data=False)
 
     app.config.update({"TESTING": True})
     _precompile_templates(app)

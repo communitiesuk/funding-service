@@ -59,7 +59,7 @@ class TestBuildQuestionForm:
             overrides["WTF_CSRF_ENABLED"] = "true"
 
             with patch.dict(os.environ, overrides):
-                app = create_app()
+                app = create_app(_seed_system_data=False)
 
             app.test_client_class = FundingServiceTestClient
             app.config.update({"TESTING": True})

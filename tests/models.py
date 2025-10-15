@@ -17,6 +17,7 @@ import factory.fuzzy
 import faker
 from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
+from sqlalchemy.exc import NoResultFound
 
 from app.common.collections.types import (
     DateAnswer,
@@ -60,6 +61,33 @@ def _required() -> None:
     raise ValueError("Value must be set explicitly for tests")
 
 
+def _get_grant_managing_organisation() -> Organisation:
+    """
+    Get or create an organisation that can manage grants.
+
+    In integration tests: returns the existing org with can_manage_grants=True from the DB.
+    In unit tests: creates a new in-memory org instance (no DB access).
+    """
+    try:
+        # Now query the database - this will work in integration tests
+        org = db.session.query(Organisation).where(Organisation.can_manage_grants.is_(True)).one()
+        return org
+    except NoResultFound:
+        org = Organisation(name="MHCLG", can_manage_grants=True)
+        db.session.add(org)
+        db.session.commit()
+        return org
+    except RuntimeError:
+        # DB access blocked or we're using factory.build() - we're in unit tests or building in-memory
+        # Create an in-memory organisation instance directly without using the factory
+        # to avoid triggering session access in the factory's Meta class
+        return Organisation(
+            id=uuid4(),
+            name="Test Organisation",
+            can_manage_grants=True,
+        )
+
+
 class _GrantFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Grant
@@ -73,7 +101,7 @@ class _GrantFactory(SQLAlchemyModelFactory):
     primary_contact_name = factory.Faker("name")
     primary_contact_email = factory.Faker("email")
     organisation_id = factory.LazyAttribute(lambda o: o.organisation.id)
-    organisation = factory.SubFactory("tests.models._OrganisationFactory")
+    organisation = factory.LazyFunction(_get_grant_managing_organisation)
 
 
 class _UserFactory(SQLAlchemyModelFactory):
@@ -96,6 +124,7 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     name = factory.Sequence(lambda n: "Organisation %d" % n)
+    can_manage_grants = False
 
 
 class _UserRoleFactory(SQLAlchemyModelFactory):

@@ -83,7 +83,6 @@ class Organisation(BaseModel):
         #       queries can just find the only organisation with 'can_manage_grants=true'.
         Index(
             "uq_organisation_name_can_manage_grants",
-            "name",
             "can_manage_grants",
             unique=True,
             postgresql_where=can_manage_grants.is_(True),

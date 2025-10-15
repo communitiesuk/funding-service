@@ -29,6 +29,7 @@ from testcontainers.postgres import PostgresContainer
 from werkzeug.test import TestResponse
 
 from app import create_app
+from app.common.data.interfaces.system import seed_system_data
 from app.common.data.models_user import User
 from app.common.data.types import AuthMethodEnum, RoleEnum
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
@@ -84,7 +85,7 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
         os.environ,
         build_db_config(setup_db_container),
     ):
-        app = create_app()
+        app = create_app(_seed_system_data=False)
 
     @app.route("/_testing/403")
     def raise_403() -> ResponseReturnValue:
@@ -206,6 +207,8 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
     #
     # NOTE: this fixture is automatically used by all integration tests, and provides both an app context and a test
     # request context. So you will not need to manually create these within your integration tests.
+    with app.app_context():
+        seed_system_data(app)
 
     with app.app_context():
         connection = db.engine.connect()

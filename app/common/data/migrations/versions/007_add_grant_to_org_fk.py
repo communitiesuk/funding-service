@@ -26,7 +26,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("can_manage_grants", sa.Boolean(), nullable=False))
         batch_op.create_index(
             "uq_organisation_name_can_manage_grants",
-            ["name", "can_manage_grants"],
+            ["can_manage_grants"],
             unique=True,
             postgresql_where=sa.text("can_manage_grants IS true"),
         )

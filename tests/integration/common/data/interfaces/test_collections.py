@@ -1647,8 +1647,8 @@ class TestDependencyExceptionHelpers:
 
 class TestUpdateSubmissionData:
     def test_update_submission_data_single_question(db_session, factories):
-        question = factories.question.build()
-        submission = factories.submission.build(collection=question.form.collection)
+        question = factories.question.create()
+        submission = factories.submission.create(collection=question.form.collection)
 
         assert str(question.id) not in submission.data
 
@@ -1917,8 +1917,8 @@ class TestUpdateSubmissionData:
 
 
 def test_add_submission_event(db_session, factories):
-    user = factories.user.build()
-    submission = factories.submission.build()
+    user = factories.user.create()
+    submission = factories.submission.create()
     db_session.add(submission)
 
     add_submission_event(submission=submission, user=user, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED)
@@ -1931,9 +1931,9 @@ def test_add_submission_event(db_session, factories):
 
 
 def test_clear_events_from_submission(db_session, factories):
-    submission = factories.submission.build()
-    form_one = factories.form.build(collection=submission.collection)
-    form_two = factories.form.build(collection=submission.collection)
+    submission = factories.submission.create()
+    form_one = factories.form.create(collection=submission.collection)
+    form_two = factories.form.create(collection=submission.collection)
 
     add_submission_event(
         submission=submission, user=submission.created_by, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
