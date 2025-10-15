@@ -666,6 +666,14 @@ class _QuestionFactory(SQLAlchemyModelFactory):
 
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
 
+    @factory.post_generation  # type: ignore
+    def form_components_join(self, create, extracted, **kwargs) -> None:
+        # Force the update of the form list of components as the join doesn't work before this is flushed to database
+        if not create:
+            self.form.components = [component for component in self.form.components if component.parent is None]  # type: ignore[has-type]
+            if hasattr(self.form, "cached_questions"):
+                del self.form.cached_questions
+
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:
@@ -719,6 +727,14 @@ class _GroupFactory(SQLAlchemyModelFactory):
     parent_id = factory.LazyAttribute(lambda o: o.parent.id if o.parent else None)
 
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
+
+    @factory.post_generation  # type: ignore
+    def form_components_join(self, create, extracted, **kwargs) -> None:
+        # Force the update of the form list of components as the join doesn't work before this is flushed to database
+        if not create:
+            self.form.components = [component for component in self.form.components if component.parent is None]  # type: ignore[has-type]
+            if hasattr(self.form, "cached_questions"):
+                del self.form.cached_questions
 
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
