@@ -9,6 +9,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
+from app.common.forms.helpers import get_referenceable_questions
 
 if TYPE_CHECKING:
     from app.common.data.models import Component, Question
@@ -57,5 +58,9 @@ def register_managed_expression(cls: type["ManagedExpression"]) -> type["Managed
 
 
 def get_supported_form_questions(question: "Component") -> list["Question"]:
-    questions = question.form.cached_questions
-    return [q for q in questions if q.data_type in get_registered_data_types() and q.id != question.id]
+    form = question.form
+    return [
+        q
+        for q in get_referenceable_questions(form, question)
+        if q.data_type in get_registered_data_types() and q.id != question.id
+    ]
