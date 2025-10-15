@@ -109,3 +109,9 @@ class PlatformAdminUserRoleView(PlatformAdminModelView):
     column_labels = {"organisation.name": "Organisation name", "grant.name": "Grant name", "user.email": "User email"}
 
     form_columns = ["user", "organisation", "grant", "role"]
+
+    form_args = {
+        "user": {"get_label": "email"},
+        "organisation": {"get_label": "name"},
+        "grant": {"get_label": "name"},
+    }
