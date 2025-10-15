@@ -606,6 +606,13 @@ class _FormFactory(SQLAlchemyModelFactory):
     collection = factory.SubFactory(_CollectionFactory)
     collection_id = factory.LazyAttribute(lambda o: o.collection.id)
 
+    @factory.post_generation  # type: ignore
+    def form_components_join(self, create: bool) -> None:
+        # when the form is created and synced to the db the `primaryjoin` will be respected
+        # app/common/data/models.py Form "components" primaryjoin attribute
+        if not create:
+            self.components = [component for component in self.components if component.parent is None]  # type: ignore[has-type]
+
 
 class _DataSourceItemFactory(SQLAlchemyModelFactory):
     class Meta:
