@@ -15,6 +15,17 @@ def questions_in_same_page_group(c1: "Component", c2: "Component") -> bool:
     return True if c1.parent and c2.parent and c1.parent == c2.parent and c1.parent.same_page else False
 
 
+def questions_in_same_add_another_container(q1: "Component", q2: "Component") -> bool:
+    """
+    Check if two components are both in the same add another group.
+    """
+    return (
+        q1.add_another_container is not None
+        and q2.add_another_container is not None
+        and q1.add_another_container == q2.add_another_container
+    )
+
+
 def get_referenceable_questions(form: "Form", current_component: "Component | None" = None) -> list["Question"]:
     """
     Return a list of questions from the current form that could be referenced from the current component, determined by:

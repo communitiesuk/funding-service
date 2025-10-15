@@ -5,7 +5,11 @@ from app.common.data.interfaces.collections import (
     raise_if_add_another_not_valid_here,
 )
 from app.common.data.types import QuestionPresentationOptions
-from app.common.forms.helpers import get_referenceable_questions, questions_in_same_page_group
+from app.common.forms.helpers import (
+    get_referenceable_questions,
+    questions_in_same_add_another_container,
+    questions_in_same_page_group,
+)
 
 
 class TestQuestionsInSamePageGroup:
@@ -40,6 +44,54 @@ class TestQuestionsInSamePageGroup:
         q2 = factories.question.build(form=form, parent=group)
 
         assert questions_in_same_page_group(q1, q2) is True
+
+
+class TestQuestionsInSameAddAnotherGroup:
+    def test_components_in_same_add_another_group(self, factories):
+        form = factories.form.build()
+        group = factories.group.build(form=form, add_another=True)
+        q1 = factories.question.build(form=form, parent=group)
+        q2 = factories.question.build(form=form, parent=group)
+        assert questions_in_same_add_another_container(q1, q2) is True
+
+    def test_components_not_in_add_another_group(self, factories):
+        form = factories.form.build()
+        group = factories.group.build(form=form, add_another=False)
+        q1 = factories.question.build(form=form, parent=group)
+        q2 = factories.question.build(form=form, parent=group)
+        q3 = factories.question.build(form=form, parent=None)
+        q4 = factories.question.build(form=form, parent=None)
+
+        assert questions_in_same_add_another_container(q1, q2) is False
+        assert questions_in_same_add_another_container(q2, q3) is False
+        assert questions_in_same_add_another_container(q3, q4) is False
+
+    def test_components_not_in_same_add_another_group(self, factories):
+        form = factories.form.build()
+        g1 = factories.group.build(form=form, add_another=True)
+        g2 = factories.group.build(form=form, add_another=True)
+        g3 = factories.group.build(form=form, add_another=False)
+        q1 = factories.question.build(form=form, parent=g1)
+        q2 = factories.question.build(form=form, parent=g2)
+        q3 = factories.question.build(form=form, parent=g3)
+        q4 = factories.question.build(form=form, parent=None)
+
+        assert questions_in_same_add_another_container(q1, q2) is False
+        assert questions_in_same_add_another_container(q1, q3) is False
+        assert questions_in_same_add_another_container(q2, q4) is False
+        assert questions_in_same_add_another_container(q3, q4) is False
+
+    def test_components_not_in_same_add_another_group_add_another_question(self, factories):
+        form = factories.form.build()
+        g1 = factories.group.build(form=form, add_another=False)
+        g2 = factories.group.build(form=form, add_another=True)
+        q1 = factories.question.build(form=form, parent=g1, add_another=True)
+        q2 = factories.question.build(form=form, parent=g2)
+        q3 = factories.question.build(form=form, parent=None)
+
+        assert questions_in_same_add_another_container(q1, q2) is False
+        assert questions_in_same_add_another_container(q1, q3) is False
+        assert questions_in_same_add_another_container(q2, q3) is False
 
 
 class TestGetReferenceableQuestions:
