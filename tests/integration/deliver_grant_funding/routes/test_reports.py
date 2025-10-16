@@ -1852,6 +1852,45 @@ class TestSelectContextSourceQuestion:
         assert question1.text in soup.text
         assert question2.text in soup.text
 
+    def test_get_lists_questions_from_depends_on_question_if_condition(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        reference_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        skipped_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.CONDITION,
+                managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                expression_form_data={
+                    "type": "Greater than",
+                    "greater_than_value": None,
+                    "greater_than_inclusive": True,
+                    "add_context": "greater_than_expression",
+                },
+                component_id=target_question.id,
+                depends_on_question_id=depends_on_question.id,
+                data_source=ExpressionContext.ContextSources.TASK,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select which question's answer to use" in soup.text
+        assert reference_question.text in soup.text
+        assert depends_on_question.text not in soup.text and skipped_question.text not in soup.text
+
     def test_post_redirects_to_component_and_updates_session(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
