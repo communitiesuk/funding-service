@@ -203,7 +203,11 @@ class ManagedExpression(BaseModel, SafeQidMixin):
 
     @classmethod
     def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
-        data = {k: v for k, v in add_context_data.expression_form_data.items() if k != "add_context"}
+        data = {
+            k: v
+            for k, v in add_context_data.expression_form_data.items()
+            if k != "add_context" and k != "remove_context"
+        }
 
         return data
 
@@ -286,6 +290,10 @@ class GreaterThan(ManagedExpression):
             ),
             "add_context": StringField(
                 "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -375,6 +383,10 @@ class LessThan(ManagedExpression):
             ),
             "add_context": StringField(
                 "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -494,6 +506,10 @@ class Between(ManagedExpression):
             ),
             "add_context": StringField(
                 "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -829,6 +845,10 @@ class IsBefore(ManagedExpression):
                 "Reference data",
                 widget=GovSubmitInput(),
             ),
+            "remove_context": StringField(
+                "Remove data",
+                widget=GovSubmitInput(),
+            ),
         }
 
     @staticmethod
@@ -939,6 +959,10 @@ class IsAfter(ManagedExpression):
             ),
             "add_context": StringField(
                 "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -1103,6 +1127,10 @@ class BetweenDates(ManagedExpression):
             ),
             "add_context": StringField(
                 "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
                 widget=GovSubmitInput(),
             ),
         }

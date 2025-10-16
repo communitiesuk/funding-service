@@ -1,13 +1,17 @@
 <div class="govuk-form-group">
   {% if not form.latest_expression.data %}
     {% set addDataButton %}
-      {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "latest_expression"}) }}
+      {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for latest date</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-6", "value": "latest_expression"}) }}
     {% endset %}
     {{ form.latest_value(params={"formGroup": {"afterInputs": {"html": addDataButton } } }) }}
   {% else %}
+    {% set removeDataButton %}
+      {{ form.remove_context(params={"html": "Remove data <span class='govuk-visually-hidden'>reference for latest date</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "latest_expression"}) }}
+    {% endset %}
     <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
       <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
-      {{ form.latest_expression(params={"attributes": {"data-context-aware-editor-target": "", "readonly": ""}, "formGroup": {"classes": "app-context-aware--container govuk-input--width-20"} }) }}
+      {{ form.latest_expression(params={"classes": "govuk-input--width-20", "attributes": {"data-context-aware-editor-target": "", "readonly": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": removeDataButton }}
+      }) }}
     </div>
   {% endif %}
 
