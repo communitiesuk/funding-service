@@ -129,6 +129,37 @@ class TestGetReferenceableQuestions:
 
         assert referenceable_questions == [q1]
 
+    def test_filters_out_add_another_question(self, factories):
+        form = factories.form.build()
+        factories.question.build(form=form, add_another=True)
+        q2, q3 = factories.question.build_batch(2, form=form)
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q3)
+        assert referenceable_questions == [q2]
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q2)
+        assert referenceable_questions == []
+
+    def test_filters_out_add_another_group(self, factories):
+        form = factories.form.build()
+        g1 = factories.group.build(form=form, add_another=True)
+        factories.question.build_batch(3, form=form, parent=g1)
+        q4 = factories.question.build(form=form, parent=None)
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q4)
+        assert referenceable_questions == []
+
+    def test_filters_out_add_another_in_same_group_that_comes_later(self, factories):
+        form = factories.form.build()
+        g1 = factories.group.build(form=form, add_another=True)
+        q1, q2, q3 = factories.question.build_batch(3, form=form, parent=g1)
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q3)
+        assert referenceable_questions == [q1, q2]
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q2)
+        assert referenceable_questions == [q1]
+
 
 class TestAddAnother:
     def test_raise_if_add_another_not_valid_question_in_group(self, factories):

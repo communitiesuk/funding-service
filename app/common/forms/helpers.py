@@ -31,6 +31,7 @@ def get_referenceable_questions(form: "Form", current_component: "Component | No
     Return a list of questions from the current form that could be referenced from the current component, determined by:
     - Question comes before the current component in the form
     - Question is not in the same 'same page' page group as the current component
+    - Question is not in an add another group, or if it is it's in the same add another group as the current component
 
     If current component is None then return all cached questions in the form.
     """
@@ -45,5 +46,6 @@ def get_referenceable_questions(form: "Form", current_component: "Component | No
             if (
                 form.global_component_index(q) < form.global_component_index(current_component)
                 and not questions_in_same_page_group(q, current_component)
+                and (questions_in_same_add_another_container(q, current_component) or not q.add_another_container)
             )
         ]
