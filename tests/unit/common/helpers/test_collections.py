@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from app.common.data.types import ExpressionType, QuestionDataType, SubmissionEventKey
+from app.common.data.types import ExpressionType, QuestionDataType, QuestionPresentationOptions, SubmissionEventKey
 from app.common.helpers.collections import SubmissionHelper
 from tests.utils import AnyStringMatching
 
@@ -572,3 +572,80 @@ class TestSubmissionHelper:
 
             helper = SubmissionHelper(submission)
             assert helper.get_count_for_add_another(group) == 3
+
+    class TestGetSummaryLineForAddAnother:
+        def test_valid_summary_line_no_option_gets_all(self, factories):
+            group = factories.group.build(add_another=True)
+            q1 = factories.question.build(parent=group)
+            q2 = factories.question.build(parent=group)
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data[str(group.id)] = [
+                {str(q1.id): "line 0 answer 0", str(q2.id): "line 0 answer 1"},
+                {str(q1.id): "line 1 answer 0", str(q2.id): "line 1 answer 1"},
+                {str(q1.id): "line 2 answer 0", str(q2.id): "line 2 answer 1"},
+            ]
+            helper = SubmissionHelper(submission)
+            assert (
+                helper.get_summary_line_for_add_another(group, add_another_index=0)
+                == "line 0 answer 0, line 0 answer 1"
+            )
+
+        def test_valid_summary_line_no_valid_options_gets_all(self, factories):
+            group = factories.group.build(add_another=True)
+            q1 = factories.question.build(parent=group)
+            q2 = factories.question.build(parent=group)
+
+            group.question_presentation_options = QuestionPresentationOptions(
+                add_another_summary_line_question_ids=[uuid.uuid4(), uuid.uuid4()]
+            )
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data[str(group.id)] = [
+                {str(q1.id): "line 0 answer 0", str(q2.id): "line 0 answer 1"},
+                {str(q1.id): "line 1 answer 0", str(q2.id): "line 1 answer 1"},
+                {str(q1.id): "line 2 answer 0", str(q2.id): "line 2 answer 1"},
+            ]
+            helper = SubmissionHelper(submission)
+            assert (
+                helper.get_summary_line_for_add_another(group, add_another_index=0)
+                == "line 0 answer 0, line 0 answer 1"
+            )
+
+        def test_valid_summary_line_valid_options_subselect_questions(self, factories):
+            group = factories.group.build(add_another=True)
+            q1 = factories.question.build(parent=group)
+            q2 = factories.question.build(parent=group)
+
+            group.presentation_options = QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id])
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data[str(group.id)] = [
+                {str(q1.id): "line 0 answer 0", str(q2.id): "line 0 answer 1"},
+                {str(q1.id): "line 1 answer 0", str(q2.id): "line 1 answer 1"},
+                {str(q1.id): "line 2 answer 0", str(q2.id): "line 2 answer 1"},
+            ]
+            helper = SubmissionHelper(submission)
+            assert helper.get_summary_line_for_add_another(group, add_another_index=0) == "line 0 answer 0"
+
+        def test_empty_for_no_answers(self, factories):
+            group = factories.group.build(add_another=True)
+            factories.question.build(parent=group)
+            submission = factories.submission.build(collection=group.form.collection)
+            helper = SubmissionHelper(submission)
+            submission.data = {str(group.id): [{}]}
+
+            assert helper.get_summary_line_for_add_another(group, add_another_index=0) == ""
+
+        def test_valid_summary_line_for_single_add_another_question(self, factories):
+            q1 = factories.question.build(add_another=True)
+            submission = factories.submission.build(collection=q1.form.collection)
+            submission.data = {str(q1.id): [{str(q1.id): "line 0 answer 0"}]}
+            helper = SubmissionHelper(submission)
+            assert helper.get_summary_line_for_add_another(q1, add_another_index=0) == "line 0 answer 0"
+
+        def test_raises_for_non_add_another(self, factories):
+            q1 = factories.question.build(add_another=False)
+            submission = factories.submission.build(collection=q1.form.collection)
+            helper = SubmissionHelper(submission)
+
+            with pytest.raises(ValueError) as e:
+                helper.get_summary_line_for_add_another(q1, add_another_index=0)
+            assert str(e.value) == "summary lines can only be generated for components in an add another container"

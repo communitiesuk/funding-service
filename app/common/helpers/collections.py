@@ -6,7 +6,7 @@ from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union, cast
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -460,6 +460,33 @@ class SubmissionHelper:
                 return next(question_iterator, None)
 
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
+
+    # when this is being configured, all options will be selected if there are no relevant questions
+    # stored in the presentation options - if question ids are relevant only those options
+    # will be selected
+    def get_summary_line_for_add_another(self, component: "Component", *, add_another_index: int) -> str:
+        if not component.add_another_container:
+            raise ValueError("summary lines can only be generated for components in an add another container")
+
+        questions = []
+        if component.add_another_container.is_group:
+            if component.add_another_container.presentation_options.add_another_summary_line_question_ids:
+                for qid in component.add_another_container.presentation_options.add_another_summary_line_question_ids:
+                    try:
+                        questions.append(self.get_question(qid))
+                    except ValueError:
+                        pass
+            questions = questions or cast("Group", component.add_another_container).cached_questions
+        else:
+            questions = [cast("Question", component)]
+
+        answers = []
+        for question in questions:
+            answer = self.cached_get_answer_for_question(question.id, add_another_index=add_another_index)
+            if answer:
+                answers.append(answer.get_value_for_text_export())
+
+        return ", ".join(answers)
 
 
 class CollectionHelper:
