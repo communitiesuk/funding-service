@@ -149,7 +149,7 @@ def login_with_session_cookie(
 
     user_obj = User(name="E2E Test User", id=getattr(e2e_test_secrets, user_config.user_id))
     with patch.dict(os.environ, build_db_config(None)):
-        new_app = create_app(_seed_system_data=False)
+        new_app = create_app()
     new_app.config["SECRET_KEY"] = e2e_test_secrets.SECRET_KEY
 
     @new_app.route("/fake_login")

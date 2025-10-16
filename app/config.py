@@ -266,6 +266,7 @@ class _SharedConfig(_BaseConfig):
     PIPELINE_GRANTS_SCHEME_FORM_URL: str = "https://forms.office.com.mcas.ms/pages/responsepage.aspx?id=EGg0v32c3kOociSi7zmVqBUKhC0CqZtGmIj1YcYa53xUNTFRWkRXQ1ZJUEJMOTg1UllGWEpCNDQ4NSQlQCN0PWcu&route=shorturl"
 
     PLATFORM_DEPARTMENT_NAME: str = "Ministry of Housing, Communities and Local Government"
+    SEED_SYSTEM_DATA: bool = True
 
     @property
     def IS_PRODUCTION(self) -> bool:
@@ -327,6 +328,8 @@ class UnitTestConfig(LocalConfig):
 
     # GOV.UK Notify
     GOVUK_NOTIFY_DISABLE: bool = False  # We want to test the real code paths
+
+    SEED_SYSTEM_DATA: bool = False
 
 
 class DevConfig(_SharedConfig):

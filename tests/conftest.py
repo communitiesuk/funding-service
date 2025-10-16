@@ -115,7 +115,7 @@ class FundingServiceTestClient(FlaskClient):
 
 @pytest.fixture(scope="session")
 def app() -> Generator[Flask, None, None]:
-    app = create_app(_seed_system_data=False)
+    app = create_app()
     app.test_client_class = FundingServiceTestClient
     app.config.update({"TESTING": True})
 

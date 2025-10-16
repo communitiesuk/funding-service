@@ -125,7 +125,7 @@ def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
         register_admin_views(flask_admin, db_)
 
 
-def create_app(_seed_system_data: bool = True) -> Flask:
+def create_app() -> Flask:
     from app.common.data.base import BaseModel
 
     app = Flask(__name__, static_folder="assets/dist/", static_url_path="/static")
@@ -257,7 +257,7 @@ def create_app(_seed_system_data: bool = True) -> Flask:
 
     _register_global_error_handlers(app)
 
-    if _seed_system_data:
+    if app.config["SEED_SYSTEM_DATA"]:
         with app.app_context():
             seed_system_data(app)
 

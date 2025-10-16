@@ -30,6 +30,7 @@ jobs:
         DATABASE_PORT: 5432
         DATABASE_NAME: postgres
         DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
+        SEED_SYSTEM_DATA: false
       run: uv run --frozen flask db upgrade && uv run --frozen flask db check
     - name: Check that .current-alembic-head is pinned
       env:
@@ -38,6 +39,7 @@ jobs:
         DATABASE_PORT: 5432
         DATABASE_NAME: postgres
         DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
+        SEED_SYSTEM_DATA: false
       run: |
         uv run --frozen flask db current | grep "$(cat ./app/common/data/migrations/.current-alembic-head) (head)"
 

@@ -85,7 +85,7 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
         os.environ,
         build_db_config(setup_db_container),
     ):
-        app = create_app(_seed_system_data=False)
+        app = create_app()
 
     @app.route("/_testing/403")
     def raise_403() -> ResponseReturnValue:
