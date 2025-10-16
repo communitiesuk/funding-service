@@ -269,6 +269,10 @@ class GreaterThan(ManagedExpression):
                 "Reference data",
                 widget=GovSubmitInput(),
             ),
+            "remove_context": StringField(
+                "Remove data",
+                widget=GovSubmitInput(),
+            ),
         }
 
     @staticmethod
@@ -349,6 +353,10 @@ class LessThan(ManagedExpression):
             ),
             "add_context": StringField(
                 "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -454,6 +462,10 @@ class Between(ManagedExpression):
             ),
             "add_context": StringField(
                 "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -782,6 +794,10 @@ class IsBefore(ManagedExpression):
                 "Reference data",
                 widget=GovSubmitInput(),
             ),
+            "remove_context": StringField(
+                "Remove data",
+                widget=GovSubmitInput(),
+            ),
         }
 
     @staticmethod
@@ -885,6 +901,10 @@ class IsAfter(ManagedExpression):
             ),
             "add_context": StringField(
                 "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
                 widget=GovSubmitInput(),
             ),
         }
@@ -1035,6 +1055,10 @@ class BetweenDates(ManagedExpression):
             ),
             "add_context": StringField(
                 "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
                 widget=GovSubmitInput(),
             ),
         }
