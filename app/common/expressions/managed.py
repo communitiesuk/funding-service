@@ -91,6 +91,18 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         #       optimise this to fetch the full schema once and then re-use that throughout these helpers
         return get_question_by_id(self.question_id)
 
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        """
+        Returns a list of question IDs where the safe_qids are as referenced values in the expression itself.
+        This is used to create ComponentReferences when the expression is saved.
+
+        Not all expressions are able to reference other questions in the expression themselves so we return an empty
+        list by default and this should be overriden in subclasses that have references (currently Integer and Date
+        expressions).
+        """
+        return []
+
     # implementing these two fields will update the "add/edit condition/validation" pages for any question types
     # that are defined in `question_data_types`.
     @staticmethod
@@ -244,6 +256,13 @@ class GreaterThan(ManagedExpression):
             + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
         )
 
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        if self.minimum_expression:
+            if question_id := self.safe_qid_to_id(self.minimum_expression.strip("() ")):
+                return [question_id]
+        return []
+
     @staticmethod
     def get_form_fields(
         referenced_question: "Question", expression: TOptional["Expression"] = None
@@ -325,6 +344,13 @@ class LessThan(ManagedExpression):
             f"{self.safe_qid} <{'=' if self.inclusive else ''}"
             + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
         )
+
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        if self.maximum_expression:
+            if question_id := self.safe_qid_to_id(self.maximum_expression.strip("() ")):
+                return [question_id]
+        return []
 
     @staticmethod
     def get_form_fields(
@@ -414,6 +440,20 @@ class Between(ManagedExpression):
             f"<{'=' if self.maximum_inclusive else ''} "
             f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
         )
+
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        referenced_ids = []
+
+        if self.minimum_expression:
+            if question_id := self.safe_qid_to_id(self.minimum_expression.strip("() ")):
+                referenced_ids.append(question_id)
+
+        if self.maximum_expression:
+            if question_id := self.safe_qid_to_id(self.maximum_expression.strip("() ")):
+                referenced_ids.append(question_id)
+
+        return referenced_ids
 
     @staticmethod
     def get_form_fields(
@@ -752,6 +792,13 @@ class IsBefore(ManagedExpression):
         )
         return f"{self.safe_qid} <{'=' if self.inclusive else ''} {date_expression}"
 
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        if self.latest_expression:
+            if question_id := self.safe_qid_to_id(self.latest_expression.strip("() ")):
+                return [question_id]
+        return []
+
     @staticmethod
     def get_form_fields(
         referenced_question: "Question", expression: TOptional["Expression"] = None
@@ -856,6 +903,13 @@ class IsAfter(ManagedExpression):
             else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
         )
         return f"{self.safe_qid} >{'=' if self.inclusive else ''} {date_expression}"
+
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        if self.earliest_expression:
+            if question_id := self.safe_qid_to_id(self.earliest_expression.strip("() ")):
+                return [question_id]
+        return []
 
     @staticmethod
     def get_form_fields(
@@ -985,6 +1039,20 @@ class BetweenDates(ManagedExpression):
             + f"<{'=' if self.latest_inclusive else ''} "
             + latest_date_expression
         )
+
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        referenced_ids = []
+
+        if self.earliest_expression:
+            if question_id := self.safe_qid_to_id(self.earliest_expression.strip("() ")):
+                referenced_ids.append(question_id)
+
+        if self.latest_expression:
+            if question_id := self.safe_qid_to_id(self.latest_expression.strip("() ")):
+                referenced_ids.append(question_id)
+
+        return referenced_ids
 
     @staticmethod
     def get_form_fields(
