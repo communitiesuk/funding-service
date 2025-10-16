@@ -68,9 +68,7 @@ class FormRunner:
             self._question_form = _QuestionForm(data=self.submission.cached_form_data)
 
         if self.form:
-            all_questions_answered = self.submission.cached_get_all_questions_are_answered_for_form(
-                self.form
-            ).all_answered
+            all_questions_answered, _ = self.submission.cached_get_all_questions_are_answered_for_form(self.form)
             self._check_your_answers_form = CheckYourAnswersForm(
                 section_completed=(
                     "yes" if self.submission.get_status_for_form(self.form) == SubmissionStatusEnum.COMPLETED else None

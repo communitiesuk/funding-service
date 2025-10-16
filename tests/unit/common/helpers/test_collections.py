@@ -311,7 +311,7 @@ class TestSubmissionHelper:
             submission.data = {str(q1.id): "answer 1"}
             helper = SubmissionHelper(submission)
 
-            all_answered = helper.cached_get_all_questions_are_answered_for_form(q1.form).all_answered
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(q1.form)
             assert all_answered is False
 
             helper.cached_get_answer_for_question.cache_clear()
@@ -319,7 +319,7 @@ class TestSubmissionHelper:
 
             submission.data = {str(q1.id): "answer 1", str(q2.id): "answer 2"}
 
-            all_answered = helper.cached_get_all_questions_are_answered_for_form(q1.form).all_answered
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(q1.form)
             assert all_answered is True
 
         # this may sit more nicely as an integration test as its checking expression evaluation
@@ -333,7 +333,7 @@ class TestSubmissionHelper:
 
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="False")
 
-            all_answered = helper.cached_get_all_questions_are_answered_for_form(q1.form).all_answered
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(q1.form)
             assert all_answered is True
 
         def test_all_questions_answered_with_add_another(self, factories):
@@ -346,7 +346,7 @@ class TestSubmissionHelper:
             }
             helper = SubmissionHelper(submission)
 
-            all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(group.form)
             assert all_answered is False
 
             helper.cached_get_answer_for_question.cache_clear()
@@ -359,7 +359,7 @@ class TestSubmissionHelper:
                 ]
             }
 
-            all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(group.form)
             assert all_answered is True
 
         # this may sit more nicely as an integration test as its checking expression evaluation
@@ -379,7 +379,7 @@ class TestSubmissionHelper:
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
             helper = SubmissionHelper(submission)
 
-            all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(group.form)
             assert all_answered is False
 
             helper.cached_get_answer_for_question.cache_clear()
@@ -393,7 +393,7 @@ class TestSubmissionHelper:
                 ]
             }
 
-            all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
+            all_answered, _ = helper.cached_get_all_questions_are_answered_for_form(group.form)
             assert all_answered is True
 
     class TestStatuses:

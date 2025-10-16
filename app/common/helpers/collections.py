@@ -1,7 +1,6 @@
 import csv
 import json
 import uuid
-from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
@@ -60,12 +59,6 @@ if TYPE_CHECKING:
         Question,
         Submission,
     )
-
-
-@dataclass
-class FormQuestionsAnswered:
-    all_answered: bool
-    some_answered: bool
 
 
 class SubmissionHelper:
@@ -235,7 +228,7 @@ class SubmissionHelper:
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
 
-    def _get_all_questions_are_answered_for_form(self, form: "Form") -> FormQuestionsAnswered:
+    def _get_all_questions_are_answered_for_form(self, form: "Form") -> tuple[bool, bool]:
         question_answer_status = []
 
         for question in form.cached_questions:
@@ -250,9 +243,7 @@ class SubmissionHelper:
                 if self.is_component_visible(question, self.cached_evaluation_context):
                     question_answer_status.append(self.cached_get_answer_for_question(question.id) is not None)
 
-        return FormQuestionsAnswered(
-            all_answered=all(question_answer_status), some_answered=any(question_answer_status)
-        )
+        return (all(question_answer_status), any(question_answer_status))
 
     @cached_property
     def all_forms_are_completed(self) -> bool:
@@ -266,13 +257,13 @@ class SubmissionHelper:
         return TasklistTaskStatusEnum(self.get_status_for_form(form))
 
     def get_status_for_form(self, form: "Form") -> str:
-        form_questions_answered = self.cached_get_all_questions_are_answered_for_form(form)
+        all_answered, some_answered = self.cached_get_all_questions_are_answered_for_form(form)
         marked_as_complete = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED in [
             x.key for x in self.submission.events if x.form and x.form.id == form.id
         ]
-        if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
+        if form.cached_questions and all_answered and marked_as_complete:
             return SubmissionStatusEnum.COMPLETED
-        elif form_questions_answered.some_answered:
+        elif some_answered:
             return SubmissionStatusEnum.IN_PROGRESS
         else:
             return SubmissionStatusEnum.NOT_STARTED
@@ -391,7 +382,7 @@ class SubmissionHelper:
             return
 
         if is_complete:
-            all_questions_answered = self.cached_get_all_questions_are_answered_for_form(form).all_answered
+            all_questions_answered, _ = self.cached_get_all_questions_are_answered_for_form(form)
             if not all_questions_answered:
                 raise ValueError(
                     f"Could not mark form id={form.id} as complete because not all questions have been answered."

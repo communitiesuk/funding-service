@@ -192,7 +192,7 @@
     {% set check_your_answers_form = runner.check_your_answers_form %}
     <form method="post" novalidate>
       {{ check_your_answers_form.csrf_token }}
-      {% set all_questions_answered = submission.cached_get_all_questions_are_answered_for_form(form).all_answered %}
+      {% set all_questions_answered, _ = submission.cached_get_all_questions_are_answered_for_form(form) %}
       {% if all_questions_answered %}
         {{
           check_your_answers_form.section_completed(params={
