@@ -673,6 +673,8 @@ class _QuestionFactory(SQLAlchemyModelFactory):
             self.form.components = [component for component in self.form.components if component.parent is None]  # type: ignore[has-type]
             if hasattr(self.form, "cached_questions"):
                 del self.form.cached_questions
+            if hasattr(self.form, "cached_all_components"):
+                del self.form.cached_all_components
 
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
@@ -735,6 +737,8 @@ class _GroupFactory(SQLAlchemyModelFactory):
             self.form.components = [component for component in self.form.components if component.parent is None]  # type: ignore[has-type]
             if hasattr(self.form, "cached_questions"):
                 del self.form.cached_questions
+            if hasattr(self.form, "cached_all_components"):
+                del self.form.cached_all_components
 
     @factory.post_generation  # type: ignore[misc]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:

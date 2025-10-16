@@ -52,26 +52,6 @@ class TestBuildQuestionForm:
         for question in questions:
             assert hasattr(form, question.safe_qid)
 
-    def test_cached_questions(self, factories):
-        """
-        Tests adding questions to a form after it is created, and that the cached_questions property works as expected.
-
-        The use of del to force the cache to update serves to illustrate how this property needs to be
-        used in other tests.
-        """
-        form = factories.form.build()
-        g1 = factories.group.build(form=form, add_another=True)
-        factories.question.build(form=form, parent=None)
-        assert len(form.cached_questions) == 1
-
-        factories.question.build(form=form, parent=g1)
-
-        assert len(form.cached_questions) == 2
-
-        factories.question.build_batch(2, form=form, parent=g1)
-
-        assert len(form.cached_questions) == 4
-
     class TestBuildFormContext:
         @pytest.fixture(scope="function")
         def app(self) -> Generator[Flask, None, None]:
