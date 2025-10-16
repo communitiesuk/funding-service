@@ -62,5 +62,3 @@ class AddContextToExpressionsModel(BaseModel):
     data_source: ExpressionContext.ContextSources | None = None
     depends_on_question_id: UUID | None = None
     expression_id: UUID | None = None
-    value_dependent_question_id: UUID | None = None
-    expression_statement: str | None = None
