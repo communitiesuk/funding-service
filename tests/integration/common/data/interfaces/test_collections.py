@@ -8,6 +8,7 @@ from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
+    IncompatibleDataTypeException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
     _validate_and_sync_component_references,
@@ -76,7 +77,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import AnyOf, GreaterThan, LessThan, Specifically
+from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
 
 
 class TestGetCollection:
@@ -2576,6 +2577,100 @@ class TestValidateAndSyncExpressionReferences:
         db_session.flush()
 
         assert len(expression.component_references) == 1
+
+    def test_creates_references_to_referenced_questions(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        first_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=form)
+
+        expression = Expression.from_managed(
+            Between(
+                question_id=depends_on_question.id,
+                minimum_value=None,
+                minimum_expression=f"(({first_referenced_question.safe_qid}))",
+                maximum_value=None,
+                maximum_expression=f"(({second_referenced_question.safe_qid}))",
+            ),
+            user,
+        )
+        target_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        if hasattr(form, "cached_all_components"):
+            del form.cached_all_components
+
+        # This shouldn't raise an IncompatibleDataTypeException as the question evaluated by the managed expression
+        # matches the data types of the questions used as reference values. The target_question (the one with the
+        # expression attached) is irrelevant in terms of question data type.
+        _validate_and_sync_expression_references(expression)
+
+        assert len(expression.component_references) == 3
+        referenced_components = {ref.depends_on_component for ref in expression.component_references}
+        assert referenced_components == {depends_on_question, first_referenced_question, second_referenced_question}
+
+    def test_raises_dependency_order_exception(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        first_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+
+        expression = Expression.from_managed(
+            Between(
+                question_id=target_question.id,
+                minimum_value=None,
+                minimum_expression=f"(({first_referenced_question.safe_qid}))",
+                maximum_value=None,
+                maximum_expression=f"(({second_referenced_question.safe_qid}))",
+            ),
+            user,
+        )
+        target_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        if hasattr(form, "cached_all_components"):
+            del form.cached_all_components
+
+        with pytest.raises(DependencyOrderException):
+            _validate_and_sync_expression_references(expression)
+
+    def test_raises_incompatible_data_type_exception(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        first_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.DATE)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+
+        expression = Expression.from_managed(
+            Between(
+                question_id=target_question.id,
+                minimum_value=None,
+                minimum_expression=f"(({first_referenced_question.safe_qid}))",
+                maximum_value=None,
+                maximum_expression=f"(({second_referenced_question.safe_qid}))",
+            ),
+            user,
+        )
+        target_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        if hasattr(form, "cached_all_components"):
+            del form.cached_all_components
+
+        with pytest.raises(IncompatibleDataTypeException):
+            _validate_and_sync_expression_references(expression)
 
 
 class TestValidateAndSyncComponentReferences:

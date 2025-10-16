@@ -522,6 +522,24 @@ class DependencyOrderException(Exception, FlashableException):
         }
 
 
+class IncompatibleDataTypeException(Exception):
+    def __init__(self, message: str, component: Component, depends_on_component: Component):
+        super().__init__(message)
+        self.message = message
+        self.question = component
+        self.depends_on_question = depends_on_component
+
+    def as_flash_context(self) -> dict[str, str | bool]:
+        return {
+            "message": self.message,
+            "grant_id": str(self.question.form.collection.grant_id),  # Required for URL routing
+            "question_id": str(self.question.id),
+            "question_text": self.question.text,
+            "depends_on_question_id": str(self.depends_on_question.id),
+            "depends_on_question_text": self.depends_on_question.text,
+        }
+
+
 class DataSourceItemReferenceDependencyException(Exception, FlashableException):
     def __init__(
         self,
@@ -910,6 +928,31 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             depends_on_component=expression.managed.referenced_question,
             component=expression.question,
             expression=expression,
+        )
+        db.session.add(cr)
+        references.append(cr)
+
+    for referenced_question_id in managed.expression_referenced_question_ids:
+        referenced_question = get_question_by_id(referenced_question_id)
+
+        if not is_component_dependency_order_valid(managed.referenced_question, referenced_question):
+            raise DependencyOrderException(
+                "Cannot add a managed expression that references a later question",
+                managed.referenced_question,
+                referenced_question,
+            )
+
+        if referenced_question.data_type != managed.referenced_question.data_type:
+            raise IncompatibleDataTypeException(
+                "Expression cannot reference question of incompatible data type",
+                managed.referenced_question,
+                referenced_question,
+            )
+
+        cr = ComponentReference(
+            component=expression.question,
+            expression=expression,
+            depends_on_component=referenced_question,
         )
         db.session.add(cr)
         references.append(cr)

@@ -140,8 +140,12 @@ def test_validation_attached_to_multiple_fields(factories, db_session):
 
 def test_reference_data_validation__integer(factories, db_session):
     user = factories.user.create()
-    q1 = factories.question.create(data_type=QuestionDataType.INTEGER, name="First question")
-    q2 = factories.question.create(data_type=QuestionDataType.INTEGER)
+    form = factories.form.create()
+    q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, name="First question")
+    q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+
+    if hasattr(form, "cached_all_components"):
+        del form.cached_all_components
 
     interfaces.collections.add_question_validation(
         q2,
@@ -166,8 +170,12 @@ def test_reference_data_validation__integer(factories, db_session):
 
 def test_reference_data_validation__date(factories, db_session):
     user = factories.user.create()
-    q1 = factories.question.create(data_type=QuestionDataType.DATE, name="First question")
-    q2 = factories.question.create(data_type=QuestionDataType.DATE, name="Second question")
+    form = factories.form.create()
+    q1 = factories.question.create(form=form, data_type=QuestionDataType.DATE, name="First question")
+    q2 = factories.question.create(form=form, data_type=QuestionDataType.DATE, name="Second question")
+
+    if hasattr(form, "cached_all_components"):
+        del form.cached_all_components
 
     interfaces.collections.add_question_validation(
         q2,

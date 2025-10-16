@@ -129,6 +129,7 @@ class TestEvaluatingManagedExpressions:
                     user,
                 )  # Double brackets should be ignored by the evaluation engine
             ],
+            data_type=QuestionDataType.DATE,
         )
 
         expr = q2.expressions[0]
