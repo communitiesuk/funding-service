@@ -6,7 +6,6 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
-    AddAnotherNotValidException,
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     NestedGroupDisplayTypeSamePageException,
@@ -39,7 +38,6 @@ from app.common.data.interfaces.collections import (
     move_component_up,
     move_form_down,
     move_form_up,
-    raise_if_add_another_not_valid_here,
     raise_if_data_source_item_reference_dependency,
     raise_if_group_questions_depend_on_each_other,
     raise_if_nested_group_creation_not_valid_here,
@@ -2777,110 +2775,6 @@ class TestValidateAndSyncComponentReferences:
 
 
 class TestAddAnother:
-    def test_raise_if_add_another_not_valid_question_in_group(self, db_session, factories):
-        form = factories.form.create()
-        group = factories.group.create(form=form, add_another=True)
-        question = factories.question.build(form=form, parent=group, add_another=True)
-        with pytest.raises(AddAnotherNotValidException) as e:
-            raise_if_add_another_not_valid_here(question)
-        assert e.value.component == question
-        assert e.value.add_another_container == group
-
-    def test_raise_if_add_another_not_valid_nested_group(self, db_session, factories):
-        form = factories.form.create()
-        group = factories.group.create(form=form, add_another=True)
-        group2 = factories.group.build(form=form, parent=group, add_another=True)
-        with pytest.raises(AddAnotherNotValidException) as e:
-            raise_if_add_another_not_valid_here(group2)
-        assert e.value.component == group2
-        assert e.value.add_another_container == group
-
-    def test_raise_if_add_another_not_valid_question_in_nested_group_immediate_parent_is_add_another(
-        self, db_session, factories
-    ):
-        form = factories.form.create()
-        group = factories.group.create(form=form, add_another=False)
-        group2 = factories.group.build(form=form, parent=group, add_another=True)
-        question = factories.question.build(form=form, parent=group2, add_another=True)
-        with pytest.raises(AddAnotherNotValidException) as e:
-            raise_if_add_another_not_valid_here(question)
-        assert e.value.component == question
-        assert e.value.add_another_container == group2
-
-    def test_raise_if_add_another_not_valid_question_in_nested_group_ancestor_parent_is_add_another(
-        self, db_session, factories
-    ):
-        form = factories.form.create()
-        group = factories.group.create(form=form, add_another=True)
-        group2 = factories.group.build(form=form, parent=group, add_another=False)
-        question = factories.question.build(form=form, parent=group2, add_another=True)
-        with pytest.raises(AddAnotherNotValidException) as e:
-            raise_if_add_another_not_valid_here(question)
-        assert e.value.component == question
-        assert e.value.add_another_container == group
-
-    def test_raise_if_add_another_not_valid_does_not_raise_for_non_add_another_question(self, db_session, factories):
-        form = factories.form.create()
-        question = factories.question.build(form=form, add_another=False)
-        raise_if_add_another_not_valid_here(question)
-
-        group = factories.group.build(form=form, add_another=False)
-        raise_if_add_another_not_valid_here(group)
-
-    def test_raise_if_add_another_not_valid_does_not_raise_for_non_add_another_group_question(
-        self, db_session, factories
-    ):
-        form = factories.form.create()
-        group = factories.group.create(form=form, add_another=False)
-        group2 = factories.group.create(form=form, parent=group, add_another=True)
-        question2 = factories.question.build(form=form, parent=group2, add_another=False)
-        raise_if_add_another_not_valid_here(question2)
-        group3 = factories.group.build(form=form, parent=group2, add_another=False)
-        raise_if_add_another_not_valid_here(group3)
-
-    def test_raise_if_add_another_not_valid_does_not_raise_for_non_add_another_nested_group_question(
-        self, db_session, factories
-    ):
-        form = factories.form.create()
-        group1 = factories.group.create(form=form, add_another=False)
-        group2 = factories.group.create(form=form, parent=group1, add_another=False)
-        question1 = factories.question.build(form=form, parent=group2, add_another=False)
-        raise_if_add_another_not_valid_here(question1)
-        group3 = factories.group.build(form=form, parent=group2, add_another=False)
-        raise_if_add_another_not_valid_here(group3)
-
-    def test_raise_if_add_another_not_valid_does_not_raise_for_valid_question(self, db_session, factories):
-        form = factories.form.create()
-        question = factories.question.build(form=form, add_another=True)
-        raise_if_add_another_not_valid_here(question)
-
-    def test_raise_if_add_another_not_valid_does_not_raise_for_valid_question_in_group(self, db_session, factories):
-        form = factories.form.create()
-        group = factories.group.create(form=form)
-        question = factories.question.build(form=form, parent=group, add_another=True)
-        raise_if_add_another_not_valid_here(question)
-
-    def test_raise_if_add_another_not_valid_does_not_raise_for_valid_question_in_nested_group(
-        self, db_session, factories
-    ):
-        form = factories.form.create()
-        group = factories.group.create(form=form)
-        group2 = factories.group.create(form=form, parent=group)
-        question = factories.question.build(form=form, parent=group2, add_another=True)
-        db_session.add(question)
-        raise_if_add_another_not_valid_here(question)
-
-    def test_raise_if_add_another_not_valid_does_not_raise_for_valid_group(self, db_session, factories):
-        form = factories.form.create()
-        group = factories.group.build(form=form, add_another=True)
-        raise_if_add_another_not_valid_here(group)
-
-    def test_raise_if_add_another_not_valid_does_not_raise_for_valid_nested_group(self, db_session, factories):
-        form = factories.form.create()
-        group = factories.group.create(form=form)
-        group2 = factories.group.build(form=form, parent=group, add_another=True)
-        raise_if_add_another_not_valid_here(group2)
-
     def test_remove_add_another_answers(self, db_session, factories):
         collection = factories.collection.create(
             create_completed_submissions_add_another_nested_group__number_of_add_another_answers=5,
