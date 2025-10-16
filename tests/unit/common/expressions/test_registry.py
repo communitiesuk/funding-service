@@ -33,7 +33,6 @@ class TestManagedExpressions:
         assert get_supported_form_questions(valid_question) == []
 
         second_question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
-        del form.cached_all_components
 
         # make sure the original question under test does show up in the correct circumstances
         assert get_supported_form_questions(second_question) == [valid_question]
@@ -50,7 +49,6 @@ class TestManagedExpressions:
         group_integer_questions = factories.question.build_batch(
             3, parent=group, data_type=QuestionDataType.INTEGER, form=form
         )
-        del form.cached_all_components
 
         # make sure the original question under test does show up in the correct circumstances
         assert get_supported_form_questions(group_integer_questions[2]) == [valid_question]
