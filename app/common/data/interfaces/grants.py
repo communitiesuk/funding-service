@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import DuplicateValueError, flush_and_rollback_on_exceptions
-from app.common.data.models import Collection, Grant
+from app.common.data.models import Collection, Grant, Organisation
 from app.common.data.models_user import User
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
@@ -65,12 +65,17 @@ def create_grant(
     primary_contact_name: str,
     primary_contact_email: str,
 ) -> Grant:
+    # For now, the platform only supports a single 'grant-owning' organisation. So we can just grab the only one (which
+    # will be MHCLG), and use that as the grant-owning org of any new grant we create. This means we don't need to
+    # design anything around users "selecting" the org for their grant, for now.
+    mhclg = db.session.query(Organisation).filter_by(can_manage_grants=True).one()
     grant: Grant = Grant(
         ggis_number=ggis_number,
         name=name,
         description=description,
         primary_contact_name=primary_contact_name,
         primary_contact_email=primary_contact_email,
+        organisation=mhclg,
     )
     db.session.add(grant)
     return grant
