@@ -557,6 +557,22 @@ class TestUpdateGroup:
         assert updated_group.guidance_heading == "How to answer this question"
         assert updated_group.guidance_body == "This is detailed guidance with **markdown** formatting."
 
+    def test_update_group_with_add_another_presentation_options(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(form=form, text="Test group name")
+        q1 = factories.question.create(parent=group, form=group.form)
+        q2 = factories.question.create(parent=group, form=group.form)
+
+        assert group.presentation_options.add_another_summary_line_question_ids is None
+
+        updated_group = update_group(
+            group=group,
+            expression_context=ExpressionContext(),
+            presentation_options=QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id, q2.id]),
+        )
+
+        assert updated_group.presentation_options.add_another_summary_line_question_ids == [q1.id, q2.id]
+
     def test_synced_component_references(self, db_session, factories, mocker):
         form = factories.form.create()
         user = factories.user.create()
