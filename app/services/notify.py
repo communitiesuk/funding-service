@@ -9,7 +9,7 @@ from notifications_python_client import NotificationsAPIClient  # type: ignore[a
 from notifications_python_client.errors import APIError, TokenError
 
 if TYPE_CHECKING:
-    from app.common.data.models import Grant, Submission
+    from app.common.data.models import Grant, Organisation, Submission
 
 
 class NotificationError(Exception):
@@ -110,5 +110,15 @@ class NotificationService:
             personalisation={
                 "grant_name": grant.name,
                 "sign_in_url": url_for("deliver_grant_funding.grant_details", grant_id=grant.id, _external=True),
+            },
+        )
+
+    def send_deliver_org_admin_invitation(self, email_address: str, *, organisation: "Organisation") -> Notification:
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_DELIVER_ORGANISATION_ADMIN_TEMPLATE_ID"],
+            personalisation={
+                "organisation_name": organisation.name,
+                "sign_in_url": url_for("deliver_grant_funding.list_grants", _external=True),
             },
         )
