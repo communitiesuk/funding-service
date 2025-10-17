@@ -76,7 +76,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import AnyOf, GreaterThan, LessThan, Specifically
+from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
 
 
 class TestGetCollection:
@@ -2576,6 +2576,37 @@ class TestValidateAndSyncExpressionReferences:
         db_session.flush()
 
         assert len(expression.component_references) == 1
+
+    def test_creates_references_to_referenced_questions(self, db_session, factories):
+        user = factories.user.create()
+        first_referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        second_referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        depends_on_question = factories.question.create(
+            form=first_referenced_question.form, data_type=QuestionDataType.INTEGER
+        )
+        target_question = factories.question.create(form=first_referenced_question.form)
+
+        expression = Expression.from_managed(
+            Between(
+                question_id=depends_on_question.id,
+                minimum_value=None,
+                minimum_expression=f"(({first_referenced_question.safe_qid}))",
+                maximum_value=None,
+                maximum_expression=f"(({second_referenced_question.safe_qid}))",
+            ),
+            user,
+        )
+        target_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        _validate_and_sync_expression_references(expression)
+
+        assert len(expression.component_references) == 3
+        referenced_components = {ref.depends_on_component for ref in expression.component_references}
+        assert referenced_components == {depends_on_question, first_referenced_question, second_referenced_question}
 
 
 class TestValidateAndSyncComponentReferences:

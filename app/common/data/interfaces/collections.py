@@ -914,6 +914,16 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
         db.session.add(cr)
         references.append(cr)
 
+    for referenced_question_id in managed.expression_referenced_question_ids:
+        referenced_question = get_question_by_id(referenced_question_id)
+        cr = ComponentReference(
+            component=expression.question,
+            expression=expression,
+            depends_on_component=referenced_question,
+        )
+        db.session.add(cr)
+        references.append(cr)
+
     expression.component_references = references
 
 

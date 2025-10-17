@@ -121,6 +121,16 @@ class TestGreaterThanExpression:
         }
         assert evaluate(expression) is expected_result
 
+    def test_expression_referenced_question_ids(self, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        expr = GreaterThan(
+            question_id=target_question.id,
+            minimum_value=None,
+            minimum_expression=f"(({referenced_question.safe_qid}))",
+        )
+        assert expr.expression_referenced_question_ids == [referenced_question.id]
+
 
 class TestLessThanExpression:
     @pytest.mark.parametrize(
@@ -163,6 +173,16 @@ class TestLessThanExpression:
             "maximum_value": expr.maximum_value,
         }
         assert evaluate(expression) is expected_result
+
+    def test_expression_referenced_question_ids(self, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        expr = LessThan(
+            question_id=target_question.id,
+            maximum_value=None,
+            maximum_expression=f"(({referenced_question.safe_qid}))",
+        )
+        assert expr.expression_referenced_question_ids == [referenced_question.id]
 
 
 class TestBetweenExpression:
@@ -228,6 +248,23 @@ class TestBetweenExpression:
             "maximum_value": expr.maximum_value,
         }
         assert evaluate(expression) is expected_result
+
+    def test_expression_referenced_question_ids(self, factories):
+        first_referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        second_referenced_question = factories.question.create(
+            form=first_referenced_question.form, data_type=QuestionDataType.INTEGER
+        )
+        target_question = factories.question.create(
+            form=first_referenced_question.form, data_type=QuestionDataType.INTEGER
+        )
+        expr = Between(
+            question_id=target_question.id,
+            minimum_value=None,
+            minimum_expression=f"(({first_referenced_question.safe_qid}))",
+            maximum_value=None,
+            maximum_expression=f"(({second_referenced_question.safe_qid}))",
+        )
+        assert expr.expression_referenced_question_ids == [first_referenced_question.id, second_referenced_question.id]
 
 
 class TestAnyOfExpression:
@@ -360,6 +397,16 @@ class TestIsBeforeExpression:
         assert "add_context" not in prepared_data
         assert prepared_data["latest_value"] == datetime.date(2025, 1, 15)
 
+    def test_expression_referenced_question_ids(self, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.DATE)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
+        expr = IsBefore(
+            question_id=target_question.id,
+            latest_value=None,
+            latest_expression=f"(({referenced_question.safe_qid}))",
+        )
+        assert expr.expression_referenced_question_ids == [referenced_question.id]
+
 
 class TestIsAfterExpression:
     min_value = datetime.datetime.strptime("2020-01-01", "%Y-%m-%d").date()
@@ -431,6 +478,16 @@ class TestIsAfterExpression:
 
         assert "add_context" not in prepared_data
         assert prepared_data["earliest_value"] == datetime.date(2025, 1, 15)
+
+    def test_expression_referenced_question_ids(self, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.DATE)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
+        expr = IsAfter(
+            question_id=target_question.id,
+            earliest_value=None,
+            earliest_expression=f"(({referenced_question.safe_qid}))",
+        )
+        assert expr.expression_referenced_question_ids == [referenced_question.id]
 
 
 class TestIsBetweenDatesExpression:
@@ -537,3 +594,20 @@ class TestIsBetweenDatesExpression:
         assert prepared_data["between_bottom_of_range"] == datetime.date(2025, 1, 1)
         assert "between_top_of_range" not in prepared_data
         assert prepared_data["between_top_of_range_expression"] == f"(({referenced_question.safe_qid}))"
+
+    def test_expression_referenced_question_ids(self, factories):
+        first_referenced_question = factories.question.create(data_type=QuestionDataType.DATE)
+        second_referenced_question = factories.question.create(
+            form=first_referenced_question.form, data_type=QuestionDataType.DATE
+        )
+        target_question = factories.question.create(
+            form=first_referenced_question.form, data_type=QuestionDataType.DATE
+        )
+        expr = BetweenDates(
+            question_id=target_question.id,
+            earliest_value=None,
+            earliest_expression=f"(({first_referenced_question.safe_qid}))",
+            latest_value=None,
+            latest_expression=f"(({second_referenced_question.safe_qid}))",
+        )
+        assert expr.expression_referenced_question_ids == [first_referenced_question.id, second_referenced_question.id]
