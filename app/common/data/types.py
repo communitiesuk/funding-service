@@ -4,6 +4,7 @@ import enum
 import typing
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy import TypeDecorator
@@ -158,6 +159,7 @@ class QuestionPresentationOptions(BaseModel):
 
     # Groups
     show_questions_on_the_same_page: bool | None = None
+    add_another_summary_line_question_ids: list[UUID] | None = None
 
     # Dates
     approximate_date: bool | None = None
