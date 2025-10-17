@@ -24,7 +24,7 @@ TRunnerUrlMap = dict[
 ]
 
 
-class RoleEnum(str, enum.Enum):
+class RoleEnum(enum.StrEnum):
     ADMIN = (
         "admin"  # Admin level permissions, combines with null columns in UserRole table to denote level of admin access
     )

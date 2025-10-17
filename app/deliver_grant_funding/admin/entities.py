@@ -1,20 +1,23 @@
+import datetime
 from abc import abstractmethod
 
 from flask import flash
 from flask_admin.actions import action
+from flask_admin.helpers import is_form_submitted
 from flask_babel import ngettext
-from sqlalchemy import orm, select, update
+from sqlalchemy import func, orm, select, update
 from sqlalchemy.exc import IntegrityError
+from wtforms import Form
 from wtforms.validators import Email
 from xgovuk_flask_admin import XGovukModelView
 
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.user import get_user, remove_platform_admin_role_from_user, upsert_user_role
 from app.common.data.models import Collection, Grant, Organisation
-from app.common.data.models_user import User, UserRole
+from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.admin.mixins import FlaskAdminPlatformAdminAccessibleMixin
-from app.extensions import db
+from app.extensions import db, notification_service
 
 
 class PlatformAdminModelView(FlaskAdminPlatformAdminAccessibleMixin, XGovukModelView):
@@ -227,3 +230,87 @@ class PlatformAdminGrantView(PlatformAdminModelView):
                 "Failed to assign grants to MHCLG.",
                 "error",
             )
+
+
+class PlatformAdminInvitationView(PlatformAdminModelView):
+    _model = Invitation
+
+    can_create = True
+    can_delete = True
+
+    column_searchable_list = ["email"]
+
+    column_filters = ["is_usable", "organisation.name", "grant.name", "role"]
+
+    column_list = ["email", "user.id", "organisation.name", "grant.name", "role"]
+    column_labels = {
+        "user.id": "User ID",
+        "organisation.name": "Organisation name",
+        "grant.name": "Grant name",
+    }
+
+    column_details_list = [
+        "created_at_utc",
+        "expires_at_utc",
+        "claimed_at_utc",
+        "email",
+        "user.id",
+        "organisation.name",
+        "grant.name",
+        "role",
+    ]
+    form_columns = ["email", "user", "organisation", "grant", "role"]
+
+    form_args = {
+        "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
+        "user": {"get_label": "email"},
+        "organisation": {"get_label": "name"},
+        "grant": {"get_label": "name"},
+        "role": {"coerce": RoleEnum},
+    }
+
+    def on_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:
+        if is_created:
+            # Make new invitations last 1 hour by default, since these invitations are very privileged.
+            model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
+
+        return super().on_model_change(form, model, is_created)  # type: ignore[no-any-return]
+
+    def validate_form(self, form: Form) -> bool:
+        result = super().validate_form(form)
+
+        if result:
+            # Only create/edit forms have this - not delete
+            if (
+                is_form_submitted()
+                and hasattr(form, "role")
+                and hasattr(form, "organisation")
+                and hasattr(form, "grant")
+            ):
+                # Only allow 'Deliver grant funding' org admin (ie form designer) invitations to be created for now
+                role, organisation, grant = (
+                    RoleEnum[form.role.data] if form.role.data else None,  # ty: ignore[unresolved-attribute]
+                    form.organisation.data,  # ty: ignore[unresolved-attribute]
+                    form.grant.data,  # ty: ignore[unresolved-attribute]
+                )
+
+                if role != RoleEnum.ADMIN or (not organisation or not organisation.can_manage_grants) or grant:
+                    form.form_errors.append("You can only create invitations for MHCLG admins")
+                    result = False
+
+        return result  # type: ignore[no-any-return]
+
+    def after_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:
+        if is_created:
+            if (
+                model.role != RoleEnum.ADMIN
+                or (not model.organisation or not model.organisation.can_manage_grants)
+                or model.grant
+            ):
+                db.session.delete(model)
+                db.session.commit()
+                raise RuntimeError("Invalid invitation created")
+            else:
+                notification_service.send_deliver_org_admin_invitation(model.email, organisation=model.organisation)
+
+        return super().after_model_change(form, model, is_created)  # type: ignore[no-any-return]
