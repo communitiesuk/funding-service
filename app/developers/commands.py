@@ -24,6 +24,7 @@ from app.common.data.models import (
     Form,
     Grant,
     Group,
+    Organisation,
     Question,
 )
 from app.common.data.models_user import User
@@ -35,13 +36,14 @@ from app.extensions import db
 export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
 
-def to_dict(instance: BaseModel) -> dict[str, Any]:
+def to_dict(instance: BaseModel, exclude: list[str] | None = None) -> dict[str, Any]:
     return {
         prop.key: (field.model_dump(mode="json", exclude_none=True) if isinstance(field, PydanticBaseModel) else field)
         for prop in inspect(instance.__class__).column_attrs
         if (field := getattr(instance, prop.key)) is not None
         and prop.columns[0].name not in {"created_at_utc", "updated_at_utc"}
         and not prop.key.startswith("_")
+        and (exclude is None or prop.key not in exclude)
     }
 
 
@@ -98,8 +100,9 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
     }
 
     for grant in grants:
+        # Don't persist `grant.organisation_id`, as the UUID for MHCLG is not static
         grant_export: GrantExport = {
-            "grant": to_dict(grant),
+            "grant": to_dict(grant, exclude=["organisation_id"]),
             "collections": [],
             "forms": [],
             "questions": [],
@@ -163,6 +166,10 @@ def seed_grants() -> None:  # noqa: C901
         db.session.merge(user)
     db.session.flush()
 
+    # Lookup MHCLG (the only 'grant managing' org) in the DB and re-associate all grants to it; we don't freeze
+    # its org UUID so it will change every time.
+    grant_owning_org = db.session.query(Organisation).filter_by(can_manage_grants=True).one()
+
     for grant_data in export_data["grants"]:
         try:
             delete_grant(grant_data["grant"]["id"])
@@ -170,7 +177,7 @@ def seed_grants() -> None:  # noqa: C901
         except NoResultFound:
             pass
 
-        grant = Grant(**grant_data["grant"])
+        grant = Grant(**grant_data["grant"], organisation=grant_owning_org)
         db.session.add(grant)
 
         for collection in grant_data["collections"]:

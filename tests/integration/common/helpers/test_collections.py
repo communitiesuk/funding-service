@@ -35,8 +35,8 @@ EC = ExpressionContext
 class TestSubmissionHelper:
     class TestGetAndSubmitAnswerForQuestion:
         def test_submit_valid_data(self, db_session, factories):
-            question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            submission = factories.submission.build(collection=question.form.collection)
+            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            submission = factories.submission.create(collection=question.form.collection)
             helper = SubmissionHelper(submission)
 
             assert helper.cached_get_answer_for_question(question.id) is None
@@ -49,10 +49,10 @@ class TestSubmissionHelper:
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("User submitted data")
 
         def test_get_data_maps_type(self, db_session, factories):
-            question = factories.question.build(
+            question = factories.question.create(
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.INTEGER
             )
-            submission = factories.submission.build(collection=question.form.collection)
+            submission = factories.submission.create(collection=question.form.collection)
             helper = SubmissionHelper(submission)
 
             form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
@@ -63,10 +63,10 @@ class TestSubmissionHelper:
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=5)
 
         def test_can_get_falsey_answers(self, db_session, factories):
-            question = factories.question.build(
+            question = factories.question.create(
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.INTEGER
             )
-            submission = factories.submission.build(collection=question.form.collection)
+            submission = factories.submission.create(collection=question.form.collection)
             helper = SubmissionHelper(submission)
 
             form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
@@ -77,8 +77,8 @@ class TestSubmissionHelper:
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=0)
 
         def test_cannot_submit_answer_on_submitted_submission(self, db_session, factories):
-            question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            submission = factories.submission.build(collection=question.form.collection)
+            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            submission = factories.submission.create(collection=question.form.collection)
             helper = SubmissionHelper(submission)
 
             form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
@@ -98,13 +98,13 @@ class TestSubmissionHelper:
 
     class TestFormData:
         def test_no_submission_data(self, factories):
-            form = factories.form.build()
-            form_two = factories.form.build(collection=form.collection)
-            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
-            factories.question.build(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"))
+            form = factories.form.create()
+            form_two = factories.form.create(collection=form.collection)
+            factories.question.create(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            factories.question.create(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
+            factories.question.create(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"))
 
-            submission = factories.submission.build(collection=form.collection)
+            submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
 
             assert helper.cached_form_data == {}
@@ -112,56 +112,59 @@ class TestSubmissionHelper:
         def test_with_submission_data(self, factories):
             assert len(QuestionDataType) == 9, "Update this test if adding new questions"
 
-            form = factories.form.build()
-            form_two = factories.form.build(collection=form.collection)
-            q1 = factories.question.build(
+            form = factories.form.create()
+            form_two = factories.form.create(collection=form.collection)
+            q1 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
                 data_type=QuestionDataType.TEXT_SINGLE_LINE,
             )
-            q2 = factories.question.build(
+            q2 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"),
                 data_type=QuestionDataType.TEXT_MULTI_LINE,
             )
-            q3 = factories.question.build(
+            q3 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
             )
-            q4 = factories.question.build(
+            q4 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
             )
-            q5 = factories.question.build(
+            q5 = factories.question.create(
                 form=form_two,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994298"),
                 data_type=QuestionDataType.RADIOS,
-                data_source__items__key="my-key",
-                data_source__items__label="My label",
+                data_source__items=[],
             )
-            q6 = factories.question.build(
+            q5.data_source.items = [
+                factories.data_source_item.create(data_source=q5.data_source, key=key, label=label)
+                for key, label in [("key-1", "Key 1"), ("key-2", "Key 2")]
+            ]
+            q6 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994299"),
                 data_type=QuestionDataType.EMAIL,
             )
-            q7 = factories.question.build(
+            q7 = factories.question.create(
                 form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429a"), data_type=QuestionDataType.URL
             )
-            q8 = factories.question.build(
+            q8 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429b"),
                 data_type=QuestionDataType.CHECKBOXES,
                 data_source__items=[],
             )
             q8.data_source.items = [
-                factories.data_source_item.build(data_source=q8.data_source, key=key, label=label)
+                factories.data_source_item.create(data_source=q8.data_source, key=key, label=label)
                 for key, label in [("cheddar", "Cheddar"), ("brie", "Brie"), ("stilton", "Stilton")]
             ]
-            q9 = factories.question.build(
+            q9 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429c"),
                 data_type=QuestionDataType.DATE,
             )
 
-            submission = factories.submission.build(
+            submission = factories.submission.create(
                 collection=form.collection,
                 data={
                     str(q1.id): TextSingleLineAnswer("answer").get_value_for_submission(),
@@ -210,13 +213,13 @@ class TestSubmissionHelper:
 
     class TestExpressionContext:
         def test_no_submission_data(self, factories):
-            form = factories.form.build()
-            form_two = factories.form.build(collection=form.collection)
-            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
-            factories.question.build(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"))
+            form = factories.form.create()
+            form_two = factories.form.create(collection=form.collection)
+            factories.question.create(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            factories.question.create(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
+            factories.question.create(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"))
 
-            submission = factories.submission.build(collection=form.collection)
+            submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
 
             assert helper.cached_evaluation_context == ExpressionContext()
@@ -224,42 +227,45 @@ class TestSubmissionHelper:
         def test_with_submission_data(self, factories):
             assert len(QuestionDataType) == 9, "Update this test if adding new questions"
 
-            form = factories.form.build()
-            form_two = factories.form.build(collection=form.collection)
-            q1 = factories.question.build(
+            form = factories.form.create()
+            form_two = factories.form.create(collection=form.collection)
+            q1 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
                 data_type=QuestionDataType.TEXT_SINGLE_LINE,
             )
-            q2 = factories.question.build(
+            q2 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"),
                 data_type=QuestionDataType.TEXT_MULTI_LINE,
             )
-            q3 = factories.question.build(
+            q3 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
             )
-            q4 = factories.question.build(
+            q4 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
             )
-            q5 = factories.question.build(
+            q5 = factories.question.create(
                 form=form_two,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994298"),
                 data_type=QuestionDataType.RADIOS,
-                data_source__items__key="my-key",
-                data_source__items__label="My label",
+                data_source__items=[],
             )
-            q6 = factories.question.build(
+            q5.data_source.items = [
+                factories.data_source_item.create(data_source=q5.data_source, key=key, label=label)
+                for key, label in [("key-1", "Key 1"), ("key-2", "Key 2")]
+            ]
+            q6 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994299"),
                 data_type=QuestionDataType.EMAIL,
             )
-            q7 = factories.question.build(
+            q7 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429a"),
                 data_type=QuestionDataType.URL,
             )
-            q8 = factories.question.build(
+            q8 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429b"),
                 data_type=QuestionDataType.CHECKBOXES,
@@ -267,16 +273,16 @@ class TestSubmissionHelper:
             )
 
             q8.data_source.items = [
-                factories.data_source_item.build(data_source=q8.data_source, key=key, label=label)
+                factories.data_source_item.create(data_source=q8.data_source, key=key, label=label)
                 for key, label in [("cheddar", "Cheddar"), ("brie", "Brie"), ("stilton", "Stilton")]
             ]
-            q9 = factories.question.build(
+            q9 = factories.question.create(
                 form=form,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429c"),
                 data_type=QuestionDataType.DATE,
             )
 
-            submission = factories.submission.build(
+            submission = factories.submission.create(
                 collection=form.collection,
                 data={
                     str(q1.id): TextSingleLineAnswer("answer").get_value_for_submission(),
@@ -329,15 +335,15 @@ class TestSubmissionHelper:
 
     class TestStatuses:
         def test_form_status_based_on_questions(self, db_session, factories):
-            form = factories.form.build()
-            form_two = factories.form.build(collection=form.collection)
-            question_one = factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            question_two = factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
-            question_three = factories.question.build(
+            form = factories.form.create()
+            form_two = factories.form.create(collection=form.collection)
+            question_one = factories.question.create(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            question_two = factories.question.create(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
+            question_three = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296")
             )
 
-            submission = factories.submission.build(collection=form.collection)
+            submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.NOT_STARTED
@@ -379,18 +385,20 @@ class TestSubmissionHelper:
             assert helper.get_tasklist_status_for_form(form_two) == TasklistTaskStatusEnum.IN_PROGRESS
 
         def test_form_status_with_no_questions(self, db_session, factories):
-            form = factories.form.build()
-            submission = factories.submission.build(collection=form.collection)
+            form = factories.form.create()
+            submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.NOT_STARTED
             assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.NO_QUESTIONS
 
         def test_submission_status_based_on_forms(self, db_session, factories):
-            question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            form_two = factories.form.build(collection=question.form.collection)
-            question_two = factories.question.build(form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"))
+            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            form_two = factories.form.create(collection=question.form.collection)
+            question_two = factories.question.create(
+                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295")
+            )
 
-            submission = factories.submission.build(collection=question.form.collection)
+            submission = factories.submission.create(collection=question.form.collection)
             helper = SubmissionHelper(submission)
 
             assert helper.status == SubmissionStatusEnum.NOT_STARTED
@@ -425,9 +433,9 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.COMPLETED
 
         def test_toggle_form_status(self, db_session, factories):
-            question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
             form = question.form
-            submission = factories.submission.build(collection=form.collection)
+            submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
 
             with pytest.raises(ValueError) as e:
@@ -449,16 +457,16 @@ class TestSubmissionHelper:
             assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.COMPLETED
 
         def test_toggle_form_status_doesnt_change_status_if_already_completed(self, db_session, factories):
-            collection = factories.collection.build()
-            form = factories.form.build(collection=collection)
+            collection = factories.collection.create()
+            form = factories.form.create(collection=collection)
 
             # a second form with questions ensures nothing is conflating the submission and individual form statuses
-            second_form = factories.form.build(collection=collection)
+            second_form = factories.form.create(collection=collection)
 
-            question = factories.question.build(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            factories.question.build(form=second_form)
+            question = factories.question.create(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            factories.question.create(form=second_form)
 
-            submission = factories.submission.build(collection=collection)
+            submission = factories.submission.create(collection=collection)
             helper = SubmissionHelper(submission)
 
             helper.submit_answer_for_question(
@@ -478,8 +486,9 @@ class TestSubmissionHelper:
             assert len(submission.events) == 1
 
         def test_submit_submission_rejected_if_not_complete(self, db_session, factories):
-            question = factories.question.build(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            submission = factories.submission.build(collection=question.form.collection)
+            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            submission = factories.submission.create(collection=question.form.collection)
+
             helper = SubmissionHelper(submission)
 
             helper.submit_answer_for_question(

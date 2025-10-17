@@ -42,7 +42,7 @@ def test_get_all_grants_by_user(factories):
     assert len(result) == 5
 
 
-def test_create_grant(db_session) -> None:
+def test_create_grant(app, db_session) -> None:
     result = create_grant(
         ggis_number="GGIS-12345",
         name="Test Grant",
@@ -55,6 +55,7 @@ def test_create_grant(db_session) -> None:
 
     from_db = db_session.get(Grant, result.id)
     assert from_db is not None
+    assert from_db.organisation.name == app.config["PLATFORM_DEPARTMENT_NAME"]
 
 
 def test_create_duplicate_grant(factories) -> None:

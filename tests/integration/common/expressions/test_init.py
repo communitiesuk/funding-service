@@ -159,7 +159,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
     def test_managed_expression_with_required_function_allowed_imported(
         self, factories, mocker, question_value, expected_result
     ):
-        expr = factories.expression.build(statement="q_123 < date(2024, 1, 1)", type_=ExpressionType.VALIDATION)
+        expr = factories.expression.create(statement="q_123 < date(2024, 1, 1)", type_=ExpressionType.VALIDATION)
         mocker.patch(
             "app.common.data.models.Expression.required_functions",
             new_callable=PropertyMock,
@@ -177,7 +177,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
     def test_managed_expression_with_required_function_allowed_builtin(
         self, factories, mocker, question_value, expected_result
     ):
-        expr = factories.expression.build(statement="q_123 > min(1,2)", type_=ExpressionType.VALIDATION)
+        expr = factories.expression.create(statement="q_123 > min(1,2)", type_=ExpressionType.VALIDATION)
         mocker.patch(
             "app.common.data.models.Expression.required_functions",
             new_callable=PropertyMock,
@@ -198,7 +198,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
         def _custom_test_function():
             return 42
 
-        expr = factories.expression.build(statement="q_123 > calculate_result()", type_=ExpressionType.VALIDATION)
+        expr = factories.expression.create(statement="q_123 > calculate_result()", type_=ExpressionType.VALIDATION)
         mocker.patch(
             "app.common.data.models.Expression.required_functions",
             new_callable=PropertyMock,
@@ -208,7 +208,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
 
     def test_managed_expression_with_required_function_builtin_not_present_builtin(self, factories):
         # test with a builtin function that isn't on the allowed list
-        expr = factories.expression.build(statement="q_123 > max(1,2)", type_=ExpressionType.VALIDATION)
+        expr = factories.expression.create(statement="q_123 > max(1,2)", type_=ExpressionType.VALIDATION)
         # Don't patch the required_functions property, so it returns an empty dict
         with pytest.raises(DisallowedExpression):
             evaluate(expr, ExpressionContext(submission_data={"q_123": 123}))
@@ -218,7 +218,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
             return 42
 
         # Test with a custom function that isn't on the allowed list
-        expr = factories.expression.build(statement="q_123 > _custom_test_function()", type_=ExpressionType.VALIDATION)
+        expr = factories.expression.create(statement="q_123 > _custom_test_function()", type_=ExpressionType.VALIDATION)
         # Don't patch the required_functions property, so it returns an empty dict
         with pytest.raises(DisallowedExpression):
             evaluate(expr, ExpressionContext(submission_data={"q_123": 123}))
@@ -226,10 +226,10 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
 
 class TestExtendingWithAddAnotherContext:
     def test_extending_with_add_another_context(self, factories):
-        group = factories.group.build(add_another=True)
-        q1 = factories.question.build(parent=group)
-        q2 = factories.question.build(parent=group)
-        submission = factories.submission.build(collection=group.form.collection)
+        group = factories.group.create(add_another=True)
+        q1 = factories.question.create(parent=group)
+        q2 = factories.question.create(parent=group)
+        submission = factories.submission.create(collection=group.form.collection)
         submission.data = {
             str(group.id): [
                 {str(q1.id): "v0", str(q2.id): "e0"},
@@ -250,11 +250,11 @@ class TestExtendingWithAddAnotherContext:
         assert context.get(q2.safe_qid) == "e1"
 
     def test_extending_with_add_another_context_with_partial_submit_data(self, factories):
-        group = factories.group.build(add_another=True)
-        q1 = factories.question.build(parent=group)
-        q2 = factories.question.build(parent=group)
-        q3 = factories.question.build(parent=group)
-        submission = factories.submission.build(collection=group.form.collection)
+        group = factories.group.create(add_another=True)
+        q1 = factories.question.create(parent=group)
+        q2 = factories.question.create(parent=group)
+        q3 = factories.question.create(parent=group)
+        submission = factories.submission.create(collection=group.form.collection)
         submission.data = {
             str(group.id): [
                 {str(q1.id): "v0", str(q2.id): "e0"},
@@ -278,14 +278,14 @@ class TestExtendingWithAddAnotherContext:
         assert context.get(q3.safe_qid) is None
 
     def test_extending_with_existing_context(self, factories):
-        component = factories.question.build(add_another=True)
+        component = factories.question.create(add_another=True)
         ex = ExpressionContext(submission_data={"a": [1, 2, 3], "b": 1, "c": 1}, add_another_context={"a": 1})
         with pytest.raises(ValueError) as e:
             ex.with_add_another_context(component, add_another_index=0)
         assert str(e.value) == "add_another_context is already set on this ExpressionContext"
 
     def test_extending_with_non_add_another_component(self, factories):
-        component = factories.question.build(add_another=False)
+        component = factories.question.create(add_another=False)
         ex = ExpressionContext(submission_data={"a": [1, 2, 3], "b": 1, "c": 1})
         with pytest.raises(ValueError) as e:
             ex.with_add_another_context(component, add_another_index=0)

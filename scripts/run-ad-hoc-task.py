@@ -55,7 +55,15 @@ run_task_response = ecs_client.run_task(
     networkConfiguration={
         "awsvpcConfiguration": {"subnets": subnets, "securityGroups": security_groups, "assignPublicIp": "DISABLED"}
     },
-    overrides={"containerOverrides": [{"command": command, "name": "task-runner-container"}]},
+    overrides={
+        "containerOverrides": [
+            {
+                "command": command,
+                "name": "task-runner-container",
+                "environment": [{"name": "SEED_SYSTEM_DATA", "value": "false"}],
+            }
+        ]
+    },
 )
 
 task_arn = run_task_response["tasks"][0]["taskArn"]

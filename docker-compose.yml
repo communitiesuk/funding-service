@@ -30,7 +30,7 @@ services:
       bash -c "
       cp /app/certs/rootCA.pem /usr/local/share/ca-certificates/rootCA.crt && \
       update-ca-certificates && \
-      uv run flask db upgrade && \
+      SEED_SYSTEM_DATA=false uv run flask db upgrade && \
       uv run flask developers seed-grants
 
       npm run dev -- --host &

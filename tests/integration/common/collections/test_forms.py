@@ -28,7 +28,7 @@ EC = ExpressionContext
     ),
 )
 def test_validation_attached_to_field_and_runs__text(factories, value, error_message, field_type):
-    question = factories.question.build(
+    question = factories.question.create(
         id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7b"),
         data_type=field_type,
         name="test_text",
@@ -198,7 +198,7 @@ def test_reference_data_validation__date(factories, db_session):
     ],
 )
 def test_email_strips_empty_chars(factories, user_input, will_validate, saved_input) -> None:
-    question = factories.question.build(
+    question = factories.question.create(
         id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"),
         data_type=QuestionDataType.EMAIL,
         name="test email",
@@ -220,7 +220,7 @@ def test_email_strips_empty_chars(factories, user_input, will_validate, saved_in
     ],
 )
 def test_url_strips_empty_chars(factories, user_input, will_validate, saved_input) -> None:
-    question = factories.question.build(
+    question = factories.question.create(
         id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"),
         data_type=QuestionDataType.URL,
         name="test url",
@@ -251,7 +251,7 @@ def test_url_strips_empty_chars(factories, user_input, will_validate, saved_inpu
 )
 def test_integer_accepts_commas(factories, user_input, will_validate, saved_input) -> None:
     """Test that IntegerField accepts comma-separated input and stores as integer."""
-    question = factories.question.build(
+    question = factories.question.create(
         id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"),
         data_type=QuestionDataType.INTEGER,
         name="test integer",

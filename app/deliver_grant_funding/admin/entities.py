@@ -1,13 +1,20 @@
 from abc import abstractmethod
 
-from sqlalchemy import orm
+from flask import flash
+from flask_admin.actions import action
+from flask_babel import ngettext
+from sqlalchemy import orm, select, update
+from sqlalchemy.exc import IntegrityError
 from wtforms.validators import Email
 from xgovuk_flask_admin import XGovukModelView
 
 from app.common.data.base import BaseModel
-from app.common.data.models import Collection, Organisation
+from app.common.data.interfaces.user import get_user, remove_platform_admin_role_from_user, upsert_user_role
+from app.common.data.models import Collection, Grant, Organisation
 from app.common.data.models_user import User, UserRole
+from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.admin.mixins import FlaskAdminPlatformAdminAccessibleMixin
+from app.extensions import db
 
 
 class PlatformAdminModelView(FlaskAdminPlatformAdminAccessibleMixin, XGovukModelView):
@@ -70,16 +77,64 @@ class PlatformAdminUserView(PlatformAdminModelView):
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
     }
 
+    # TODO: Remove me; this is just a temporary action to help migrate existing form designers (and mildly demonstrate
+    #       custom actions).
+    @action(
+        "make_form_designer",
+        "Make MHCLG form designer",
+        "Are you sure you want to make these people form designers for MHCLG grants?",
+    )  # type: ignore[misc]
+    def make_owned(self, ids: list[str]) -> None:
+        if not self.can_edit:
+            flash("You do not have permission to do this", "error")
+            return
+
+        try:
+            mhclg_org = self.session.execute(
+                select(Organisation).where(Organisation.can_manage_grants.is_(True))
+            ).scalar_one()
+
+            for user_id in ids:
+                user = get_user(user_id)
+
+                if user is None:
+                    continue
+
+                remove_platform_admin_role_from_user(user)
+                upsert_user_role(user, role=RoleEnum.ADMIN, organisation_id=mhclg_org.id, grant_id=None)
+
+            self.session.commit()
+            count = len(ids)
+            flash(
+                ngettext(
+                    "User was successfully assigned to MHCLG.",
+                    "%(count)s users were successfully assigned to MHCLG.",
+                    count,
+                    count=count,
+                ),
+                "success",
+            )
+
+        except IntegrityError:
+            flash(
+                "Failed to assign users as MHCLG form designers.",
+                "error",
+            )
+
 
 class PlatformAdminOrganisationView(PlatformAdminModelView):
     _model = Organisation
 
     can_create = True
+    can_edit = True
+    can_delete = True
 
-    column_list = ["name"]
+    column_list = ["name", "can_manage_grants"]
+    # TODO: https://github.com/pallets-eco/flask-admin/issues/2674
+    #       filtering on boolean fields currently broken in flask-admin when using psycopg(3) lib =[
     column_filters = ["name"]
 
-    form_columns = ["name"]
+    form_columns = ["name", "can_manage_grants"]
 
 
 class PlatformAdminCollectionView(PlatformAdminModelView):
@@ -115,3 +170,60 @@ class PlatformAdminUserRoleView(PlatformAdminModelView):
         "organisation": {"get_label": "name"},
         "grant": {"get_label": "name"},
     }
+
+
+class PlatformAdminGrantView(PlatformAdminModelView):
+    _model = Grant
+
+    can_create = False
+    can_edit = True
+    can_delete = True
+
+    column_list = ["name", "ggis_number", "organisation.name"]
+    column_filters = ["name", "ggis_number", "organisation.name"]
+    column_searchable_list = ["name", "ggis_number"]
+    column_labels = {"ggis_number": "GGIS number", "organisation.name": "Organisation name"}
+
+    form_columns = ["name", "organisation", "ggis_number"]
+
+    form_args = {
+        "organisation": {
+            "get_label": "name",
+            "query_factory": lambda: db.session.query(Organisation).filter_by(can_manage_grants=True),
+        },
+    }
+
+    # TODO: Remove me; this is just a temporary action to help migrate existing grants (and mildly demonstrate custom
+    #       actions).
+    @action(
+        "make_owned_by_mhclg",
+        "Make owned by MHCLG",
+        "Are you sure you want to make these grants owned by MHCLG?",
+    )  # type: ignore[misc]
+    def make_owned(self, ids: list[str]) -> None:
+        if not self.can_edit:
+            flash("You do not have permission to do this", "error")
+            return
+
+        try:
+            mhclg_org = self.session.execute(
+                select(Organisation).where(Organisation.can_manage_grants.is_(True))
+            ).scalar_one()
+            self.session.execute(update(Grant).where(Grant.id.in_(ids)).values(organisation_id=mhclg_org.id))
+            self.session.commit()
+            count = len(ids)
+            flash(
+                ngettext(
+                    "Grant was successfully assigned to MHCLG.",
+                    "%(count)s grants were successfully assigned to MHCLG.",
+                    count,
+                    count=count,
+                ),
+                "success",
+            )
+
+        except IntegrityError:
+            flash(
+                "Failed to assign grants to MHCLG.",
+                "error",
+            )
