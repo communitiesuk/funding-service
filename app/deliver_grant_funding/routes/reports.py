@@ -1243,6 +1243,13 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
             depends_on_question_id=depends_on_question_id,
         )
 
+    if form and form.is_submitted_to_remove_context():
+        field_to_clear = form.remove_context.data
+        if field_to_clear and add_context_data:
+            add_context_data.expression_form_data[field_to_clear] = ""  # type: ignore[union-attr]
+            session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(request.url)
+
     if form and form.validate_on_submit():
         expression = form.get_expression(depends_on_question)
 
@@ -1338,6 +1345,13 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
             expression_id=expression_id,
         )
 
+    if form and form.is_submitted_to_remove_context():
+        field_to_clear = form.remove_context.data
+        if field_to_clear and add_context_data:
+            add_context_data.expression_form_data[field_to_clear] = ""  # type: ignore[union-attr]
+            session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(request.url)
+
     if form and form.validate_on_submit():
         updated_managed_expression = form.get_expression(depends_on_question)
 
@@ -1401,6 +1415,13 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
             expression_type=ExpressionType.VALIDATION,
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
         )
+
+    if form and form.is_submitted_to_remove_context():
+        field_to_clear = form.remove_context.data
+        if field_to_clear and add_context_data:
+            add_context_data.expression_form_data[field_to_clear] = ""  # type: ignore[union-attr]
+            session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(request.url)
 
     if form and form.validate_on_submit():
         expression = form.get_expression(question)
@@ -1485,6 +1506,13 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
             expression_id=expression_id,
         )
+
+    if form and form.is_submitted_to_remove_context():
+        field_to_clear = form.remove_context.data
+        if field_to_clear and add_context_data:
+            add_context_data.expression_form_data[field_to_clear] = ""  # type: ignore[union-attr]
+            session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(request.url)
 
     if form and form.validate_on_submit():
         # todo: any time we're dealing with the dependant component its a question - make sure this makes sense
