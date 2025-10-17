@@ -137,12 +137,9 @@ class SubmissionHelper:
         form_data: dict[str, Any] = {}
         for form in self.collection.forms:
             for question in form.cached_questions:
-                if question.add_another_container:
-                    form_data[question.safe_qid] = []
-                    for i in range(self.get_count_for_add_another(question.add_another_container)):
-                        answer = self.cached_get_answer_for_question(question.id, add_another_index=i)
-                        form_data[question.safe_qid].append(answer.get_value_for_form() if answer else None)
-                else:
+                # we'll only add add another answers if a context is provided which will be hooked in
+                # with the form runner
+                if not question.add_another_container:
                     answer = self.cached_get_answer_for_question(question.id)
                     if answer is not None:
                         form_data[question.safe_qid] = answer.get_value_for_form()
@@ -241,7 +238,9 @@ class SubmissionHelper:
         for question in form.cached_questions:
             if question.add_another_container:
                 for i in range(self.get_count_for_add_another(question.add_another_container)):
-                    context = self.cached_evaluation_context.with_add_another_context(question, add_another_index=i)
+                    context = self.cached_evaluation_context.with_add_another_context(
+                        question, submission_helper=self, add_another_index=i
+                    )
                     if self.is_component_visible(question, context):
                         question_answer_status.append(
                             self.cached_get_answer_for_question(question.id, add_another_index=i) is not None
@@ -297,7 +296,9 @@ class SubmissionHelper:
 
         try:
             if component.add_another_container and add_another_index is not None:
-                context = context.with_add_another_context(component, add_another_index=add_another_index)
+                context = context.with_add_another_context(
+                    component, submission_helper=self, add_another_index=add_another_index
+                )
 
             return all(evaluate(condition, context) for condition in get_all_conditions(component))
 
@@ -308,13 +309,12 @@ class SubmissionHelper:
             #       always suppressing errors and not surfacing issues on misconfigured forms
             return False
 
-    def _get_ordered_visible_questions(self, parent: Union["Form", "Group"]) -> list["Question"]:
+    def _get_ordered_visible_questions(
+        self, parent: Union["Form", "Group"], *, override_context: "ExpressionContext | None" = None
+    ) -> list["Question"]:
         """Returns the visible, ordered questions based upon the current state of this collection."""
-        return [
-            question
-            for question in parent.cached_questions
-            if self.is_component_visible(question, self.cached_evaluation_context)
-        ]
+        context = override_context or self.cached_evaluation_context
+        return [question for question in parent.cached_questions if self.is_component_visible(question, context)]
 
     def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
         questions = self.cached_get_ordered_visible_questions(form)
@@ -405,13 +405,26 @@ class SubmissionHelper:
                 self.submission, SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED, form
             )
 
-    def get_next_question(self, current_question_id: UUID) -> Optional["Question"]:
+    # todo: decide if the add another index should be available submission helper wide where it just checks self
+    #       does having it on lots of methods increase the cognitive load/ complexity
+    def get_next_question(
+        self, current_question_id: UUID, *, add_another_index: int | None = None
+    ) -> Optional["Question"]:
         """
         Retrieve the next question that should be shown to the user, or None if this was the last relevant question.
         """
         form = self.get_form_for_question(current_question_id)
+        question = self.get_question(current_question_id)
 
-        questions = self.cached_get_ordered_visible_questions(form)
+        context_override = None
+        if question.add_another_container and add_another_index is not None:
+            context_override = self.cached_evaluation_context.with_add_another_context(
+                question, submission_helper=self, add_another_index=add_another_index
+            )
+
+        questions = self.cached_get_ordered_visible_questions(
+            form, override_context=context_override if context_override else None
+        )
 
         question_iterator = iter(questions)
         for question in question_iterator:
@@ -420,12 +433,25 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
 
-    def get_previous_question(self, current_question_id: UUID) -> Optional["Question"]:
+    def get_previous_question(
+        self, current_question_id: UUID, add_another_index: int | None = None
+    ) -> Optional["Question"]:
         """
         Retrieve the question that was asked before this one, or None if this was the first relevant question.
         """
         form = self.get_form_for_question(current_question_id)
-        questions = self.cached_get_ordered_visible_questions(form)
+
+        question = self.get_question(current_question_id)
+
+        context_override = None
+        if question.add_another_container and add_another_index is not None:
+            context_override = self.cached_evaluation_context.with_add_another_context(
+                question, submission_helper=self, add_another_index=add_another_index
+            )
+
+        questions = self.cached_get_ordered_visible_questions(
+            form, override_context=context_override if context_override else None
+        )
 
         # Reverse the list of questions so that we're working from the end to the start.
         question_iterator = iter(reversed(questions))
