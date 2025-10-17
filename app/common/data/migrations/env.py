@@ -12,7 +12,7 @@ from alembic.script.base import _slug_re
 from alembic_utils.pg_extension import PGExtension
 from alembic_utils.replaceable_entity import register_entities
 from flask import current_app
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 
 citext_extension = PGExtension(schema="public", signature="citext")
 register_entities([citext_extension])
@@ -131,6 +131,10 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata, **conf_args)
+
+        # if we see issues with this lock timeout failing, we should try running
+        # again when there are no locks on that table, perhaps at a quieter time.
+        connection.execute(text("SET lock_timeout = 1000"))
 
         with context.begin_transaction():
             context.run_migrations()
