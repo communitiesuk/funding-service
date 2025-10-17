@@ -409,7 +409,7 @@ async = [
 
 [[package]]
 name = "flask-admin"
-version = "2.0.0a5"
+version = "2.0.0rc1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flask" },
@@ -418,9 +418,9 @@ dependencies = [
     { name = "werkzeug" },
     { name = "wtforms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5d/f5/99ebcd48adf1ee8bcb4833b8a2545dc2f385db65ae5574648442b75e8b59/flask_admin-2.0.0a5.tar.gz", hash = "sha256:3d6badd62b3bd77115596655033fb34ab0d2d044511672533a4add1719b771c6", size = 5528298, upload-time = "2025-10-09T13:16:48.708Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/17/ebdf0683175bef5646de67f3b795def7535e68242dc2a01548295279515b/flask_admin-2.0.0rc1.tar.gz", hash = "sha256:1e5c6cb61c8489b40ae60288b1504b51091820ec82ee0e1538467c85cd2b72fe", size = 5531047, upload-time = "2025-10-17T07:02:25.815Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f8/83/d3a71ee9f9d29bcdec7a9113d68e8c526c6f2dc9de4e710e3996605427fe/flask_admin-2.0.0a5-py3-none-any.whl", hash = "sha256:a1134fb04df7079dcf425abf7bebdc4c30efcb4444df9e7753b2c7724b417165", size = 6458887, upload-time = "2025-10-09T13:16:46.088Z" },
+    { url = "https://files.pythonhosted.org/packages/08/ff/90acdd02044ac9b19f7db060dcda63909cdd836638e71df9e06a9285ff65/flask_admin-2.0.0rc1-py3-none-any.whl", hash = "sha256:9fc51c7ed75df0a7d92843976e7db53db381ffb1e4c779231a95878d7e4a65d5", size = 6459445, upload-time = "2025-10-17T07:02:23.024Z" },
 ]
 
 [[package]]
@@ -621,7 +621,7 @@ requires-dist = [
     { name = "babel", specifier = "==2.17.0" },
     { name = "faker", specifier = "==37.8.0" },
     { name = "flask", specifier = "==3.1.2" },
-    { name = "flask-admin", specifier = "==2.0.0a5" },
+    { name = "flask-admin", specifier = "==2.0.0rc1" },
     { name = "flask-babel", specifier = "==4.0.0" },
     { name = "flask-login", specifier = "==0.6.3" },
     { name = "flask-migrate", specifier = "==4.1.0" },
@@ -644,7 +644,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = "==2.0.43" },
     { name = "sqlalchemy-json", specifier = "==0.7.0" },
     { name = "wtforms", extras = ["email"], specifier = "==3.2.1" },
-    { name = "xgovuk-flask-admin", specifier = "==0.0.6" },
+    { name = "xgovuk-flask-admin", specifier = "==0.0.8" },
 ]
 
 [package.metadata.requires-dev]
@@ -1878,7 +1878,7 @@ email = [
 
 [[package]]
 name = "xgovuk-flask-admin"
-version = "0.0.6"
+version = "0.0.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -1890,9 +1890,9 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tox-uv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/44/35/b2b5133f12e4407f604a53527140a12c7860d297d7c5f6b44297de9344d7/xgovuk_flask_admin-0.0.6.tar.gz", hash = "sha256:155b149f7ca3911fb81162b922f2fb5802815641a8eed45aaf151ab69b62831b", size = 447854, upload-time = "2025-10-16T08:40:11.561Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/2f/a745fb462bef7343605eea2ab2e387ff773a4d04907b210d5ba7699af661/xgovuk_flask_admin-0.0.8.tar.gz", hash = "sha256:354c5bf1f1957bdcc0ba64b22b4f038e18b8e1897d2992cf0d76eeca4db81b44", size = 447859, upload-time = "2025-10-17T10:30:24.101Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/cd/1b49646baea99f90e32298518030d0846c12ae7c8391fda3f1c3a4e26d61/xgovuk_flask_admin-0.0.6-py3-none-any.whl", hash = "sha256:ae70f88f79eccd6697078b7e76c376d2b3b2dcdc4b62f9ea60d8a56b12942031", size = 456193, upload-time = "2025-10-16T08:40:09.856Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/95/756510fcc243c92befca427ff12fcbd2a67091889b233744dd9c73bac6bb/xgovuk_flask_admin-0.0.8-py3-none-any.whl", hash = "sha256:5fa659280b6ca9cf15dcd023bc18740bfc4a8256130432b092757c4f01cc64ee", size = 456195, upload-time = "2025-10-17T10:30:22.477Z" },
 ]
 
 [[package]]
