@@ -4,7 +4,7 @@ from flask import abort, current_app, flash, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 from sqlalchemy.exc import NoResultFound
 
-from app.common.auth.decorators import has_grant_role, is_platform_admin
+from app.common.auth.decorators import has_deliver_grant_role, is_platform_admin
 from app.common.data import interfaces
 from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.forms import GrantAddUserForm
@@ -13,7 +13,7 @@ from app.extensions import auto_commit_after_request, notification_service
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/users", methods=["GET"])
-@has_grant_role(RoleEnum.MEMBER)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 def list_users_for_grant(grant_id: UUID) -> ResponseReturnValue:
     try:
         grant = interfaces.grants.get_grant(grant_id)
