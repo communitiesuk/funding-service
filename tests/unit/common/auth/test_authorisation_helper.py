@@ -57,11 +57,12 @@ class TestAuthorisationHelper:
             (RoleEnum.MEMBER, False),
         ],
     )
-    def test_is_grant_admin_correct_grant(self, factories, role, expected):
+    def test_is_deliver_grant_admin_correct_grant(self, factories, role, expected, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
         factories.user_role.build(user=user, role=role, grant=grant)
-        assert AuthorisationHelper.is_grant_admin(user=user, grant_id=grant.id) is expected
+        assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant.id) is expected
 
     @pytest.mark.parametrize(
         "role",
@@ -70,12 +71,13 @@ class TestAuthorisationHelper:
             (RoleEnum.MEMBER),
         ],
     )
-    def test_is_grant_admin_incorrect_grant(self, factories, role):
+    def test_is_deliver_grant_admin_incorrect_grant(self, factories, role, mocker):
         user = factories.user.build()
         grant1 = factories.grant.build()
         grant2 = factories.grant.build()
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant2)
         factories.user_role.build(user=user, role=role, grant=grant1)
-        assert AuthorisationHelper.is_grant_admin(user=user, grant_id=grant2.id) is False
+        assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant2.id) is False
 
     @pytest.mark.parametrize(
         "role, expected",
@@ -84,18 +86,20 @@ class TestAuthorisationHelper:
             (RoleEnum.MEMBER, False),
         ],
     )
-    def test_is_grant_admin_for_grant_roles(self, factories, role, expected):
+    def test_is_deliver_grant_admin_for_grant_roles(self, factories, role, expected, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
         factories.user_role.build(user=user, role=role, grant=grant)
-        assert AuthorisationHelper.is_grant_admin(user=user, grant_id=grant.id) is expected
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+        assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant.id) is expected
 
-    def test_is_grant_admin_if_platform_admin(self, factories):
+    def test_is_deliver_grant_admin_if_platform_admin(self, factories, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
-        assert AuthorisationHelper.is_grant_admin(user=user, grant_id=grant.id) is False
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+        assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant.id) is False
         factories.user_role.build(user=user, role=RoleEnum.ADMIN)
-        assert AuthorisationHelper.is_grant_admin(user=user, grant_id=grant.id) is True
+        assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant.id) is True
 
     @pytest.mark.parametrize(
         "role",
@@ -104,29 +108,33 @@ class TestAuthorisationHelper:
             RoleEnum.MEMBER,
         ],
     )
-    def test_is_grant_member_true(self, factories, role):
+    def test_is_deliver_grant_member_true(self, factories, role, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
         factories.user_role.build(user=user, role=role, grant=grant)
-        assert AuthorisationHelper.is_grant_member(user=user, grant_id=grant.id)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+        assert AuthorisationHelper.is_deliver_grant_member(user=user, grant_id=grant.id)
 
     @pytest.mark.parametrize("role", [RoleEnum.ADMIN, RoleEnum.MEMBER])
-    def test_is_grant_member_false_member_of_different_grant(self, factories, role):
+    def test_is_deliver_grant_member_false_member_of_different_grant(self, factories, role, mocker):
         user = factories.user.build()
         grants = factories.grant.build_batch(2)
         factories.user_role.build(user=user, role=role, grant=grants[0])
-        assert AuthorisationHelper.is_grant_member(user=user, grant_id=grants[1].id) is False
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grants[1])
+        assert AuthorisationHelper.is_deliver_grant_member(user=user, grant_id=grants[1].id) is False
 
-    def test_is_grant_member_false_not_got_member_role(self, factories):
+    def test_is_deliver_grant_member_false_not_got_member_role(self, factories, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
-        assert AuthorisationHelper.is_grant_member(user=user, grant_id=grant.id) is False
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+        assert AuthorisationHelper.is_deliver_grant_member(user=user, grant_id=grant.id) is False
 
-    def test_is_grant_member_overriden_by_platform_admin(self, factories):
+    def test_is_deliver_grant_member_overriden_by_platform_admin(self, factories, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
         factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=None)
-        assert AuthorisationHelper.is_grant_member(user=user, grant_id=grant.id) is True
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+        assert AuthorisationHelper.is_deliver_grant_member(user=user, grant_id=grant.id) is True
 
     @pytest.mark.parametrize(
         "role, expected",
@@ -136,13 +144,14 @@ class TestAuthorisationHelper:
             ("S151_OFFICER", pytest.raises(ValueError)),
         ],
     )
-    def test_has_grant_role(self, factories, role, expected):
+    def test_has_deliver_grant_role(self, factories, role, expected, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
         factories.user_role.build(user=user, role=role, grant=grant)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
 
         if isinstance(expected, bool):
-            assert AuthorisationHelper.has_grant_role(user=user, grant_id=grant.id, role=role) is expected
+            assert AuthorisationHelper.has_deliver_grant_role(user=user, grant_id=grant.id, role=role) is expected
         else:
             with expected:
-                AuthorisationHelper.has_grant_role(user=user, grant_id=grant.id, role=role)
+                AuthorisationHelper.has_deliver_grant_role(user=user, grant_id=grant.id, role=role)

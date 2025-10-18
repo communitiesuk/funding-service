@@ -19,6 +19,15 @@ class TestUserRoleConstraints:
             factories.user_role.create(user_id=user_role.user_id, user=user_role.user, role=RoleEnum.ADMIN)
         assert 'duplicate key value violates unique constraint "uq_user_org_grant"' in error.value.args[0]
 
+    def test_grant_id_required_if_organisation_id(self, factories):
+        grant = factories.grant.create()
+        with pytest.raises(IntegrityError) as error:
+            factories.user_role.create(role=RoleEnum.ADMIN, organisation=None, organisation_id=None, grant=grant)
+        assert (
+            'new row for relation "user_role" violates check constraint "ck_user_role_org_required_if_grant"'
+            in error.value.args[0]
+        )
+
 
 class TestExpressionConstraints:
     def test_cannot_add_two_of_the_same_kind_of_validation_to_a_question(self, factories):

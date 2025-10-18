@@ -82,10 +82,11 @@ def test_grant_ggis_form_fails_when_yes_selected_and_empty(app: Flask):
     assert "Enter your GGIS reference number" in form.ggis_number.errors
 
 
-def test_user_already_in_grant_users(app: Flask, factories):
+def test_user_already_in_grant_users(app: Flask, factories, mocker):
     grant = factories.grant.build(name="Test Grant")
     user = factories.user.build(email="test.user@communities.gov.uk")
-    factories.user_role.build(user=user, role=RoleEnum.MEMBER, grant=grant)
+    factories.user_role.build(user=user, role=RoleEnum.MEMBER, organisation=grant.organisation, grant=grant)
+    mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
 
     form = GrantAddUserForm(grant=grant)
     form.user_email.data = "test.admin@communities.gov.uk"
