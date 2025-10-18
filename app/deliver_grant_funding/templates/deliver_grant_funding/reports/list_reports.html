@@ -5,7 +5,7 @@
 
 {% set page_title = "Reports" %}
 {% set active_item_identifier = "reports" %}
-{% set grant_admin = authorisation_helper.is_grant_admin(grant.id, current_user) %}
+{% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
 
 {% block content %}
   <div class="govuk-grid-row">

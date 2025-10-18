@@ -348,7 +348,7 @@ class TestSSOGetTokenView:
             updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "wer234"))
 
             assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-            assert AuthorisationHelper.is_grant_member(grant_id=grant.id, user=updated_user) is True
+            assert AuthorisationHelper.is_deliver_grant_member(grant_id=grant.id, user=updated_user) is True
             assert AuthorisationHelper.is_platform_admin(updated_user) is False
 
         assert response.status_code == 200
@@ -413,7 +413,7 @@ class TestSSOGetTokenView:
 
             for grant in grants:
                 invitation = factories.invitation.create(
-                    email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER
+                    email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
                 )
                 invitations.append(invitation)
 
@@ -445,7 +445,9 @@ class TestSSOGetTokenView:
                 expires_at_utc=datetime.datetime(2025, 9, 1, 12, 0, 0),
             )
             for grant in grants[:3]:
-                factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+                factories.invitation.create(
+                    email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+                )
 
             mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
                 "id_token_claims": {

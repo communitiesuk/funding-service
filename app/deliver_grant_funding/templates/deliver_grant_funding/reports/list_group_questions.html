@@ -9,7 +9,7 @@
 
 {% set page_title = group.name ~ " - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
-{% set grant_admin = authorisation_helper.is_grant_admin(grant.id, current_user) %}
+{% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
 
 {% block beforeContent %}
   {% set parent_item = None %}

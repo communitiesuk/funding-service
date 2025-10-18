@@ -65,6 +65,8 @@ def _get_grant_managing_organisation() -> Organisation:
     """
     Get or create an organisation that can manage grants.
 
+    When we remove the block on >1 org.can_manage_grants, this should be removed.
+
     In integration tests: returns the existing org with can_manage_grants=True from the DB.
     In unit tests: creates a new in-memory org instance (no DB access).
     """
@@ -136,8 +138,11 @@ class _UserRoleFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     user_id = factory.LazyAttribute(lambda o: o.user.id)
     user = factory.SubFactory(_UserFactory)
-    organisation_id = None
-    organisation = None
+    organisation_id = factory.LazyAttribute(
+        lambda o: o.organisation.id if o.organisation else o.grant.organisation.id if o.grant else None
+    )
+    # NOTE: if no organisation set explicitly, will default to the grant's org - ie a deliver grant funding role
+    organisation = factory.LazyAttribute(lambda o: o.grant.organisation if o.grant else None)
     grant_id = factory.LazyAttribute(lambda o: o.grant.id if o.grant else None)
     grant = None
     role = None  # This needs to be overridden when initialising the factory
@@ -148,6 +153,8 @@ class _UserRoleFactory(SQLAlchemyModelFactory):
             organisation=factory.SubFactory(_OrganisationFactory),
         )
         has_grant = factory.Trait(
+            organisation_id=factory.LazyAttribute(lambda o: o.grant.organisation.id),
+            organisation=factory.LazyAttribute(lambda o: o.grant.organisation),
             grant_id=factory.LazyAttribute(lambda o: o.grant.id),
             grant=factory.SubFactory(_GrantFactory),
         )

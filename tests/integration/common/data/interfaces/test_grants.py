@@ -12,6 +12,7 @@ from app.common.data.interfaces.grants import (
 )
 from app.common.data.models import Grant
 from app.common.data.types import RoleEnum
+from tests.models import _get_grant_managing_organisation
 
 
 def test_get_grant(factories):
@@ -31,9 +32,20 @@ def test_get_all_grants_platform_admin(factories):
 def test_get_all_grants_member(factories):
     user_member = factories.user.create(email="testmember@communities.gov.uk")
     grants = factories.grant.create_batch(5)
-    factories.user_role.create(user=user_member, role=RoleEnum.MEMBER, grant=grants[0])
+    factories.user_role.create(
+        user=user_member, role=RoleEnum.MEMBER, organisation=grants[0].organisation, grant=grants[0]
+    )
     result = get_all_grants_by_user(user_member)
     assert len(result) == 1
+
+
+def test_get_all_grants_member_with_org_level_permission(factories):
+    user_member = factories.user.create(email="testmember@communities.gov.uk")
+    org = _get_grant_managing_organisation()
+    factories.grant.create_batch(5, organisation=org)
+    factories.user_role.create(user=user_member, role=RoleEnum.MEMBER, organisation=org)
+    result = get_all_grants_by_user(user_member)
+    assert len(result) == 5
 
 
 def test_get_all_grants_by_user(factories):

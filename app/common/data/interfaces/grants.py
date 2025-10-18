@@ -1,13 +1,13 @@
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import DuplicateValueError, flush_and_rollback_on_exceptions
 from app.common.data.models import Collection, Grant, Organisation
-from app.common.data.models_user import User
+from app.common.data.models_user import User, UserRole
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
@@ -44,11 +44,22 @@ def get_all_grants_by_user(user: User) -> Sequence[Grant]:
         statement = select(Grant).order_by(Grant.name)
         return db.session.scalars(statement).all()
     else:
-        grant_ids = [role.grant_id for role in user.roles]
-        if not grant_ids:
-            return []
-        statement = select(Grant).where(Grant.id.in_(grant_ids)).order_by(Grant.name)
-        return db.session.scalars(statement).all()
+        statement = (
+            select(Grant)
+            .join(
+                UserRole,
+                and_(
+                    or_(Grant.id == UserRole.grant_id, Grant.organisation_id == UserRole.organisation_id),
+                    UserRole.user_id == user.id,
+                ),
+            )
+            .where(
+                UserRole.organisation_id == Grant.organisation_id,
+                or_(UserRole.grant_id == Grant.id, UserRole.grant_id.is_(None)),
+            )
+            .order_by(Grant.name)
+        )
+        return db.session.scalars(statement).unique().all()
 
 
 def get_all_grants() -> Sequence[Grant]:

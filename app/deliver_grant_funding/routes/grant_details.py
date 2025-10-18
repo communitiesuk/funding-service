@@ -4,7 +4,7 @@ from flask import redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 from wtforms import Field
 
-from app.common.auth.decorators import has_grant_role, is_platform_admin
+from app.common.auth.decorators import has_deliver_grant_role, is_platform_admin
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.types import RoleEnum
@@ -14,7 +14,7 @@ from app.extensions import auto_commit_after_request
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details", methods=["GET"])
-@has_grant_role(RoleEnum.MEMBER)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 def grant_details(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
     return render_template("deliver_grant_funding/grant_details.html", grant=grant, roles_enum=RoleEnum)
@@ -41,7 +41,7 @@ def grant_change_ggis(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-name", methods=["GET", "POST"])
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
@@ -65,7 +65,7 @@ def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-description", methods=["GET", "POST"])
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
@@ -85,7 +85,7 @@ def grant_change_description(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/details/change-contact", methods=["GET", "POST"])
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)

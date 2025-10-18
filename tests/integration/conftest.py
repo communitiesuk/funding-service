@@ -295,13 +295,16 @@ def authenticated_grant_member_client(
 
     user = factories.user.create(email=email)
     grant = factories.grant.create()
-    factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
+    factories.user_role.create(
+        user_id=user.id, user=user, role=RoleEnum.MEMBER, organisation=grant.organisation, grant=grant
+    )
 
     login_user(user)
     with anonymous_client.session_transaction() as session:
         session["auth"] = AuthMethodEnum.SSO
     anonymous_client.user = user
     anonymous_client.grant = grant
+    anonymous_client.organisation = grant.organisation
     db_session.commit()
 
     yield anonymous_client
@@ -320,13 +323,16 @@ def authenticated_grant_admin_client(
 
     user = factories.user.create(email=email)
     grant = factories.grant.create()
-    factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, grant=grant)
+    factories.user_role.create(
+        user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation=grant.organisation, grant=grant
+    )
 
     login_user(user)
     with anonymous_client.session_transaction() as session:
         session["auth"] = AuthMethodEnum.SSO
     anonymous_client.user = user
     anonymous_client.grant = grant
+    anonymous_client.organisation = grant.organisation
     db_session.commit()
 
     yield anonymous_client

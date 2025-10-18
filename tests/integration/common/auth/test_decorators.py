@@ -10,7 +10,7 @@ from werkzeug.exceptions import Forbidden, InternalServerError
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
     deliver_grant_funding_login_required,
-    has_grant_role,
+    has_deliver_grant_role,
     is_mhclg_user,
     is_platform_admin,
     redirect_if_authenticated,
@@ -221,12 +221,12 @@ class TestRedirectIfAuthenticated:
         assert response == "OK"
 
 
-class TestHasGrantRole:
+class TestHasDeliverGrantRole:
     def test_user_no_roles(self, factories):
         user = factories.user.create(email="test.norole@communities.gov.uk")
         grant = factories.grant.create()
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -241,7 +241,7 @@ class TestHasGrantRole:
         user = factories.user.create(email="test.admin@communities.gov.uk")
         factories.user_role.create(user=user, role=RoleEnum.ADMIN)
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -254,7 +254,7 @@ class TestHasGrantRole:
     def test_no_result_on_non_existent_grant(self, factories):
         user = factories.user.create(email="test.member2@communities.gov.uk")
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -269,7 +269,7 @@ class TestHasGrantRole:
         grant = factories.grant.create()
         factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -283,7 +283,7 @@ class TestHasGrantRole:
         grant = factories.grant.create()
         factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
 
-        @has_grant_role(role=RoleEnum.MEMBER)
+        @has_deliver_grant_role(role=RoleEnum.MEMBER)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -298,7 +298,7 @@ class TestHasGrantRole:
         grant = factories.grant.create()
         factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 

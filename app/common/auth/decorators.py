@@ -130,7 +130,7 @@ def is_platform_admin[**P](
     return is_mhclg_user(wrapper)
 
 
-def has_grant_role[**P](
+def has_deliver_grant_role[**P](
     role: RoleEnum,
 ) -> Callable[[Callable[P, ResponseReturnValue]], Callable[P, ResponseReturnValue]]:
     def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
@@ -150,7 +150,7 @@ def has_grant_role[**P](
 
             # raises a 404 if the grant doesn't exist; more appropriate than 403 on non-existent entity
             grant = get_grant(grant_id)
-            if not AuthorisationHelper.has_grant_role(grant_id=grant.id, role=role, user=user):
+            if not AuthorisationHelper.has_deliver_grant_role(grant_id=grant.id, role=role, user=user):
                 return abort(403, description="Access denied")
 
             return func(*args, **kwargs)

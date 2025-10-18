@@ -110,6 +110,9 @@ def upsert_user_role(
     # except in that case the DB won't return any rows. So we use the same behaviour as above to ensure we always get a
     # result back regardless of if its doing an insert or an 'update'.
 
+    if organisation_id is None and grant_id is not None:
+        raise ValueError("If specifying grant_id, must also specify organisation_id")
+
     user_role = db.session.scalars(
         postgresql_upsert(UserRole)
         .values(
@@ -157,12 +160,14 @@ def remove_platform_admin_role_from_user(user: User) -> None:
 
 
 def set_grant_team_role_for_user(user: User, grant: Grant, role: RoleEnum) -> UserRole:
-    grant_team_role = upsert_user_role(user=user, grant_id=grant.id, role=role)
+    """Used for setting (deliver) grant team membership - NOT grant recipient team membership"""
+    grant_team_role = upsert_user_role(user=user, organisation_id=grant.organisation_id, grant_id=grant.id, role=role)
     return grant_team_role
 
 
 @flush_and_rollback_on_exceptions
 def remove_grant_team_role_from_user(user: User, grant_id: uuid.UUID) -> None:
+    """Used for setting (deliver) grant team membership - NOT grant recipient team membership"""
     statement = delete(UserRole).where(
         and_(
             UserRole.user_id == user.id,
@@ -181,6 +186,9 @@ def create_invitation(
     organisation: Organisation | None = None,
     role: RoleEnum | None = None,
 ) -> Invitation:
+    if organisation is None and grant is not None:
+        raise ValueError("If specifying grant, must also specify organisation")
+
     # Expire any existing invitations for the same email, organisation, and grant,
     # filtering on NULL if org/grant not passed
     stmt = update(Invitation).where(
@@ -244,7 +252,7 @@ def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: s
         name=name,
     )
     for invite in invitations:
-        upsert_user_role(user=user, grant_id=invite.grant_id, role=invite.role)
+        upsert_user_role(user=user, organisation_id=invite.organisation_id, grant_id=invite.grant_id, role=invite.role)
         claim_invitation(invitation=invite, user=user)
     return user
 
@@ -271,4 +279,4 @@ def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant)
     if existing_user:
         set_grant_team_role_for_user(user=existing_user, grant=grant, role=RoleEnum.MEMBER)
     else:
-        create_invitation(email=email_address, organisation=None, grant=grant, role=RoleEnum.MEMBER)
+        create_invitation(email=email_address, organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER)
