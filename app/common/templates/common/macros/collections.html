@@ -273,3 +273,77 @@
     </div>
   {% endif %}
 {% endmacro %}
+
+{% macro collection_add_another_summary(runner) %}
+  {# assume the component (isn't) the container and we'll be referring to the container here? #}
+  {# we don't need to get everything right for the non-group scenario here #}
+  {% set add_another_container = runner.component.add_another_container %}
+  {% set is_group = add_another_container.is_group %}
+
+  <h1 class="govuk-heading-l">{{ add_another_container.name }}</h1>
+
+  {% set rows = [] %}
+  {% set number_of_entries = runner.submission.get_count_for_add_another(add_another_container) %}
+
+  {# todo: we can decide if this should be a macro or not, it should probably use the base table component #}
+  {% if number_of_entries %}
+    <h2 class="govuk-heading-s">You have added {{ number_of_entries }} {{ add_another_container.name | lower }}</h2>
+    <dl class="govuk-summary-list">
+      {# for each entry, get the summary line and render it #}
+      {% for i in range(number_of_entries) %}
+        {% set summary = runner.submission.get_summary_line_for_add_another(add_another_container, add_another_index=i) %}
+
+        <div class="govuk-summary-list__row">
+          <dt class="govuk-summary-list__value">{{ summary }}</dt>
+          <dd class="govuk-summary-list__actions govuk-!-width-one-third  ">
+            <ul class="govuk-summary-list__actions-list">
+              <li class="govuk-summary-list__actions-list-item">
+                <a class="govuk-link govuk-link--no-visited-state" href="#">Change</a>
+              </li>
+              <li class="govuk-summary-list__actions-list-item">
+                <a class="govuk-link govuk-link--no-visited-state" href="#">Remove</a>
+              </li>
+            </ul>
+          </dd>
+        </div>
+      {% endfor %}
+    </dl>
+
+    <form method="post" novalidate>
+      {{ runner.add_another_summary_form.csrf_token }}
+
+      {{
+        runner.add_another_summary_form.add_another(params={
+          "fieldset": {
+            "legend": {
+              "text": "Do you need to add another answer?",
+              "isPageHeading": false,
+              "classes": "govuk-fieldset__legend--m"
+            }
+          }
+        })
+      }}
+
+      {{ runner.add_another_summary_form.submit }}
+    </form>
+  {% else %}
+    <p class="govuk-body">You have not added any {{ add_another_container.name | lower }}.</p>
+
+    <form method="post" novalidate>
+      {{ runner.add_another_summary_form.csrf_token }}
+      {{
+        runner.add_another_summary_form.add_another(params={
+          "fieldset": {},
+          "classes": "govuk-!-display-none",
+          "value": "yes"
+        })
+      }}
+      {{
+        runner.add_another_summary_form.submit(params={
+          "text": "Add the first " ~ (add_another_container.name | lower),
+          "classes": "govuk-!-margin-top-3"
+        })
+      }}
+    </form>
+  {% endif %}
+{% endmacro %}

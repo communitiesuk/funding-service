@@ -4,7 +4,7 @@ from uuid import UUID
 
 from flask import abort, url_for
 
-from app.common.collections.forms import CheckYourAnswersForm, build_question_form
+from app.common.collections.forms import AddAnotherSummaryForm, CheckYourAnswersForm, build_question_form
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, SubmissionStatusEnum, TRunnerUrlMap
 from app.common.expressions import interpolate
@@ -35,6 +35,7 @@ class FormRunner:
         question: Optional["Question"] = None,
         form: Optional["Form"] = None,
         source: Optional["FormRunnerState"] = None,
+        add_another_index: Optional[int] = None,
     ):
         if question and form:
             raise ValueError("Expected only one of question or form")
@@ -42,6 +43,7 @@ class FormRunner:
         self.submission = submission
         self.form = form
         self.source = source
+        self.add_another_index = add_another_index
 
         # if we've navigated to a question that belongs to a group that show on the same page
         # pass the whole group into the form runner
@@ -60,12 +62,26 @@ class FormRunner:
 
         if self.component:
             self.form = self.component.form
-            _QuestionForm = build_question_form(
-                self.questions,
-                evaluation_context=self.submission.cached_evaluation_context,
-                interpolation_context=self.submission.cached_interpolation_context,
-            )
-            self._question_form = _QuestionForm(data=self.submission.cached_form_data)
+
+            # todo: streamline this but if we're in an add another context we only need the
+            #       question form if we've got a valid index to be at, otherwise we'll be showing
+            #       the add another summary
+            # todo: this state being the case probably wants to be stored once then used, not
+            #       sure its worth calling out as its own thing that needs a URL map entry
+            if self.component.add_another_container and self.add_another_index is None:
+                _AddAnotherSummaryForm = AddAnotherSummaryForm(
+                    add_another_required=bool(
+                        self.submission.get_count_for_add_another(self.component.add_another_container)
+                    )
+                )
+                self._add_another_summary_form = _AddAnotherSummaryForm
+            else:
+                _QuestionForm = build_question_form(
+                    self.questions,
+                    evaluation_context=self.submission.cached_evaluation_context,
+                    interpolation_context=self.submission.cached_interpolation_context,
+                )
+                self._question_form = _QuestionForm(data=self.submission.cached_form_data)
 
         if self.form:
             all_questions_answered = self.submission.cached_get_all_questions_are_answered_for_form(
@@ -128,6 +144,16 @@ class FormRunner:
     @property
     def tasklist_form(self) -> "GenericSubmitForm":
         return self._tasklist_form
+
+    @property
+    def add_another_summary_form(self) -> "AddAnotherSummaryForm":
+        if (
+            not self.component
+            or not self.component.add_another_container
+            or not hasattr(self, "_add_another_summary_form")
+        ):
+            raise RuntimeError("Add another summary context not set")
+        return self._add_another_summary_form
 
     def save_question_answer(self) -> None:
         if not self.component:
