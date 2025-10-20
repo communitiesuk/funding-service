@@ -85,7 +85,7 @@ jobs:
       - name: Restore cached builder
         uses: actions/cache@v4
         with:
-          path: builder.tar
+          path: builder.tar.zst
           key: builder-${{ env.BUILDER_IMAGE }}-${{ steps.builder-digest.outputs.digest }}
 
 
@@ -93,17 +93,27 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="${BUILDER_IMAGE}"
+          OUT="builder.tar"
           MIRRORS=("mirror.gcr.io" "registry-1.docker.io")
 
           pulled=false
           for mirror in "${MIRRORS[@]}"; do
-            echo "Trying mirror: $mirror"
+            echo "Trying mirror: $mirror/$IMAGE"
             if docker pull "${mirror}/${IMAGE}" 2>/dev/null; then
               docker tag "${mirror}/${IMAGE}" "${IMAGE}"
               pulled=true
               break
             fi
           done
+
+          if [ "$pulled" = false ]; then
+            echo "Falling back to original: $IMAGE"
+            docker pull "${IMAGE}"
+          fi
+
+          echo "Saving builder image to cache: ${OUT}"
+          docker save "${IMAGE}" -o "${OUT}" | zstd -T0 -o builder.tar.zst
+
 
       - name: Build and publish to ECR
         id: build_and_publish
@@ -119,7 +129,7 @@ jobs:
           ECR_CACHE_BUILD_IMAGE_URI="$ECR_BASE_URI-cache:latest"
           echo "::add-mask::$ECR_IMAGE_URI"
 
-          # pack config registry-mirrors add index.docker.io --mirror "mirror.gcr.io" # Uncomment this to use a Docker Registry mirror
+          pack config registry-mirrors add index.docker.io --mirror "mirror.gcr.io"
 
           pack build "$ECR_IMAGE_URI" --builder ${{ env.BUILDER_IMAGE }} \
           --cache-image "$ECR_CACHE_BUILD_IMAGE_URI" \
