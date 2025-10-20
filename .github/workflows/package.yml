@@ -53,23 +53,6 @@ jobs:
             echo "image_exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Pull builder from mirror or original
-        run: |
-          set -euo pipefail
-          IMAGE="${BUILDER_IMAGE}"
-          MIRRORS=("mirror.gcr.io" "registry-1.docker.io")
-
-          pulled=false
-          for mirror in "${MIRRORS[@]}"; do
-            echo "Trying mirror: $mirror"
-            if docker pull "${mirror}/${IMAGE}" 2>/dev/null; then
-              docker tag "${mirror}/${IMAGE}" "${IMAGE}"
-              pulled=true
-              break
-            fi
-          done
-
-
       - name: Get builder digest
         id: builder-digest
         run: |
@@ -105,18 +88,22 @@ jobs:
           path: builder.tar
           key: builder-${{ env.BUILDER_IMAGE }}-${{ steps.builder-digest.outputs.digest }}
 
-      - name: Load or pull builder
-        shell: bash
+
+      - name: Load or pull builder from mirror or original
         run: |
-          if [[ -f builder.tar ]]; then
-            echo "Loading builder from cache..."
-            docker load -i builder.tar
-          else
-            echo "Pulling builder ${BUILDER_IMAGE}..."
-            docker pull "${BUILDER_IMAGE}"
-            echo "Saving builder to cache..."
-            docker save "${BUILDER_IMAGE}" -o builder.tar
-          fi
+          set -euo pipefail
+          IMAGE="${BUILDER_IMAGE}"
+          MIRRORS=("mirror.gcr.io" "registry-1.docker.io")
+
+          pulled=false
+          for mirror in "${MIRRORS[@]}"; do
+            echo "Trying mirror: $mirror"
+            if docker pull "${mirror}/${IMAGE}" 2>/dev/null; then
+              docker tag "${mirror}/${IMAGE}" "${IMAGE}"
+              pulled=true
+              break
+            fi
+          done
 
       - name: Build and publish to ECR
         id: build_and_publish
