@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
+    AddAnotherDependencyException,
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     IncompatibleDataTypeException,
@@ -2111,6 +2112,35 @@ class TestExpressions:
         with pytest.raises(DependencyOrderException) as e:
             add_component_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
         assert str(e.value) == "Cannot add managed condition that depends on a later question"
+
+    def test_add_question_condition_blocks_on_add_another_question(self, db_session, factories):
+        user = factories.user.create()
+        q1 = factories.question.create(add_another=True)
+        q2 = factories.question.create(form=q1.form)
+
+        with pytest.raises(AddAnotherDependencyException) as e:
+            add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
+        assert str(e.value) == "Cannot add managed condition that depends on an add another question"
+
+    def test_add_question_condition_blocks_on_add_another_question_outside_group(self, db_session, factories):
+        user = factories.user.create()
+        q1 = factories.question.create(add_another=True)
+        g1 = factories.group.create(form=q1.form, add_another=True)
+        q2 = factories.question.create(form=q1.form, parent=g1)
+
+        with pytest.raises(AddAnotherDependencyException) as e:
+            add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
+        assert str(e.value) == "Cannot add managed condition that depends on an add another question"
+
+    def test_add_question_condition_succeeds_add_another_question_inside_same_group(self, db_session, factories):
+        user = factories.user.create()
+        q1 = factories.question.create(add_another=True)
+        g1 = factories.group.create(form=q1.form, add_another=True)
+        q2 = factories.question.create(form=q1.form, parent=g1)
+        q3 = factories.question.create(form=q1.form, parent=g1)
+
+        add_component_condition(q3, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+        assert len(q3.expressions) == 1
 
     def test_add_question_validation(self, db_session, factories):
         question = factories.question.create()

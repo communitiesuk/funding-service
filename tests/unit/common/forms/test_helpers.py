@@ -5,7 +5,11 @@ from app.common.data.interfaces.collections import (
     raise_if_add_another_not_valid_here,
 )
 from app.common.data.types import QuestionPresentationOptions
-from app.common.forms.helpers import get_referenceable_questions, questions_in_same_page_group
+from app.common.forms.helpers import (
+    get_referenceable_questions,
+    questions_in_same_add_another_container,
+    questions_in_same_page_group,
+)
 
 
 class TestQuestionsInSamePageGroup:
@@ -42,6 +46,54 @@ class TestQuestionsInSamePageGroup:
         assert questions_in_same_page_group(q1, q2) is True
 
 
+class TestQuestionsInSameAddAnotherGroup:
+    def test_components_in_same_add_another_group(self, factories):
+        form = factories.form.build()
+        group = factories.group.build(form=form, add_another=True)
+        q1 = factories.question.build(form=form, parent=group)
+        q2 = factories.question.build(form=form, parent=group)
+        assert questions_in_same_add_another_container(q1, q2) is True
+
+    def test_components_not_in_add_another_group(self, factories):
+        form = factories.form.build()
+        group = factories.group.build(form=form, add_another=False)
+        q1 = factories.question.build(form=form, parent=group)
+        q2 = factories.question.build(form=form, parent=group)
+        q3 = factories.question.build(form=form, parent=None)
+        q4 = factories.question.build(form=form, parent=None)
+
+        assert questions_in_same_add_another_container(q1, q2) is False
+        assert questions_in_same_add_another_container(q2, q3) is False
+        assert questions_in_same_add_another_container(q3, q4) is False
+
+    def test_components_not_in_same_add_another_group(self, factories):
+        form = factories.form.build()
+        g1 = factories.group.build(form=form, add_another=True)
+        g2 = factories.group.build(form=form, add_another=True)
+        g3 = factories.group.build(form=form, add_another=False)
+        q1 = factories.question.build(form=form, parent=g1)
+        q2 = factories.question.build(form=form, parent=g2)
+        q3 = factories.question.build(form=form, parent=g3)
+        q4 = factories.question.build(form=form, parent=None)
+
+        assert questions_in_same_add_another_container(q1, q2) is False
+        assert questions_in_same_add_another_container(q1, q3) is False
+        assert questions_in_same_add_another_container(q2, q4) is False
+        assert questions_in_same_add_another_container(q3, q4) is False
+
+    def test_components_not_in_same_add_another_group_add_another_question(self, factories):
+        form = factories.form.build()
+        g1 = factories.group.build(form=form, add_another=False)
+        g2 = factories.group.build(form=form, add_another=True)
+        q1 = factories.question.build(form=form, parent=g1, add_another=True)
+        q2 = factories.question.build(form=form, parent=g2)
+        q3 = factories.question.build(form=form, parent=None)
+
+        assert questions_in_same_add_another_container(q1, q2) is False
+        assert questions_in_same_add_another_container(q1, q3) is False
+        assert questions_in_same_add_another_container(q2, q3) is False
+
+
 class TestGetReferenceableQuestions:
     def test_no_current_component_returns_all_questions(self, factories):
         form = factories.form.build()
@@ -75,6 +127,37 @@ class TestGetReferenceableQuestions:
 
         referenceable_questions = get_referenceable_questions(form, current_component=q3)
 
+        assert referenceable_questions == [q1]
+
+    def test_filters_out_add_another_question(self, factories):
+        form = factories.form.build()
+        factories.question.build(form=form, add_another=True)
+        q2, q3 = factories.question.build_batch(2, form=form)
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q3)
+        assert referenceable_questions == [q2]
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q2)
+        assert referenceable_questions == []
+
+    def test_filters_out_add_another_group(self, factories):
+        form = factories.form.build()
+        g1 = factories.group.build(form=form, add_another=True)
+        factories.question.build_batch(3, form=form, parent=g1)
+        q4 = factories.question.build(form=form, parent=None)
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q4)
+        assert referenceable_questions == []
+
+    def test_filters_out_add_another_in_same_group_that_comes_later(self, factories):
+        form = factories.form.build()
+        g1 = factories.group.build(form=form, add_another=True)
+        q1, q2, q3 = factories.question.build_batch(3, form=form, parent=g1)
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q3)
+        assert referenceable_questions == [q1, q2]
+
+        referenceable_questions = get_referenceable_questions(form, current_component=q2)
         assert referenceable_questions == [q1]
 
 
