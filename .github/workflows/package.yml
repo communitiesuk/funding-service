@@ -53,6 +53,23 @@ jobs:
             echo "image_exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Pull builder from mirror or original
+        run: |
+          set -euo pipefail
+          IMAGE="${BUILDER_IMAGE}"
+          MIRRORS=("mirror.gcr.io" "registry-1.docker.io")
+
+          pulled=false
+          for mirror in "${MIRRORS[@]}"; do
+            echo "Trying mirror: $mirror"
+            if docker pull "${mirror}/${IMAGE}" 2>/dev/null; then
+              docker tag "${mirror}/${IMAGE}" "${IMAGE}"
+              pulled=true
+              break
+            fi
+          done
+
+
       - name: Get builder digest
         id: builder-digest
         run: |
