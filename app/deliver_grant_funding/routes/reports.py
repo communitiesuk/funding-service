@@ -917,9 +917,6 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                     add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
 
             case AddContextToExpressionsModel():
-                add_context_data.value_dependent_question_id = referenced_question.id
-                add_context_data.expression_statement = referenced_question.safe_qid
-
                 if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
                     target_field = add_context_data.expression_form_data["add_context"]
                     add_context_data.expression_form_data[target_field] = f"(({referenced_question.safe_qid}))"
