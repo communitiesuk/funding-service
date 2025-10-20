@@ -21,10 +21,18 @@ const store = {
     components: new Map(), // Map container -> component data
 };
 
-const createEditorStructure = (originalTextarea, container) => {
+const createEditorStructure = (originalTextarea, container, wrapperClasses) => {
     // Create main wrapper
     const wrapper = document.createElement("div");
     wrapper.classList.add("app-context-aware-editor--wrapper");
+
+    // Add any additional wrapper classes if specified in the template
+    if (wrapperClasses) {
+        const classArray = wrapperClasses
+            .split(" ")
+            .filter((cls) => cls.trim());
+        classArray.forEach((cls) => wrapper.classList.add(cls));
+    }
 
     // Create toolbar container (initially hidden)
     const toolbarContainer = document.createElement("div");
@@ -96,6 +104,7 @@ const initializeContainer = (container) => {
     const i18nData = container.getAttribute("data-i18n") || "{}";
     const referenceMappingsData =
         container.querySelector("[data-context]").textContent || "";
+    const wrapperClasses = container.getAttribute("data-wrapper-classes") || "";
 
     let i18n = {};
     try {
@@ -111,7 +120,7 @@ const initializeContainer = (container) => {
 
     // Create editor structure
     const { wrapper, toolbarContainer, editorContainer, visibleTextarea } =
-        createEditorStructure(originalTextarea, container);
+        createEditorStructure(originalTextarea, container, wrapperClasses);
 
     let toolbar = null;
     let highlighting = null;
