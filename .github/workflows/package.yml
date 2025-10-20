@@ -16,6 +16,8 @@ on:
         required: true
       CI_AWS_ACCOUNT:
         required: true
+env:
+  BUILDER_IMAGE: heroku/builder:24
 
 jobs:
   cnb_build:
@@ -51,6 +53,25 @@ jobs:
             echo "image_exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Restore cached builder
+        uses: actions/cache@v4
+        with:
+          path: builder.tar
+          key: builder-${{ env.BUILDER_IMAGE }}
+
+      - name: Load or pull builder
+        shell: bash
+        run: |
+          if [[ -f builder.tar ]]; then
+            echo "Loading builder from cache..."
+            docker load -i builder.tar
+          else
+            echo "Pulling builder ${BUILDER_IMAGE}..."
+            docker pull "${BUILDER_IMAGE}"
+            echo "Saving builder to cache..."
+            docker save "${BUILDER_IMAGE}" -o builder.tar
+          fi
+
       - name: Build and publish to ECR
         id: build_and_publish
         if: steps.check_image_exists_in_ecr.outputs.image_exists == 'false'
@@ -67,8 +88,9 @@ jobs:
 
           # pack config registry-mirrors add index.docker.io --mirror "mirror.gcr.io" # Uncomment this to use a Docker Registry mirror
 
-          pack build "$ECR_IMAGE_URI" --builder heroku/builder:24 \
+          pack build "$ECR_IMAGE_URI" --builder ${{ env.BUILDER_IMAGE }} \
           --cache-image "$ECR_CACHE_BUILD_IMAGE_URI" \
+          --pull-policy if-not-present \
           --publish
 
 
