@@ -53,11 +53,18 @@ jobs:
             echo "image_exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Get builder digest
+        id: builder-digest
+        run: |
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${BUILDER_IMAGE}" || echo "")
+          echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
+
+
       - name: Restore cached builder
         uses: actions/cache@v4
         with:
           path: builder.tar
-          key: builder-${{ env.BUILDER_IMAGE }}
+          key: builder-${{ env.BUILDER_IMAGE }}-${{ steps.builder-digest.outputs.digest }}
 
       - name: Load or pull builder
         shell: bash
