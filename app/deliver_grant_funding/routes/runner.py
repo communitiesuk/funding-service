@@ -59,9 +59,21 @@ def ask_a_question(grant_id: UUID, submission_id: UUID, question_id: UUID) -> Re
     if not runner.validate_can_show_question_page():
         return redirect(runner.next_url)
 
-    if runner.question_form and runner.question_form.validate_on_submit():
-        runner.save_question_answer()
-        return redirect(runner.next_url)
+    # todo: another place we calculate this
+    #       all of this logic might be encapsulated by the runner calling validate on the right thing?
+    #       trying to avoid it feeling too magic
+    if (runner.component and runner.component.add_another_container) and runner.add_another_index is None:
+        # todo: the HTML could set "yes" as the answer and make it invisible for the initial button being pressed
+        if runner.add_another_summary_form and runner.add_another_summary_form.validate_on_submit():
+            # todo: wants integration coverage
+            # todo: most of the logic here should happen in the runner lib, we probably just want to go to the
+            #       next url
+            # return redirect(runner.next_url)
+            pass
+    else:
+        if runner.question_form and runner.question_form.validate_on_submit():
+            runner.save_question_answer()
+            return redirect(runner.next_url)
 
     is_first_question_in_task_preview = False
     if session.get("test_submission_form_id", None):

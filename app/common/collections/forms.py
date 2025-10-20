@@ -288,3 +288,18 @@ class CheckYourAnswersForm(FlaskForm):
             self.section_completed.validators = [DataRequired("Select if you have completed this task")]
         else:
             self.section_completed.validators = [Optional()]
+
+
+class AddAnotherSummaryForm(FlaskForm):
+    def __init__(self, *args: Any, add_another_required: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if add_another_required:
+            self.add_another.validators = [DataRequired("Select yes if you need to add another answer")]
+
+    add_another = RadioField(
+        "Do you need to add another answer?",
+        choices=[("yes", "Yes"), ("no", "No")],
+        widget=GovRadioInput(),
+        validators=[Optional()],
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
