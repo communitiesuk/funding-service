@@ -56,9 +56,31 @@ jobs:
       - name: Get builder digest
         id: builder-digest
         run: |
-          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${BUILDER_IMAGE}" || echo "")
-          echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
+         set -euo pipefail
 
+         REF="${BUILDER_IMAGE}"
+         OS="linux"
+         # Map uname to Docker arch labels
+         UNAME_ARCH="$(uname -m)"
+         case "$UNAME_ARCH" in
+           x86_64) ARCH="amd64" ;;
+           aarch64|arm64) ARCH="arm64" ;;
+           *) echo "Unknown arch: $UNAME_ARCH"; exit 1 ;;
+         esac
+
+         # Query the remote manifest list and select the per-platform digest
+         DIGEST=$(
+           docker manifest inspect -v "$REF" \
+             | jq -r --arg os "$OS" --arg arch "$ARCH" \
+                 '.[] | select(.Descriptor.platform.os==$os and .Descriptor.platform.architecture==$arch) | .Descriptor.digest' \
+             | head -n1
+         )
+
+         if [[ -z "${DIGEST}" || "${DIGEST}" == "null" ]]; then
+           echo "Failed to resolve digest for $REF ($OS/$ARCH)."; exit 1
+         fi
+
+         echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached builder
         uses: actions/cache@v4
