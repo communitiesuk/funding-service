@@ -38,6 +38,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
 from app.common.expressions.managed import BaseDataSourceManagedExpression
+from app.common.forms.helpers import questions_in_same_add_another_container
 from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
@@ -731,6 +732,24 @@ def raise_if_data_source_item_reference_dependency(
     return None
 
 
+class AddAnotherDependencyException(Exception, FlashableException):
+    def __init__(self, message: str, component: Component, referenced_question: Component):
+        super().__init__(message)
+        self.message = message
+        self.component = component
+        self.referenced_question = referenced_question
+
+    def as_flash_context(self) -> dict[str, str | bool]:
+        return {
+            "message": self.message,
+            "grant_id": str(self.component.form.collection.grant_id),  # Required for URL routing
+            "component_id": str(self.component.id),
+            "component_text": self.component.text,
+            "referenced_question_id": str(self.referenced_question.id),
+            "referenced_question_text": self.referenced_question.text,
+        }
+
+
 class AddAnotherNotValidException(Exception, FlashableException):
     def __init__(self, message: str, component: Component, add_another_container: Component):
         super().__init__(message)
@@ -1041,6 +1060,15 @@ def add_component_condition(component: Component, user: User, managed_expression
     if not is_component_dependency_order_valid(component, managed_expression.referenced_question):
         raise DependencyOrderException(
             "Cannot add managed condition that depends on a later question",
+            component,
+            managed_expression.referenced_question,
+        )
+
+    if managed_expression.referenced_question.add_another_container and not questions_in_same_add_another_container(
+        component, managed_expression.referenced_question
+    ):
+        raise AddAnotherDependencyException(
+            "Cannot add managed condition that depends on an add another question",
             component,
             managed_expression.referenced_question,
         )
