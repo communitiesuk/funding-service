@@ -248,6 +248,33 @@ class TestSubmissionHelper:
             assert question
             assert question.id == question_three.id
 
+        def test_next_question_with_add_another_index(self, factories):
+            form = factories.form.build()
+            q0 = factories.question.build(form=form, order=0)
+            group = factories.group.build(form=form, add_another=True, order=1)
+            q1 = factories.question.build(parent=group, data_type=QuestionDataType.INTEGER, order=0)
+            q2 = factories.question.build(parent=group, order=1)
+            q3 = factories.question.build(parent=group, order=2)
+            q4 = factories.question.build(form=form, order=2)
+
+            submission = factories.submission.build(collection=form.collection)
+            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
+
+            submission.data = {str(group.id): [{str(q1.id): {"value": 55}}, {str(q1.id): {"value": 20}}]}
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.get_next_question(q0.id).id == q1.id
+            assert helper.get_next_question(q3.id).id == q4.id
+
+            # without any information to go with, the default behaviour is for the condition to fail closed
+            # which will mean the question is skipped
+            assert helper.get_next_question(q1.id).id == q3.id
+
+            # when the context is provided, the question is shown or hidden appropriately
+            assert helper.get_next_question(q1.id, add_another_index=0).id == q2.id
+            assert helper.get_next_question(q1.id, add_another_index=1).id == q3.id
+
     class TestGetPreviousQuestion:
         def test_current_question_exists_and_is_not_first_question(self, db_session, factories):
             form = factories.form.build()
@@ -302,6 +329,30 @@ class TestSubmissionHelper:
             question = helper.get_previous_question(question_three.id)
             assert question
             assert question.id == question_one.id
+
+        def test_previous_question_with_add_another_index(self, factories):
+            form = factories.form.build()
+            q0 = factories.question.build(form=form, order=0)
+            group = factories.group.build(form=form, add_another=True, order=1)
+            q1 = factories.question.build(parent=group, data_type=QuestionDataType.INTEGER, order=0)
+            q2 = factories.question.build(parent=group, order=1)
+            q3 = factories.question.build(parent=group, order=2)
+            q4 = factories.question.build(form=form, order=2)
+
+            submission = factories.submission.build(collection=form.collection)
+            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
+
+            submission.data = {str(group.id): [{str(q1.id): {"value": 55}}, {str(q1.id): {"value": 20}}]}
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.get_previous_question(q1.id).id == q0.id
+            assert helper.get_previous_question(q4.id).id == q3.id
+
+            assert helper.get_previous_question(q3.id).id == q1.id
+
+            assert helper.get_previous_question(q3.id, add_another_index=0).id == q2.id
+            assert helper.get_previous_question(q3.id, add_another_index=1).id == q1.id
 
     class TestGetAllQuestionsAreAnsweredForForm:
         def test_all_questions_answered(self, factories):
