@@ -33,7 +33,7 @@ dependencies = [
     "num2words==0.5.14",
     "mistune==3.1.4",
     "faker==37.11.0",
-    "xgovuk-flask-admin==0.0.8",
+    "xgovuk-flask-admin==0.1.0",
     "flask-admin==2.0.0rc1",
 ]
 
