@@ -94,8 +94,12 @@ def ask_a_question(submission_id: uuid.UUID, question_id: uuid.UUID) -> Response
     if not runner.validate_can_show_question_page():
         return redirect(runner.next_url)
 
-    if runner.question_form and runner.question_form.validate_on_submit():
-        runner.save_question_answer()
+    if (
+        runner.question_with_add_another_summary_form
+        and runner.question_with_add_another_summary_form.validate_on_submit()
+    ):
+        if not runner.add_another_summary_context:
+            runner.save_question_answer()
         return redirect(runner.next_url)
 
     return render_template(
