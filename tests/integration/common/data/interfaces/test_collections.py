@@ -9,6 +9,7 @@ from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
+    GroupContainsAddAnotherException,
     IncompatibleDataTypeException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
@@ -570,6 +571,14 @@ class TestUpdateGroup:
         )
 
         assert updated_group.presentation_options.add_another_summary_line_question_ids == [q1.id, q2.id]
+
+    def test_update_group_containing_add_another_cant_be_add_another(self, db_session, factories):
+        group = factories.group.create(add_another=False)
+        factories.question.create(form=group.form, parent=group, add_another=True)
+
+        with pytest.raises(GroupContainsAddAnotherException):
+            update_group(group, expression_context=ExpressionContext(), add_another=True)
+        assert group.add_another is False
 
     def test_synced_component_references(self, db_session, factories, mocker):
         form = factories.form.create()

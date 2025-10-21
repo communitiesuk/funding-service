@@ -14,6 +14,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
+    GroupContainsAddAnotherException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
     create_collection,
@@ -417,14 +418,10 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
                     group_id=db_group.id,
                 )
             )
-        except DependencyOrderException:
-            # TODO: can we show the user the problematic questions like we do when rendering flashable exceptions?
-            form.show_questions_on_the_same_page.errors.append(
-                "A question group cannot display on the same page if questions depend on answers within the group"
-            )
-        except NestedGroupDisplayTypeSamePageException:
-            form.show_questions_on_the_same_page.errors.append(
-                "A question group cannot display on the same page if it contains a nested group"
+        except GroupContainsAddAnotherException:
+            form.question_group_is_add_another.errors.append(  # type:ignore[attr-defined]
+                "A question group cannot be answered more than once if it already contains questions that can "
+                "be answered more than once"
             )
 
     return render_template(
