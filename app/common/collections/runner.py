@@ -59,16 +59,16 @@ class FormRunner:
         self._tasklist_form = GenericSubmitForm()
         self._question_form: Optional[DynamicQuestionForm] = None
         self._check_your_answers_form: Optional[CheckYourAnswersForm] = None
+        self._add_another_summary_form: Optional[AddAnotherSummaryForm] = None
+
+        self.add_another_summary_context = bool(
+            (self.component and self.component.add_another_container) and self.add_another_index is None
+        )
 
         if self.component:
             self.form = self.component.form
 
-            # todo: streamline this but if we're in an add another context we only need the
-            #       question form if we've got a valid index to be at, otherwise we'll be showing
-            #       the add another summary
-            # todo: this state being the case probably wants to be stored once then used, not
-            #       sure its worth calling out as its own thing that needs a URL map entry
-            if self.component.add_another_container and self.add_another_index is None:
+            if self.component and self.component.add_another_container and self.add_another_summary_context:
                 _AddAnotherSummaryForm = AddAnotherSummaryForm(
                     add_another_required=bool(
                         self.submission.get_count_for_add_another(self.component.add_another_container)
@@ -147,13 +147,13 @@ class FormRunner:
 
     @property
     def add_another_summary_form(self) -> "AddAnotherSummaryForm":
-        if (
-            not self.component
-            or not self.component.add_another_container
-            or not hasattr(self, "_add_another_summary_form")
-        ):
+        if not self.component or not self._add_another_summary_form:
             raise RuntimeError("Add another summary context not set")
         return self._add_another_summary_form
+
+    @property
+    def question_with_add_another_summary_form(self) -> "DynamicQuestionForm | AddAnotherSummaryForm":
+        return self.add_another_summary_form if self.add_another_summary_context else self.question_form
 
     def save_question_answer(self) -> None:
         if not self.component:
