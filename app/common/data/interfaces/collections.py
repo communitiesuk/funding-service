@@ -599,6 +599,32 @@ class NestedGroupException(Exception, FlashableException):
         return flash_contexts
 
 
+class GroupContainsAddAnotherException(Exception, FlashableException):
+    def __init__(
+        self,
+        message: str,
+        group: Group,
+    ):
+        super().__init__(message)
+        self.message = message
+        self.group = group
+
+    def as_flash_context(self) -> dict[str, str | bool]:
+        contexts = self.as_flash_contexts()
+        return contexts[0] if contexts else {}
+
+    def as_flash_contexts(self) -> list[dict[str, str | bool]]:
+        flash_contexts = []
+        flash_context: dict[str, str | bool] = {
+            "message": self.message,
+            "group_name": self.group.name,
+            "group_id": str(self.group.id),
+            "grant_id": str(self.group.form.collection.grant_id),
+        }
+        flash_contexts.append(flash_context)
+        return flash_contexts
+
+
 class NestedGroupDisplayTypeSamePageException(Exception, FlashableException):
     def __init__(
         self,
@@ -841,6 +867,13 @@ def update_group(
         group.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
 
     if add_another is not NOT_PROVIDED:
+        if group.add_another is not True and add_another is True:
+            if group.contains_add_another_components:
+                raise GroupContainsAddAnotherException(
+                    group=group,
+                    message="You cannot set a group to be add another if it already contains add another components",
+                )
+
         group.add_another = add_another
 
     _validate_and_sync_component_references(group, expression_context)

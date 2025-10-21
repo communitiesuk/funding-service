@@ -486,6 +486,13 @@ class Group(Component):
         based on the maximum number of levels of nested groups"""
         return bool(self.nested_group_levels < current_app.config["MAX_NESTED_GROUP_LEVELS"])
 
+    @cached_property
+    def contains_add_another_components(self) -> bool:
+        for component in self.cached_all_components:
+            if component.add_another:
+                return True
+        return False
+
 
 class SubmissionEvent(BaseModel):
     __tablename__ = "submission_event"
