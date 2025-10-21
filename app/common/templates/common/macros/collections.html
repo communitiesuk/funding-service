@@ -304,13 +304,19 @@
             </dt>
           {% else %}
             <dt class="govuk-summary-list__value">{{ summary }}</dt>
-            <dd class="govuk-summary-list__actions govuk-!-width-one-third  ">
+            <dd class="govuk-summary-list__actions govuk-!-width-one-third">
               <ul class="govuk-summary-list__actions-list">
                 <li class="govuk-summary-list__actions-list-item">
-                  <a class="govuk-link govuk-link--no-visited-state" href="#">Change</a>
+                  <a class="govuk-link govuk-link--no-visited-state" href="#">
+                    Change
+                    <span class="govuk-visually-hidden"> {{ summary if summary else to_ordinal(i + 1) ~ " " ~ (add_another_container.name | lower) }}</span>
+                  </a>
                 </li>
                 <li class="govuk-summary-list__actions-list-item">
-                  <a class="govuk-link govuk-link--no-visited-state" href="#">Remove</a>
+                  <a class="govuk-link govuk-link--no-visited-state" href="#">
+                    Remove
+                    <span class="govuk-visually-hidden"> {{ summary if summary else to_ordinal(i + 1) ~ " " ~ (add_another_container.name | lower) }}</span>
+                  </a>
                 </li>
               </ul>
             </dd>
