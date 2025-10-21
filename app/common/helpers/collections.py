@@ -1,12 +1,11 @@
 import csv
 import json
 import uuid
-from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Union, cast
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -62,10 +61,14 @@ if TYPE_CHECKING:
     )
 
 
-@dataclass
-class FormQuestionsAnswered:
+class FormQuestionsAnswered(NamedTuple):
     all_answered: bool
     some_answered: bool
+
+
+class AddAnotherAnswerSummary(NamedTuple):
+    summary: str
+    is_answered: bool
 
 
 class SubmissionHelper:
@@ -461,9 +464,11 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
 
-    def get_summary_line_for_add_another(self, component: "Component", *, add_another_index: int) -> str:
+    def get_answer_summary_for_add_another(
+        self, component: "Component", *, add_another_index: int
+    ) -> AddAnotherAnswerSummary:
         if not component.add_another_container:
-            raise ValueError("summary lines can only be generated for components in an add another container")
+            raise ValueError("answer summaries can only be generated for components in an add another container")
 
         questions = []
         if component.add_another_container.is_group:
@@ -483,7 +488,22 @@ class SubmissionHelper:
             if answer:
                 answers.append(answer.get_value_for_text_export())
 
-        return ", ".join(answers)
+        # as this should always only check visible questions this is done verbosely separate
+        answer_status = []
+        context = self.cached_evaluation_context.with_add_another_context(
+            submission_helper=self, component=component, add_another_index=add_another_index
+        )
+        if component.add_another_container.is_group:
+            for question in self.cached_get_ordered_visible_questions(
+                component.add_another_container, override_context=context
+            ):
+                answer = self.cached_get_answer_for_question(question.id, add_another_index=add_another_index)
+                answer_status.append(answer is not None)
+        else:
+            answer = self.cached_get_answer_for_question(component.id, add_another_index=add_another_index)
+            answer_status.append(answer is not None)
+
+        return AddAnotherAnswerSummary(summary=", ".join(answers), is_answered=all(answer_status))
 
 
 class CollectionHelper:
