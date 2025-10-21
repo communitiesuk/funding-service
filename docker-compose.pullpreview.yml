@@ -40,7 +40,7 @@ services:
     tty: true
     command: >
       bash -c "
-        flask db upgrade && \
+        SEED_SYSTEM_DATA=false flask db upgrade && \
         flask developers seed-grants && \
         gunicorn wsgi:app
       "
