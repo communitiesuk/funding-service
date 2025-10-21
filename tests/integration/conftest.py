@@ -388,12 +388,10 @@ def authenticated_org_member_client(
     user = factories.user.create(email="otheradmin@communities.gov.uk")
     organisation = factories.organisation.create(name="Other Org", can_manage_grants=False)
     factories.user_role.create(
-        user_id=user.id,
         user=user,
         role=RoleEnum.ADMIN,
-        organisation_id=organisation.id,
         organisation=organisation,
-        grant_id=None,
+        grant=None,
     )
 
     login_user(user)

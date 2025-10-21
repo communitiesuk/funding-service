@@ -23,7 +23,6 @@ all_auth_annotations = [
 routes_with_expected_platform_admin_only_access = [
     "developers.access.grants_list",
     "developers.deliver.grant_developers",
-    "deliver_grant_funding.add_user_to_grant",
     "deliver_grant_funding.grant_change_ggis",
 ]
 routes_with_expected_deliver_org_admin_only_access = [
@@ -36,6 +35,7 @@ routes_with_expected_deliver_org_admin_only_access = [
     "deliver_grant_funding.grant_setup_check_your_answers",
 ]
 routes_with_expected_grant_admin_only_access = [
+    "deliver_grant_funding.add_user_to_grant",
     "deliver_grant_funding.grant_change_name",
     "deliver_grant_funding.grant_change_description",
     "deliver_grant_funding.grant_change_contact",

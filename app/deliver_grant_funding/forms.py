@@ -507,9 +507,9 @@ class GrantAddUserForm(FlaskForm):
             if not user_to_add:
                 return True
 
-            if AuthorisationHelper.is_platform_admin(user_to_add):
+            if AuthorisationHelper.is_deliver_grant_admin(grant_id=self.grant.id, user=user_to_add):
                 self.user_email.errors = list(self.user_email.errors) + [
-                    "This user already exists as a Funding Service admin user so you cannot add them"
+                    f'This user already is an admin of "{self.grant.name}" so you cannot add them'
                 ]
                 return False
             if AuthorisationHelper.is_deliver_grant_member(grant_id=self.grant.id, user=user_to_add):

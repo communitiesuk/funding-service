@@ -108,7 +108,7 @@ def test_user_already_platform_admin(app: Flask, factories):
 
     with patch("app.deliver_grant_funding.forms.get_user_by_email", return_value=user):
         assert form.validate() is False
-        assert "already exists as a Funding Service admin user" in form.user_email.errors[0]
+        assert 'This user already is an admin of "Test" so you cannot add them' in form.user_email.errors[0]
 
 
 class TestQuestionForm:
