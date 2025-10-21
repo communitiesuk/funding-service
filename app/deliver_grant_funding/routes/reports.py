@@ -67,6 +67,7 @@ from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddTaskForm,
     ConditionSelectQuestionForm,
+    GroupAddAnotherOptionsForm,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
@@ -378,6 +379,56 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
 
     return render_template(
         "deliver_grant_funding/reports/change_question_group_display_options.html",
+        grant=db_group.form.collection.grant,
+        group=db_group,
+        db_form=db_group.form,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-add-another-options", methods=["GET", "POST"]
+)
+@has_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    db_group = get_group_by_id(group_id)
+
+    form = GroupAddAnotherOptionsForm(question_group_is_add_another="yes" if db_group.add_another else "no")
+    print(form)
+    if form.validate_on_submit():
+        print(f"add another data: {form.question_group_is_add_another.data}")
+        try:
+            # todo: pass the result of checking if questions depend on each other
+            #       into the template so that we can grey out the option before reaching this point
+            #       will need to decide how thats displayed: p text before the radio might work - grey hint
+            #       on grey hint bad
+            update_group(
+                db_group,
+                expression_context=ExpressionContext.build_expression_context(
+                    collection=db_group.form.collection, mode="interpolation"
+                ),
+                add_another=True if form.question_group_is_add_another.data == "yes" else False,
+            )
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_group_questions",
+                    grant_id=grant_id,
+                    group_id=db_group.id,
+                )
+            )
+        except DependencyOrderException:
+            # TODO: can we show the user the problematic questions like we do when rendering flashable exceptions?
+            form.show_questions_on_the_same_page.errors.append(
+                "A question group cannot display on the same page if questions depend on answers within the group"
+            )
+        except NestedGroupDisplayTypeSamePageException:
+            form.show_questions_on_the_same_page.errors.append(
+                "A question group cannot display on the same page if it contains a nested group"
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/change_question_group_add_another_options.html",
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,

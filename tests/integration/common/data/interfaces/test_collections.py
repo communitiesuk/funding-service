@@ -429,24 +429,22 @@ class TestGroupNameExists:
 
 class TestUpdateGroup:
     def test_update_group(self, db_session, factories):
-        form = factories.form.create()
-        group = create_group(
-            form=form,
+        group = factories.group.create(
             text="Test group",
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+            add_another=False,
         )
 
         assert group.presentation_options.show_questions_on_the_same_page is True
 
         updated_group = update_group(
-            group,
-            expression_context=ExpressionContext(),
-            name="Updated test group",
+            group, expression_context=ExpressionContext(), name="Updated test group", add_another=True
         )
 
         assert updated_group.name == "Updated test group"
         assert updated_group.text == "Updated test group"
         assert updated_group.slug == "updated-test-group"
+        assert updated_group.add_another is True
 
         updated_group = update_group(
             group,

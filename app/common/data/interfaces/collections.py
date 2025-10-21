@@ -810,6 +810,7 @@ def update_group(
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
     guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    add_another: bool | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
         group.name = name  # ty: ignore[invalid-assignment]
@@ -838,6 +839,9 @@ def update_group(
 
     if guidance_body is not NOT_PROVIDED:
         group.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
+
+    if add_another is not NOT_PROVIDED:
+        group.add_another = add_another
 
     _validate_and_sync_component_references(group, expression_context)
 
