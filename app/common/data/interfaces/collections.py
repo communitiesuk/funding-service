@@ -968,6 +968,15 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
                 referenced_question,
             )
 
+        if referenced_question.add_another_container and not questions_in_same_add_another_container(
+            managed.referenced_question, referenced_question
+        ):
+            raise AddAnotherDependencyException(
+                "Cannot add managed condition that depends on an add another question",
+                managed.referenced_question,
+                referenced_question,
+            )
+
         cr = ComponentReference(
             component=expression.question,
             expression=expression,
