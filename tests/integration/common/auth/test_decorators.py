@@ -11,8 +11,8 @@ from app.common.auth.decorators import (
     access_grant_funding_login_required,
     deliver_grant_funding_login_required,
     has_deliver_grant_role,
+    is_deliver_grant_funding_user,
     is_deliver_org_admin,
-    is_mhclg_user,
     is_platform_admin,
     redirect_if_authenticated,
 )
@@ -90,7 +90,7 @@ class TestAccessGrantFundingLoginRequired:
 
 class TestMHCLGLoginRequired:
     def test_logged_in_mhclg_user_gets_response(self, app, factories):
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 
@@ -102,7 +102,7 @@ class TestMHCLGLoginRequired:
         assert response == "OK"
 
     def test_non_mhclg_user_is_forbidden(self, app, factories):
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 
@@ -114,7 +114,7 @@ class TestMHCLGLoginRequired:
             test_deliver_grant_funding_login_required()
 
     def test_anonymous_user_gets_redirect(self, app):
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 
@@ -122,7 +122,7 @@ class TestMHCLGLoginRequired:
         assert response.status_code == 302
 
     def test_deliver_grant_funding_user_auth_via_magic_link(self, app, factories) -> None:
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 
@@ -137,7 +137,7 @@ class TestMHCLGLoginRequired:
         assert current_user.is_anonymous is True
 
     def test_authed_via_magic_link_not_sso(self, app, factories) -> None:
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 

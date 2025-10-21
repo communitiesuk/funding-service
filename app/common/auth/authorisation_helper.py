@@ -1,6 +1,5 @@
 from uuid import UUID
 
-from flask import current_app
 from flask_login import AnonymousUserMixin
 
 from app.common.data.interfaces.grants import get_grant
@@ -18,20 +17,6 @@ class AuthorisationHelper:
         if isinstance(user, AnonymousUserMixin):
             return False
         return bool(user.last_logged_in_at_utc)
-
-    @staticmethod
-    def is_mhclg_user(user: User | AnonymousUserMixin) -> bool:
-        # TODO: this is used for 'can access deliver grant funding' - in the future this really should ask:
-        #       'do i have any user roles that point at an org which can manage grants'
-        #       check - is this actually redundant/removable now? we have `is_deliver_grant_funding_user` below.
-        if isinstance(user, AnonymousUserMixin):
-            return False
-
-        internal_domains = current_app.config["INTERNAL_DOMAINS"]
-        if not user.email.endswith(internal_domains):
-            return False
-
-        return True
 
     @staticmethod
     def is_platform_admin(user: User | AnonymousUserMixin) -> bool:

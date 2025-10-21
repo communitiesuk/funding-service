@@ -14,7 +14,7 @@ def _get_decorators(func):
 
 all_auth_annotations = [
     "@login_required",
-    "@is_mhclg_user",
+    "@is_deliver_grant_funding_user",
     "@has_deliver_grant_role(RoleEnum.MEMBER)",
     "@has_deliver_grant_role(RoleEnum.ADMIN)",
     "@is_platform_admin",
@@ -84,7 +84,7 @@ routes_with_expected_access_grant_funding_logged_in_access = [
     "developers.access.collection_confirmation",
 ]
 
-routes_with_expected_is_mhclg_user_access = [
+routes_with_expected_is_deliver_grant_funding_user_access = [
     "deliver_grant_funding.list_grants",
 ]
 routes_with_no_expected_access_restrictions = [
@@ -174,8 +174,8 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
             assert "@has_deliver_grant_role(RoleEnum.ADMIN)" in decorators
         elif rule.endpoint in routes_with_expected_member_only_access:
             assert "@has_deliver_grant_role(RoleEnum.MEMBER)" in decorators
-        elif rule.endpoint in routes_with_expected_is_mhclg_user_access:
-            assert "@is_mhclg_user" in decorators
+        elif rule.endpoint in routes_with_expected_is_deliver_grant_funding_user_access:
+            assert "@is_deliver_grant_funding_user" in decorators
         # todo: this will be the access grant funding routes where the user is logged in
         #       and will likely have access through their org, this should be updated as part of that work
         elif rule.endpoint in routes_with_expected_access_grant_funding_logged_in_access:
@@ -193,7 +193,7 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
 def test_routes_list_is_valid(app):
     all_declared_routes_in_test = (
         routes_with_no_expected_access_restrictions
-        + routes_with_expected_is_mhclg_user_access
+        + routes_with_expected_is_deliver_grant_funding_user_access
         + routes_with_expected_member_only_access
         + routes_with_expected_grant_admin_only_access
         + routes_with_expected_platform_admin_only_access

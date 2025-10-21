@@ -5,7 +5,7 @@ from flask.typing import ResponseReturnValue
 from werkzeug import Response
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.auth.decorators import is_mhclg_user
+from app.common.auth.decorators import is_deliver_grant_funding_user
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection, get_form_by_id
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
@@ -13,7 +13,7 @@ from app.types import FlashMessageType
 
 
 @deliver_grant_funding_blueprint.route("/grants", methods=["GET"])
-@is_mhclg_user
+@is_deliver_grant_funding_user
 def list_grants() -> Response | str:
     user = interfaces.user.get_current_user()
     grants = interfaces.grants.get_all_grants_by_user(user=user)

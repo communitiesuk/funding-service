@@ -79,7 +79,7 @@ def redirect_if_authenticated[**P](
     return wrapper
 
 
-def is_mhclg_user[**P](
+def is_deliver_grant_funding_user[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
@@ -100,6 +100,7 @@ def is_mhclg_user[**P](
         if session_auth != AuthMethodEnum.SSO:
             return abort(403)
 
+        # TODO: remove this when we onboard other Government departments to Deliver grant funding
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
         if not user.email.endswith(internal_domains):
             return abort(403)
@@ -114,8 +115,8 @@ def is_platform_admin[**P](
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
-        # This decorator is itself wrapped by `is_mhclg_user`, so we know that `current_user` exists and is
-        # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
+        # This decorator is itself wrapped by `is_deliver_grant_funding_user`, so we know that `current_user` exists and
+        # is not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
 
         # Guarding against SSO users who somehow login via magic link
         session_auth = session.get("auth")
@@ -127,7 +128,7 @@ def is_platform_admin[**P](
 
         return func(*args, **kwargs)
 
-    return is_mhclg_user(wrapper)
+    return is_deliver_grant_funding_user(wrapper)
 
 
 def is_deliver_org_admin[**P](
@@ -135,8 +136,8 @@ def is_deliver_org_admin[**P](
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
-        # This decorator is itself wrapped by `is_mhclg_user`, so we know that `current_user` exists and is
-        # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
+        # This decorator is itself wrapped by `is_deliver_grant_funding_user`, so we know that `current_user` exists and
+        # is not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
 
         # Guarding against SSO users who somehow login via magic link
         session_auth = session.get("auth")
@@ -148,7 +149,7 @@ def is_deliver_org_admin[**P](
 
         return func(*args, **kwargs)
 
-    return is_mhclg_user(wrapper)
+    return is_deliver_grant_funding_user(wrapper)
 
 
 def has_deliver_grant_role[**P](
@@ -176,6 +177,6 @@ def has_deliver_grant_role[**P](
 
             return func(*args, **kwargs)
 
-        return is_mhclg_user(wrapped)
+        return is_deliver_grant_funding_user(wrapped)
 
     return decorator
