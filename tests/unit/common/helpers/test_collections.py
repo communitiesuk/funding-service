@@ -579,7 +579,7 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
             assert helper.get_count_for_add_another(group) == 3
 
-    class TestGetSummaryLineForAddAnother:
+    class TestGetAnswerSummaryForAddAnother:
         def test_valid_summary_line_no_option_gets_all(self, factories):
             group = factories.group.build(add_another=True)
             q1 = factories.question.build(parent=group)
@@ -592,7 +592,7 @@ class TestSubmissionHelper:
             ]
             helper = SubmissionHelper(submission)
             assert (
-                helper.get_summary_line_for_add_another(group, add_another_index=0)
+                helper.get_answer_summary_for_add_another(group, add_another_index=0).summary
                 == "line 0 answer 0, line 0 answer 1"
             )
 
@@ -612,7 +612,7 @@ class TestSubmissionHelper:
             ]
             helper = SubmissionHelper(submission)
             assert (
-                helper.get_summary_line_for_add_another(group, add_another_index=0)
+                helper.get_answer_summary_for_add_another(group, add_another_index=0).summary
                 == "line 0 answer 0, line 0 answer 1"
             )
 
@@ -629,7 +629,7 @@ class TestSubmissionHelper:
                 {str(q1.id): "line 2 answer 0", str(q2.id): "line 2 answer 1"},
             ]
             helper = SubmissionHelper(submission)
-            assert helper.get_summary_line_for_add_another(group, add_another_index=0) == "line 0 answer 0"
+            assert helper.get_answer_summary_for_add_another(group, add_another_index=0).summary == "line 0 answer 0"
 
         def test_empty_for_no_answers(self, factories):
             group = factories.group.build(add_another=True)
@@ -638,14 +638,14 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
             submission.data = {str(group.id): [{}]}
 
-            assert helper.get_summary_line_for_add_another(group, add_another_index=0) == ""
+            assert helper.get_answer_summary_for_add_another(group, add_another_index=0).summary == ""
 
         def test_valid_summary_line_for_single_add_another_question(self, factories):
             q1 = factories.question.build(add_another=True)
             submission = factories.submission.build(collection=q1.form.collection)
             submission.data = {str(q1.id): [{str(q1.id): "line 0 answer 0"}]}
             helper = SubmissionHelper(submission)
-            assert helper.get_summary_line_for_add_another(q1, add_another_index=0) == "line 0 answer 0"
+            assert helper.get_answer_summary_for_add_another(q1, add_another_index=0).summary == "line 0 answer 0"
 
         def test_raises_for_non_add_another(self, factories):
             q1 = factories.question.build(add_another=False)
@@ -653,5 +653,25 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             with pytest.raises(ValueError) as e:
-                helper.get_summary_line_for_add_another(q1, add_another_index=0)
-            assert str(e.value) == "summary lines can only be generated for components in an add another container"
+                helper.get_answer_summary_for_add_another(q1, add_another_index=0)
+            assert str(e.value) == "answer summaries can only be generated for components in an add another container"
+
+        def test_get_all_answered(self, factories):
+            group = factories.group.build(add_another=True)
+            q1 = factories.question.build(form=group.form, parent=group)
+            q2 = factories.question.build(form=group.form, parent=group)
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data[str(group.id)] = [
+                {str(q1.id): "True"},
+                {str(q1.id): "False"},
+                {str(q1.id): "True", str(q2.id): "True"},
+            ]
+            helper = SubmissionHelper(submission)
+
+            factories.expression.build(
+                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'True'"
+            )
+
+            assert helper.get_answer_summary_for_add_another(q1, add_another_index=0).is_answered is False
+            assert helper.get_answer_summary_for_add_another(q1, add_another_index=1).is_answered is True
+            assert helper.get_answer_summary_for_add_another(q1, add_another_index=1).is_answered is True
