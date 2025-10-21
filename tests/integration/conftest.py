@@ -357,6 +357,55 @@ def authenticated_platform_admin_client(
     yield anonymous_client
 
 
+@pytest.fixture()
+def authenticated_org_admin_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
+) -> Generator[FundingServiceTestClient, None, None]:
+    """Create a client authenticated as an org admin for an org with can_manage_grants=True"""
+    from tests.models import _get_grant_managing_organisation
+
+    user = factories.user.create(email="orgadmin@communities.gov.uk")
+    organisation = _get_grant_managing_organisation()
+    factories.user_role.create(
+        user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation_id=organisation.id, grant_id=None
+    )
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
+    anonymous_client.user = user
+    anonymous_client.organisation = organisation
+    db_session.commit()
+
+    yield anonymous_client
+
+
+@pytest.fixture()
+def authenticated_org_member_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
+) -> Generator[FundingServiceTestClient, None, None]:
+    """Create a client authenticated as an org admin for an org WITHOUT can_manage_grants"""
+    user = factories.user.create(email="otheradmin@communities.gov.uk")
+    organisation = factories.organisation.create(name="Other Org", can_manage_grants=False)
+    factories.user_role.create(
+        user_id=user.id,
+        user=user,
+        role=RoleEnum.ADMIN,
+        organisation_id=organisation.id,
+        organisation=organisation,
+        grant_id=None,
+    )
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
+    anonymous_client.user = user
+    anonymous_client.organisation = organisation
+    db_session.commit()
+
+    yield anonymous_client
+
+
 def _setup_session_clean_tracking() -> None:
     # 1. When a transaction starts, assume session is clean
     @event.listens_for(Session, "after_begin")

@@ -51,6 +51,35 @@ class TestAuthorisationHelper:
         assert AuthorisationHelper.is_platform_admin(AnonymousUserMixin()) is False
 
     @pytest.mark.parametrize(
+        "role, has_organisation_linked, can_manage_grants, expected",
+        [
+            (RoleEnum.ADMIN, True, True, True),
+            (RoleEnum.ADMIN, True, False, False),
+            (RoleEnum.MEMBER, True, True, False),
+        ],
+    )
+    def test_is_deliver_org_admin(self, factories, role, has_organisation_linked, can_manage_grants, expected):
+        user = factories.user.build()
+        organisation = factories.organisation.build(can_manage_grants=can_manage_grants)
+        factories.user_role.build(user=user, role=role, organisation=organisation, grant=None)
+        assert AuthorisationHelper.is_deliver_org_admin(user) is expected
+
+    def test_is_deliver_org_admin_with_grant_id_set(self, factories):
+        user = factories.user.build()
+        organisation = factories.organisation.build(can_manage_grants=True)
+        grant = factories.grant.build(organisation=organisation)
+        factories.user_role.build(user=user, role=RoleEnum.ADMIN, organisation=organisation, grant=grant)
+        assert AuthorisationHelper.is_deliver_org_admin(user) is False
+
+    def test_is_deliver_org_admin_platform_admin_overrides(self, factories):
+        user = factories.user.build()
+        factories.user_role.build(user=user, role=RoleEnum.ADMIN, organisation=None, grant=None)
+        assert AuthorisationHelper.is_deliver_org_admin(user) is True
+
+    def test_is_deliver_org_admin_works_for_anonymous_user(self):
+        assert AuthorisationHelper.is_deliver_org_admin(AnonymousUserMixin()) is False
+
+    @pytest.mark.parametrize(
         "role, expected",
         [
             (RoleEnum.ADMIN, True),

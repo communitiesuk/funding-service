@@ -49,6 +49,20 @@ class AuthorisationHelper:
         )
 
     @staticmethod
+    def is_deliver_org_admin(user: User | AnonymousUserMixin) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
+        if AuthorisationHelper.is_platform_admin(user=user):
+            return True
+        return any(
+            role.role == RoleEnum.ADMIN
+            and role.organisation_id
+            and role.grant_id is None
+            and role.organisation.can_manage_grants
+            for role in user.roles
+        )
+
+    @staticmethod
     def is_deliver_grant_admin(grant_id: UUID, user: User | AnonymousUserMixin) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False

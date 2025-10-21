@@ -16,8 +16,6 @@ class TestListGrants:
         assert result.status_code == 200
         assert len(templates_rendered.get("deliver_grant_funding.list_grants").context.get("grants")) == 5
         soup = BeautifulSoup(result.data, "html.parser")
-        button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
-        assert button is not None, "'Set up a grant' button not found"
         headers = soup.find_all("th")
         header_texts = [th.get_text(strip=True) for th in headers]
         expected_headers = ["Grant", "GGIS number", "Email"]
@@ -49,8 +47,6 @@ class TestListGrants:
         result = authenticated_grant_member_client.get("/deliver/grants")
         assert result.status_code == 200
         soup = BeautifulSoup(result.data, "html.parser")
-        button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
-        assert button is None, "'Set up a grant' button found"
         headers = soup.find_all("th")
         header_texts = [th.get_text(strip=True) for th in headers]
         expected_headers = ["Grant", "GGIS number", "Email"]
@@ -62,3 +58,34 @@ class TestListGrants:
     def test_list_grant_requires_mhclg_user(self, authenticated_no_role_client, factories, templates_rendered):
         response = authenticated_no_role_client.get("/deliver/grants")
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "client_fixture, should_show_button",
+        [
+            ("authenticated_platform_admin_client", True),
+            ("authenticated_org_admin_client", True),
+            ("authenticated_org_member_client", False),
+            ("authenticated_grant_admin_client", False),
+            ("authenticated_grant_member_client", False),
+        ],
+    )
+    def test_set_up_grant_button_visibility(self, client_fixture, should_show_button, request, factories):
+        client = request.getfixturevalue(client_fixture)
+
+        grants = factories.grant.create_batch(3)
+
+        if "grant_admin" in client_fixture or "grant_member" in client_fixture:
+            role = RoleEnum.ADMIN if "admin" in client_fixture else RoleEnum.MEMBER
+            for grant in grants:
+                factories.user_role.create(user=client.user, role=role, grant=grant)
+
+        response = client.get("/deliver/grants")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        button = soup.find("a", string=lambda text: text and "Set up a grant" in text)
+
+        if should_show_button:
+            assert button is not None, f"'Set up a grant' button should be visible for {client_fixture}"
+        else:
+            assert button is None, f"'Set up a grant' button should not be visible for {client_fixture}"

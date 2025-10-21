@@ -9,7 +9,7 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">Grants</h1>
-      {% if authorisation_helper.is_platform_admin(current_user) %}
+      {% if authorisation_helper.is_deliver_org_admin(current_user) %}
         {{
           govukButton({
             "text": "Set up a grant",
