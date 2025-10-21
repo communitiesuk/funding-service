@@ -421,28 +421,7 @@ class AddContextSelectSourceForm(FlaskForm):
             return
 
         if choice == ExpressionContext.ContextSources.TASK:
-            # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
-            # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
-            # centralise this logic sensibly.
-            def _questions_in_same_page_group(c1: "Component", c2: "Component") -> bool:
-                # If two questions are in the same group, and that group shows on the same page, then they can't
-                # reference each other. Note: this relies on a current tech/product constraint that the "same page"
-                # setting can only be turned on for the leaf group in a set of nested groups (so we don't have to check
-                # parent groups for the same-page setting).
-                return True if c1.parent and c2.parent and c1.parent == c2.parent and c1.parent.same_page else False
-
-            available_questions = [
-                q
-                for q in self.form.cached_questions
-                if (
-                    self.current_component is None
-                    or (
-                        self.form.global_component_index(q) < self.form.global_component_index(self.current_component)
-                        and not _questions_in_same_page_group(q, self.current_component)
-                    )
-                )
-            ]
-            if not available_questions:
+            if not get_referenceable_questions(form=self.form, current_component=self.current_component):
                 raise ValidationError("There are no available questions before this one in the form")
 
 
