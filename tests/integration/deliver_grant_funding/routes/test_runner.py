@@ -450,9 +450,10 @@ class TestAskAQuestion:
             group.presentation_options = QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id])
             submission.data = {
                 str(group.id): [
-                    {str(q1.id): "Q1A1"},
-                    {str(q1.id): "Q2A1", str(q2.id): "Q2A2"},
-                    {str(q1.id): "Q3A1", str(q2.id): "Q3A2"},
+                    {str(q1.id): "E1A1"},
+                    {str(q2.id): "E2A2"},
+                    {str(q1.id): "E3A1", str(q2.id): "E3A2"},
+                    {str(q1.id): "E4A1", str(q2.id): "E4A2"},
                 ]
             }
 
@@ -468,10 +469,22 @@ class TestAskAQuestion:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "Test groups"
-            assert "You have added 3 test groups" in soup.text
+            assert "You have added 4 test groups" in soup.text
+
+            # partial entries have a link as the main call to action like similar to CYA (summary shown if available)
+            assert (
+                soup.find_all("dt", {"class": "govuk-summary-list__value"})[0].text.strip()
+                == "Enter missing information for first test groups (E1A1)"
+            )
+
+            # summary not shown if not available
+            assert (
+                soup.find_all("dt", {"class": "govuk-summary-list__value"})[1].text.strip()
+                == "Enter missing information for second test groups"
+            )
 
             # each entry in the row respects the summary line configuration even if more answers are available
-            assert soup.find_all("dt", {"class": "govuk-summary-list__value"})[1].text.strip() == "Q2A1"
+            assert soup.find_all("dt", {"class": "govuk-summary-list__value"})[2].text.strip() == "E3A1"
 
             # do you want to add another component is shown and defaults to nothing selected
             assert "govuk-!-display-none" not in soup.find("div", {"class": "govuk-radios"}).get("class")

@@ -295,20 +295,26 @@
     <dl class="govuk-summary-list">
       {% for i in range(number_of_entries) %}
         {# todo: check if the entry is complete or if we should prompt the user to complete it with a different link #}
-        {% set summary = runner.submission.get_summary_line_for_add_another(add_another_container, add_another_index=i) %}
+        {% set (summary, is_answered) = runner.submission.get_answer_summary_for_add_another(add_another_container, add_another_index=i) %}
 
         <div class="govuk-summary-list__row">
-          <dt class="govuk-summary-list__value">{{ summary }}</dt>
-          <dd class="govuk-summary-list__actions govuk-!-width-one-third  ">
-            <ul class="govuk-summary-list__actions-list">
-              <li class="govuk-summary-list__actions-list-item">
-                <a class="govuk-link govuk-link--no-visited-state" href="#">Change</a>
-              </li>
-              <li class="govuk-summary-list__actions-list-item">
-                <a class="govuk-link govuk-link--no-visited-state" href="#">Remove</a>
-              </li>
-            </ul>
-          </dd>
+          {% if not is_answered %}
+            <dt class="govuk-summary-list__value">
+              <a class="govuk-link govuk-link--no-visited-state" href="#"> Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }} </a>
+            </dt>
+          {% else %}
+            <dt class="govuk-summary-list__value">{{ summary }}</dt>
+            <dd class="govuk-summary-list__actions govuk-!-width-one-third  ">
+              <ul class="govuk-summary-list__actions-list">
+                <li class="govuk-summary-list__actions-list-item">
+                  <a class="govuk-link govuk-link--no-visited-state" href="#">Change</a>
+                </li>
+                <li class="govuk-summary-list__actions-list-item">
+                  <a class="govuk-link govuk-link--no-visited-state" href="#">Remove</a>
+                </li>
+              </ul>
+            </dd>
+          {% endif %}
         </div>
       {% endfor %}
     </dl>
