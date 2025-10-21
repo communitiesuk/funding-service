@@ -11,6 +11,14 @@
   {{ govukBackLink({ "text": "Back", "href": override_back_link or runner.back_url }) }}
 {% endmacro %}
 
+{% macro collection_question_with_add_another_summary_page(runner) %}
+  {% if runner.add_another_summary_context %}
+    {{ collection_add_another_summary(runner) }}
+  {% else %}
+    {{ collection_question(runner) }}
+  {% endif %}
+{% endmacro %}
+
 {% macro collection_question(runner) %}
   {% set is_group = runner.component.is_group %}
   {% set questions = runner.questions if is_group else [runner.component] %}
@@ -275,22 +283,18 @@
 {% endmacro %}
 
 {% macro collection_add_another_summary(runner) %}
-  {# assume the component (isn't) the container and we'll be referring to the container here? #}
-  {# we don't need to get everything right for the non-group scenario here #}
   {% set add_another_container = runner.component.add_another_container %}
-  {% set is_group = add_another_container.is_group %}
 
   <h1 class="govuk-heading-l">{{ add_another_container.name }}</h1>
 
   {% set rows = [] %}
   {% set number_of_entries = runner.submission.get_count_for_add_another(add_another_container) %}
 
-  {# todo: we can decide if this should be a macro or not, it should probably use the base table component #}
   {% if number_of_entries %}
     <h2 class="govuk-heading-s">You have added {{ number_of_entries }} {{ add_another_container.name | lower }}</h2>
     <dl class="govuk-summary-list">
-      {# for each entry, get the summary line and render it #}
       {% for i in range(number_of_entries) %}
+        {# todo: check if the entry is complete or if we should prompt the user to complete it with a different link #}
         {% set summary = runner.submission.get_summary_line_for_add_another(add_another_container, add_another_index=i) %}
 
         <div class="govuk-summary-list__row">
