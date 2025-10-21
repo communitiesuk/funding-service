@@ -7,7 +7,7 @@
       "value": { "text": interpolate(component.text) },
     }, {
       "key": { "text": "Depends on the answer to" },
-      "value": { "text": "(Not selected)" if not depends_on_question else interpolate(depends_on_question.text) },
+      "value": { "text": "(Not selected)" if not depends_on_question else interpolate(depends_on_question.text, with_interpolation_highlighting=True) },
     }],
     "classes": "app-!-border-top-line govuk-!-margin-bottom-8"
   })
