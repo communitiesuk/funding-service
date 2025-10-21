@@ -45,6 +45,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.change_form_name",
     "deliver_grant_funding.change_group_name",
     "deliver_grant_funding.change_group_display_options",
+    "deliver_grant_funding.change_group_add_another_options",
     "deliver_grant_funding.move_task",
     "deliver_grant_funding.move_component",
     "deliver_grant_funding.choose_question_type",

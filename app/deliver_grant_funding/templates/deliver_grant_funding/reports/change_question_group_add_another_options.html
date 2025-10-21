@@ -1,0 +1,66 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+
+{% set page_title = "Change question group display options" ~ " - " ~ group.name %}
+{% set active_item_identifier = "reports" %}
+
+{% block beforeContent %}
+
+  {% set truncated=False %}
+  {% if group.parent %}
+    {% set truncated=True %}
+  {% endif %}
+
+
+  {% set parent_html %}
+    <span class="govuk-visually-hidden">Question group:</span>
+    <span>{{ group.name }}</span>
+  {% endset %}
+  {% set parent_item={"html": parent_html, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=group.id)} %}
+
+  {{
+    deliver_grant_funding_reports_breadcrumb(
+        grant=grant,
+        report=db_form.collection,
+        form=db_form,
+        immediate_parent_breadcrumb_item=parent_item,
+        this_page_breadcrumb_item={"text":"Question group add another"},
+        truncated=truncated
+    )
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l govuk-!-margin-bottom-0">{{ form.question_group_is_add_another.label }}</h1>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.question_group_is_add_another(params={
+            "fieldset": {
+              "legend": {
+                "classes": "govuk-visually-hidden"
+              }
+            },
+            "items": [
+              {
+                "hint": {
+                  "text": "After adding their first answer we'll ask if they need to add another",
+                }
+              },
+              {},
+            ]
+          })
+        }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Update question group"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=group.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}
