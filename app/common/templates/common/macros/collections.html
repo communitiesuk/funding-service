@@ -28,12 +28,29 @@
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
-    <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
+    {# bite the bullet and make this an explicit property #}
+    {% if runner.add_another_index is not none and runner.component.add_another_container %}
+      {# if the add another container is itself on the same page having the caption and the page heading the same is not ideal #}
+      {% if runner.component.is_group and runner.component == runner.component.add_another_container %}
+        <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
+      {% else %}
+        <span class="govuk-caption-l">{{ runner.component.add_another_container.name }} ({{ runner.add_another_index + 1 }})</span>
+      {% endif %}
+    {% else %}  
+      <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
+    {% endif %}
     {% if runner.component.guidance_heading %}
       <h1 class="govuk-heading-l">{{ runner.component.guidance_heading }}</h1>
       {{ runner.interpolate(runner.component.guidance_body) | govuk_markdown }}
     {% elif is_group %}
-      <h1 class="govuk-heading-l">{{ runner.component.name }}</h1>
+      {# wip: refactor it all - a much more streamlined way of doing this! #}
+      {% if runner.component == runner.component.add_another_container %}
+        {% set heading = runner.component.name ~ " (" ~ (runner.add_another_index + 1) ~ ")" %}
+      {% else %}
+        {% set heading = runner.component.name %}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">{{ heading }}</h1>
     {% endif %}
 
     {# https://github.com/alphagov/govuk-frontend/issues/1841 #}
@@ -285,6 +302,7 @@
 {% macro collection_add_another_summary(runner) %}
   {% set add_another_container = runner.component.add_another_container %}
 
+  <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
   <h1 class="govuk-heading-l">{{ add_another_container.name }}</h1>
 
   {% set rows = [] %}
@@ -300,14 +318,14 @@
         <div class="govuk-summary-list__row">
           {% if not is_answered %}
             <dt class="govuk-summary-list__value">
-              <a class="govuk-link govuk-link--no-visited-state" href="#"> Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }} </a>
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.ask_a_question', grant_id=runner.submission.grant.id, submission_id=runner.submission.id, question_id=runner.component.add_another_container.id if not runner.component.add_another_container.is_group else runner.component.add_another_container.cached_questions[0].id, add_another_index=i) }}"> Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }} </a>
             </dt>
           {% else %}
             <dt class="govuk-summary-list__value">{{ summary }}</dt>
             <dd class="govuk-summary-list__actions govuk-!-width-one-third">
               <ul class="govuk-summary-list__actions-list">
                 <li class="govuk-summary-list__actions-list-item">
-                  <a class="govuk-link govuk-link--no-visited-state" href="#">
+                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.ask_a_question', grant_id=runner.submission.grant.id, submission_id=runner.submission.id, question_id=runner.component.add_another_container.id if not runner.component.add_another_container.is_group else runner.component.add_another_container.cached_questions[0].id, add_another_index=i) }}">
                     Change
                     <span class="govuk-visually-hidden"> {{ summary if summary else to_ordinal(i + 1) ~ " " ~ (add_another_container.name | lower) }}</span>
                   </a>
@@ -356,7 +374,7 @@
       }}
       {{
         runner.add_another_summary_form.submit(params={
-          "text": "Add the first " ~ (add_another_container.name | lower),
+          "text": "Add the first answer",
           "classes": "govuk-!-margin-top-3"
         })
       }}

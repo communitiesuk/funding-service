@@ -432,7 +432,7 @@ class TestAskAQuestion:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "Test groups"
             assert "You have not added any test groups." in soup.text
-            assert "Add the first test groups" in soup.text
+            assert "Add the first answer" in soup.text
 
             # because there's no data we should be configured to add the first answer but its not the users choice
             assert "govuk-!-display-none" in soup.find("div", {"class": "govuk-radios"}).get("class")
