@@ -107,7 +107,7 @@ class TestSubmissionHelper:
             submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.cached_form_data == {}
+            assert helper.cached_form_data() == {}
 
         def test_with_submission_data(self, factories):
             assert len(QuestionDataType) == 9, "Update this test if adding new questions"
@@ -182,7 +182,7 @@ class TestSubmissionHelper:
             )
             helper = SubmissionHelper(submission)
 
-            assert helper.cached_form_data == {
+            assert helper.cached_form_data() == {
                 "q_d696aebc49d24170a92fb6ef42994294": "answer",
                 "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
                 "q_d696aebc49d24170a92fb6ef42994296": 50,
@@ -203,7 +203,7 @@ class TestSubmissionHelper:
             questions = collection.forms[0].cached_questions
             helper = SubmissionHelper(collection.test_submissions[0])
 
-            assert helper.cached_form_data == {
+            assert helper.cached_form_data() == {
                 f"{questions[0].safe_qid}": "test name",
                 f"{questions[1].safe_qid}": "test org name",
                 f"{questions[4].safe_qid}": 3,
