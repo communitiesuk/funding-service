@@ -260,7 +260,16 @@ class FormRunner:
                 last_question = self.questions[-1] if self.component.is_group else self.component
                 next_question = self.submission.get_next_question(last_question.id, add_another_index=self.add_another_index)
 
-                return (self.to_url(FormRunnerState.QUESTION, question=next_question, add_another_index=self.add_another_index))
+                if self.source == FormRunnerState.CHECK_YOUR_ANSWERS:
+                    while next_question and ((self.submission.cached_get_answer_for_question(next_question.id, add_another_index=self.add_another_index) is not None) if not next_question.add_another_container else (self.submission.get_count_for_add_another(next_question.add_another_container))):
+                        next_question = self.submission.get_next_question(next_question.id, add_another_index=self.add_another_index)
+
+                # return (self.to_url(FormRunnerState.QUESTION, question=next_question, add_another_index=self.add_another_index))
+                return (
+                    self.to_url(FormRunnerState.QUESTION, question=next_question, add_another_index=self.add_another_index)
+                    if next_question
+                    else self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
+                )
 
             last_question = self.questions[-1] if self.component.is_group else self.component
             next_question = self.submission.get_next_question(last_question.id)
