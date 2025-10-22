@@ -161,7 +161,7 @@ def create_sso_stub_app() -> Flask:
                 "oid": "",
                 "preferred_username": email_address,
                 "rh": "",
-                "roles": ["FSD_ADMIN"] if is_platform_admin else [],
+                "roles": ["FS_PLATFORM_ADMIN"] if is_platform_admin else [],
                 "sid": "",
                 "sub": hashlib.md5(email_address.encode("utf_8")).hexdigest(),
                 "tid": "",
