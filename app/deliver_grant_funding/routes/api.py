@@ -30,7 +30,7 @@ def preview_guidance(collection_id: UUID) -> ResponseReturnValue:
         return jsonify(PreviewGuidanceUnauthorisedResponse().model_dump(mode="json")), 401
 
     collection = get_collection(collection_id)
-    if not AuthorisationHelper.is_grant_member(collection.grant_id, get_current_user()):
+    if not AuthorisationHelper.is_deliver_grant_member(collection.grant_id, get_current_user()):
         return jsonify(PreviewGuidanceUnauthorisedResponse().model_dump(mode="json")), 401
 
     form = PreviewGuidanceForm()

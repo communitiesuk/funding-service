@@ -10,8 +10,9 @@ from werkzeug.exceptions import Forbidden, InternalServerError
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
     deliver_grant_funding_login_required,
-    has_grant_role,
-    is_mhclg_user,
+    has_deliver_grant_role,
+    is_deliver_grant_funding_user,
+    is_deliver_org_admin,
     is_platform_admin,
     redirect_if_authenticated,
 )
@@ -89,7 +90,7 @@ class TestAccessGrantFundingLoginRequired:
 
 class TestMHCLGLoginRequired:
     def test_logged_in_mhclg_user_gets_response(self, app, factories):
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 
@@ -101,7 +102,7 @@ class TestMHCLGLoginRequired:
         assert response == "OK"
 
     def test_non_mhclg_user_is_forbidden(self, app, factories):
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 
@@ -113,7 +114,7 @@ class TestMHCLGLoginRequired:
             test_deliver_grant_funding_login_required()
 
     def test_anonymous_user_gets_redirect(self, app):
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 
@@ -121,7 +122,7 @@ class TestMHCLGLoginRequired:
         assert response.status_code == 302
 
     def test_deliver_grant_funding_user_auth_via_magic_link(self, app, factories) -> None:
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 
@@ -136,7 +137,7 @@ class TestMHCLGLoginRequired:
         assert current_user.is_anonymous is True
 
     def test_authed_via_magic_link_not_sso(self, app, factories) -> None:
-        @is_mhclg_user
+        @is_deliver_grant_funding_user
         def test_deliver_grant_funding_login_required():
             return "OK"
 
@@ -184,6 +185,127 @@ class TestPlatformAdminRoleRequired:
         assert response.status_code == 302
 
 
+class TestDeliverOrgAdminRoleRequired:
+    def test_logged_in_deliver_org_admin_gets_response(self, app, factories):
+        @is_deliver_org_admin
+        def test_deliver_org_admin_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        grant = factories.grant.create()
+        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation=grant.organisation)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = test_deliver_org_admin_required()
+        assert response == "OK"
+
+    def test_platform_admin_gets_response(self, app, factories):
+        @is_deliver_org_admin
+        def test_deliver_org_admin_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = test_deliver_org_admin_required()
+        assert response == "OK"
+
+    def test_non_deliver_org_admin_is_forbidden(self, app, factories):
+        @is_deliver_org_admin
+        def test_deliver_org_admin_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+
+        with pytest.raises(Forbidden):
+            login_user(user)
+            session["auth"] = AuthMethodEnum.SSO
+            test_deliver_org_admin_required()
+
+    def test_org_admin_without_can_manage_grants_is_forbidden(self, app, factories):
+        @is_deliver_org_admin
+        def test_deliver_org_admin_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        organisation = factories.organisation.create(can_manage_grants=False)
+        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation=organisation)
+
+        with pytest.raises(Forbidden):
+            login_user(user)
+            session["auth"] = AuthMethodEnum.SSO
+            test_deliver_org_admin_required()
+
+    def test_grant_admin_is_forbidden(self, app, factories):
+        @is_deliver_org_admin
+        def test_deliver_org_admin_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        grant = factories.grant.create()
+        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, grant=grant)
+
+        with pytest.raises(Forbidden):
+            login_user(user)
+            session["auth"] = AuthMethodEnum.SSO
+            test_deliver_org_admin_required()
+
+    def test_member_role_is_forbidden(self, app, factories):
+        @is_deliver_org_admin
+        def test_deliver_org_admin_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        grant = factories.grant.create()
+        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, organisation=grant.organisation)
+
+        with pytest.raises(Forbidden):
+            login_user(user)
+            session["auth"] = AuthMethodEnum.SSO
+            test_deliver_org_admin_required()
+
+    def test_anonymous_user_gets_redirect(self, app):
+        @is_deliver_org_admin
+        def test_deliver_org_admin_required():
+            return "OK"
+
+        response = test_deliver_org_admin_required()
+        assert response.status_code == 302
+
+    def test_deliver_org_admin_user_auth_via_magic_link(self, app, factories):
+        @is_deliver_org_admin
+        def test_deliver_org_admin_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        grant = factories.grant.create()
+        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation=grant.organisation)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+        response = test_deliver_org_admin_required()
+        current_user = interfaces.user.get_current_user()
+        assert response.status_code == 302
+        assert current_user.is_anonymous is True
+
+    def test_authed_via_magic_link_not_sso(self, app, factories):
+        @is_deliver_org_admin
+        def test_deliver_org_admin_required():
+            return "OK"
+
+        user = factories.user.create(email="test@communities.gov.uk")
+
+        with pytest.raises(Forbidden):
+            login_user(user)
+            session["auth"] = AuthMethodEnum.MAGIC_LINK
+            test_deliver_org_admin_required()
+
+
 class TestRedirectIfAuthenticated:
     def test_authenticated_user_gets_redirect(self, app, factories):
         @redirect_if_authenticated
@@ -221,12 +343,12 @@ class TestRedirectIfAuthenticated:
         assert response == "OK"
 
 
-class TestHasGrantRole:
+class TestHasDeliverGrantRole:
     def test_user_no_roles(self, factories):
         user = factories.user.create(email="test.norole@communities.gov.uk")
         grant = factories.grant.create()
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -241,7 +363,7 @@ class TestHasGrantRole:
         user = factories.user.create(email="test.admin@communities.gov.uk")
         factories.user_role.create(user=user, role=RoleEnum.ADMIN)
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -254,7 +376,7 @@ class TestHasGrantRole:
     def test_no_result_on_non_existent_grant(self, factories):
         user = factories.user.create(email="test.member2@communities.gov.uk")
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -269,7 +391,7 @@ class TestHasGrantRole:
         grant = factories.grant.create()
         factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -283,7 +405,7 @@ class TestHasGrantRole:
         grant = factories.grant.create()
         factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
 
-        @has_grant_role(role=RoleEnum.MEMBER)
+        @has_deliver_grant_role(role=RoleEnum.MEMBER)
         def view_func(grant_id: UUID):
             return "OK"
 
@@ -298,7 +420,7 @@ class TestHasGrantRole:
         grant = factories.grant.create()
         factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
 
-        @has_grant_role(role=RoleEnum.ADMIN)
+        @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
             return "OK"
 

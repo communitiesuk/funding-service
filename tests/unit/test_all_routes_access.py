@@ -14,15 +14,18 @@ def _get_decorators(func):
 
 all_auth_annotations = [
     "@login_required",
-    "@is_mhclg_user",
-    "@has_grant_role(RoleEnum.MEMBER)",
-    "@has_grant_role(RoleEnum.ADMIN)",
+    "@is_deliver_grant_funding_user",
+    "@has_deliver_grant_role(RoleEnum.MEMBER)",
+    "@has_deliver_grant_role(RoleEnum.ADMIN)",
     "@is_platform_admin",
 ]
 
 routes_with_expected_platform_admin_only_access = [
     "developers.access.grants_list",
     "developers.deliver.grant_developers",
+    "deliver_grant_funding.grant_change_ggis",
+]
+routes_with_expected_deliver_org_admin_only_access = [
     "deliver_grant_funding.grant_setup_intro",
     "deliver_grant_funding.grant_setup_ggis",
     "deliver_grant_funding.grant_setup_ggis_required_info",
@@ -30,10 +33,9 @@ routes_with_expected_platform_admin_only_access = [
     "deliver_grant_funding.grant_setup_description",
     "deliver_grant_funding.grant_setup_contact",
     "deliver_grant_funding.grant_setup_check_your_answers",
-    "deliver_grant_funding.add_user_to_grant",
-    "deliver_grant_funding.grant_change_ggis",
 ]
 routes_with_expected_grant_admin_only_access = [
+    "deliver_grant_funding.add_user_to_grant",
     "deliver_grant_funding.grant_change_name",
     "deliver_grant_funding.grant_change_description",
     "deliver_grant_funding.grant_change_contact",
@@ -82,7 +84,7 @@ routes_with_expected_access_grant_funding_logged_in_access = [
     "developers.access.collection_confirmation",
 ]
 
-routes_with_expected_is_mhclg_user_access = [
+routes_with_expected_is_deliver_grant_funding_user_access = [
     "deliver_grant_funding.list_grants",
 ]
 routes_with_no_expected_access_restrictions = [
@@ -166,12 +168,14 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
         decorators = _get_decorators(app.view_functions[rule.endpoint])
         if rule.endpoint in routes_with_expected_platform_admin_only_access:
             assert "@is_platform_admin" in decorators
+        elif rule.endpoint in routes_with_expected_deliver_org_admin_only_access:
+            assert "@is_deliver_org_admin" in decorators
         elif rule.endpoint in routes_with_expected_grant_admin_only_access:
-            assert "@has_grant_role(RoleEnum.ADMIN)" in decorators
+            assert "@has_deliver_grant_role(RoleEnum.ADMIN)" in decorators
         elif rule.endpoint in routes_with_expected_member_only_access:
-            assert "@has_grant_role(RoleEnum.MEMBER)" in decorators
-        elif rule.endpoint in routes_with_expected_is_mhclg_user_access:
-            assert "@is_mhclg_user" in decorators
+            assert "@has_deliver_grant_role(RoleEnum.MEMBER)" in decorators
+        elif rule.endpoint in routes_with_expected_is_deliver_grant_funding_user_access:
+            assert "@is_deliver_grant_funding_user" in decorators
         # todo: this will be the access grant funding routes where the user is logged in
         #       and will likely have access through their org, this should be updated as part of that work
         elif rule.endpoint in routes_with_expected_access_grant_funding_logged_in_access:
@@ -189,7 +193,7 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
 def test_routes_list_is_valid(app):
     all_declared_routes_in_test = (
         routes_with_no_expected_access_restrictions
-        + routes_with_expected_is_mhclg_user_access
+        + routes_with_expected_is_deliver_grant_funding_user_access
         + routes_with_expected_member_only_access
         + routes_with_expected_grant_admin_only_access
         + routes_with_expected_platform_admin_only_access

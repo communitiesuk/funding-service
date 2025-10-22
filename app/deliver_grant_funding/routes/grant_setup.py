@@ -1,7 +1,7 @@
 from flask import redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
-from app.common.auth.decorators import is_platform_admin
+from app.common.auth.decorators import is_deliver_org_admin
 from app.common.data import interfaces
 from app.common.forms import GenericSubmitForm
 from app.constants import CHECK_YOUR_ANSWERS
@@ -12,7 +12,7 @@ from app.extensions import auto_commit_after_request
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup", methods=["GET", "POST"])
-@is_platform_admin
+@is_deliver_org_admin
 def grant_setup_intro() -> ResponseReturnValue:
     form = GenericSubmitForm()
     if form.validate_on_submit():
@@ -23,7 +23,7 @@ def grant_setup_intro() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/ggis-number", methods=["GET", "POST"])
-@is_platform_admin
+@is_deliver_org_admin
 def grant_setup_ggis() -> ResponseReturnValue:
     if "grant_setup" not in session:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
@@ -55,7 +55,7 @@ def grant_setup_ggis() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/ggis-required-info", methods=["GET"])
-@is_platform_admin
+@is_deliver_org_admin
 def grant_setup_ggis_required_info() -> ResponseReturnValue:
     return render_template(
         "deliver_grant_funding/grant_setup/ggis_required_info.html",
@@ -64,7 +64,7 @@ def grant_setup_ggis_required_info() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/name", methods=["GET", "POST"])
-@is_platform_admin
+@is_deliver_org_admin
 def grant_setup_name() -> ResponseReturnValue:
     if "grant_setup" not in session:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
@@ -95,7 +95,7 @@ def grant_setup_name() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/description", methods=["GET", "POST"])
-@is_platform_admin
+@is_deliver_org_admin
 def grant_setup_description() -> ResponseReturnValue:
     if "grant_setup" not in session:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
@@ -124,7 +124,7 @@ def grant_setup_description() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/contact", methods=["GET", "POST"])
-@is_platform_admin
+@is_deliver_org_admin
 def grant_setup_contact() -> ResponseReturnValue:
     if "grant_setup" not in session:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
@@ -153,7 +153,7 @@ def grant_setup_contact() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/check-your-answers", methods=["GET", "POST"])
-@is_platform_admin
+@is_deliver_org_admin
 @auto_commit_after_request
 def grant_setup_check_your_answers() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -163,6 +163,8 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
     form = GenericSubmitForm()
 
     if form.validate_on_submit():
+        # TODO: Pass through the org admin's organisation_id when creating grants
+        # so that grants are automatically associated with the org admin's organisation
         grant = interfaces.grants.create_grant(
             name=grant_session.name,
             description=grant_session.description,

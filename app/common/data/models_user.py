@@ -90,6 +90,10 @@ class UserRole(BaseModel):
             "role != 'MEMBER' OR NOT (organisation_id IS NULL AND grant_id IS NULL)",
             name="member_role_not_platform",
         ),
+        CheckConstraint(
+            "(organisation_id IS NULL AND grant_id IS NULL) or (organisation_id IS NOT NULL)",
+            name="org_required_if_grant",
+        ),
     )
 
 

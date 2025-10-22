@@ -20,20 +20,49 @@ def test_get_grant(factories):
     assert result is not None
 
 
-def test_get_all_grants_platform_admin(factories):
-    user_obj = factories.user.create(email="testadmin@communities.gov.uk")
-    factories.user_role.create(user=user_obj, role=RoleEnum.ADMIN)
-    factories.grant.create_batch(5)
-    result = get_all_grants_by_user(user_obj)
-    assert len(result) == 5
+class TestGetAllGrantsByUser:
+    def test_get_all_grants_platform_admin(self, factories, authenticated_platform_admin_client):
+        factories.grant.create_batch(5)
+        result = get_all_grants_by_user(authenticated_platform_admin_client.user)
+        assert len(result) == 5
 
+    def test_deliver_org_admin(self, factories, authenticated_org_admin_client):
+        factories.grant.create_batch(2, organisation=authenticated_org_admin_client.organisation)
+        result = get_all_grants_by_user(authenticated_org_admin_client.user)
+        assert len(result) == 2
 
-def test_get_all_grants_member(factories):
-    user_member = factories.user.create(email="testmember@communities.gov.uk")
-    grants = factories.grant.create_batch(5)
-    factories.user_role.create(user=user_member, role=RoleEnum.MEMBER, grant=grants[0])
-    result = get_all_grants_by_user(user_member)
-    assert len(result) == 1
+    @pytest.mark.xfail
+    def test_deliver_org_admin_cannot_see_grants_from_another_org(self, factories, authenticated_org_admin_client):
+        raise NotImplementedError("we don't support multiple orgs with can_manage_grants=True yet")
+
+    def test_deliver_org_member(self, factories, authenticated_org_member_client):
+        factories.grant.create_batch(2, organisation=authenticated_org_member_client.organisation)
+        result = get_all_grants_by_user(authenticated_org_member_client.user)
+        assert len(result) == 2
+
+    @pytest.mark.xfail
+    def test_deliver_org_member_cannot_see_grants_from_another_org(self, factories, authenticated_org_member_client):
+        raise NotImplementedError("we don't support multiple orgs with can_manage_grants=True yet")
+
+    def test_get_all_grants_grant_admin(self, factories, authenticated_grant_admin_client):
+        factories.grant.create_batch(5)
+        result = get_all_grants_by_user(authenticated_grant_admin_client.user)
+        assert result == [authenticated_grant_admin_client.grant]
+
+    def test_get_all_grants_grant_member(self, factories, authenticated_grant_member_client):
+        factories.grant.create_batch(5)
+        result = get_all_grants_by_user(authenticated_grant_member_client.user)
+        assert result == [authenticated_grant_member_client.grant]
+
+    def test_get_all_grants_member_with_org_level_permission(self, factories, authenticated_org_admin_client):
+        factories.grant.create_batch(5, organisation=authenticated_org_admin_client.organisation)
+        factories.user_role.create(
+            user=authenticated_org_admin_client.user,
+            role=RoleEnum.MEMBER,
+            organisation=authenticated_org_admin_client.organisation,
+        )
+        result = get_all_grants_by_user(authenticated_org_admin_client.user)
+        assert len(result) == 5
 
 
 def test_get_all_grants_by_user(factories):

@@ -79,7 +79,7 @@ def redirect_if_authenticated[**P](
     return wrapper
 
 
-def is_mhclg_user[**P](
+def is_deliver_grant_funding_user[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
@@ -100,6 +100,7 @@ def is_mhclg_user[**P](
         if session_auth != AuthMethodEnum.SSO:
             return abort(403)
 
+        # TODO: remove this when we onboard other Government departments to Deliver grant funding
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
         if not user.email.endswith(internal_domains):
             return abort(403)
@@ -114,8 +115,8 @@ def is_platform_admin[**P](
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
-        # This decorator is itself wrapped by `is_mhclg_user`, so we know that `current_user` exists and is
-        # not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
+        # This decorator is itself wrapped by `is_deliver_grant_funding_user`, so we know that `current_user` exists and
+        # is not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
 
         # Guarding against SSO users who somehow login via magic link
         session_auth = session.get("auth")
@@ -127,10 +128,31 @@ def is_platform_admin[**P](
 
         return func(*args, **kwargs)
 
-    return is_mhclg_user(wrapper)
+    return is_deliver_grant_funding_user(wrapper)
 
 
-def has_grant_role[**P](
+def is_deliver_org_admin[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        # This decorator is itself wrapped by `is_deliver_grant_funding_user`, so we know that `current_user` exists and
+        # is not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
+
+        # Guarding against SSO users who somehow login via magic link
+        session_auth = session.get("auth")
+        if session_auth != AuthMethodEnum.SSO:
+            return abort(403)
+
+        if not AuthorisationHelper.is_deliver_org_admin(user=interfaces.user.get_current_user()):
+            return abort(403)
+
+        return func(*args, **kwargs)
+
+    return is_deliver_grant_funding_user(wrapper)
+
+
+def has_deliver_grant_role[**P](
     role: RoleEnum,
 ) -> Callable[[Callable[P, ResponseReturnValue]], Callable[P, ResponseReturnValue]]:
     def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
@@ -150,11 +172,11 @@ def has_grant_role[**P](
 
             # raises a 404 if the grant doesn't exist; more appropriate than 403 on non-existent entity
             grant = get_grant(grant_id)
-            if not AuthorisationHelper.has_grant_role(grant_id=grant.id, role=role, user=user):
+            if not AuthorisationHelper.has_deliver_grant_role(grant_id=grant.id, role=role, user=user):
                 return abort(403, description="Access denied")
 
             return func(*args, **kwargs)
 
-        return is_mhclg_user(wrapped)
+        return is_deliver_grant_funding_user(wrapped)
 
     return decorator

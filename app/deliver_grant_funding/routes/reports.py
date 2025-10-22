@@ -9,7 +9,7 @@ from pydantic import BaseModel, ValidationError
 from wtforms import Field
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.auth.decorators import has_grant_role
+from app.common.auth.decorators import has_deliver_grant_role
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
@@ -94,14 +94,14 @@ SessionModelType = (
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports", methods=["GET", "POST"])
-@has_grant_role(RoleEnum.MEMBER)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
 def list_reports(grant_id: UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id, with_all_collections=True)
 
     delete_wtform, delete_report = None, None
     if delete_report_id := request.args.get("delete"):
-        if not AuthorisationHelper.has_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
+        if not AuthorisationHelper.has_deliver_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
             return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
 
         delete_report = get_collection(
@@ -127,7 +127,7 @@ def list_reports(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/set-up-report", methods=["GET", "POST"])
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def set_up_report(grant_id: UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id)
@@ -153,7 +153,7 @@ def set_up_report(grant_id: UUID) -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/change-name", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     # NOTE: this fetches the _latest version_ of the collection with this ID
@@ -178,7 +178,7 @@ def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/report/<uuid:report_id>", methods=["GET", "POST"])
-@has_grant_role(RoleEnum.MEMBER)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
 def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
@@ -196,7 +196,7 @@ def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/form/<uuid:form_id>/move-<direction>")
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def move_task(grant_id: UUID, form_id: UUID, direction: str) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -218,7 +218,7 @@ def move_task(grant_id: UUID, form_id: UUID, direction: str) -> ResponseReturnVa
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/add-task", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
@@ -254,7 +254,7 @@ def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/change-name", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     # NOTE: this fetches the _latest version_ of the collection with this ID
@@ -298,7 +298,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-name", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
@@ -336,7 +336,7 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-display-options", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
@@ -386,7 +386,7 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/task/<uuid:form_id>/questions", methods=["GET", "POST"])
-@has_grant_role(RoleEnum.MEMBER)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
 def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, grant_id=grant_id, with_all_questions=True)
@@ -397,7 +397,7 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
-        if not AuthorisationHelper.has_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
+        if not AuthorisationHelper.has_deliver_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
             return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=form_id))
 
         if db_form.collection.live_submissions:
@@ -435,14 +435,14 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/group/<uuid:group_id>/questions", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.MEMBER)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
 def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     group = get_group_by_id(group_id)
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
-        if not AuthorisationHelper.has_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
+        if not AuthorisationHelper.has_deliver_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
             return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group_id))
 
         try:
@@ -489,7 +489,7 @@ class AddQuestionGroup(BaseModel):
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/groups/add",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -534,7 +534,7 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/groups/add/display_options",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -587,7 +587,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/question/<uuid:component_id>/move-<direction>")
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def move_component(grant_id: UUID, component_id: UUID, direction: str) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
@@ -616,7 +616,7 @@ def move_component(grant_id: UUID, component_id: UUID, direction: str) -> Respon
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/questions/add/choose-type",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
@@ -744,7 +744,7 @@ def _store_question_state_and_redirect_to_add_context(
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/questions/add",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -822,7 +822,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/add-context/select-source", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     add_context_data = _extract_add_context_data_from_session()
@@ -858,7 +858,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/add-context/select-question-from-task", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
 
@@ -965,7 +965,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
     "/grant/<uuid:grant_id>/question/<uuid:question_id>",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # noqa: C901
     # FIXME: It would be better if the add_question and edit_question endpoints were an all-in-one. The complication
@@ -1092,7 +1092,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/question/<uuid:question_id>/guidance", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_component_by_id(component_id=question_id)
@@ -1178,7 +1178,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
     form = ConditionSelectQuestionForm(
@@ -1210,7 +1210,7 @@ def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -
     "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/<uuid:depends_on_question_id>",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
@@ -1288,7 +1288,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
     "/grant/<uuid:grant_id>/condition/<uuid:expression_id>",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)
@@ -1371,7 +1371,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
     "/grant/<uuid:grant_id>/question/<uuid:question_id>/add-validation",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
@@ -1438,7 +1438,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     "/grant/<uuid:grant_id>/validation/<uuid:expression_id>",
     methods=["GET", "POST"],
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)
@@ -1525,7 +1525,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/submissions/<submission_mode:submission_mode>"
 )
-@has_grant_role(RoleEnum.MEMBER)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: SubmissionModeEnum) -> ResponseReturnValue:
     report = interfaces.collections.get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
     helper = CollectionHelper(collection=report, submission_mode=submission_mode)
@@ -1543,7 +1543,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/submissions/<submission_mode:submission_mode>/export/<export_format>",
     methods=["GET"],
 )
-@has_grant_role(RoleEnum.MEMBER)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 def export_report_submissions(
     grant_id: UUID, report_id: UUID, submission_mode: SubmissionModeEnum, export_format: str
 ) -> ResponseReturnValue:
@@ -1578,7 +1578,7 @@ def export_report_submissions(
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/submission/<uuid:submission_id>")
-@has_grant_role(RoleEnum.MEMBER)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     helper = SubmissionHelper.load(submission_id)
     return render_template(

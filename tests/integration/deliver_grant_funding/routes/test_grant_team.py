@@ -1,9 +1,11 @@
+import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models_user import Invitation
 from app.common.data.types import RoleEnum
+from tests.models import _get_grant_managing_organisation
 from tests.utils import get_h2_text, get_soup_text
 
 
@@ -18,27 +20,28 @@ class TestGrantTeamListUsers:
         users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
         assert not users
 
-    def test_list_users_for_grant_with_platform_admin_check_add_member_button(
-        self, authenticated_platform_admin_client, factories
-    ):
-        grant = factories.grant.create()
-        response = authenticated_platform_admin_client.get(
-            url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
-        )
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert soup.find("a", string=lambda text: text and "Add grant team member" in text), (
-            "'Add grant team member' button not found"
-        )
+    @pytest.mark.parametrize(
+        "client_fixture,can_add_users",
+        [
+            ("authenticated_platform_admin_client", True),
+            ("authenticated_org_admin_client", True),
+            ("authenticated_grant_admin_client", True),
+            ("authenticated_grant_member_client", False),
+        ],
+    )
+    def test_list_users_for_grant_check_add_member_button(self, client_fixture, can_add_users, factories, request):
+        client = request.getfixturevalue(client_fixture)
+        organisation = client.organisation or _get_grant_managing_organisation()
+        grant = client.grant or factories.grant.create(organisation=organisation)
 
-    def test_list_users_for_grant_with_member_no_add_member_button(self, authenticated_grant_member_client, factories):
-        grant = factories.grant.create()
-        user = get_current_user()
-        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
-        response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
-        )
+        response = client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
         soup = BeautifulSoup(response.data, "html.parser")
-        assert soup.find("a", string=lambda text: text and "Add grant team member" in text) is None
+        add_member_button = soup.find("a", string=lambda text: text and "Add grant team member" in text)
+
+        if can_add_users:
+            assert add_member_button is not None, "'Add grant team member' button not found"
+        else:
+            assert add_member_button is None, "'Add grant team member' button should not be visible"
 
     def test_list_users_for_grant_with_not_logged_in_members(
         self, authenticated_platform_admin_client, factories, templates_rendered
@@ -77,16 +80,23 @@ class TestGrantTeamAddUser:
         form_errors = templates_rendered.get("deliver_grant_funding.add_user_to_grant").context.get("form").errors
         assert form_errors
         assert "user_email" in form_errors
-        assert (
-            form_errors["user_email"][0]
-            == "This user already exists as a Funding Service admin user so you cannot add them"
-        )
+        assert form_errors["user_email"][0] == f'This user already is an admin of "{grant.name}" so you cannot add them'
 
-    def test_add_user_to_grant_with_platform_admin_add_member(
-        self, authenticated_platform_admin_client, templates_rendered, factories, mock_notification_service_calls
+    @pytest.mark.parametrize(
+        "client_fixture",
+        [
+            "authenticated_platform_admin_client",
+            "authenticated_org_admin_client",
+            "authenticated_grant_admin_client",
+        ],
+    )
+    def test_add_user_to_grant_add_member(
+        self, client_fixture, templates_rendered, factories, mock_notification_service_calls, request
     ):
-        grant = factories.grant.create()
-        authenticated_platform_admin_client.post(
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant or factories.grant.create()
+
+        client.post(
             url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
             json={"user_email": "test1@communities.gov.uk"},
             follow_redirects=True,
@@ -97,13 +107,23 @@ class TestGrantTeamAddUser:
         assert invitations
         assert len(invitations) == 1
 
-    def test_add_user_to_grant_with_platform_admin_add_same_member_again(
-        self, authenticated_platform_admin_client, templates_rendered, factories, mock_notification_service_calls
+    @pytest.mark.parametrize(
+        "client_fixture",
+        [
+            "authenticated_platform_admin_client",
+            "authenticated_org_admin_client",
+            "authenticated_grant_admin_client",
+        ],
+    )
+    def test_add_user_to_grant_add_same_member_again(
+        self, client_fixture, templates_rendered, factories, mock_notification_service_calls, request
     ):
-        grant = factories.grant.create()
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant or factories.grant.create()
+
         user = factories.user.create(email="test1.member@communities.gov.uk")
         factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
-        authenticated_platform_admin_client.post(
+        client.post(
             url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
             json={"user_email": "Test1.Member@Communities.gov.uk"},
             follow_redirects=True,
@@ -114,10 +134,11 @@ class TestGrantTeamAddUser:
         assert form_errors["user_email"][0] == f'This user already is a member of "{grant.name}" so you cannot add them'
 
     def test_add_user_to_grant_creates_invitation_for_new_user(
-        self, authenticated_platform_admin_client, db_session, factories, mock_notification_service_calls
+        self, authenticated_grant_admin_client, db_session, factories, mock_notification_service_calls
     ):
-        grant = factories.grant.create()
-        authenticated_platform_admin_client.post(
+        grant = authenticated_grant_admin_client.grant
+
+        authenticated_grant_admin_client.post(
             url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
             json={"user_email": "test1@communities.gov.uk"},
             follow_redirects=True,
@@ -132,11 +153,12 @@ class TestGrantTeamAddUser:
         )
 
     def test_add_user_to_grant_adds_existing_user_no_invitation(
-        self, authenticated_platform_admin_client, db_session, factories, mock_notification_service_calls
+        self, authenticated_grant_admin_client, db_session, factories, mock_notification_service_calls
     ):
-        grant = factories.grant.create()
+        grant = authenticated_grant_admin_client.grant
+
         user = factories.user.create(email="test1@communities.gov.uk")
-        authenticated_platform_admin_client.post(
+        authenticated_grant_admin_client.post(
             url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
             json={"user_email": "test1@communities.gov.uk"},
             follow_redirects=True,

@@ -36,7 +36,7 @@
                   "text": "Change",
                   "visuallyHiddenText": "grant name"
                 }]
-              } if authorisation_helper.has_grant_role(grant.id, roles_enum.ADMIN, current_user) else {}
+              } if authorisation_helper.has_deliver_grant_role(grant.id, roles_enum.ADMIN, current_user) else {}
             },
             {
               "key": {"text": "Main purpose"},
@@ -48,7 +48,7 @@
                   "text": "Change",
                   "visuallyHiddenText": "main purpose"
                 }]
-              } if authorisation_helper.has_grant_role(grant.id, roles_enum.ADMIN, current_user) else {}
+              } if authorisation_helper.has_deliver_grant_role(grant.id, roles_enum.ADMIN, current_user) else {}
             },
             {
               "key": {"text": "Main contact"},
@@ -60,7 +60,7 @@
                   "text": "Change",
                   "visuallyHiddenText": "main contact"
                 }]
-              } if authorisation_helper.has_grant_role(grant.id, roles_enum.ADMIN, current_user) else {}
+              } if authorisation_helper.has_deliver_grant_role(grant.id, roles_enum.ADMIN, current_user) else {}
             }
           ]
         })

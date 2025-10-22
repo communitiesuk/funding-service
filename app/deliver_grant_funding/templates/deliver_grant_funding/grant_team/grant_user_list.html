@@ -6,7 +6,7 @@
 {% set page_title = "Grant team - " ~ grant.name %}
 {% set active_item_identifier = "grant_team" %}
 
-{% set can_add_users = authorisation_helper.is_platform_admin(current_user) %}
+{% set can_add_users = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
 
 {% block content %}
   <div class="govuk-grid-row">
