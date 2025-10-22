@@ -6,6 +6,7 @@ from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
+    GovCheckboxesInput,
     GovCheckboxInput,
     GovRadioInput,
     GovSelect,
@@ -13,7 +14,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextArea,
     GovTextInput,
 )
-from wtforms import Field, HiddenField, IntegerField, SelectField
+from wtforms import Field, HiddenField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
@@ -241,6 +242,27 @@ class GroupAddAnotherOptionsForm(FlaskForm):
         ],
         widget=GovRadioInput(),
     )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
+class GroupAddAnotherSummaryForm(FlaskForm):
+    questions_to_show_in_add_another_summary = SelectMultipleField(
+        "Which answers should be shown to identify each question group entry?",
+        default=[],
+        widget=GovCheckboxesInput(),
+        choices=[],
+        validators=[Optional()],
+        render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
+    )
+
+    def __init__(self, *args: Any, available_questions: list["Question"] | None = None, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.available_questions = available_questions if available_questions else []
+        self.questions_to_show_in_add_another_summary.choices = [
+            (question.id, question.name) for question in self.available_questions
+        ]
+        self.questions_to_show_in_add_another_summary.default = [question.id for question in self.available_questions]
+
     submit = SubmitField(widget=GovSubmitInput())
 
 

@@ -111,7 +111,7 @@
               "actions": {
                 "items": [{
                   "text": "Change",
-                  "href": ""
+                  "href": url_for("deliver_grant_funding.change_group_add_another_summary", grant_id=grant.id, group_id=group.id)
                 }]
               } if group.questions_in_add_another_summary | length >0 else {}
 
