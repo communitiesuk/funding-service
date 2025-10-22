@@ -188,7 +188,11 @@
 
         {% if count and status.all_answered %}
           {% set value_html %}
-            <span>You have added {{ count }} answers</span>
+            <p class="govuk-body">You have added {{ count }} answers</p>
+
+            <p class="govuk-body">
+              <a href="#{{ question.add_another_container.id }}-answers" class="govuk-link govuk-link--no-visited-state">Answers for {{ question.add_another_container.name | lower }}</a>
+            </p>
           {% endset %}
 
           {%
@@ -277,8 +281,89 @@
   }}
 
   {# wip: this will duplicate all the logic above, should be wrapped up in a macro! #}
-  {# {% for add_another_group in groups_for_later %} #}
-    {# {% set count = submission.get_count_for_add_another(add_another_group) %} #}
+  {% for add_another_group in groups_for_later %}
+    {% set count = submission.get_count_for_add_another(add_another_group) %}
+
+    {# wip: this should happen somewhere good #}
+    {% set status = namespace(all_answered = true) %}
+    {% for i in range(count) %}
+      {% set (summary, is_answered) = submission.get_answer_summary_for_add_another(add_another_group, add_another_index=i) %}
+      {% if not is_answered %}
+        {% set status.all_answered = false %}
+      {% endif %}
+    {% endfor %}
+
+    {# todo: wip: decide if we should show answers for incomplete add another groups, maybe that would stop you from going and clicking "Change" in the top level summary table #}
+    {# might even err on the side of not doing this right away #} 
+    {% if count and status.all_answered %}
+      <div class="govuk-!-margin-bottom-6">
+        <h2 class="govuk-heading-m" id="{{ add_another_group.id }}-answers">Answers for {{ add_another_group.name | lower }}</h2>
+
+        {# for each entry #}
+        {% for i in range(count) %}
+
+          {% set rows = [] %}
+          {% set (summary, is_answered) = submission.get_answer_summary_for_add_another(add_another_group, add_another_index=i) %}
+          
+          {# for each question #}
+          {% for question in submission.cached_get_ordered_visible_questions(add_another_group) %}
+
+            {# wip: for now there will be no missing answers although we might want to lift that restriction and let you change them from here #}
+            {% set answer = submission.cached_get_answer_for_question(question.id, add_another_index=i) %}
+            {% if answer is not none %}
+              {% set value_html %}
+                {% include answer._render_answer_template %}
+              {% endset %}
+
+              {%
+                set actions = (
+                []
+                if submission.is_completed else
+                [
+                  {
+                    "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS, add_another_index=i),
+                    "text": "Change",
+                    "visuallyHiddenText": question.name
+                  }
+                ]
+                )
+              %}
+              {%
+                do rows.append({
+                  "key": {"text": runner.interpolate(question.text)},
+                  "value": {"html": value_html},
+                  "actions": {"items": actions},
+                })
+              %}
+            {% else %}
+              {% set valueLink %}
+                <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS, add_another_index=i) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
+              {% endset %}
+              {%
+                do rows.append({
+                  "key": {"text": runner.interpolate(question.text)},
+                  "value": {"html": valueLink}
+                })
+              %}
+            {% endif %}
+    
+          {% endfor %} {# end questions #}
+  
+          {{
+            govukSummaryList({
+              "card": {
+                "title": {
+                  "text": summary
+                }
+              },
+              "rows": rows
+            })
+          }}
+
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endfor %}
   {# {# {% for add_another_group in groups_for_later %}
     {% set rows = [] %}
 
