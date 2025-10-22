@@ -78,7 +78,7 @@ jobs:
 
       - name: run e2e tests
         run: |
-          uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure -vv --durations=999 tests/e2e
+          uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure -vv --durations=999 -n auto tests/e2e
 
       - name: stop docker compose
         if: always() # Ensure this runs even if the previous step fails
