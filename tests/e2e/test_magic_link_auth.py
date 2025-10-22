@@ -13,7 +13,7 @@ def test_magic_link_redirect_journey(page: Page, domain: str, e2e_test_secrets: 
     # Magic link page is no longer the default unauthenticated redirect so just go through that flow.
     request_a_link_page = RequestALinkToSignInPage(page, domain)
     request_a_link_page.navigate()
-    request_a_link_page.fill_email_address("svc-Preaward-Funds@levellingup.gov.uk")
+    request_a_link_page.fill_email_address("fsd-post-award@levellingup.gov.uk")
     request_a_link_page.click_request_a_link()
 
     page.wait_for_url(re.compile(rf"{domain}/check-your-email/.+"))
