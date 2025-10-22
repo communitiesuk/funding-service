@@ -496,7 +496,7 @@ class SubmissionHelper:
                             questions.append(self.get_question(qid))
                         except ValueError:
                             pass
-            questions = visible_questions or cast("Group", component.add_another_container).cached_questions
+            questions = questions or visible_questions or cast("Group", component.add_another_container).cached_questions
         else:
             questions = [cast("Question", component)]
 
