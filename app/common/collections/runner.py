@@ -175,7 +175,18 @@ class FormRunner:
             self.submission.submit_answer_for_question(question.id, self.question_form, add_another_index=self.add_another_index)
 
     def interpolate(self, text: str) -> str:
-        return interpolate(text, context=self.submission.cached_interpolation_context)
+        # wip: full task on the epic for this
+        context = self.submission.cached_interpolation_context
+        # if self.add_another_index is not None:
+        #     count = self.submission.get_count_for_add_another(self.component.add_another_container)
+        #     if self.add_another_index < count:
+        #         context = self.submission.cached_interpolation_context.with_add_another_context(
+        #             self.component,
+        #             self.submission,
+        #             add_another_index=self.add_another_index,
+        #             mode="interpolation"
+        #         )
+        return interpolate(text, context=context)
 
     def save_is_form_completed(self, user: "User") -> bool:
         if not self.form:

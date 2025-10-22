@@ -74,7 +74,7 @@ class ExpressionContext(ChainMap[str, Any]):
         super().__init__(*self._ordered_contexts)
 
     def with_add_another_context(
-        self, component: "Component", submission_helper: "SubmissionHelper", *, add_another_index: int
+        self, component: "Component", submission_helper: "SubmissionHelper", *, add_another_index: int,  mode: Literal["evaluation", "interpolation"] = "evaluation"
     ) -> "ExpressionContext":
         """
         Creates a new `ExpressionContext` with `add_another_context` set to the provided `add_another_context`, and the
@@ -95,7 +95,7 @@ class ExpressionContext(ChainMap[str, Any]):
         )
 
         add_another_context = {
-            question.safe_qid: answer.get_value_for_evaluation()
+            question.safe_qid: (answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation())
             if (
                 answer := submission_helper.cached_get_answer_for_question(
                     question.id, add_another_index=add_another_index

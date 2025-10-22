@@ -306,7 +306,9 @@
           {% set (summary, is_answered) = submission.get_answer_summary_for_add_another(add_another_group, add_another_index=i) %}
           
           {# for each question #}
-          {% for question in submission.cached_get_ordered_visible_questions(add_another_group) %}
+          {# wip: doing this in the template doesn't feel right #}
+          {% set context = submission.cached_evaluation_context.with_add_another_context(add_another_group, submission, add_another_index=i) %}
+          {% for question in submission.cached_get_ordered_visible_questions(add_another_group, override_context=context) %}
 
             {# wip: for now there will be no missing answers although we might want to lift that restriction and let you change them from here #}
             {% set answer = submission.cached_get_answer_for_question(question.id, add_another_index=i) %}
@@ -433,7 +435,7 @@
     </p>
   {% else %}
     {% set check_your_answers_form = runner.check_your_answers_form %}
-    <form method="post" novalidate>
+    <form method="post" novalidate class="govuk-!-margin-top-8">
       {{ check_your_answers_form.csrf_token }}
       {% set all_questions_answered = submission.cached_get_all_questions_are_answered_for_form(form).all_answered %}
       {% if all_questions_answered %}
