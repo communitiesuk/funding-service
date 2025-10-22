@@ -13,6 +13,7 @@ from app.common.auth.decorators import has_deliver_grant_role
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
+    AddAnotherNotValidException,
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     GroupContainsAddAnotherException,
@@ -426,6 +427,11 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
             form.question_group_is_add_another.errors.append(  # type:ignore[attr-defined]
                 "A question group cannot be answered more than once if questions elsewhere in the form depend on "
                 "questions in this group"
+            )
+        except AddAnotherNotValidException:
+            form.question_group_is_add_another.errors.append(  # type:ignore[attr-defined]
+                "A question group cannot be answered more than once if it is already inside a group that can "
+                "be answered more than once"
             )
 
     return render_template(

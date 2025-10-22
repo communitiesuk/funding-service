@@ -432,6 +432,12 @@ def raise_if_group_cannot_be_add_another(group: Group) -> None:
                 component for component in group.cached_all_components if len(component.depended_on_by) > 0
             ),
         )
+    if group.parent and group.parent.add_another_container:
+        raise AddAnotherNotValidException(
+            "You cannot set a group to be add another if it is nested inside an add another group",
+            component=group,
+            add_another_container=group.parent.add_another_container,
+        )
 
 
 def raise_if_nested_group_creation_not_valid_here(parent: Group | None = None) -> None:

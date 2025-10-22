@@ -903,6 +903,40 @@ class TestChangeGroupAddAnotherOptions:
         updated_group = db_session.get(Group, db_group.id)
         assert updated_group.add_another is False
 
+    def test_post_is_blocked_if_group_is_inside_add_another(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(form=db_form, name="Test group", add_another=True)
+        factories.question.create(form=db_form, parent=db_group, add_another=True)
+        db_group_2 = factories.group.create(form=db_form, name="Test group 2", add_another=False, parent=db_group)
+
+        assert db_group_2.add_another is False
+
+        form = GroupAddAnotherOptionsForm(data={"question_group_is_add_another": "yes"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group_2.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            "A question group cannot be answered more than once if it is already inside a group that can be "
+            "answered more than once",
+        )
+
+        updated_group = db_session.get(Group, db_group_2.id)
+        assert updated_group.add_another is False
+
     def test_post_is_blocked_if_group_contains_depended_on_questions(
         self, authenticated_grant_admin_client, factories, db_session
     ):

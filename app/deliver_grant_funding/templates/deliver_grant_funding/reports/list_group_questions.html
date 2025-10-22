@@ -87,9 +87,10 @@
                   "text": "Change",
                   "href": url_for("deliver_grant_funding.change_group_add_another_options", grant_id=grant.id, group_id=group.id)
                 }]
-              } if not group.contains_add_another_components  and not group.contains_questions_depended_on_elsewhere else {}
+              } if not group.contains_add_another_components  and not group.contains_questions_depended_on_elsewhere and not group.add_another_container else {}
 
             },
+
           ]
         })
       }}
@@ -101,6 +102,9 @@
       {% endif %}
       {% if group.contains_questions_depended_on_elsewhere %}
         <p class="govuk-body">You cannot allow this question group to be answered more than once as it contains questions that are depended on by other questions in this form.</p>
+      {% endif %}
+      {% if group.parent and group.parent.add_another_container %}
+        <p class="govuk-body">You cannot allow this question group to be answered more than once as it is already contained in a group that can be answered more than once.</p>
       {% endif %}
     </div>
   </div>

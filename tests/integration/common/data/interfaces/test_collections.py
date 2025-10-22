@@ -7,6 +7,7 @@ from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
+    AddAnotherNotValidException,
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     GroupContainsAddAnotherException,
@@ -579,6 +580,15 @@ class TestUpdateGroup:
         with pytest.raises(GroupContainsAddAnotherException):
             update_group(group, expression_context=ExpressionContext(), add_another=True)
         assert group.add_another is False
+
+    def test_update_group_inside_add_another_cant_be_add_another(self, db_session, factories):
+        group = factories.group.create(add_another=True)
+        factories.question.create(form=group.form, parent=group)
+        group2 = factories.group.create(add_another=False, parent=group)
+
+        with pytest.raises(AddAnotherNotValidException):
+            update_group(group2, expression_context=ExpressionContext(), add_another=True)
+        assert group2.add_another is False
 
     def test_update_group_containing_depended_on_questions_cant_be_add_another(self, db_session, factories):
         group = factories.group.create(add_another=False)
