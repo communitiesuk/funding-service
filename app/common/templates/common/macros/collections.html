@@ -134,6 +134,143 @@
   </form>
 {% endmacro %}
 
+{% macro summary_list_for_answers(container, runner, add_another_index=none, summary_title=none) %}
+  {# each container context will have its own summary list which we'll populate at the end of this macro #}
+  {% set form = runner.form %}
+  {% set submission = runner.submission %}
+
+  {% set add_another_contexts = [] %}
+  {% set summary_list_rows = [] %}
+
+  {% set context = submission.cached_evaluation_context if add_another_index is none else submission.cached_evaluation_context.with_add_another_context(container, submission, add_another_index=add_another_index) %}
+  {% for question in submission.cached_get_ordered_visible_questions(container, override_context=context if add_another_index is not none else none) %}
+    {# fixme: set if we're in an add another context at the top of this macro and use that everywhere we do add_another_index is not none #}
+    {% if question.add_another_container and add_another_index is none %}
+      {# for the add another context we'll just include one row with a link to the full answers below #}
+      {% if question.add_another_container not in (add_another_contexts | map(attribute="container")) %}
+        {% set count = submission.get_count_for_add_another(question.add_another_container) %}
+        {% set summaries = [] %}
+        {% set status = namespace(all_answered = true) %}
+        {% for i in range(count) %}
+          {% set (summary, is_answered) = submission.get_answer_summary_for_add_another(question.add_another_container, add_another_index=i) %}
+          {%
+            do summaries.append({
+              "summary_text_line": summary,
+              "is_answered": is_answered
+            })
+          %}
+          {% if not is_answered %}{% set status.all_answered = false %}{% endif %}
+        {% endfor %}
+        {%
+          do add_another_contexts.append({
+            "container": question.add_another_container,
+            "count": count,
+            "summaries": summaries,
+            "all_answered": status.all_answered
+          })
+        %}
+
+        {% set key_text = runner.interpolate(question.add_another_container.name) %}
+
+        {# the add another context has been fully answered and should be checked on this page #}
+        {% if count and status.all_answered %}
+          {% set value_html %}
+            <p class="govuk-body">You have added {% trans count=count %}{{ count }} answer{% pluralize %}{{ count }} answers{% endtrans %}</p>
+
+            <p class="govuk-body">
+              <a href="#{{ question.add_another_container.id }}-answers" class="govuk-link govuk-link--no-visited-state">Answers for {{ question.add_another_container.name | lower }}</a>
+            </p>
+          {% endset %}
+
+          {%
+            set actions = [] if submission.is_completed else [{
+              "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
+              "text": "Change",
+              "visuallyHiddenText": question.add_another_container.name
+            }]
+          %}
+        {% else %}
+          {# the add another context is partially answered and should be completed before checking here #}
+          {% set value_html %}
+            <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">
+              <span>
+                {{ "Enter" if not count else "Finish entering " }}
+                {{ question.add_another_container.name | lower }}
+              </span>
+            </a>
+          {% endset %}
+        {% endif %}
+        {%
+          do summary_list_rows.append({
+              "key": {"text": key_text },
+              "value": {"html": value_html },
+              "actions": {"items": actions } if actions else none,
+          })
+        %}
+      {% endif %}
+    {% else %}
+      {# standard K:V question:answer context #}
+      {% set answer = submission.cached_get_answer_for_question(question.id, add_another_index=add_another_index if add_another_index is not none else none) %}
+      {% if answer is not none %}
+        {% set value_html %}
+          {% include answer._render_answer_template %}
+        {% endset %}
+
+        {# todo: can we "anchor" or link to the specific question if we're going to be changing a question on a same page group #}
+        {%
+          set actions = [] if submission.is_completed else [{
+            "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS, add_another_index=add_another_index if add_another_index is not none else none),
+            "text": "Change",
+            "visuallyHiddenText": question.name
+          }]
+        %}
+        {%
+          do summary_list_rows.append({
+            "key": { "text": runner.interpolate(question.text) },
+            "value": { "html": value_html },
+            "actions": { "items": actions },
+          })
+        %}
+      {% else %}
+        {% set value_html %}
+          <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
+        {% endset %}
+        {%
+          do summary_list_rows.append({
+            "key": { "text": runner.interpolate(question.text) },
+            "value": { "html": value_html }
+          })
+        %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {# fixme: this margin applied somewhere else #}
+  {{
+    govukSummaryList({
+      "classes": "govuk-!-margin-bottom-9" if add_another_index is none else "",
+      "rows": summary_list_rows,
+      "card": {
+        "title": {
+          "text": summary_title if summary_title else "Answer " ~ ((add_another_index + 1) if add_another_index is not none else "")
+        }
+      } if add_another_index is not none else none
+    })
+  }}
+
+  {% for context in add_another_contexts %}
+    {% if context.count and context.all_answered %}
+      <div class="govuk-!-margin-bottom-6">
+        <h2 class="govuk-heading-m" id="{{ context.container.id }}-answers">Answers for {{ context.container.name | lower }}</h2>
+
+        {% for i in range(context.count) %}
+          {{ summary_list_for_answers(context.container, runner, add_another_index=i, summary_title=context.summaries[i].summary_text_line) }}
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
+
 {% macro collection_check_your_answers(runner) %}
   {% set form = runner.form %}
   {% set submission = runner.submission %}
@@ -141,54 +278,7 @@
   <span class="govuk-caption-l">{{ form.title }}</span>
   <h1 class="govuk-heading-l">{{ "Your submitted answers" if submission.is_completed else "Check your answers" }}</h1>
 
-  {% set rows = [] %}
-  {% for question in submission.cached_get_ordered_visible_questions(form) %}
-    {% set answer = submission.cached_get_answer_for_question(question.id) %}
-    {% if answer is not none %}
-      {% set value_html %}
-        {% include answer._render_answer_template %}
-      {% endset %}
-
-      {# todo: can we "anchor" or link to the specific question if we're going to be changing a question on a same page group #}
-      {%
-        set actions = (
-        []
-        if submission.is_completed else
-        [
-          {
-            "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
-            "text": "Change",
-            "visuallyHiddenText": question.name
-          }
-        ]
-        )
-      %}
-      {%
-        do rows.append({
-          "key": {"text": runner.interpolate(question.text)},
-          "value": {"html": value_html},
-          "actions": {"items": actions},
-        })
-      %}
-    {% else %}
-      {% set valueLink %}
-        <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
-      {% endset %}
-      {%
-        do rows.append({
-          "key": {"text": runner.interpolate(question.text)},
-          "value": {"html": valueLink}
-        })
-      %}
-    {% endif %}
-  {% endfor %}
-
-  {{
-    govukSummaryList({
-      "classes": "govuk-!-margin-bottom-9",
-      "rows": rows
-    })
-  }}
+  {{ summary_list_for_answers(form, runner) }}
 
   {% if submission.is_completed %}
     <p class="govuk-body">
@@ -196,7 +286,7 @@
     </p>
   {% else %}
     {% set check_your_answers_form = runner.check_your_answers_form %}
-    <form method="post" novalidate>
+    <form method="post" novalidate class="govuk-!-margin-top-8">
       {{ check_your_answers_form.csrf_token }}
       {% set all_questions_answered = submission.cached_get_all_questions_are_answered_for_form(form).all_answered %}
       {% if all_questions_answered %}
