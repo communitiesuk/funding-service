@@ -28,12 +28,18 @@
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
-    <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
+    {# if the group you're in is itself add another which index you're in will be in the heading not the caption #}
+    {% if runner.add_another_index is not none and not (runner.component == runner.component.add_another_container) %}
+      <span class="govuk-caption-l">{{ runner.component.add_another_container.name }} ({{ runner.add_another_index + 1 }})</span>
+    {% else %}
+      <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
+    {% endif %}
+
     {% if runner.component.guidance_heading %}
       <h1 class="govuk-heading-l">{{ runner.component.guidance_heading }}</h1>
       {{ runner.interpolate(runner.component.guidance_body) | govuk_markdown }}
     {% elif is_group %}
-      <h1 class="govuk-heading-l">{{ runner.component.name }}</h1>
+      <h1 class="govuk-heading-l">{{ runner.component.name + " (" ~ (runner.add_another_index + 1) ~ ")" if runner.add_another_index is not none else "" }}</h1>
     {% endif %}
 
     {# https://github.com/alphagov/govuk-frontend/issues/1841 #}
@@ -285,6 +291,7 @@
 {% macro collection_add_another_summary(runner) %}
   {% set add_another_container = runner.component.add_another_container %}
 
+  <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
   <h1 class="govuk-heading-l">{{ add_another_container.name }}</h1>
 
   {% set number_of_entries = runner.submission.get_count_for_add_another(add_another_container) %}
@@ -301,7 +308,9 @@
         {% if is_answered %}
           <span>{{ summary }}</span>
         {% else %}
-          <a class="govuk-link govuk-link--no-visited-state" href="#"> Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }} </a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i) }}">
+            Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }}
+          </a>
         {% endif %}
       {% endset %}
 
@@ -313,7 +322,7 @@
           "actions": {
             "items": [
               {
-                "href": "#",
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i),
                 "text": "Change",
                 "visuallyHiddenText": entry_hidden_description
               },
@@ -362,7 +371,7 @@
       }}
       {{
         runner.add_another_summary_form.submit(params={
-          "text": "Add the first " ~ (add_another_container.name | lower),
+          "text": "Add the first answer",
           "classes": "govuk-!-margin-top-3"
         })
       }}

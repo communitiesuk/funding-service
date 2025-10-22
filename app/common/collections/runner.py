@@ -1,5 +1,5 @@
 # todo: propose moving common/helper/collections.py to common/collections/submission.py
-from typing import TYPE_CHECKING, ClassVar, Optional, Union
+from typing import TYPE_CHECKING, ClassVar, Optional, Union, cast
 from uuid import UUID
 
 from flask import abort, url_for
@@ -45,15 +45,6 @@ class FormRunner:
         self.source = source
         self.add_another_index = add_another_index
 
-        # if we've navigated to a question that belongs to a group that show on the same page
-        # pass the whole group into the form runner
-        if question and question.parent and question.parent.same_page:
-            self.component = question.parent
-            self.questions = self.submission.cached_get_ordered_visible_questions(self.component)
-        else:
-            self.component = question
-            self.questions = [self.component] if self.component else []
-
         self._valid: Optional[bool] = None
 
         self._tasklist_form = GenericSubmitForm()
@@ -62,8 +53,33 @@ class FormRunner:
         self._add_another_summary_form: Optional[AddAnotherSummaryForm] = None
 
         self.add_another_summary_context = bool(
-            (self.component and self.component.add_another_container) and self.add_another_index is None
+            (question and question.add_another_container) and self.add_another_index is None
         )
+
+        if (
+            self.add_another_summary_context and question and question.add_another_container
+        ):  # redundant checks are for type narrowing
+            self.component = cast("Question | Group", question.add_another_container)
+            self.questions = (
+                self.submission.cached_get_ordered_visible_questions(self.component)
+                if self.component.is_group
+                else [cast("Question", self.component)]
+            )
+        elif question and question.parent and question.parent.same_page:
+            # if we've navigated to a question that belongs to a group that show on the same page
+            # pass the whole group into the form runner
+            self.component = question.parent
+            self.questions = self.submission.cached_get_ordered_visible_questions(
+                self.component,
+                override_context=self.submission.cached_evaluation_context.with_add_another_context(
+                    question, self.submission, add_another_index=self.add_another_index, allow_new_index=True
+                )
+                if self.add_another_index is not None
+                else None,
+            )
+        else:
+            self.component = question
+            self.questions = [self.component] if self.component else []
 
         if self.component:
             self.form = self.component.form
@@ -81,7 +97,14 @@ class FormRunner:
                     evaluation_context=self.submission.cached_evaluation_context,
                     interpolation_context=self.submission.cached_interpolation_context,
                 )
-                self._question_form = _QuestionForm(data=self.submission.cached_form_data)
+                self._question_form = _QuestionForm(
+                    data=self.submission.cached_form_data(
+                        add_another_container=self.component.add_another_container
+                        if self.component and self.add_another_index is not None
+                        else None,
+                        add_another_index=self.add_another_index,
+                    )
+                )
 
         if self.form:
             all_questions_answered = self.submission.cached_get_all_questions_are_answered_for_form(
@@ -102,6 +125,7 @@ class FormRunner:
         question_id: Optional[UUID] = None,
         form_id: Optional[UUID] = None,
         source: Optional[FormRunnerState] = None,
+        add_another_index: Optional[int] = None,
     ) -> "FormRunner":
         if question_id and form_id:
             raise ValueError("Expected only one of question_id or form_id")
@@ -127,6 +151,7 @@ class FormRunner:
             question=question,
             form=form,
             source=source,
+            add_another_index=add_another_index,
         )
 
     @property
@@ -160,7 +185,9 @@ class FormRunner:
             raise RuntimeError("Question context not set")
 
         for question in self.questions:
-            self.submission.submit_answer_for_question(question.id, self.question_form)
+            self.submission.submit_answer_for_question(
+                question.id, self.question_form, add_another_index=self.add_another_index
+            )
 
     def interpolate(self, text: str) -> str:
         return interpolate(text, context=self.submission.cached_interpolation_context)
@@ -197,12 +224,21 @@ class FormRunner:
         question: Optional["Question"] = None,
         form: Optional["Form"] = None,
         source: Optional[FormRunnerState] = None,
+        add_another_index: Optional[int] = None,
     ) -> str:
         # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
-        return self.url_map[state](self, question or self.component, form or self.form, source)  # type: ignore[arg-type]
+        return self.url_map[state](self, question or self.component, form or self.form, source, add_another_index)  # type: ignore[arg-type]
 
     @property
     def next_url(self) -> str:
+        if self.add_another_summary_context and self.component and self.component.add_another_container:
+            if (
+                self.add_another_summary_form.validate_on_submit()
+                and self.add_another_summary_form.add_another.data == "yes"
+            ):
+                new_index = self.submission.get_count_for_add_another(self.component.add_another_container)
+                return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=new_index)
+
         # if we're in the context of a question page, decide if we should go to the next question
         # or back to check your answers based on if the integrity checks pass
         if self.component:
@@ -210,16 +246,41 @@ class FormRunner:
                 return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
             last_question = self.questions[-1] if self.component.is_group else self.component
-            next_question = self.submission.get_next_question(last_question.id)
+            next_question = self.submission.get_next_question(
+                last_question.id, add_another_index=self.add_another_index
+            )
+
+            # for now we'll always sequentially step through add another questions - this could be refined when we
+            # refactor the "skip" logic below or move to using a check an add another entries details pattern
+            if next_question and self.add_another_index is not None:
+                if next_question.add_another_container != self.component.add_another_container:
+                    # we've moved out of this add another context, return to the summary page
+                    return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=None)
+                else:
+                    return self.to_url(
+                        FormRunnerState.QUESTION, question=next_question, add_another_index=self.add_another_index
+                    )
 
             # Regardless of where they're from (eg even check-your-answers), take them to the next unanswered question
             # this will let users stay in a data-submitting flow if they've changed a conditional answer which has
             # unlocked more questions.
-            while next_question and self.submission.cached_get_answer_for_question(next_question.id) is not None:
-                next_question = self.submission.get_next_question(next_question.id)
+            while next_question and (
+                # skip questions that have already been answered
+                (self.submission.cached_get_answer_for_question(next_question.id) is not None)
+                # only if we know exactly which answer to check (its not add another)
+                if not next_question.add_another_container
+                # otherwise for add another questions skip if we've got at least one entry
+                else (self.submission.get_count_for_add_another(next_question.add_another_container))
+            ):
+                next_question = self.submission.get_next_question(
+                    next_question.id,
+                    add_another_index=self.add_another_index
+                    if next_question.add_another_container == self.component.add_another_container
+                    else None,
+                )
 
             return (
-                self.to_url(FormRunnerState.QUESTION, question=next_question)
+                self.to_url(FormRunnerState.QUESTION, question=next_question, add_another_index=self.add_another_index)
                 if next_question
                 else self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
             )
@@ -252,33 +313,46 @@ class FormRunner:
 
         if self.component:
             first_question = self.questions[0] if self.component.is_group else self.component
-            previous_question = self.submission.get_previous_question(first_question.id)
+            previous_question = self.submission.get_previous_question(
+                first_question.id, add_another_index=self.add_another_index
+            )
         elif self.form:
             previous_question = self.submission.get_last_question_for_form(self.form)
         else:
             previous_question = None
         if previous_question:
-            return self.to_url(FormRunnerState.QUESTION, question=previous_question)
+            if (
+                self.add_another_index is not None
+                and self.component
+                and previous_question.add_another_container != self.component.add_another_container
+            ):
+                # we've moved out of this add another context, return to the summary page
+                return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=None)
+            else:
+                return self.to_url(
+                    FormRunnerState.QUESTION, question=previous_question, add_another_index=self.add_another_index
+                )
 
         return self.to_url(FormRunnerState.TASKLIST)
 
 
 class DGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
-        FormRunnerState.QUESTION: lambda runner, question, _form, source: url_for(
+        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index: url_for(
             "deliver_grant_funding.ask_a_question",
             grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
             question_id=question.id if question else None,
             source=source,
+            add_another_index=add_another_index,
         ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source: url_for(
+        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index: url_for(
             "deliver_grant_funding.submission_tasklist",
             grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
             form_id=runner.form.id if runner.form else None,
         ),
-        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source: url_for(
+        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index: url_for(
             "deliver_grant_funding.check_your_answers",
             grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
@@ -290,18 +364,19 @@ class DGFFormRunner(FormRunner):
 
 class AGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
-        FormRunnerState.QUESTION: lambda runner, question, _form, source: url_for(
+        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index: url_for(
             "developers.access.ask_a_question",
             submission_id=runner.submission.id,
             question_id=question.id if question else None,
             source=source,
+            add_another_index=add_another_index,
         ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source: url_for(
+        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index: url_for(
             "developers.access.submission_tasklist",
             submission_id=runner.submission.id,
             form_id=runner.form.id if runner.form else None,
         ),
-        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source: url_for(
+        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index: url_for(
             "developers.access.check_your_answers",
             submission_id=runner.submission.id,
             form_id=form.id if form else runner.form.id if runner.form else None,
