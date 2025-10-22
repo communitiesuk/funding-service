@@ -374,6 +374,8 @@ class Component(BaseModel):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(text={self.text}, is_group={self.is_group}, add_another={self.add_another})"
 
+    # todo: this returns a question or a group or none and the types should reflect that
+    #       the cleanest way to do this is probably to implement it on question and group models separately
     @property
     def add_another_container(self) -> "Component | None":
         if self.add_another:

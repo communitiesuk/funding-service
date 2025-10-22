@@ -135,9 +135,11 @@ class SubmissionHelper:
     def reference(self) -> str:
         return self.submission.reference
 
-    @cached_property
-    def cached_form_data(self) -> dict[str, Any]:
+    def cached_form_data(
+        self, *, add_another_container: "Component | None" = None, add_another_index: int | None = None
+    ) -> dict[str, Any]:
         form_data: dict[str, Any] = {}
+
         for form in self.collection.forms:
             for question in form.cached_questions:
                 # we'll only add add another answers if a context is provided which will be hooked in
@@ -146,6 +148,15 @@ class SubmissionHelper:
                     answer = self.cached_get_answer_for_question(question.id)
                     if answer is not None:
                         form_data[question.safe_qid] = answer.get_value_for_form()
+                else:
+                    if add_another_container and add_another_index is not None:
+                        count = self.get_count_for_add_another(add_another_container)
+                        if question.add_another_container == add_another_container and add_another_index < count:
+                            answer = self.cached_get_answer_for_question(
+                                question.id, add_another_index=add_another_index
+                            )
+                            if answer is not None:
+                                form_data[question.safe_qid] = answer.get_value_for_form()
 
         return form_data
 
@@ -361,7 +372,9 @@ class SubmissionHelper:
         serialised_data = data_entry.get(str(question_id))
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
 
-    def submit_answer_for_question(self, question_id: UUID, form: DynamicQuestionForm) -> None:
+    def submit_answer_for_question(
+        self, question_id: UUID, form: DynamicQuestionForm, *, add_another_index: int | None = None
+    ) -> None:
         if self.is_completed:
             raise ValueError(
                 f"Could not submit answer for question_id={question_id} "
@@ -370,7 +383,9 @@ class SubmissionHelper:
 
         question = self.get_question(question_id)
         data = _form_data_to_question_type(question, form)
-        interfaces.collections.update_submission_data(self.submission, question, data)
+        interfaces.collections.update_submission_data(
+            self.submission, question, data, add_another_index=add_another_index
+        )
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
 
@@ -449,7 +464,7 @@ class SubmissionHelper:
         context_override = None
         if question.add_another_container and add_another_index is not None:
             context_override = self.cached_evaluation_context.with_add_another_context(
-                question, submission_helper=self, add_another_index=add_another_index
+                question, submission_helper=self, add_another_index=add_another_index, allow_new_index=True
             )
 
         questions = self.cached_get_ordered_visible_questions(
@@ -470,15 +485,23 @@ class SubmissionHelper:
         if not component.add_another_container:
             raise ValueError("answer summaries can only be generated for components in an add another container")
 
+        context = self.cached_evaluation_context.with_add_another_context(
+            submission_helper=self, component=component, add_another_index=add_another_index
+        )
+        visible_questions = self.cached_get_ordered_visible_questions(
+            component.add_another_container, override_context=context
+        )
+
         questions = []
         if component.add_another_container.is_group:
             if component.add_another_container.presentation_options.add_another_summary_line_question_ids:
                 for qid in component.add_another_container.presentation_options.add_another_summary_line_question_ids:
-                    try:
-                        questions.append(self.get_question(qid))
-                    except ValueError:
-                        pass
-            questions = questions or cast("Group", component.add_another_container).cached_questions
+                    if qid in [q.id for q in visible_questions]:
+                        try:
+                            questions.append(self.get_question(qid))
+                        except ValueError:
+                            pass
+            questions = questions or visible_questions
         else:
             questions = [cast("Question", component)]
 
@@ -488,15 +511,10 @@ class SubmissionHelper:
             if answer:
                 answers.append(answer.get_value_for_text_export())
 
-        # as this should always only check visible questions this is done verbosely separate
         answer_status = []
-        context = self.cached_evaluation_context.with_add_another_context(
-            submission_helper=self, component=component, add_another_index=add_another_index
-        )
+
         if component.add_another_container.is_group:
-            for question in self.cached_get_ordered_visible_questions(
-                component.add_another_container, override_context=context
-            ):
+            for question in visible_questions:
                 answer = self.cached_get_answer_for_question(question.id, add_another_index=add_another_index)
                 answer_status.append(answer is not None)
         else:
