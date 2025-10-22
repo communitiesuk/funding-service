@@ -417,6 +417,23 @@ def create_question(
     return question
 
 
+def raise_if_group_cannot_be_add_another(group: Group) -> None:
+    if group.contains_add_another_components:
+        raise GroupContainsAddAnotherException(
+            group=group,
+            message="You cannot set a group to be add another if it already contains add another components",
+        )
+    if group.contains_questions_depended_on_elsewhere:
+        raise AddAnotherDependencyException(
+            message="You cannot set a group to be add another if questions in the group are depended on "
+            "by other components",
+            component=group,
+            referenced_question=next(
+                component for component in group.cached_all_components if len(component.depended_on_by) > 0
+            ),
+        )
+
+
 def raise_if_nested_group_creation_not_valid_here(parent: Group | None = None) -> None:
     if parent:
         if not parent.can_have_child_group:
@@ -868,11 +885,7 @@ def update_group(
 
     if add_another is not NOT_PROVIDED:
         if group.add_another is not True and add_another is True:
-            if group.contains_add_another_components:
-                raise GroupContainsAddAnotherException(
-                    group=group,
-                    message="You cannot set a group to be add another if it already contains add another components",
-                )
+            raise_if_group_cannot_be_add_another(group)
 
         group.add_another = add_another
 
