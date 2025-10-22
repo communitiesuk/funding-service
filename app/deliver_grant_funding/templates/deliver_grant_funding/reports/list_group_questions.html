@@ -66,12 +66,32 @@
     <div class="govuk-grid-column-two-thirds">
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Question group settings</h2>
 
+      {% if group.add_another %}
+        {% set answer_summary_list_html %}
+          {% if group.questions_in_add_another_summary | length >0 %}
+            Each answer will show as:
+            <ul class="govuk-list govuk-list--bullet">
+              {% for question in group.questions_in_add_another_summary %}
+                <li>{{ question.name }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            There are no questions in this group
+          {% endif %}
+        {% endset %}
+      {% endif %}
+
+
       {% set change_add_another_html %}
         <span>Change</span><span class="govuk-visually-hidden">add another setting</span>
       {% endset %}
       {% set change_display_html %}
         <span>Change</span><span class="govuk-visually-hidden">display setting</span>
       {% endset %}
+      {% set change_summary_html %}
+        <span>Change</span><span class="govuk-visually-hidden">add another summary setting</span>
+      {% endset %}
+
       {{
         govukSummaryList({
           "rows": [
@@ -96,6 +116,17 @@
               } if not group.contains_add_another_components  and not group.contains_questions_depended_on_elsewhere and not group.parent.add_another_container else {}
 
             },
+            ({
+              "key": {"text": "Answer summary"},
+              "value": {"html": answer_summary_list_html},
+              "actions": {
+                "items": [{
+                  "html":change_summary_html,
+                  "href": ""
+                }]
+              } if group.questions_in_add_another_summary | length >0 else {}
+
+            } if group.add_another else {})
           ]
         })
       }}
