@@ -391,15 +391,13 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-add-another-options", methods=["GET", "POST"]
 )
-@has_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
 
     form = GroupAddAnotherOptionsForm(question_group_is_add_another="yes" if db_group.add_another else "no")
-    print(form)
     if form.validate_on_submit():
-        print(f"add another data: {form.question_group_is_add_another.data}")
         try:
             # todo: pass the result of checking if questions depend on each other
             #       into the template so that we can grey out the option before reaching this point
