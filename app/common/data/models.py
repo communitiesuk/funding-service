@@ -493,6 +493,14 @@ class Group(Component):
                 return True
         return False
 
+    @cached_property
+    def contains_questions_depended_on_elsewhere(self) -> bool:
+        for component in self.cached_all_components:
+            if len(component.depended_on_by) > 0:
+                return True
+
+        return False
+
 
 class SubmissionEvent(BaseModel):
     __tablename__ = "submission_event"

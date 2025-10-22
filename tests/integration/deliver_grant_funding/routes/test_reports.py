@@ -9,6 +9,7 @@ from flask import url_for
 
 from app import QuestionDataType
 from app.common.data import interfaces
+from app.common.data.interfaces.collections import add_question_validation
 from app.common.data.models import Collection, Expression, Form, Group, Question
 from app.common.data.types import (
     ExpressionType,
@@ -897,6 +898,46 @@ class TestChangeGroupAddAnotherOptions:
             soup,
             "A question group cannot be answered more than once if it already contains questions that can "
             "be answered more than once",
+        )
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.add_another is False
+
+    def test_post_is_blocked_if_group_contains_depended_on_questions(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(form=db_form, name="Test group", add_another=False)
+        group_question = factories.question.create(form=db_form, parent=db_group)
+        db_question = factories.question.create(form=db_form)
+
+        add_question_validation(
+            question=db_question,
+            managed_expression=GreaterThan(question_id=group_question.id, minimum_value=100),
+            user=factories.user.create(),
+        )
+
+        assert db_group.add_another is False
+
+        form = GroupAddAnotherOptionsForm(data={"question_group_is_add_another": "yes"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            "A question group cannot be answered more than once if questions elsewhere in the form depend "
+            "on questions in this group",
         )
 
         updated_group = db_session.get(Group, db_group.id)

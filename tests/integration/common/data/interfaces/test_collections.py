@@ -580,6 +580,24 @@ class TestUpdateGroup:
             update_group(group, expression_context=ExpressionContext(), add_another=True)
         assert group.add_another is False
 
+    def test_update_group_containing_depended_on_questions_cant_be_add_another(self, db_session, factories):
+        group = factories.group.create(add_another=False)
+        q1 = factories.question.create(form=group.form, parent=group)
+        q2 = factories.question.create(
+            form=group.form,
+        )
+        add_question_validation(
+            question=q2,
+            managed_expression=GreaterThan(question_id=q1.id, minimum_value=100),
+            user=factories.user.create(),
+        )
+
+        with pytest.raises(AddAnotherDependencyException) as e:
+            update_group(group, expression_context=ExpressionContext(), add_another=True)
+        assert group.add_another is False
+        assert e.value.component == group
+        assert e.value.referenced_question == q1
+
     def test_synced_component_references(self, db_session, factories, mocker):
         form = factories.form.create()
         user = factories.user.create()
