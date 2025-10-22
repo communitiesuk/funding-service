@@ -160,45 +160,112 @@
   <span class="govuk-caption-l">{{ form.title }}</span>
   <h1 class="govuk-heading-l">{{ "Your submitted answers" if submission.is_completed else "Check your answers" }}</h1>
 
+  {% set groups_for_later = [] %}
+
   {% set rows = [] %}
   {% for question in submission.cached_get_ordered_visible_questions(form) %}
-    {% set answer = submission.cached_get_answer_for_question(question.id) %}
-    {% if answer is not none %}
-      {% set value_html %}
-        {% include answer._render_answer_template %}
-      {% endset %}
+    {% set is_add_another_group = false %}
 
-      {# todo: can we "anchor" or link to the specific question if we're going to be changing a question on a same page group #}
-      {%
-        set actions = (
-        []
-        if submission.is_completed else
-        [
-          {
-            "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
-            "text": "Change",
-            "visuallyHiddenText": question.name
-          }
-        ]
-        )
-      %}
-      {%
-        do rows.append({
-          "key": {"text": runner.interpolate(question.text)},
-          "value": {"html": value_html},
-          "actions": {"items": actions},
-        })
-      %}
-    {% else %}
-      {% set valueLink %}
-        <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
-      {% endset %}
-      {%
-        do rows.append({
-          "key": {"text": runner.interpolate(question.text)},
-          "value": {"html": valueLink}
-        })
-      %}
+    {# wip: come back and tidy all of this multiple passes up later #}
+    {% if not (question.add_another_container and question.add_another_container in groups_for_later) %}
+
+      {% if question.add_another_container and question.add_another_container.id not in groups_for_later %}
+        {% do groups_for_later.append(question.add_another_container) %}
+        {% set is_add_another_group = true %}
+      {% endif %}
+
+      {% if is_add_another_group %}
+        {% set count = submission.get_count_for_add_another(question.add_another_container) %}
+
+        {# wip: this should happen somewhere good #}
+        {% set status = namespace(all_answered = true) %}
+        {% for i in range(count) %}
+          {% set (summary, is_answered) = submission.get_answer_summary_for_add_another(question, add_another_index=i) %}
+          {% if not is_answered %}
+            {% set status.all_answered = false %}
+          {% endif %}
+        {% endfor %}
+
+        {% if count and status.all_answered %}
+          {% set value_html %}
+            <span>You have added {{ count }} answers</span>
+          {% endset %}
+
+          {%
+            set actions = (
+            []
+            if submission.is_completed else
+            [
+              {
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
+                "text": "Change",
+                "visuallyHiddenText": question.add_another_container.name
+              }
+            ]
+            )
+          %}
+          {%
+            do rows.append({
+              "key": {"text": runner.interpolate(question.add_another_container.text)},
+              "value": {"html": value_html},
+              "actions": {"items": actions},
+            })
+          %}
+
+        {% else %}
+
+          {% set valueLink %}
+            <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">{{ "Enter" if not count else "Finish entering " }} {{ question.add_another_container.name | lower }}</a>
+          {% endset %}
+          {%
+            do rows.append({
+              "key": {"text": runner.interpolate(question.add_another_container.text)},
+              "value": {"html": valueLink}
+            })
+          %}
+
+        {% endif %}
+
+      {% else %}
+        {% set answer = submission.cached_get_answer_for_question(question.id) %}
+        {% if answer is not none %}
+          {% set value_html %}
+            {% include answer._render_answer_template %}
+          {% endset %}
+
+          {# todo: can we "anchor" or link to the specific question if we're going to be changing a question on a same page group #}
+          {%
+            set actions = (
+            []
+            if submission.is_completed else
+            [
+              {
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
+                "text": "Change",
+                "visuallyHiddenText": question.name
+              }
+            ]
+            )
+          %}
+          {%
+            do rows.append({
+              "key": {"text": runner.interpolate(question.text)},
+              "value": {"html": value_html},
+              "actions": {"items": actions},
+            })
+          %}
+        {% else %}
+          {% set valueLink %}
+            <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
+          {% endset %}
+          {%
+            do rows.append({
+              "key": {"text": runner.interpolate(question.text)},
+              "value": {"html": valueLink}
+            })
+          %}
+        {% endif %}
+      {% endif %}
     {% endif %}
   {% endfor %}
 
@@ -208,6 +275,72 @@
       "rows": rows
     })
   }}
+
+  {# wip: this will duplicate all the logic above, should be wrapped up in a macro! #}
+  {# {% for add_another_group in groups_for_later %} #}
+    {# {% set count = submission.get_count_for_add_another(add_another_group) %} #}
+  {# {# {% for add_another_group in groups_for_later %}
+    {% set rows = [] %}
+
+    {% set count = submission.get_count_for_add_another(add_another_group) %}
+
+    {% for i in range(count) %} 
+
+    {% for question in submission.cached_get_ordered_visible_questions(add_another_group) %}
+
+        {% if question.add_another_container and question.add_another_container.id not in groups_for_later %}
+          {% do groups_for_later.append(question.add_another_container) %}
+          {% set is_add_another_group = true %}
+        {% endif %}
+
+        {% set answer = submission.cached_get_answer_for_question(question.id) %}
+        {% if answer is not none %}
+          {% set value_html %}
+            {% include answer._render_answer_template %}
+          {% endset %}
+
+          {%
+            set actions = (
+            []
+            if submission.is_completed else
+            [
+              {
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
+                "text": "Change",
+                "visuallyHiddenText": question.name
+              }
+            ]
+            )
+          %}
+          {%
+            do rows.append({
+              "key": {"text": runner.interpolate(question.text)},
+              "value": {"html": value_html},
+              "actions": {"items": actions},
+            })
+          %}
+        {% else %}
+          {% set valueLink %}
+            <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
+          {% endset %}
+          {%
+            do rows.append({
+              "key": {"text": runner.interpolate(question.text)},
+              "value": {"html": valueLink}
+            })
+          %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+
+    {{
+      govukSummaryList({
+        "classes": "govuk-!-margin-bottom-9",
+        "rows": rows
+      })
+    }}
+
+  {% endfor %} #}
 
   {% if submission.is_completed %}
     <p class="govuk-body">
