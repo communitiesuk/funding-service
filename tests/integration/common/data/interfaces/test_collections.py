@@ -2718,6 +2718,68 @@ class TestValidateAndSyncExpressionReferences:
         with pytest.raises(IncompatibleDataTypeException):
             _validate_and_sync_expression_references(expression)
 
+    def test_raises_add_another_exception_on_question(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        first_referenced_question = factories.question.create(
+            form=form, data_type=QuestionDataType.INTEGER, add_another=True
+        )
+        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+
+        expression = Expression.from_managed(
+            Between(
+                question_id=target_question.id,
+                minimum_value=None,
+                minimum_expression=f"(({first_referenced_question.safe_qid}))",
+                maximum_value=None,
+                maximum_expression=f"(({second_referenced_question.safe_qid}))",
+            ),
+            user,
+        )
+        target_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        if hasattr(form, "cached_all_components"):
+            del form.cached_all_components
+
+        with pytest.raises(AddAnotherDependencyException):
+            _validate_and_sync_expression_references(expression)
+
+    def test_raises_add_another_exception_on_different_group(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        first_referenced_question = factories.question.create(
+            form=form, data_type=QuestionDataType.INTEGER, add_another=True
+        )
+        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, add_another=True)
+
+        expression = Expression.from_managed(
+            Between(
+                question_id=target_question.id,
+                minimum_value=None,
+                minimum_expression=f"(({first_referenced_question.safe_qid}))",
+                maximum_value=None,
+                maximum_expression=f"(({second_referenced_question.safe_qid}))",
+            ),
+            user,
+        )
+        target_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        if hasattr(form, "cached_all_components"):
+            del form.cached_all_components
+
+        with pytest.raises(AddAnotherDependencyException):
+            _validate_and_sync_expression_references(expression)
+
 
 class TestValidateAndSyncComponentReferences:
     def test_creates_references_for_supported_fields(self, db_session, factories):
