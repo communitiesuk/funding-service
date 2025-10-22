@@ -61,6 +61,11 @@ uv run pytest --e2e
 ```
 This will, by default, run the browser tests headless - i.e. you won't see a browser appear.
 
+To run tests in parallel, add the `-n auto` flag to automatically use all available CPU cores:
+```shell
+uv run pytest --e2e -n auto
+```
+
 To display the browser so you can visually inspect the test journey, add the `--headed` flag.
 
 To slow the test down, add `--slowmo 1000` to have Playwright insert 1 second pauses between each step so that you can follow what the test is doing more easily.
