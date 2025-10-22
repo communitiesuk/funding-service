@@ -111,7 +111,7 @@ class _SharedConfig(_BaseConfig):
     SECRET_KEY: str
     WTF_CSRF_ENABLED: bool = True
     PROXY_FIX_PROTO: int = 1  # CloudFront for AWS environments; Caddy for PullPreview
-    PROXY_FIX_HOST: int = 0  # CloudFront doesn't set X-Forwarded-For
+    PROXY_FIX_HOST: int = 1  # We inject X-Forwarded-For using Cloudfront custom headings
     SERVER_NAME: str
 
     # Basic auth
