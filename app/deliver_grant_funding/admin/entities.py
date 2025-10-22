@@ -1,18 +1,18 @@
 import datetime
 from abc import abstractmethod
 
-from flask import flash
+from flask import current_app, flash
 from flask_admin.actions import action
 from flask_admin.helpers import is_form_submitted
 from flask_babel import ngettext
-from sqlalchemy import func, orm, select, update
+from sqlalchemy import delete, func, orm, select, update
 from sqlalchemy.exc import IntegrityError
 from wtforms import Form
 from wtforms.validators import Email
 from xgovuk_flask_admin import XGovukModelView
 
 from app.common.data.base import BaseModel
-from app.common.data.interfaces.user import get_user, remove_platform_admin_role_from_user, upsert_user_role
+from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import Collection, Grant, Organisation
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
@@ -67,10 +67,7 @@ class PlatformAdminUserView(PlatformAdminModelView):
     column_list = ["email", "name", "last_logged_in_at_utc"]
     column_searchable_list = ["email", "name"]
 
-    form_columns = [
-        "email",
-        "name",
-    ]
+    form_columns = ["email", "name"]
 
     can_edit = True
 
@@ -80,38 +77,29 @@ class PlatformAdminUserView(PlatformAdminModelView):
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
     }
 
-    # TODO: Remove me; this is just a temporary action to help migrate existing form designers (and mildly demonstrate
-    #       custom actions).
     @action(
-        "make_form_designer",
-        "Make MHCLG form designer",
-        "Are you sure you want to make these people form designers for MHCLG grants?",
+        "revoke_all_permissions",
+        "Revoke all permissions",
+        "Are you sure you want to revoke all permissiosn for these users?",
     )  # type: ignore[misc]
-    def make_owned(self, ids: list[str]) -> None:
+    def revoke_permissions(self, ids: list[str]) -> None:
         if not self.can_edit:
             flash("You do not have permission to do this", "error")
             return
 
         try:
-            mhclg_org = self.session.execute(
-                select(Organisation).where(Organisation.can_manage_grants.is_(True))
-            ).scalar_one()
-
-            for user_id in ids:
-                user = get_user(user_id)
-
-                if user is None:
-                    continue
-
-                remove_platform_admin_role_from_user(user)
-                upsert_user_role(user, role=RoleEnum.ADMIN, organisation_id=mhclg_org.id, grant_id=None)
-
+            self.session.execute(delete(UserRole).where(UserRole.user_id.in_(ids)))
             self.session.commit()
+            current_app.logger.warning(
+                "%(name)s revoked all user permissions for user(s): %(user_ids)s",
+                dict(name=get_current_user().id, user_ids=", ".join(ids)),
+            )
+
             count = len(ids)
             flash(
                 ngettext(
-                    "User was successfully assigned to MHCLG.",
-                    "%(count)s users were successfully assigned to MHCLG.",
+                    "All permissions were successfully revoked for the user.",
+                    "All permissions were successfully revoked for %(count)s users.",
                     count,
                     count=count,
                 ),
@@ -120,7 +108,7 @@ class PlatformAdminUserView(PlatformAdminModelView):
 
         except IntegrityError:
             flash(
-                "Failed to assign users as MHCLG form designers.",
+                "Failed to revoke permissions.",
                 "error",
             )
 
@@ -133,9 +121,7 @@ class PlatformAdminOrganisationView(PlatformAdminModelView):
     can_delete = True
 
     column_list = ["name", "can_manage_grants"]
-    # TODO: https://github.com/pallets-eco/flask-admin/issues/2674
-    #       filtering on boolean fields currently broken in flask-admin when using psycopg(3) lib =[
-    column_filters = ["name"]
+    column_filters = ["name", "can_manage_grants"]
 
     form_columns = ["name", "can_manage_grants"]
 
@@ -196,53 +182,17 @@ class PlatformAdminGrantView(PlatformAdminModelView):
         },
     }
 
-    # TODO: Remove me; this is just a temporary action to help migrate existing grants (and mildly demonstrate custom
-    #       actions).
-    @action(
-        "make_owned_by_mhclg",
-        "Make owned by MHCLG",
-        "Are you sure you want to make these grants owned by MHCLG?",
-    )  # type: ignore[misc]
-    def make_owned(self, ids: list[str]) -> None:
-        if not self.can_edit:
-            flash("You do not have permission to do this", "error")
-            return
-
-        try:
-            mhclg_org = self.session.execute(
-                select(Organisation).where(Organisation.can_manage_grants.is_(True))
-            ).scalar_one()
-            self.session.execute(update(Grant).where(Grant.id.in_(ids)).values(organisation_id=mhclg_org.id))
-            self.session.commit()
-            count = len(ids)
-            flash(
-                ngettext(
-                    "Grant was successfully assigned to MHCLG.",
-                    "%(count)s grants were successfully assigned to MHCLG.",
-                    count,
-                    count=count,
-                ),
-                "success",
-            )
-
-        except IntegrityError:
-            flash(
-                "Failed to assign grants to MHCLG.",
-                "error",
-            )
-
 
 class PlatformAdminInvitationView(PlatformAdminModelView):
     _model = Invitation
 
     can_create = True
-    can_delete = True
 
     column_searchable_list = ["email"]
 
     column_filters = ["is_usable", "organisation.name", "grant.name", "role"]
 
-    column_list = ["email", "user.id", "organisation.name", "grant.name", "role"]
+    column_list = ["email", "organisation.name", "grant.name", "role", "is_usable"]
     column_labels = {
         "user.id": "User ID",
         "organisation.name": "Organisation name",
@@ -314,3 +264,46 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
                 notification_service.send_deliver_org_admin_invitation(model.email, organisation=model.organisation)
 
         return super().after_model_change(form, model, is_created)  # type: ignore[no-any-return]
+
+    @action(
+        "cancel_invitation",
+        "Cancel invitation",
+        "Are you sure you want to cancel these invitations?",
+    )  # type: ignore[misc]
+    def cancel_invitation(self, ids: list[str]) -> None:
+        if not self.can_create:
+            flash("You do not have permission to do this", "error")
+            return
+
+        try:
+            usable_invitations = (
+                self.session.execute(select(Invitation.id).where(Invitation.id.in_(ids), Invitation.is_usable))
+                .scalars()
+                .all()
+            )
+            self.session.execute(
+                update(Invitation).where(Invitation.id.in_(usable_invitations)).values(expires_at_utc=func.now())
+            )
+            self.session.commit()
+            if usable_invitations:
+                current_app.logger.warning(
+                    "%(user_id)s cancelled the following invitations: %(invite_ids)s",
+                    dict(user_id=get_current_user().id, invite_ids=", ".join(str(x) for x in usable_invitations)),
+                )
+
+            count = len(usable_invitations)
+            flash(
+                ngettext(
+                    "The invitation was successfully cancelled.",
+                    "%(count)s invitations were successfully cancelled.",
+                    count,
+                    count=count,
+                ),
+                "success",
+            )
+
+        except IntegrityError:
+            flash(
+                "Failed to cancel invitation(s).",
+                "error",
+            )
