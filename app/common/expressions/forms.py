@@ -48,6 +48,16 @@ class _ManagedExpressionForm(FlaskForm):
             and add_context_field.data
         )
 
+    def is_submitted_to_remove_context(self) -> bool:
+        """Check if user clicked any managed expression Remove Data button"""
+        remove_context_field = self._fields.get("remove_context")
+        return bool(
+            self.is_submitted()
+            and remove_context_field is not None
+            and hasattr(remove_context_field, "data")
+            and remove_context_field.data
+        )
+
     def get_expression_form_data(self) -> dict[str, Any]:
         if not self.type.data:
             return {}

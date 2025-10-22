@@ -1,6 +1,6 @@
 import io
 import uuid
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 from uuid import UUID
 
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
@@ -85,7 +85,7 @@ from app.extensions import auto_commit_after_request
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
-    from app.common.data.models import Group, Question
+    from app.common.data.models import Expression, Group, Question
 
 
 SessionModelType = (
@@ -740,6 +740,49 @@ def _store_question_state_and_redirect_to_add_context(
     )
 
 
+def _handle_remove_context_for_expression_forms(
+    form: _ManagedExpressionForm,
+    component_id: UUID,
+    expression_type: ExpressionType,
+    expression: Optional["Expression"] = None,
+    add_context_data: AddContextToExpressionsModel | None = None,
+    depends_on_question_id: UUID | None = None,
+) -> None:
+    field_to_clear = form.remove_context.data  # ty: ignore[unresolved-attribute]
+    if not field_to_clear:
+        return
+
+    form_data = form.get_expression_form_data()
+
+    if not add_context_data:
+        if not expression:
+            raise ValueError("Expression required when add_context_data is None")
+
+        add_context_data = AddContextToExpressionsModel(
+            _prepared_form_data={},
+            field=expression_type,
+            managed_expression_name=expression.managed_name,  # type: ignore[arg-type]
+            expression_form_data=form_data,
+            component_id=component_id,
+            expression_id=expression.id,
+            depends_on_question_id=depends_on_question_id,
+        )
+    else:
+        add_context_data.expression_form_data.update(form_data)
+
+    add_context_data.expression_form_data[field_to_clear] = ""
+
+    if expression:
+        add_context_data._prepared_form_data = expression.managed.prepare_form_data(add_context_data)
+        add_context_data._prepared_form_data["type"] = expression.managed_name
+    else:
+        managed_expression = lookup_managed_expression(add_context_data.managed_expression_name)
+        add_context_data._prepared_form_data = managed_expression.prepare_form_data(add_context_data)
+        add_context_data._prepared_form_data["type"] = add_context_data.managed_expression_name
+
+    session["question"] = add_context_data.model_dump(mode="json")
+
+
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/task/<uuid:form_id>/questions/add",
     methods=["GET", "POST"],
@@ -1240,6 +1283,16 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
             depends_on_question_id=depends_on_question_id,
         )
 
+    if form and form.is_submitted_to_remove_context():
+        _handle_remove_context_for_expression_forms(
+            form=form,
+            component_id=component.id,
+            expression_type=ExpressionType.CONDITION,
+            add_context_data=add_context_data,  # type: ignore[arg-type]
+            depends_on_question_id=depends_on_question_id,
+        )
+        return redirect(request.url)
+
     if form and form.validate_on_submit():
         expression = form.get_expression(depends_on_question)
 
@@ -1335,6 +1388,17 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
             expression_id=expression_id,
         )
 
+    if form and form.is_submitted_to_remove_context():
+        _handle_remove_context_for_expression_forms(
+            form=form,
+            component_id=component.id,
+            expression_type=ExpressionType.CONDITION,
+            expression=expression,
+            add_context_data=add_context_data,  # type: ignore[arg-type]
+            depends_on_question_id=depends_on_question.id,
+        )
+        return redirect(request.url)
+
     if form and form.validate_on_submit():
         updated_managed_expression = form.get_expression(depends_on_question)
 
@@ -1398,6 +1462,15 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
             expression_type=ExpressionType.VALIDATION,
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
         )
+
+    if form and form.is_submitted_to_remove_context():
+        _handle_remove_context_for_expression_forms(
+            form=form,
+            component_id=question.id,
+            expression_type=ExpressionType.VALIDATION,
+            add_context_data=add_context_data,  # type: ignore[arg-type]
+        )
+        return redirect(request.url)
 
     if form and form.validate_on_submit():
         expression = form.get_expression(question)
@@ -1482,6 +1555,16 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
             expression_id=expression_id,
         )
+
+    if form and form.is_submitted_to_remove_context():
+        _handle_remove_context_for_expression_forms(
+            form=form,
+            component_id=question.id,
+            expression_type=ExpressionType.VALIDATION,
+            expression=expression,
+            add_context_data=add_context_data,  # type: ignore[arg-type]
+        )
+        return redirect(request.url)
 
     if form and form.validate_on_submit():
         # todo: any time we're dealing with the dependant component its a question - make sure this makes sense

@@ -621,4 +621,115 @@ describe("Context Aware Editor", () => {
             });
         });
     });
+    describe("Wrapper classes functionality", () => {
+        let container, context, textarea;
+
+        beforeEach(() => {
+            document.body.innerHTML = "";
+
+            // Create container with wrapper classes specified
+            container = document.createElement("div");
+            container.setAttribute("data-module", "context-aware-editor");
+            container.setAttribute("data-toolbar-enabled", "false");
+            container.setAttribute(
+                "data-wrapper-classes",
+                "govuk-input--width-20 custom-class",
+            );
+
+            context = document.createElement("div");
+            context.setAttribute("data-context", "true");
+            context.textContent = JSON.stringify(mockReferenceMappings);
+
+            textarea = document.createElement("textarea");
+            textarea.setAttribute("data-context-aware-editor-target", "");
+            textarea.id = "test-textarea";
+            textarea.name = "test-textarea";
+            textarea.value = "Some text with ((ref-1)) reference.";
+            textarea.classList.add("govuk-input--width-20"); // Original textarea has width class
+
+            container.appendChild(context);
+            container.appendChild(textarea);
+            document.body.appendChild(container);
+        });
+
+        afterEach(() => {
+            contextAwareEditor.cleanup(container);
+            document.body.innerHTML = "";
+        });
+
+        test("applies wrapper classes from data-wrapper-classes attribute", () => {
+            contextAwareEditor(container);
+
+            const wrapper = container.querySelector(
+                ".app-context-aware-editor--wrapper",
+            );
+
+            expect(wrapper).toBeTruthy();
+            expect(
+                wrapper.classList.contains("app-context-aware-editor--wrapper"),
+            ).toBe(true);
+            expect(wrapper.classList.contains("govuk-input--width-20")).toBe(
+                true,
+            );
+            expect(wrapper.classList.contains("custom-class")).toBe(true);
+        });
+
+        test("works without wrapper classes when data-wrapper-classes is not specified", () => {
+            container.removeAttribute("data-wrapper-classes");
+
+            contextAwareEditor(container);
+
+            const wrapper = container.querySelector(
+                ".app-context-aware-editor--wrapper",
+            );
+
+            expect(wrapper).toBeTruthy();
+            expect(
+                wrapper.classList.contains("app-context-aware-editor--wrapper"),
+            ).toBe(true);
+            expect(wrapper.classList.contains("govuk-input--width-20")).toBe(
+                false,
+            );
+            expect(wrapper.classList.contains("custom-class")).toBe(false);
+            expect(wrapper.classList.length).toBe(1);
+        });
+
+        test("handles empty wrapper classes gracefully", () => {
+            container.setAttribute("data-wrapper-classes", "");
+
+            contextAwareEditor(container);
+
+            const wrapper = container.querySelector(
+                ".app-context-aware-editor--wrapper",
+            );
+
+            expect(wrapper).toBeTruthy();
+            expect(
+                wrapper.classList.contains("app-context-aware-editor--wrapper"),
+            ).toBe(true);
+            expect(wrapper.classList.length).toBe(1);
+        });
+
+        test("should handle wrapper classes with extra whitespace", () => {
+            container.setAttribute(
+                "data-wrapper-classes",
+                "  govuk-input--width-20   custom-class  ",
+            );
+
+            contextAwareEditor(container);
+
+            const wrapper = container.querySelector(
+                ".app-context-aware-editor--wrapper",
+            );
+
+            expect(wrapper).toBeTruthy();
+            expect(
+                wrapper.classList.contains("app-context-aware-editor--wrapper"),
+            ).toBe(true);
+            expect(wrapper.classList.contains("govuk-input--width-20")).toBe(
+                true,
+            );
+            expect(wrapper.classList.contains("custom-class")).toBe(true);
+        });
+    });
 });
