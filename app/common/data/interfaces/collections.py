@@ -860,6 +860,7 @@ def update_group(
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
     guidance_body: str | None | TNotProvided = NOT_PROVIDED,
     add_another: bool | TNotProvided = NOT_PROVIDED,
+    add_another_guidance_body: str | None | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
         group.name = name  # ty: ignore[invalid-assignment]
@@ -900,6 +901,9 @@ def update_group(
             raise_if_group_cannot_be_add_another(group)
 
         group.add_another = add_another
+
+    if add_another_guidance_body is not NOT_PROVIDED:
+        group.add_another_guidance_body = add_another_guidance_body  # ty: ignore[invalid-assignment]
 
     _validate_and_sync_component_references(group, expression_context)
 

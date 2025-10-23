@@ -379,6 +379,8 @@
   <span class="govuk-caption-l">{{ runner.component.form.title }}</span>
   <h1 class="govuk-heading-l">{{ add_another_container.name }}</h1>
 
+  {{ runner.interpolate(add_another_container.add_another_guidance_body) | govuk_markdown }}
+
   {% set number_of_entries = runner.submission.get_count_for_add_another(add_another_container) %}
 
   {% if number_of_entries %}
