@@ -417,6 +417,29 @@ def create_question(
     return question
 
 
+def raise_if_group_cannot_be_add_another(group: Group) -> None:
+    if group.contains_add_another_components:
+        raise GroupContainsAddAnotherException(
+            group=group,
+            message="You cannot set a group to be add another if it already contains add another components",
+        )
+    if group.contains_questions_depended_on_elsewhere:
+        raise AddAnotherDependencyException(
+            message="You cannot set a group to be add another if questions in the group are depended on "
+            "by other components",
+            component=group,
+            referenced_question=next(
+                component for component in group.cached_all_components if len(component.depended_on_by) > 0
+            ),
+        )
+    if group.parent and group.parent.add_another_container:
+        raise AddAnotherNotValidException(
+            "You cannot set a group to be add another if it is nested inside an add another group",
+            component=group,
+            add_another_container=group.parent.add_another_container,
+        )
+
+
 def raise_if_nested_group_creation_not_valid_here(parent: Group | None = None) -> None:
     if parent:
         if not parent.can_have_child_group:
@@ -594,6 +617,32 @@ class NestedGroupException(Exception, FlashableException):
             "nesting_level": str(self.nesting_level),
             "max_nesting_level": str(current_app.config["MAX_NESTED_GROUP_LEVELS"]),
             "grant_id": str(self.parent_group.form.collection.grant_id),
+        }
+        flash_contexts.append(flash_context)
+        return flash_contexts
+
+
+class GroupContainsAddAnotherException(Exception, FlashableException):
+    def __init__(
+        self,
+        message: str,
+        group: Group,
+    ):
+        super().__init__(message)
+        self.message = message
+        self.group = group
+
+    def as_flash_context(self) -> dict[str, str | bool]:
+        contexts = self.as_flash_contexts()
+        return contexts[0] if contexts else {}
+
+    def as_flash_contexts(self) -> list[dict[str, str | bool]]:
+        flash_contexts = []
+        flash_context: dict[str, str | bool] = {
+            "message": self.message,
+            "group_name": self.group.name,
+            "group_id": str(self.group.id),
+            "grant_id": str(self.group.form.collection.grant_id),
         }
         flash_contexts.append(flash_context)
         return flash_contexts
@@ -810,6 +859,7 @@ def update_group(
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
     guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    add_another: bool | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
         group.name = name  # ty: ignore[invalid-assignment]
@@ -838,6 +888,12 @@ def update_group(
 
     if guidance_body is not NOT_PROVIDED:
         group.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
+
+    if add_another is not NOT_PROVIDED:
+        if group.add_another is not True and add_another is True:
+            raise_if_group_cannot_be_add_another(group)
+
+        group.add_another = add_another
 
     _validate_and_sync_component_references(group, expression_context)
 

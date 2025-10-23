@@ -7,8 +7,10 @@ from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
+    AddAnotherNotValidException,
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
+    GroupContainsAddAnotherException,
     IncompatibleDataTypeException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
@@ -429,24 +431,22 @@ class TestGroupNameExists:
 
 class TestUpdateGroup:
     def test_update_group(self, db_session, factories):
-        form = factories.form.create()
-        group = create_group(
-            form=form,
+        group = factories.group.create(
             text="Test group",
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+            add_another=False,
         )
 
         assert group.presentation_options.show_questions_on_the_same_page is True
 
         updated_group = update_group(
-            group,
-            expression_context=ExpressionContext(),
-            name="Updated test group",
+            group, expression_context=ExpressionContext(), name="Updated test group", add_another=True
         )
 
         assert updated_group.name == "Updated test group"
         assert updated_group.text == "Updated test group"
         assert updated_group.slug == "updated-test-group"
+        assert updated_group.add_another is True
 
         updated_group = update_group(
             group,
@@ -572,6 +572,41 @@ class TestUpdateGroup:
         )
 
         assert updated_group.presentation_options.add_another_summary_line_question_ids == [q1.id, q2.id]
+
+    def test_update_group_containing_add_another_cant_be_add_another(self, db_session, factories):
+        group = factories.group.create(add_another=False)
+        factories.question.create(form=group.form, parent=group, add_another=True)
+
+        with pytest.raises(GroupContainsAddAnotherException):
+            update_group(group, expression_context=ExpressionContext(), add_another=True)
+        assert group.add_another is False
+
+    def test_update_group_inside_add_another_cant_be_add_another(self, db_session, factories):
+        group = factories.group.create(add_another=True)
+        factories.question.create(form=group.form, parent=group)
+        group2 = factories.group.create(add_another=False, parent=group)
+
+        with pytest.raises(AddAnotherNotValidException):
+            update_group(group2, expression_context=ExpressionContext(), add_another=True)
+        assert group2.add_another is False
+
+    def test_update_group_containing_depended_on_questions_cant_be_add_another(self, db_session, factories):
+        group = factories.group.create(add_another=False)
+        q1 = factories.question.create(form=group.form, parent=group)
+        q2 = factories.question.create(
+            form=group.form,
+        )
+        add_question_validation(
+            question=q2,
+            managed_expression=GreaterThan(question_id=q1.id, minimum_value=100),
+            user=factories.user.create(),
+        )
+
+        with pytest.raises(AddAnotherDependencyException) as e:
+            update_group(group, expression_context=ExpressionContext(), add_another=True)
+        assert group.add_another is False
+        assert e.value.component == group
+        assert e.value.referenced_question == q1
 
     def test_synced_component_references(self, db_session, factories, mocker):
         form = factories.form.create()

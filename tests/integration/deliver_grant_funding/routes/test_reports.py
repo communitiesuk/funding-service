@@ -9,6 +9,7 @@ from flask import url_for
 
 from app import QuestionDataType
 from app.common.data import interfaces
+from app.common.data.interfaces.collections import add_question_validation
 from app.common.data.models import Collection, Expression, Form, Group, Question
 from app.common.data.types import (
     ExpressionType,
@@ -23,6 +24,7 @@ from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddTaskForm,
+    GroupAddAnotherOptionsForm,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
@@ -795,6 +797,185 @@ class TestChangeGroupDisplayOptions:
         assert page_has_error(
             soup, "A question group cannot display on the same page if questions depend on answers within the group"
         )
+
+
+class TestChangeGroupAddAnotherOptions:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_options", grant_id=uuid.uuid4(), group_id=uuid.uuid4()
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", add_another=False)
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_options", grant_id=client.grant.id, group_id=group.id
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            # the correct option is selected based on whats in the database
+            assert (
+                soup.find(
+                    "input",
+                    {
+                        "type": "radio",
+                        "name": "question_group_is_add_another",
+                        "value": "no",
+                        "checked": True,
+                    },
+                )
+                is not None
+            )
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(form=db_form, name="Test group", add_another=False)
+
+        assert db_group.add_another is False
+
+        form = GroupAddAnotherOptionsForm(data={"question_group_is_add_another": "yes"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions$")
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.add_another is True
+
+    def test_post_is_blocked_if_group_contains_add_another(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(form=db_form, name="Test group", add_another=False)
+        factories.question.create(form=db_form, parent=db_group, add_another=True)
+
+        assert db_group.add_another is False
+
+        form = GroupAddAnotherOptionsForm(data={"question_group_is_add_another": "yes"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            "A question group cannot be answered more than once if it already contains questions that can "
+            "be answered more than once",
+        )
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.add_another is False
+
+    def test_post_is_blocked_if_group_is_inside_add_another(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(form=db_form, name="Test group", add_another=True)
+        factories.question.create(form=db_form, parent=db_group, add_another=True)
+        db_group_2 = factories.group.create(form=db_form, name="Test group 2", add_another=False, parent=db_group)
+
+        assert db_group_2.add_another is False
+
+        form = GroupAddAnotherOptionsForm(data={"question_group_is_add_another": "yes"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group_2.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            "A question group cannot be answered more than once if it is already inside a group that can be "
+            "answered more than once",
+        )
+
+        updated_group = db_session.get(Group, db_group_2.id)
+        assert updated_group.add_another is False
+
+    def test_post_is_blocked_if_group_contains_depended_on_questions(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(form=db_form, name="Test group", add_another=False)
+        group_question = factories.question.create(form=db_form, parent=db_group)
+        db_question = factories.question.create(form=db_form)
+
+        add_question_validation(
+            question=db_question,
+            managed_expression=GreaterThan(question_id=group_question.id, minimum_value=100),
+            user=factories.user.create(),
+        )
+
+        assert db_group.add_another is False
+
+        form = GroupAddAnotherOptionsForm(data={"question_group_is_add_another": "yes"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            "A question group cannot be answered more than once if questions elsewhere in the form depend "
+            "on questions in this group",
+        )
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.add_another is False
 
 
 class TestChangeFormName:

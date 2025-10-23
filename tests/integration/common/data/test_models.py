@@ -128,6 +128,17 @@ class TestGroupModel:
         assert Group._count_nested_group_levels(group=middle_group) == 1
         assert Group._count_nested_group_levels(group=bottom_group) == 2
 
+    def test_contains_add_another_components(self, factories):
+        g1 = factories.group.create()
+        g2 = factories.group.create()
+        g3 = factories.group.create()
+        g4 = factories.group.create(parent=g3, add_another=True)
+        factories.question.create(parent=g1, add_another=True)
+        assert g1.contains_add_another_components is True
+        assert g2.contains_add_another_components is False
+        assert g3.contains_add_another_components is True
+        assert g4.contains_add_another_components is False
+
 
 class TestComponentReferenceModel:
     def test_deleting_a_component_with_a_reference_is_blocked(self, factories, db_session):
