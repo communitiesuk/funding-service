@@ -20,6 +20,7 @@ from app.common.data.interfaces.system import seed_system_data
 from app.common.data.types import (
     ExpressionType,
     FormRunnerState,
+    GrantStatusEnum,
     QuestionDataType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -109,7 +110,7 @@ def _register_custom_converters(app: Flask) -> None:
 
 def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
     from app.deliver_grant_funding.admin import register_admin_views
-    from app.deliver_grant_funding.routes.admin import PlatformAdminIndexView
+    from app.deliver_grant_funding.admin.views import PlatformAdminIndexView
 
     flask_admin = Admin(
         app,
@@ -210,6 +211,7 @@ def create_app() -> Flask:
                 submission_status=SubmissionStatusEnum,
                 tasklist_task_status=TasklistTaskStatusEnum,
                 expression_type=ExpressionType,
+                grant_status=GrantStatusEnum,
             ),
         )
 

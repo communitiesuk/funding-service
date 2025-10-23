@@ -9,6 +9,9 @@ from app.deliver_grant_funding.admin.entities import (
     PlatformAdminUserRoleView,
     PlatformAdminUserView,
 )
+from app.deliver_grant_funding.admin.views import (
+    PlatformAdminReportingLifecycleView,
+)
 
 
 class ProxySession:
@@ -39,6 +42,12 @@ class ProxySession:
 
 
 def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
+    flask_admin.add_view(
+        PlatformAdminReportingLifecycleView(
+            name="Reporting lifecycle", endpoint="reporting_lifecycle", url="reporting-lifecycle"
+        )
+    )
+
     flask_admin.add_view(PlatformAdminUserView(ProxySession(db_)))  # type: ignore[arg-type]
     flask_admin.add_view(PlatformAdminUserRoleView(ProxySession(db_)))  # type: ignore[arg-type]
     flask_admin.add_view(PlatformAdminOrganisationView(ProxySession(db_)))  # type: ignore[arg-type]

@@ -46,6 +46,7 @@ from app.common.data.models import (
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import (
     CollectionType,
+    GrantStatusEnum,
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionEventKey,
@@ -99,6 +100,7 @@ class _GrantFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     ggis_number = factory.Sequence(lambda n: f"GGIS-{n:06d}")
     name = factory.Sequence(lambda n: "Grant %d" % n)
+    status = GrantStatusEnum.DRAFT
     description = factory.Faker("text", max_nb_chars=200)
     primary_contact_name = factory.Faker("name")
     primary_contact_email = factory.Faker("email")

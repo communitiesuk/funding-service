@@ -113,7 +113,7 @@ def build_db_config(setup_db_container: PostgresContainer | None) -> Dict[str, A
 def get_soup_text(soup: BeautifulSoup, tag: str) -> str:
     element = getattr(soup, tag)
     assert element, f"Could not find <{tag}> on page"
-    return cast(str, element.text).strip()
+    return re.sub(r"\s+", " ", cast(str, element.text).strip())
 
 
 def get_h1_text(soup: BeautifulSoup) -> str:
@@ -140,6 +140,16 @@ def page_has_button(soup: BeautifulSoup, button_text: str) -> Tag | None:
     for button in buttons:
         if button_text in button.text:
             return button
+
+    return None
+
+
+def page_has_flash(soup: BeautifulSoup, flash_text: str) -> Tag | None:
+    flash_messages = soup.find_all(class_="govuk-notification-banner__content")
+
+    for flash_message in flash_messages:
+        if flash_text in flash_message.text:
+            return flash_message
 
     return None
 

@@ -1090,7 +1090,8 @@
         "id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
         "name": "Cheeseboards in parks",
         "primary_contact_email": "john.cheese@test.communities.gov.uk",
-        "primary_contact_name": "John Cheese"
+        "primary_contact_name": "John Cheese",
+        "status": "draft"
       },
       "questions": [
         {
@@ -9880,7 +9881,8 @@
         "id": "df51f309-718c-4dd4-bd76-0bd6df032e4b",
         "name": "Communities for Afghans",
         "primary_contact_email": "someone@communities.gov.uk",
-        "primary_contact_name": "Someone"
+        "primary_contact_name": "Someone",
+        "status": "live"
       },
       "questions": [
         {
@@ -14083,7 +14085,8 @@
         "id": "d66345a2-75eb-5d77-2d51-dd3b259b9cd5",
         "name": "Picnic Areas in Parks",
         "primary_contact_email": "ypalmer@example.com",
-        "primary_contact_name": "Amanda Myers"
+        "primary_contact_name": "Amanda Myers",
+        "status": "draft"
       },
       "questions": [
         {
@@ -14213,7 +14216,8 @@
         "id": "11e7e8bc-0185-c697-358d-625fe99ce996",
         "name": "Playgrounds in Parks",
         "primary_contact_email": "raymond80@example.com",
-        "primary_contact_name": "Andrew Valencia"
+        "primary_contact_name": "Andrew Valencia",
+        "status": "draft"
       },
       "questions": [
         {
@@ -14355,7 +14359,7 @@
       "azure_ad_subject_id": "40e16bf9d02fa7f67c6bb767b197e544",
       "email": "sclark@test.communities.gov.uk",
       "id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
-      "last_logged_in_at_utc": "Mon, 28 Jul 2025 21:50:10 GMT",
+      "last_logged_in_at_utc": "Thu, 23 Oct 2025 20:04:48 GMT",
       "name": "Willie Brown"
     },
     {

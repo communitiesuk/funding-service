@@ -16,6 +16,7 @@ from app.common.data.types import (
     CollectionType,
     ComponentType,
     ExpressionType,
+    GrantStatusEnum,
     ManagedExpressionsEnum,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -37,6 +38,7 @@ class Grant(BaseModel):
 
     ggis_number: Mapped[str]
     name: Mapped[CIStr] = mapped_column(unique=True)
+    status: Mapped[GrantStatusEnum] = mapped_column(default=GrantStatusEnum.DRAFT)
     description: Mapped[str]
     primary_contact_name: Mapped[str]
     primary_contact_email: Mapped[str]
@@ -58,6 +60,15 @@ class Grant(BaseModel):
         "Invitation",
         back_populates="grant",
         viewonly=True,
+    )
+
+    grant_team_users: Mapped[list["User"]] = relationship(
+        "User",
+        secondary="user_role",
+        primaryjoin="Grant.id==UserRole.grant_id",
+        secondaryjoin="and_(User.id==UserRole.user_id, UserRole.organisation_id==foreign(Grant.organisation_id))",
+        viewonly=True,
+        lazy="select",
     )
 
     @property

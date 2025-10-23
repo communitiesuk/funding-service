@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Make grant live
+      </h1>
+      <p class="govuk-body">Make a grant live when it is ready to show in Access grant funding. It must have a GGIS number, a grant description, and at least two grant team members.</p>
+
+      {% set grant_team_users %}
+        <ul class="govuk-list govuk-list--bullet">
+          {% for user in grant.grant_team_users %}
+            <li>{{ user.email }}</li>
+          {% endfor %}
+        </ul>
+      {% endset %}
+
+      {{
+        govukSummaryList({
+          "rows": [{
+            "key": { "text": "Grant name" },
+            "value": { "text": grant.name },
+          }, {
+            "key": { "text": "Grant description" },
+            "value": { "text": grant.description },
+          }, {
+            "key": { "text": "GGIS number" },
+            "value": { "text": grant.ggis_number },
+          }, {
+            "key": { "text": "Grant team users" },
+            "value": { "html": grant_team_users },
+          }
+          ],
+          "classes": "app-!-border-top-line govuk-!-margin-bottom-8"
+        })
+      }}
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.grant_id }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

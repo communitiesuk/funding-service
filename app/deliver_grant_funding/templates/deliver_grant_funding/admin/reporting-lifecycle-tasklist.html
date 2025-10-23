@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.index') }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Reporting lifecycle
+      </h1>
+
+      {% set rows=[] %}
+      {% if grant.status == enum.grant_status.DRAFT %}
+        {% set status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
+        {% set link_href = url_for('reporting_lifecycle.make_live', grant_id=grant.id) %}
+      {% else %}
+        {% set status_tag = govukTag({"text": "Completed", "classes": "govuk-tag--green"}) %}
+        {% set link_href = "" %}
+      {% endif %}
+      {%
+        do rows.append({
+          "title": {
+            "text": "Make the grant live",
+          },
+          "status": {
+            "html": status_tag
+          },
+          "href": link_href,
+        })
+      %}
+
+      {{
+        govukTaskList({
+          "idPrefix": "reporting-lifecycle",
+          "items": rows
+        })
+      }}
+    </div>
+  </div>
+{% endblock %}
