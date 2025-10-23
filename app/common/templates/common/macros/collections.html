@@ -287,43 +287,49 @@
 
   <h1 class="govuk-heading-l">{{ add_another_container.name }}</h1>
 
-  {% set rows = [] %}
   {% set number_of_entries = runner.submission.get_count_for_add_another(add_another_container) %}
 
   {% if number_of_entries %}
     <h2 class="govuk-heading-s">You have added {{ number_of_entries }} {{ add_another_container.name | lower }}</h2>
-    <dl class="govuk-summary-list">
-      {% for i in range(number_of_entries) %}
-        {# todo: check if the entry is complete or if we should prompt the user to complete it with a different link #}
-        {% set (summary, is_answered) = runner.submission.get_answer_summary_for_add_another(add_another_container, add_another_index=i) %}
 
-        <div class="govuk-summary-list__row">
-          {% if not is_answered %}
-            <dt class="govuk-summary-list__value">
-              <a class="govuk-link govuk-link--no-visited-state" href="#"> Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }} </a>
-            </dt>
-          {% else %}
-            <dt class="govuk-summary-list__value">{{ summary }}</dt>
-            <dd class="govuk-summary-list__actions govuk-!-width-one-third">
-              <ul class="govuk-summary-list__actions-list">
-                <li class="govuk-summary-list__actions-list-item">
-                  <a class="govuk-link govuk-link--no-visited-state" href="#">
-                    Change
-                    <span class="govuk-visually-hidden"> {{ summary if summary else to_ordinal(i + 1) ~ " " ~ (add_another_container.name | lower) }}</span>
-                  </a>
-                </li>
-                <li class="govuk-summary-list__actions-list-item">
-                  <a class="govuk-link govuk-link--no-visited-state" href="#">
-                    Remove
-                    <span class="govuk-visually-hidden"> {{ summary if summary else to_ordinal(i + 1) ~ " " ~ (add_another_container.name | lower) }}</span>
-                  </a>
-                </li>
-              </ul>
-            </dd>
-          {% endif %}
-        </div>
-      {% endfor %}
-    </dl>
+    {% set rows = [] %}
+    {% for i in range(number_of_entries) %}
+      {% set (summary, is_answered) = runner.submission.get_answer_summary_for_add_another(add_another_container, add_another_index=i) %}
+
+
+      {% set key_html %}
+        {% if is_answered %}
+          <span>{{ summary }}</span>
+        {% else %}
+          <a class="govuk-link govuk-link--no-visited-state" href="#"> Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }} </a>
+        {% endif %}
+      {% endset %}
+
+      {% set entry_hidden_description = summary if is_answered else to_ordinal(i + 1) ~ " " ~ (add_another_container.name | lower) %}
+      {%
+        do rows.append({
+          "key": { "html": key_html, "classes": "govuk-!-width-two-thirds" },
+          "value": { "classes": "govuk-!-display-none"},
+          "actions": {
+            "items": [
+              {
+                "href": "#",
+                "text": "Change",
+                "visuallyHiddenText": entry_hidden_description
+              },
+              {
+                "href": "#",
+                "text": "Remove",
+                "visuallyHiddenText": entry_hidden_description
+              }
+            ] if is_answered else [],
+            "classes": "govuk-!-width-one-third"
+          }
+        })
+      %}
+    {% endfor %}
+
+    {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
 
     <form method="post" novalidate>
       {{ runner.add_another_summary_form.csrf_token }}

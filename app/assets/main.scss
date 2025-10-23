@@ -144,6 +144,11 @@ $app-destructive-link-active-colour: $govuk-text-colour;
         font-weight: normal;
         width: 50%;
     }
+
+    .govuk-summary-list__row--no-actions::after {
+        // override that keeps the layout consistent when the first row has no actions
+        width: auto;
+    }
 }
 
 .app-test-data-banner {

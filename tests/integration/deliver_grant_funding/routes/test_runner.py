@@ -473,18 +473,18 @@ class TestAskAQuestion:
 
             # partial entries have a link as the main call to action like similar to CYA (summary shown if available)
             assert (
-                soup.find_all("dt", {"class": "govuk-summary-list__value"})[0].text.strip()
+                soup.find_all("dt", {"class": "govuk-summary-list__key"})[0].text.strip()
                 == "Enter missing information for first test groups (E1A1)"
             )
 
             # summary not shown if not available
             assert (
-                soup.find_all("dt", {"class": "govuk-summary-list__value"})[1].text.strip()
+                soup.find_all("dt", {"class": "govuk-summary-list__key"})[1].text.strip()
                 == "Enter missing information for second test groups"
             )
 
             # each entry in the row respects the summary line configuration even if more answers are available
-            assert soup.find_all("dt", {"class": "govuk-summary-list__value"})[2].text.strip() == "E3A1"
+            assert soup.find_all("dt", {"class": "govuk-summary-list__key"})[2].text.strip() == "E3A1"
 
             # do you want to add another component is shown and defaults to nothing selected
             assert "govuk-!-display-none" not in soup.find("div", {"class": "govuk-radios"}).get("class")
