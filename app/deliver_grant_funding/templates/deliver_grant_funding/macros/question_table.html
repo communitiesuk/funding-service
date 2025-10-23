@@ -62,11 +62,16 @@
         })
       %}
     {% endif %}
+    {% if question.is_group %}
+      {% set value_item={"classes":"govuk-visually-hidden" } %}
+    {% else %}
+      {% set value_item={"text":question.data_type } %}
+    {% endif %}
     {%
       do rows.append(
       {
         "key": {"html": keyHtml, "classes": "govuk-!-width-one-half " + ("govuk-!-font-weight-regular" if not question.is_group else "") },
-        "value": {"text": question.data_type if not question.is_group else "", "classes": "govuk-!-width-one-third" if not actions else ""},
+        "value": value_item,
         "actions": {
           "items": actions,
         } if actions else {},
