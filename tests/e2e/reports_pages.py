@@ -31,6 +31,112 @@ if TYPE_CHECKING:
     from tests.e2e.pages import GrantTeamPage, SSOSignInPage
 
 
+def _reference_data_in_expression(
+    expression_form_page: "AddValidationPage" | "AddConditionPage", field_name: str, referenced_question_text: str
+) -> None:
+    select_data_source_page = expression_form_page.click_insert_data(field_name)
+    select_data_source_page.select_data_source("A previous question in this task")
+    select_question_page = select_data_source_page.click_select()
+    select_question_page.choose_question(referenced_question_text)
+    select_question_page.click_use_data()
+
+
+def _configure_greater_than_expression(
+    expression_form_page: "AddValidationPage" | "AddConditionPage",
+    expression: GreaterThan,
+    context_source_question_text: str | None,
+) -> None:
+    if context_source_question_text and expression.minimum_expression == "":
+        _reference_data_in_expression(expression_form_page, "minimum value", context_source_question_text)
+    else:
+        expression_form_page.page.get_by_role("textbox", name="Minimum value").fill(str(expression.minimum_value))
+
+    if expression.inclusive:
+        expression_form_page.page.get_by_role(
+            "checkbox", name="An answer of exactly the minimum value is allowed"
+        ).check()
+
+
+def _configure_less_than_expression(
+    expression_form_page: "AddValidationPage" | "AddConditionPage",
+    expression: LessThan,
+    context_source_question_text: str | None,
+) -> None:
+    if context_source_question_text and expression.maximum_expression == "":
+        _reference_data_in_expression(expression_form_page, "maximum value", context_source_question_text)
+    else:
+        expression_form_page.page.get_by_role("textbox", name="Maximum value").fill(str(expression.maximum_value))
+
+    if expression.inclusive:
+        expression_form_page.page.get_by_role(
+            "checkbox", name="An answer of exactly the maximum value is allowed"
+        ).check()
+
+
+def _configure_between_expression(
+    expression_form_page: "AddValidationPage" | "AddConditionPage",
+    expression: Between,
+    context_source_question_text: str | None,
+) -> None:
+    # Note that the E2EManagedExpression assumes you're only referencing one question's answer in an expression, if two
+    # are needed here then the dataclass and this method will need updating
+    if context_source_question_text and expression.minimum_expression == "":
+        _reference_data_in_expression(expression_form_page, "minimum value", context_source_question_text)
+    else:
+        expression_form_page.page.get_by_role("textbox", name="Minimum value").fill(str(expression.minimum_value))
+
+    if context_source_question_text and expression.maximum_expression == "":
+        _reference_data_in_expression(expression_form_page, "maximum value", context_source_question_text)
+    else:
+        expression_form_page.page.get_by_role("textbox", name="Maximum value").fill(str(expression.maximum_value))
+
+    if expression.minimum_inclusive:
+        expression_form_page.page.get_by_role(
+            "checkbox", name="An answer of exactly the minimum value is allowed"
+        ).check()
+    if expression.maximum_inclusive:
+        expression_form_page.page.get_by_role(
+            "checkbox", name="An answer of exactly the maximum value is allowed"
+        ).check()
+
+
+def _configure_between_dates_expression(
+    expression_form_page: "AddValidationPage" | "AddConditionPage",
+    expression: BetweenDates,
+    presentation_options: QuestionPresentationOptions | None = None,
+    context_source_question_text: str | None = None,
+) -> None:
+    # Note that the E2EManagedExpression assumes you're only referencing one question's answer in an expression, if two
+    # are needed here then the dataclass and this method will need updating
+    if context_source_question_text and expression.earliest_expression == "":
+        _reference_data_in_expression(expression_form_page, "earliest date", context_source_question_text)
+    else:
+        earliest_date_group = expression_form_page.page.get_by_role("group", name="Earliest date")
+        ReportsBasePage.fill_in_date_fields(
+            earliest_date_group,
+            cast(datetime.date, expression.earliest_value),
+            approx_date=bool(presentation_options.approximate_date) if presentation_options else False,
+        )
+    if expression.earliest_inclusive:
+        expression_form_page.page.get_by_role(
+            "checkbox", name="An answer of exactly the earliest date is allowed"
+        ).check()
+
+    if context_source_question_text and expression.latest_expression == "":
+        _reference_data_in_expression(expression_form_page, "latest date", context_source_question_text)
+    else:
+        latest_date_group = expression_form_page.page.get_by_role("group", name="Latest date")
+        ReportsBasePage.fill_in_date_fields(
+            latest_date_group,
+            cast(datetime.date, expression.latest_value),
+            approx_date=bool(presentation_options.approximate_date) if presentation_options else False,
+        )
+    if expression.latest_inclusive:
+        expression_form_page.page.get_by_role(
+            "checkbox", name="An answer of exactly the latest date is allowed"
+        ).check()
+
+
 class ReportsBasePage:
     domain: str
     page: Page
@@ -593,6 +699,7 @@ class AddValidationPage(ReportsBasePage):
     def configure_managed_validation(
         self,
         managed_validation: ManagedExpression,
+        context_source_question_text: str | None = None,
         presentation_options: QuestionPresentationOptions | None = None,
     ) -> None:
         self.click_managed_validation_type(managed_validation)
@@ -600,48 +707,28 @@ class AddValidationPage(ReportsBasePage):
         match managed_validation._key:
             case ManagedExpressionsEnum.GREATER_THAN:
                 managed_validation = cast(GreaterThan, managed_validation)
-                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_validation.minimum_value))
-
-                if managed_validation.inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
+                _configure_greater_than_expression(self, managed_validation, context_source_question_text)
 
             case ManagedExpressionsEnum.LESS_THAN:
                 managed_validation = cast(LessThan, managed_validation)
-                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_validation.maximum_value))
-
-                if managed_validation.inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+                _configure_less_than_expression(self, managed_validation, context_source_question_text)
 
             case ManagedExpressionsEnum.BETWEEN:
                 managed_validation = cast(Between, managed_validation)
-                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_validation.minimum_value))
-                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_validation.maximum_value))
+                _configure_between_expression(self, managed_validation, context_source_question_text)
 
-                if managed_validation.minimum_inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
-                if managed_validation.maximum_inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
             case ManagedExpressionsEnum.BETWEEN_DATES:
                 managed_validation = cast(BetweenDates, managed_validation)
-                earliest_date_group = self.page.get_by_role("group", name="Earliest date")
-                ReportsBasePage.fill_in_date_fields(
-                    earliest_date_group,
-                    cast(datetime.date, managed_validation.earliest_value),
-                    approx_date=bool(presentation_options.approximate_date) if presentation_options else False,
+                _configure_between_dates_expression(
+                    self, managed_validation, presentation_options, context_source_question_text
                 )
-                if managed_validation.earliest_inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the earliest date is allowed").check()
-                latest_date_group = self.page.get_by_role("group", name="Latest date")
-                ReportsBasePage.fill_in_date_fields(
-                    latest_date_group,
-                    cast(datetime.date, managed_validation.latest_value),
-                    approx_date=bool(presentation_options.approximate_date) if presentation_options else False,
-                )
-                if managed_validation.latest_inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the latest date is allowed").check()
 
     def click_managed_validation_type(self, managed_validation: ManagedExpression) -> None:
         self.page.get_by_role("radio", name=managed_validation._key.value).click()
+
+    def click_insert_data(self, field_name: str) -> "SelectDataSourcePage":
+        self.page.get_by_role("button", name=f"Reference data for {field_name}").click()
+        return SelectDataSourcePage(page=self.page, domain=self.domain, grant_name=self.grant_name)
 
     def click_add_validation(self) -> "EditQuestionPage":
         self.add_validation_button.click()
@@ -672,33 +759,32 @@ class AddConditionPage(ReportsBasePage):
         self.add_condition_button = self.page.get_by_role("button", name="Add condition")
         self.continue_button = self.page.get_by_role("button", name="Continue")
 
-    def configure_managed_condition(self, managed_condition: ManagedExpression) -> None:
+    def configure_managed_condition(
+        self,
+        managed_condition: ManagedExpression,
+        context_source_question_text: str | None = None,
+        presentation_options: QuestionPresentationOptions | None = None,
+    ) -> None:
         self.click_managed_condition_type(managed_condition)
 
         match managed_condition._key:
             case ManagedExpressionsEnum.GREATER_THAN:
                 managed_condition = cast(GreaterThan, managed_condition)
-                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_condition.minimum_value))
-
-                if managed_condition.inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
+                _configure_greater_than_expression(self, managed_condition, context_source_question_text)
 
             case ManagedExpressionsEnum.LESS_THAN:
                 managed_condition = cast(LessThan, managed_condition)
-                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_condition.maximum_value))
-
-                if managed_condition.inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+                _configure_less_than_expression(self, managed_condition, context_source_question_text)
 
             case ManagedExpressionsEnum.BETWEEN:
                 managed_condition = cast(Between, managed_condition)
-                self.page.get_by_role("textbox", name="Minimum value").fill(str(managed_condition.minimum_value))
-                self.page.get_by_role("textbox", name="Maximum value").fill(str(managed_condition.maximum_value))
+                _configure_between_expression(self, managed_condition, context_source_question_text)
 
-                if managed_condition.minimum_inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the minimum value is allowed").check()
-                if managed_condition.maximum_inclusive:
-                    self.page.get_by_role("checkbox", name="An answer of exactly the maximum value is allowed").check()
+            case ManagedExpressionsEnum.BETWEEN_DATES:
+                managed_condition = cast(BetweenDates, managed_condition)
+                _configure_between_dates_expression(
+                    self, managed_condition, presentation_options, context_source_question_text
+                )
 
             case ManagedExpressionsEnum.IS_YES | ManagedExpressionsEnum.IS_NO:
                 return
@@ -714,6 +800,10 @@ class AddConditionPage(ReportsBasePage):
 
     def click_managed_condition_type(self, managed_condition: ManagedExpression) -> None:
         self.page.get_by_role("radio", name=managed_condition._key.value).click()
+
+    def click_insert_data(self, field_name: str) -> "SelectDataSourcePage":
+        self.page.get_by_role("button", name=f"Reference data for {field_name}").click()
+        return SelectDataSourcePage(page=self.page, domain=self.domain, grant_name=self.grant_name)
 
     def select_condition_question(self, condition_question: str) -> None:
         # We don't easily know randomly generated uuid apended to the previous question texts, so have to grab it to

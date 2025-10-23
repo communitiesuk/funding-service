@@ -93,6 +93,18 @@
           "id": "5eef7648-1ad2-494d-b3a0-c853a78ac43e"
         },
         {
+          "component_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
+          "depends_on_component_id": "459a385f-f293-497b-b6fb-76011304306c",
+          "expression_id": "b4f36929-a478-4d8b-b09e-3f2f0957259e",
+          "id": "565ca0e8-f092-4ac8-a1af-4295f137cf79"
+        },
+        {
+          "component_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
+          "depends_on_component_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
+          "expression_id": "b4f36929-a478-4d8b-b09e-3f2f0957259e",
+          "id": "41d8fb51-8f51-442d-93b5-2f9c1c46293d"
+        },
+        {
           "component_id": "b6e4dd70-7285-4595-9a1c-f1dfe7f68521",
           "depends_on_component_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
           "expression_id": "7930fb4c-84b8-40e3-9779-0ce9d7f7632a",
@@ -105,10 +117,22 @@
           "id": "82c8021d-cd5d-4d03-9f40-0bc42538d6e3"
         },
         {
+          "component_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
+          "depends_on_component_id": "459a385f-f293-497b-b6fb-76011304306c",
+          "expression_id": "d5b8174f-6b9e-49d7-b1ac-1bb29749009e",
+          "id": "ea2cb455-8461-45d5-9288-f183eb23d8b8"
+        },
+        {
+          "component_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
+          "depends_on_component_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
+          "expression_id": "d5b8174f-6b9e-49d7-b1ac-1bb29749009e",
+          "id": "7c83c49e-5137-4873-b0d5-9e965541653b"
+        },
+        {
           "component_id": "ea608b3b-ff0c-4733-9ff4-29ac31868200",
           "depends_on_component_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
           "expression_id": "0ee9c50f-dcd4-40d8-bcd4-cb04de7c54d0",
-          "id": "9a08fda4-6587-45a9-bfec-6b83a39c9c06"
+          "id": "3d972429-3dd8-4054-9453-8b22a0604f0b"
         }
       ],
       "data_source_items": [
@@ -943,6 +967,20 @@
         },
         {
           "context": {
+            "inclusive": true,
+            "maximum_expression": "((q_459a385ff293497bb6fb76011304306c))",
+            "maximum_value": null,
+            "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c"
+          },
+          "created_by_id": "78371bda-d2e5-4113-8cee-3daad6dd55ab",
+          "id": "b4f36929-a478-4d8b-b09e-3f2f0957259e",
+          "managed_name": "Less than",
+          "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
+          "statement": "q_c1f6fdab3e7948ae9c751210588afc1c <=((q_459a385ff293497bb6fb76011304306c))",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
             "inclusive": false,
             "maximum_value": 10000,
             "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c"
@@ -970,6 +1008,21 @@
         {
           "context": {
             "inclusive": false,
+            "maximum_expression": "((q_459a385ff293497bb6fb76011304306c))",
+            "maximum_value": null,
+            "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c"
+          },
+          "created_by_id": "78371bda-d2e5-4113-8cee-3daad6dd55ab",
+          "id": "d5b8174f-6b9e-49d7-b1ac-1bb29749009e",
+          "managed_name": "Less than",
+          "question_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
+          "statement": "q_c1f6fdab3e7948ae9c751210588afc1c <((q_459a385ff293497bb6fb76011304306c))",
+          "type_": "CONDITION"
+        },
+        {
+          "context": {
+            "inclusive": false,
+            "maximum_expression": null,
             "maximum_value": 0,
             "question_id": "6452da2c-0154-4af1-8d96-f668edffa36a"
           },
@@ -977,7 +1030,7 @@
           "id": "0ee9c50f-dcd4-40d8-bcd4-cb04de7c54d0",
           "managed_name": "Less than",
           "question_id": "ea608b3b-ff0c-4733-9ff4-29ac31868200",
-          "statement": "q_6452da2c01544af18d96f668edffa36a < 0",
+          "statement": "q_6452da2c01544af18d96f668edffa36a <0",
           "type_": "CONDITION"
         }
       ],
@@ -1572,12 +1625,27 @@
           "data_type": "Whole number",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "hint": "",
-          "id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
-          "name": "spend in the last reporting period",
+          "id": "459a385f-f293-497b-b6fb-76011304306c",
+          "name": "total funding allocation",
           "order": 0,
           "presentation_options": {
-            "prefix": "",
-            "suffix": "",
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-much-was-your-total-funding-allocation-for-the-last-reporting-period",
+          "text": "How much was your total funding allocation for the last reporting period?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "data_type": "Whole number",
+          "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
+          "hint": "",
+          "id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
+          "name": "spend in the last reporting period",
+          "order": 1,
+          "presentation_options": {
+            "prefix": "\u00a3",
             "width": "govuk-input--width-10"
           },
           "slug": "how-much-did-you-spend-in-the-last-reporting-period",
@@ -1591,7 +1659,7 @@
           "hint": "",
           "id": "b6e4dd70-7285-4595-9a1c-f1dfe7f68521",
           "name": "reason why the spend was so low",
-          "order": 1,
+          "order": 2,
           "presentation_options": {
             "rows": 5
           },
@@ -1606,7 +1674,7 @@
           "hint": "",
           "id": "19fc71ff-ec1b-414a-b8b9-52502c0d4617",
           "name": "reason why the spend was so high",
-          "order": 2,
+          "order": 3,
           "presentation_options": {
             "rows": 5
           },
@@ -1621,10 +1689,9 @@
           "hint": "If you have overspent, enter a negative number",
           "id": "6452da2c-0154-4af1-8d96-f668edffa36a",
           "name": "unspent allocated funding",
-          "order": 3,
+          "order": 4,
           "presentation_options": {
-            "prefix": "",
-            "suffix": "",
+            "prefix": "\u00a3",
             "width": "govuk-input--width-10"
           },
           "slug": "how-much-of-your-allocated-funding-for-the-last-reporting-period-remains-unspent",
@@ -1638,7 +1705,7 @@
           "hint": "",
           "id": "ea608b3b-ff0c-4733-9ff4-29ac31868200",
           "name": "explanation for overspend",
-          "order": 4,
+          "order": 5,
           "presentation_options": {
             "rows": 5
           },
