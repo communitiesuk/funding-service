@@ -139,6 +139,46 @@ class TestGroupModel:
         assert g3.contains_add_another_components is True
         assert g4.contains_add_another_components is False
 
+    def test_add_another_summary_questions_none_selected(self, factories):
+        top_group = factories.group.create(add_another=True)
+        q1 = factories.question.create(parent=top_group)
+        sub_group = factories.group.create(parent=top_group)
+        q2 = factories.question.create(parent=sub_group)
+        factories.question.create(form=q1.form, order=0)
+
+        result = top_group.questions_in_add_another_summary
+        assert result == [q1, q2]
+
+    def test_add_another_summary_questions_some_selected(self, factories):
+        top_group = factories.group.create(add_another=True)
+        q1 = factories.question.create(parent=top_group)
+        sub_group = factories.group.create(parent=top_group)
+        q2 = factories.question.create(parent=sub_group)
+        _ = factories.question.create(parent=sub_group)
+        q4 = factories.question.create(parent=top_group)
+        factories.question.create(form=q1.form, order=0)
+        top_group.presentation_options = QuestionPresentationOptions(
+            add_another_summary_line_question_ids=[q1.id, q2.id, q4.id]
+        )
+
+        result = top_group.questions_in_add_another_summary
+        assert result == [q1, q2, q4]
+
+    def test_add_another_summary_questions_group_is_not_add_another(self, factories):
+        top_group = factories.group.create(add_another=False)
+        q1 = factories.question.create(parent=top_group)
+        sub_group = factories.group.create(parent=top_group)
+        q2 = factories.question.create(parent=sub_group)
+        _ = factories.question.create(parent=sub_group)
+        q4 = factories.question.create(parent=top_group)
+        factories.question.create(form=q1.form, order=0)
+        top_group.presentation_options = QuestionPresentationOptions(
+            add_another_summary_line_question_ids=[q1.id, q2.id, q4.id]
+        )
+
+        result = top_group.questions_in_add_another_summary
+        assert result == []
+
 
 class TestComponentReferenceModel:
     def test_deleting_a_component_with_a_reference_is_blocked(self, factories, db_session):
