@@ -25,6 +25,7 @@ from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddTaskForm,
     GroupAddAnotherOptionsForm,
+    GroupAddAnotherSummaryForm,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
@@ -976,6 +977,61 @@ class TestChangeGroupAddAnotherOptions:
 
         updated_group = db_session.get(Group, db_group.id)
         assert updated_group.add_another is False
+
+
+class TestChangeGroupAddAnotherSummaryQuestions:
+    def test_get(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", add_another=True)
+        q1 = factories.question.create(form=form, parent=group)
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_summary",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert (
+            soup.find(
+                "input",
+                {
+                    "type": "checkbox",
+                    "name": "questions_to_show_in_add_another_summary",
+                    "value": str(q1.id),
+                    "checked": False,
+                },
+            )
+            is not None
+        )
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        group = factories.group.create(form=form, name="Test group", add_another=True)
+        q1 = factories.question.create(form=form, parent=group)
+
+        summary_form = GroupAddAnotherSummaryForm(data={"questions_to_show_in_add_another_summary": [str(q1.id)]})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_add_another_summary",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            ),
+            data=get_form_data(summary_form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions$")
+
+        updated_group = db_session.get(Group, group.id)
+        assert updated_group.presentation_options.add_another_summary_line_question_ids == [q1.id]
 
 
 class TestChangeFormName:
