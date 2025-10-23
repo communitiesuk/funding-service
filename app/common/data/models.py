@@ -486,15 +486,17 @@ class Group(Component):
         based on the maximum number of levels of nested groups"""
         return bool(self.nested_group_levels < current_app.config["MAX_NESTED_GROUP_LEVELS"])
 
-    @cached_property
+    @property
     def contains_add_another_components(self) -> bool:
+        """Whether or not this group contains any components that have add_another set to True"""
         for component in self.cached_all_components:
             if component.add_another:
                 return True
         return False
 
-    @cached_property
+    @property
     def contains_questions_depended_on_elsewhere(self) -> bool:
+        """Whether or not any questions in this group (or nested groups) are depended on elsewhere"""
         for component in self.cached_all_components:
             if len(component.depended_on_by) > 0:
                 return True

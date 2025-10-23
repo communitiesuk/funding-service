@@ -237,7 +237,9 @@ class GroupAddAnotherOptionsForm(FlaskForm):
         ],
         default="no",
         validators=[
-            DataRequired("Select whether people be able to answer all questions in this question group more than once")
+            DataRequired(
+                "Select whether people should be able to answer all questions in this question group more than once"
+            )
         ],
         widget=GovRadioInput(),
     )
