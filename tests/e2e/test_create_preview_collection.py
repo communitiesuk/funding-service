@@ -57,15 +57,18 @@ class _QuestionResponse:
 
 
 @dataclasses.dataclass
-class Condition:
-    referenced_question: str
-    managed_expression: ManagedExpression
-
-
-@dataclasses.dataclass
 class TextFieldWithData:
     prefix: str
     data_from_question: str
+
+
+@dataclasses.dataclass
+class E2EManagedExpression:
+    managed_expression: ManagedExpression
+    referenced_question: str | None = None
+    # Note this assumes you're only referencing one question's answer in an expression, if two are needed for
+    # Between/BetweenDates then this will need updating
+    context_source_question_text: str | None = None
 
 
 class QuestionDict(TypedDict):
@@ -78,8 +81,8 @@ class QuestionDict(TypedDict):
     choices: NotRequired[list[str]]
     options: NotRequired[QuestionPresentationOptions]
     guidance: NotRequired[GuidanceText]
-    validation: NotRequired[ManagedExpression]
-    condition: NotRequired[Condition]
+    validation: NotRequired[E2EManagedExpression]
+    condition: NotRequired[E2EManagedExpression]
 
 
 class QuestionGroupDict(TypedDict):
@@ -87,7 +90,7 @@ class QuestionGroupDict(TypedDict):
     text: str
     display_options: GroupDisplayOptions
     guidance: NotRequired[GuidanceText]
-    condition: NotRequired[Condition]
+    condition: NotRequired[E2EManagedExpression]
     questions: list[QuestionDict]
 
 
@@ -105,12 +108,14 @@ questions_to_test: dict[str, TQuestionToTest] = {
             ),
             _QuestionResponse(answer=["2022", "04", "05"], check_your_answers_text="5 April 2022"),
         ],
-        validation=BetweenDates(
-            question_id=uuid.uuid4(),
-            earliest_value=datetime.date(2020, 1, 1),
-            earliest_inclusive=True,
-            latest_value=datetime.date(2025, 1, 1),
-            latest_inclusive=False,
+        validation=E2EManagedExpression(
+            managed_expression=BetweenDates(
+                question_id=uuid.uuid4(),
+                earliest_value=datetime.date(2020, 1, 1),
+                earliest_inclusive=True,
+                latest_value=datetime.date(2025, 1, 1),
+                latest_inclusive=False,
+            )
         ),
     ),
     "approx_date": QuestionDict(
@@ -127,12 +132,14 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse(["2021", "04"], check_your_answers_text="April 2021"),
         ],
         options=QuestionPresentationOptions(approximate_date=True),
-        validation=BetweenDates(
-            question_id=uuid.uuid4(),
-            earliest_value=datetime.date(2020, 4, 1),
-            earliest_inclusive=True,
-            latest_value=datetime.date(2022, 3, 1),
-            latest_inclusive=False,
+        validation=E2EManagedExpression(
+            managed_expression=BetweenDates(
+                question_id=uuid.uuid4(),
+                earliest_value=datetime.date(2020, 4, 1),
+                earliest_inclusive=True,
+                latest_value=datetime.date(2022, 3, 1),
+                latest_inclusive=False,
+            )
         ),
     ),
     "prefix-integer": {
@@ -143,24 +150,42 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("0", "The answer must be greater than 1"),
             _QuestionResponse("10000"),
         ],
-        "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS),
-        "validation": GreaterThan(
-            question_id=uuid.uuid4(), minimum_value=1, inclusive=False
-        ),  # question_id does not matter here
+        "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS, approximate_date=True),
+        "validation": E2EManagedExpression(
+            managed_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False)
+        ),
+        "condition": E2EManagedExpression(
+            managed_expression=BetweenDates(
+                question_id=uuid.uuid4(),
+                earliest_value=datetime.date(2020, 4, 1),
+                earliest_inclusive=False,
+                latest_value=None,
+                latest_expression="",
+                latest_inclusive=False,
+            ),
+            referenced_question="Enter an approximate date",
+            context_source_question_text="Enter a date",
+        ),
     },
     "suffix-integer": {
         "type": QuestionDataType.INTEGER,
         "text": "Enter the total weight as a number",
         "display_text": "Enter the total weight as a number",
         "answers": [
-            _QuestionResponse("101", "The answer must be less than or equal to 100"),
+            _QuestionResponse("10001", "The answer must be less than or equal to £10,000"),
             _QuestionResponse("100"),
         ],
         "options": QuestionPresentationOptions(suffix="kg", width=NumberInputWidths.HUNDREDS),
-        "validation": LessThan(
-            question_id=uuid.uuid4(), maximum_value=100, inclusive=True
+        "validation": E2EManagedExpression(
+            managed_expression=LessThan(
+                question_id=uuid.uuid4(),
+                maximum_value=None,
+                maximum_expression="",
+                inclusive=True,
+            ),
+            context_source_question_text="Enter the total cost as a number",
         ),  # question_id does not matter here
-        "condition": Condition(
+        "condition": E2EManagedExpression(
             referenced_question="Enter the total cost as a number",
             managed_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),
         ),
@@ -174,14 +199,16 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("20"),
         ],
         "options": QuestionPresentationOptions(),
-        "validation": Between(
-            question_id=uuid.uuid4(),
-            maximum_value=100,
-            maximum_inclusive=False,
-            minimum_value=20,
-            minimum_inclusive=True,
+        "validation": E2EManagedExpression(
+            managed_expression=Between(
+                question_id=uuid.uuid4(),
+                maximum_value=100,
+                maximum_inclusive=False,
+                minimum_value=20,
+                minimum_inclusive=True,
+            )
         ),  # question_id does not matter here
-        "condition": Condition(
+        "condition": E2EManagedExpression(
             referenced_question="Enter the total weight as a number",
             managed_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),
         ),
@@ -193,7 +220,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "answers": [
             _QuestionResponse("Yes"),
         ],
-        "condition": Condition(
+        "condition": E2EManagedExpression(
             referenced_question="Enter a number between 20 and 100",
             managed_expression=Between(
                 question_id=uuid.uuid4(),
@@ -212,7 +239,9 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "answers": [
             _QuestionResponse("option 2"),
         ],
-        "condition": Condition(referenced_question="Yes or no", managed_expression=IsYes(question_id=uuid.uuid4())),
+        "condition": E2EManagedExpression(
+            referenced_question="Yes or no", managed_expression=IsYes(question_id=uuid.uuid4())
+        ),
     },
     "autocomplete": {
         "type": QuestionDataType.RADIOS,
@@ -223,7 +252,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("Other"),
         ],
         "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
-        "condition": Condition(
+        "condition": E2EManagedExpression(
             referenced_question="Select an option",
             managed_expression=AnyOf(
                 question_id=uuid.uuid4(),
@@ -240,7 +269,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse(["option 2", "option 3"]),
         ],
         "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
-        "condition": Condition(
+        "condition": E2EManagedExpression(
             referenced_question="Select an option from the accessible autocomplete",
             managed_expression=AnyOf(question_id=uuid.uuid4(), items=[{"key": "other", "label": "Other"}]),
         ),
@@ -253,7 +282,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
             _QuestionResponse("name@example.com"),
         ],
-        "condition": Condition(
+        "condition": E2EManagedExpression(
             referenced_question="Select one or more options",
             managed_expression=Specifically(question_id=uuid.uuid4(), item={"key": "option-2", "label": "option 2"}),
         ),
@@ -296,7 +325,9 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "This question should not be shown",
         "display_text": "This question should not be shown",
         "answers": [_QuestionResponse("This question shouldn't be shown")],
-        "condition": Condition(referenced_question="Yes or no", managed_expression=IsNo(question_id=uuid.uuid4())),
+        "condition": E2EManagedExpression(
+            referenced_question="Yes or no", managed_expression=IsNo(question_id=uuid.uuid4())
+        ),
     },
 }
 
@@ -325,7 +356,7 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             body_ul_items=["UL item one", "UL item two"],
             body_ol_items=["OL item one", "OL item two"],
         ),
-        "condition": Condition(
+        "condition": E2EManagedExpression(
             referenced_question="Do you want to show question groups?",
             managed_expression=IsYes(question_id=uuid.uuid4()),
         ),
@@ -439,7 +470,7 @@ def create_question_or_group(
         ):
             add_question_guidance(question_definition, edit_question_group_page)
         if question_definition.get("condition") is not None:
-            add_condition(edit_question_group_page, question_definition["text"], question_definition["condition"])
+            add_condition(edit_question_group_page, question_definition["condition"])
         for question in question_definition["questions"]:
             create_question_or_group(question, edit_question_group_page, parent_group_name=question_definition["text"])
         if parent_group_name:
@@ -520,12 +551,11 @@ def create_question(
     if question_definition.get("validation") is not None:
         add_validation(
             edit_question_page,
-            question_definition["text"],
             question_definition["validation"],
             question_definition.get("options", None),
         )
     if question_definition.get("condition") is not None:
-        add_condition(edit_question_page, question_definition["text"], question_definition["condition"])
+        add_condition(edit_question_page, question_definition["condition"], question_definition.get("options", None))
 
     if isinstance(manage_page, EditQuestionGroupPage):
         edit_question_page.click_question_group_breadcrumb(manage_page.group_name)
@@ -579,21 +609,26 @@ def add_question_guidance(
 
 def add_validation(
     edit_question_page: EditQuestionPage,
-    question_text: str,
-    validation: ManagedExpression,
+    validation: E2EManagedExpression,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> None:
     add_validation_page = edit_question_page.click_add_validation()
-    add_validation_page.configure_managed_validation(validation, presentation_options)
+    add_validation_page.configure_managed_validation(
+        validation.managed_expression, validation.context_source_question_text, presentation_options
+    )
     edit_question_page = add_validation_page.click_add_validation()
 
 
 def add_condition(
-    edit_question_page: EditQuestionPage | EditQuestionGroupPage, question_text: str, condition: Condition
+    edit_question_page: EditQuestionPage | EditQuestionGroupPage,
+    condition: E2EManagedExpression,
+    presentation_options: QuestionPresentationOptions | None = None,
 ) -> None:
     add_condition_page = edit_question_page.click_add_condition()
     add_condition_page.select_condition_question(condition.referenced_question)
-    add_condition_page.configure_managed_condition(condition.managed_expression)
+    add_condition_page.configure_managed_condition(
+        condition.managed_expression, condition.context_source_question_text, presentation_options
+    )
     edit_question_page = add_condition_page.click_add_condition(edit_question_page)
 
 
