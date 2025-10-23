@@ -409,6 +409,88 @@ class TestAskAQuestion:
         assert "Question guidance body" not in soup.text
         assert [label.text.strip() for label in soup.select("label")] == [q1.text, q2.text]
 
+    class TestAskAQuestionAddAnotherSummary:
+        def test_get_add_another_summary_empty(self, authenticated_grant_admin_client, factories):
+            group = factories.group.create(add_another=True, name="Test groups", text="Test groups")
+            q1 = factories.question.create(form=group.form, parent=group)
+            _ = factories.question.create(form=group.form, parent=group)
+            submission = factories.submission.create(
+                collection=group.form.collection, created_by=authenticated_grant_admin_client.user
+            )
+
+            response = authenticated_grant_admin_client.get(
+                url_for(
+                    "deliver_grant_funding.ask_a_question",
+                    grant_id=authenticated_grant_admin_client.grant.id,
+                    submission_id=submission.id,
+                    question_id=q1.id,
+                )
+            )
+
+            # loading the question page for an add another question without an index loads the add another summary page
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Test groups"
+            assert "You have not added any test groups." in soup.text
+            assert "Add the first test groups" in soup.text
+
+            # because there's no data we should be configured to add the first answer but its not the users choice
+            assert "govuk-!-display-none" in soup.find("div", {"class": "govuk-radios"}).get("class")
+            assert soup.find("input", {"name": "add_another", "value": "yes"}).get("checked") is not None
+
+        def test_get_ask_a_question_add_another_summary_with_data(self, authenticated_grant_admin_client, factories):
+            group = factories.group.create(add_another=True, name="Test groups", text="Test groups")
+            q1 = factories.question.create(form=group.form, parent=group)
+            q2 = factories.question.create(form=group.form, parent=group)
+
+            submission = factories.submission.create(
+                collection=group.form.collection, created_by=authenticated_grant_admin_client.user
+            )
+
+            group.presentation_options = QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id])
+            submission.data = {
+                str(group.id): [
+                    {str(q1.id): "E1A1"},
+                    {str(q2.id): "E2A2"},
+                    {str(q1.id): "E3A1", str(q2.id): "E3A2"},
+                    {str(q1.id): "E4A1", str(q2.id): "E4A2"},
+                ]
+            }
+
+            response = authenticated_grant_admin_client.get(
+                url_for(
+                    "deliver_grant_funding.ask_a_question",
+                    grant_id=authenticated_grant_admin_client.grant.id,
+                    submission_id=submission.id,
+                    question_id=q1.id,
+                )
+            )
+
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Test groups"
+            assert "You have added 4 test groups" in soup.text
+
+            # partial entries have a link as the main call to action like similar to CYA (summary shown if available)
+            assert (
+                soup.find_all("dt", {"class": "govuk-summary-list__key"})[0].text.strip()
+                == "Enter missing information for first test groups (E1A1)"
+            )
+
+            # summary not shown if not available
+            assert (
+                soup.find_all("dt", {"class": "govuk-summary-list__key"})[1].text.strip()
+                == "Enter missing information for second test groups"
+            )
+
+            # each entry in the row respects the summary line configuration even if more answers are available
+            assert soup.find_all("dt", {"class": "govuk-summary-list__key"})[2].text.strip() == "E3A1"
+
+            # do you want to add another component is shown and defaults to nothing selected
+            assert "govuk-!-display-none" not in soup.find("div", {"class": "govuk-radios"}).get("class")
+            assert soup.find("input", {"name": "add_another", "value": "yes"}).get("checked") is None
+            assert soup.find("input", {"name": "add_another", "value": "no"}).get("checked") is None
+
 
 class TestCheckYourAnswers:
     @pytest.mark.parametrize(

@@ -11,6 +11,14 @@
   {{ govukBackLink({ "text": "Back", "href": override_back_link or runner.back_url }) }}
 {% endmacro %}
 
+{% macro collection_question_with_add_another_summary_page(runner) %}
+  {% if runner.add_another_summary_context %}
+    {{ collection_add_another_summary(runner) }}
+  {% else %}
+    {{ collection_question(runner) }}
+  {% endif %}
+{% endmacro %}
+
 {% macro collection_question(runner) %}
   {% set is_group = runner.component.is_group %}
   {% set questions = runner.questions if is_group else [runner.component] %}
@@ -271,5 +279,93 @@
         </form>
       </div>
     </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro collection_add_another_summary(runner) %}
+  {% set add_another_container = runner.component.add_another_container %}
+
+  <h1 class="govuk-heading-l">{{ add_another_container.name }}</h1>
+
+  {% set number_of_entries = runner.submission.get_count_for_add_another(add_another_container) %}
+
+  {% if number_of_entries %}
+    <h2 class="govuk-heading-s">You have added {{ number_of_entries }} {{ add_another_container.name | lower }}</h2>
+
+    {% set rows = [] %}
+    {% for i in range(number_of_entries) %}
+      {% set (summary, is_answered) = runner.submission.get_answer_summary_for_add_another(add_another_container, add_another_index=i) %}
+
+
+      {% set key_html %}
+        {% if is_answered %}
+          <span>{{ summary }}</span>
+        {% else %}
+          <a class="govuk-link govuk-link--no-visited-state" href="#"> Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }} </a>
+        {% endif %}
+      {% endset %}
+
+      {% set entry_hidden_description = summary if is_answered else to_ordinal(i + 1) ~ " " ~ (add_another_container.name | lower) %}
+      {%
+        do rows.append({
+          "key": { "html": key_html, "classes": "govuk-!-width-two-thirds" },
+          "value": { "classes": "govuk-!-display-none"},
+          "actions": {
+            "items": [
+              {
+                "href": "#",
+                "text": "Change",
+                "visuallyHiddenText": entry_hidden_description
+              },
+              {
+                "href": "#",
+                "text": "Remove",
+                "visuallyHiddenText": entry_hidden_description
+              }
+            ] if is_answered else [],
+            "classes": "govuk-!-width-one-third"
+          }
+        })
+      %}
+    {% endfor %}
+
+    {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+
+    <form method="post" novalidate>
+      {{ runner.add_another_summary_form.csrf_token }}
+
+      {{
+        runner.add_another_summary_form.add_another(params={
+          "fieldset": {
+            "legend": {
+              "text": "Do you need to add another answer?",
+              "isPageHeading": false,
+              "classes": "govuk-fieldset__legend--m"
+            }
+          }
+        })
+      }}
+
+      {{ runner.add_another_summary_form.submit }}
+    </form>
+  {% else %}
+    <p class="govuk-body">You have not added any {{ add_another_container.name | lower }}.</p>
+
+    <form method="post" novalidate>
+      {{ runner.add_another_summary_form.csrf_token }}
+      {{
+        runner.add_another_summary_form.add_another(params={
+          "fieldset": {},
+          "classes": "govuk-!-display-none",
+          "value": "yes"
+        })
+      }}
+      {{
+        runner.add_another_summary_form.submit(params={
+          "text": "Add the first " ~ (add_another_container.name | lower),
+          "classes": "govuk-!-margin-top-3"
+        })
+      }}
+    </form>
   {% endif %}
 {% endmacro %}
