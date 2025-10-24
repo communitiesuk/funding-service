@@ -168,8 +168,8 @@ class PlatformAdminGrantView(PlatformAdminModelView):
     can_edit = True
     can_delete = True
 
-    column_list = ["name", "ggis_number", "organisation.name"]
-    column_filters = ["name", "ggis_number", "organisation.name"]
+    column_list = ["name", "status", "ggis_number", "organisation.name"]
+    column_filters = ["name", "status", "ggis_number", "organisation.name"]
     column_searchable_list = ["name", "ggis_number"]
     column_labels = {"ggis_number": "GGIS number", "organisation.name": "Organisation name"}
 
