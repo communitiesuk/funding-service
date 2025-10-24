@@ -74,7 +74,12 @@ class ExpressionContext(ChainMap[str, Any]):
         super().__init__(*self._ordered_contexts)
 
     def with_add_another_context(
-        self, component: "Component", submission_helper: "SubmissionHelper", *, add_another_index: int
+        self,
+        component: "Component",
+        submission_helper: "SubmissionHelper",
+        *,
+        add_another_index: int,
+        allow_new_index: bool = False,
     ) -> "ExpressionContext":
         """
         Creates a new `ExpressionContext` with `add_another_context` set to the provided `add_another_context`, and the
@@ -85,6 +90,11 @@ class ExpressionContext(ChainMap[str, Any]):
 
         if not component.add_another_container:
             raise ValueError("add_another_context can only be set for add another components")
+
+        if allow_new_index:
+            count = submission_helper.get_count_for_add_another(component.add_another_container)
+            if add_another_index == count:
+                return self
 
         # we're evaluating for a specific entry in a list so we'll set the context for the
         # questions in our container - assume submission context is already set

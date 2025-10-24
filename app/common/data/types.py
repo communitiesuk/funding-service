@@ -21,7 +21,7 @@ json_flat_scalars = Dict[str, scalars]
 
 TRunnerUrlMap = dict[
     "FormRunnerState",
-    Callable[["FormRunner", Optional["Question"], Optional["Form"], Optional["FormRunnerState"]], str],
+    Callable[["FormRunner", Optional["Question"], Optional["Form"], Optional["FormRunnerState"], Optional[int]], str],
 ]
 
 
