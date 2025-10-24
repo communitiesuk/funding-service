@@ -173,7 +173,7 @@ class PlatformAdminGrantView(PlatformAdminModelView):
     column_searchable_list = ["name", "ggis_number"]
     column_labels = {"ggis_number": "GGIS number", "organisation.name": "Organisation name"}
 
-    form_columns = ["name", "organisation", "ggis_number"]
+    form_columns = ["name", "organisation", "ggis_number", "status"]
 
     form_args = {
         "organisation": {
