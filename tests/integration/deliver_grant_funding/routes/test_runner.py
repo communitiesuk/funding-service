@@ -3,7 +3,13 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
+from app.common.data.types import (
+    ExpressionType,
+    ManagedExpressionsEnum,
+    QuestionDataType,
+    QuestionPresentationOptions,
+    SubmissionModeEnum,
+)
 from tests.utils import get_h1_text
 
 
@@ -230,6 +236,69 @@ class TestAskAQuestion:
 
         # appropriate add another context was used for pre-populating
         assert soup.find("input", {"id": question.safe_qid}).get("value") == "Blue"
+
+    def test_get_ask_a_question_add_another_condition_shows(self, authenticated_grant_admin_client, factories):
+        group = factories.group.create(
+            add_another=True,
+            name="Your colour preferences",
+            form__title="Colour information",
+            form__collection__grant=authenticated_grant_admin_client.grant,
+        )
+        question = factories.question.create(
+            text="Do you have a favourite colour?",
+            data_type=QuestionDataType.YES_NO,
+            parent=group,
+            form=group.form,
+        )
+        question_2 = factories.question.create(
+            text="What's your favourite colour?",
+            parent=group,
+            form=question.form,
+        )
+        factories.expression.create(
+            question=question_2,
+            created_by=authenticated_grant_admin_client.user,
+            type_=ExpressionType.CONDITION,
+            context={"question_id": str(question.id)},
+            statement=f"{question.safe_qid} is True",
+            managed_name=ManagedExpressionsEnum.IS_YES,
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+        submission.data = {str(group.id): [{str(question.id): True}, {str(question.id): False}]}
+
+        # the first entry does meet the condition constraints and should be shown
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+                question_id=question_2.id,
+                add_another_index=0,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "What's your favourite colour?" in soup.text
+
+        # the second entry doesn't meet the conditions constraints and should not be shown
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+                question_id=question_2.id,
+                add_another_index=1,
+            )
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.check_your_answers",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            submission_id=submission.id,
+            form_id=question.form.id,
+        )
 
     @pytest.mark.parametrize(
         "client_fixture",

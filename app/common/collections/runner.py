@@ -300,7 +300,15 @@ class FormRunner:
         if not self.component:
             raise ValueError("Question context not set")
 
-        if not self.submission.is_component_visible(self.component, self.submission.cached_evaluation_context):
+        context = self.submission.cached_evaluation_context
+        if self.add_another_index is not None:
+            context = context.with_add_another_context(
+                self.component,
+                submission_helper=self.submission,
+                add_another_index=self.add_another_index,
+                allow_new_index=True,
+            )
+        if not self.submission.is_component_visible(self.component, context):
             self._valid = False
         elif self.submission.is_completed:
             self._valid = False
