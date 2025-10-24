@@ -39,7 +39,8 @@
       <h1 class="govuk-heading-l">{{ runner.component.guidance_heading }}</h1>
       {{ runner.interpolate(runner.component.guidance_body) | govuk_markdown }}
     {% elif is_group %}
-      <h1 class="govuk-heading-l">{{ runner.component.name + " (" ~ (runner.add_another_index + 1) ~ ")" if runner.add_another_index is not none else "" }}</h1>
+      {% set same_page_add_another_index_suffix = "(" ~ (runner.add_another_index + 1) ~ ")" if runner.add_another_index is not none else "" %}
+      <h1 class="govuk-heading-l">{{ runner.component.name }} {{ same_page_add_another_index_suffix }}</h1>
     {% endif %}
 
     {# https://github.com/alphagov/govuk-frontend/issues/1841 #}
