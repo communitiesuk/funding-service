@@ -161,6 +161,9 @@ routes_with_access_controlled_by_flask_admin = [
     "collection.edit_view",
     "collection.export",
     "collection.index_view",
+    "reporting_lifecycle.index",
+    "reporting_lifecycle.tasklist",
+    "reporting_lifecycle.make_live",
 ]
 
 

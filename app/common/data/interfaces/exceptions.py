@@ -119,3 +119,15 @@ def flush_and_rollback_on_exceptions[T](
         return decorator(func)
 
     return decorator
+
+
+class StateTransitionError(Exception):
+    def __init__(self, model: str, from_state: str, to_state: str) -> None:
+        self.from_state = from_state
+        self.to_state = to_state
+        self.model = model
+        super().__init__(f"Unknown state transition for {model} from {from_state} to {to_state}")
+
+
+class NotEnoughGrantTeamUsersError(Exception):
+    pass

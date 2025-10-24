@@ -25,6 +25,11 @@ TRunnerUrlMap = dict[
 ]
 
 
+class GrantStatusEnum(enum.StrEnum):
+    DRAFT = "draft"
+    LIVE = "live"
+
+
 class RoleEnum(enum.StrEnum):
     ADMIN = (
         "admin"  # Admin level permissions, combines with null columns in UserRole table to denote level of admin access

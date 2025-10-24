@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">Reporting lifecycle</h1>
+      <p class="govuk-body">Select the grant you want to view the reporting lifecycle for.</p>
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.grant_id }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

@@ -1,6 +1,7 @@
 import pytest
 from _pytest._code import ExceptionInfo
 
+from app.common.data.interfaces.exceptions import NotEnoughGrantTeamUsersError, StateTransitionError
 from app.common.data.interfaces.grants import (
     DuplicateValueError,
     create_grant,
@@ -11,7 +12,7 @@ from app.common.data.interfaces.grants import (
     update_grant,
 )
 from app.common.data.models import Grant
-from app.common.data.types import RoleEnum
+from app.common.data.types import GrantStatusEnum, RoleEnum
 
 
 def test_get_grant(factories):
@@ -65,10 +66,21 @@ class TestGetAllGrantsByUser:
         assert len(result) == 5
 
 
-def test_get_all_grants_by_user(factories):
-    factories.grant.create_batch(5)
-    result = get_all_grants()
-    assert len(result) == 5
+class TestGetAllGrants:
+    def test_get_all_grants(self, factories):
+        factories.grant.create_batch(5)
+        result = get_all_grants()
+        assert len(result) == 5
+
+    def test_get_all_grants_by_status(self, factories):
+        draft_grants = factories.grant.create_batch(2)
+        live_grants = factories.grant.create_batch(2, status=GrantStatusEnum.LIVE)
+
+        result = get_all_grants(statuses=[GrantStatusEnum.DRAFT])
+        assert result == draft_grants
+
+        result = get_all_grants(statuses=[GrantStatusEnum.LIVE])
+        assert result == live_grants
 
 
 def test_create_grant(app, db_session) -> None:
@@ -102,46 +114,65 @@ def test_create_duplicate_grant(factories) -> None:
     assert e.value.field_name == "name"
 
 
-def test_update_grant_success(factories) -> None:
-    grant = factories.grant.create(name="test_grant")
-    update_grant(
-        grant=grant,
-        name="test_grant_updated",
-        description="Updated grant description",
-        primary_contact_name="Updated primary contact name",
-        primary_contact_email="Updated primary contact email",
-        ggis_number="GGIS-UPDATED",
-    )
+class TestUpdateGrant:
+    def test_update_grant_success(self, factories) -> None:
+        grant = factories.grant.create(name="test_grant")
+        update_grant(
+            grant=grant,
+            name="test_grant_updated",
+            description="Updated grant description",
+            primary_contact_name="Updated primary contact name",
+            primary_contact_email="Updated primary contact email",
+            ggis_number="GGIS-UPDATED",
+        )
 
-    assert grant.name == "test_grant_updated"
-    assert grant.description == "Updated grant description"
-    assert grant.primary_contact_name == "Updated primary contact name"
-    assert grant.primary_contact_email == "Updated primary contact email"
-    assert grant.ggis_number == "GGIS-UPDATED"
+        assert grant.name == "test_grant_updated"
+        assert grant.description == "Updated grant description"
+        assert grant.primary_contact_name == "Updated primary contact name"
+        assert grant.primary_contact_email == "Updated primary contact email"
+        assert grant.ggis_number == "GGIS-UPDATED"
 
+    def test_update_grant_duplicate_name(self, factories):
+        grant_1 = factories.grant.create(name="test_grant")
+        factories.grant.create(name="test_grant_2")
+        with pytest.raises(DuplicateValueError):
+            update_grant(grant=grant_1, name="test_grant_2")
 
-def test_update_grant_duplicate_name(factories):
-    grant_1 = factories.grant.create(name="test_grant")
-    factories.grant.create(name="test_grant_2")
-    with pytest.raises(DuplicateValueError):
-        update_grant(grant=grant_1, name="test_grant_2")
+    def test_updated_grant_nothing_provided(self, factories) -> None:
+        grant = factories.grant.create(
+            name="test_grant",
+            description="Initial description",
+            primary_contact_name="Initial Contact",
+            primary_contact_email="Initial Email",
+            ggis_number="GGIS-123456",
+        )
+        updated_grant = update_grant(grant=grant)
 
+        assert updated_grant.name == "test_grant"
+        assert updated_grant.description == "Initial description"
+        assert updated_grant.primary_contact_name == "Initial Contact"
+        assert updated_grant.primary_contact_email == "Initial Email"
+        assert updated_grant.ggis_number == "GGIS-123456"
 
-def test_updated_grant_nothing_provided(factories) -> None:
-    grant = factories.grant.create(
-        name="test_grant",
-        description="Initial description",
-        primary_contact_name="Initial Contact",
-        primary_contact_email="Initial Email",
-        ggis_number="GGIS-123456",
-    )
-    updated_grant = update_grant(grant=grant)
+    def test_update_group_status_not_enough_grant_team_users(self, factories):
+        grant = factories.grant.create(name="test_grant")
+        factories.user_role.create(grant=grant, role=RoleEnum.MEMBER)
 
-    assert updated_grant.name == "test_grant"
-    assert updated_grant.description == "Initial description"
-    assert updated_grant.primary_contact_name == "Initial Contact"
-    assert updated_grant.primary_contact_email == "Initial Email"
-    assert updated_grant.ggis_number == "GGIS-123456"
+        with pytest.raises(NotEnoughGrantTeamUsersError):
+            update_grant(grant=grant, status=GrantStatusEnum.LIVE)
+
+        factories.user_role.create(grant=grant, role=RoleEnum.MEMBER)
+        updated_grant = update_grant(grant=grant, status=GrantStatusEnum.LIVE)
+
+        assert updated_grant.status == GrantStatusEnum.LIVE
+
+    def test_update_grant_invalid_state_transition(self, factories):
+        grant = factories.grant.create(name="test_grant")
+
+        with pytest.raises(StateTransitionError) as e:
+            update_grant(grant=grant, status="invalid-state")  # type: ignore[arg-type]
+
+        assert str(e.value) == "Unknown state transition for grant from draft to invalid-state"
 
 
 class TestGrantNameExists:

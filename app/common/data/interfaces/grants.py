@@ -5,9 +5,15 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.common.data.interfaces.exceptions import DuplicateValueError, flush_and_rollback_on_exceptions
+from app.common.data.interfaces.exceptions import (
+    DuplicateValueError,
+    NotEnoughGrantTeamUsersError,
+    StateTransitionError,
+    flush_and_rollback_on_exceptions,
+)
 from app.common.data.models import Collection, Grant, Organisation
 from app.common.data.models_user import User, UserRole
+from app.common.data.types import GrantStatusEnum
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
@@ -62,8 +68,13 @@ def get_all_grants_by_user(user: User) -> Sequence[Grant]:
         return db.session.scalars(statement).unique().all()
 
 
-def get_all_grants() -> Sequence[Grant]:
-    statement = select(Grant).order_by(Grant.name)
+def get_all_grants(statuses: list[GrantStatusEnum] | None = None) -> Sequence[Grant]:
+    statement = select(Grant)
+
+    if statuses is not None:
+        statement = statement.where(Grant.status.in_(statuses))
+
+    statement = statement.order_by(Grant.name)
     return db.session.scalars(statement).all()
 
 
@@ -98,6 +109,7 @@ def update_grant(
     *,
     ggis_number: str | TNotProvided = NOT_PROVIDED,
     name: str | TNotProvided = NOT_PROVIDED,
+    status: GrantStatusEnum | TNotProvided = NOT_PROVIDED,
     description: str | TNotProvided = NOT_PROVIDED,
     primary_contact_name: str | TNotProvided = NOT_PROVIDED,
     primary_contact_email: str | TNotProvided = NOT_PROVIDED,
@@ -106,6 +118,21 @@ def update_grant(
         grant.ggis_number = ggis_number  # ty: ignore[invalid-assignment]
     if name is not NOT_PROVIDED:
         grant.name = name  # ty: ignore[invalid-assignment]
+
+    # NOTE: as/when we start to have a lot of defined state transitions, we might want to have a better state machine
+    #       representation such as sqlalchemy-fsm (but all of the libs for this I've looked at lately seem to be
+    #       unmaintained or with limited uptake.
+    if status is not NOT_PROVIDED and grant.status != status:
+        match grant.status, status:
+            case GrantStatusEnum.DRAFT, GrantStatusEnum.LIVE:
+                if len(grant.grant_team_users) < 2:
+                    raise NotEnoughGrantTeamUsersError()
+            case GrantStatusEnum.LIVE, GrantStatusEnum.DRAFT:
+                pass
+            case _:
+                raise StateTransitionError(model="grant", from_state=grant.status, to_state=status)
+        grant.status = status
+
     if description is not NOT_PROVIDED:
         grant.description = description  # ty: ignore[invalid-assignment]
     if primary_contact_name is not NOT_PROVIDED:
