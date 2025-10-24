@@ -252,10 +252,16 @@ class FormRunner:
 
             # for now we'll always sequentially step through add another questions - this could be refined when we
             # refactor the "skip" logic below or move to using a check an add another entries details pattern
-            if next_question and self.add_another_index is not None:
-                if next_question.add_another_container != self.component.add_another_container:
+            if self.add_another_index is not None:
+                if (next_question and next_question.add_another_container) != self.component.add_another_container:
                     # we've moved out of this add another context, return to the summary page
-                    return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=None)
+                    # todo: includes a check if we should back to check your answers - when the skip logic below
+                    #       also includes this check we should defer to that logic
+                    return (
+                        self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=None)
+                        if self.source != FormRunnerState.CHECK_YOUR_ANSWERS
+                        else self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
+                    )
                 else:
                     return self.to_url(
                         FormRunnerState.QUESTION, question=next_question, add_another_index=self.add_another_index
