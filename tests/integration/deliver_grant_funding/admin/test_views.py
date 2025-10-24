@@ -1,4 +1,3 @@
-import pytest
 from bs4 import BeautifulSoup
 
 from app.common.data.types import GrantStatusEnum, RoleEnum
@@ -6,50 +5,20 @@ from tests.utils import get_h1_text, get_h2_text, page_has_error, page_has_flash
 
 
 class TestFlaskAdminAccess:
-    @pytest.mark.parametrize(
-        "client_fixture, expected_code",
-        [
-            ("authenticated_platform_admin_client", 200),
-            ("authenticated_grant_admin_client", 403),
-            ("authenticated_grant_member_client", 403),
-            ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
-        ],
-    )
-    def test_admin_index_denied_for_non_platform_admin(self, client_fixture, expected_code, request):
-        client = request.getfixturevalue(client_fixture)
+    def test_admin_index_denied_for_non_platform_admin(self, clients_and_status_codes_for_platform_admin_access):
+        client, expected_code = clients_and_status_codes_for_platform_admin_access
         response = client.get("/deliver/admin/")
         assert response.status_code == expected_code
 
-    @pytest.mark.parametrize(
-        "client_fixture, expected_code",
-        [
-            ("authenticated_platform_admin_client", 200),
-            ("authenticated_grant_admin_client", 403),
-            ("authenticated_grant_member_client", 403),
-            ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
-        ],
-    )
-    def test_admin_user_list_denied_for_non_platform_admin(self, client_fixture, expected_code, request):
-        client = request.getfixturevalue(client_fixture)
+    def test_admin_user_list_denied_for_non_platform_admin(self, clients_and_status_codes_for_platform_admin_access):
+        client, expected_code = clients_and_status_codes_for_platform_admin_access
         response = client.get("/deliver/admin/user/")
         assert response.status_code == expected_code
 
-    @pytest.mark.parametrize(
-        "client_fixture, expected_code",
-        [
-            ("authenticated_platform_admin_client", 200),
-            ("authenticated_grant_admin_client", 403),
-            ("authenticated_grant_member_client", 403),
-            ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
-        ],
-    )
     def test_admin_user_detail_denied_for_non_platform_admin(
-        self, client_fixture, expected_code, request, factories, db_session
+        self, clients_and_status_codes_for_platform_admin_access, factories, db_session
     ):
-        client = request.getfixturevalue(client_fixture)
+        client, expected_code = clients_and_status_codes_for_platform_admin_access
         user = factories.user.create()
 
         response = client.get(f"/deliver/admin/user/details/?id={user.id}", follow_redirects=True)
@@ -57,18 +26,8 @@ class TestFlaskAdminAccess:
 
 
 class TestReportingLifecycleSelectGrant:
-    @pytest.mark.parametrize(
-        "client_fixture, expected_code",
-        [
-            ("authenticated_platform_admin_client", 200),
-            ("authenticated_grant_admin_client", 403),
-            ("authenticated_grant_member_client", 403),
-            ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
-        ],
-    )
-    def test_select_grant_permissions(self, client_fixture, expected_code, request):
-        client = request.getfixturevalue(client_fixture)
+    def test_select_grant_permissions(self, clients_and_status_codes_for_platform_admin_access):
+        client, expected_code = clients_and_status_codes_for_platform_admin_access
         response = client.get("/deliver/admin/reporting-lifecycle/")
         assert response.status_code == expected_code
 
@@ -125,20 +84,10 @@ class TestReportingLifecycleSelectGrant:
 
 
 class TestReportingLifecycleTasklist:
-    @pytest.mark.parametrize(
-        "client_fixture, expected_code",
-        [
-            ("authenticated_platform_admin_client", 200),
-            ("authenticated_grant_admin_client", 403),
-            ("authenticated_grant_member_client", 403),
-            ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
-        ],
-    )
-    def test_tasklist_permissions(self, client_fixture, expected_code, request, factories, db_session):
+    def test_tasklist_permissions(self, clients_and_status_codes_for_platform_admin_access, factories, db_session):
         grant = factories.grant.create()
 
-        client = request.getfixturevalue(client_fixture)
+        client, expected_code = clients_and_status_codes_for_platform_admin_access
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}")
         assert response.status_code == expected_code
 
@@ -261,20 +210,10 @@ class TestReportingLifecycleTasklist:
 
 
 class TestReportingLifecycleMakeGrantLive:
-    @pytest.mark.parametrize(
-        "client_fixture, expected_code",
-        [
-            ("authenticated_platform_admin_client", 200),
-            ("authenticated_grant_admin_client", 403),
-            ("authenticated_grant_member_client", 403),
-            ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
-        ],
-    )
-    def test_confirm_page_permissions(self, client_fixture, expected_code, request, factories, db_session):
+    def test_confirm_page_permissions(self, clients_and_status_codes_for_platform_admin_access, factories, db_session):
         grant = factories.grant.create()
 
-        client = request.getfixturevalue(client_fixture)
+        client, expected_code = clients_and_status_codes_for_platform_admin_access
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/make-live")
         assert response.status_code == expected_code
 

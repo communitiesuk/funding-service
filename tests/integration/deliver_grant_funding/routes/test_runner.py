@@ -8,16 +8,8 @@ from tests.utils import get_h1_text
 
 
 class TestSubmissionTasklist:
-    @pytest.mark.parametrize(
-        "client_fixture, can_preview",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get_submission_tasklist(self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get_submission_tasklist(self, grant_team_member_access_control, factories):
+        client, expected_status_code = grant_team_member_access_control
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(form__title="Colour information", form__collection__grant=grant)
         submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
@@ -29,7 +21,7 @@ class TestSubmissionTasklist:
                 submission_id=submission.id,
             )
         )
-        if not can_preview:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 200
@@ -62,18 +54,8 @@ class TestSubmissionTasklist:
         )
         assert response.status_code == 403
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_preview",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_submission_tasklist_test(
-        self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories
-    ):
-        client = request.getfixturevalue(client_fixture)
+    def test_post_submission_tasklist_test(self, grant_team_member_access_control, factories):
+        client, expected_status_code = grant_team_member_access_control
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(form__title="Colour information", form__collection__grant=grant)
         submission_data = {str(question.id): "test answer"}
@@ -95,7 +77,7 @@ class TestSubmissionTasklist:
             data={"submit": True},
             follow_redirects=False,
         )
-        if not can_preview:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
@@ -106,18 +88,8 @@ class TestSubmissionTasklist:
             )
             assert response.location == expected_location
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_preview",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_submission_tasklist_live(
-        self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories
-    ):
-        client = request.getfixturevalue(client_fixture)
+    def test_post_submission_tasklist_live(self, grant_team_member_access_control, factories):
+        client, expected_status_code = grant_team_member_access_control
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(form__title="Colour information", form__collection__grant=grant)
         submission_data = {str(question.id): "test answer"}
@@ -139,7 +111,7 @@ class TestSubmissionTasklist:
             data={"submit": True},
             follow_redirects=False,
         )
-        if not can_preview:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
@@ -152,16 +124,8 @@ class TestSubmissionTasklist:
 
 
 class TestAskAQuestion:
-    @pytest.mark.parametrize(
-        "client_fixture, can_preview",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get_ask_a_question(self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get_ask_a_question(self, grant_team_member_access_control, factories):
+        client, expected_status_code = grant_team_member_access_control
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(
             text="What's your favourite colour?",
@@ -178,7 +142,7 @@ class TestAskAQuestion:
                 question_id=question.id,
             )
         )
-        if not can_preview:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 200
@@ -250,16 +214,8 @@ class TestAskAQuestion:
             form_id=question.form.id,
         )
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_preview",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_ask_a_question(self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_post_ask_a_question(self, grant_team_member_access_control, factories):
+        client, expected_status_code = grant_team_member_access_control
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(
             text="What's your favourite colour?",
@@ -274,7 +230,6 @@ class TestAskAQuestion:
         )
         submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
-        # Redirect to next question on successful post
         response = client.post(
             url_for(
                 "deliver_grant_funding.ask_a_question",
@@ -285,7 +240,7 @@ class TestAskAQuestion:
             data={"submit": True, question.safe_qid: "Blue"},
             follow_redirects=False,
         )
-        if not can_preview:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
@@ -297,7 +252,6 @@ class TestAskAQuestion:
             )
             assert response.location == expected_location
 
-        # Redirect to check your answers on successful post
         response = client.post(
             url_for(
                 "deliver_grant_funding.ask_a_question",
@@ -308,7 +262,7 @@ class TestAskAQuestion:
             data={"submit": True, question_2.safe_qid: "Orange"},
             follow_redirects=False,
         )
-        if not can_preview:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
@@ -493,16 +447,8 @@ class TestAskAQuestion:
 
 
 class TestCheckYourAnswers:
-    @pytest.mark.parametrize(
-        "client_fixture, can_preview",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get_check_your_answers(self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get_check_your_answers(self, grant_team_member_access_control, factories):
+        client, expected_status_code = grant_team_member_access_control
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(
             text="What's your favourite colour?",
@@ -519,7 +465,7 @@ class TestCheckYourAnswers:
                 form_id=question.form.id,
             )
         )
-        if not can_preview:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 200
@@ -558,18 +504,8 @@ class TestCheckYourAnswers:
         )
         assert response.status_code == 403
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_preview",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_check_your_answers_complete_form(
-        self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories
-    ):
-        client = request.getfixturevalue(client_fixture)
+    def test_post_check_your_answers_complete_form(self, grant_team_member_access_control, factories):
+        client, expected_status_code = grant_team_member_access_control
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(
             text="What's your favourite colour?",
@@ -587,7 +523,7 @@ class TestCheckYourAnswers:
             ),
             follow_redirects=False,
         )
-        if not can_preview:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
@@ -599,18 +535,8 @@ class TestCheckYourAnswers:
             )
             assert response.location == expected_location
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_preview",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_check_your_answers_complete_test_preview(
-        self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories
-    ):
-        client = request.getfixturevalue(client_fixture)
+    def test_post_check_your_answers_complete_test_preview(self, grant_team_member_access_control, factories):
+        client, expected_status_code = grant_team_member_access_control
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(
             text="What's your favourite colour?",
@@ -631,7 +557,7 @@ class TestCheckYourAnswers:
             ),
             follow_redirects=False,
         )
-        if not can_preview:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302

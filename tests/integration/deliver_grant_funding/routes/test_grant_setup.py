@@ -1,6 +1,5 @@
 from uuid import UUID
 
-import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
 
@@ -25,21 +24,11 @@ class TestGrantSetupIntro:
         assert response.status_code == 302
         assert response.location == url_for("deliver_grant_funding.grant_setup_ggis")
 
-    @pytest.mark.parametrize(
-        "client_fixture, expected_code",
-        [
-            ("authenticated_platform_admin_client", 200),
-            ("authenticated_org_admin_client", 200),
-            ("authenticated_org_member_client", 403),
-            ("authenticated_grant_admin_client", 403),
-            ("authenticated_grant_member_client", 403),
-        ],
-    )
-    def test_grant_setup_intro_permissions(self, client_fixture, expected_code, request):
+    def test_grant_setup_intro_permissions(self, org_admin_access_control):
         """Test that only platform admins and org admins with can_manage_grants can access grant setup"""
-        client = request.getfixturevalue(client_fixture)
+        client, expected_status_code = org_admin_access_control
         response = client.get(url_for("deliver_grant_funding.grant_setup_intro"))
-        assert response.status_code == expected_code
+        assert response.status_code == expected_status_code
 
 
 class TestGrantSetupGgis:

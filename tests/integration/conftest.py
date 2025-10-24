@@ -406,6 +406,74 @@ def authenticated_org_member_client(
     yield anonymous_client
 
 
+@pytest.fixture(
+    params=[
+        ("authenticated_platform_admin_client", 200),
+        ("authenticated_grant_admin_client", 403),
+        ("authenticated_grant_member_client", 403),
+        ("authenticated_no_role_client", 403),
+        ("anonymous_client", 403),
+    ]
+)
+def clients_and_status_codes_for_platform_admin_access(request: FixtureRequest) -> tuple[FundingServiceTestClient, int]:
+    client_fixture_name, expected_code = request.param
+    client = request.getfixturevalue(client_fixture_name)
+    return client, expected_code
+
+
+@pytest.fixture(
+    params=[
+        ("authenticated_grant_member_client", 403),
+        ("authenticated_grant_admin_client", 200),
+    ]
+)
+def grant_admin_access_control(request: FixtureRequest) -> tuple[FundingServiceTestClient, int]:
+    client_fixture_name, expected_status_code = request.param
+    client = request.getfixturevalue(client_fixture_name)
+    return client, expected_status_code
+
+
+@pytest.fixture(
+    params=[
+        ("authenticated_grant_member_client", 403),
+        ("authenticated_grant_admin_client", 200),
+        ("authenticated_platform_admin_client", 200),
+    ]
+)
+def grant_or_platform_admin_access_control(request: FixtureRequest) -> tuple[FundingServiceTestClient, int]:
+    client_fixture_name, expected_status_code = request.param
+    client = request.getfixturevalue(client_fixture_name)
+    return client, expected_status_code
+
+
+@pytest.fixture(
+    params=[
+        ("authenticated_no_role_client", 403),
+        ("authenticated_grant_member_client", 200),
+        ("authenticated_grant_admin_client", 200),
+    ]
+)
+def grant_team_member_access_control(request: FixtureRequest) -> tuple[FundingServiceTestClient, int]:
+    client_fixture_name, expected_status_code = request.param
+    client = request.getfixturevalue(client_fixture_name)
+    return client, expected_status_code
+
+
+@pytest.fixture(
+    params=[
+        ("authenticated_platform_admin_client", 200),
+        ("authenticated_org_admin_client", 200),
+        ("authenticated_org_member_client", 403),
+        ("authenticated_grant_admin_client", 403),
+        ("authenticated_grant_member_client", 403),
+    ]
+)
+def org_admin_access_control(request: FixtureRequest) -> tuple[FundingServiceTestClient, int]:
+    client_fixture_name, expected_status_code = request.param
+    client = request.getfixturevalue(client_fixture_name)
+    return client, expected_status_code
+
+
 def _setup_session_clean_tracking() -> None:
     # 1. When a transaction starts, assume session is clean
     @event.listens_for(Session, "after_begin")

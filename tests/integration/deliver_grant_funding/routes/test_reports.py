@@ -183,35 +183,19 @@ class TestSetUpReport:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories):
+        client, expected_status_code = grant_admin_access_control
         factories.collection.create(grant=client.grant)
 
         response = client.get(url_for("deliver_grant_funding.set_up_report", grant_id=client.grant.id))
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert page_has_button(soup, "Continue and set up report")
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_post(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         assert len(client.grant.reports) == 0
 
         form = SetUpReportForm(data={"name": "Test monitoring report"})
@@ -221,7 +205,7 @@ class TestSetUpReport:
             follow_redirects=False,
         )
 
-        if not can_access:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
@@ -252,25 +236,16 @@ class TestChangeReportName:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
 
         response = client.get(
             url_for("deliver_grant_funding.change_report_name", grant_id=client.grant.id, report_id=report.id)
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "Test Report" in soup.text
 
@@ -291,17 +266,8 @@ class TestChangeReportName:
         soup = BeautifulSoup(response.data, "html.parser")
         assert not page_has_button(soup, "Yes, delete this report")
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_update_name(
-        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session
-    ):
-        client = request.getfixturevalue(client_fixture)
+    def test_post_update_name(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Original Name")
 
         form = SetUpReportForm(data={"name": "Updated Name"})
@@ -311,7 +277,7 @@ class TestChangeReportName:
             follow_redirects=False,
         )
 
-        if not can_access:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
@@ -370,35 +336,19 @@ class TestAddTask:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant)
 
         response = client.get(url_for("deliver_grant_funding.add_task", grant_id=client.grant.id, report_id=report.id))
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "What is the name of the task?"
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_post(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant)
 
         form = AddTaskForm(data={"title": "Organisation information"})
@@ -408,7 +358,7 @@ class TestAddTask:
             follow_redirects=False,
         )
 
-        if not can_access:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
@@ -585,15 +535,8 @@ class TestChangeQuestionGroupName:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=form, name="Test group")
@@ -601,10 +544,8 @@ class TestChangeQuestionGroupName:
             url_for("deliver_grant_funding.change_group_name", grant_id=client.grant.id, group_id=group.id)
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "Test group" in soup.text
 
@@ -661,15 +602,8 @@ class TestChangeGroupDisplayOptions:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(
@@ -681,10 +615,8 @@ class TestChangeGroupDisplayOptions:
             url_for("deliver_grant_funding.change_group_display_options", grant_id=client.grant.id, group_id=group.id)
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             # the correct option is selected based on whats in the database
             assert (
@@ -808,15 +740,8 @@ class TestChangeGroupAddAnotherOptions:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", add_another=False)
@@ -826,10 +751,8 @@ class TestChangeGroupAddAnotherOptions:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             # the correct option is selected based on whats in the database
             assert (
@@ -985,15 +908,8 @@ class TestChangeFormName:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
@@ -1001,10 +917,8 @@ class TestChangeFormName:
             url_for("deliver_grant_funding.change_form_name", grant_id=client.grant.id, form_id=form.id)
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "Organisation information" in soup.text
 
@@ -1032,17 +946,8 @@ class TestChangeFormName:
             for message in caplog.messages
         )
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_update_name(
-        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session
-    ):
-        client = request.getfixturevalue(client_fixture)
+    def test_post_update_name(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         db_form = factories.form.create(collection__grant=client.grant, title="Organisation information")
 
         form = AddTaskForm(data={"title": "Updated Name"})
@@ -1052,7 +957,7 @@ class TestChangeFormName:
             follow_redirects=False,
         )
 
-        if not can_access:
+        if expected_status_code == 403:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
@@ -1477,15 +1382,8 @@ class TestChooseQuestionType:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ["authenticated_grant_member_client", False],
-            ["authenticated_grant_admin_client", True],
-        ),
-    )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
@@ -1493,10 +1391,8 @@ class TestChooseQuestionType:
             url_for("deliver_grant_funding.choose_question_type", grant_id=client.grant.id, form_id=form.id)
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "What type of question do you need?"
 
@@ -1530,24 +1426,15 @@ class TestAddQuestion:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ["authenticated_grant_member_client", False],
-            ["authenticated_grant_admin_client", True],
-        ),
-    )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
         response = client.get(url_for("deliver_grant_funding.add_question", grant_id=client.grant.id, form_id=form.id))
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "Add question"
 
@@ -1801,15 +1688,8 @@ class TestAddQuestionGroup:
         assert response.status_code == 302
         assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add$")
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ["authenticated_grant_member_client", False],
-            ["authenticated_grant_admin_client", True],
-        ),
-    )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
@@ -1822,10 +1702,8 @@ class TestAddQuestionGroup:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "How should the question group be displayed?"
 
@@ -2241,15 +2119,8 @@ class TestEditQuestion:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ["authenticated_grant_member_client", False],
-            ["authenticated_grant_admin_client", True],
-        ),
-    )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
@@ -2264,10 +2135,8 @@ class TestEditQuestion:
             url_for("deliver_grant_funding.edit_question", grant_id=client.grant.id, question_id=question.id)
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "Edit question"
 
@@ -2567,15 +2436,8 @@ class TestAddQuestionConditionSelectQuestion:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
@@ -2595,10 +2457,8 @@ class TestAddQuestionConditionSelectQuestion:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "There are no questions in this form that can be used as a condition." in soup.text
             assert "The question" in soup.text
@@ -2611,23 +2471,14 @@ class TestAddQuestionConditionSelectQuestion:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "There are no questions in this form that can be used as a condition." in soup.text
             assert "The question group" in soup.text
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get_with_available_questions(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get_with_available_questions(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
@@ -2653,23 +2504,14 @@ class TestAddQuestionConditionSelectQuestion:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "What answer should the condition check?" in soup.text
             assert "Do you like cheese? (cheese question)" in soup.text
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get_only_lists_referenceable_questions(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get_only_lists_referenceable_questions(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
@@ -2717,10 +2559,8 @@ class TestAddQuestionConditionSelectQuestion:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "What answer should the condition check?" in soup.text
             assert "Do you like cheese? (cheese question)" in soup.text
@@ -2802,15 +2642,8 @@ class TestAddQuestionCondition:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
@@ -2843,10 +2676,7 @@ class TestAddQuestionCondition:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
 
         response = client.get(
             url_for(
@@ -2857,10 +2687,7 @@ class TestAddQuestionCondition:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -3193,15 +3020,8 @@ class TestEditQuestionCondition:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
         depends_on_question = factories.question.create(
@@ -3230,10 +3050,8 @@ class TestEditQuestionCondition:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
 
             assert get_h1_text(soup) == "Edit condition"
@@ -3680,15 +3498,8 @@ class TestAddQuestionValidation:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
@@ -3706,10 +3517,8 @@ class TestAddQuestionValidation:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
 
             assert get_h1_text(soup) == "Add validation"
@@ -4011,15 +3820,8 @@ class TestEditQuestionValidation:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
+    def test_get(self, grant_admin_access_control, factories, db_session):
+        client, expected_status_code = grant_admin_access_control
         report = factories.collection.create(grant=client.grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
         question = factories.question.create(
@@ -4048,10 +3850,8 @@ class TestEditQuestionValidation:
             )
         )
 
-        if not can_access:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
             soup = BeautifulSoup(response.data, "html.parser")
 
             assert get_h1_text(soup) == "Edit validation"
@@ -4444,25 +4244,15 @@ class TestManageGuidance:
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get_access_control(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-        client = request.getfixturevalue(client_fixture)
+    def test_get_access_control(self, grant_admin_access_control, factories):
+        client, expected_status_code = grant_admin_access_control
         question = factories.question.create(form__collection__grant=client.grant)
 
         response = client.get(
             url_for("deliver_grant_funding.manage_guidance", grant_id=client.grant.id, question_id=question.id)
         )
 
-        if can_access:
-            assert response.status_code == 200
-        else:
-            assert response.status_code == 403
+        assert response.status_code == expected_status_code
 
     def test_get_add_guidance(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(form__collection__grant=authenticated_grant_admin_client.grant)
