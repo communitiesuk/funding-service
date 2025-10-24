@@ -19,6 +19,17 @@
       </h1>
 
       {% set rows=[] %}
+      {%
+        do rows.append({
+          "title": {
+            "text": "Set up organisations",
+          },
+          "status": {
+            "html": govukTag({"text": organisation_count ~ (" organisation" if organisation_count == 1 else " organisations"), "classes": "govuk-tag--blue"})
+          },
+          "href": url_for('organisation.index_view'),
+        })
+      %}
       {% if grant.status == enum.grant_status.DRAFT %}
         {% set status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
         {% set link_href = url_for('reporting_lifecycle.make_live', grant_id=grant.id) %}

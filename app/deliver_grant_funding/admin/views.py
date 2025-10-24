@@ -6,6 +6,7 @@ from flask_admin import AdminIndexView, BaseView, expose
 
 from app.common.data.interfaces.exceptions import NotEnoughGrantTeamUsersError
 from app.common.data.interfaces.grants import get_all_grants, get_grant, update_grant
+from app.common.data.interfaces.organisations import get_organisation_count
 from app.common.data.types import GrantStatusEnum
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminMakeGrantLiveForm,
@@ -36,7 +37,12 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
     @expose("/<uuid:grant_id>")  # type: ignore[misc]
     def tasklist(self, grant_id: UUID) -> Any:
         grant = get_grant(grant_id)
-        return self.render("deliver_grant_funding/admin/reporting-lifecycle-tasklist.html", grant=grant)
+        organisation_count = get_organisation_count()
+        return self.render(
+            "deliver_grant_funding/admin/reporting-lifecycle-tasklist.html",
+            grant=grant,
+            organisation_count=organisation_count,
+        )
 
     @expose("/<uuid:grant_id>/make-live", methods=["GET", "POST"])  # type: ignore[misc]
     @auto_commit_after_request
