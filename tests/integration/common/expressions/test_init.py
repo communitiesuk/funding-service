@@ -281,6 +281,29 @@ class TestExtendingWithAddAnotherContext:
         assert context.get(q2.safe_qid) == "e1"
         assert context.get(q3.safe_qid) is None
 
+    def test_extending_with_new_add_another_index(self, factories):
+        component = factories.question.create(add_another=True)
+        submission = factories.submission.create(collection=component.form.collection)
+        submission.data = {str(component.id): [{str(component.id): 1}]}
+        helper = SubmissionHelper(submission=submission)
+        context = ExpressionContext.build_expression_context(
+            collection=component.form.collection,
+            submission_helper=helper,
+            mode="evaluation",
+        )
+
+        with pytest.raises(ValueError) as e:
+            context.with_add_another_context(component, submission_helper=helper, add_another_index=1)
+        assert str(e.value) == "no add another entry exists at this index"
+
+        # if the add another entry hasn't been created yet we'd expect the context to be unchanged
+        assert (
+            context.with_add_another_context(
+                component, submission_helper=helper, add_another_index=1, allow_new_index=True
+            )
+            == context
+        )
+
     def test_extending_with_existing_context(self, factories):
         component = factories.question.create(add_another=True)
         submission = factories.submission.create(collection=component.form.collection)
