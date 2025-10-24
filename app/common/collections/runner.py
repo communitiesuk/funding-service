@@ -98,7 +98,7 @@ class FormRunner:
                     interpolation_context=self.submission.cached_interpolation_context,
                 )
                 self._question_form = _QuestionForm(
-                    data=self.submission.cached_form_data(
+                    data=self.submission.form_data(
                         add_another_container=self.component.add_another_container
                         if self.component and self.add_another_index is not None
                         else None,
@@ -326,6 +326,7 @@ class FormRunner:
             previous_question = self.submission.get_last_question_for_form(self.form)
         else:
             previous_question = None
+
         if previous_question:
             if (
                 self.add_another_index is not None
@@ -338,6 +339,10 @@ class FormRunner:
                 return self.to_url(
                     FormRunnerState.QUESTION, question=previous_question, add_another_index=self.add_another_index
                 )
+
+        if self.add_another_index is not None:
+            # todo: first question in the form so no previous questions, this should be encapsulated better above
+            return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=None)
 
         return self.to_url(FormRunnerState.TASKLIST)
 

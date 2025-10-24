@@ -135,7 +135,7 @@ class SubmissionHelper:
     def reference(self) -> str:
         return self.submission.reference
 
-    def cached_form_data(
+    def form_data(
         self, *, add_another_container: "Component | None" = None, add_another_index: int | None = None
     ) -> dict[str, Any]:
         form_data: dict[str, Any] = {}
@@ -488,8 +488,10 @@ class SubmissionHelper:
         context = self.cached_evaluation_context.with_add_another_context(
             submission_helper=self, component=component, add_another_index=add_another_index
         )
-        visible_questions = self.cached_get_ordered_visible_questions(
-            component.add_another_container, override_context=context
+        visible_questions = (
+            self.cached_get_ordered_visible_questions(component.add_another_container, override_context=context)
+            if component.add_another_container.is_group
+            else [cast("Question", component)]
         )
 
         questions = []
@@ -513,12 +515,8 @@ class SubmissionHelper:
 
         answer_status = []
 
-        if component.add_another_container.is_group:
-            for question in visible_questions:
-                answer = self.cached_get_answer_for_question(question.id, add_another_index=add_another_index)
-                answer_status.append(answer is not None)
-        else:
-            answer = self.cached_get_answer_for_question(component.id, add_another_index=add_another_index)
+        for question in visible_questions:
+            answer = self.cached_get_answer_for_question(question.id, add_another_index=add_another_index)
             answer_status.append(answer is not None)
 
         return AddAnotherAnswerSummary(summary=", ".join(answers), is_answered=all(answer_status))
