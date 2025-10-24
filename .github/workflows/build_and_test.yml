@@ -43,6 +43,88 @@ jobs:
       run: |
         uv run --frozen flask db current | grep "$(cat ./app/common/data/migrations/.current-alembic-head) (head)"
 
+  test_seed_grants:
+    name: Test seed-grants command
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.5@sha256:aadf2c0696f5ef357aa7a68da995137f0cf17bad0bf6e1f17de06ae5c769b302
+        env:
+          POSTGRES_PASSWORD: password  # pragma: allowlist secret
+          POSTGRES_DB: postgres
+        options: --health-cmd pg_isready --health-interval 1s --health-timeout 1s --health-retries 10
+        ports:
+          - 5432:5432
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+    - name: Install the latest version of uv
+      uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      with:
+        enable-cache: true
+    - name: Run database migrations
+      env:
+        FLASK_ENV: local
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DATABASE_NAME: postgres
+        DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
+        SEED_SYSTEM_DATA: false
+      run: uv run --frozen flask db upgrade
+    - name: Test seed-grants command
+      env:
+        FLASK_ENV: local
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DATABASE_NAME: postgres
+        DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
+      run: uv run --frozen flask developers seed-grants
+
+  test_export_grants_no_changes:
+    name: Test export-grants generates no changes
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.5@sha256:aadf2c0696f5ef357aa7a68da995137f0cf17bad0bf6e1f17de06ae5c769b302
+        env:
+          POSTGRES_PASSWORD: password  # pragma: allowlist secret
+          POSTGRES_DB: postgres
+        options: --health-cmd pg_isready --health-interval 1s --health-timeout 1s --health-retries 10
+        ports:
+          - 5432:5432
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+    - name: Install the latest version of uv
+      uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      with:
+        enable-cache: true
+    - name: Run database migrations
+      env:
+        FLASK_ENV: local
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DATABASE_NAME: postgres
+        DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
+        SEED_SYSTEM_DATA: false
+      run: uv run --frozen flask db upgrade
+    - name: Seed grants into database
+      env:
+        FLASK_ENV: local
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DATABASE_NAME: postgres
+        DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
+      run: uv run --frozen flask developers seed-grants
+    - name: Export grants to file
+      env:
+        FLASK_ENV: local
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DATABASE_NAME: postgres
+        DATABASE_SECRET: '{"username":"postgres","password":"password"}'  # pragma: allowlist secret
+      run: uv run --frozen flask developers export-grants
+    - name: Check no changes were generated
+      run: git diff --exit-code app/developers/data/grants.json
+
   unit_tests:
     runs-on: ubuntu-latest
     steps:
