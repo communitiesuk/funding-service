@@ -96,7 +96,7 @@ def test_create_grant(app, db_session) -> None:
 
     from_db = db_session.get(Grant, result.id)
     assert from_db is not None
-    assert from_db.organisation.name == app.config["PLATFORM_DEPARTMENT_NAME"]
+    assert from_db.organisation.name == app.config["PLATFORM_DEPARTMENT_ORGANISATION_CONFIG"]["name"]
 
 
 def test_create_duplicate_grant(factories) -> None:

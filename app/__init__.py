@@ -22,6 +22,7 @@ from app.common.data.types import (
     ExpressionType,
     FormRunnerState,
     GrantStatusEnum,
+    OrganisationType,
     QuestionDataType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -127,7 +128,7 @@ def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
         register_admin_views(flask_admin, db_)
 
 
-def create_app() -> Flask:
+def create_app() -> Flask:  # noqa: C901
     from app.common.data.base import BaseModel
 
     app = Flask(__name__, static_folder="assets/dist/", static_url_path="/static")
@@ -213,6 +214,7 @@ def create_app() -> Flask:
                 tasklist_task_status=TasklistTaskStatusEnum,
                 expression_type=ExpressionType,
                 grant_status=GrantStatusEnum,
+                organisation_type=OrganisationType,
             ),
         )
 

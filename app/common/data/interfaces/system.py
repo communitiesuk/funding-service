@@ -3,6 +3,7 @@ from flask import Flask
 from psycopg import IntegrityError
 
 from app.common.data.models import Organisation
+from app.common.data.types import OrganisationStatus
 from app.extensions import db
 
 
@@ -24,13 +25,17 @@ def seed_system_data(app: Flask) -> None:
     that we're creating/expecting here. So if/when we allow multiple orgs to manage grants, we should aim to remove
     this seeding function.
     """
-    mhclg_org = db.session.query(Organisation).filter_by(can_manage_grants=True).one_or_none()
-    if mhclg_org:
+    platform_org = db.session.query(Organisation).filter_by(can_manage_grants=True).one_or_none()
+    if platform_org:
         return
 
     try:
-        mhclg_org = Organisation(name=app.config["PLATFORM_DEPARTMENT_NAME"], can_manage_grants=True)
-        db.session.add(mhclg_org)
+        platform_org = Organisation(
+            status=OrganisationStatus.ACTIVE,
+            can_manage_grants=True,
+            **app.config["PLATFORM_DEPARTMENT_ORGANISATION_CONFIG"],
+        )
+        db.session.add(platform_org)
         db.session.commit()
     except IntegrityError as e:
         # Presumably a race condition where two instances have got through to here at the same time; let's ignore the

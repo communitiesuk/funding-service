@@ -120,10 +120,12 @@ class PlatformAdminOrganisationView(PlatformAdminModelView):
     can_edit = True
     can_delete = True
 
-    column_list = ["name", "can_manage_grants"]
-    column_filters = ["name", "can_manage_grants"]
+    column_list = ["external_id", "name", "type", "status", "can_manage_grants"]
+    column_searchable_list = ["external_id", "name"]
+    column_filters = ["external_id", "name", "type", "status", "can_manage_grants"]
 
-    form_columns = ["name", "can_manage_grants"]
+    form_columns = ["external_id", "name", "type", "status", "can_manage_grants", "active_date", "retirement_date"]
+    column_descriptions = {"external_id": "IATI or LAD24 identifier"}
 
 
 class PlatformAdminCollectionView(PlatformAdminModelView):

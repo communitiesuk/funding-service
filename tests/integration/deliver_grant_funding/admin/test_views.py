@@ -1,7 +1,11 @@
+import datetime
+
 import pytest
 from bs4 import BeautifulSoup
 
-from app.common.data.types import GrantStatusEnum, RoleEnum
+from app.common.data.interfaces.organisations import get_organisation_count
+from app.common.data.models import Organisation
+from app.common.data.types import GrantStatusEnum, OrganisationStatus, OrganisationType, RoleEnum
 from tests.utils import get_h1_text, get_h2_text, page_has_error, page_has_flash
 
 
@@ -162,7 +166,7 @@ class TestReportingLifecycleTasklist:
         task_title = organisations_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set up organisations"
-        assert "/deliver/admin/organisation/" in task_title.get("href")
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations" in task_title.get("href")
 
         task_status = organisations_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
@@ -337,3 +341,180 @@ class TestReportingLifecycleMakeGrantLive:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "You must add at least two grant team users before making the grant live")
+
+
+class TestManageOrganisations:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 403),
+        ],
+    )
+    def test_manage_organisations_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create()
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations")
+        assert response.status_code == expected_code
+
+    def test_get_manage_organisations_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Set up organisations"
+
+        textarea = soup.find("textarea", {"id": "organisations_data"})
+        assert textarea is not None
+        assert "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n" in textarea.get_text()
+
+    def test_post_creates_new_organisations(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        initial_count = get_organisation_count()
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\n"
+            "E06000001\tTest Council\tUnitary Authority\t15/06/2021\t"
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Created or updated 2 organisations.")
+
+        assert get_organisation_count() == initial_count + 2
+
+        org1 = db_session.query(Organisation).filter_by(external_id="GB-GOV-123").one()
+        assert org1.name == "Test Department"
+        assert org1.type == OrganisationType.CENTRAL_GOVERNMENT
+        assert org1.status == OrganisationStatus.ACTIVE
+        assert org1.active_date == datetime.date(2020, 1, 1)
+        assert org1.retirement_date is None
+
+        org2 = db_session.query(Organisation).filter_by(external_id="E06000001").one()
+        assert org2.name == "Test Council"
+        assert org2.type == OrganisationType.UNITARY_AUTHORITY
+        assert org2.status == OrganisationStatus.ACTIVE
+        assert org2.active_date == datetime.date(2021, 6, 15)
+        assert org2.retirement_date is None
+
+    def test_post_updates_existing_organisations(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        factories.organisation.create(
+            external_id="GB-GOV-123",
+            name="Old Name",
+            type=OrganisationType.CENTRAL_GOVERNMENT,
+            can_manage_grants=False,
+        )
+        initial_count = get_organisation_count()
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "GB-GOV-123\tUpdated Name\tCentral Government\t01/01/2020\t"
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Created or updated 1 organisations.")
+
+        assert get_organisation_count() == initial_count
+
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123").one()
+        assert org.name == "Updated Name"
+
+    def test_post_creates_retired_organisation(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "GB-GOV-123\tRetired Department\tCentral Government\t01/01/2020\t31/12/2023"
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123").one()
+        assert org.status == OrganisationStatus.RETIRED
+        assert org.retirement_date == datetime.date(2023, 12, 31)
+
+    def test_post_with_invalid_header_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+
+        tsv_data = "Wrong Header\nGB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t"
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            "The header row must be exactly: organisation-id\torganisation-name\ttype\tactive-date\tretirement-date",
+        )
+
+    def test_post_with_invalid_organisation_type_shows_error(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "GB-GOV-123\tTest Department\tInvalid Type\t01/01/2020\t"
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "The tab-separated data is not valid:")
+
+    def test_post_with_invalid_date_format_shows_error(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "GB-GOV-123\tTest Department\tCentral Government\t2020-01-01\t"
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "The tab-separated data is not valid:")
