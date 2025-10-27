@@ -59,13 +59,13 @@ dev = [
     "types-flask-migrate==4.1.0.20250809",
     "types-wtforms==3.2.1.20250809",
     "html5lib==1.1",
-    "types-html5lib==1.1.11.20250917",
+    "types-html5lib==1.1.11.20251014",
     "types-pytz==2025.2.0.20250809",
-    "boto3==1.40.50",
-    "types-boto3==1.40.50",
+    "boto3==1.40.59",
+    "types-boto3==1.40.59",
     "freezegun==1.5.5",
     "import-linter==2.5.2",
-    "ty==0.0.1a22",
+    "ty==0.0.1a24",
 ]
 
 [tool.uv]
