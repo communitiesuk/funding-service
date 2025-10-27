@@ -1,5 +1,9 @@
 name: 'Run Database Migrations'
 description: 'Composite Action to run Database Migration script'
+inputs:
+  alembic_head:  # id of input
+    description: 'Current local alembic head'
+    required: true
 runs:
   using: "composite"
   steps:
@@ -19,5 +23,7 @@ runs:
 
     - name: Run Database Migrations
       shell: bash
+      env:
+        EXPECTED: ${{ inputs.alembic_head }}
       run: |
-        uv run scripts/run-ad-hoc-task.py --command "flask db upgrade"
+        uv run scripts/run-ad-hoc-task.py --command "./scripts/upgrade-if-different.py"

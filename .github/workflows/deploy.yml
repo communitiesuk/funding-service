@@ -75,6 +75,8 @@ jobs:
 
       - name: Run Database Migrations
         uses: ./.github/workflows/run-database-migrations
+        with:
+          alembic_head: ${{ steps.alembic_head.outputs.alembic_head }}
 
       - name: Deploy image to App Runner
         id: deploy
