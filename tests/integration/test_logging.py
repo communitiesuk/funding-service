@@ -1,3 +1,4 @@
+import datetime
 from typing import Any
 
 import pytest
@@ -24,3 +25,17 @@ class TestLogging:
 
         assert isinstance(exc.value, ValueError)
         assert str(exc.value) == f"Attempt to log data type `{type(complex)}` rejected by security policy."
+
+    def test_can_log_date(self, app, caplog) -> None:
+        test_date = datetime.date(2023, 6, 30)
+        with app.app_context():
+            app.logger.info("this is a test log %(date)s", {"date": test_date})
+
+        assert caplog.messages == ["this is a test log 2023-06-30"]
+
+    def test_can_log_datetime(self, app, caplog) -> None:
+        test_datetime = datetime.datetime(2023, 6, 30, 14, 30, 45)
+        with app.app_context():
+            app.logger.info("this is a test log %(datetime)s", {"datetime": test_datetime})
+
+        assert caplog.messages == ["this is a test log 2023-06-30 14:30:45"]
