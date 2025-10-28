@@ -107,7 +107,7 @@ class TestSubmissionHelper:
             submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.cached_form_data == {}
+            assert helper.form_data() == {}
 
         def test_with_submission_data(self, factories):
             assert len(QuestionDataType) == 9, "Update this test if adding new questions"
@@ -182,7 +182,7 @@ class TestSubmissionHelper:
             )
             helper = SubmissionHelper(submission)
 
-            assert helper.cached_form_data == {
+            assert helper.form_data() == {
                 "q_d696aebc49d24170a92fb6ef42994294": "answer",
                 "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
                 "q_d696aebc49d24170a92fb6ef42994296": 50,
@@ -194,7 +194,7 @@ class TestSubmissionHelper:
                 "q_d696aebc49d24170a92fb6ef4299429c": date(2003, 2, 1),
             }
 
-        def test_with_add_another_groups(self, factories):
+        def test_with_add_another_groups_no_context(self, factories):
             collection = factories.collection.create(
                 create_completed_submissions_add_another_nested_group__test=1,
                 create_completed_submissions_add_another_nested_group__use_random_data=False,
@@ -203,9 +203,36 @@ class TestSubmissionHelper:
             questions = collection.forms[0].cached_questions
             helper = SubmissionHelper(collection.test_submissions[0])
 
-            assert helper.cached_form_data == {
+            assert helper.form_data() == {
                 f"{questions[0].safe_qid}": "test name",
                 f"{questions[1].safe_qid}": "test org name",
+                f"{questions[4].safe_qid}": 3,
+            }
+
+        def test_with_add_another_group_with_context(self, factories):
+            collection = factories.collection.create(
+                create_completed_submissions_add_another_nested_group__test=1,
+                create_completed_submissions_add_another_nested_group__use_random_data=False,
+                create_completed_submissions_add_another_nested_group__number_of_add_another_answers=2,
+            )
+            questions = collection.forms[0].cached_questions
+            helper = SubmissionHelper(collection.test_submissions[0])
+
+            add_another_container = questions[2].add_another_container
+
+            assert helper.form_data(add_another_container=add_another_container, add_another_index=0) == {
+                f"{questions[0].safe_qid}": "test name",
+                f"{questions[1].safe_qid}": "test org name",
+                f"{questions[2].safe_qid}": "test name 0",
+                f"{questions[3].safe_qid}": "test_user_0@email.com",
+                f"{questions[4].safe_qid}": 3,
+            }
+
+            assert helper.form_data(add_another_container=add_another_container, add_another_index=1) == {
+                f"{questions[0].safe_qid}": "test name",
+                f"{questions[1].safe_qid}": "test org name",
+                f"{questions[2].safe_qid}": "test name 1",
+                f"{questions[3].safe_qid}": "test_user_1@email.com",
                 f"{questions[4].safe_qid}": 3,
             }
 

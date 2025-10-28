@@ -3,7 +3,13 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
+from app.common.data.types import (
+    ExpressionType,
+    ManagedExpressionsEnum,
+    QuestionDataType,
+    QuestionPresentationOptions,
+    SubmissionModeEnum,
+)
 from tests.utils import get_h1_text
 
 
@@ -186,6 +192,115 @@ class TestAskAQuestion:
             assert "What's your favourite colour?" in soup.text
 
     @pytest.mark.parametrize(
+        "show_on_same_page",
+        (True, False),
+    )
+    def test_get_ask_a_question_with_add_another_context(
+        self, show_on_same_page: bool, authenticated_grant_admin_client, factories
+    ):
+        group = factories.group.create(
+            add_another=True,
+            name="Your colour preferences",
+            form__title="Colour information",
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=show_on_same_page),
+        )
+        question = factories.question.create(
+            text="What's your favourite colour?",
+            parent=group,
+            form=group.form,
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+        submission.data = {str(group.id): [{str(question.id): "Blue"}]}
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+                question_id=question.id,
+                add_another_index=0,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "What's your favourite colour?" in soup.text
+
+        # appropriate add another context was used to display
+        expected_caption = "Colour information" if show_on_same_page else "Your colour preferences (1)"
+        assert expected_caption in soup.text
+
+        expected_heading = "Your colour preferences (1)" if show_on_same_page else "What's your favourite colour?"
+        assert get_h1_text(soup) == expected_heading
+
+        # appropriate add another context was used for pre-populating
+        assert soup.find("input", {"id": question.safe_qid}).get("value") == "Blue"
+
+    def test_get_ask_a_question_add_another_condition_shows(self, authenticated_grant_admin_client, factories):
+        group = factories.group.create(
+            add_another=True,
+            name="Your colour preferences",
+            form__title="Colour information",
+            form__collection__grant=authenticated_grant_admin_client.grant,
+        )
+        question = factories.question.create(
+            text="Do you have a favourite colour?",
+            data_type=QuestionDataType.YES_NO,
+            parent=group,
+            form=group.form,
+        )
+        question_2 = factories.question.create(
+            text="What's your favourite colour?",
+            parent=group,
+            form=question.form,
+        )
+        factories.expression.create(
+            question=question_2,
+            created_by=authenticated_grant_admin_client.user,
+            type_=ExpressionType.CONDITION,
+            context={"question_id": str(question.id)},
+            statement=f"{question.safe_qid} is True",
+            managed_name=ManagedExpressionsEnum.IS_YES,
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+        submission.data = {str(group.id): [{str(question.id): True}, {str(question.id): False}]}
+
+        # the first entry does meet the condition constraints and should be shown
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+                question_id=question_2.id,
+                add_another_index=0,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "What's your favourite colour?" in soup.text
+
+        # the second entry doesn't meet the conditions constraints and should not be shown
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+                question_id=question_2.id,
+                add_another_index=1,
+            )
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.check_your_answers",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            submission_id=submission.id,
+            form_id=question.form.id,
+        )
+
+    @pytest.mark.parametrize(
         "client_fixture",
         (
             ("authenticated_no_role_client"),
@@ -320,6 +435,65 @@ class TestAskAQuestion:
             )
             assert response.location == expected_location
 
+    def test_post_ask_a_question_add_another_context(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        group = factories.group.create(
+            add_another=True,
+            form__collection__grant=grant,
+        )
+        question = factories.question.create(text="What's your favourite colour?", parent=group, form=group.form)
+        question_2 = factories.question.create(
+            text="What's your least favourite colour?",
+            parent=group,
+            form=group.form,
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        # Redirect to next question maintaining add another context on successful post
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=question.id,
+                add_another_index=0,
+            ),
+            data={"submit": True, question.safe_qid: "Blue"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        expected_location = url_for(
+            "deliver_grant_funding.ask_a_question",
+            grant_id=grant.id,
+            submission_id=submission.id,
+            question_id=question_2.id,
+            add_another_index=0,
+        )
+        assert response.location == expected_location
+
+        # Redirect to add another summary on successful post
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=question_2.id,
+                add_another_index=0,
+            ),
+            data={"submit": True, question_2.safe_qid: "Orange"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        expected_location = url_for(
+            "deliver_grant_funding.ask_a_question",
+            grant_id=grant.id,
+            submission_id=submission.id,
+            question_id=question_2.id,
+        )
+        assert response.location == expected_location
+
     def test_question_without_guidance_uses_question_as_heading(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(
             text="What's your favourite colour?",
@@ -432,7 +606,7 @@ class TestAskAQuestion:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "Test groups"
             assert "You have not added any test groups." in soup.text
-            assert "Add the first test groups" in soup.text
+            assert "Add the first answer" in soup.text
 
             # because there's no data we should be configured to add the first answer but its not the users choice
             assert "govuk-!-display-none" in soup.find("div", {"class": "govuk-radios"}).get("class")

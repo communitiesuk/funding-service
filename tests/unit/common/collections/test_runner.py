@@ -126,23 +126,23 @@ class TestFormRunner:
         runner = MappedFormRunner(submission=helper, question=question, source=None)
         url = runner.to_url(FormRunnerState.QUESTION, source=FormRunnerState.TASKLIST)
         assert url == "mock_question_url"
-        question_mock.assert_called_once_with(runner, question, question.form, FormRunnerState.TASKLIST)
+        question_mock.assert_called_once_with(runner, question, question.form, FormRunnerState.TASKLIST, None)
 
         question_mock.reset_mock()
         runner.to_url(FormRunnerState.QUESTION, question=second_question)
-        question_mock.assert_called_once_with(runner, second_question, question.form, None)
+        question_mock.assert_called_once_with(runner, second_question, question.form, None, None)
 
         tasklist_url = runner.to_url(FormRunnerState.TASKLIST)
         assert tasklist_url == "mock_tasklist_url"
-        tasklist_mock.assert_called_once_with(runner, question, question.form, None)
+        tasklist_mock.assert_called_once_with(runner, question, question.form, None, None)
 
         check_answers_url = runner.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
         assert check_answers_url == "mock_check_answers_url"
-        check_answers_mock.assert_called_once_with(runner, question, question.form, None)
+        check_answers_mock.assert_called_once_with(runner, question, question.form, None, None)
 
         check_answers_mock.reset_mock()
         runner.to_url(FormRunnerState.CHECK_YOUR_ANSWERS, form=second_form)
-        check_answers_mock.assert_called_once_with(runner, question, second_form, None)
+        check_answers_mock.assert_called_once_with(runner, question, second_form, None, None)
 
     def test_next_url(self, factories, app):
         question = factories.question.build()
@@ -150,7 +150,7 @@ class TestFormRunner:
         submission = factories.submission.build(collection=question.form.collection)
         helper = SubmissionHelper(submission)
 
-        question_mock = Mock(side_effect=lambda r, q, f, s: f"mock_question_url_{str(q.id)}")
+        question_mock = Mock(side_effect=lambda r, q, f, s, i: f"mock_question_url_{str(q.id)}")
         check_your_answers_mock = Mock(return_value="mock_check_answers_url")
 
         class MappedFormRunner(FormRunner):
@@ -183,7 +183,7 @@ class TestFormRunner:
         )
         helper = SubmissionHelper(submission)
 
-        question_mock = Mock(side_effect=lambda r, q, f, s: f"mock_question_url_{str(q.id)}")
+        question_mock = Mock(side_effect=lambda r, q, f, s, i: f"mock_question_url_{str(q.id)}")
         check_your_answers_mock = Mock(return_value="mock_check_answers_url")
 
         class MappedFormRunner(FormRunner):
@@ -212,7 +212,7 @@ class TestFormRunner:
         submission = factories.submission.build(collection=question.form.collection)
         helper = SubmissionHelper(submission)
 
-        question_mock = Mock(side_effect=lambda r, q, f, s: f"mock_question_url_{str(q.id)}")
+        question_mock = Mock(side_effect=lambda r, q, f, s, i: f"mock_question_url_{str(q.id)}")
         tasklist_mock = Mock(return_value="mock_tasklist_url")
 
         class MappedFormRunner(FormRunner):
@@ -238,7 +238,7 @@ class TestFormRunner:
         submission = factories.submission.build(collection=group.form.collection)
         helper = SubmissionHelper(submission)
 
-        question_mock = Mock(side_effect=lambda r, q, f, s: f"mock_question_url_{str(q.id)}")
+        question_mock = Mock(side_effect=lambda r, q, f, s, i: f"mock_question_url_{str(q.id)}")
         check_your_answers_mock = Mock(return_value="mock_check_answers_url")
 
         class MappedFormRunner(FormRunner):
@@ -264,3 +264,85 @@ class TestFormRunner:
             runner = runner_class(submission=SubmissionHelper(submission), question=question)
             for state in FormRunnerState:
                 assert runner.to_url(state) is not None
+
+    class TestPageHeadings:
+        def test_single_question(self, factories):
+            form = factories.form.build(title="Test form title")
+            question = factories.question.build(text="Test question text?", form=form)
+            submission = factories.submission.build(collection=question.form.collection)
+            runner = FormRunner(submission=SubmissionHelper(submission), question=question)
+            assert runner.question_page_heading is None
+            assert runner.question_page_caption == "Test form title"
+
+            question.guidance_heading = "Test guidance heading"
+            assert runner.question_page_heading == "Test guidance heading"
+
+        def test_same_page_group(self, factories):
+            form = factories.form.build(title="Test form title")
+            same_page_group = factories.group.build(
+                form=form,
+                name="Test group name",
+                presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+            )
+            question = factories.question.build(parent=same_page_group, form=form, text="Test question text?")
+            submission = factories.submission.build(collection=form.collection)
+            runner = FormRunner(submission=SubmissionHelper(submission), question=question)
+            assert runner.question_page_heading == "Test group name"
+            assert runner.question_page_caption == "Test form title"
+
+            same_page_group.guidance_heading = "Test group guidance heading"
+            assert runner.question_page_heading == "Test group guidance heading"
+
+        def test_single_question_inside_add_another_context(self, factories):
+            form = factories.form.build(title="Test form title")
+            add_another_group = factories.group.build(form=form, name="Test group name", add_another=True)
+            question = factories.question.build(parent=add_another_group, form=form, text="Test question text?")
+            submission = factories.submission.build(collection=form.collection)
+            runner = FormRunner(submission=SubmissionHelper(submission), question=question, add_another_index=0)
+
+            assert runner.question_page_heading is None
+            assert runner.question_page_caption == "Test group name (1)"
+
+            question.guidance_heading = "Test group guidance heading"
+            assert runner.question_page_heading == "Test group guidance heading"
+
+        def test_same_page_group_inside_add_another_context(self, factories):
+            form = factories.form.build(title="Test form title")
+            add_another_group = factories.group.build(form=form, name="Test group name", add_another=True)
+            same_page_group = factories.group.build(
+                form=form,
+                parent=add_another_group,
+                name="Same page group name",
+                presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+            )
+
+            question = factories.question.build(parent=same_page_group, form=form, text="Test question text?")
+            submission = factories.submission.build(collection=form.collection)
+            runner = FormRunner(submission=SubmissionHelper(submission), question=question, add_another_index=0)
+
+            assert runner.question_page_heading == "Same page group name"
+            assert runner.question_page_caption == "Test group name (1)"
+
+            same_page_group.guidance_heading = "Test group guidance heading"
+            assert runner.question_page_heading == "Test group guidance heading"
+
+        def test_same_page_group_is_add_another_context(self, factories):
+            form = factories.form.build(title="Test form title")
+            add_another_same_page_group = factories.group.build(
+                form=form,
+                name="Test group name",
+                add_another=True,
+                presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+            )
+
+            question = factories.question.build(
+                parent=add_another_same_page_group, form=form, text="Test question text?"
+            )
+            submission = factories.submission.build(collection=form.collection)
+            runner = FormRunner(submission=SubmissionHelper(submission), question=question, add_another_index=0)
+
+            assert runner.question_page_heading == "Test group name (1)"
+            assert runner.question_page_caption == "Test form title"
+
+            add_another_same_page_group.guidance_heading = "Test group guidance heading"
+            assert runner.question_page_heading == "Test group guidance heading (1)"
