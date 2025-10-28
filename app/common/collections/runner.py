@@ -354,6 +354,46 @@ class FormRunner:
 
         return self.to_url(FormRunnerState.TASKLIST)
 
+    @property
+    def question_page_heading(self) -> str | None:
+        if not self.component:
+            raise RuntimeError("Question context not set")
+
+        # the question form will be used a heading if its a single question
+        # groups of questions on the same page or questions with guidance will show headings
+        heading = None
+        if self.component.guidance_heading:
+            heading = self.component.guidance_heading
+        elif self.component.is_group:
+            heading = self.component.name
+
+        # we only want to show the add another index context on the heading if the add another container
+        # is itself on the same page
+        if heading and self.add_another_index is not None and self.component == self.component.add_another_container:
+            heading = add_another_suffix(heading, self.add_another_index)
+
+        return heading
+
+    @property
+    def question_page_caption(self) -> str:
+        if not self.component:
+            raise RuntimeError("Question context not set")
+
+        caption = self.component.form.title
+
+        # we'll show the add another context if its set, and all of the add another questions aren't on the same page
+        if (
+            self.add_another_index is not None
+            and self.component.add_another_container
+            and self.component != self.component.add_another_container
+        ):
+            caption = add_another_suffix(self.component.add_another_container.name, self.add_another_index)
+        return caption
+
+
+def add_another_suffix(heading: str, add_another_index: int) -> str:
+    return f"{heading} ({add_another_index + 1})"
+
 
 class DGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
