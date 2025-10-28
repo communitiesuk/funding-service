@@ -57,6 +57,7 @@ def make_development_csp() -> dict[str, list[str]]:
         [
             "http://localhost:5173",  # Vite assets
             "ws://localhost:5173",  # Vite assets
+            "data:",  # Flask-Admin's select-with-search "x" icon for deleting selections
         ]
     )
     csp["style-src"].extend(

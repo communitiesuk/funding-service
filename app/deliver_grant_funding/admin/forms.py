@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Sequence
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea
 from wtforms import SubmitField
-from wtforms.fields.choices import SelectField
+from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.simple import TextAreaField
 from wtforms.validators import DataRequired
 from xgovuk_flask_admin import GovSelectWithSearch
@@ -13,7 +13,7 @@ from xgovuk_flask_admin import GovSelectWithSearch
 from app.common.data.types import OrganisationData, OrganisationType
 
 if TYPE_CHECKING:
-    from app.common.data.models import Grant
+    from app.common.data.models import Grant, GrantRecipient, Organisation
 
 
 class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
@@ -76,3 +76,20 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
             for row in tsv_reader
         ]
         return normalised_organisations
+
+
+class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
+    recipients = SelectMultipleField(
+        "Grant recipients", choices=[], widget=GovSelectWithSearch(multiple=True), validators=[DataRequired()]
+    )
+
+    submit = SubmitField("Set up grant recipients", widget=GovSubmitInput())
+
+    def __init__(
+        self, organisations: Sequence["Organisation"], existing_grant_recipients: Sequence["GrantRecipient"]
+    ) -> None:
+        super().__init__()
+        existing_grant_recipient_org_ids = {gr.organisation.id for gr in existing_grant_recipients}
+        self.recipients.choices = [
+            (str(org.id), org.name) for org in organisations if org.id not in existing_grant_recipient_org_ids
+        ]

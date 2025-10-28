@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">Set up grant recipients</h1>
+
+      <p class="govuk-body">Set up grant recipients by selecting all of the organisations that have been awarded funding through the grant. They will be able to see and submit monitoring reports for the grant.</p>
+
+      {% set existingGrantRecipientsHtml %}
+        <p class="govuk-body">{{ grant_recipients | length }} organisation{{ ' has' if grant_recipients | length == 1 else 's have' }} already been set up as grant recipients:</p>
+        <ul class="govuk-list govuk-list--bullet">
+          {% for gr in grant_recipients %}
+            <li>
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('organisation.details_view', id=gr.organisation_id, url=url_for("reporting_lifecycle.set_up_grant_recipients", grant_id=grant.id)) }}">
+                {{ gr.organisation.name }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endset %}
+
+      {{
+        govukDetails({
+          "summaryText": "Existing grant recipients",
+          "text": existingGrantRecipientsHtml,
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{ form.recipients }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}
