@@ -90,7 +90,7 @@ class TestNotificationService:
                         "template_id": "49ba98c5-0573-4c77-8cb0-3baebe70ee86",
                         "personalisation": {
                             "grant_name": grant.name,
-                            "sign_in_url": f"http://funding.communities.gov.localhost:8080/deliver/grant/{grant.id}/details",
+                            "sign_in_url": f"http://funding.communities.gov.localhost:8080/deliver/grant/{grant.id}/reports",
                         },
                     }
                 )

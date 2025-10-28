@@ -109,7 +109,7 @@ class NotificationService:
             current_app.config["GOVUK_NOTIFY_MEMBER_CONFIRMATION_TEMPLATE_ID"],
             personalisation={
                 "grant_name": grant.name,
-                "sign_in_url": url_for("deliver_grant_funding.grant_details", grant_id=grant.id, _external=True),
+                "sign_in_url": url_for("deliver_grant_funding.list_reports", grant_id=grant.id, _external=True),
             },
         )
 
