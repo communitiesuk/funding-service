@@ -120,7 +120,7 @@
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-two-thirds">
         <h2 class="govuk-heading-m govuk-!-margin-top-5">Add another settings</h2>
-        <p class="govuk-body">Customise the add another summary page by selecting which answers should identify each response or providing guidance on answering the questions multiple times.</p>
+        <p class="govuk-body">Customise the add another summary page by selecting how each response to this question group should be summarised or providing guidance on answering this question group multiple times.</p>
 
         {% set answer_summary_list_html %}
           {% if group.questions_in_add_another_summary | length %}
@@ -131,7 +131,7 @@
               {% endfor %}
             </ul>
           {% else %}
-            There are no questions in this question group
+            There are no questions in this question group.
           {% endif %}
         {% endset %}
 
@@ -139,7 +139,7 @@
         {{
           govukSummaryList({
             "rows": [{
-              "key": {"text": "Add another entry title"},
+              "key": {"text": "Answer summary"},
               "value": {"html": answer_summary_list_html},
               "actions": {
                 "items": [{

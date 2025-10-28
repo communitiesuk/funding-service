@@ -249,11 +249,15 @@ class GroupAddAnotherOptionsForm(FlaskForm):
 
 class GroupAddAnotherSummaryForm(FlaskForm):
     questions_to_show_in_add_another_summary = SelectMultipleField(
-        "Which answers should be shown to identify each question group entry?",
+        "Which question answers should be included when showing a summary of each add another answer?",
         default=[],
         widget=GovCheckboxesInput(),
         choices=[],
-        validators=[DataRequired("Select which answers should be shown to identify each question group entry")],
+        validators=[
+            DataRequired(
+                "Select which question answers should be included when showing a summary of each add another answer"
+            )
+        ],
         render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
     )
 
