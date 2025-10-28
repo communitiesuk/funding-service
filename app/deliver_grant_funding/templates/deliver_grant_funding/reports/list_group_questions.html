@@ -66,30 +66,11 @@
     <div class="govuk-grid-column-two-thirds">
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Question group settings</h2>
 
-      {% if group.add_another %}
-        {% set answer_summary_list_html %}
-          {% if group.questions_in_add_another_summary | length >0 %}
-            Each answer will show as:
-            <ul class="govuk-list govuk-list--bullet">
-              {% for question in group.questions_in_add_another_summary %}
-                <li>{{ question.name }}</li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            There are no questions in this group
-          {% endif %}
-        {% endset %}
-      {% endif %}
-
-
       {% set change_add_another_html %}
         <span>Change</span><span class="govuk-visually-hidden">add another setting</span>
       {% endset %}
       {% set change_display_html %}
         <span>Change</span><span class="govuk-visually-hidden">display setting</span>
-      {% endset %}
-      {% set change_summary_html %}
-        <span>Change</span><span class="govuk-visually-hidden">add another summary setting</span>
       {% endset %}
 
       {{
@@ -114,22 +95,13 @@
                   "href": url_for("deliver_grant_funding.change_group_add_another_options", grant_id=grant.id, group_id=group.id)
                 }]
               } if not group.contains_add_another_components  and not group.contains_questions_depended_on_elsewhere and not group.parent.add_another_container else {}
-
-            },
-            ({
-              "key": {"text": "Answer summary"},
-              "value": {"html": answer_summary_list_html},
-              "actions": {
-                "items": [{
-                  "html":change_summary_html,
-                  "href": url_for("deliver_grant_funding.change_group_add_another_summary", grant_id=grant.id, group_id=group.id)
-                }]
-              } if group.questions_in_add_another_summary | length >0 else {}
-
-            } if group.add_another else {})
+            }
           ]
         })
       }}
+
+      {# todo: we've agreed to remove these from these settings "Change" tables and only keep this pattern for #}
+      {#       where theres an action button not shown (Like "Add question group") - remove these and rely on error summary #}
       {% if group.has_nested_groups %}
         <p class="govuk-body">You cannot change the display type because this group has one or more nested groups.</p>
       {% endif %}
@@ -144,6 +116,44 @@
       {% endif %}
     </div>
   </div>
+  {% if group.add_another %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds">
+        <h2 class="govuk-heading-m govuk-!-margin-top-5">Add another settings</h2>
+        <p class="govuk-body">Customise the add another summary page by selecting which answers should identify each response or providing guidance on answering the questions multiple times.</p>
+
+        {% set answer_summary_list_html %}
+          {% if group.questions_in_add_another_summary | length %}
+            <p class="govuk-body">A comma separated list including the answers to:</p>
+            <ul class="govuk-list govuk-list--bullet">
+              {% for question in group.questions_in_add_another_summary %}
+                <li>{{ question.name }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            There are no questions in this question group
+          {% endif %}
+        {% endset %}
+
+        {# todo: add add another summary page guidance config #}
+        {{
+          govukSummaryList({
+            "rows": [{
+              "key": {"text": "Add another entry title"},
+              "value": {"html": answer_summary_list_html},
+              "actions": {
+                "items": [{
+                  "text": "Change",
+                  "visuallyHiddenText": "add another response summary",
+                  "href": url_for("deliver_grant_funding.change_group_add_another_summary", grant_id=grant.id, group_id=group.id)
+                }] if group.questions_in_add_another_summary else []
+              }
+            }]
+          })
+        }}
+      </div>
+    </div>
+  {% endif %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
       <div class="govuk-body govuk-form-group">

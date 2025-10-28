@@ -39,13 +39,13 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{
-          form.questions_to_show_in_add_another_summary(params={"fieldset": {
-                    "legend": {
-                      "classes": "govuk-fieldset__legend--l"
-                    }
-                  }
-                  }
-          )
+          form.questions_to_show_in_add_another_summary(params={
+            "fieldset": {
+              "legend": {
+                "classes": "govuk-fieldset__legend--l"
+              }
+            }
+          })
         }}
 
         <div class="govuk-button-group">
