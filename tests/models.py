@@ -37,6 +37,7 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
+    GrantRecipient,
     Group,
     Organisation,
     Question,
@@ -129,6 +130,19 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     name = factory.Sequence(lambda n: "Organisation %d" % n)
     can_manage_grants = False
+
+
+class _GrantRecipientFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = GrantRecipient
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+    grant_id = factory.LazyAttribute(lambda o: o.grant.id)
+    grant = factory.SubFactory(_GrantFactory)
+    organisation_id = factory.LazyAttribute(lambda o: o.organisation.id)
+    organisation = factory.SubFactory(_OrganisationFactory, can_manage_grants=False)
 
 
 class _UserRoleFactory(SQLAlchemyModelFactory):
