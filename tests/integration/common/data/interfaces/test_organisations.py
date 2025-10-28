@@ -1,8 +1,44 @@
 import datetime
 
-from app.common.data.interfaces.organisations import get_organisation_count, upsert_organisations
+from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
 from app.common.data.models import Organisation
 from app.common.data.types import OrganisationData, OrganisationStatus, OrganisationType
+
+
+class TestGetOrganisations:
+    def test_returns_grant_managing_organisations(self, factories, db_session):
+        from tests.models import _get_grant_managing_organisation
+
+        grant_managing_org = _get_grant_managing_organisation()
+        factories.organisation.create(name="Regular Org 1", can_manage_grants=False)
+        factories.organisation.create(name="Regular Org 2", can_manage_grants=False)
+
+        result = get_organisations(can_manage_grants=True)
+
+        assert len(result) == 1
+        assert result[0].id == grant_managing_org.id
+
+    def test_returns_non_grant_managing_organisations(self, factories, db_session):
+        from tests.models import _get_grant_managing_organisation
+
+        _get_grant_managing_organisation()
+        org1 = factories.organisation.create(name="Regular Org 1", can_manage_grants=False)
+        org2 = factories.organisation.create(name="Regular Org 2", can_manage_grants=False)
+        org3 = factories.organisation.create(name="Regular Org 3", can_manage_grants=False)
+
+        result = get_organisations(can_manage_grants=False)
+
+        assert len(result) == 3
+        assert {org.id for org in result} == {org1.id, org2.id, org3.id}
+
+    def test_returns_empty_list_when_no_matches(self, factories, db_session):
+        from tests.models import _get_grant_managing_organisation
+
+        _get_grant_managing_organisation()
+
+        result = get_organisations(can_manage_grants=False)
+
+        assert result == []
 
 
 class TestGetOrganisationCount:
