@@ -186,7 +186,8 @@
             set actions = [] if submission.is_completed else [{
               "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
               "text": "Change",
-              "visuallyHiddenText": question.add_another_container.name
+              "visuallyHiddenText": question.add_another_container.name,
+              "classes": "govuk-link--no-visited-state"
             }]
           %}
         {% else %}
@@ -221,7 +222,8 @@
           set actions = [] if submission.is_completed else [{
             "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS, add_another_index=add_another_index if add_another_index is not none else none),
             "text": "Change",
-            "visuallyHiddenText": question.name
+            "visuallyHiddenText": question.name,
+            "classes": "govuk-link--no-visited-state"
           }]
         %}
         {%
@@ -406,12 +408,14 @@
               {
                 "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i),
                 "text": "Change",
-                "visuallyHiddenText": entry_hidden_description
+                "visuallyHiddenText": entry_hidden_description,
+                "classes": "govuk-link--no-visited-state"
               },
               {
                 "href": "#",
                 "text": "Remove",
-                "visuallyHiddenText": entry_hidden_description
+                "visuallyHiddenText": entry_hidden_description,
+                "classes": "govuk-link--no-visited-state"
               }
             ] if is_answered else [],
             "classes": "govuk-!-width-one-third"
