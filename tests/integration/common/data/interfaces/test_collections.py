@@ -573,6 +573,35 @@ class TestUpdateGroup:
 
         assert updated_group.presentation_options.add_another_summary_line_question_ids == [q1.id, q2.id]
 
+    def test_update_group_with_presentation_options_dont_override_existing(self, db_session, factories):
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test group name",
+            presentation_options=QuestionPresentationOptions(
+                add_another_summary_line_question_ids=[], show_questions_on_the_same_page=False
+            ),
+        )
+        q1 = factories.question.create(parent=group, form=group.form)
+
+        updated_group = update_group(
+            group=group,
+            expression_context=ExpressionContext(),
+            presentation_options=QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id]),
+        )
+
+        assert updated_group.presentation_options.show_questions_on_the_same_page is False
+        assert updated_group.presentation_options.add_another_summary_line_question_ids == [q1.id]
+
+        updated_group = update_group(
+            group=group,
+            expression_context=ExpressionContext(),
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+
+        assert updated_group.presentation_options.show_questions_on_the_same_page is True
+        assert updated_group.presentation_options.add_another_summary_line_question_ids == [q1.id]
+
     def test_update_group_containing_add_another_cant_be_add_another(self, db_session, factories):
         group = factories.group.create(add_another=False)
         factories.question.create(form=group.form, parent=group, add_another=True)

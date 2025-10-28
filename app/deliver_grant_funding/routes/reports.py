@@ -1,6 +1,5 @@
 import io
 import uuid
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional, cast
 from uuid import UUID
 
@@ -398,33 +397,17 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
 @auto_commit_after_request
 def change_group_add_another_summary(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
-    form = GroupAddAnotherSummaryForm(
-        available_questions=db_group.cached_questions,
-        questions_to_show_in_add_another_summary=db_group.presentation_options.add_another_summary_line_question_ids
-        if db_group.presentation_options.add_another_summary_line_question_ids
-        else None,
-    )
+    form = GroupAddAnotherSummaryForm(group=db_group)
 
     if form.validate_on_submit():
-        # TODO using deepcopy here because otherwise the changes don't get flushed to the database
-        # can we make the presentation_options use mutable_json_type or similar so we don't need to do this?
-        updated_presentation_options = deepcopy(db_group.presentation_options)
-        if (
-            form.questions_to_show_in_add_another_summary.data
-            and len(form.questions_to_show_in_add_another_summary.data) > 0
-        ):
-            selected_question_ids = [
-                uuid.UUID(question_id) for question_id in form.questions_to_show_in_add_another_summary.data
-            ]
-        else:
-            selected_question_ids = []
-        updated_presentation_options.add_another_summary_line_question_ids = selected_question_ids
         update_group(
             db_group,
             expression_context=ExpressionContext.build_expression_context(
                 collection=db_group.form.collection, mode="interpolation"
             ),
-            presentation_options=updated_presentation_options,
+            presentation_options=QuestionPresentationOptions(
+                add_another_summary_line_question_ids=form.questions_to_show_in_add_another_summary.data
+            ),
         )
         return redirect(
             url_for(

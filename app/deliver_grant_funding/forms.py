@@ -33,7 +33,7 @@ from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Form, Question
+    from app.common.data.models import Component, Form, Group, Question
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -253,17 +253,20 @@ class GroupAddAnotherSummaryForm(FlaskForm):
         default=[],
         widget=GovCheckboxesInput(),
         choices=[],
-        validators=[Optional()],
+        validators=[DataRequired("Select which answers should be shown to identify each question group entry")],
         render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
     )
 
-    def __init__(self, *args: Any, available_questions: list["Question"] | None = None, **kwargs: Any):
+    def __init__(self, *args: Any, group: "Group", **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.available_questions = available_questions if available_questions else []
         self.questions_to_show_in_add_another_summary.choices = [
-            (question.id, question.name) for question in self.available_questions
+            (str(question.id), question.name) for question in group.cached_questions
         ]
-        self.questions_to_show_in_add_another_summary.default = [question.id for question in self.available_questions]
+
+        if not self.is_submitted():
+            self.questions_to_show_in_add_another_summary.data = [
+                str(question.id) for question in group.questions_in_add_another_summary
+            ]
 
     submit = SubmitField(widget=GovSubmitInput())
 

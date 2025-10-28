@@ -543,7 +543,7 @@ class Group(Component):
                 question
                 for question in self.cached_questions
                 if question.id in self.presentation_options.add_another_summary_line_question_ids
-            ]
+            ] or self.cached_questions
         return self.cached_questions
 
 

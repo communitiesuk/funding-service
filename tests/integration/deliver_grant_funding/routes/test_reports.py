@@ -1002,7 +1002,7 @@ class TestChangeGroupAddAnotherSummaryQuestions:
                     "type": "checkbox",
                     "name": "questions_to_show_in_add_another_summary",
                     "value": str(q1.id),
-                    "checked": False,
+                    "checked": True,
                 },
             )
             is not None
@@ -1015,7 +1015,9 @@ class TestChangeGroupAddAnotherSummaryQuestions:
         group = factories.group.create(form=form, name="Test group", add_another=True)
         q1 = factories.question.create(form=form, parent=group)
 
-        summary_form = GroupAddAnotherSummaryForm(data={"questions_to_show_in_add_another_summary": [str(q1.id)]})
+        summary_form = GroupAddAnotherSummaryForm(
+            group=group, data={"questions_to_show_in_add_another_summary": [str(q1.id)]}
+        )
 
         response = authenticated_grant_admin_client.post(
             url_for(

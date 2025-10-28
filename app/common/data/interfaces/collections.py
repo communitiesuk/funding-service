@@ -881,7 +881,13 @@ def update_group(
             except DependencyOrderException as e:
                 db.session.rollback()
                 raise e
-        group.presentation_options = presentation_options or QuestionPresentationOptions()  # ty: ignore[invalid-assignment]
+
+        # presentation options for groups can be spread out across multiple forms/ setting pages
+        # override the provided fields without removing the existing settings for now, we might
+        # want to switch to mutating the existing object in the future instead
+        group.presentation_options = group.presentation_options.model_copy(
+            update=presentation_options.model_dump(exclude_unset=True)
+        )
 
     if guidance_heading is not NOT_PROVIDED:
         group.guidance_heading = guidance_heading  # ty: ignore[invalid-assignment]
