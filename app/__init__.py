@@ -1,6 +1,7 @@
 import typing as t
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
+import sentry_sdk
 from flask import Flask, Response, current_app, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 from flask_admin import Admin
@@ -8,7 +9,7 @@ from flask_babel import Babel
 from flask_sqlalchemy_lite import SQLAlchemy
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound, ProgrammingError
 from werkzeug.routing import BaseConverter
 from xgovuk_flask_admin import XGovukFlaskAdmin
 from xgovuk_flask_admin.theme import XGovukFrontendTheme
@@ -21,6 +22,7 @@ from app.common.data.types import (
     ExpressionType,
     FormRunnerState,
     GrantStatusEnum,
+    OrganisationType,
     QuestionDataType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -126,7 +128,7 @@ def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
         register_admin_views(flask_admin, db_)
 
 
-def create_app() -> Flask:
+def create_app() -> Flask:  # noqa: C901
     from app.common.data.base import BaseModel
 
     app = Flask(__name__, static_folder="assets/dist/", static_url_path="/static")
@@ -212,6 +214,7 @@ def create_app() -> Flask:
                 tasklist_task_status=TasklistTaskStatusEnum,
                 expression_type=ExpressionType,
                 grant_status=GrantStatusEnum,
+                organisation_type=OrganisationType,
             ),
         )
 
@@ -261,7 +264,11 @@ def create_app() -> Flask:
 
     if app.config["SEED_SYSTEM_DATA"]:
         with app.app_context():
-            seed_system_data(app)
+            try:
+                seed_system_data(app)
+            except ProgrammingError as e:
+                sentry_sdk.capture_exception(e)
+                app.logger.warning("Seeding system data failed")
 
     @app.route("/", methods=["GET"])
     def index() -> ResponseReturnValue:

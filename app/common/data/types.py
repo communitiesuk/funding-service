@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import enum
 import typing
 from enum import IntEnum
@@ -28,6 +29,24 @@ TRunnerUrlMap = dict[
 class GrantStatusEnum(enum.StrEnum):
     DRAFT = "draft"
     LIVE = "live"
+
+
+class OrganisationStatus(enum.StrEnum):
+    ACTIVE = "active"
+    RETIRED = "retired"
+
+
+class OrganisationType(enum.StrEnum):
+    CENTRAL_GOVERNMENT = "Central Government"
+    UNITARY_AUTHORITY = "Unitary Authority"
+    SHIRE_DISTRICT = "Shire District"
+    METROPOLITAN_DISTRICT = "Metropolitan District"
+    LONDON_BOROUGH = "London Borough"
+    SHIRE_COUNTY = "Shire County"
+    COMBINED_AUTHORITY = "Combined Authority"
+    NORTHERN_IRELAND_AUTHORITY = "Northern Ireland District"
+    SCOTTISH_UNITARY_AUTHORITY = "Scottish Unitary Authority"
+    WELSH_UNITARY_AUTHORITY = "Welsh Unitary Authority"
 
 
 class RoleEnum(enum.StrEnum):
@@ -219,3 +238,11 @@ class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
 class ComponentType(enum.StrEnum):
     QUESTION = "QUESTION"
     GROUP = "GROUP"
+
+
+class OrganisationData(BaseModel):
+    external_id: str
+    name: str
+    type: OrganisationType
+    active_date: datetime.date | None
+    retirement_date: datetime.date | None

@@ -6,9 +6,10 @@ from flask_admin import AdminIndexView, BaseView, expose
 
 from app.common.data.interfaces.exceptions import NotEnoughGrantTeamUsersError
 from app.common.data.interfaces.grants import get_all_grants, get_grant, update_grant
-from app.common.data.interfaces.organisations import get_organisation_count
+from app.common.data.interfaces.organisations import get_organisation_count, upsert_organisations
 from app.common.data.types import GrantStatusEnum
 from app.deliver_grant_funding.admin.forms import (
+    PlatformAdminBulkCreateOrganisationsForm,
     PlatformAdminMakeGrantLiveForm,
     PlatformAdminSelectGrantForReportingLifecycleForm,
 )
@@ -63,3 +64,16 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                 form.form_errors.append("You must add at least two grant team users before making the grant live")
 
         return self.render("deliver_grant_funding/admin/confirm-make-grant-live.html", form=form, grant=grant)
+
+    @expose("/<uuid:grant_id>/set-up-organisations", methods=["GET", "POST"])  # type: ignore[misc]
+    @auto_commit_after_request
+    def set_up_organisations(self, grant_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        form = PlatformAdminBulkCreateOrganisationsForm()
+        if form.validate_on_submit():
+            organisations = form.get_normalised_organisation_data()
+            upsert_organisations(organisations)
+            flash("Created or updated %(count)d organisations." % {"count": len(organisations)}, "success")
+            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id))
+
+        return self.render("deliver_grant_funding/admin/set-up-organisations.html", form=form, grant=grant)

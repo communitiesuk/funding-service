@@ -27,7 +27,7 @@
           "status": {
             "html": govukTag({"text": organisation_count ~ (" organisation" if organisation_count == 1 else " organisations"), "classes": "govuk-tag--blue"})
           },
-          "href": url_for('organisation.index_view'),
+          "href": url_for('reporting_lifecycle.set_up_organisations', grant_id=grant.id),
         })
       %}
       {% if grant.status == enum.grant_status.DRAFT %}
