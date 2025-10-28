@@ -359,7 +359,7 @@ class QuestionForm(FlaskForm):
                     if question_type == QuestionDataType.RADIOS
                     else current_app.config["MAX_DATA_SOURCE_ITEMS_CHECKBOXES"]
                 )
-                self.data_source_items.validators = [
+                self.data_source_items.validators = [  # ty: ignore[invalid-assignment]
                     DataRequired("Enter the options for your list"),
                     _validate_no_blank_lines,
                     _validate_no_duplicates,
@@ -367,7 +367,7 @@ class QuestionForm(FlaskForm):
                 ]
 
                 if self.separate_option_if_no_items_match.raw_data:
-                    self.none_of_the_above_item_text.validators = [
+                    self.none_of_the_above_item_text.validators = [  # ty: ignore[invalid-assignment]
                         DataRequired("Enter the text to show for the fallback option")
                     ]
 
@@ -377,7 +377,7 @@ class QuestionForm(FlaskForm):
                     )
 
             case QuestionDataType.TEXT_MULTI_LINE:
-                self.rows.validators = [_validate_textarea_size]
+                self.rows.validators = [_validate_textarea_size]  # ty: ignore[invalid-assignment]
 
     @property
     def normalised_data_source_items(self) -> list[str] | None:
@@ -581,7 +581,7 @@ class AddGuidanceForm(FlaskForm):
     submit = SubmitField("Save guidance", widget=GovSubmitInput())
 
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
-        result = cast(bool, super().validate(extra_validators=extra_validators))
+        result: bool = super().validate(extra_validators=extra_validators)
 
         if not result:
             return result

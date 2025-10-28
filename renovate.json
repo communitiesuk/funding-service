@@ -32,6 +32,12 @@
       "matchManagers": ["github-actions"],
       "enabled": false,
       "description": "Disable updates to 3rd party GitHub action to reduce security risk"
+    },
+    {
+      "groupName": "Astral ty",
+      "matchManagers": "pep621",
+      "matchPackageNames": ["ty"],
+      "automerge": false
     }
   ]
 }
