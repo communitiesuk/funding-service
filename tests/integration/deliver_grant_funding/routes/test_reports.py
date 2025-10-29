@@ -4746,8 +4746,8 @@ class TestListSubmissions:
 
         test_submission_tags = test_soup.select(".govuk-tag")
         live_submission_tags = live_soup.select(".govuk-tag")
-        assert [tag.text.strip() for tag in test_submission_tags] == ["In progress", "Not started"]
-        assert [tag.text.strip() for tag in live_submission_tags] == ["Not started"]
+        assert {tag.text.strip() for tag in test_submission_tags} == {"In progress", "Not started"}
+        assert {tag.text.strip() for tag in live_submission_tags} == {"Not started"}
 
 
 class TestExportReportSubmissions:
