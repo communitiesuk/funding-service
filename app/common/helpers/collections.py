@@ -614,11 +614,31 @@ class CollectionHelper:
 
             for form in submission.get_ordered_visible_forms():
                 task_data: dict[str, Any] = {"name": form.title, "answers": {}}
+
+                add_another_contexts = []
                 for question in submission.cached_get_ordered_visible_questions(form):
-                    answer = submission.cached_get_answer_for_question(question.id)
-                    task_data["answers"][question.name] = (
-                        answer.get_value_for_json_export() if answer is not None else None
-                    )
+                    if question.add_another_container:
+                        if question.add_another_container.id not in add_another_contexts:
+                            add_another_contexts.append(question.add_another_container.id)
+                            task_data["answers"][question.add_another_container.name.lower()] = []
+
+                            for i in range(submission.get_count_for_add_another(question.add_another_container)):
+                                entry = {}
+
+                                context = submission.cached_evaluation_context.with_add_another_context(
+                                    question.add_another_container, submission_helper=submission, add_another_index=i
+                                )
+                                for q in submission.cached_get_ordered_visible_questions(
+                                    question.add_another_container, override_context=context
+                                ):
+                                    answer = submission.cached_get_answer_for_question(q.id, add_another_index=i)
+                                    entry[q.name] = answer.get_value_for_json_export() if answer is not None else None
+                                task_data["answers"][question.add_another_container.name.lower()].append(entry)
+                    else:
+                        answer = submission.cached_get_answer_for_question(question.id)
+                        task_data["answers"][question.name] = (
+                            answer.get_value_for_json_export() if answer is not None else None
+                        )
                 submission_data["tasks"].append(task_data)  # ty: ignore[possibly-missing-attribute]
 
             submissions_data["submissions"].append(submission_data)
