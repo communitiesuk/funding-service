@@ -29,7 +29,10 @@ class DatabaseSecret(BaseModel):
 FS_CONTENT_SECURITY_POLICY = {
     "default-src": ["'self'"],
     "script-src": ["'self'"],
-    "img-src": ["'self'"],
+    "img-src": [
+        "'self'",
+        "data:",  # Flask-Admin's select-with-search "x" icon for deleting selections
+    ],
     "style-src": [
         "'self'",
         "'unsafe-hashes'",
@@ -57,7 +60,6 @@ def make_development_csp() -> dict[str, list[str]]:
         [
             "http://localhost:5173",  # Vite assets
             "ws://localhost:5173",  # Vite assets
-            "data:",  # Flask-Admin's select-with-search "x" icon for deleting selections
         ]
     )
     csp["style-src"].extend(

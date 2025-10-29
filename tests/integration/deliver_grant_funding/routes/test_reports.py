@@ -102,10 +102,16 @@ class TestListReports:
         soup = BeautifulSoup(response.data, "html.parser")
         assert grant.name in soup.text
 
-        review_submissions_links = page_has_link(soup, "0 test submissions")
-        assert review_submissions_links is not None
-        assert review_submissions_links.get("href") == AnyStringMatching(
+        test_submission_links = page_has_link(soup, "0 test submissions")
+        assert test_submission_links is not None
+        assert test_submission_links.get("href") == AnyStringMatching(
             r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/test"
+        )
+
+        live_submissions_links = page_has_link(soup, "0 live submissions")
+        assert live_submissions_links is not None
+        assert live_submissions_links.get("href") == AnyStringMatching(
+            r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/live"
         )
 
         expected_links = [
