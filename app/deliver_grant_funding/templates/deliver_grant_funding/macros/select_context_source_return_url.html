@@ -6,7 +6,11 @@
       {% set return_url = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=add_context_data.component_id) %}
     {% endif %}
   {% elif add_context_data.field == "guidance" %}
-    {% set return_url = url_for("deliver_grant_funding.manage_guidance", grant_id=grant.id, question_id=add_context_data.component_id) %}
+    {% if add_context_data.is_add_another_guidance %}
+      {% set return_url = url_for("deliver_grant_funding.manage_add_another_guidance", grant_id=grant.id, group_id=add_context_data.component_id) %}
+    {% else %}
+      {% set return_url = url_for("deliver_grant_funding.manage_guidance", grant_id=grant.id, question_id=add_context_data.component_id) %}
+    {% endif %}
   {% elif add_context_data.field == enum.expression_type.CONDITION %}
     {% if not add_context_data.expression_id %}
       {% set return_url = url_for("deliver_grant_funding.add_question_condition",grant_id=grant.id, component_id=add_context_data.component_id, depends_on_question_id=add_context_data.depends_on_question_id) %}

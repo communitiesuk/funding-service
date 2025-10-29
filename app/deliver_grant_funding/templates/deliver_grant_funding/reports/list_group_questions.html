@@ -138,7 +138,7 @@
 
         {% set guidance_text %}
           {% if group.add_another_guidance_body %}
-            <pre class="app-pre-markdown">{{ interpolate(group.add_another_guidance_body) }}</pre>
+            <pre class="app-pre-markdown">{{ interpolate(group.add_another_guidance_body, with_interpolation_highlighting=True) }}</pre>
           {% else %}
             (None set)
           {% endif %}
@@ -207,7 +207,7 @@
 
           {% if group.guidance_body %}
             {% set guidance_text %}
-              <pre class="app-pre-markdown">{{ interpolate(group.guidance_body) }}</pre>
+              <pre class="app-pre-markdown">{{ interpolate(group.guidance_body, with_interpolation_highlighting=True) }}</pre>
             {% endset %}
             {{
               govukSummaryList({
