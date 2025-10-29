@@ -775,6 +775,59 @@ class TestCollectionHelper:
             "2025-01-01",
         ]
 
+    def test_generate_csv_content_add_another(self, factories):
+        factories.data_source_item.reset_sequence()
+        collection = factories.collection.create(
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+
+        assert reader.fieldnames == [
+            "Submission reference",
+            "Created by",
+            "Created at",
+            "Status",
+            "Submitted at",
+            "[Add another nested group test form] Your name",
+            "[Add another nested group test form] Organisation name",
+            "[Add another nested group test form] [Organisation contacts test group] Contact name (1)",
+            "[Add another nested group test form] [Organisation contacts test group] Contact email (1)",
+            "[Add another nested group test form] [Organisation contacts test group] Contact name (2)",
+            "[Add another nested group test form] [Organisation contacts test group] Contact email (2)",
+            "[Add another nested group test form] [Organisation contacts test group] Contact name (3)",
+            "[Add another nested group test form] [Organisation contacts test group] Contact email (3)",
+            "[Add another nested group test form] [Organisation contacts test group] Contact name (4)",
+            "[Add another nested group test form] [Organisation contacts test group] Contact email (4)",
+            "[Add another nested group test form] [Organisation contacts test group] Contact name (5)",
+            "[Add another nested group test form] [Organisation contacts test group] Contact email (5)",
+            "[Add another nested group test form] Length of service",
+        ]
+        rows = list(reader)
+
+        assert list(rows[0].values()) == [
+            c_helper.submissions[0].reference,
+            c_helper.submissions[0].created_by.email,
+            format_datetime(c_helper.submissions[0].created_at_utc),
+            "In progress",
+            "",
+            "test name",
+            "test org name",
+            "test name 0",
+            "test_user_0@email.com",
+            "test name 1",
+            "test_user_1@email.com",
+            "test name 2",
+            "test_user_2@email.com",
+            "test name 3",
+            "test_user_3@email.com",
+            "test name 4",
+            "test_user_4@email.com",
+            "3",
+        ]
+
     def test_generate_json_content_for_all_submissions_all_question_types_appear_correctly(self, factories):
         factories.data_source_item.reset_sequence()
         collection = factories.collection.create(
