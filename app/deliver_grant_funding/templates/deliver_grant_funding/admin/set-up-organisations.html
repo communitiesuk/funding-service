@@ -25,7 +25,10 @@
         <a class="govuk-link--no-underline govuk-link--no-visited-state" href="{{ url_for('organisation.index_view') }}">view and create individual organisations</a>.
       </p>
 
-      <p class="govuk-body">This form is designed to work with an export of Delta's organisations. With that export open in Excel or similar, hide everything other than these columns:</p>
+      <p class="govuk-body">
+        This form is designed to work with an export of Delta's organisations.
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ delta_service_desk_url }}">Request an export via Delta's service desk</a>. With that export open in Excel or similar, hide everything other than these columns:
+      </p>
       <ul class="govuk-list govuk-list--bullet">
         <li>organisation-id</li>
         <li>organisation-name</li>

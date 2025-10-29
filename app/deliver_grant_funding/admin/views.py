@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import UUID
 
-from flask import flash, redirect, url_for
+from flask import current_app, flash, redirect, url_for
 from flask_admin import AdminIndexView, BaseView, expose
 
 from app.common.data.interfaces.exceptions import NotEnoughGrantTeamUsersError
@@ -84,7 +84,12 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             flash(f"Created or updated {len(organisations)} organisations.", "success")
             return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id))
 
-        return self.render("deliver_grant_funding/admin/set-up-organisations.html", form=form, grant=grant)
+        return self.render(
+            "deliver_grant_funding/admin/set-up-organisations.html",
+            form=form,
+            grant=grant,
+            delta_service_desk_url=current_app.config["DELTA_SERVICE_DESK_URL"],
+        )
 
     @expose("/<uuid:grant_id>/set-up-grant-recipients", methods=["GET", "POST"])  # type: ignore[misc]
     @auto_commit_after_request
