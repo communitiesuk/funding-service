@@ -99,7 +99,7 @@ class SubmissionStatusEnum(enum.StrEnum):
     COMPLETED = "Completed"
 
 
-class TasklistTaskStatusEnum(enum.StrEnum):
+class TasklistSectionStatusEnum(enum.StrEnum):
     NOT_STARTED = SubmissionStatusEnum.NOT_STARTED.value
     IN_PROGRESS = SubmissionStatusEnum.IN_PROGRESS.value
     COMPLETED = SubmissionStatusEnum.COMPLETED.value

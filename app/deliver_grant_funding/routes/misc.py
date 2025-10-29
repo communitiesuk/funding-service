@@ -30,12 +30,12 @@ def return_from_test_submission(collection_id: UUID) -> ResponseReturnValue:
 
     if form_id := session.pop("test_submission_form_id", None):
         if finished:
-            flash("You’ve been returned to the task builder", FlashMessageType.SUBMISSION_TESTING_COMPLETE.value)
+            flash("You’ve been returned to the section builder", FlashMessageType.SUBMISSION_TESTING_COMPLETE.value)
 
         form = get_form_by_id(form_id)
         return redirect(
             url_for(
-                "deliver_grant_funding.list_task_questions",
+                "deliver_grant_funding.list_section_questions",
                 grant_id=form.collection.grant.id,
                 form_id=form_id,
             )
@@ -46,5 +46,5 @@ def return_from_test_submission(collection_id: UUID) -> ResponseReturnValue:
 
     collection = get_collection(collection_id)
     return redirect(
-        url_for("deliver_grant_funding.list_report_tasks", grant_id=collection.grant.id, report_id=collection.id)
+        url_for("deliver_grant_funding.list_report_sections", grant_id=collection.grant.id, report_id=collection.id)
     )

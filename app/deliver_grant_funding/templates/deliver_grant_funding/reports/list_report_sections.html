@@ -22,11 +22,11 @@
       {% endwith %}
       {% if delete_form %}
         {% set banner_html %}
-          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the task “{{ delete_task.title }}”?</p>
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the section "{{ delete_task.title }}"?</p>
           <form method="post" novalidate>
             {{ delete_form.csrf_token }}
             <div class="govuk-button-group govuk-!-margin-bottom-0">
-              {{ delete_form.confirm_deletion(params={"text": "Yes, delete this task", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+              {{ delete_form.confirm_deletion(params={"text": "Yes, delete this section", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
               <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.change_form_name', grant_id=grant.id, form_id=db_form.id) }}">Cancel</a>
             </div>
           </form>
@@ -37,7 +37,7 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ report.name }}</span>
-        Tasks
+        Sections
       </h1>
     </div>
     <div class="govuk-grid-column-one-third govuk-!-text-align-right">
@@ -50,17 +50,17 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
       {% if not report.forms %}
-        <p class="govuk-body">This monitoring report has no tasks.</p>
+        <p class="govuk-body">This monitoring report has no sections.</p>
         {% if grant_admin %}
           <p class="govuk-body">
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_task', grant_id=grant.id, report_id=report.id) }}">Add a task</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}">Add a section</a>
           </p>
         {% endif %}
       {% else %}
         {% set rows = [] %}
         {% for form in report.forms %}
           {% set taskHtml %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_task_questions', grant_id=grant.id, form_id=form.id) }}">{{ form.title }}</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=form.id) }}">{{ form.title }}</a>
           {% endset %}
           {% set questionsHtml %}
             {{ form.cached_questions | length }}
@@ -68,8 +68,8 @@
           {% endset %}
           {% set actions = [] %}
           {% if grant_admin and report.forms|length > 1 %}
-            {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_task', grant_id=grant.id, form_id=form.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
-            {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_task', grant_id=grant.id, form_id=form.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
+            {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
+            {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
           {% else %}
             {# Append some empty actions in order to keep the layout visually the same - might need to think about this more when we have examples #}
             {% do actions.append({}) %}
@@ -95,7 +95,7 @@
       {% endif %}
 
       {% if grant_admin %}
-        <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_task', grant_id=grant.id, report_id=report.id) }}">Add another task</a>
+        <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}">Add another section</a>
       {% endif %}
     </div>
   </div>

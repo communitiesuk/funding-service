@@ -63,7 +63,7 @@
         <span class="govuk-button-group">
           {{ form.submit(params={"text": "Add question"}) }}
 
-          {% set link = url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=db_form.id) if not parent else url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=parent.id) %}
+          {% set link = url_for("deliver_grant_funding.list_section_questions", grant_id=grant.id, form_id=db_form.id) if not parent else url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=parent.id) %}
           <a class="govuk-link govuk-link--no-visited-state" href="{{ link }}">Cancel</a>
         </span>
       </form>

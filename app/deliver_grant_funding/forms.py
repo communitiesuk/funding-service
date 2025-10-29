@@ -467,7 +467,7 @@ class AddContextSelectSourceForm(FlaskForm):
         except KeyError:
             return
 
-        if choice == ExpressionContext.ContextSources.TASK:
+        if choice == ExpressionContext.ContextSources.SECTION:
             if not get_referenceable_questions(form=self.form, current_component=self.current_component):
                 raise ValidationError("There are no available questions before this one in the form")
 
@@ -557,13 +557,13 @@ class SetUpReportForm(FlaskForm):
     submit = SubmitField("Continue and set up report", widget=GovSubmitInput())
 
 
-class AddTaskForm(FlaskForm):
+class AddSectionForm(FlaskForm):
     title = StringField(
-        "Task name",
+        "Section name",
         widget=GovTextInput(),
-        validators=[DataRequired("Enter a name for the task")],
+        validators=[DataRequired("Enter a name for the section")],
     )
-    submit = SubmitField("Add task", widget=GovSubmitInput())
+    submit = SubmitField("Add section", widget=GovSubmitInput())
 
 
 class ConditionSelectQuestionForm(FlaskForm):

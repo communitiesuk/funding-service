@@ -23,7 +23,7 @@ from app.common.expressions.managed import GreaterThan, IsAfter, IsNo, IsYes, Le
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
-    AddTaskForm,
+    AddSectionForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
     GroupDisplayOptionsForm,
@@ -110,7 +110,7 @@ class TestListReports:
 
         expected_links = [
             ("Add another monitoring report", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/set-up-report")),
-            ("Add tasks", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")),
+            ("Add sections", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-section")),
             ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/change-name")),
             ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports\?delete")),
         ]
@@ -364,10 +364,10 @@ class TestChangeReportName:
         assert updated_report.name == "Updated Name"
 
 
-class TestAddTask:
+class TestAddSection:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.add_task", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for("deliver_grant_funding.add_section", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
         )
         assert response.status_code == 404
 
@@ -382,14 +382,16 @@ class TestAddTask:
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant)
 
-        response = client.get(url_for("deliver_grant_funding.add_task", grant_id=client.grant.id, report_id=report.id))
+        response = client.get(
+            url_for("deliver_grant_funding.add_section", grant_id=client.grant.id, report_id=report.id)
+        )
 
         if not can_access:
             assert response.status_code == 403
         else:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
-            assert get_h1_text(soup) == "What is the name of the task?"
+            assert get_h1_text(soup) == "What is the name of the section?"
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
@@ -402,9 +404,9 @@ class TestAddTask:
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant)
 
-        form = AddTaskForm(data={"title": "Organisation information"})
+        form = AddSectionForm(data={"title": "Organisation information"})
         response = client.post(
-            url_for("deliver_grant_funding.add_task", grant_id=client.grant.id, report_id=report.id),
+            url_for("deliver_grant_funding.add_section", grant_id=client.grant.id, report_id=report.id),
             data=get_form_data(form),
             follow_redirects=False,
         )
@@ -422,10 +424,10 @@ class TestAddTask:
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Monitoring report")
         factories.form.create(collection=report, title="Organisation information")
 
-        form = AddTaskForm(data={"title": "Organisation information"})
+        form = AddSectionForm(data={"title": "Organisation information"})
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.add_task",
+                "deliver_grant_funding.add_section",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report.id,
             ),
@@ -434,13 +436,13 @@ class TestAddTask:
         soup = BeautifulSoup(response.data, "html.parser")
 
         assert response.status_code == 200
-        assert page_has_error(soup, "A task with this name already exists")
+        assert page_has_error(soup, "A section with this name already exists")
 
 
-class TestListReportTasks:
+class TestListReportSections:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.list_report_tasks", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for("deliver_grant_funding.list_report_sections", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
         )
         assert response.status_code == 404
 
@@ -451,24 +453,24 @@ class TestListReportTasks:
             ("authenticated_grant_admin_client", True),
         ),
     )
-    def test_get_no_tasks(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
+    def test_get_no_sections(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
 
         response = client.get(
-            url_for("deliver_grant_funding.list_report_tasks", grant_id=client.grant.id, report_id=report.id)
+            url_for("deliver_grant_funding.list_report_sections", grant_id=client.grant.id, report_id=report.id)
         )
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "This monitoring report has no tasks." in soup.text
+        assert "This monitoring report has no sections." in soup.text
 
-        add_task_link = page_has_link(soup, "Add a task")
-        assert (add_task_link is not None) is can_edit
+        add_section_link = page_has_link(soup, "Add a section")
+        assert (add_section_link is not None) is can_edit
 
-        if add_task_link:
-            expected_href = AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-task")
-            assert add_task_link.get("href") == expected_href
+        if add_section_link:
+            expected_href = AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-section")
+            assert add_section_link.get("href") == expected_href
 
     @pytest.mark.parametrize(
         "client_fixture, can_edit",
@@ -477,24 +479,24 @@ class TestListReportTasks:
             ("authenticated_grant_admin_client", True),
         ),
     )
-    def test_get_with_tasks(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
+    def test_get_with_sections(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
         client = request.getfixturevalue(client_fixture)
         report = factories.collection.create(grant=client.grant, name="Test Report")
         factories.form.create(collection=report, title="Organisation information")
 
         response = client.get(
-            url_for("deliver_grant_funding.list_report_tasks", grant_id=client.grant.id, report_id=report.id)
+            url_for("deliver_grant_funding.list_report_sections", grant_id=client.grant.id, report_id=report.id)
         )
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Organisation information" in soup.text
 
-        manage_task_link = page_has_link(soup, "Organisation information")
-        add_another_task_list = page_has_link(soup, "Add another task")
+        manage_section_link = page_has_link(soup, "Organisation information")
+        add_another_section_list = page_has_link(soup, "Add another section")
 
-        assert manage_task_link is not None
-        assert (add_another_task_list is not None) is can_edit
+        assert manage_section_link is not None
+        assert (add_another_section_list is not None) is can_edit
 
     @pytest.mark.parametrize(
         "client_fixture, can_preview",
@@ -504,7 +506,7 @@ class TestListReportTasks:
             ("authenticated_grant_admin_client", True),
         ),
     )
-    def test_post_list_report_tasks_preview(
+    def test_post_list_report_sections_preview(
         self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories, db_session
     ):
         client = request.getfixturevalue(client_fixture)
@@ -515,7 +517,7 @@ class TestListReportTasks:
 
         form = GenericSubmitForm()
         response = client.post(
-            url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=report.id),
+            url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id),
             data=get_form_data(form),
             follow_redirects=False,
         )
@@ -527,11 +529,11 @@ class TestListReportTasks:
             assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}$")
 
 
-class TestMoveTask:
+class TestMoveSection:
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.move_task",
+                "deliver_grant_funding.move_section",
                 grant_id=uuid.uuid4(),
                 form_id=uuid.uuid4(),
                 direction="up",
@@ -545,7 +547,7 @@ class TestMoveTask:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.move_task",
+                "deliver_grant_funding.move_section",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=forms[0].id,
                 direction="blah",
@@ -565,7 +567,7 @@ class TestMoveTask:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.move_task",
+                "deliver_grant_funding.move_section",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=forms[1].id,
                 direction=direction,
@@ -1103,7 +1105,7 @@ class TestChangeFormName:
         client = request.getfixturevalue(client_fixture)
         db_form = factories.form.create(collection__grant=client.grant, title="Organisation information")
 
-        form = AddTaskForm(data={"title": "Updated Name"})
+        form = AddSectionForm(data={"title": "Updated Name"})
         response = client.post(
             url_for("deliver_grant_funding.change_form_name", grant_id=client.grant.id, form_id=db_form.id),
             data=get_form_data(form),
@@ -1114,7 +1116,9 @@ class TestChangeFormName:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions$")
+            assert response.location == AnyStringMatching(
+                "^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/questions$"
+            )
 
             updated_form = db_session.get(Form, db_form.id)
             assert updated_form.title == "Updated Name"
@@ -1125,7 +1129,7 @@ class TestChangeFormName:
         )
         db_form2 = factories.form.create(collection=db_form.collection, title="Project information")
 
-        form = AddTaskForm(data={"title": "Organisation information"})
+        form = AddSectionForm(data={"title": "Organisation information"})
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.change_form_name",
@@ -1137,7 +1141,7 @@ class TestChangeFormName:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "A task with this name already exists")
+        assert page_has_error(soup, "A section with this name already exists")
 
 
 class TestListGroupQuestions:
@@ -1259,10 +1263,10 @@ class TestListGroupQuestions:
         assert "You cannot delete an answer that other questions depend on" in soup.text
 
 
-class TestListTaskQuestions:
+class TestListSectionQuestions:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.list_task_questions", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
+            url_for("deliver_grant_funding.list_section_questions", grant_id=uuid.uuid4(), form_id=uuid.uuid4())
         )
         assert response.status_code == 404
 
@@ -1280,24 +1284,24 @@ class TestListTaskQuestions:
         factories.question.create_batch(2, form=form)
 
         response = client.get(
-            url_for("deliver_grant_funding.list_task_questions", grant_id=client.grant.id, form_id=form.id)
+            url_for("deliver_grant_funding.list_section_questions", grant_id=client.grant.id, form_id=form.id)
         )
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Organisation information"
 
-        change_task_name_link = page_has_link(soup, "Change task name")
-        delete_task_link = page_has_link(soup, "Delete task")
+        change_section_name_link = page_has_link(soup, "Change section name")
+        delete_section_link = page_has_link(soup, "Delete section")
 
-        assert (change_task_name_link is not None) is can_edit
-        assert (delete_task_link is not None) is can_edit
+        assert (change_section_name_link is not None) is can_edit
+        assert (delete_section_link is not None) is can_edit
 
         if can_edit:
-            assert change_task_name_link.get("href") == AnyStringMatching(
-                "/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/change-name"
+            assert change_section_name_link.get("href") == AnyStringMatching(
+                "/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/change-name"
             )
-            assert delete_task_link.get("href") == AnyStringMatching(r"\?delete")
+            assert delete_section_link.get("href") == AnyStringMatching(r"\?delete")
 
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -1305,7 +1309,7 @@ class TestListTaskQuestions:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.list_task_questions",
+                "deliver_grant_funding.list_section_questions",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
                 delete="",
@@ -1314,7 +1318,7 @@ class TestListTaskQuestions:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_button(soup, "Yes, delete this task")
+        assert page_has_button(soup, "Yes, delete this section")
 
     def test_get_shows_interpolated_questions(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -1324,7 +1328,7 @@ class TestListTaskQuestions:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.list_task_questions",
+                "deliver_grant_funding.list_section_questions",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             )
@@ -1341,7 +1345,7 @@ class TestListTaskQuestions:
         with caplog.at_level(logging.INFO):
             response = authenticated_grant_admin_client.post(
                 url_for(
-                    "deliver_grant_funding.list_task_questions",
+                    "deliver_grant_funding.list_section_questions",
                     grant_id=authenticated_grant_admin_client.grant.id,
                     form_id=form.id,
                     delete="",
@@ -1365,7 +1369,7 @@ class TestListTaskQuestions:
             ("authenticated_grant_admin_client", True),
         ),
     )
-    def test_post_list_task_questions_preview(
+    def test_post_list_section_questions_preview(
         self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories, db_session
     ):
         client = request.getfixturevalue(client_fixture)
@@ -1377,7 +1381,7 @@ class TestListTaskQuestions:
 
         preview_form = GenericSubmitForm()
         response = client.post(
-            url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=form.id),
+            url_for("deliver_grant_funding.list_section_questions", grant_id=grant.id, form_id=form.id),
             data=preview_form.data,
             follow_redirects=False,
         )
@@ -1390,7 +1394,7 @@ class TestListTaskQuestions:
                 "/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}/[a-z0-9-]{36}"
             )
 
-    def test_post_list_task_questions_returns_to_task_list(
+    def test_post_list_section_questions_returns_to_task_list(
         self, factories, db_session, authenticated_grant_admin_client
     ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -1400,7 +1404,7 @@ class TestListTaskQuestions:
         preview_form = GenericSubmitForm()
         runner_response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.list_task_questions",
+                "deliver_grant_funding.list_section_questions",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             ),
@@ -1409,7 +1413,7 @@ class TestListTaskQuestions:
         )
         soup = BeautifulSoup(runner_response.data, "html.parser")
         assert page_has_link(soup, "Back").get("href") == url_for(
-            "deliver_grant_funding.list_task_questions",
+            "deliver_grant_funding.list_section_questions",
             grant_id=authenticated_grant_admin_client.grant.id,
             form_id=form.id,
         )
@@ -1508,7 +1512,7 @@ class TestMoveQuestion:
         del form.cached_questions
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions")
+        assert response.location == AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/questions")
         assert form.cached_questions[0].text == "Question 3"
 
         # we can move questions inside the group
@@ -1577,7 +1581,7 @@ class TestChooseQuestionType:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            r"/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions/add\?question_data_type=TEXT_SINGLE_LINE"
+            r"/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/questions/add\?question_data_type=TEXT_SINGLE_LINE"
         )
 
 
@@ -1687,7 +1691,7 @@ class TestAddQuestion:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+            "^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
         )
         assert spy_validate.call_count == 0
 
@@ -1857,7 +1861,7 @@ class TestAddQuestionGroup:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add$")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/groups/add$")
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
@@ -1907,7 +1911,7 @@ class TestAddQuestionGroup:
         )
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            r"^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add/add_another$"
+            r"^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/groups/add/add_another$"
         )
 
     def test_get_add_another_skipped_when_parent_add_another(
@@ -2103,7 +2107,7 @@ class TestSelectContextSource:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             ),
-            data={"data_source": "TASK"},
+            data={"data_source": "SECTION"},
         )
         assert response.status_code == 302
         assert response.location.endswith(
@@ -2144,7 +2148,7 @@ class TestSelectContextSourceQuestion:
                     "hint": "Test hint",
                     "add_context": "text",
                 },
-                data_source=ExpressionContext.ContextSources.TASK,
+                data_source=ExpressionContext.ContextSources.SECTION,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -2183,7 +2187,7 @@ class TestSelectContextSourceQuestion:
                 },
                 component_id=target_question.id,
                 depends_on_question_id=depends_on_question.id,
-                data_source=ExpressionContext.ContextSources.TASK,
+                data_source=ExpressionContext.ContextSources.SECTION,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -2214,7 +2218,7 @@ class TestSelectContextSourceQuestion:
                     "hint": "Test hint",
                     "add_context": "text",
                 },
-                data_source=ExpressionContext.ContextSources.TASK,
+                data_source=ExpressionContext.ContextSources.SECTION,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.post(
@@ -2228,7 +2232,7 @@ class TestSelectContextSourceQuestion:
         )
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            r"^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions/add\?question_data_type=YES_NO$"
+            r"^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/questions/add\?question_data_type=YES_NO$"
         )
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -2251,7 +2255,7 @@ class TestSelectContextSourceQuestion:
                     "preview": False,
                 },
                 component_id=question.id,
-                data_source=ExpressionContext.ContextSources.TASK,
+                data_source=ExpressionContext.ContextSources.SECTION,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.post(
@@ -2315,7 +2319,7 @@ class TestSelectContextSourceQuestion:
                     "add_context": "greater_than_expression",
                 },
                 component_id=target_question.id,
-                data_source=ExpressionContext.ContextSources.TASK,
+                data_source=ExpressionContext.ContextSources.SECTION,
                 depends_on_question_id=depends_on_question.id
                 if expression_type is ExpressionType.CONDITION and not existing_expression
                 else None,
@@ -2462,7 +2466,7 @@ class TestEditQuestion:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions$")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/questions$")
         assert spy_validate.call_count == 1
 
     def test_post_update_question_in_group_redirects_to_group_questions_page(
@@ -2569,7 +2573,7 @@ class TestEditQuestion:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+            "^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
         )
         assert spy_validate.call_count == 0
 
@@ -2618,7 +2622,7 @@ class TestEditQuestion:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/questions$")
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/questions$")
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             assert "question" not in sess
@@ -3166,7 +3170,7 @@ class TestAddQuestionCondition:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+            "^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
         )
         assert len(target_question.expressions) == 0
 
@@ -3649,7 +3653,7 @@ class TestEditQuestionCondition:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+            "^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
         )
         assert len(target_question.expressions) == 1
 
@@ -3842,7 +3846,7 @@ class TestAddQuestionValidation:
 
             assert get_h1_text(soup) == "Add validation"
 
-            assert "Task" in soup.text
+            assert "Section" in soup.text
             assert "Organisation information" in soup.text
 
             assert "Question" in soup.text
@@ -3989,7 +3993,7 @@ class TestAddQuestionValidation:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+            "^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
         )
         assert len(target_question.expressions) == 0
 
@@ -4184,7 +4188,7 @@ class TestEditQuestionValidation:
 
             assert get_h1_text(soup) == "Edit validation"
 
-            assert "Task" in soup.text
+            assert "Section" in soup.text
             assert "Organisation information" in soup.text
 
             assert "Question" in soup.text
@@ -4479,7 +4483,7 @@ class TestEditQuestionValidation:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            "^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+            "^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
         )
         assert len(target_question.expressions) == 1
 
@@ -4676,7 +4680,7 @@ class TestManageGuidance:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            r"^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+            r"^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
         )
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -4909,7 +4913,7 @@ class TestManageAddAnotherGuidance:
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
-            r"^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+            r"^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
         )
 
         with authenticated_grant_admin_client.session_transaction() as sess:

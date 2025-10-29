@@ -33,7 +33,7 @@ def submission_tasklist(grant_id: UUID, submission_id: UUID) -> ResponseReturnVa
 
             return redirect(
                 url_for(
-                    "deliver_grant_funding.list_report_tasks",
+                    "deliver_grant_funding.list_report_sections",
                     grant_id=runner.submission.grant.id,
                     report_id=runner.submission.collection.id,
                 )
@@ -78,15 +78,15 @@ def ask_a_question(
             runner.save_question_answer()
         return redirect(runner.next_url)
 
-    is_first_question_in_task_preview = False
+    is_first_question_in_section_preview = False
     if session.get("test_submission_form_id", None):
         question = runner.questions[0]
-        is_first_question_in_task_preview = question == question.form.cached_questions[0]
+        is_first_question_in_section_preview = question == question.form.cached_questions[0]
 
     return render_template(
         "deliver_grant_funding/runner/ask_a_question.html",
         runner=runner,
-        is_first_question_in_task_preview=is_first_question_in_task_preview,
+        is_first_question_in_section_preview=is_first_question_in_section_preview,
     )
 
 

@@ -16,15 +16,15 @@
       <span class="govuk-visually-hidden">Report:</span>
       <span>{{ report.name }}</span>
     {% endset %}
-    {% do items.append({"html": report_name_html, "href": url_for("deliver_grant_funding.list_report_tasks", grant_id=grant.id, report_id=report.id)}) %}
+    {% do items.append({"html": report_name_html, "href": url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id)}) %}
   {% endif %}
 
   {% if form %}
     {% set form_name_html %}
-      <span class="govuk-visually-hidden">Task:</span>
+      <span class="govuk-visually-hidden">Section:</span>
       <span>{{ form.title }}</span>
     {% endset %}
-    {% do items.append({"html": form_name_html, "href": url_for("deliver_grant_funding.list_task_questions", grant_id=grant.id, form_id=form.id) }) %}
+    {% do items.append({"html": form_name_html, "href": url_for("deliver_grant_funding.list_section_questions", grant_id=grant.id, form_id=form.id) }) %}
   {% endif %}
 
   {% if truncated == True %}

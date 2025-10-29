@@ -9,7 +9,7 @@
 {% set form = runner.question_form if not runner.add_another_summary_context else runner.add_another_summary_form %}
 
 {% block beforeContent %}
-  {{ collection_before(runner, override_back_link=url_for("deliver_grant_funding.list_task_questions", grant_id=runner.submission.grant.id, form_id=runner.form.id) if (is_first_question_in_task_preview and runner.add_another_index is none) else None) }}
+  {{ collection_before(runner, override_back_link=url_for("deliver_grant_funding.list_section_questions", grant_id=runner.submission.grant.id, form_id=runner.form.id) if (is_first_question_in_section_preview and runner.add_another_index is none) else None) }}
 {% endblock beforeContent %}
 
 {% block content %}

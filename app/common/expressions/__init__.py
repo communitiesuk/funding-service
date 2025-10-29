@@ -58,8 +58,8 @@ class ExpressionContext(ChainMap[str, Any]):
 
     class ContextSources(enum.StrEnum):
         # We actually expose all questions in the collection, but for now we're limited contextual references to
-        # just questions in the same task.
-        TASK = "A previous question in this task"
+        # just questions in the same section.
+        SECTION = "A previous question in this section"
 
     def __init__(
         self,

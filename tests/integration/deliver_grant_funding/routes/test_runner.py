@@ -150,7 +150,7 @@ class TestSubmissionTasklist:
         else:
             assert response.status_code == 302
             expected_location = url_for(
-                "deliver_grant_funding.list_report_tasks",
+                "deliver_grant_funding.list_report_sections",
                 grant_id=grant.id,
                 report_id=submission.collection.id,
             )

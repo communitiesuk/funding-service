@@ -41,8 +41,8 @@ from tests.e2e.reports_pages import (
     AddQuestionDetailsPage,
     EditQuestionGroupPage,
     EditQuestionPage,
-    ManageTaskPage,
-    ReportTasksPage,
+    ManageSectionPage,
+    ReportSectionsPage,
     RunnerCheckYourAnswersPage,
     RunnerQuestionPage,
     RunnerTasklistPage,
@@ -455,11 +455,11 @@ def create_grant(new_grant_name: str, all_grants_page: AllGrantsPage) -> GrantDa
 
 def create_question_or_group(
     question_definition: TQuestionToTest,
-    manage_task_page: ManageTaskPage | EditQuestionGroupPage,
+    manage_section_page: ManageSectionPage | EditQuestionGroupPage,
     parent_group_name: str | None = None,
 ):
     if question_definition["type"] == "group":
-        add_question_group_page = manage_task_page.click_add_question_group(question_definition["text"])
+        add_question_group_page = manage_section_page.click_add_question_group(question_definition["text"])
         add_question_group_page.fill_in_question_group_name()
         group_display_options_page = add_question_group_page.click_continue()
         group_display_options_page.click_question_group_display_type(question_definition["display_options"])
@@ -479,9 +479,9 @@ def create_question_or_group(
         if parent_group_name:
             edit_question_group_page.click_parent_group_breadcrumb()
         else:
-            edit_question_group_page.click_task_breadcrumb()
+            edit_question_group_page.click_section_breadcrumb()
     else:
-        create_question(question_definition, manage_task_page, parent_group_name=parent_group_name)
+        create_question(question_definition, manage_section_page, parent_group_name=parent_group_name)
 
 
 def _assert_reports_breadcrumb_layout(page: Page, parent_group_name: str | None = None) -> None:
@@ -499,7 +499,7 @@ def _assert_reports_breadcrumb_layout(page: Page, parent_group_name: str | None 
 
 def create_question(
     question_definition: TQuestionToTest,
-    manage_page: ManageTaskPage | EditQuestionGroupPage,
+    manage_page: ManageSectionPage | EditQuestionGroupPage,
     parent_group_name: str = None,
 ) -> None:
     question_type_page = manage_page.click_add_question()
@@ -523,7 +523,7 @@ def create_question(
         select_data_source_page = question_details_page.click_insert_data(
             field_name="hint", question=hint.data_from_question
         )
-        select_data_source_page.select_data_source("A previous question in this task")
+        select_data_source_page.select_data_source("A previous question in this section")
         select_question_page = select_data_source_page.click_select()
         select_question_page.choose_question(hint.data_from_question)
         select_question_page.click_use_data()
@@ -563,7 +563,7 @@ def create_question(
     if isinstance(manage_page, EditQuestionGroupPage):
         edit_question_page.click_question_group_breadcrumb(manage_page.group_name)
     else:
-        edit_question_page.click_task_breadcrumb()
+        edit_question_page.click_section_breadcrumb()
 
 
 def add_advanced_formatting(
@@ -670,9 +670,9 @@ def complete_question_group(
 
 
 def complete_task(
-    tasklist_page: RunnerTasklistPage, task_name: str, grant_name: str, questions_to_test: dict[str, TQuestionToTest]
-) -> RunnerTasklistPage:
-    tasklist_page.click_on_task(task_name=task_name)
+    tasklist_page: RunnerTasklistPage, section_name: str, grant_name: str, questions_to_test: dict[str, TQuestionToTest]
+) -> None:
+    tasklist_page.click_on_section(section_name=section_name)
     for question_to_test in questions_to_test.values():
         question_page = RunnerQuestionPage(
             tasklist_page.page,
@@ -714,19 +714,19 @@ def task_check_your_answers(
 
     _assert_check_your_answers(list(questions_to_test.values()))
 
-    expect(check_your_answers_page.page.get_by_text("Have you completed this task?", exact=True)).to_be_visible()
+    expect(check_your_answers_page.page.get_by_text("Have you completed this section?", exact=True)).to_be_visible()
 
     check_your_answers_page.click_mark_as_complete_yes()
     tasklist_page = check_your_answers_page.click_save_and_continue(report_name=report_name)
 
 
-def navigate_to_report_tasks_page(page: Page, domain: str, grant_name: str, report_name: str) -> ReportTasksPage:
+def navigate_to_report_sections_page(page: Page, domain: str, grant_name: str, report_name: str) -> ReportSectionsPage:
     all_grants_page = AllGrantsPage(page, domain)
     all_grants_page.navigate()
     grant_dashboard_page = all_grants_page.click_grant(grant_name)
     grant_reports_page = grant_dashboard_page.click_reports(grant_name)
-    report_tasks_page = grant_reports_page.click_manage_tasks(grant_name=grant_name, report_name=report_name)
-    return report_tasks_page
+    report_sections_page = grant_reports_page.click_manage_sections(grant_name=grant_name, report_name=report_name)
+    return report_sections_page
 
 
 def assert_question_visibility(question_page: RunnerQuestionPage, question_to_test: TQuestionToTest) -> None:
@@ -860,30 +860,30 @@ def test_create_and_preview_report(
         grant_reports_page.check_report_exists(new_report_name)
 
         # Add a first task and a questions/question group
-        add_task_page = grant_reports_page.click_add_task(report_name=new_report_name, grant_name=new_grant_name)
-        first_task_name = "E2E first task - grouped questions"
-        add_task_page.fill_in_task_name(first_task_name)
-        report_tasks_page = add_task_page.click_add_task()
-        report_tasks_page.check_task_exists(first_task_name)
+        add_section_page = grant_reports_page.click_add_section(report_name=new_report_name, grant_name=new_grant_name)
+        first_section_name = "E2E first task - grouped questions"
+        add_section_page.fill_in_section_name(first_section_name)
+        report_sections_page = add_section_page.click_add_section()
+        report_sections_page.check_section_exists(first_section_name)
 
-        manage_task_page = report_tasks_page.click_manage_task(task_name=first_task_name)
+        manage_section_page = report_sections_page.click_manage_section(section_name=first_section_name)
         for question_to_test in questions_with_groups_to_test.values():
-            create_question_or_group(question_to_test, manage_task_page)
+            create_question_or_group(question_to_test, manage_section_page)
 
         # Add a second task and a question of each type to the task
-        report_tasks_page = navigate_to_report_tasks_page(page, domain, new_grant_name, new_report_name)
-        add_task_page = report_tasks_page.click_add_task()
-        second_task_name = "E2E second task - all question types"
-        add_task_page.fill_in_task_name(second_task_name)
-        report_tasks_page = add_task_page.click_add_task()
-        report_tasks_page.check_task_exists(second_task_name)
+        report_sections_page = navigate_to_report_sections_page(page, domain, new_grant_name, new_report_name)
+        add_section_page = report_sections_page.click_add_section()
+        second_section_name = "E2E second task - all question types"
+        add_section_page.fill_in_section_name(second_section_name)
+        report_sections_page = add_section_page.click_add_section()
+        report_sections_page.check_section_exists(second_section_name)
 
-        manage_task_page = report_tasks_page.click_manage_task(task_name=second_task_name)
+        manage_section_page = report_sections_page.click_manage_section(section_name=second_section_name)
         for question_to_test in questions_to_test.values():
-            create_question_or_group(question_to_test, manage_task_page)
+            create_question_or_group(question_to_test, manage_section_page)
 
         # Add grant team member
-        grant_team_page = manage_task_page.click_nav_grant_team()
+        grant_team_page = manage_section_page.click_nav_grant_team()
         add_grant_team_member_page = grant_team_page.click_add_grant_team_member()
         grant_team_email = e2e_user_configs[DeliverGrantFundingUserType.GRANT_TEAM_MEMBER].email
         add_grant_team_member_page.fill_in_user_email(grant_team_email)
@@ -895,27 +895,27 @@ def test_create_and_preview_report(
         # Preview the report
         grant_details_page = GrantDetailsPage(page, domain, new_grant_name)
         grant_reports_page = grant_details_page.click_reports(new_grant_name)
-        report_tasks_page = grant_reports_page.click_manage_tasks(
+        report_sections_page = grant_reports_page.click_manage_sections(
             grant_name=new_grant_name, report_name=new_report_name
         )
-        tasklist_page = report_tasks_page.click_preview_report()
+        tasklist_page = report_sections_page.click_preview_report()
 
         # Check the tasklist has loaded
         expect(
             tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
         ).to_be_visible()
         expect(tasklist_page.submit_button).to_be_disabled()
-        expect(tasklist_page.page.get_by_role("link", name=first_task_name)).to_be_visible()
-        expect(tasklist_page.page.get_by_role("link", name=second_task_name)).to_be_visible()
+        expect(tasklist_page.page.get_by_role("link", name=first_section_name)).to_be_visible()
+        expect(tasklist_page.page.get_by_role("link", name=second_section_name)).to_be_visible()
 
         # Complete the first task with question groups
-        complete_task(tasklist_page, first_task_name, new_grant_name, questions_with_groups_to_test)
+        complete_task(tasklist_page, first_section_name, new_grant_name, questions_with_groups_to_test)
 
         # Check your answers page
         task_check_your_answers(tasklist_page, new_grant_name, new_report_name, questions_with_groups_to_test)
 
         # Complete the second task with flat questions list
-        complete_task(tasklist_page, second_task_name, new_grant_name, questions_to_test)
+        complete_task(tasklist_page, second_section_name, new_grant_name, questions_to_test)
 
         # Check your answers page
         task_check_your_answers(tasklist_page, new_grant_name, new_report_name, questions_to_test)
@@ -926,21 +926,21 @@ def test_create_and_preview_report(
         ).to_be_visible()
         expect(tasklist_page.submit_button).to_be_enabled()
 
-        report_tasks_page = tasklist_page.click_submit()
+        report_sections_page = tasklist_page.click_submit()
 
         # View the submitted report
-        grant_reports_page = report_tasks_page.click_reports_breadcrumb()
+        grant_reports_page = report_sections_page.click_reports_breadcrumb()
         expect(grant_reports_page.summary_row_submissions.get_by_text("1 test submission")).to_be_visible()
         submissions_list_page = grant_reports_page.click_view_submissions(new_report_name)
 
         view_submission_page = submissions_list_page.click_on_first_submission()
 
-        answers_list = view_submission_page.get_questions_list_for_task(first_task_name)
+        answers_list = view_submission_page.get_questions_list_for_section(first_section_name)
         expect(answers_list).to_be_visible()
 
         assert_check_your_answer_for_all_questions(list(questions_with_groups_to_test.values()), answers_list)
 
-        answers_list = view_submission_page.get_questions_list_for_task(second_task_name)
+        answers_list = view_submission_page.get_questions_list_for_section(second_section_name)
         expect(answers_list).to_be_visible()
         assert_check_your_answer_for_all_questions(list(questions_to_test.values()), answers_list)
 

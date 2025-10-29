@@ -7,6 +7,7 @@
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/.claude" />
       <excludeFolder url="file://$MODULE_DIR$/.import_linter_cache" />
+      <excludeFolder url="file://$MODULE_DIR$/app/assets/dist" />
     </content>
     <orderEntry type="jdk" jdkName="uv (funding-service)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

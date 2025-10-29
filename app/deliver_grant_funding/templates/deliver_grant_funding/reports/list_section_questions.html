@@ -23,12 +23,12 @@
       {% endwith %}
       {% if delete_form %}
         {% set banner_html %}
-          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this task?</p>
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this section?</p>
           <form method="post" novalidate>
             {{ delete_form.csrf_token }}
             <div class="govuk-button-group govuk-!-margin-bottom-0">
-              {{ delete_form.confirm_deletion(params={"text": "Yes, delete this task", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
-              <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_task_questions', grant_id=grant.id, form_id=db_form.id) }}">Cancel</a>
+              {{ delete_form.confirm_deletion(params={"text": "Yes, delete this section", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+              <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=db_form.id) }}">Cancel</a>
             </div>
           </form>
         {% endset %}
@@ -47,7 +47,7 @@
     <div class="govuk-grid-column-one-third govuk-!-text-align-right">
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Preview task", "classes": "govuk-button--secondary", "disabled": true if db_form.cached_questions | length == 0 else false}) }}
+        {{ form.submit(params={"text": "Preview section", "classes": "govuk-button--secondary", "disabled": true if db_form.cached_questions | length == 0 else false}) }}
       </form>
     </div>
   </div>
@@ -55,7 +55,7 @@
     <div class="govuk-grid-column-full">
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Questions</h2>
       {% if not db_form.cached_all_components %}
-        <p class="govuk-body">This task has no questions.</p>
+        <p class="govuk-body">This section has no questions.</p>
       {% else %}
         {{ question_table(db_form, interpolate, role_can_edit=grant_admin) }}
       {% endif %}
@@ -71,11 +71,11 @@
     </div>
     {% if grant_admin %}
       <div class="govuk-grid-column-full">
-        <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage task</h2>
+        <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage section</h2>
 
         <ul class="govuk-list govuk-list--spaced">
-          <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.change_form_name", grant_id=grant.id, form_id=db_form.id) }}">Change task name</a></li>
-          <li><a class="govuk-link govuk-link--no-visited-state" href="?delete">Delete task</a></li>
+          <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.change_form_name", grant_id=grant.id, form_id=db_form.id) }}">Change section name</a></li>
+          <li><a class="govuk-link govuk-link--no-visited-state" href="?delete">Delete section</a></li>
         </ul>
       </div>
     {% endif %}
