@@ -46,6 +46,8 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
 
     component_id: UUID | None = None
 
+    is_add_another_guidance: bool | None = False
+
     data_source: ExpressionContext.ContextSources | None = None
 
 

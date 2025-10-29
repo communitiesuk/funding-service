@@ -135,7 +135,15 @@
           {% endif %}
         {% endset %}
 
-        {# todo: add add another summary page guidance config #}
+
+        {% set guidance_text %}
+          {% if group.add_another_guidance_body %}
+            <pre class="app-pre-markdown">{{ interpolate(group.add_another_guidance_body) }}</pre>
+          {% else %}
+            (None set)
+          {% endif %}
+        {% endset %}
+
         {{
           govukSummaryList({
             "rows": [{
@@ -147,6 +155,16 @@
                   "visuallyHiddenText": "add another response summary",
                   "href": url_for("deliver_grant_funding.change_group_add_another_summary", grant_id=grant.id, group_id=group.id)
                 }] if group.questions_in_add_another_summary else []
+              }
+            }, {
+              "key": {"text": "Guidance text"},
+              "value": {"html": guidance_text},
+              "actions": {
+                "items": [{
+                  "text": "Change",
+                  "visuallyHiddenText": "add another guidance text",
+                  "href": url_for("deliver_grant_funding.manage_add_another_guidance", grant_id=grant.id, group_id=group.id)
+                }]
               }
             }]
           })

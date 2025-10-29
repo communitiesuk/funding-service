@@ -3,11 +3,11 @@
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "common/govuk/tabs/macro.html" import govukTabs %}
 
-{% set page_title = "Add guidance" if not question.guidance_body else "Edit guidance" %}
-{% set submit_label = "Add guidance" if not question.guidance_body else "Update guidance" %}
+{% set page_title = "Add another summary page guidance" if not question.add_another_guidance_body else "Edit add another summary page guidance" %}
+{% set submit_label = "Add guidance" if not question.add_another_guidance_body else "Update guidance" %}
 
 {% block beforeContent %}
-  {% set back_link = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) if not question.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.id) %}
+  {% set back_link = url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.id) %}
   {{
     govukBackLink({
         "text": "Back",
@@ -61,10 +61,9 @@
         <li>explain how to answer the question in more detail</li>
         <li>format your content with paragraphs, headings, lists or links</li>
       </ul>
-      <p class="govuk-body">Guidance will be displayed on the add another summary page.</p>
-      <form method="post" novalidate>
+      <p class="govuk-body">Guidance will be displayed at the top of the page, above your question.</p>
+      <form method="post" novalidate class="govuk-!-margin-top-7">
         {{ form.csrf_token }}
-        {{ form.guidance_heading(params={"label": {"classes": "govuk-label--m"} }) }}
 
 
         {% set write_guidance_html %}
