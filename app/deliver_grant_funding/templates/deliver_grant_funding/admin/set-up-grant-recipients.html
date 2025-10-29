@@ -22,7 +22,9 @@
       <p class="govuk-body">Set up grant recipients by selecting all of the organisations that have been awarded funding through the grant. They will be able to see and submit monitoring reports for the grant.</p>
 
       {% set existingGrantRecipientsHtml %}
-        <p class="govuk-body">{{ grant_recipients | length }} organisation{{ ' has' if grant_recipients | length == 1 else 's have' }} already been set up as grant recipients:</p>
+        <p class="govuk-body">
+          {{ grant_recipients | length }} organisation{{ ' has' if grant_recipients | length == 1 else 's have' }} already been set up as {{ 'a grant recipient' if grant_recipients | length == 1 else 'grant recipients' }}:
+        </p>
         <ul class="govuk-list govuk-list--bullet">
           {% for gr in grant_recipients %}
             <li>
