@@ -71,6 +71,7 @@ from app.deliver_grant_funding.forms import (
     AddTaskForm,
     ConditionSelectQuestionForm,
     GroupAddAnotherOptionsForm,
+    GroupAddAnotherSummaryForm,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
@@ -382,6 +383,42 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
 
     return render_template(
         "deliver_grant_funding/reports/change_question_group_display_options.html",
+        grant=db_group.form.collection.grant,
+        group=db_group,
+        db_form=db_group.form,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-add-another-summary", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def change_group_add_another_summary(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    db_group = get_group_by_id(group_id)
+    form = GroupAddAnotherSummaryForm(group=db_group)
+
+    if form.validate_on_submit():
+        update_group(
+            db_group,
+            expression_context=ExpressionContext.build_expression_context(
+                collection=db_group.form.collection, mode="interpolation"
+            ),
+            presentation_options=QuestionPresentationOptions(
+                add_another_summary_line_question_ids=form.questions_to_show_in_add_another_summary.data
+            ),
+        )
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=grant_id,
+                group_id=db_group.id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/change_question_group_add_another_summary.html",
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,

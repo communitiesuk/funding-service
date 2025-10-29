@@ -6,6 +6,7 @@ from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
+    GovCheckboxesInput,
     GovCheckboxInput,
     GovRadioInput,
     GovSelect,
@@ -13,7 +14,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextArea,
     GovTextInput,
 )
-from wtforms import Field, HiddenField, IntegerField, SelectField
+from wtforms import Field, HiddenField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, ValidationError
@@ -32,7 +33,7 @@ from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Form, Question
+    from app.common.data.models import Component, Form, Group, Question
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -243,6 +244,34 @@ class GroupAddAnotherOptionsForm(FlaskForm):
         ],
         widget=GovRadioInput(),
     )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
+class GroupAddAnotherSummaryForm(FlaskForm):
+    questions_to_show_in_add_another_summary = SelectMultipleField(
+        "Which question answers should be included when showing a summary of each add another answer?",
+        default=[],
+        widget=GovCheckboxesInput(),
+        choices=[],
+        validators=[
+            DataRequired(
+                "Select which question answers should be included when showing a summary of each add another answer"
+            )
+        ],
+        render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
+    )
+
+    def __init__(self, *args: Any, group: "Group", **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.questions_to_show_in_add_another_summary.choices = [
+            (str(question.id), question.name) for question in group.cached_questions
+        ]
+
+        if not self.is_submitted():
+            self.questions_to_show_in_add_another_summary.data = [
+                str(question.id) for question in group.questions_in_add_another_summary
+            ]
+
     submit = SubmitField(widget=GovSubmitInput())
 
 

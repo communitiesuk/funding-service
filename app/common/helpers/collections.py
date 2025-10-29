@@ -496,14 +496,9 @@ class SubmissionHelper:
 
         questions = []
         if component.add_another_container.is_group:
-            if component.add_another_container.presentation_options.add_another_summary_line_question_ids:
-                for qid in component.add_another_container.presentation_options.add_another_summary_line_question_ids:
-                    if qid in [q.id for q in visible_questions]:
-                        try:
-                            questions.append(self.get_question(qid))
-                        except ValueError:
-                            pass
-            questions = questions or visible_questions
+            for question in cast("Group", component.add_another_container).questions_in_add_another_summary:
+                if question in visible_questions:
+                    questions.append(question)
         else:
             questions = [cast("Question", component)]
 

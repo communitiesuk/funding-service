@@ -534,6 +534,18 @@ class Group(Component):
 
         return False
 
+    @property
+    def questions_in_add_another_summary(self) -> list["Question"]:
+        if not self.add_another:
+            return []
+        if self.presentation_options.add_another_summary_line_question_ids:
+            return [
+                question
+                for question in self.cached_questions
+                if question.id in self.presentation_options.add_another_summary_line_question_ids
+            ] or self.cached_questions
+        return self.cached_questions
+
 
 class SubmissionEvent(BaseModel):
     __tablename__ = "submission_event"
