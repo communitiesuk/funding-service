@@ -683,6 +683,7 @@ class TestCheckYourAnswers:
             form__title="Colour information",
             form__collection__grant=grant,
         )
+
         submission = factories.submission.create(collection=question.form.collection, created_by=client.user)
 
         response = client.get(
@@ -701,6 +702,55 @@ class TestCheckYourAnswers:
             assert "Check your answers" in soup.text
             assert "What's your favourite colour?" in soup.text
             assert "Colour information" in soup.text
+
+    def test_get_check_your_answers_with_extracts_add_another(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            text="What's your favourite colour?",
+            form__title="Colour information",
+            form__collection__grant=authenticated_grant_admin_client.grant,
+        )
+        group = factories.group.create(
+            name="Favourite colour details",
+            form=question.form,
+            add_another=True,
+        )
+        nested_question_1 = factories.question.create(
+            text="Why do you like this colour?", parent=group, form=group.form
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+        submission.data = {
+            str(group.id): [
+                {str(nested_question_1.id): "First reason"},
+                {str(nested_question_1.id): "Second reason"},
+            ]
+        }
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.check_your_answers",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+                form_id=question.form.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Check your answers" in soup.text
+        assert "Answers for “Favourite colour details”" in soup.text
+        assert soup.find_all("h2", {"class": "govuk-summary-card__title"})[0].text.strip() == "First reason"
+        assert soup.find_all("h2", {"class": "govuk-summary-card__title"})[1].text.strip() == "Second reason"
+        assert (
+            len(
+                [
+                    entry
+                    for entry in soup.find_all("dt", {"class": "govuk-summary-list__key"})
+                    if entry.text.strip() == "Why do you like this colour?"
+                ]
+            )
+            == 2
+        )
 
     @pytest.mark.parametrize(
         "client_fixture",

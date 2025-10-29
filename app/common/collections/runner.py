@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.common.collections.forms import DynamicQuestionForm
     from app.common.data.models import Form, Group, Question
     from app.common.data.models_user import User
+    from app.common.expressions import ExpressionContext
 
 
 class FormRunner:
@@ -71,11 +72,7 @@ class FormRunner:
             self.component = question.parent
             self.questions = self.submission.cached_get_ordered_visible_questions(
                 self.component,
-                override_context=self.submission.cached_evaluation_context.with_add_another_context(
-                    question, self.submission, add_another_index=self.add_another_index, allow_new_index=True
-                )
-                if self.add_another_index is not None
-                else None,
+                override_context=self.runner_expression_context if self.add_another_index is not None else None,
             )
         else:
             self.component = question
@@ -300,15 +297,7 @@ class FormRunner:
         if not self.component:
             raise ValueError("Question context not set")
 
-        context = self.submission.cached_evaluation_context
-        if self.add_another_index is not None:
-            context = context.with_add_another_context(
-                self.component,
-                submission_helper=self.submission,
-                add_another_index=self.add_another_index,
-                allow_new_index=True,
-            )
-        if not self.submission.is_component_visible(self.component, context):
+        if not self.submission.is_component_visible(self.component, self.runner_expression_context):
             self._valid = False
         elif self.submission.is_completed:
             self._valid = False
@@ -389,6 +378,17 @@ class FormRunner:
         ):
             caption = add_another_suffix(self.component.add_another_container.name, self.add_another_index)
         return caption
+
+    @property
+    def runner_expression_context(self) -> "ExpressionContext":
+        if self.add_another_index is not None and self.component and self.component.add_another_container:
+            return self.submission.cached_evaluation_context.with_add_another_context(
+                self.component,
+                submission_helper=self.submission,
+                add_another_index=self.add_another_index,
+                allow_new_index=True,
+            )
+        return self.submission.cached_evaluation_context
 
 
 def add_another_suffix(heading: str, add_another_index: int) -> str:
