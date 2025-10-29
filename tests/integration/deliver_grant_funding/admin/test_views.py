@@ -160,7 +160,7 @@ class TestReportingLifecycleTasklist:
         assert task_list is not None
 
         task_items = task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(task_items) == 2
+        assert len(task_items) == 3
 
         organisations_task = task_items[0]
         task_title = organisations_task.find("a", {"class": "govuk-link"})
@@ -222,7 +222,7 @@ class TestReportingLifecycleTasklist:
         assert task_list is not None
 
         task_items = task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(task_items) == 2
+        assert len(task_items) == 3
 
         task_title = task_items[1].find("a", {"class": "govuk-link"})
         assert task_title is not None
@@ -249,7 +249,7 @@ class TestReportingLifecycleTasklist:
         assert task_list is not None
 
         task_items = task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(task_items) == 2
+        assert len(task_items) == 3
 
         task_title = task_items[1].find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
@@ -518,3 +518,158 @@ class TestManageOrganisations:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "The tab-separated data is not valid:")
+
+
+class TestManageGrantRecipients:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 403),
+        ],
+    )
+    def test_manage_grant_recipients_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create()
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients")
+        assert response.status_code == expected_code
+
+    def test_get_manage_grant_recipients_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        factories.organisation.create(name="Org 1", can_manage_grants=False)
+        factories.organisation.create(name="Org 2", can_manage_grants=False)
+        factories.organisation.create(name="Org 3", can_manage_grants=False)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Set up grant recipients"
+
+        select_element = soup.find("select", {"id": "recipients"})
+        assert select_element is not None
+
+        options = select_element.find_all("option")
+        option_texts = [opt.get_text(strip=True) for opt in options]
+
+        assert "Org 1" in option_texts
+        assert "Org 2" in option_texts
+        assert "Org 3" in option_texts
+
+    def test_get_excludes_grant_managing_organisations(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        from tests.models import _get_grant_managing_organisation
+
+        grant = factories.grant.create(name="Test Grant")
+        grant_managing_org = _get_grant_managing_organisation()
+        factories.organisation.create(name="Regular Org", can_manage_grants=False)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        select_element = soup.find("select", {"id": "recipients"})
+        options = select_element.find_all("option")
+        option_texts = [opt.get_text(strip=True) for opt in options]
+
+        assert grant_managing_org.name not in option_texts
+        assert "Regular Org" in option_texts
+
+    def test_get_excludes_existing_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        factories.organisation.create(name="Org 2", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org1)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        select_element = soup.find("select", {"id": "recipients"})
+        options = select_element.find_all("option")
+        option_texts = [opt.get_text(strip=True) for opt in options]
+
+        assert "Org 1" not in option_texts
+        assert "Org 2" in option_texts
+
+    def test_post_creates_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients",
+            data={"recipients": [str(org1.id), str(org2.id)], "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Created 2 grant recipients.")
+
+        from app.common.data.interfaces.grant_recipients import get_grant_recipients
+
+        grant_recipients = get_grant_recipients(grant)
+        assert len(grant_recipients) == 2
+        recipient_org_ids = {gr.organisation_id for gr in grant_recipients}
+        assert org1.id in recipient_org_ids
+        assert org2.id in recipient_org_ids
+
+    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        org = factories.organisation.create(name="Org 1", can_manage_grants=False)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients",
+            data={"recipients": [str(org.id)], "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}"
+
+    def test_post_without_recipients_shows_validation_error(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        factories.organisation.create(name="Org 1", can_manage_grants=False)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients",
+            data={"recipients": [], "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "This field is required.")
+
+    def test_get_with_no_available_organisations_shows_empty_select(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        from tests.models import _get_grant_managing_organisation
+
+        grant = factories.grant.create(name="Test Grant")
+        _get_grant_managing_organisation()
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        select_element = soup.find("select", {"id": "recipients"})
+        assert select_element is not None
+
+        options = select_element.find_all("option")
+        assert len(options) == 0

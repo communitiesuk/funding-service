@@ -712,3 +712,13 @@ class ComponentReference(BaseModel):
     _sort_order: Mapped[int] = column_property(
         select(Component.order).where(Component.id == foreign(depends_on_component_id)).scalar_subquery()
     )
+
+
+class GrantRecipient(BaseModel):
+    __tablename__ = "grant_recipient"
+
+    organisation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organisation.id"))
+    grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
+
+    organisation: Mapped[Organisation] = relationship("Organisation")
+    grant: Mapped[Grant] = relationship("Grant")

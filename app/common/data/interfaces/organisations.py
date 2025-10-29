@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from flask import current_app
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
@@ -6,6 +8,10 @@ from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptio
 from app.common.data.models import Organisation
 from app.common.data.types import OrganisationData, OrganisationStatus
 from app.extensions import db
+
+
+def get_organisations(can_manage_grants: bool) -> Sequence[Organisation]:
+    return db.session.scalars(select(Organisation).where(Organisation.can_manage_grants == can_manage_grants)).all()
 
 
 def get_organisation_count() -> int:

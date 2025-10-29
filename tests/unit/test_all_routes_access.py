@@ -161,10 +161,20 @@ routes_with_access_controlled_by_flask_admin = [
     "collection.edit_view",
     "collection.export",
     "collection.index_view",
+    "grantrecipient.action_view",
+    "grantrecipient.ajax_lookup",
+    "grantrecipient.ajax_update",
+    "grantrecipient.create_view",
+    "grantrecipient.delete_view",
+    "grantrecipient.details_view",
+    "grantrecipient.edit_view",
+    "grantrecipient.export",
+    "grantrecipient.index_view",
     "reporting_lifecycle.index",
     "reporting_lifecycle.tasklist",
     "reporting_lifecycle.make_live",
     "reporting_lifecycle.set_up_organisations",
+    "reporting_lifecycle.set_up_grant_recipients",
 ]
 
 

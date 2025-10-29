@@ -22,6 +22,7 @@ from tests.models import (
     _ExpressionFactory,
     _FormFactory,
     _GrantFactory,
+    _GrantRecipientFactory,
     _GroupFactory,
     _InvitationFactory,
     _MagicLinkFactory,
@@ -137,6 +138,7 @@ _Factories = namedtuple(
     "_Factories",
     [
         "grant",
+        "grant_recipient",
         "user",
         "magic_link",
         "collection",
@@ -159,6 +161,7 @@ _Factories = namedtuple(
 def factories(db_session: Session) -> _Factories:
     return _Factories(
         grant=_GrantFactory,
+        grant_recipient=_GrantRecipientFactory,
         user=_UserFactory,
         magic_link=_MagicLinkFactory,
         collection=_CollectionFactory,

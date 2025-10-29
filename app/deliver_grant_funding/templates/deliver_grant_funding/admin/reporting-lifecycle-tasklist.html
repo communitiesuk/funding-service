@@ -18,18 +18,17 @@
         Reporting lifecycle
       </h1>
 
+      <p class="govuk-body">Prepare for a monitoring report to go live by completing these tasks.</p>
+
       {% set rows=[] %}
       {%
         do rows.append({
-          "title": {
-            "text": "Set up organisations",
-          },
-          "status": {
-            "html": govukTag({"text": organisation_count ~ (" organisation" if organisation_count == 1 else " organisations"), "classes": "govuk-tag--blue"})
-          },
+          "title": {"text": "Set up organisations", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": govukTag({"text": organisation_count ~ (" organisation" if organisation_count == 1 else " organisations"), "classes": "govuk-tag--blue"})},
           "href": url_for('reporting_lifecycle.set_up_organisations', grant_id=grant.id),
         })
       %}
+
       {% if grant.status == enum.grant_status.DRAFT %}
         {% set status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
         {% set link_href = url_for('reporting_lifecycle.make_live', grant_id=grant.id) %}
@@ -39,22 +38,20 @@
       {% endif %}
       {%
         do rows.append({
-          "title": {
-            "text": "Make the grant live",
-          },
-          "status": {
-            "html": status_tag
-          },
+          "title": {"text": "Make the grant live", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": status_tag},
           "href": link_href,
         })
       %}
-
-      {{
-        govukTaskList({
-          "idPrefix": "reporting-lifecycle",
-          "items": rows
+      {%
+        do rows.append({
+          "title": {"text": "Set up grant recipients", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": govukTag({"text": grant_recipients_count ~ (" grant recipient" if grant_recipients_count == 1 else " grant recipients"), "classes": "govuk-tag--blue"})},
+          "href": url_for('reporting_lifecycle.set_up_grant_recipients', grant_id=grant.id),
         })
-      }}
+      %}
+
+      {{ govukTaskList({ "idPrefix": "reporting-lifecycle", "items": rows }) }}
     </div>
   </div>
 {% endblock %}

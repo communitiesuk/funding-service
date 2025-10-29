@@ -13,7 +13,7 @@ from xgovuk_flask_admin import XGovukModelView
 
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.models import Collection, Grant, Organisation
+from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.admin.mixins import FlaskAdminPlatformAdminAccessibleMixin
@@ -309,3 +309,33 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
                 "Failed to cancel invitation(s).",
                 "error",
             )
+
+
+class PlatformAdminGrantRecipientView(PlatformAdminModelView):
+    _model = GrantRecipient
+
+    can_create = True
+    can_edit = False
+    can_delete = True
+
+    column_list = ["grant.name", "organisation.name"]
+    column_filters = ["grant.name", "organisation.name"]
+    column_searchable_list = ["grant.name", "organisation.name"]
+    column_labels = {"grant.name": "Grant name", "organisation.name": "Organisation name"}
+
+    column_formatters_detail = {
+        "grant": lambda v, c, m, n: m.grant.name,
+        "organisation": lambda v, c, m, n: m.organisation.name,
+    }
+
+    form_columns = ["grant", "organisation"]
+
+    form_args = {
+        "grant": {
+            "get_label": "name",
+        },
+        "organisation": {
+            "get_label": "name",
+            "query_factory": lambda: db.session.query(Organisation).filter_by(can_manage_grants=False),
+        },
+    }
