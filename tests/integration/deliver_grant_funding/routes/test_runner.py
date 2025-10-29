@@ -738,7 +738,7 @@ class TestCheckYourAnswers:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Check your answers" in soup.text
-        assert "Answers for favourite colour details" in soup.text
+        assert "Answers for “Favourite colour details”" in soup.text
         assert soup.find_all("h2", {"class": "govuk-summary-card__title"})[0].text.strip() == "First reason"
         assert soup.find_all("h2", {"class": "govuk-summary-card__title"})[1].text.strip() == "Second reason"
         assert (

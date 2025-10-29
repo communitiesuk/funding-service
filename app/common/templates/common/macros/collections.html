@@ -142,10 +142,11 @@
   {% set add_another_contexts = [] %}
   {% set summary_list_rows = [] %}
 
-  {% set context = submission.cached_evaluation_context if add_another_index is none else submission.cached_evaluation_context.with_add_another_context(container, submission, add_another_index=add_another_index) %}
-  {% for question in submission.cached_get_ordered_visible_questions(container, override_context=context if add_another_index is not none else none) %}
-    {# fixme: set if we're in an add another context at the top of this macro and use that everywhere we do add_another_index is not none #}
-    {% if question.add_another_container and add_another_index is none %}
+  {% set is_add_another_group = add_another_index is not none %}
+  {% set context = submission.cached_evaluation_context if not is_add_another_group else submission.cached_evaluation_context.with_add_another_context(container, submission, add_another_index=add_another_index) %}
+
+  {% for question in submission.cached_get_ordered_visible_questions(container, override_context=context if is_add_another_group else none) %}
+    {% if question.add_another_container and not is_add_another_group %}
       {# for the add another context we'll just include one row with a link to the full answers below #}
       {% if question.add_another_container not in (add_another_contexts | map(attribute="container")) %}
         {% set count = submission.get_count_for_add_another(question.add_another_container) %}
@@ -178,7 +179,7 @@
             <p class="govuk-body">You have added {% trans count=count %}{{ count }} answer{% pluralize %}{{ count }} answers{% endtrans %}</p>
 
             <p class="govuk-body">
-              <a href="#{{ question.add_another_container.id }}-answers" class="govuk-link govuk-link--no-visited-state">Answers for {{ question.add_another_container.name | lower }}</a>
+              <a href="#{{ question.add_another_container.id }}-answers" class="govuk-link govuk-link--no-visited-state">Answers for “{{ question.add_another_container.name }}”</a>
             </p>
           {% endset %}
 
@@ -254,16 +255,16 @@
       "rows": summary_list_rows,
       "card": {
         "title": {
-          "text": summary_title if summary_title else "Answer " ~ ((add_another_index + 1) if add_another_index is not none else "")
+          "text": summary_title if summary_title else "Answer " ~ ((add_another_index + 1) if is_add_another_group else "")
         }
-      } if add_another_index is not none else none
+      } if is_add_another_group else none
     })
   }}
 
   {% for context in add_another_contexts %}
     {% if context.count and context.all_answered %}
-      <div class="govuk-!-margin-bottom-6">
-        <h2 class="govuk-heading-m" id="{{ context.container.id }}-answers">Answers for {{ context.container.name | lower }}</h2>
+      <div class="govuk-!-margin-bottom-9">
+        <h2 class="govuk-heading-m" id="{{ context.container.id }}-answers">Answers for “{{ context.container.name }}”</h2>
 
         {% for i in range(context.count) %}
           {{ summary_list_for_answers(context.container, runner, add_another_index=i, summary_title=context.summaries[i].summary_text_line) }}
