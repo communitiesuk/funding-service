@@ -18,6 +18,74 @@ class TestSubmissionModel:
         assert collection.test_submissions == [test_submission]
         assert collection.live_submissions == [live_submission]
 
+    def test_test_submissions_can_be_created_without_grant_recipient(self, factories):
+        collection = factories.collection.create()
+        test_submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=None
+        )
+
+        assert test_submission.grant_recipient_id is None
+        assert test_submission.grant_recipient is None
+
+    def test_live_submissions_cannot_be_created_without_grant_recipient(self, factories, db_session):
+        from sqlalchemy.exc import IntegrityError
+
+        from app.common.data.models import Submission
+
+        collection = factories.collection.create()
+        user = factories.user.create()
+
+        submission = Submission(
+            collection_id=collection.id,
+            collection_version=collection.version,
+            mode=SubmissionModeEnum.LIVE,
+            created_by_id=user.id,
+            grant_recipient_id=None,
+            data={},
+        )
+        db_session.add(submission)
+
+        with pytest.raises(IntegrityError, match="ck_grant_recipient_if_live"):
+            db_session.flush()
+
+    def test_live_submissions_can_be_created_with_grant_recipient(self, factories):
+        collection = factories.collection.create()
+        grant_recipient = factories.grant_recipient.create()
+        live_submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+
+        assert live_submission.grant_recipient_id == grant_recipient.id
+        assert live_submission.grant_recipient == grant_recipient
+
+    def test_grant_recipient_submissions_relationship(self, factories):
+        collection = factories.collection.create()
+        grant_recipient = factories.grant_recipient.create()
+        live_submission_1 = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+        live_submission_2 = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+        test_submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=None
+        )
+
+        assert set(grant_recipient.submissions) == {live_submission_1, live_submission_2}
+        assert test_submission not in grant_recipient.submissions
+
+
+class TestGrantModel:
+    def test_grant_recipients_relationship(self, factories):
+        grant = factories.grant.create()
+        grant_recipient_1 = factories.grant_recipient.create(grant=grant)
+        grant_recipient_2 = factories.grant_recipient.create(grant=grant)
+        other_grant = factories.grant.create()
+        other_grant_recipient = factories.grant_recipient.create(grant=other_grant)
+
+        assert set(grant.grant_recipients) == {grant_recipient_1, grant_recipient_2}
+        assert other_grant_recipient not in grant.grant_recipients
+
 
 class TestQuestionModel:
     def test_question_property_selects_expressions(self, factories):

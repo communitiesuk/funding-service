@@ -531,6 +531,16 @@ class CollectionHelper:
         ]
         self.submission_helpers = {s.id: SubmissionHelper(s) for s in self.submissions}
 
+        self.grant_recipients = self.collection.grant.grant_recipients
+        self.grant_recipients_submission_helpers: dict[UUID, SubmissionHelper | None] = {
+            gr.id: None for gr in self.grant_recipients
+        }
+        self.grant_recipients_submission_helpers.update(
+            {s.grant_recipient.id: self.submission_helpers[s.id] for s in self.submissions}
+            if not self.is_test_mode
+            else {}
+        )
+
     @property
     def is_test_mode(self) -> bool:
         return self.submission_mode == SubmissionModeEnum.TEST
