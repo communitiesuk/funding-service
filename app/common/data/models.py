@@ -51,6 +51,7 @@ class Grant(BaseModel):
 
     collections: Mapped[list["Collection"]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
     organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="grants")
+    grant_recipients: Mapped[list["GrantRecipient"]] = relationship("GrantRecipient", back_populates="grant")
 
     users: Mapped[list["User"]] = relationship(
         "User",
@@ -183,7 +184,7 @@ class Submission(BaseModel):
         return str(self.id)[:8]
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
-    created_by: Mapped[User] = relationship("User", back_populates="submissions")
+    grant_recipient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant_recipient.id"))
 
     collection_id: Mapped[uuid.UUID]
     collection_version: Mapped[int]
@@ -192,9 +193,15 @@ class Submission(BaseModel):
     events: Mapped[list["SubmissionEvent"]] = relationship(
         "SubmissionEvent", back_populates="submission", cascade="all, delete-orphan"
     )
+    created_by: Mapped[User] = relationship("User", back_populates="submissions")
+    grant_recipient: Mapped["GrantRecipient"] = relationship("GrantRecipient", back_populates="submissions")
 
     __table_args__ = (
         ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
+        CheckConstraint(
+            "mode = 'TEST' OR grant_recipient_id IS NOT NULL",
+            name="ck_grant_recipient_if_live",
+        ),
     )
 
     def __repr__(self) -> str:
@@ -733,4 +740,6 @@ class GrantRecipient(BaseModel):
     grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
 
     organisation: Mapped[Organisation] = relationship("Organisation")
-    grant: Mapped[Grant] = relationship("Grant")
+    grant: Mapped[Grant] = relationship("Grant", back_populates="grant_recipients")
+
+    submissions: Mapped[list[Submission]] = relationship("Submission", back_populates="grant_recipient")

@@ -645,6 +645,11 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
     collection_id = factory.LazyAttribute(lambda o: o.collection.id)
     collection_version = factory.LazyAttribute(lambda o: o.collection.version)
 
+    grant_recipient = factory.LazyAttribute(
+        lambda o: _GrantRecipientFactory.create() if o.mode == SubmissionModeEnum.LIVE else None
+    )
+    grant_recipient_id = factory.LazyAttribute(lambda o: o.grant_recipient.id if o.grant_recipient else None)
+
 
 class _FormFactory(SQLAlchemyModelFactory):
     class Meta:

@@ -4767,8 +4767,14 @@ class TestListSubmissions:
         factories.submission.create(
             collection=report, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
         )
+        live_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Test Organisation Ltd"
+        )
         factories.submission.create(
-            collection=report, mode=SubmissionModeEnum.LIVE, created_by__email="submitter-live@recipient.org"
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=live_grant_recipient,
+            created_by__email="submitter-live@recipient.org",
         )
 
         test_response = authenticated_grant_member_client.get(
@@ -4792,9 +4798,8 @@ class TestListSubmissions:
         assert test_response.status_code == 200
         assert live_response.status_code == 200
 
-        # TODO: this should be an organisation name, when we have that concept
         test_recipient_link = page_has_link(test_soup, "submitter-test@recipient.org")
-        live_recipient_link = page_has_link(live_soup, "submitter-live@recipient.org")
+        live_recipient_link = page_has_link(live_soup, "Test Organisation Ltd")
         assert test_recipient_link.get("href") == AnyStringMatching(
             "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
         )
@@ -4806,6 +4811,52 @@ class TestListSubmissions:
         live_submission_tags = live_soup.select(".govuk-tag")
         assert {tag.text.strip() for tag in test_submission_tags} == {"In progress", "Not started"}
         assert {tag.text.strip() for tag in live_submission_tags} == {"Not started"}
+
+    def test_live_mode_shows_all_grant_recipients_including_those_without_submissions(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+        )
+        grant_recipient_with_submission = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Organisation With Submission"
+        )
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Organisation Without Submission"
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient_with_submission,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        assert "Organisation With Submission" in response.text
+        assert "Organisation Without Submission" in response.text
+
+        link_with_submission = page_has_link(soup, "Organisation With Submission")
+        assert link_with_submission is not None
+        assert link_with_submission.get("href") == AnyStringMatching(
+            "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
+        )
+
+        link_without_submission = page_has_link(soup, "Organisation Without Submission")
+        assert link_without_submission is None
+
+        submission_tags = soup.select(".govuk-tag")
+        tag_texts = {tag.text.strip() for tag in submission_tags}
+        assert "Not started" in tag_texts
 
 
 class TestExportReportSubmissions:
