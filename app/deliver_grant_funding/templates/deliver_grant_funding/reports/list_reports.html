@@ -59,23 +59,27 @@
           {% endset %}
 
 
-          {% set submissionsText %}
-            {# TODO: Once reports have a draft/live status, this should also take that into account (ie if live, only show live submissions) #}
-            {% if report.live_submissions %}
-              {% trans count=report.live_submissions | length %}{{ count }} submission{% pluralize %}{{ count }} submissions{% endtrans %}
-            {% else %}
-              {% trans count=report.test_submissions | length %}{{ count }} test submission{% pluralize %}{{ count }} test submissions{% endtrans %}
-            {% endif %}
-            <span class="govuk-visually-hidden">for {{ report.name }}</span>
+          {% set liveSubmissionsText %}
+            {% trans count=report.live_submissions | length %}{{ count }} live submission{% pluralize %}{{ count }} live submissions{% endtrans %} <span class="govuk-visually-hidden">for {{ report.name }}</span>
+          {% endset %}
+          {% set testSubmissionsText %}
+            {% trans count=report.test_submissions | length %}{{ count }} test submission{% pluralize %}{{ count }} test submissions{% endtrans %} <span class="govuk-visually-hidden">for {{ report.name }}</span>
           {% endset %}
 
 
           {% set submissionsHtml %}
-            <a
-              class="govuk-link govuk-link--no-visited-state"
-              href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=report.id, submission_mode=enum.submission_mode.LIVE if report.live_submissions else enum.submission_mode.TEST) }}">
-              {{ submissionsText }}
-            </a>
+            <p class="govuk-body">
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=report.id, submission_mode=enum.submission_mode.LIVE) }}">
+                {{ liveSubmissionsText }}
+              </a>
+            </p>
+
+            {# TODO: hide test submissions link when the reporting round status is live #}
+            <p class="govuk-body">
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=report.id, submission_mode=enum.submission_mode.TEST) }}">
+                {{ testSubmissionsText }}
+              </a>
+            </p>
           {% endset %}
 
           {% set actions = [] %}
