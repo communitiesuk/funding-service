@@ -72,7 +72,7 @@ class FormRunner:
             self.component = question.parent
             self.questions = self.submission.cached_get_ordered_visible_questions(
                 self.component,
-                override_context=self.runner_expression_context if self.add_another_index is not None else None,
+                override_context=self.runner_evaluation_context if self.add_another_index is not None else None,
             )
         else:
             self.component = question
@@ -91,16 +91,8 @@ class FormRunner:
             else:
                 _QuestionForm = build_question_form(
                     self.questions,
-                    evaluation_context=self.runner_expression_context,
-                    interpolation_context=self.submission.cached_interpolation_context.with_add_another_context(
-                        self.component,
-                        submission_helper=self.submission,
-                        add_another_index=self.add_another_index,
-                        mode="interpolation",
-                        allow_new_index=True,
-                    )
-                    if self.add_another_index is not None
-                    else self.submission.cached_interpolation_context,
+                    evaluation_context=self.runner_evaluation_context,
+                    interpolation_context=self.runner_interpolation_context,
                 )
                 self._question_form = _QuestionForm(
                     data=self.submission.form_data(
@@ -195,7 +187,7 @@ class FormRunner:
             )
 
     def interpolate(self, text: str, *, context: "ExpressionContext | None" = None) -> str:
-        return interpolate(text, context=context or self.submission.cached_interpolation_context)
+        return interpolate(text, context=context or self.runner_interpolation_context)
 
     def save_is_form_completed(self, user: "User") -> bool:
         if not self.form:
@@ -305,7 +297,7 @@ class FormRunner:
         if not self.component:
             raise ValueError("Question context not set")
 
-        if not self.submission.is_component_visible(self.component, self.runner_expression_context):
+        if not self.submission.is_component_visible(self.component, self.runner_evaluation_context):
             self._valid = False
         elif self.submission.is_completed:
             self._valid = False
@@ -388,7 +380,7 @@ class FormRunner:
         return caption
 
     @property
-    def runner_expression_context(self) -> "ExpressionContext":
+    def runner_evaluation_context(self) -> "ExpressionContext":
         if self.add_another_index is not None and self.component and self.component.add_another_container:
             return self.submission.cached_evaluation_context.with_add_another_context(
                 self.component,
@@ -397,6 +389,18 @@ class FormRunner:
                 allow_new_index=True,
             )
         return self.submission.cached_evaluation_context
+
+    @property
+    def runner_interpolation_context(self) -> "ExpressionContext":
+        if self.add_another_index is not None and self.component and self.component.add_another_container:
+            return self.submission.cached_interpolation_context.with_add_another_context(
+                self.component,
+                submission_helper=self.submission,
+                add_another_index=self.add_another_index,
+                mode="interpolation",
+                allow_new_index=True,
+            )
+        return self.submission.cached_interpolation_context
 
 
 def add_another_suffix(heading: str, add_another_index: int) -> str:
