@@ -53,6 +53,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.add_question",
     "deliver_grant_funding.add_question_group_name",
     "deliver_grant_funding.add_question_group_display_options",
+    "deliver_grant_funding.add_question_group_add_another_option",
     "deliver_grant_funding.select_context_source",
     "deliver_grant_funding.select_context_source_question",
     "deliver_grant_funding.edit_question",

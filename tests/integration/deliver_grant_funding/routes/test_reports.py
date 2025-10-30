@@ -1887,7 +1887,7 @@ class TestAddQuestionGroup:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "How should the question group be displayed?"
 
-    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+    def test_post_display_options(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
@@ -1902,6 +1902,76 @@ class TestAddQuestionGroup:
         )
         response = authenticated_grant_admin_client.post(
             url_for("deliver_grant_funding.add_question_group_display_options", grant_id=grant.id, form_id=db_form.id),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            r"^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/groups/add/add_another$"
+        )
+
+    def test_get_add_another_skipped_when_parent_add_another(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(form=db_form, add_another=True)
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["add_question_group"] = {"group_name": "Test group", "show_questions_on_the_same_page": True}
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_add_another_option",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                parent_id=group.id,
+            ),
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            r"^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions\?form_id=[a-z0-9-]{36}$"
+        )
+
+        group.add_another = False
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["add_question_group"] = {"group_name": "Test group", "show_questions_on_the_same_page": True}
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_add_another_option",
+                grant_id=grant.id,
+                form_id=db_form.id,
+                parent_id=group.id,
+            ),
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert (
+            get_h1_text(soup) == "Should people be able to answer all questions in this question group more than once?"
+        )
+
+    def test_post_add_another(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["add_question_group"] = {"group_name": "Test group", "show_questions_on_the_same_page": True}
+
+        form = GroupAddAnotherOptionsForm(
+            data={
+                "question_group_is_add_another": "yes",
+            },
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_group_add_another_option", grant_id=grant.id, form_id=db_form.id
+            ),
             data=get_form_data(form),
             follow_redirects=False,
         )

@@ -196,7 +196,7 @@ class QuestionTypeForm(FlaskForm):
 class GroupForm(FlaskForm):
     name = StringField(
         "Question group name",
-        validators=[DataRequired("Enter question the group name")],
+        validators=[DataRequired("Enter the question group name")],
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )

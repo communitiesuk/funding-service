@@ -463,6 +463,7 @@ def create_group(
     name: Optional[str] = None,
     parent: Optional[Group] = None,
     presentation_options: QuestionPresentationOptions | None = None,
+    add_another: bool = False,
 ) -> Group:
     # If this group is nested, ensure it meets rules for nesting groups
     # This is a safety check as we don't allow users to create nested groups when these rules aren't met
@@ -474,6 +475,7 @@ def create_group(
         form_id=form.id,
         parent_id=parent.id if parent else None,
         presentation_options=presentation_options,
+        add_another=add_another,
     )
     owner = parent or form
     owner.components.append(group)
