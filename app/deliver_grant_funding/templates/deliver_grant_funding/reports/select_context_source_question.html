@@ -23,18 +23,26 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Question {{ heading_caption }}</span>
+      {% if form.question.choices | length > 0 %}
+        <span class="govuk-caption-l">Question {{ heading_caption }}</span>
 
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {{ form.question(params={"label": {"text": form.question.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} }) }}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.question(params={"label": {"text": form.question.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} }) }}
 
-        <span class="govuk-button-group">
-          {{ form.submit(params={"text": "Reference data"}) }}
+          <span class="govuk-button-group">
+            {{ form.submit(params={"text": "Reference data"}) }}
 
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ cancel_url }}">Cancel</a>
-        </span>
-      </form>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ cancel_url }}">Cancel</a>
+          </span>
+        </form>
+      {% else %}
+        <h1 class="govuk-heading-l">
+          <span class="govuk-caption-l">Question {{ heading_caption }}</span>
+          {{ form.question.label.text }}
+        </h1>
+        <p class="govuk-body">There are no questions available to reference.</p>
+      {% endif %}
     </div>
   </div>
 {% endblock content %}

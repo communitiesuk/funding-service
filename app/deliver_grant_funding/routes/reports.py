@@ -895,6 +895,7 @@ def _store_question_state_and_redirect_to_add_context(
             add_context_data = AddContextToComponentGuidanceSessionModel(
                 component_form_data=cast(dict[str, Any], form_data),
                 component_id=question_id,
+                parent_id=parent_id,
                 is_add_another_guidance=is_add_another_guidance,
             )
         case _ManagedExpressionForm():
@@ -903,6 +904,7 @@ def _store_question_state_and_redirect_to_add_context(
                 managed_expression_name=managed_expression_name,  # type: ignore[arg-type]
                 expression_form_data=form_data,  # type: ignore[arg-type]
                 component_id=question_id,  # type: ignore[arg-type]
+                parent_id=parent_id,
                 expression_id=expression_id,
                 depends_on_question_id=depends_on_question_id,
             )
@@ -1050,6 +1052,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     wtform = AddContextSelectSourceForm(
         form=db_form,
         current_component=get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None,
+        parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
     )
     if wtform.validate_on_submit():
         add_context_data.data_source = ExpressionContext.ContextSources[wtform.data_source.data]
@@ -1097,6 +1100,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         form=db_form,
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
         current_component=current_component,
+        parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
         expression=isinstance(add_context_data, AddContextToExpressionsModel),
     )
 
@@ -1214,7 +1218,12 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
     if wt_form.is_submitted_to_add_context():
         form_data = wt_form.get_component_form_data()
         return _store_question_state_and_redirect_to_add_context(
-            wt_form, grant_id=grant_id, form_id=question.form_id, question_id=question.id, form_data=form_data
+            wt_form,
+            grant_id=grant_id,
+            form_id=question.form_id,
+            question_id=question.id,
+            parent_id=question.parent_id,
+            form_data=form_data,
         )
 
     confirm_deletion_form = GenericConfirmDeletionForm()
@@ -1340,6 +1349,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
             grant_id=grant_id,
             form_id=group.form_id,
             question_id=group_id,
+            parent_id=group.parent_id,
             form_data=form_data,
             is_add_another_guidance=True,
         )
@@ -1408,6 +1418,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
             grant_id=grant_id,
             form_id=question.form_id,
             question_id=question_id,
+            parent_id=question.parent_id,
             form_data=form_data,
         )
 
@@ -1530,6 +1541,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
             grant_id=grant_id,
             form_id=component.form.id,
             question_id=component.id,
+            parent_id=component.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.CONDITION,
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
@@ -1634,6 +1646,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
             grant_id=grant_id,
             form_id=component.form.id,
             question_id=component.id,
+            parent_id=component.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.CONDITION,
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
@@ -1711,6 +1724,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
             grant_id=grant_id,
             form_id=question.form.id,
             question_id=question.id,
+            parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
@@ -1803,6 +1817,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
             grant_id=grant_id,
             form_id=question.form.id,
             question_id=question.id,
+            parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,
             managed_expression_name=ManagedExpressionsEnum(form.type.data),

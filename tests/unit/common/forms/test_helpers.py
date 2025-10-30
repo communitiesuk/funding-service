@@ -129,6 +129,30 @@ class TestGetReferenceableQuestions:
 
         assert referenceable_questions == [q1]
 
+    def test_includes_questions_in_group_if_not_same_page_when_creating_questions(self, factories):
+        form = factories.form.build()
+        q1 = factories.question.build(form=form)
+        group = factories.group.build(
+            form=form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False)
+        )
+        q2 = factories.question.build(form=form, parent=group)
+
+        referenceable_questions = get_referenceable_questions(form, current_component=None, parent_component=group)
+
+        assert referenceable_questions == [q1, q2]
+
+    def test_filters_out_same_page_question_when_creating_questions(self, factories):
+        form = factories.form.build()
+        q1 = factories.question.build(form=form)
+        group = factories.group.build(
+            form=form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        factories.question.build(form=form, parent=group)
+
+        referenceable_questions = get_referenceable_questions(form, current_component=None, parent_component=group)
+
+        assert referenceable_questions == [q1]
+
     def test_filters_out_add_another_question(self, factories):
         form = factories.form.build()
         factories.question.build(form=form, add_another=True)
