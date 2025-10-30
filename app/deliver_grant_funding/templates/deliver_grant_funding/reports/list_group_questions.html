@@ -73,6 +73,8 @@
         <span>Change</span><span class="govuk-visually-hidden">display setting</span>
       {% endset %}
 
+      {# todo: business logic with these change links could quickly get out of sync with interfaces #}
+      {#       only keep the ones that feel really valuable to see up front (likely an actionable buttons #}
       {{
         govukSummaryList({
           "rows": [
@@ -94,7 +96,7 @@
                   "html": change_add_another_html,
                   "href": url_for("deliver_grant_funding.change_group_add_another_options", grant_id=grant.id, group_id=group.id)
                 }]
-              } if not group.contains_add_another_components  and not group.contains_questions_depended_on_elsewhere and not group.parent.add_another_container else {}
+              } if not group.contains_add_another_components and not group.contains_questions_depended_on_elsewhere and not group.parent.add_another_container else {}
             }
           ]
         })
