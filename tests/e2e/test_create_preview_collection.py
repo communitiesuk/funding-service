@@ -463,7 +463,10 @@ def create_question_or_group(
         add_question_group_page.fill_in_question_group_name()
         group_display_options_page = add_question_group_page.click_continue()
         group_display_options_page.click_question_group_display_type(question_definition["display_options"])
-        edit_question_group_page = group_display_options_page.click_submit(parent_group_name)
+
+        add_another_options_page = group_display_options_page.click_submit()
+        add_another_options_page.click_add_another(False)
+        edit_question_group_page = add_another_options_page.click_submit(parent_group_name)
         if (
             question_definition.get("guidance") is not None
             and question_definition.get("display_options") == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE

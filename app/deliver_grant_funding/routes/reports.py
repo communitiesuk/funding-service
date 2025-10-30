@@ -571,6 +571,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 
 class AddQuestionGroup(BaseModel):
     group_name: str
+    show_questions_on_the_same_page: bool | None = None
 
     def to_session_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_none=True)
@@ -637,6 +638,8 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
 
+    skip_add_another = parent and parent.add_another
+
     try:
         add_question_group = AddQuestionGroup.from_session(session.get("add_question_group", {}))
     except ValidationError:
@@ -650,14 +653,79 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
         )
 
     wt_form = GroupDisplayOptionsForm()
+    if add_question_group.show_questions_on_the_same_page is not None and not wt_form.is_submitted():
+        wt_form.show_questions_on_the_same_page.data = (
+            GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
+            if add_question_group.show_questions_on_the_same_page
+            else GroupDisplayOptions.ONE_QUESTION_PER_PAGE
+        )
 
     if wt_form.validate_on_submit():
+        add_question_group.show_questions_on_the_same_page = (
+            wt_form.show_questions_on_the_same_page.data == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
+        )
+        session["add_question_group"] = add_question_group.to_session_dict()
+
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_group_add_another_option",
+                grant_id=grant_id,
+                form_id=form_id,
+                parent_id=parent.id if parent else None,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_question_group_display_options.html",
+        grant=form.collection.grant,
+        db_form=form,
+        group_name=add_question_group.group_name,
+        form=wt_form,
+        parent=parent,
+        skip_add_another=skip_add_another,
+        interpolate=SubmissionHelper.get_interpolator(collection=form.collection),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/task/<uuid:form_id>/groups/add/add_another",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    form = get_form_by_id(form_id)
+
+    parent_id = request.args.get("parent_id", None)
+    parent = get_group_by_id(UUID(parent_id)) if parent_id else None
+
+    skip_add_another = parent and parent.add_another
+
+    try:
+        add_question_group = AddQuestionGroup.from_session(session.get("add_question_group", {}))
+    except ValidationError:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_group_name",
+                grant_id=grant_id,
+                form_id=form_id,
+                parent_id=parent.id if parent else None,
+            )
+        )
+
+    wt_form = GroupAddAnotherOptionsForm(question_group_is_add_another="no")
+
+    if wt_form.validate_on_submit() or skip_add_another:
         try:
+            add_another = False if skip_add_another else (wt_form.question_group_is_add_another.data == "yes")
             group = create_group(
                 text=add_question_group.group_name,
                 form=form,
                 parent=parent,
-                presentation_options=QuestionPresentationOptions.from_group_form(wt_form),
+                presentation_options=QuestionPresentationOptions(
+                    show_questions_on_the_same_page=add_question_group.show_questions_on_the_same_page
+                ),
+                add_another=add_another,
             )
             session.pop("add_question_group", None)
             return redirect(
@@ -671,7 +739,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
             flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # type: ignore[arg-type]
 
     return render_template(
-        "deliver_grant_funding/reports/add_question_group_display_options.html",
+        "deliver_grant_funding/reports/add_question_group_add_another_options.html",
         grant=form.collection.grant,
         db_form=form,
         group_name=add_question_group.group_name,
