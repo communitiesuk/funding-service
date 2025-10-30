@@ -5203,3 +5203,43 @@ class TestViewSubmission:
 
         assert "When did you last buy some cheese" in soup.text
         assert "1 January 2025" in soup.text
+
+    def test_get_view_submission_displays_questions_with_add_another(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=collection.test_submissions[0].id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert "There are 5 answers" in soup.text
+
+        assert (
+            len(
+                [
+                    key
+                    for key in soup.find_all("dt", {"class": "govuk-summary-list__key"})
+                    if key.text.strip() == "What is the name of this person?"
+                ]
+            )
+            == 5
+        )
+        assert (
+            len(
+                [
+                    key
+                    for key in soup.find_all("dt", {"class": "govuk-summary-list__key"})
+                    if key.text.strip() == "What is this person's email address?"
+                ]
+            )
+            == 5
+        )
