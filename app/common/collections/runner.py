@@ -91,8 +91,16 @@ class FormRunner:
             else:
                 _QuestionForm = build_question_form(
                     self.questions,
-                    evaluation_context=self.submission.cached_evaluation_context,
-                    interpolation_context=self.submission.cached_interpolation_context,
+                    evaluation_context=self.runner_expression_context,
+                    interpolation_context=self.submission.cached_interpolation_context.with_add_another_context(
+                        self.component,
+                        submission_helper=self.submission,
+                        add_another_index=self.add_another_index,
+                        mode="interpolation",
+                        allow_new_index=True,
+                    )
+                    if self.add_another_index is not None
+                    else self.submission.cached_interpolation_context,
                 )
                 self._question_form = _QuestionForm(
                     data=self.submission.form_data(
@@ -186,8 +194,8 @@ class FormRunner:
                 question.id, self.question_form, add_another_index=self.add_another_index
             )
 
-    def interpolate(self, text: str) -> str:
-        return interpolate(text, context=self.submission.cached_interpolation_context)
+    def interpolate(self, text: str, *, context: "ExpressionContext | None" = None) -> str:
+        return interpolate(text, context=context or self.submission.cached_interpolation_context)
 
     def save_is_form_completed(self, user: "User") -> bool:
         if not self.form:

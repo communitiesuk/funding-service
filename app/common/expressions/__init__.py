@@ -80,6 +80,7 @@ class ExpressionContext(ChainMap[str, Any]):
         *,
         add_another_index: int,
         allow_new_index: bool = False,
+        mode: Literal["evaluation", "interpolation"] = "evaluation",
     ) -> "ExpressionContext":
         """
         Creates a new `ExpressionContext` with `add_another_context` set to the provided `add_another_context`, and the
@@ -104,17 +105,13 @@ class ExpressionContext(ChainMap[str, Any]):
             else [cast("Question", component.add_another_container)]
         )
 
-        add_another_context = {
-            question.safe_qid: answer.get_value_for_evaluation()
-            if (
-                answer := submission_helper.cached_get_answer_for_question(
-                    question.id, add_another_index=add_another_index
+        add_another_context: dict[str, Any] = {}
+        for question in questions:
+            answer = submission_helper.cached_get_answer_for_question(question.id, add_another_index=add_another_index)
+            if answer is not None:
+                add_another_context[question.safe_qid] = (
+                    answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation()
                 )
-            )
-            is not None
-            else None
-            for question in questions
-        }
 
         return ExpressionContext(
             submission_data=self._submission_data,
@@ -155,6 +152,12 @@ class ExpressionContext(ChainMap[str, Any]):
         way.
         """
         self._submission_data.update(**submission_answers_from_form)
+
+        # the add another context includes answers from its add another container which
+        # could include previously persisted values for answers questions, also override those
+        # for this form evaluation context
+        if self._add_another_context:
+            self._add_another_context.update(**submission_answers_from_form)
 
     @staticmethod
     def build_expression_context(
