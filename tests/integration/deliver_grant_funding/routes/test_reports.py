@@ -4732,6 +4732,143 @@ class TestManageGuidance:
         assert updated_group.guidance_body == "Updated body"
 
 
+class TestManageAddAnotherGuidance:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.manage_add_another_guidance", grant_id=uuid.uuid4(), group_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_access_control(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        group = factories.group.create(form__collection__grant=client.grant)
+
+        response = client.get(
+            url_for("deliver_grant_funding.manage_add_another_guidance", grant_id=client.grant.id, group_id=group.id)
+        )
+
+        if can_access:
+            assert response.status_code == 200
+        else:
+            assert response.status_code == 403
+
+    def test_get_add_guidance(self, authenticated_grant_admin_client, factories):
+        group = factories.group.create(form__collection__grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.manage_add_another_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Add another summary page guidance" in soup.text
+        assert page_has_button(soup, "Save guidance")
+
+    def test_get_edit_guidance(self, authenticated_grant_admin_client, factories):
+        group = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant, add_another_guidance_body="Existing body"
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.manage_add_another_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Existing body" in soup.text
+        assert "Edit add another summary page guidance" in soup.text
+        assert page_has_button(soup, "Save guidance")
+
+    def test_post_add_guidance(self, authenticated_grant_admin_client, factories, db_session):
+        group = factories.group.create(form__collection__grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_add_another_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            ),
+            data={
+                "guidance_body": "Please provide detailed information",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/group/{group.id}/questions"
+        )
+
+        updated_group = db_session.get(Group, group.id)
+        assert updated_group.add_another_guidance_body == "Please provide detailed information"
+
+    def test_post_to_add_context_redirects_and_sets_up_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        group = factories.group.create(form__collection__grant=authenticated_grant_admin_client.grant)
+
+        form = AddGuidanceForm(
+            guidance_body="Please provide detailed information",
+            add_context="guidance_body",
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_add_another_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            ),
+            data=get_form_data(form, submit=""),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            r"^/deliver/grant/[a-z0-9-]{36}/task/[a-z0-9-]{36}/add-context/select-source$"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert sess["question"]["field"] == "guidance"
+            assert sess["question"]["is_add_another_guidance"] is True
+
+    def test_post_update_guidance(self, authenticated_grant_admin_client, factories, db_session):
+        group = factories.group.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            add_another_guidance_body="Old body",
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.manage_add_another_guidance",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            ),
+            data={"guidance_body": "Updated body", "submit": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions$")
+
+        updated_group = db_session.get(Group, group.id)
+        assert updated_group.add_another_guidance_body == "Updated body"
+
+
 class TestListSubmissions:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(

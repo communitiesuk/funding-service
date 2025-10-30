@@ -800,6 +800,7 @@ def _store_question_state_and_redirect_to_add_context(
     managed_expression_name: ManagedExpressionsEnum | None = None,
     expression_id: UUID | None = None,
     depends_on_question_id: UUID | None = None,
+    is_add_another_guidance: bool | None = False,
 ) -> ResponseReturnValue:
     add_context_data: SessionModelType
     match form:
@@ -816,6 +817,7 @@ def _store_question_state_and_redirect_to_add_context(
             add_context_data = AddContextToComponentGuidanceSessionModel(
                 component_form_data=cast(dict[str, Any], form_data),
                 component_id=question_id,
+                is_add_another_guidance=is_add_another_guidance,
             )
         case _ManagedExpressionForm():
             add_context_data = AddContextToExpressionsModel(  # type: ignore[call-arg]
@@ -1045,10 +1047,18 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                     add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
 
             case AddContextToComponentGuidanceSessionModel():
-                return_url = url_for(
-                    "deliver_grant_funding.manage_guidance",
-                    grant_id=grant_id,
-                    question_id=add_context_data.component_id,
+                return_url = (
+                    url_for(
+                        "deliver_grant_funding.manage_guidance",
+                        grant_id=grant_id,
+                        question_id=add_context_data.component_id,
+                    )
+                    if add_context_data.is_add_another_guidance is False
+                    else url_for(
+                        "deliver_grant_funding.manage_add_another_guidance",
+                        grant_id=grant_id,
+                        group_id=add_context_data.component_id,
+                    )
                 )
                 if add_context_data and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
                     target_field = add_context_data.component_form_data["add_context"]
@@ -1223,6 +1233,76 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
         interpolate=SubmissionHelper.get_interpolator(collection=question.form.collection),
         context_keys_and_labels=ExpressionContext.get_context_keys_and_labels(
             collection=question.form.collection, expression_context_end_point=question
+        ),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/add_another_guidance", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    group = get_component_by_id(component_id=group_id)
+    add_context_data = _extract_add_context_data_from_session(
+        session_model=AddContextToComponentGuidanceSessionModel, question_id=group_id
+    )
+
+    form = AddGuidanceForm(
+        data=add_context_data.component_form_data if add_context_data else None,  # type: ignore[union-attr]
+        heading_required=False,
+    )
+    if not add_context_data and not form.is_submitted():
+        form.guidance_body.data = group.add_another_guidance_body
+
+    if form.is_submitted_to_add_context():
+        form_data = form.get_component_form_data()
+        return _store_question_state_and_redirect_to_add_context(
+            form,
+            grant_id=grant_id,
+            form_id=group.form_id,
+            question_id=group_id,
+            form_data=form_data,
+            is_add_another_guidance=True,
+        )
+
+    if form.validate_on_submit():
+        try:
+            update_group(
+                cast("Group", group),
+                expression_context=ExpressionContext.build_expression_context(
+                    collection=group.form.collection, mode="interpolation"
+                ),
+                add_another_guidance_body=form.guidance_body.data,
+            )
+
+            if "question" in session:
+                del session["question"]
+
+            if form.preview.data:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.manage_add_another_guidance",
+                        grant_id=grant_id,
+                        group_id=group_id,
+                        _anchor="preview-guidance",
+                    )
+                )
+
+            return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group.id))
+
+        except InvalidReferenceInExpression as e:
+            field_with_error = getattr(form, e.field_name)
+            field_with_error.errors.append(e.message)
+
+    return render_template(
+        "deliver_grant_funding/reports/manage_add_another_guidance.html",
+        grant=group.form.collection.grant,
+        question=group,
+        form=form,
+        interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
+        context_keys_and_labels=ExpressionContext.get_context_keys_and_labels(
+            collection=group.form.collection, expression_context_end_point=group
         ),
     )
 

@@ -609,14 +609,20 @@ class AddGuidanceForm(FlaskForm):
     preview = SubmitField("Save and preview guidance", widget=GovSubmitInput())
     submit = SubmitField("Save guidance", widget=GovSubmitInput())
 
+    def __init__(self, *args: Any, heading_required: bool | None = True, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.heading_required = heading_required
+
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         result: bool = super().validate(extra_validators=extra_validators)
 
         if not result:
             return result
 
-        if (self.guidance_heading.data or self.guidance_body.data) and not (
-            self.guidance_heading.data and self.guidance_body.data
+        if (
+            self.heading_required
+            and (self.guidance_heading.data or self.guidance_body.data)
+            and not (self.guidance_heading.data and self.guidance_body.data)
         ):
             self.form_errors.append("Provide both a page heading and guidance text, or neither")
             return False

@@ -546,16 +546,19 @@ class TestUpdateGroup:
 
         assert group.guidance_heading is None
         assert group.guidance_body is None
+        assert group.add_another_guidance_body is None
 
         updated_group = update_group(
             group=group,
             expression_context=ExpressionContext(),
             guidance_heading="How to answer this question",
             guidance_body="This is detailed guidance with **markdown** formatting.",
+            add_another_guidance_body="What to expect when filling in this groups answers",
         )
 
         assert updated_group.guidance_heading == "How to answer this question"
         assert updated_group.guidance_body == "This is detailed guidance with **markdown** formatting."
+        assert updated_group.add_another_guidance_body == "What to expect when filling in this groups answers"
 
     def test_update_group_with_add_another_presentation_options(self, db_session, factories):
         form = factories.form.create()

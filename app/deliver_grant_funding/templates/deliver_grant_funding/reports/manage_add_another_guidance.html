@@ -1,0 +1,110 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "common/govuk/tabs/macro.html" import govukTabs %}
+
+{% set page_title = "Add another summary page guidance" if not question.add_another_guidance_body else "Edit add another summary page guidance" %}
+{% set submit_label = "Add guidance" if not question.add_another_guidance_body else "Update guidance" %}
+
+{% block beforeContent %}
+  {% set back_link = url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.id) %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link
+    })
+  }}
+{% endblock beforeContent %}
+
+
+{% set guidance_help %}
+  <h3 class="govuk-heading-m">Links and URLs</h3>
+  <p>To add a link, use square brackets [ ] around the link text, and round brackets ( ) around the full URL. Make sure there are no spaces between the two sets of brackets. For example:</p>
+  <div class="govuk-inset-text">
+    <pre class="app-context-aware-editor__markdown-example-block"><code class="app-context-aware-editor_markdown-example-block-code">[Link text](https://www.gov.uk/link-text-url)</code></pre>
+  </div>
+
+  <h3 class="govuk-heading-m">Headings</h3>
+  <p>Do not use headings to style your text in bold. This can cause issues for people using assistive technology.</p>
+  <h4 class="govuk-heading-s">Second-level headings</h4>
+  <p>To add a second-level heading (H2), use 2 hashtags followed by a space. For example:</p>
+  <div class="govuk-inset-text">
+    <pre class="app-context-aware-editor__markdown-example-block"><code class="app-context-aware-editor__markdown-example-block-code">## This is a second-level heading</code></pre>
+  </div>
+
+  <h3 class="govuk-heading-m">Bulleted lists</h3>
+  <p>To add bullet points, start each item with * (asterisk) or - (dash). Make sure there is one space after the asterisk or dash.</p>
+  <p>Leave one empty line before adding the first bullet point and another after the last bullet point. For example:</p>
+  <div class="govuk-inset-text">
+    <pre class="app-context-aware-editor__markdown-example-block"><code class="app-context-aware-editor__markdown-example-block-code">* First bullet point
+* Second bullet point
+* Third bullet point</code></pre>
+  </div>
+
+  <h3 class="govuk-heading-m">Numbered lists</h3>
+  <p>Use numbers for each list item, followed by a full stop. Make sure there is one space after the full stop.</p>
+  <p>Leave one empty line before adding the first list item and another after the last list item. For example:</p>
+  <div class="govuk-inset-text">
+    <pre class="app-context-aware-editor__markdown-example-block"><code class="app-context-aware-editor__markdown-example-block-code">1. First item
+2. Second item
+3. Third item</code></pre>
+  </div>
+{% endset %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ interpolate(question.text) }}</span>
+      <h2 class="govuk-heading-l">{{ page_title }}</h2>
+      <p class="govuk-body">Use guidance if you need to:</p>
+      <ul class="govuk-list govuk-list--bullet">
+        <li>explain how to answer the question in more detail</li>
+        <li>format your content with paragraphs, headings, lists or links</li>
+      </ul>
+      <p class="govuk-body">Guidance will be displayed on the add another summary page.</p>
+      <form method="post" novalidate class="govuk-!-margin-top-7">
+        {{ form.csrf_token }}
+
+
+        {% set write_guidance_html %}
+          {% set addDataButton %}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in guidance</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "guidance_body"}) }}
+          {% endset %}
+
+          <div data-module="context-aware-editor" data-toolbar-enabled="true" data-allow-headings="true" data-i18n="{}">
+            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
+            {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-ajax-markdown-source": "", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
+          </div>
+
+          {{ govukDetails(params={"summaryText": "Formatting help", "html": guidance_help}) }}
+          {{ form.preview(params={"classes": "govuk-button--secondary app-context-aware-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
+        {% endset %}
+
+
+        {% set preview_guidance_html %}
+          <div class="app-context-aware-editor__preview-intro">
+            <h2 class="govuk-heading-m">Preview your guidance below</h2>
+            <p class="govuk-body">Below is a preview of how your guidance content will be shown to the person completing your form.</p>
+          </div>
+          <div class="app-context-aware-editor__preview-area" data-ajax-markdown-target="">{{ interpolate(question.guidance_body) | govuk_markdown | safe }}</div>
+        {% endset %}
+
+        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', collection_id=question.form.collection_id) }}">
+          {{
+            govukTabs(params={
+              "items": [
+                {"label": "Write guidance", "id": "write-guidance", "panel": {"html": write_guidance_html} },
+                {"label": "Preview guidance", "id": "preview-guidance", "panel": {"html": preview_guidance_html} },
+              ],
+            })
+          }}
+        </div>
+
+        <div class="govuk-button-group">
+          {{ form.submit }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=question.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}
