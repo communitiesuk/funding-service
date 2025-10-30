@@ -144,6 +144,7 @@
 
   {% set is_add_another_group = add_another_index is not none %}
   {% set context = submission.cached_evaluation_context if not is_add_another_group else submission.cached_evaluation_context.with_add_another_context(container, submission, add_another_index=add_another_index) %}
+  {% set interpolation_context = submission.cached_interpolation_context if not is_add_another_group else submission.cached_interpolation_context.with_add_another_context(container, submission, add_another_index=add_another_index, mode="interpolation") %}
 
   {% for question in submission.cached_get_ordered_visible_questions(container, override_context=context if is_add_another_group else none) %}
     {% if question.add_another_container and not is_add_another_group %}
@@ -229,7 +230,7 @@
         %}
         {%
           do summary_list_rows.append({
-            "key": { "text": runner.interpolate(question.text) },
+            "key": { "text": runner.interpolate(question.text, context=interpolation_context if is_add_another_group else None) },
             "value": { "html": value_html },
             "actions": { "items": actions },
           })
