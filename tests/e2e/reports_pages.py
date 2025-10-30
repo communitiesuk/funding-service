@@ -1255,9 +1255,45 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
             case _:
                 raise ValueError("Unknown group display option: {_}")
 
+    def click_submit(self) -> AddQuestionGroupAddAnotherPage:
+        self.page.get_by_role("button", name="Continue").click()
+        group_add_another_page = AddQuestionGroupAddAnotherPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            task_name=self.task_name,
+            group_name=self.group_name,
+        )
+        expect(group_add_another_page.heading).to_be_visible()
+        return group_add_another_page
+
+
+class AddQuestionGroupAddAnotherPage(ReportsBasePage):
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str, group_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role(
+                "heading", name="Should people be able to answer all questions in this question group more than once?"
+            ),
+        )
+        self.report_name = report_name
+        self.task_name = task_name
+        self.group_name = group_name
+
+    def click_add_another(self, add_another: bool) -> None:
+        if add_another:
+            self.page.get_by_role("radio", name="yes").click()
+        else:
+            self.page.get_by_role("radio", name="no").click()
+
     def click_submit(self, parent_group_name: str | None = None) -> EditQuestionGroupPage:
         self.page.get_by_role("button", name="Add question group").click()
-        reports_page = EditQuestionGroupPage(
+        edit_group_page = EditQuestionGroupPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
@@ -1266,8 +1302,8 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
             group_name=self.group_name,
             parent_group_name=parent_group_name,
         )
-        expect(reports_page.heading).to_be_visible()
-        return reports_page
+        expect(edit_group_page.heading).to_be_visible()
+        return edit_group_page
 
 
 class EditQuestionGroupPage(ReportsBasePage):
