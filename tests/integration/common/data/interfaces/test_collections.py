@@ -640,6 +640,21 @@ class TestUpdateGroup:
         assert e.value.component == group
         assert e.value.referenced_question == q1
 
+    def test_update_group_containing_questions_that_depend_on_each_other_can_be_add_another(
+        self, db_session, factories
+    ):
+        group = factories.group.create(add_another=False)
+        q1 = factories.question.create(form=group.form, parent=group)
+        q2 = factories.question.create(form=group.form, parent=group)
+        add_question_validation(
+            question=q2,
+            managed_expression=GreaterThan(question_id=q1.id, minimum_value=100),
+            user=factories.user.create(),
+        )
+
+        update_group(group, expression_context=ExpressionContext(), add_another=True)
+        assert group.add_another is True
+
     def test_synced_component_references(self, db_session, factories, mocker):
         form = factories.form.create()
         user = factories.user.create()

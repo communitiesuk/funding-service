@@ -536,11 +536,14 @@ class Group(Component):
     @property
     def contains_questions_depended_on_elsewhere(self) -> bool:
         """Whether or not any questions in this group (or nested groups) are depended on elsewhere"""
-        for component in self.cached_all_components:
-            if len(component.depended_on_by) > 0:
-                return True
-
-        return False
+        depended_on_outside_of_group_context = [
+            component
+            for component in self.cached_all_components
+            # todo: sense check the lazy loading implications of this property
+            for depends_on in component.depended_on_by
+            if depends_on.component not in self.cached_all_components
+        ]
+        return bool(depended_on_outside_of_group_context)
 
     @property
     def questions_in_add_another_summary(self) -> list["Question"]:
