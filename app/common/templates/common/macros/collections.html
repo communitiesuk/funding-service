@@ -298,7 +298,7 @@
           check_your_answers_form.section_completed(params={
             "fieldset": {
               "legend": {
-                "text": "Have you completed this task?",
+                "text": "Have you completed this section?",
                 "isPageHeading": false,
                 "classes": "govuk-fieldset__legend--m"
               }
@@ -357,7 +357,7 @@
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-two-thirds">
         {% if not submission.all_forms_are_completed %}
-          <p class="govuk-body">You must complete all tasks before you can submit.</p>
+          <p class="govuk-body">You must complete all sections before you can submit.</p>
         {% endif %}
         <form method="post" novalidate>
           {{ runner.tasklist_form.csrf_token }}

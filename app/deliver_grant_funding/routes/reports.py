@@ -68,7 +68,7 @@ from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import (
     AddContextSelectSourceForm,
     AddGuidanceForm,
-    AddTaskForm,
+    AddSectionForm,
     ConditionSelectQuestionForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
@@ -185,7 +185,7 @@ def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/report/<uuid:report_id>", methods=["GET", "POST"])
 @has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
-def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+def list_report_sections(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
     form = GenericSubmitForm()
 
@@ -193,7 +193,7 @@ def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         return start_testing_submission(collection=report)
 
     return render_template(
-        "deliver_grant_funding/reports/list_report_tasks.html",
+        "deliver_grant_funding/reports/list_report_sections.html",
         grant=report.grant,
         report=report,
         form=form,
@@ -203,7 +203,7 @@ def list_report_tasks(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/form/<uuid:form_id>/move-<direction>")
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def move_task(grant_id: UUID, form_id: UUID, direction: str) -> ResponseReturnValue:
+def move_section(grant_id: UUID, form_id: UUID, direction: str) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
 
     try:
@@ -217,28 +217,30 @@ def move_task(grant_id: UUID, form_id: UUID, direction: str) -> ResponseReturnVa
     except DependencyOrderException as e:
         flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
 
-    return redirect(url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=form.collection_id))
+    return redirect(
+        url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=form.collection_id)
+    )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/add-task", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/add-section", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+def add_section(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
-    # Technically this isn't going to be always correct; if users create a report, add a first task, then delete that
-    # task, they will be able to add a task from the 'list report tasks' page - but the backlink will take them to the
-    # 'list reports' page. This is an edge case I'm not handling right now because: 1) rare, 2) backlinks that are
-    # perfect are hard and it doesn't feel worth it yet.
+    # Technically this isn't going to be always correct; if users create a report, add a first section, then delete that
+    # section, they will be able to add a section from the 'list report sections' page - but the backlink will take them
+    # to the 'list reports' page. This is an edge case I'm not handling right now because: 1) rare, 2) backlinks that
+    # are perfect are hard and it doesn't feel worth it yet.
     back_link = (
-        url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=report_id)
+        url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id)
         if report.forms
         else url_for("deliver_grant_funding.list_reports", grant_id=grant_id)
     )
 
-    form = AddTaskForm(obj=report)
+    form = AddSectionForm(obj=report)
     if form.validate_on_submit():
         assert form.title.data
         try:
@@ -246,18 +248,24 @@ def add_task(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
                 title=form.title.data,
                 collection=report,
             )
-            return redirect(url_for("deliver_grant_funding.list_report_tasks", grant_id=grant_id, report_id=report.id))
+            return redirect(
+                url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report.id)
+            )
 
         except DuplicateValueError:
-            form.title.errors.append("A task with this name already exists")  # type: ignore[attr-defined]
+            form.title.errors.append("A section with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
-        "deliver_grant_funding/reports/add_task.html", grant=report.grant, report=report, form=form, back_link=back_link
+        "deliver_grant_funding/reports/add_section.html",
+        grant=report.grant,
+        report=report,
+        form=form,
+        back_link=back_link,
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/task/<uuid:form_id>/change-name", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/change-name", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
@@ -266,31 +274,31 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, grant_id=grant_id)
 
     if db_form.collection.live_submissions:
-        # Prevent changes to the task if it has any live submissions; this is very coarse layer of protection. We might
-        # want to do something more fine-grained to give a better user experience at some point. And/or we might need
-        # to allow _some_ people (eg platform admins) to make changes, at their own peril.
-        # TODO: flash and redirect back to 'list report tasks'?
+        # Prevent changes to the section if it has any live submissions; this is very coarse layer of protection. We
+        # might want to do something more fine-grained to give a better user experience at some point. And/or we might
+        # need to allow _some_ people (eg platform admins) to make changes, at their own peril.
+        # TODO: flash and redirect back to 'list report sections'?
         current_app.logger.info(
             "Blocking access to manage form %(form_id)s because related collection has live submissions",
             dict(form_id=str(form_id)),
         )
         return abort(403)
 
-    form = AddTaskForm(obj=db_form)
+    form = AddSectionForm(obj=db_form)
     if form.validate_on_submit():
         assert form.title.data
         try:
             update_form(db_form, title=form.title.data)
             return redirect(
                 url_for(
-                    "deliver_grant_funding.list_task_questions",
+                    "deliver_grant_funding.list_section_questions",
                     grant_id=grant_id,
                     form_id=db_form.id,
                 )
             )
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
-            form.title.errors.append("A task with this name already exists")  # type: ignore[attr-defined]
+            form.title.errors.append("A section with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
         "deliver_grant_funding/reports/change_form_name.html",
@@ -480,10 +488,12 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/task/<uuid:form_id>/questions", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/questions", methods=["GET", "POST"]
+)
 @has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
-def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, grant_id=grant_id, with_all_questions=True)
 
     preview_form = GenericSubmitForm()
@@ -493,13 +503,13 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
         if not AuthorisationHelper.has_deliver_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
-            return redirect(url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=form_id))
+            return redirect(url_for("deliver_grant_funding.list_section_questions", grant_id=grant_id, form_id=form_id))
 
         if db_form.collection.live_submissions:
-            # Prevent changes to the task if it has any live submissions; this is very coarse layer of protection. We
+            # Prevent changes to the section if it has any live submissions; this is very coarse layer of protection. We
             # might want to do something more fine-grained to give a better user experience at some point. And/or we
             # might need to allow _some_ people (eg platform admins) to make changes, at their own peril.
-            # TODO: flash and redirect back to 'list report tasks'?
+            # TODO: flash and redirect back to 'list report sections'?
             current_app.logger.info(
                 "Blocking access to delete form %(form_id)s because related collection has live submissions",
                 dict(form_id=str(form_id)),
@@ -511,14 +521,14 @@ def list_task_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
             return redirect(
                 url_for(
-                    "deliver_grant_funding.list_report_tasks",
+                    "deliver_grant_funding.list_report_sections",
                     grant_id=grant_id,
                     report_id=db_form.collection_id,
                 )
             )
 
     return render_template(
-        "deliver_grant_funding/reports/list_task_questions.html",
+        "deliver_grant_funding/reports/list_section_questions.html",
         grant=db_form.collection.grant,
         db_form=db_form,
         delete_form=delete_wtform,
@@ -553,7 +563,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
                         )
                     )
                 return redirect(
-                    url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=group.form_id)
+                    url_for("deliver_grant_funding.list_section_questions", grant_id=grant_id, form_id=group.form_id)
                 )
         except DependencyOrderException as e:
             flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
@@ -582,7 +592,7 @@ class AddQuestionGroup(BaseModel):
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/task/<uuid:form_id>/groups/add",
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/groups/add",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
@@ -627,7 +637,7 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/task/<uuid:form_id>/groups/add/display_options",
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/groups/add/display_options",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
@@ -688,7 +698,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/task/<uuid:form_id>/groups/add/add_another",
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/groups/add/add_another",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
@@ -771,12 +781,12 @@ def move_component(grant_id: UUID, component_id: UUID, direction: str) -> Respon
         return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=source))
     else:
         return redirect(
-            url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=component.form_id)
+            url_for("deliver_grant_funding.list_section_questions", grant_id=grant_id, form_id=component.form_id)
         )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/task/<uuid:form_id>/questions/add/choose-type",
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/questions/add/choose-type",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
@@ -949,7 +959,7 @@ def _handle_remove_context_for_expression_forms(
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/task/<uuid:form_id>/questions/add",
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/questions/add",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
@@ -1028,7 +1038,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/task/<uuid:form_id>/add-context/select-source", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-source", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
@@ -1046,7 +1056,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         session["question"] = add_context_data.model_dump(mode="json")
 
         match add_context_data.data_source:
-            case ExpressionContext.ContextSources.TASK:
+            case ExpressionContext.ContextSources.SECTION:
                 return redirect(
                     url_for("deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id)
                 )
@@ -1064,7 +1074,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/task/<uuid:form_id>/add-context/select-question-from-task", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-question-from-section", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
@@ -1223,7 +1233,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
                         )
                     )
                 return redirect(
-                    url_for("deliver_grant_funding.list_task_questions", grant_id=grant_id, form_id=question.form_id)
+                    url_for("deliver_grant_funding.list_section_questions", grant_id=grant_id, form_id=question.form_id)
                 )
 
         except DependencyOrderException as e:
@@ -1267,7 +1277,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
                 )
             return redirect(
                 url_for(
-                    "deliver_grant_funding.list_task_questions",
+                    "deliver_grant_funding.list_section_questions",
                     grant_id=grant_id,
                     form_id=question.form_id,
                 )

@@ -26,7 +26,7 @@ from app.common.data.types import (
     QuestionDataType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
-    TasklistTaskStatusEnum,
+    TasklistSectionStatusEnum,
 )
 from app.common.filters import (
     format_date,
@@ -211,7 +211,7 @@ def create_app() -> Flask:  # noqa: C901
                 question_type=QuestionDataType,
                 form_runner_state=FormRunnerState,
                 submission_status=SubmissionStatusEnum,
-                tasklist_task_status=TasklistTaskStatusEnum,
+                tasklist_section_status=TasklistSectionStatusEnum,
                 expression_type=ExpressionType,
                 grant_status=GrantStatusEnum,
                 organisation_type=OrganisationType,

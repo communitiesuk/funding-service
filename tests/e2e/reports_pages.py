@@ -35,7 +35,7 @@ def _reference_data_in_expression(
     expression_form_page: "AddValidationPage" | "AddConditionPage", field_name: str, referenced_question_text: str
 ) -> None:
     select_data_source_page = expression_form_page.click_insert_data(field_name)
-    select_data_source_page.select_data_source("A previous question in this task")
+    select_data_source_page.select_data_source("A previous question in this section")
     select_question_page = select_data_source_page.click_select()
     select_question_page.choose_question(referenced_question_text)
     select_question_page.click_use_data()
@@ -201,22 +201,24 @@ class GrantReportsPage(ReportsBasePage):
     def check_report_exists(self, report_name: str) -> None:
         expect(self.page.get_by_role("heading", name=report_name)).to_be_visible()
 
-    def click_add_task(self, report_name: str, grant_name: str) -> AddTaskPage:
-        self.page.get_by_role("link", name=f"Add tasks to {report_name}").click()
-        add_task_page = AddTaskPage(
+    def click_add_section(self, report_name: str, grant_name: str) -> AddSectionPage:
+        self.page.get_by_role("link", name=f"Add sections to {report_name}").click()
+        add_section_page = AddSectionPage(
             self.page,
             self.domain,
             grant_name=grant_name,
             report_name=report_name,
         )
-        expect(add_task_page.heading).to_be_visible()
-        return add_task_page
+        expect(add_section_page.heading).to_be_visible()
+        return add_section_page
 
-    def click_manage_tasks(self, report_name: str, grant_name: str) -> ReportTasksPage:
-        self.page.get_by_role("link", name=re.compile(r"\d+ tasks")).click()
-        report_tasks_page = ReportTasksPage(self.page, self.domain, grant_name=grant_name, report_name=report_name)
-        expect(report_tasks_page.heading).to_be_visible()
-        return report_tasks_page
+    def click_manage_sections(self, report_name: str, grant_name: str) -> ReportSectionsPage:
+        self.page.get_by_role("link", name=re.compile(r"\d+ sections")).click()
+        report_sections_page = ReportSectionsPage(
+            self.page, self.domain, grant_name=grant_name, report_name=report_name
+        )
+        expect(report_sections_page.heading).to_be_visible()
+        return report_sections_page
 
     def click_view_submissions(self, report_name: str) -> SubmissionsListPage:
         self.summary_row_submissions.get_by_role("link", name="1 test submission").click()
@@ -288,7 +290,7 @@ class ChangeReportNamePage(ReportsBasePage):
         return reports_page
 
 
-class ReportTasksPage(ReportsBasePage):
+class ReportSectionsPage(ReportsBasePage):
     report_name: str
     preview_report_button: Locator
     reports_breadcrumb: Locator
@@ -298,7 +300,7 @@ class ReportTasksPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Tasks"),
+            heading=page.get_by_role("heading", name="Sections"),
         )
         self.report_name = report_name
         self.preview_report_button = self.page.get_by_role("button", name="Preview report")
@@ -309,8 +311,8 @@ class ReportTasksPage(ReportsBasePage):
         grant_reports_page = GrantReportsPage(self.page, self.domain, grant_name=self.grant_name)
         return grant_reports_page
 
-    def check_task_exists(self, task_title: str) -> None:
-        expect(self.page.get_by_role("link", name=task_title, exact=True)).to_be_visible()
+    def check_section_exists(self, section_title: str) -> None:
+        expect(self.page.get_by_role("link", name=section_title, exact=True)).to_be_visible()
 
     def click_preview_report(self) -> RunnerTasklistPage:
         self.preview_report_button.click()
@@ -320,57 +322,57 @@ class ReportTasksPage(ReportsBasePage):
         expect(tasklist_page.heading).to_be_visible()
         return tasklist_page
 
-    def click_manage_task(self, task_name: str) -> ManageTaskPage:
-        self.page.get_by_role("link", name=task_name, exact=True).click()
-        manage_task_page = ManageTaskPage(
+    def click_manage_section(self, section_name: str) -> ManageSectionPage:
+        self.page.get_by_role("link", name=section_name, exact=True).click()
+        manage_section_page = ManageSectionPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=task_name,
+            section_name=section_name,
         )
-        expect(manage_task_page.heading).to_be_visible()
-        return manage_task_page
+        expect(manage_section_page.heading).to_be_visible()
+        return manage_section_page
 
-    def click_add_task(self) -> AddTaskPage:
-        self.page.get_by_role("link", name="Add a task").or_(
-            self.page.get_by_role("link", name="Add another task")
+    def click_add_section(self) -> AddSectionPage:
+        self.page.get_by_role("link", name="Add a section").or_(
+            self.page.get_by_role("link", name="Add another section")
         ).click()
-        task_type_page = AddTaskPage(
+        add_section_page = AddSectionPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
         )
-        expect(task_type_page.heading).to_be_visible()
-        return task_type_page
+        expect(add_section_page.heading).to_be_visible()
+        return add_section_page
 
 
-class ManageTaskPage(ReportsBasePage):
+class ManageSectionPage(ReportsBasePage):
     report_name: str
-    task_name: str
-    preview_task_button: Locator
+    section_name: str
+    preview_section_button: Locator
     add_question_button: Locator
     add_question_group_button: Locator
-    change_task_name_link: Locator
-    delete_task_link: Locator
+    change_section_name_link: Locator
+    delete_section_link: Locator
 
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str) -> None:
         super().__init__(
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"{task_name}"),
+            heading=page.get_by_role("heading", name=f"{section_name}"),
         )
         self.report_name = report_name
-        self.task_name = task_name
-        self.preview_task_button = self.page.get_by_role("button", name="Preview task")
+        self.section_name = section_name
+        self.preview_section_button = self.page.get_by_role("button", name="Preview section")
         self.add_question_button = self.page.get_by_role("link", name="Add a question", exact=True).or_(
             self.page.get_by_role("link", name="Add another question")
         )
         self.add_question_group_button = self.page.get_by_role("link", name="Add a question group", exact=True)
-        self.change_task_name_link = self.page.get_by_role("link", name="Change task name")
-        self.delete_task_link = self.page.get_by_role("button", name="Delete task")
+        self.change_section_name_link = self.page.get_by_role("link", name="Change section name")
+        self.delete_section_link = self.page.get_by_role("button", name="Delete section")
 
     def click_add_question(self) -> SelectQuestionTypePage:
         self.add_question_button.click()
@@ -380,7 +382,7 @@ class ManageTaskPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(select_question_type_page.heading).to_be_visible()
         return select_question_type_page
@@ -393,7 +395,7 @@ class ManageTaskPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
             group_name=group_name,
         )
         expect(add_question_group_page.heading).to_be_visible()
@@ -409,20 +411,20 @@ class ManageTaskPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
 
 
 class EditQuestionPage(ReportsBasePage):
-    task_breadcrumb: Locator
+    section_breadcrumb: Locator
     add_validation_button: Locator
     add_condition_button: Locator
     add_guidance_button: Locator
     change_guidance_link: Locator
 
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str) -> None:
         super().__init__(
             page,
             domain,
@@ -430,9 +432,9 @@ class EditQuestionPage(ReportsBasePage):
             heading=page.get_by_role("heading", name="Edit question"),
         )
         self.report_name = report_name
-        self.task_name = task_name
-        self.task_breadcrumb = self.page.locator("a.govuk-breadcrumbs__link").filter(
-            has=page.get_by_text(f"{task_name}")
+        self.section_name = section_name
+        self.section_breadcrumb = self.page.locator("a.govuk-breadcrumbs__link").filter(
+            has=page.get_by_text(f"{section_name}")
         )
         self.add_validation_button = self.page.get_by_role("button", name="Add validation").or_(
             self.page.get_by_role("button", name="Add more validation")
@@ -448,7 +450,7 @@ class EditQuestionPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(add_validation_page.heading).to_be_visible()
         return add_validation_page
@@ -460,22 +462,22 @@ class EditQuestionPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(add_condition_page.heading).to_be_visible()
         return add_condition_page
 
-    def click_task_breadcrumb(self) -> "ManageTaskPage":
-        self.task_breadcrumb.click()
-        manage_task_page = ManageTaskPage(
+    def click_section_breadcrumb(self) -> "ManageSectionPage":
+        self.section_breadcrumb.click()
+        manage_section_page = ManageSectionPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
-        expect(manage_task_page.heading).to_be_visible()
-        return manage_task_page
+        expect(manage_section_page.heading).to_be_visible()
+        return manage_section_page
 
     def click_question_group_breadcrumb(self, question_group_name: str) -> EditQuestionGroupPage:
         self.page.locator("a.govuk-breadcrumbs__link").filter(has=self.page.get_by_text(question_group_name)).click()
@@ -484,35 +486,35 @@ class EditQuestionPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
             group_name=question_group_name,
         )
         expect(edit_question_group_page.heading).to_be_visible()
         return edit_question_group_page
 
-    def click_return_to_task(self) -> ManageTaskPage:
-        self.page.get_by_role("link", name="Return to the task").click()
-        manage_task_page = ManageTaskPage(
+    def click_return_to_section(self) -> ManageSectionPage:
+        self.page.get_by_role("link", name="Return to the section").click()
+        manage_section_page = ManageSectionPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
-        expect(manage_task_page.heading).to_be_visible()
-        return manage_task_page
+        expect(manage_section_page.heading).to_be_visible()
+        return manage_section_page
 
-    def click_save(self) -> ManageTaskPage:
+    def click_save(self) -> ManageSectionPage:
         self.page.get_by_role("button", name="Save").click()
-        manage_task_page = ManageTaskPage(
+        manage_section_page = ManageSectionPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
-        expect(manage_task_page.heading).to_be_visible()
-        return manage_task_page
+        expect(manage_section_page.heading).to_be_visible()
+        return manage_section_page
 
     def click_add_guidance(self) -> AddGuidancePage:
         self.add_guidance_button.click()
@@ -521,7 +523,7 @@ class EditQuestionPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(add_guidance_page.heading).to_be_visible()
         return add_guidance_page
@@ -533,7 +535,7 @@ class EditQuestionPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(add_guidance_page.heading).to_be_visible()
         return add_guidance_page
@@ -550,7 +552,7 @@ class AddGuidancePage(ReportsBasePage):
     guidance_heading_textbox: Locator
     guidance_body_textbox: Locator
 
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str) -> None:
         super().__init__(
             page,
             domain,
@@ -560,7 +562,7 @@ class AddGuidancePage(ReportsBasePage):
             ),
         )
         self.report_name = report_name
-        self.task_name = task_name
+        self.section_name = section_name
         self.save_guidance_button = self.page.get_by_role("button", name="Save guidance")
         self.preview_guidance_tab = self.page.get_by_role("tab", name="Preview guidance")
         self.write_guidance_tab = self.page.get_by_role("tab", name="Write guidance")
@@ -621,7 +623,7 @@ class AddGuidancePage(ReportsBasePage):
                 self.domain,
                 grant_name=self.grant_name,
                 report_name=self.report_name,
-                task_name=self.task_name,
+                section_name=self.section_name,
             )
         else:
             edit_page = EditQuestionGroupPage(
@@ -629,7 +631,7 @@ class AddGuidancePage(ReportsBasePage):
                 self.domain,
                 grant_name=self.grant_name,
                 report_name=self.report_name,
-                task_name=self.task_name,
+                section_name=self.section_name,
                 group_name=edit_page.group_name,
             )
         expect(edit_page.heading).to_be_visible()
@@ -685,7 +687,7 @@ class AddGuidancePage(ReportsBasePage):
 class AddValidationPage(ReportsBasePage):
     add_validation_button: Locator
 
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str) -> None:
         super().__init__(
             page,
             domain,
@@ -693,7 +695,7 @@ class AddValidationPage(ReportsBasePage):
             heading=page.get_by_role("heading", name="Add validation"),
         )
         self.report_name = report_name
-        self.task_name = task_name
+        self.section_name = section_name
         self.add_validation_button = self.page.get_by_role("button", name="Add validation")
 
     def configure_managed_validation(
@@ -737,7 +739,7 @@ class AddValidationPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
@@ -747,7 +749,7 @@ class AddConditionPage(ReportsBasePage):
     add_condition_button: Locator
     continue_button: Locator
 
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str) -> None:
         super().__init__(
             page,
             domain,
@@ -755,7 +757,7 @@ class AddConditionPage(ReportsBasePage):
             heading=page.get_by_role("heading", name="Add a condition"),
         )
         self.report_name = report_name
-        self.task_name = task_name
+        self.section_name = section_name
         self.add_condition_button = self.page.get_by_role("button", name="Add condition")
         self.continue_button = self.page.get_by_role("button", name="Continue")
 
@@ -827,7 +829,7 @@ class AddConditionPage(ReportsBasePage):
                 self.domain,
                 grant_name=self.grant_name,
                 report_name=self.report_name,
-                task_name=self.task_name,
+                section_name=self.section_name,
                 group_name=edit_page.group_name,
             )
         else:
@@ -836,7 +838,7 @@ class AddConditionPage(ReportsBasePage):
                 self.domain,
                 grant_name=self.grant_name,
                 report_name=self.report_name,
-                task_name=self.task_name,
+                section_name=self.section_name,
             )
 
         expect(edit_page.heading).to_be_visible()
@@ -845,9 +847,9 @@ class AddConditionPage(ReportsBasePage):
 
 class SelectQuestionTypePage(ReportsBasePage):
     report_name: str
-    task_name: str
+    section_name: str
 
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str) -> None:
         super().__init__(
             page,
             domain,
@@ -855,7 +857,7 @@ class SelectQuestionTypePage(ReportsBasePage):
             heading=page.get_by_role("heading", name="What type of question do you need?"),
         )
         self.report_name = report_name
-        self.task_name = task_name
+        self.section_name = section_name
 
     def click_question_type(self, question_type: str) -> None:
         self.page.get_by_role("radio", name=question_type).click()
@@ -867,7 +869,7 @@ class SelectQuestionTypePage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(question_details_page.heading).to_be_visible()
         return question_details_page
@@ -875,9 +877,9 @@ class SelectQuestionTypePage(ReportsBasePage):
 
 class AddQuestionDetailsPage(ReportsBasePage):
     report_name: str
-    task_name: str
+    section_name: str
 
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str) -> None:
         super().__init__(
             page,
             domain,
@@ -885,7 +887,7 @@ class AddQuestionDetailsPage(ReportsBasePage):
             heading=page.get_by_role("heading", name="Add question"),
         )
         self.report_name = report_name
-        self.task_name = task_name
+        self.section_name = section_name
 
     def fill_question_text(self, question_text: str) -> None:
         self.page.get_by_role("textbox", name="Question text").fill(question_text)
@@ -938,7 +940,7 @@ class AddQuestionDetailsPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
@@ -953,7 +955,7 @@ class SelectDataSourcePage(ReportsBasePage):
             grant_name=grant_name,
         )
 
-    def select_data_source(self, data_source: Literal["A previous question in this task"]) -> None:
+    def select_data_source(self, data_source: Literal["A previous question in this section"]) -> None:
         self.page.get_by_role("radio", name=data_source).click()
 
     def click_select(self) -> "SelectDataSourceQuestionPage":
@@ -986,7 +988,7 @@ class SelectDataSourceQuestionPage(ReportsBasePage):
         self.page.get_by_role("button", name="Reference data").click()
 
 
-class AddTaskPage(ReportsBasePage):
+class AddSectionPage(ReportsBasePage):
     report_name: str
 
     def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
@@ -994,20 +996,20 @@ class AddTaskPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name="What is the name of the task?"),
+            heading=page.get_by_role("heading", name="What is the name of the section?"),
         )
         self.report_name = report_name
 
-    def fill_in_task_name(self, task_name: str) -> None:
-        self.page.get_by_role("textbox", name="Task name").fill(task_name)
+    def fill_in_section_name(self, section_name: str) -> None:
+        self.page.get_by_role("textbox", name="Section name").fill(section_name)
 
-    def click_add_task(self) -> ReportTasksPage:
-        self.page.get_by_role("button", name="Add task").click()
-        report_tasks_page = ReportTasksPage(
+    def click_add_section(self) -> ReportSectionsPage:
+        self.page.get_by_role("button", name="Add section").click()
+        report_sections_page = ReportSectionsPage(
             self.page, self.domain, grant_name=self.grant_name, report_name=self.report_name
         )
-        expect(report_tasks_page.heading).to_be_visible()
-        return report_tasks_page
+        expect(report_sections_page.heading).to_be_visible()
+        return report_sections_page
 
 
 class RunnerTasklistPage(ReportsBasePage):
@@ -1034,22 +1036,22 @@ class RunnerTasklistPage(ReportsBasePage):
         self.submit_button = page.get_by_role("button", name="Submit")
         self.back_link = self.page.get_by_role("link", name="Back")
 
-    def click_on_task(self, task_name: str) -> None:
-        self.page.get_by_role("link", name=task_name).click()
+    def click_on_section(self, section_name: str) -> None:
+        self.page.get_by_role("link", name=section_name).click()
 
-    def click_submit(self) -> ReportTasksPage:
+    def click_submit(self) -> ReportSectionsPage:
         self.submit_button.click()
-        report_tasks_page = ReportTasksPage(self.page, self.domain, self.grant_name, self.report_name)
-        expect(report_tasks_page.heading).to_be_visible()
-        return report_tasks_page
+        report_sections_page = ReportSectionsPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(report_sections_page.heading).to_be_visible()
+        return report_sections_page
 
-    def click_back(self) -> ReportTasksPage:
+    def click_back(self) -> ReportSectionsPage:
         self.back_link.click()
-        report_tasks_page = ReportTasksPage(
+        report_sections_page = ReportSectionsPage(
             self.page, self.domain, grant_name=self.grant_name, report_name=self.report_name
         )
-        expect(report_tasks_page.heading).to_be_visible()
-        return report_tasks_page
+        expect(report_sections_page.heading).to_be_visible()
+        return report_sections_page
 
 
 class RunnerQuestionPage(ReportsBasePage):
@@ -1132,7 +1134,7 @@ class RunnerCheckYourAnswersPage(ReportsBasePage):
             heading=page.get_by_role("heading", name="Check your answers"),
         )
         self.save_and_continue_button = page.get_by_role("button", name="Save and continue")
-        self.mark_as_complete_yes = page.get_by_role("radio", name="Yes, I’ve completed this task")
+        self.mark_as_complete_yes = page.get_by_role("radio", name="Yes, I’ve completed this section")
 
     def click_mark_as_complete_yes(self) -> None:
         self.mark_as_complete_yes.click()
@@ -1189,8 +1191,8 @@ class ViewSubmissionPage(ReportsBasePage):
         )
         self.report_name = report_name
 
-    def get_questions_list_for_task(self, task_name: str) -> Locator:
-        return self.page.get_by_test_id(task_name)
+    def get_questions_list_for_section(self, section_name: str) -> Locator:
+        return self.page.get_by_test_id(section_name)
 
     def click_submissions_breadcrumb(self) -> SubmissionsListPage:
         self.page.locator("a.govuk-breadcrumbs__link").filter(has=self.page.get_by_text("Submissions")).click()
@@ -1201,7 +1203,7 @@ class ViewSubmissionPage(ReportsBasePage):
 
 class AddQuestionGroupPage(ReportsBasePage):
     def __init__(
-        self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str, group_name: str
+        self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str, group_name: str
     ) -> None:
         super().__init__(
             page,
@@ -1210,7 +1212,7 @@ class AddQuestionGroupPage(ReportsBasePage):
             heading=page.get_by_role("heading", name="What is the name of the question group?"),
         )
         self.report_name = report_name
-        self.task_name = task_name
+        self.section_name = section_name
         self.group_name = group_name
 
     def fill_in_question_group_name(self) -> None:
@@ -1223,7 +1225,7 @@ class AddQuestionGroupPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
             group_name=self.group_name,
         )
         expect(question_group_display_options_page.heading).to_be_visible()
@@ -1232,7 +1234,7 @@ class AddQuestionGroupPage(ReportsBasePage):
 
 class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
     def __init__(
-        self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str, group_name: str
+        self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str, group_name: str
     ) -> None:
         super().__init__(
             page,
@@ -1241,7 +1243,7 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
             heading=page.get_by_role("heading", name="How should the question group be displayed?"),
         )
         self.report_name = report_name
-        self.task_name = task_name
+        self.section_name = section_name
         self.group_name = group_name
 
     def click_question_group_display_type(self, display_options: GroupDisplayOptions) -> None:
@@ -1262,7 +1264,7 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
             group_name=self.group_name,
         )
         expect(group_add_another_page.heading).to_be_visible()
@@ -1271,7 +1273,7 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
 
 class AddQuestionGroupAddAnotherPage(ReportsBasePage):
     def __init__(
-        self, page: Page, domain: str, grant_name: str, report_name: str, task_name: str, group_name: str
+        self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str, group_name: str
     ) -> None:
         super().__init__(
             page,
@@ -1282,7 +1284,7 @@ class AddQuestionGroupAddAnotherPage(ReportsBasePage):
             ),
         )
         self.report_name = report_name
-        self.task_name = task_name
+        self.section_name = section_name
         self.group_name = group_name
 
     def click_add_another(self, add_another: bool) -> None:
@@ -1298,7 +1300,7 @@ class AddQuestionGroupAddAnotherPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
             group_name=self.group_name,
             parent_group_name=parent_group_name,
         )
@@ -1307,7 +1309,7 @@ class AddQuestionGroupAddAnotherPage(ReportsBasePage):
 
 
 class EditQuestionGroupPage(ReportsBasePage):
-    task_breadcrumb: Locator
+    section_breadcrumb: Locator
     parent_breadcrumb: Locator | None
     change_display_options_link: Locator
     add_question_button: Locator
@@ -1322,7 +1324,7 @@ class EditQuestionGroupPage(ReportsBasePage):
         domain: str,
         grant_name: str,
         report_name: str,
-        task_name: str,
+        section_name: str,
         group_name: str,
         parent_group_name: str | None = None,
     ) -> None:
@@ -1334,10 +1336,10 @@ class EditQuestionGroupPage(ReportsBasePage):
         )
         self.parent_group_name = parent_group_name
         self.report_name = report_name
-        self.task_name = task_name
+        self.section_name = section_name
         self.group_name = group_name
-        self.task_breadcrumb = self.page.locator("a.govuk-breadcrumbs__link").filter(
-            has=page.get_by_text(f"{task_name}")
+        self.section_breadcrumb = self.page.locator("a.govuk-breadcrumbs__link").filter(
+            has=page.get_by_text(f"{section_name}")
         )
         self.parent_breadcrumb = self.page.get_by_role("link", name=parent_group_name) if parent_group_name else None
 
@@ -1350,17 +1352,17 @@ class EditQuestionGroupPage(ReportsBasePage):
         self.change_guidance_link = self.page.get_by_role("link", name="Change  page heading")
         self.add_question_group_button = self.page.get_by_role("link", name="Add a question group", exact=True)
 
-    def click_task_breadcrumb(self) -> ManageTaskPage:
-        self.task_breadcrumb.click()
-        manage_task_page = ManageTaskPage(
+    def click_section_breadcrumb(self) -> ManageSectionPage:
+        self.section_breadcrumb.click()
+        manage_section_page = ManageSectionPage(
             self.page,
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
-        expect(manage_task_page.heading).to_be_visible()
-        return manage_task_page
+        expect(manage_section_page.heading).to_be_visible()
+        return manage_section_page
 
     def click_parent_group_breadcrumb(self) -> EditQuestionGroupPage:
         assert self.parent_breadcrumb
@@ -1370,7 +1372,7 @@ class EditQuestionGroupPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
             group_name=self.parent_group_name,  # type: ignore[arg-type]
         )
         expect(manage_parent_group_page.heading).to_be_visible()
@@ -1384,7 +1386,7 @@ class EditQuestionGroupPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
             group_name=group_name,
         )
         expect(add_question_group_page.heading).to_be_visible()
@@ -1398,7 +1400,7 @@ class EditQuestionGroupPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(select_question_type_page.heading).to_be_visible()
         return select_question_type_page
@@ -1410,7 +1412,7 @@ class EditQuestionGroupPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(add_condition_page.heading).to_be_visible()
         return add_condition_page
@@ -1422,7 +1424,7 @@ class EditQuestionGroupPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(add_guidance_page.heading).to_be_visible()
         return add_guidance_page
@@ -1434,7 +1436,7 @@ class EditQuestionGroupPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
             group_name=self.group_name,
         )
         expect(question_group_display_options_page.heading).to_be_visible()
@@ -1447,7 +1449,7 @@ class EditQuestionGroupPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
-            task_name=self.task_name,
+            section_name=self.section_name,
         )
         expect(add_guidance_page.heading).to_be_visible()
         return add_guidance_page

@@ -37,21 +37,23 @@
         <p class="govuk-body">There are no monitoring reports for {{ grant.name }}.</p>
       {% else %}
         {% for report in grant.reports %}
-          {% set formSectionsAndTasksText %}
+          {% set formSectionsText %}
             {% if grant_admin %}
               {% if report.forms | length == 0 %}
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_task', grant_id=grant.id, report_id=report.id) }}">Add tasks<span class="govuk-visually-hidden"> to {{ report.name }}</span></a>
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}"
+                  >Add sections<span class="govuk-visually-hidden"> to {{ report.name }}</span></a
+                >
                 to create your report
                 <br />
-                Tasks are groups of questions with a common theme
+                Sections are groups of questions with a common theme
               {% else %}
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_tasks', grant_id=grant.id, report_id=report.id) }}">
-                  {{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id) }}">
+                  {{ report.forms | length }} sections<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
                 </a>
               {% endif %}
             {% else %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_tasks', grant_id=grant.id, report_id=report.id) }}">
-                {{ report.forms | length }} tasks<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id) }}">
+                {{ report.forms | length }} sections<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
               </a>
             {% endif %}
           {% endset %}
@@ -95,7 +97,7 @@
             	"rows": [
             		{
             			"key": {"text": "Report"},
-            			"value": {"text": formSectionsAndTasksText},
+            			"value": {"text": formSectionsText},
             		},
             		{"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} },
             		{"key": {"text": "Created by"}, "value": {"text": report.created_by.email} },

@@ -47,7 +47,7 @@
             {% if question.parent %}
               <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=question.parent.id) }}">Return to the question group</a>
             {% else %}
-              <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_task_questions', grant_id=grant.id, form_id=db_form.id) }}">Return to the task</a>
+              <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=db_form.id) }}">Return to the section</a>
             {% endif %}
             to add more questions, or edit this question to add conditions and validations.
           {% endset %}

@@ -19,7 +19,7 @@ from app.common.collections.types import (
     YesNoAnswer,
 )
 from app.common.data import interfaces
-from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum, TasklistTaskStatusEnum
+from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum, TasklistSectionStatusEnum
 from app.common.expressions import ExpressionContext
 from app.common.filters import format_datetime
 from app.common.helpers.collections import (
@@ -370,7 +370,7 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.NOT_STARTED
-            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.NOT_STARTED
+            assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.NOT_STARTED
 
             helper.submit_answer_for_question(
                 question_one.id,
@@ -380,7 +380,7 @@ class TestSubmissionHelper:
             )
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.IN_PROGRESS
-            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.IN_PROGRESS
+            assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
 
             helper.submit_answer_for_question(
                 question_two.id,
@@ -390,12 +390,12 @@ class TestSubmissionHelper:
             )
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.IN_PROGRESS
-            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.IN_PROGRESS
+            assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
 
             helper.toggle_form_completed(form, submission.created_by, True)
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.COMPLETED
-            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
 
             # make sure the second form is unaffected by the first forms status
             helper.submit_answer_for_question(
@@ -405,14 +405,14 @@ class TestSubmissionHelper:
                 ),
             )
             assert helper.get_status_for_form(form_two) == SubmissionStatusEnum.IN_PROGRESS
-            assert helper.get_tasklist_status_for_form(form_two) == TasklistTaskStatusEnum.IN_PROGRESS
+            assert helper.get_tasklist_status_for_form(form_two) == TasklistSectionStatusEnum.IN_PROGRESS
 
         def test_form_status_with_no_questions(self, db_session, factories):
             form = factories.form.create()
             submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.NOT_STARTED
-            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.NO_QUESTIONS
+            assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.NO_QUESTIONS
 
         def test_submission_status_based_on_forms(self, db_session, factories):
             question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
@@ -435,7 +435,7 @@ class TestSubmissionHelper:
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
             assert helper.get_status_for_form(question.form) == SubmissionStatusEnum.COMPLETED
-            assert helper.get_tasklist_status_for_form(question.form) == TasklistTaskStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(question.form) == TasklistSectionStatusEnum.COMPLETED
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
 
             helper.submit_answer_for_question(
@@ -447,7 +447,7 @@ class TestSubmissionHelper:
             helper.toggle_form_completed(question_two.form, submission.created_by, True)
 
             assert helper.get_status_for_form(question_two.form) == SubmissionStatusEnum.COMPLETED
-            assert helper.get_tasklist_status_for_form(question_two.form) == TasklistTaskStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(question_two.form) == TasklistSectionStatusEnum.COMPLETED
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
 
@@ -477,7 +477,7 @@ class TestSubmissionHelper:
             helper.toggle_form_completed(form, submission.created_by, True)
 
             assert helper.get_status_for_form(form) == SubmissionStatusEnum.COMPLETED
-            assert helper.get_tasklist_status_for_form(form) == TasklistTaskStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
 
         def test_toggle_form_status_doesnt_change_status_if_already_completed(self, db_session, factories):
             collection = factories.collection.create()
@@ -501,11 +501,11 @@ class TestSubmissionHelper:
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
             assert helper.get_status_for_form(question.form) == SubmissionStatusEnum.COMPLETED
-            assert helper.get_tasklist_status_for_form(question.form) == TasklistTaskStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(question.form) == TasklistSectionStatusEnum.COMPLETED
 
             helper.toggle_form_completed(question.form, submission.created_by, True)
             assert helper.get_status_for_form(question.form) == SubmissionStatusEnum.COMPLETED
-            assert helper.get_tasklist_status_for_form(question.form) == TasklistTaskStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(question.form) == TasklistSectionStatusEnum.COMPLETED
             assert len(submission.events) == 1
 
         def test_submit_submission_rejected_if_not_complete(self, db_session, factories):
@@ -793,7 +793,7 @@ class TestCollectionHelper:
                     "reference": mock.ANY,
                     "status": "In progress",
                     "submitted_at_utc": None,
-                    "tasks": [
+                    "sections": [
                         {
                             "answers": {
                                 "Airspeed velocity": {"value": 123},

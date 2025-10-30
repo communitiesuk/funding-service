@@ -38,7 +38,7 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
     SubmissionStatusEnum,
-    TasklistTaskStatusEnum,
+    TasklistSectionStatusEnum,
 )
 from app.common.expressions import (
     ExpressionContext,
@@ -272,11 +272,11 @@ class SubmissionHelper:
         form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
         return {SubmissionStatusEnum.COMPLETED} == form_statuses
 
-    def get_tasklist_status_for_form(self, form: "Form") -> TasklistTaskStatusEnum:
+    def get_tasklist_status_for_form(self, form: "Form") -> TasklistSectionStatusEnum:
         if len(form.cached_questions) == 0:
-            return TasklistTaskStatusEnum.NO_QUESTIONS
+            return TasklistSectionStatusEnum.NO_QUESTIONS
 
-        return TasklistTaskStatusEnum(self.get_status_for_form(form))
+        return TasklistSectionStatusEnum(self.get_status_for_form(form))
 
     def get_status_for_form(self, form: "Form") -> str:
         form_questions_answered = self.cached_get_all_questions_are_answered_for_form(form)
@@ -609,17 +609,17 @@ class CollectionHelper:
                 "submitted_at_utc": format_datetime(submission.submitted_at_utc)
                 if submission.submitted_at_utc
                 else None,
-                "tasks": [],
+                "sections": [],
             }
 
             for form in submission.get_ordered_visible_forms():
-                task_data: dict[str, Any] = {"name": form.title, "answers": {}}
+                section_data: dict[str, Any] = {"name": form.title, "answers": {}}
                 for question in submission.cached_get_ordered_visible_questions(form):
                     answer = submission.cached_get_answer_for_question(question.id)
-                    task_data["answers"][question.name] = (
+                    section_data["answers"][question.name] = (
                         answer.get_value_for_json_export() if answer is not None else None
                     )
-                submission_data["tasks"].append(task_data)  # ty: ignore[possibly-missing-attribute]
+                submission_data["sections"].append(section_data)  # ty: ignore[possibly-missing-attribute]
 
             submissions_data["submissions"].append(submission_data)
 
