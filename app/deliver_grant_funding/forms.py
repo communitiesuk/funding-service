@@ -456,10 +456,18 @@ class AddContextSelectSourceForm(FlaskForm):
 
     submit = SubmitField(widget=GovSubmitInput())
 
-    def __init__(self, *args: Any, form: "Form", current_component: TOptional["Component"], **kwargs: Any):
+    def __init__(
+        self,
+        *args: Any,
+        form: "Form",
+        current_component: TOptional["Component"],
+        parent_component: TOptional["Group"] = None,
+        **kwargs: Any,
+    ):
         super().__init__(*args, **kwargs)
         self.form = form
         self.current_component = current_component
+        self.parent_component = parent_component
 
     def validate_data_source(self, field: Field) -> None:
         try:
@@ -468,8 +476,10 @@ class AddContextSelectSourceForm(FlaskForm):
             return
 
         if choice == ExpressionContext.ContextSources.SECTION:
-            if not get_referenceable_questions(form=self.form, current_component=self.current_component):
-                raise ValidationError("There are no available questions before this one in the form")
+            if not get_referenceable_questions(
+                form=self.form, current_component=self.current_component, parent_component=self.parent_component
+            ):
+                raise ValidationError("There are no available questions before this one in the section")
 
 
 class SelectDataSourceQuestionForm(FlaskForm):
@@ -489,10 +499,10 @@ class SelectDataSourceQuestionForm(FlaskForm):
         current_component: TOptional["Component"],
         expression: bool = False,
         *args: Any,
+        parent_component: TOptional["Group"] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-
         # If we're editing an existing question, then only list questions that are "before" this one in the form.
         # If it's not an existing question, then it gets added to the end of the form, so all questions are "before".
 
@@ -500,11 +510,14 @@ class SelectDataSourceQuestionForm(FlaskForm):
         # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
         # centralise this logic sensibly.
 
-        self.question.choices = [("", "")] + [
-            (str(question.id), interpolate(question.text))
-            for question in get_referenceable_questions(form, current_component)
-            if (not expression or question.data_type == current_component.data_type)  # type: ignore[assignment, union-attr]
-        ]
+        referenceable_questions = get_referenceable_questions(form, current_component, parent_component)
+
+        if referenceable_questions:
+            self.question.choices = [("", "")] + [
+                (str(question.id), interpolate(question.text))
+                for question in referenceable_questions
+                if (not expression or question.data_type == current_component.data_type)  # type: ignore[assignment, union-attr]
+            ]
 
 
 class GrantAddUserForm(FlaskForm):

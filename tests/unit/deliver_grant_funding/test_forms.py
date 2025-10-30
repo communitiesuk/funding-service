@@ -272,8 +272,8 @@ class TestSelectDataSourceQuestionForm:
             current_component=questions[2],
         )
 
-        assert len(form.question.choices) == 1
-        assert {q[0] for q in form.question.choices} == {""}
+        assert len(form.question.choices) == 0
+        assert form.question.choices == []
 
     def test_show_all_question_datatypes_if_no_expression(self, app, factories, mocker):
         text_question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
