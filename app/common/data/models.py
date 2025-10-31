@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from flask import current_app
-from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, UniqueConstraint, select, text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint, select, text
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
@@ -119,10 +119,6 @@ class Organisation(BaseModel):
 class Collection(BaseModel):
     __tablename__ = "collection"
 
-    # NOTE: The ID provided by the BaseModel should *NOT CHANGE* when incrementing the version. That part is a stable
-    #       identifier for linked collection/versioning.
-    version: Mapped[int] = mapped_column(default=1, primary_key=True)
-
     type: Mapped[CollectionType] = mapped_column(SqlEnum(CollectionType, name="collection_type", validate_strings=True))
 
     # Name will be superseded by domain specific application contexts but allows us to
@@ -173,7 +169,7 @@ class Collection(BaseModel):
         cascade="all",
     )
 
-    __table_args__ = (UniqueConstraint("name", "grant_id", "version", name="uq_collection_name_version_grant_id"),)
+    __table_args__ = (UniqueConstraint("name", "grant_id", name="uq_collection_name_grant_id"),)
 
     @property
     def test_submissions(self) -> list["Submission"]:
@@ -201,8 +197,7 @@ class Submission(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     grant_recipient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant_recipient.id"))
 
-    collection_id: Mapped[uuid.UUID]
-    collection_version: Mapped[int]
+    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id"))
     collection: Mapped[Collection] = relationship("Collection")
 
     events: Mapped[list["SubmissionEvent"]] = relationship(
@@ -212,7 +207,6 @@ class Submission(BaseModel):
     grant_recipient: Mapped["GrantRecipient"] = relationship("GrantRecipient", back_populates="submissions")
 
     __table_args__ = (
-        ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
         CheckConstraint(
             "mode = 'TEST' OR grant_recipient_id IS NOT NULL",
             name="ck_grant_recipient_if_live",
@@ -230,17 +224,13 @@ class Form(BaseModel):
     order: Mapped[int]
     slug: Mapped[str]
 
-    collection_id: Mapped[uuid.UUID]
-    collection_version: Mapped[int]
+    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id"))
     collection: Mapped[Collection] = relationship("Collection", back_populates="forms")
 
     __table_args__ = (
-        UniqueConstraint(
-            "order", "collection_id", "collection_version", name="uq_form_order_collection", deferrable=True
-        ),
-        UniqueConstraint("title", "collection_id", "collection_version", name="uq_form_title_collection"),
-        UniqueConstraint("slug", "collection_id", "collection_version", name="uq_form_slug_collection"),
-        ForeignKeyConstraint(["collection_id", "collection_version"], ["collection.id", "collection.version"]),
+        UniqueConstraint("order", "collection_id", name="uq_form_order_collection", deferrable=True),
+        UniqueConstraint("title", "collection_id", name="uq_form_title_collection"),
+        UniqueConstraint("slug", "collection_id", name="uq_form_slug_collection"),
     )
 
     # support fetching all of a forms components so that the selectin loading strategy can make one

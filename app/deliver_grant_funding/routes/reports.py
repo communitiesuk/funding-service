@@ -161,7 +161,6 @@ def set_up_report(grant_id: UUID) -> ResponseReturnValue:
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    # NOTE: this fetches the _latest version_ of the collection with this ID
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
     form = SetUpReportForm(obj=report)
@@ -270,7 +269,6 @@ def add_section(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
-    # NOTE: this fetches the _latest version_ of the collection with this ID
     db_form = get_form_by_id(form_id, grant_id=grant_id)
 
     if db_form.collection.live_submissions:

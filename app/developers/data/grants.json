@@ -8,9 +8,8 @@
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
           "name": "Report on cheeseboards in parks",
           "slug": "report-on-cheeseboards-in-parks",
-          "status": "draft",
-          "type": "monitoring report",
-          "version": 1
+          "status": "closed",
+          "type": "monitoring report"
         }
       ],
       "component_references": [
@@ -1038,7 +1037,6 @@
       "forms": [
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
-          "collection_version": 1,
           "id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "order": 0,
           "slug": "contact-information",
@@ -1046,7 +1044,6 @@
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
-          "collection_version": 1,
           "id": "9cf64797-461d-467c-8834-470051899da7",
           "order": 1,
           "slug": "programme-progress",
@@ -1054,7 +1051,6 @@
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
-          "collection_version": 1,
           "id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "order": 2,
           "slug": "outputs-and-outcomes",
@@ -1062,7 +1058,6 @@
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
-          "collection_version": 1,
           "id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "order": 3,
           "slug": "main-risk-to-delivery",
@@ -1070,7 +1065,6 @@
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
-          "collection_version": 1,
           "id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "order": 4,
           "slug": "spend-in-the-last-reporting-period",
@@ -1078,7 +1072,6 @@
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
-          "collection_version": 1,
           "id": "e2546f96-3655-483b-8531-0bbfd49a2631",
           "order": 5,
           "slug": "estimated-future-spend",
@@ -1758,8 +1751,7 @@
           "name": "Communities for Afghans Phase 2",
           "slug": "communities-for-afghans-phase-2",
           "status": "draft",
-          "type": "monitoring report",
-          "version": 1
+          "type": "monitoring report"
         }
       ],
       "component_references": [
@@ -7188,17 +7180,6 @@
         },
         {
           "context": {
-            "question_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "e149ff25-77bd-4bc6-9531-d88445fe7d08",
-          "managed_name": "Yes",
-          "question_id": "6745d6af-76fd-4c5c-a847-f55e00108cec",
-          "statement": "q_0faf4b7bbed24c29b4f990fe3a9d2768 is True",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "inclusive": true,
             "minimum_value": 3,
             "question_id": "14f1872c-c092-4680-a3fa-60b09d9cced9"
@@ -7208,6 +7189,17 @@
           "managed_name": "Greater than",
           "question_id": "6745d6af-76fd-4c5c-a847-f55e00108cec",
           "statement": "q_14f1872cc0924680a3fa60b09d9cced9 >= 3",
+          "type_": "CONDITION"
+        },
+        {
+          "context": {
+            "question_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768"
+          },
+          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
+          "id": "e149ff25-77bd-4bc6-9531-d88445fe7d08",
+          "managed_name": "Yes",
+          "question_id": "6745d6af-76fd-4c5c-a847-f55e00108cec",
+          "statement": "q_0faf4b7bbed24c29b4f990fe3a9d2768 is True",
           "type_": "CONDITION"
         },
         {
@@ -9870,7 +9862,6 @@
       "forms": [
         {
           "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
-          "collection_version": 1,
           "id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "order": 0,
           "slug": "report-on-phase-2",
@@ -14024,9 +14015,8 @@
           "id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
           "name": "Report on picnic areas in parks",
           "slug": "report-on-picnic-areas-in-parks",
-          "status": "draft",
-          "type": "monitoring report",
-          "version": 1
+          "status": "scheduled",
+          "type": "monitoring report"
         }
       ],
       "component_references": [
@@ -14059,7 +14049,6 @@
       "forms": [
         {
           "collection_id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
-          "collection_version": 1,
           "id": "145189e8-f1da-149b-95e1-4afb893c856f",
           "order": 0,
           "slug": "form-3",
@@ -14067,7 +14056,6 @@
         },
         {
           "collection_id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
-          "collection_version": 1,
           "id": "79332ef5-531b-720f-bad1-15f46863bc9b",
           "order": 1,
           "slug": "form-4",
@@ -14075,7 +14063,6 @@
         },
         {
           "collection_id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
-          "collection_version": 1,
           "id": "6ba3aac0-b30b-0b4d-06a6-84ed632f4f84",
           "order": 2,
           "slug": "public-feedback-on-picnic-areas",
@@ -14179,9 +14166,8 @@
           "id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
           "name": "Report on playgrounds in parks",
           "slug": "report-on-playgrounds-in-parks",
-          "status": "draft",
-          "type": "monitoring report",
-          "version": 1
+          "status": "open",
+          "type": "monitoring report"
         }
       ],
       "component_references": [],
@@ -14191,7 +14177,6 @@
       "forms": [
         {
           "collection_id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
-          "collection_version": 1,
           "id": "5036b7da-0a66-75bb-04ca-4b7d97345fe5",
           "order": 0,
           "slug": "form-6",
@@ -14199,7 +14184,6 @@
         },
         {
           "collection_id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
-          "collection_version": 1,
           "id": "7ebb5886-bbc3-14b7-38fa-e16a09e053f7",
           "order": 1,
           "slug": "usage-statistics",
@@ -14207,7 +14191,6 @@
         },
         {
           "collection_id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
-          "collection_version": 1,
           "id": "08b95b3e-2ac8-234a-4c1d-666a9694e549",
           "order": 2,
           "slug": "maintenance-notes",
@@ -14363,7 +14346,7 @@
       "azure_ad_subject_id": "40e16bf9d02fa7f67c6bb767b197e544",
       "email": "sclark@test.communities.gov.uk",
       "id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
-      "last_logged_in_at_utc": "Thu, 23 Oct 2025 20:04:48 GMT",
+      "last_logged_in_at_utc": "Tue, 04 Nov 2025 09:15:51 GMT",
       "name": "Willie Brown"
     },
     {

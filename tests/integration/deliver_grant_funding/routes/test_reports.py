@@ -179,7 +179,7 @@ class TestListReports:
         assert response.status_code == 302
         assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
 
-        deleted_report = db_session.get(Collection, (report.id, report.version))
+        deleted_report = db_session.get(Collection, report.id)
         assert (deleted_report is None) == can_delete
 
 
@@ -324,7 +324,7 @@ class TestChangeReportName:
             assert response.status_code == 302
             assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
 
-            updated_report = db_session.get(Collection, (report.id, report.version))
+            updated_report = db_session.get(Collection, report.id)
             assert updated_report.name == "Updated Name"
 
     def test_post_update_name_duplicate(self, authenticated_grant_admin_client, factories):
@@ -365,7 +365,7 @@ class TestChangeReportName:
         assert response.status_code == 302
         assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
 
-        updated_report = db_session.get(Collection, (report.id, report.version))
+        updated_report = db_session.get(Collection, report.id)
         assert updated_report is not None
         assert updated_report.name == "Updated Name"
 
