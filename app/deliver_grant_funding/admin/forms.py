@@ -13,7 +13,7 @@ from xgovuk_flask_admin import GovSelectWithSearch
 from app.common.data.types import OrganisationData, OrganisationType
 
 if TYPE_CHECKING:
-    from app.common.data.models import Grant, GrantRecipient, Organisation
+    from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
 
 
 class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
@@ -29,6 +29,21 @@ class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
         super().__init__()
 
         self.grant_id.choices = [("", "")] + [(str(grant.id), grant.name) for grant in grants]  # type: ignore[assignment]
+
+
+class PlatformAdminSelectReportForm(FlaskForm):
+    collection_id = SelectField(
+        "Monitoring report",
+        choices=[],
+        widget=GovSelectWithSearch(),
+        validators=[DataRequired("Select a monitoring report to manage")],
+    )
+    submit = SubmitField("Select monitoring report", widget=GovSubmitInput())
+
+    def __init__(self, collections: Sequence["Collection"]) -> None:
+        super().__init__()
+
+        self.collection_id.choices = [("", "")] + [(str(collection.id), collection.name) for collection in collections]  # type: ignore[assignment]
 
 
 class PlatformAdminMakeGrantLiveForm(FlaskForm):

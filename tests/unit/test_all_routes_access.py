@@ -174,6 +174,7 @@ routes_with_access_controlled_by_flask_admin = [
     "grantrecipient.export",
     "grantrecipient.index_view",
     "reporting_lifecycle.index",
+    "reporting_lifecycle.select_report",
     "reporting_lifecycle.tasklist",
     "reporting_lifecycle.make_live",
     "reporting_lifecycle.set_up_organisations",

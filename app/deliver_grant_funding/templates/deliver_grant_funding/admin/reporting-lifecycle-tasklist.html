@@ -5,7 +5,11 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {% block beforeContent %}
-  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.index') }) }}
+  {% if grant.reports|length == 1 %}
+    {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.index') }) }}
+  {% else %}
+    {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.select_report', grant_id=grant.id) }) }}
+  {% endif %}
 {% endblock %}
 
 {% block action_panel %}
@@ -14,7 +18,7 @@
       {{ layout.messages() }}
 
       <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ grant.name }}</span>
+        <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
         Reporting lifecycle
       </h1>
 
@@ -25,13 +29,13 @@
         do rows.append({
           "title": {"text": "Set up organisations", "classes": "govuk-link--no-visited-state"},
           "status": {"html": govukTag({"text": organisation_count ~ (" organisation" if organisation_count == 1 else " organisations"), "classes": "govuk-tag--blue"})},
-          "href": url_for('reporting_lifecycle.set_up_organisations', grant_id=grant.id),
+          "href": url_for('reporting_lifecycle.set_up_organisations', grant_id=grant.id, collection_id=collection.id),
         })
       %}
 
       {% if grant.status == enum.grant_status.DRAFT %}
         {% set status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
-        {% set link_href = url_for('reporting_lifecycle.make_live', grant_id=grant.id) %}
+        {% set link_href = url_for('reporting_lifecycle.make_live', grant_id=grant.id, collection_id=collection.id) %}
       {% else %}
         {% set status_tag = govukTag({"text": "Completed", "classes": "govuk-tag--green"}) %}
         {% set link_href = "" %}
@@ -47,7 +51,7 @@
         do rows.append({
           "title": {"text": "Set up grant recipients", "classes": "govuk-link--no-visited-state"},
           "status": {"html": govukTag({"text": grant_recipients_count ~ (" grant recipient" if grant_recipients_count == 1 else " grant recipients"), "classes": "govuk-tag--blue"})},
-          "href": url_for('reporting_lifecycle.set_up_grant_recipients', grant_id=grant.id),
+          "href": url_for('reporting_lifecycle.set_up_grant_recipients', grant_id=grant.id, collection_id=collection.id),
         })
       %}
 

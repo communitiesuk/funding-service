@@ -4,7 +4,7 @@
 {% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
 
 {% block beforeContent %}
-  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id) }) }}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
 {% endblock %}
 
 {% block action_panel %}
