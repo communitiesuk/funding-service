@@ -1,13 +1,13 @@
 import csv
 import datetime
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea
-from wtforms import SubmitField
+from govuk_frontend_wtf.wtforms_widgets import GovDateInput, GovSubmitInput, GovTextArea
+from wtforms import DateField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.simple import TextAreaField
-from wtforms.validators import DataRequired
+from wtforms.validators import DataRequired, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
 from app.common.data.types import OrganisationData, OrganisationType
@@ -108,3 +108,80 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
         self.recipients.choices = [
             (str(org.id), org.name) for org in organisations if org.id not in existing_grant_recipient_org_ids
         ]
+
+
+class PlatformAdminSetCollectionDatesForm(FlaskForm):
+    reporting_period_start_date = DateField(
+        "Reporting period start date",
+        validators=[Optional()],
+        widget=GovDateInput(),
+        format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],
+    )
+    reporting_period_end_date = DateField(
+        "Reporting period end date",
+        validators=[Optional()],
+        widget=GovDateInput(),
+        format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],
+    )
+    submission_period_start_date = DateField(
+        "Submission period start date",
+        validators=[Optional()],
+        widget=GovDateInput(),
+        format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],
+    )
+    submission_period_end_date = DateField(
+        "Submission period end date",
+        validators=[Optional()],
+        widget=GovDateInput(),
+        format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],
+    )
+    submit = SubmitField("Save dates", widget=GovSubmitInput())
+
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
+        result: bool = super().validate(extra_validators)
+
+        if (self.reporting_period_start_date.data or self.reporting_period_end_date.data) and not (
+            self.reporting_period_start_date.data and self.reporting_period_end_date.data
+        ):
+            self.reporting_period_start_date.errors.append("Set both a reporting start and end date, or neither")  # type: ignore[attr-defined]
+            self.reporting_period_end_date.errors.append("Set both a reporting start and end date, or neither")  # type: ignore[attr-defined]
+            return False
+
+        if (self.submission_period_start_date.data or self.submission_period_end_date.data) and not (
+            self.submission_period_start_date.data and self.submission_period_end_date.data
+        ):
+            self.submission_period_start_date.errors.append("Set both a submission start and end date, or neither")  # type: ignore[attr-defined]
+            self.submission_period_end_date.errors.append("Set both a submission start and end date, or neither")  # type: ignore[attr-defined]
+            return False
+
+        if self.reporting_period_start_date.data and self.reporting_period_end_date.data:
+            if self.reporting_period_start_date.data >= self.reporting_period_end_date.data:
+                self.reporting_period_start_date.errors.append(  # type: ignore[attr-defined]
+                    "report period start date must be before reporting period end date"
+                )
+                self.reporting_period_end_date.errors.append(  # type: ignore[attr-defined]
+                    "report period end date must be after reporting period start date"
+                )
+                return False
+
+        if self.submission_period_start_date.data and self.submission_period_end_date.data:
+            if self.submission_period_start_date.data >= self.submission_period_end_date.data:
+                self.submission_period_start_date.errors.append(  # type: ignore[attr-defined]
+                    "Submission period start date must be before submission period end date"
+                )
+                self.submission_period_end_date.errors.append(  # type: ignore[attr-defined]
+                    "Submission period start date must be before submission period end date"
+                )
+                return False
+
+        if self.reporting_period_end_date.data and self.submission_period_start_date.data:
+            if self.reporting_period_end_date.data >= self.submission_period_start_date.data:
+                self.reporting_period_end_date.errors.append(  # type: ignore[attr-defined]
+                    "Report period end date must be before submission period start date"
+                )
+                self.submission_period_start_date.errors.append(  # type: ignore[attr-defined]
+                    "Report period end date must be before submission period start date"
+                )
+                return False
+
+        return result

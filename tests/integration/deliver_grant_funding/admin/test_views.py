@@ -221,7 +221,7 @@ class TestReportingLifecycleTasklist:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}")
         assert response.status_code == expected_code
 
-    def test_get_tasklist_shows_organisations_task(self, authenticated_platform_admin_client, factories, db_session):
+    def test_shows_all_tasklists(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant, name="Q1 Report")
         factories.organisation.create(name="Org 1", can_manage_grants=False)
@@ -234,13 +234,21 @@ class TestReportingLifecycleTasklist:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        task_list = soup.find("ul", {"class": "govuk-task-list"})
-        assert task_list is not None
+        platform_task_list = soup.find("ul", {"id": "platform-tasks"})
+        grant_task_list = soup.find("ul", {"id": "grant-tasks"})
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        assert platform_task_list is not None
+        assert grant_task_list is not None
+        assert report_task_list is not None
 
-        task_items = task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(task_items) == 3
+        platform_task_items = platform_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        assert len(platform_task_items) == 1
+        assert len(grant_task_items) == 2
+        assert len(report_task_items) == 2
 
-        organisations_task = task_items[0]
+        organisations_task = platform_task_items[0]
         task_title = organisations_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set up organisations"
@@ -252,6 +260,53 @@ class TestReportingLifecycleTasklist:
         assert task_status is not None
         assert "3 organisations" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
+
+        make_grant_live_task = grant_task_items[0]
+        task_title = make_grant_live_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Make the grant live"
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live" in task_title.get("href")
+
+        task_status = make_grant_live_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "To do" in task_status.get_text(strip=True)
+        assert "govuk-tag--grey" in task_status.get("class")
+
+        set_up_grant_recipients_task = grant_task_items[1]
+        task_title = set_up_grant_recipients_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set up grant recipients"
+        assert (
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
+            in task_title.get("href")
+        )
+
+        task_status = set_up_grant_recipients_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "0 grant recipients" in task_status.get_text(strip=True)
+        assert "govuk-tag--blue" in task_status.get("class")
+
+        set_reporting_dates = report_task_items[0]
+        task_title = set_reporting_dates.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set reporting dates"
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates" in task_title.get("href")
+
+        task_status = set_reporting_dates.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "To do" in task_status.get_text(strip=True)
+        assert "govuk-tag--grey" in task_status.get("class")
+
+        set_submission_dates = report_task_items[1]
+        task_title = set_submission_dates.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set submission dates"
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates" in task_title.get("href")
+
+        task_status = set_submission_dates.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "To do" in task_status.get_text(strip=True)
+        assert "govuk-tag--grey" in task_status.get("class")
 
     def test_get_tasklist_shows_correct_organisation_count_singular(
         self, authenticated_platform_admin_client, factories, db_session
@@ -293,36 +348,6 @@ class TestReportingLifecycleTasklist:
         task_status = organisations_task.find("strong", {"class": "govuk-tag"})
         assert "1 organisation" in task_status.get_text(strip=True)
 
-    def test_get_tasklist_with_draft_grant_shows_to_do_status(
-        self, authenticated_platform_admin_client, factories, db_session
-    ):
-        grant = factories.grant.create(name="Test Draft Grant")
-        collection = factories.collection.create(grant=grant, name="Q1 Report")
-
-        response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == f"{grant.name} - {collection.name} Reporting lifecycle"
-
-        task_list = soup.find("ul", {"class": "govuk-task-list"})
-        assert task_list is not None
-
-        task_items = task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(task_items) == 3
-
-        task_title = task_items[1].find("a", {"class": "govuk-link"})
-        assert task_title is not None
-        assert task_title.get_text(strip=True) == "Make the grant live"
-        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live" in task_title.get("href")
-
-        task_status = task_items[1].find("strong", {"class": "govuk-tag"})
-        assert task_status is not None
-        assert "To do" in task_status.get_text(strip=True)
-        assert "govuk-tag--grey" in task_status.get("class")
-
     def test_get_tasklist_with_live_grant_shows_completed_status(
         self, authenticated_platform_admin_client, factories, db_session
     ):
@@ -335,20 +360,59 @@ class TestReportingLifecycleTasklist:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == f"{grant.name} - {collection.name} Reporting lifecycle"
+        grant_task_list = soup.find("ul", {"id": "grant-tasks"})
+        task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        make_grant_live_task = task_items[0]
 
-        task_list = soup.find("ul", {"class": "govuk-task-list"})
-        assert task_list is not None
-
-        task_items = task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(task_items) == 3
-
-        task_title = task_items[1].find("div", {"class": "govuk-task-list__name-and-hint"})
+        task_title = make_grant_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert "Make the grant live" in task_title.get_text(strip=True)
 
-        task_link = task_items[1].find("a", {"class": "govuk-link"})
+        task_link = make_grant_live_task.find("a", {"class": "govuk-link"})
         assert task_link is None
+
+        task_status = make_grant_live_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Completed" in task_status.get_text(strip=True)
+        assert "govuk-tag--green" in task_status.get("class")
+
+    def test_get_tasklist_with_dates_set(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Draft Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            reporting_period_start_date=datetime.date(2025, 1, 1),
+            reporting_period_end_date=datetime.date(2025, 4, 1),
+            submission_period_start_date=datetime.date(2025, 4, 1),
+            submission_period_end_date=datetime.date(2025, 4, 30),
+        )
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        task_list = soup.find("ul", {"class": "govuk-task-list"})
+        assert task_list is not None
+
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        task_title = task_items[0].find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert "Set reporting dates" in task_title.get_text(strip=True)
+        assert "Wednesday 1 January 2025 to Tuesday 1 April 2025" in task_title.get_text(strip=True)
+
+        task_status = task_items[0].find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Completed" in task_status.get_text(strip=True)
+        assert "govuk-tag--green" in task_status.get("class")
+
+        task_title = task_items[1].find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert "Set submission dates" in task_title.get_text(strip=True)
+        assert "Tuesday 1 April 2025 to Wednesday 30 April 2025" in task_title.get_text(strip=True)
 
         task_status = task_items[1].find("strong", {"class": "govuk-tag"})
         assert task_status is not None

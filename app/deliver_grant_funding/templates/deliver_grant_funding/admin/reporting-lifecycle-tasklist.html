@@ -24,6 +24,7 @@
 
       <p class="govuk-body">Prepare for a monitoring report to go live by completing these tasks.</p>
 
+      <h2 class="govuk-heading-m">Platform tasks</h2>
       {% set rows=[] %}
       {%
         do rows.append({
@@ -32,6 +33,10 @@
           "href": url_for('reporting_lifecycle.set_up_organisations', grant_id=grant.id, collection_id=collection.id),
         })
       %}
+      {{ govukTaskList({ "idPrefix": "platform-tasks", "items": rows, "attributes": {"id": "platform-tasks"} }) }}
+
+      <h2 class="govuk-heading-m">Grant tasks</h2>
+      {% set rows=[] %}
 
       {% if grant.status == enum.grant_status.DRAFT %}
         {% set status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
@@ -54,8 +59,44 @@
           "href": url_for('reporting_lifecycle.set_up_grant_recipients', grant_id=grant.id, collection_id=collection.id),
         })
       %}
+      {{ govukTaskList({ "idPrefix": "grant-tasks", "items": rows, "attributes": {"id": "grant-tasks"} }) }}
 
-      {{ govukTaskList({ "idPrefix": "reporting-lifecycle", "items": rows }) }}
+      <h2 class="govuk-heading-m">Report tasks</h2>
+      {% set rows=[] %}
+      {% set reportingDatesTag %}
+        {% if collection.reporting_period_start_date and collection.reporting_period_end_date %}
+          {{ govukTag({"text": "Completed" , "classes": "govuk-tag--green"}) }}
+        {% else %}
+          {{ govukTag({"text": "To do", "classes": "govuk-tag--grey"}) }}
+        {% endif %}
+      {% endset %}
+      {%
+        do rows.append({
+          "title": {"text": "Set reporting dates", "classes": "govuk-link--no-visited-state"},
+          "hint": {"text": format_date_range(collection.reporting_period_start_date, collection.reporting_period_end_date)} if collection.reporting_period_start_date and collection.reporting_period_end_date else {},
+          "status": {"html": reportingDatesTag},
+          "href": url_for('reporting_lifecycle.set_collection_dates', grant_id=grant.id, collection_id=collection.id),
+        })
+      %}
+
+
+      {% set submissionDatesTag %}
+        {% if collection.submission_period_start_date and collection.submission_period_end_date %}
+          {{ govukTag({"text": "Completed", "classes": "govuk-tag--green"}) }}
+        {% else %}
+          {{ govukTag({"text": "To do", "classes": "govuk-tag--grey"}) }}
+        {% endif %}
+      {% endset %}
+      {%
+        do rows.append({
+          "title": {"text": "Set submission dates", "classes": "govuk-link--no-visited-state"},
+          "hint": {"text": format_date_range(collection.submission_period_start_date, collection.submission_period_end_date)} if collection.submission_period_start_date and collection.submission_period_end_date else {},
+          "status": {"html": submissionDatesTag},
+          "href": url_for('reporting_lifecycle.set_collection_dates', grant_id=grant.id, collection_id=collection.id),
+        })
+      %}
+
+      {{ govukTaskList({ "idPrefix": "report-tasks", "items": rows, "attributes": {"id": "report-tasks"} }) }}
     </div>
   </div>
 {% endblock %}

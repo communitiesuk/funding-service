@@ -4,7 +4,7 @@ from uuid import UUID
 from flask import current_app, flash, redirect, url_for
 from flask_admin import AdminIndexView, BaseView, expose
 
-from app.common.data.interfaces.collections import get_collection
+from app.common.data.interfaces.collections import get_collection, update_collection
 from app.common.data.interfaces.exceptions import NotEnoughGrantTeamUsersError
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipients,
@@ -13,13 +13,14 @@ from app.common.data.interfaces.grant_recipients import (
 )
 from app.common.data.interfaces.grants import get_all_grants, get_grant, update_grant
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
-from app.common.data.types import GrantStatusEnum
+from app.common.data.types import CollectionType, GrantStatusEnum
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminBulkCreateGrantRecipientsForm,
     PlatformAdminBulkCreateOrganisationsForm,
     PlatformAdminMakeGrantLiveForm,
     PlatformAdminSelectGrantForReportingLifecycleForm,
     PlatformAdminSelectReportForm,
+    PlatformAdminSetCollectionDatesForm,
 )
 from app.deliver_grant_funding.admin.mixins import FlaskAdminPlatformAdminAccessibleMixin
 from app.extensions import auto_commit_after_request
@@ -140,4 +141,30 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             collection=collection,
             grant_recipients=existing_grant_recipients,
             form=form,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-dates", methods=["GET", "POST"])  # type: ignore[misc]
+    @auto_commit_after_request
+    def set_collection_dates(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+        form = PlatformAdminSetCollectionDatesForm(obj=collection)
+
+        if form.validate_on_submit():
+            update_collection(
+                collection,
+                reporting_period_start_date=form.reporting_period_start_date.data,
+                reporting_period_end_date=form.reporting_period_end_date.data,
+                submission_period_start_date=form.submission_period_start_date.data,
+                submission_period_end_date=form.submission_period_end_date.data,
+            )
+            flash(f"Updated dates for {collection.name}.", "success")
+            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        return self.render(
+            "deliver_grant_funding/admin/set-collection-dates.html",
+            form=form,
+            grant=grant,
+            collection=collection,
         )

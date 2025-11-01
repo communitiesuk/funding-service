@@ -140,6 +140,21 @@ class Collection(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
+    # NOTE: Dates *may* more properly belong on a separate model, such as a ReportingRound, but have not done that for
+    #       now because:
+    #       1) time constraints - sorry
+    #       2) until we have multiple concrete implementations (eg ReportingRound and ApplicationRound), I don't think
+    #          there's a compelling reason to sort this out *right now*.
+    #       When that time comes we probably will move `name` off of this model and could also drop `type`; but there
+    #       are a few threads that need pulling in a coherent way with a suitable amount of time and effort. Such as:
+    #       * what do `submissions` link to? their `collection` or the report/application/prospectus
+    #       * how do we associate submissions to their users
+    #         (grant recipient orgs for reports, plain orgs for applications, grant teams for prospectuses)
+    reporting_period_start_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
+    reporting_period_end_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
+    submission_period_start_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
+    submission_period_end_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
+
     # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
     _submissions: Mapped[list["Submission"]] = relationship(
         "Submission",

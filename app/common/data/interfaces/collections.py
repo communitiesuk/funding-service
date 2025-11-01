@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
 from uuid import UUID
@@ -9,6 +10,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import (
+    CollectionChronologyError,
     DuplicateValueError,
     InvalidReferenceInExpression,
     flush_and_rollback_on_exceptions,
@@ -99,9 +101,65 @@ def get_collection(
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def update_collection(collection: Collection, *, name: str) -> Collection:
-    collection.name = name
-    collection.slug = slugify(name)
+def update_collection(
+    collection: Collection,
+    *,
+    name: str | TNotProvided = NOT_PROVIDED,
+    reporting_period_start_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
+    reporting_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
+    submission_period_start_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
+    submission_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
+) -> Collection:
+    if name is not NOT_PROVIDED:
+        collection.name = name
+        collection.slug = slugify(name)
+
+    if reporting_period_start_date is not NOT_PROVIDED or reporting_period_end_date is not NOT_PROVIDED:
+        if (
+            (reporting_period_start_date is NOT_PROVIDED or reporting_period_end_date is NOT_PROVIDED)
+            or (
+                isinstance(reporting_period_start_date, datetime.date)
+                != isinstance(reporting_period_end_date, datetime.date)
+            )
+            or (reporting_period_start_date is None != reporting_period_end_date is None)
+        ):  # could be written more concisely but this satisfies type checking
+            raise CollectionChronologyError(
+                "reporting_period_start_date and reporting_period_end_date must both be unset or both be set"
+            )
+
+        if reporting_period_start_date is not None and reporting_period_end_date is not None:
+            if reporting_period_start_date >= reporting_period_end_date:
+                raise CollectionChronologyError("reporting_period_start_date must be before reporting_period_end_date")
+
+        collection.reporting_period_start_date = reporting_period_start_date
+        collection.reporting_period_end_date = reporting_period_end_date
+
+    if submission_period_start_date is not NOT_PROVIDED or submission_period_end_date is not NOT_PROVIDED:
+        if (
+            (submission_period_start_date is NOT_PROVIDED or submission_period_end_date is NOT_PROVIDED)
+            or (
+                isinstance(submission_period_start_date, datetime.date)
+                != isinstance(submission_period_end_date, datetime.date)
+            )
+            or (submission_period_start_date is None != submission_period_end_date is None)
+        ):  # could be written more concisely but this satisfies type checking
+            raise CollectionChronologyError(
+                "submission_period_start_date and submission_period_end_date must both be unset or both be set"
+            )
+
+        if submission_period_start_date is not None and submission_period_end_date is not None:
+            if submission_period_start_date >= submission_period_end_date:
+                raise CollectionChronologyError(
+                    "submission_period_start_date must be before submission_period_end_date"
+                )
+
+        collection.submission_period_start_date = submission_period_start_date
+        collection.submission_period_end_date = submission_period_end_date
+
+    if collection.reporting_period_end_date and collection.submission_period_start_date:
+        if collection.reporting_period_end_date >= collection.submission_period_start_date:
+            raise CollectionChronologyError("reporting_period_end_date must be before submission_period_start_date")
+
     return collection
 
 
