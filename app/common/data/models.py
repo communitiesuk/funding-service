@@ -14,6 +14,7 @@ from sqlalchemy_json import mutable_json_type
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
+    CollectionStatusEnum,
     CollectionType,
     ComponentType,
     ExpressionType,
@@ -140,8 +141,8 @@ class Collection(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
-    # NOTE: Dates *may* more properly belong on a separate model, such as a ReportingRound, but have not done that for
-    #       now because:
+    # NOTE: Status and dates *may* more properly belong on a separate model, such as a ReportingRound, but have not done
+    # that for now because:
     #       1) time constraints - sorry
     #       2) until we have multiple concrete implementations (eg ReportingRound and ApplicationRound), I don't think
     #          there's a compelling reason to sort this out *right now*.
@@ -150,6 +151,10 @@ class Collection(BaseModel):
     #       * what do `submissions` link to? their `collection` or the report/application/prospectus
     #       * how do we associate submissions to their users
     #         (grant recipient orgs for reports, plain orgs for applications, grant teams for prospectuses)
+    status: Mapped[CollectionStatusEnum] = mapped_column(
+        SqlEnum(CollectionStatusEnum, name="collection_status", validate_strings=True),
+        default=CollectionStatusEnum.DRAFT,
+    )
     reporting_period_start_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     reporting_period_end_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     submission_period_start_date: Mapped[datetime.date | None] = mapped_column(nullable=True)

@@ -5,7 +5,12 @@ from flask import current_app, flash, redirect, url_for
 from flask_admin import AdminIndexView, BaseView, expose
 
 from app.common.data.interfaces.collections import get_collection, update_collection
-from app.common.data.interfaces.exceptions import NotEnoughGrantTeamUsersError
+from app.common.data.interfaces.exceptions import (
+    CollectionChronologyError,
+    GrantMustBeLiveToScheduleReportError,
+    NotEnoughGrantTeamUsersError,
+    StateTransitionError,
+)
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipients,
     get_grant_recipients,
@@ -13,11 +18,12 @@ from app.common.data.interfaces.grant_recipients import (
 )
 from app.common.data.interfaces.grants import get_all_grants, get_grant, update_grant
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
-from app.common.data.types import CollectionType, GrantStatusEnum
+from app.common.data.types import CollectionStatusEnum, CollectionType, GrantStatusEnum
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminBulkCreateGrantRecipientsForm,
     PlatformAdminBulkCreateOrganisationsForm,
     PlatformAdminMakeGrantLiveForm,
+    PlatformAdminScheduleReportForm,
     PlatformAdminSelectGrantForReportingLifecycleForm,
     PlatformAdminSelectReportForm,
     PlatformAdminSetCollectionDatesForm,
@@ -164,6 +170,39 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
 
         return self.render(
             "deliver_grant_funding/admin/set-collection-dates.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/schedule-report", methods=["GET", "POST"])  # type: ignore[misc]
+    @auto_commit_after_request
+    def schedule_report(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+        form = PlatformAdminScheduleReportForm()
+        if form.validate_on_submit():
+            try:
+                update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
+                flash(
+                    f"{collection.name} is now scheduled to open and form designers cannot make any more changes.",
+                    "success",
+                )
+                return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            except StateTransitionError as e:
+                form.form_errors.append(
+                    f"{collection.name} can only be scheduled from the 'draft' state; it is currently {e.from_state}",
+                )
+            except GrantMustBeLiveToScheduleReportError:
+                form.form_errors.append(
+                    f"{collection.grant.name} must be made live before scheduling a report",
+                )
+            except CollectionChronologyError as e:
+                form.form_errors.append(str(e))
+
+        return self.render(
+            "deliver_grant_funding/admin/confirm-schedule-report.html",
             form=form,
             grant=grant,
             collection=collection,

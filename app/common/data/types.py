@@ -119,6 +119,13 @@ class CollectionType(enum.StrEnum):
     MONITORING_REPORT = "monitoring report"
 
 
+class CollectionStatusEnum(enum.StrEnum):
+    DRAFT = "draft"
+    SCHEDULED = "scheduled"
+    OPEN = "open"
+    CLOSED = "closed"
+
+
 class ExpressionType(enum.StrEnum):
     CONDITION = "CONDITION"
     VALIDATION = "VALIDATION"

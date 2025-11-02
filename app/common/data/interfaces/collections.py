@@ -12,7 +12,9 @@ from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
+    GrantMustBeLiveToScheduleReportError,
     InvalidReferenceInExpression,
+    StateTransitionError,
     flush_and_rollback_on_exceptions,
 )
 from app.common.data.models import (
@@ -31,8 +33,10 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import User
 from app.common.data.types import (
+    CollectionStatusEnum,
     CollectionType,
     ExpressionType,
+    GrantStatusEnum,
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionEventKey,
@@ -101,10 +105,11 @@ def get_collection(
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def update_collection(
+def update_collection(  # noqa: C901
     collection: Collection,
     *,
     name: str | TNotProvided = NOT_PROVIDED,
+    status: CollectionStatusEnum | TNotProvided = NOT_PROVIDED,
     reporting_period_start_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     reporting_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     submission_period_start_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
@@ -159,6 +164,36 @@ def update_collection(
     if collection.reporting_period_end_date and collection.submission_period_start_date:
         if collection.reporting_period_end_date >= collection.submission_period_start_date:
             raise CollectionChronologyError("reporting_period_end_date must be before submission_period_start_date")
+
+    if status is not NOT_PROVIDED:
+        match (collection.status, status):
+            case CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED:
+                if collection.grant.status != GrantStatusEnum.LIVE:
+                    raise GrantMustBeLiveToScheduleReportError()
+
+                if not all(
+                    [
+                        collection.reporting_period_start_date,
+                        collection.reporting_period_end_date,
+                        collection.submission_period_start_date,
+                        collection.submission_period_end_date,
+                    ]
+                ):
+                    raise CollectionChronologyError(
+                        f"Cannot change collection status to {status.value}: "
+                        f"all reporting and submission period dates must be set"
+                    )
+
+            case (
+                (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.DRAFT)
+                | (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.OPEN)
+                | (CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED)
+            ):
+                pass
+
+            case _:
+                raise StateTransitionError("Collection", collection.status, status)
+        collection.status = status
 
     return collection
 

@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 from app.common.data.interfaces.organisations import get_organisation_count
 from app.common.data.models import Organisation
-from app.common.data.types import GrantStatusEnum, OrganisationStatus, OrganisationType, RoleEnum
+from app.common.data.types import CollectionStatusEnum, GrantStatusEnum, OrganisationStatus, OrganisationType, RoleEnum
 from tests.utils import get_h1_text, get_h2_text, page_has_error, page_has_flash
 
 
@@ -246,7 +246,7 @@ class TestReportingLifecycleTasklist:
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 1
         assert len(grant_task_items) == 2
-        assert len(report_task_items) == 2
+        assert len(report_task_items) == 3
 
         organisations_task = platform_task_items[0]
         task_title = organisations_task.find("a", {"class": "govuk-link"})
@@ -307,6 +307,16 @@ class TestReportingLifecycleTasklist:
         assert task_status is not None
         assert "To do" in task_status.get_text(strip=True)
         assert "govuk-tag--grey" in task_status.get("class")
+
+        schedule_report = report_task_items[2]
+        task_title = report_task_items[2].find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Schedule report"
+
+        task_status = schedule_report.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
     def test_get_tasklist_shows_correct_organisation_count_singular(
         self, authenticated_platform_admin_client, factories, db_session
@@ -852,3 +862,77 @@ class TestManageGrantRecipients:
 
         options = select_element.find_all("option")
         assert len(options) == 0
+
+
+class TestScheduleReport:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 403),
+        ],
+    )
+    def test_schedule_report_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        factories.grant_recipient.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report")
+        assert response.status_code == expected_code
+
+    def test_get_confirm_page_with_prerequisites_met(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        factories.grant_recipient.create(grant=grant)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Test Grant Schedule report"
+
+    def test_post_schedules_collection(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.DRAFT,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        factories.grant_recipient.create(grant=grant)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report",
+            data={"submit": "Schedule report"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Q1 Report is now scheduled")

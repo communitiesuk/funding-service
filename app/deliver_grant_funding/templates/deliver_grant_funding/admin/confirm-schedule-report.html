@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from 'govuk_frontend_jinja/components/inset-text/macro.html' import govukInsetText %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Schedule report
+      </h1>
+      <p class="govuk-body">Schedule the report when the grant team has signed off on the form. Form designers cannot edit a scheduled report.</p>
+
+      {{ govukInsetText({ "text": "A scheduled report will not automatically go live on the first day of the submission period. A platform admin must manually open the report for submissions and send emails to grant recipients." }) }}
+
+      {{
+        govukSummaryList({
+          "rows": [{
+            "key": { "text": "Collection name" },
+            "value": { "text": collection.name },
+          }, {
+            "key": { "text": "Reporting period" },
+            "value": { "text": format_date_range(collection.reporting_period_start_date, collection.reporting_period_end_date) if collection.reporting_period_start_date and collection.reporting_period_end_date else "Not set" },
+          }, {
+            "key": { "text": "Submission period" },
+            "value": { "text": format_date_range(collection.submission_period_start_date, collection.submission_period_end_date) if collection.submission_period_start_date and collection.submission_period_end_date else "Not set" },
+          }
+          ],
+          "classes": "app-!-border-top-line govuk-!-margin-bottom-8"
+        })
+      }}
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

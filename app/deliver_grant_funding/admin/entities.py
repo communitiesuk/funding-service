@@ -131,8 +131,10 @@ class PlatformAdminOrganisationView(PlatformAdminModelView):
 class PlatformAdminCollectionView(PlatformAdminModelView):
     _model = Collection
 
-    column_list = ["name", "type", "grant.name"]
-    column_filters = ["name", "type"]
+    can_edit = True
+
+    column_list = ["name", "type", "status", "grant.name"]
+    column_filters = ["name", "type", "status"]
 
     column_details_list = ["grant.name", "created_by.email", "created_at_utc", "type.value", "name"]
     column_labels = {
@@ -141,6 +143,8 @@ class PlatformAdminCollectionView(PlatformAdminModelView):
         "created_at_utc": "Created at",
         "type.value": "Type",
     }
+
+    form_columns = ["name", "slug", "type", "status"]
 
 
 class PlatformAdminUserRoleView(PlatformAdminModelView):
