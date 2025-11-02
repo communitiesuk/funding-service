@@ -83,6 +83,7 @@ from app.common.data.types import (
     NumberInputWidths,
     QuestionDataType,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionEventKey,
     SubmissionModeEnum,
 )
@@ -497,6 +498,16 @@ class TestUpdateCollection:
             reporting_period_end_date=datetime.date(2024, 12, 31),
             submission_period_start_date=datetime.date(2025, 1, 1),
             submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        # Required for DRAFT->SCHEDULED transition
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            role=RoleEnum.MEMBER,
         )
 
         updated_collection = update_collection(collection, status=to_status)

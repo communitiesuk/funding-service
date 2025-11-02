@@ -59,6 +59,13 @@
           "href": url_for('reporting_lifecycle.set_up_grant_recipients', grant_id=grant.id, collection_id=collection.id),
         })
       %}
+      {%
+        do rows.append({
+          "title": {"text": "Set up grant recipient users", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": govukTag({"text": grant_recipient_users_count ~ (" user" if grant_recipient_users_count == 1 else " users"), "classes": "govuk-tag--blue"})},
+          "href": url_for('reporting_lifecycle.set_up_grant_recipient_users', grant_id=grant.id, collection_id=collection.id),
+        })
+      %}
       {{ govukTaskList({ "idPrefix": "grant-tasks", "items": rows, "attributes": {"id": "grant-tasks"} }) }}
 
       <h2 class="govuk-heading-m">Report tasks</h2>
@@ -97,7 +104,8 @@
       %}
 
       {% set dates_are_set = collection.reporting_period_start_date and collection.reporting_period_end_date and collection.submission_period_start_date and collection.submission_period_end_date %}
-      {% set prerequisites_met = grant.status == enum.grant_status.LIVE and grant_recipients_count > 0 and dates_are_set %}
+      {% set all_recipients_have_users = grant_recipients_count > 0 and grant_recipient_users_count >= grant_recipients_count %}
+      {% set prerequisites_met = grant.status == enum.grant_status.LIVE and grant_recipients_count > 0 and dates_are_set and all_recipients_have_users %}
       {% set scheduledReportStatus = {"tag": {"text": "To do", "classes": "govuk-tag--grey"} } %}
 
       {% if collection.status == enum.collection_status.SCHEDULED %}

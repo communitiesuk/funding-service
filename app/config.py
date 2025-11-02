@@ -277,6 +277,7 @@ class _SharedConfig(_BaseConfig):
         "type": OrganisationType.CENTRAL_GOVERNMENT,
     }
     SEED_SYSTEM_DATA: bool = True
+    GRANT_TEAM_RECIPIENT_LIST_SPREADSHEET: str = "https://mhclg.sharepoint.com/:x:/s/FundingServiceOnboarding/EVu_B9_W6OJKvjS8j-Xd_dABBQ0sPGB6vWLNLkoHfrHyHg?e=cG79Bd&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMH0"
 
     @property
     def IS_PRODUCTION(self) -> bool:

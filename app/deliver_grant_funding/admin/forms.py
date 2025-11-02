@@ -1,9 +1,12 @@
 import csv
 import datetime
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from uuid import UUID
 
+from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovDateInput, GovSubmitInput, GovTextArea
+from markupsafe import Markup, escape
 from wtforms import DateField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.simple import TextAreaField
@@ -107,6 +110,84 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
         existing_grant_recipient_org_ids = {gr.organisation.id for gr in existing_grant_recipients}
         self.recipients.choices = [
             (str(org.id), org.name) for org in organisations if org.id not in existing_grant_recipient_org_ids
+        ]
+
+
+class PlatformAdminCreateGrantRecipientUserForm(FlaskForm):
+    users_data = TextAreaField(
+        "Grant recipient users TSV data",
+        default="organisation-name\tfull-name\temail-address\n",
+        validators=[DataRequired()],
+        widget=GovTextArea(),
+    )
+    submit = SubmitField("Set up grant recipient users", widget=GovSubmitInput())
+
+    def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:
+        super().__init__()
+        self.grant_recipients = grant_recipients
+
+        self.users_data.description = Markup(
+            "<span>Copy and paste the 'Funding service ingest' table from the "
+            "<a class='govuk-link govuk-link--no-visited-state' "
+            f"href='{escape(current_app.config['GRANT_TEAM_RECIPIENT_LIST_SPREADSHEET'])}' target='_blank'>"
+            "grant team's completed version of the recipient spreadsheet (opens in a new tab)"
+            "</a></span>"
+        )
+
+    def validate_users_data(self, field: TextAreaField) -> None:
+        assert field.data
+
+        if field.data.splitlines()[0] != "organisation-name\tfull-name\temail-address":
+            field.errors.append(  # type: ignore[attr-defined]
+                "The header row must be exactly: organisation-name\tfull-name\temail-address"
+            )
+            return
+
+        try:
+            users_data = self.get_normalised_users_data()
+        except Exception as e:
+            field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # type: ignore[attr-defined]
+            return
+
+        # Validate email addresses
+        from wtforms.validators import Email as EmailValidator
+
+        email_validator = EmailValidator()
+        invalid_emails = []
+        for _, _, email_address in users_data:
+            try:
+                email_validator(self, type("obj", (), {"data": email_address})())
+            except Exception:
+                invalid_emails.append(email_address)
+
+        if invalid_emails:
+            field.errors.append(  # type: ignore[attr-defined]
+                f"Invalid email address(es): {', '.join(invalid_emails)}"
+            )
+
+    def get_normalised_users_data(self) -> list[tuple[str, str, str]]:
+        assert self.users_data.data
+        users_data = self.users_data.data
+        tsv_reader = csv.reader(users_data.splitlines(), delimiter="\t")
+        _ = next(tsv_reader)  # Skip the header
+        normalised_users = [(row[0], row[1], row[2]) for row in tsv_reader]
+        return normalised_users
+
+
+class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
+    user_roles = SelectMultipleField(
+        "Grant recipient users to revoke",
+        choices=[],
+        widget=GovSelectWithSearch(multiple=True),
+        validators=[DataRequired()],
+    )
+    submit = SubmitField("Revoke access", widget=GovSubmitInput())
+
+    def __init__(self, user_roles: Sequence[tuple[UUID, UUID, str, str, str]]) -> None:
+        super().__init__()
+        self.user_roles.choices = [
+            (f"{user_id}|{org_id}", f"{user_name} ({user_email}) - {org_name}")
+            for user_id, org_id, user_name, user_email, org_name in user_roles
         ]
 
 

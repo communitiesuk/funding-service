@@ -13,10 +13,12 @@ from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
     GrantMustBeLiveToScheduleReportError,
+    GrantRecipientUsersRequiredToScheduleReportError,
     InvalidReferenceInExpression,
     StateTransitionError,
     flush_and_rollback_on_exceptions,
 )
+from app.common.data.interfaces.grant_recipients import all_grant_recipients_have_users
 from app.common.data.models import (
     Collection,
     Component,
@@ -183,6 +185,9 @@ def update_collection(  # noqa: C901
                         f"Cannot change collection status to {status.value}: "
                         f"all reporting and submission period dates must be set"
                     )
+
+                if not all_grant_recipients_have_users(collection.grant):
+                    raise GrantRecipientUsersRequiredToScheduleReportError()
 
             case (
                 (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.DRAFT)
