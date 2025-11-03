@@ -185,3 +185,7 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
                 return False
 
         return result
+
+
+class PlatformAdminScheduleReportForm(FlaskForm):
+    submit = SubmitField("Sign off and lock report", widget=GovSubmitInput())

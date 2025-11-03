@@ -8,6 +8,7 @@
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
           "name": "Report on cheeseboards in parks",
           "slug": "report-on-cheeseboards-in-parks",
+          "status": "draft",
           "type": "monitoring report",
           "version": 1
         }
@@ -1756,6 +1757,7 @@
           "id": "09e8d677-5fce-4081-9434-eefac1348e12",
           "name": "Communities for Afghans Phase 2",
           "slug": "communities-for-afghans-phase-2",
+          "status": "draft",
           "type": "monitoring report",
           "version": 1
         }
@@ -14022,6 +14024,7 @@
           "id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
           "name": "Report on picnic areas in parks",
           "slug": "report-on-picnic-areas-in-parks",
+          "status": "draft",
           "type": "monitoring report",
           "version": 1
         }
@@ -14176,6 +14179,7 @@
           "id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
           "name": "Report on playgrounds in parks",
           "slug": "report-on-playgrounds-in-parks",
+          "status": "draft",
           "type": "monitoring report",
           "version": 1
         }

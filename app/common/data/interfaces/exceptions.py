@@ -135,3 +135,11 @@ class NotEnoughGrantTeamUsersError(Exception):
 
 class CollectionChronologyError(Exception):
     pass
+
+
+class GrantRecipientsRequiredToScheduleReportError(Exception):
+    pass
+
+
+class GrantMustBeLiveToScheduleReportError(Exception):
+    pass

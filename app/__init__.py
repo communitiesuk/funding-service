@@ -19,6 +19,7 @@ from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.interfaces.system import seed_system_data
 from app.common.data.types import (
+    CollectionStatusEnum,
     ExpressionType,
     FormRunnerState,
     GrantStatusEnum,
@@ -214,6 +215,7 @@ def create_app() -> Flask:  # noqa: C901
                 tasklist_section_status=TasklistSectionStatusEnum,
                 expression_type=ExpressionType,
                 grant_status=GrantStatusEnum,
+                collection_status=CollectionStatusEnum,
                 organisation_type=OrganisationType,
             ),
         )

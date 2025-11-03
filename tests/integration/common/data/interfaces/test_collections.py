@@ -58,7 +58,9 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
+    GrantMustBeLiveToScheduleReportError,
     InvalidReferenceInExpression,
+    StateTransitionError,
 )
 from app.common.data.models import (
     Collection,
@@ -72,8 +74,10 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.types import (
+    CollectionStatusEnum,
     CollectionType,
     ExpressionType,
+    GrantStatusEnum,
     ManagedExpressionsEnum,
     MultilineTextInputRows,
     NumberInputWidths,
@@ -474,6 +478,104 @@ class TestUpdateCollection:
         assert updated_collection.name == "Original Name"
         assert updated_collection.reporting_period_start_date == datetime.date(2024, 1, 1)
         assert updated_collection.reporting_period_end_date == datetime.date(2024, 12, 31)
+
+    @pytest.mark.parametrize(
+        "from_status, to_status",
+        (
+            (CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED),
+            (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.DRAFT),
+            (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.OPEN),
+            (CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED),
+        ),
+    )
+    def test_valid_status_transition(self, db_session, factories, from_status, to_status):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=from_status,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        updated_collection = update_collection(collection, status=to_status)
+
+        assert updated_collection.status == to_status
+
+        from_db = db_session.get(Collection, (collection.id, 1))
+        assert from_db.status == to_status
+
+    @pytest.mark.parametrize(
+        "from_status, to_status",
+        (
+            (CollectionStatusEnum.DRAFT, CollectionStatusEnum.OPEN),
+            (CollectionStatusEnum.DRAFT, CollectionStatusEnum.CLOSED),
+            (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.CLOSED),
+            (CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT),
+            (CollectionStatusEnum.OPEN, CollectionStatusEnum.SCHEDULED),
+            (CollectionStatusEnum.CLOSED, CollectionStatusEnum.DRAFT),
+            (CollectionStatusEnum.CLOSED, CollectionStatusEnum.SCHEDULED),
+            (CollectionStatusEnum.CLOSED, CollectionStatusEnum.OPEN),
+        ),
+    )
+    def test_invalid_status_transition_raises_state_transition_error(
+        self, db_session, factories, from_status, to_status
+    ):
+        collection = factories.collection.create(
+            status=from_status,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        with pytest.raises(StateTransitionError) as exc_info:
+            update_collection(collection, status=to_status)
+
+        assert exc_info.value.from_state == from_status.value
+        assert exc_info.value.to_state == to_status.value
+        assert exc_info.value.model == "Collection"
+
+    def test_draft_to_scheduled_requires_live_grant(self, db_session, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.DRAFT)
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.DRAFT,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        with pytest.raises(GrantMustBeLiveToScheduleReportError):
+            update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
+
+    @pytest.mark.parametrize(
+        "missing_date_field",
+        (
+            "reporting_period_start_date",
+            "reporting_period_end_date",
+            "submission_period_start_date",
+            "submission_period_end_date",
+        ),
+    )
+    def test_draft_to_scheduled_requires_all_dates(self, db_session, factories, missing_date_field):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        date_kwargs = {
+            "reporting_period_start_date": datetime.date(2024, 1, 1),
+            "reporting_period_end_date": datetime.date(2024, 12, 31),
+            "submission_period_start_date": datetime.date(2025, 1, 1),
+            "submission_period_end_date": datetime.date(2025, 1, 31),
+        }
+        date_kwargs[missing_date_field] = None
+
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT, **date_kwargs)
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
+
+        assert "all reporting and submission period dates must be set" in str(exc_info.value)
 
 
 def test_get_submission(db_session, factories):

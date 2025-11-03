@@ -75,7 +75,7 @@
           "title": {"text": "Set reporting dates", "classes": "govuk-link--no-visited-state"},
           "hint": {"text": format_date_range(collection.reporting_period_start_date, collection.reporting_period_end_date)} if collection.reporting_period_start_date and collection.reporting_period_end_date else {},
           "status": {"html": reportingDatesTag},
-          "href": url_for('reporting_lifecycle.set_collection_dates', grant_id=grant.id, collection_id=collection.id),
+          "href": url_for('reporting_lifecycle.set_collection_dates', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.DRAFT else "",
         })
       %}
 
@@ -92,7 +92,24 @@
           "title": {"text": "Set submission dates", "classes": "govuk-link--no-visited-state"},
           "hint": {"text": format_date_range(collection.submission_period_start_date, collection.submission_period_end_date)} if collection.submission_period_start_date and collection.submission_period_end_date else {},
           "status": {"html": submissionDatesTag},
-          "href": url_for('reporting_lifecycle.set_collection_dates', grant_id=grant.id, collection_id=collection.id),
+          "href": url_for('reporting_lifecycle.set_collection_dates', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.DRAFT else "",
+        })
+      %}
+
+      {% set dates_are_set = collection.reporting_period_start_date and collection.reporting_period_end_date and collection.submission_period_start_date and collection.submission_period_end_date %}
+      {% set prerequisites_met = grant.status == enum.grant_status.LIVE and grant_recipients_count > 0 and dates_are_set %}
+      {% set scheduledReportStatus = {"tag": {"text": "To do", "classes": "govuk-tag--grey"} } %}
+
+      {% if collection.status == enum.collection_status.SCHEDULED %}
+        {% set scheduledReportStatus = {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
+      {% elif not prerequisites_met %}
+        {% set scheduledReportStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
+      {% endif %}
+      {%
+        do rows.append({
+          "title": {"text": "Sign off and lock report", "classes": "govuk-link--no-visited-state"},
+          "status": scheduledReportStatus,
+          "href": url_for('reporting_lifecycle.schedule_report', grant_id=grant.id, collection_id=collection.id) if prerequisites_met and collection.status != enum.collection_status.SCHEDULED else "",
         })
       %}
 
