@@ -65,7 +65,7 @@ dev = [
     "types-boto3==1.40.64",
     "freezegun==1.5.5",
     "import-linter==2.5.2",
-    "ty==0.0.1a24",
+    "ty==0.0.1a25",
 ]
 
 [tool.uv]
