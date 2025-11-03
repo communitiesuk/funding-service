@@ -155,6 +155,13 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
+        if collection.status != CollectionStatusEnum.DRAFT:
+            flash(
+                f"You cannot set dates for {collection.name} because it is not in draft status.",
+                "error",
+            )
+            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
         form = PlatformAdminSetCollectionDatesForm(obj=collection)
 
         if form.validate_on_submit():
@@ -186,7 +193,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             try:
                 update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
                 flash(
-                    f"{collection.name} is now scheduled to open and form designers cannot make any more changes.",
+                    f"{collection.name} is now locked and form designers cannot make any more changes.",
                     "success",
                 )
                 return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))

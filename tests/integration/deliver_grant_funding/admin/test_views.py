@@ -311,7 +311,7 @@ class TestReportingLifecycleTasklist:
         schedule_report = report_task_items[2]
         task_title = report_task_items[2].find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Schedule report"
+        assert task_title.get_text(strip=True) == "Sign off and lock report"
 
         task_status = schedule_report.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
@@ -908,7 +908,7 @@ class TestScheduleReport:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Test Grant Schedule report"
+        assert get_h1_text(soup) == "Test Grant Sign off and lock report"
 
     def test_post_schedules_collection(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
@@ -925,7 +925,7 @@ class TestScheduleReport:
 
         response = authenticated_platform_admin_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report",
-            data={"submit": "Schedule report"},
+            data={"submit": "Sign off and lock report"},
             follow_redirects=True,
         )
         assert response.status_code == 200
@@ -935,4 +935,179 @@ class TestScheduleReport:
         assert collection.status == CollectionStatusEnum.SCHEDULED
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Q1 Report is now scheduled")
+        assert page_has_flash(soup, "Q1 Report is now locked")
+
+
+class TestSetCollectionDatesStatusRestriction:
+    @pytest.mark.parametrize(
+        "collection_status",
+        [
+            CollectionStatusEnum.SCHEDULED,
+            CollectionStatusEnum.OPEN,
+            CollectionStatusEnum.CLOSED,
+        ],
+    )
+    def test_get_set_dates_redirects_with_error_for_non_draft_status(
+        self, authenticated_platform_admin_client, factories, db_session, collection_status
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=collection_status,
+        )
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates",
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(
+            soup,
+            "You cannot set dates for Q1 Report because it is not in draft status.",
+        )
+
+    @pytest.mark.parametrize(
+        "collection_status",
+        [
+            CollectionStatusEnum.SCHEDULED,
+            CollectionStatusEnum.OPEN,
+            CollectionStatusEnum.CLOSED,
+        ],
+    )
+    def test_post_set_dates_redirects_with_error_for_non_draft_status(
+        self, authenticated_platform_admin_client, factories, db_session, collection_status
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=collection_status,
+            reporting_period_start_date=datetime.date(2025, 1, 1),
+            reporting_period_end_date=datetime.date(2025, 4, 1),
+            submission_period_start_date=datetime.date(2025, 4, 1),
+            submission_period_end_date=datetime.date(2025, 4, 30),
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates",
+            data={
+                "reporting_period_start_date-day": "1",
+                "reporting_period_start_date-month": "2",
+                "reporting_period_start_date-year": "2025",
+                "reporting_period_end_date-day": "1",
+                "reporting_period_end_date-month": "5",
+                "reporting_period_end_date-year": "2025",
+                "submission_period_start_date-day": "1",
+                "submission_period_start_date-month": "5",
+                "submission_period_start_date-year": "2025",
+                "submission_period_end_date-day": "31",
+                "submission_period_end_date-month": "5",
+                "submission_period_end_date-year": "2025",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+        db_session.refresh(collection)
+        assert collection.reporting_period_start_date == datetime.date(2025, 1, 1)
+        assert collection.reporting_period_end_date == datetime.date(2025, 4, 1)
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(
+            soup,
+            "You cannot set dates for Q1 Report because it is not in draft status.",
+        )
+
+    def test_get_set_dates_allows_draft_status(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.DRAFT,
+        )
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates",
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Q1 Report Set reporting and submission dates"
+
+    @pytest.mark.parametrize(
+        "collection_status",
+        [
+            CollectionStatusEnum.SCHEDULED,
+            CollectionStatusEnum.OPEN,
+            CollectionStatusEnum.CLOSED,
+        ],
+    )
+    def test_tasklist_does_not_link_to_set_dates_for_non_draft_status(
+        self, authenticated_platform_admin_client, factories, db_session, collection_status
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=collection_status,
+            reporting_period_start_date=datetime.date(2025, 1, 1),
+            reporting_period_end_date=datetime.date(2025, 4, 1),
+            submission_period_start_date=datetime.date(2025, 4, 1),
+            submission_period_end_date=datetime.date(2025, 4, 30),
+        )
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        reporting_dates_task = task_items[0]
+        reporting_dates_link = reporting_dates_task.find("a", {"class": "govuk-link"})
+        assert reporting_dates_link is None
+
+        submission_dates_task = task_items[1]
+        submission_dates_link = submission_dates_task.find("a", {"class": "govuk-link"})
+        assert submission_dates_link is None
+
+    def test_tasklist_links_to_set_dates_for_draft_status(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.DRAFT,
+        )
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        reporting_dates_task = task_items[0]
+        reporting_dates_link = reporting_dates_task.find("a", {"class": "govuk-link"})
+        assert reporting_dates_link is not None
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates" in reporting_dates_link.get(
+            "href"
+        )
+
+        submission_dates_task = task_items[1]
+        submission_dates_link = submission_dates_task.find("a", {"class": "govuk-link"})
+        assert submission_dates_link is not None
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates" in submission_dates_link.get(
+            "href"
+        )
