@@ -227,8 +227,8 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
 
-        user_roles_data = get_grant_recipient_user_roles(grant)
-        form = PlatformAdminRevokeGrantRecipientUsersForm(user_roles=user_roles_data)
+        user_roles = get_grant_recipient_user_roles(grant)
+        form = PlatformAdminRevokeGrantRecipientUsersForm(user_roles=user_roles)
 
         if form.validate_on_submit():
             revoked_count = 0

@@ -461,12 +461,11 @@ class TestGetGrantRecipientUserRoles:
         result = get_grant_recipient_user_roles(grant)
 
         assert len(result) == 1
-        user_id, org_id, user_name, user_email, org_name = result[0]
-        assert user_id == user.id
-        assert org_id == grant_recipient.organisation_id
-        assert user_name == "Test User"
-        assert user_email == "test@example.com"
-        assert org_name == grant_recipient.organisation.name
+        assert result[0].user_id == user.id
+        assert result[0].organisation_id == grant_recipient.organisation_id
+        assert result[0].user.name == "Test User"
+        assert result[0].user.email == "test@example.com"
+        assert result[0].organisation.name == grant_recipient.organisation.name
 
     def test_returns_multiple_user_roles_same_organisation(self, db_session, factories):
         grant = factories.grant.create()
@@ -480,10 +479,10 @@ class TestGetGrantRecipientUserRoles:
         result = get_grant_recipient_user_roles(grant)
 
         assert len(result) == 3
-        user_ids = {r[0] for r in result}
+        user_ids = {ur.user_id for ur in result}
         assert user_ids == {u.id for u in users}
-        for _, org_id, _, _, _ in result:
-            assert org_id == grant_recipient.organisation_id
+        for ur in result:
+            assert ur.organisation_id == grant_recipient.organisation_id
 
     def test_returns_multiple_user_roles_different_organisations(self, db_session, factories):
         grant = factories.grant.create()
@@ -502,7 +501,7 @@ class TestGetGrantRecipientUserRoles:
         result = get_grant_recipient_user_roles(grant)
 
         assert len(result) == 2
-        result_dict = {r[0]: (r[1], r[2]) for r in result}
+        result_dict = {ur.user_id: (ur.organisation_id, ur.user.name) for ur in result}
         assert result_dict[user1.id] == (grant_recipients[0].organisation_id, "User 1")
         assert result_dict[user2.id] == (grant_recipients[1].organisation_id, "User 2")
 
@@ -522,7 +521,7 @@ class TestGetGrantRecipientUserRoles:
         result = get_grant_recipient_user_roles(grant1)
 
         assert len(result) == 1
-        assert result[0][0] == user1.id
+        assert result[0].user_id == user1.id
 
     def test_excludes_non_member_roles(self, db_session, factories):
         grant = factories.grant.create()
@@ -537,7 +536,7 @@ class TestGetGrantRecipientUserRoles:
         result = get_grant_recipient_user_roles(grant)
 
         assert len(result) == 1
-        assert result[0][0] == member_user.id
+        assert result[0].user_id == member_user.id
 
 
 class TestRevokeGrantRecipientUserRole:
@@ -583,7 +582,7 @@ class TestRevokeGrantRecipientUserRole:
         db_session.expire_all()
         remaining_roles = get_grant_recipient_user_roles(grant)
         assert len(remaining_roles) == 1
-        assert remaining_roles[0][0] == user2.id
+        assert remaining_roles[0].user_id == user2.id
 
     def test_does_not_revoke_role_for_different_grant(self, db_session, factories):
         grant1 = factories.grant.create()

@@ -1,7 +1,6 @@
 import csv
 import datetime
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
-from uuid import UUID
 
 from flask import current_app
 from flask_wtf import FlaskForm
@@ -17,6 +16,7 @@ from app.common.data.types import OrganisationData, OrganisationType
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
+    from app.common.data.models_user import UserRole
 
 
 class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
@@ -183,11 +183,14 @@ class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
     )
     submit = SubmitField("Revoke access", widget=GovSubmitInput())
 
-    def __init__(self, user_roles: Sequence[tuple[UUID, UUID, str, str, str]]) -> None:
+    def __init__(self, user_roles: Sequence["UserRole"]) -> None:
         super().__init__()
         self.user_roles.choices = [
-            (f"{user_id}|{org_id}", f"{user_name} ({user_email}) - {org_name}")
-            for user_id, org_id, user_name, user_email, org_name in user_roles
+            (
+                f"{user_role.user_id}|{user_role.organisation_id}",
+                f"{user_role.user.name} ({user_role.user.email}) - {user_role.organisation.name}",
+            )
+            for user_role in user_roles
         ]
 
 

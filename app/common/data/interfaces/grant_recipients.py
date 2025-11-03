@@ -89,15 +89,14 @@ def get_grant_recipient_users_by_organisation(grant: Grant) -> dict[GrantRecipie
     return result
 
 
-def get_grant_recipient_user_roles(grant: Grant) -> Sequence[tuple[uuid.UUID, uuid.UUID, str, str, str]]:
+def get_grant_recipient_user_roles(grant: Grant) -> Sequence[UserRole]:
     """Get all grant recipient user roles for a grant.
 
     Returns tuples of (user_id, organisation_id, user_name, user_email, organisation_name).
     """
     statement = (
-        select(User.id, UserRole.organisation_id, User.name, User.email, Organisation.name)
-        .select_from(User)
-        .join(UserRole, UserRole.user_id == User.id)
+        select(UserRole)
+        .join(User, UserRole.user_id == User.id)
         .join(Organisation, Organisation.id == UserRole.organisation_id)
         .where(
             UserRole.grant_id == grant.id,
@@ -105,11 +104,7 @@ def get_grant_recipient_user_roles(grant: Grant) -> Sequence[tuple[uuid.UUID, uu
         )
     )
 
-    results = []
-    for user_id, org_id, user_name, user_email, org_name in db.session.execute(statement):
-        results.append((user_id, org_id, user_name, user_email, org_name))
-
-    return results
+    return db.session.scalars(statement).all()
 
 
 @flush_and_rollback_on_exceptions
