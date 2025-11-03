@@ -1,5 +1,6 @@
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "common/macros/status.html" import grantStatusTag with context %}
 
 {% set page_title = "Grant details - " ~ grant.name %}
 {% set active_item_identifier = "details" %}
@@ -14,6 +15,10 @@
       {{
         govukSummaryList({
           "rows": [
+            {
+              "key": {"text": "Grant status"},
+              "value": {"html": grantStatusTag(grant.status)},
+            },
             {
               "key": {"text": "GGIS reference number"},
               "value": {"text": grant.ggis_number},

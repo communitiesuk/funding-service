@@ -11,3 +11,42 @@
   %}
   {{ govukTag({"text": status, "classes": classMap[status] }) }}
 {% endmacro %}
+
+{% macro grantStatusTag(status) %}
+  {%
+    set classMap = {
+        enum.grant_status.DRAFT: "govuk-tag--yellow",
+        enum.grant_status.LIVE: "govuk-tag--green",
+    }
+  %}
+  {{ govukTag({"text": status | title, "classes": classMap[status] }) }}
+{% endmacro %}
+
+{% macro grantStatusDescription(grant) %}
+  {% if grant.status == enum.grant_status.DRAFT %}
+    Reports cannot be published until the grant is live.
+  {% elif grant.status == enum.grant_status.LIVE and grant.reports | selectattr('status', 'equalto', enum.collection_status.LIVE) | list | length == 0 %}
+    There are no reports live.
+  {% endif %}
+{% endmacro %}
+
+{% macro reportStatusTag(status) %}
+  {%
+    set classMap = {
+        enum.collection_status.DRAFT: "govuk-tag--yellow",
+        enum.collection_status.SCHEDULED: "govuk-tag--blue",
+        enum.collection_status.OPEN: "govuk-tag--green",
+        enum.collection_status.CLOSED: "govuk-tag--grey",
+    }
+  %}
+  {# TODO: confirm this content with Chanel re: scheduled and open vs live #}
+  {%
+    set textMap = {
+            enum.collection_status.DRAFT: "Draft",
+            enum.collection_status.SCHEDULED: "Ready to go live",
+            enum.collection_status.OPEN: "Open",
+            enum.collection_status.CLOSED: "Closed",
+    }
+  %}
+  {{ govukTag({"text": textMap[status], "classes": classMap[status] }) }}
+{% endmacro %}

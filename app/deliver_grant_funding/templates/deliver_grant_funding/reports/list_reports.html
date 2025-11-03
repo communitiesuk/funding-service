@@ -2,6 +2,9 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "common/macros/status.html" import reportStatusTag with context %}
+{% from "common/macros/status.html" import grantStatusTag with context %}
+{% from "common/macros/status.html" import grantStatusDescription with context %}
 
 {% set page_title = "Reports" %}
 {% set active_item_identifier = "reports" %}
@@ -29,6 +32,9 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Reports
       </h1>
+
+      <p class="govuk-body"><strong>Grant status</strong>: {{ grantStatusTag(grant.status) }}</p>
+      <p class="govuk-body">{{ grantStatusDescription(grant) }}</p>
     </div>
   </div>
   <div class="govuk-grid-row">
@@ -117,15 +123,18 @@
             		},
             	},
             	"rows": [
+            	  {
+            	    "key": {"text": "Report status"},
+            	    "value": {"html": reportStatusTag(report.status)},
+            	  },
             		{
-            			"key": {"text": "Report"},
+            			"key": {"text": "Form"},
             			"value": {"text": formSectionsText},
             		},
             		{"key": {"text": "Reporting period"}, "value": {"text": reportingPeriodText} },
             		{"key": {"text": "Submission period"}, "value": {"text": submissionPeriodText} },
             		{"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} },
             		{"key": {"text": "Created by"}, "value": {"text": report.created_by.email} },
-            		{"key": {"text": "Last updated"}, "value": {"text": format_date(report.updated_at_utc)} },
             	],
             })
           }}
