@@ -98,10 +98,11 @@ class TestReportingLifecycleSelectGrant:
         assert str(draft_grant.id) in option_values
         assert str(live_grant.id) in option_values
 
-    def test_post_with_valid_grant_id_redirects_to_tasklist(
+    def test_post_with_valid_grant_id_single_report_redirects_to_tasklist(
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, name="Q1 Report")
 
         response = authenticated_platform_admin_client.post(
             "/deliver/admin/reporting-lifecycle/",
@@ -109,7 +110,22 @@ class TestReportingLifecycleSelectGrant:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}"
+        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+    def test_post_with_valid_grant_id_multiple_reports_redirects_to_select_report(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        factories.collection.create(grant=grant, name="Q1 Report")
+        factories.collection.create(grant=grant, name="Q2 Report")
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/reporting-lifecycle/",
+            data={"grant_id": str(grant.id), "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/select-report"
 
     def test_post_without_grant_id_shows_validation_error(
         self, authenticated_platform_admin_client, factories, db_session
@@ -128,6 +144,64 @@ class TestReportingLifecycleSelectGrant:
         assert page_has_error(soup, "Select a grant to view its reporting lifecycle")
 
 
+class TestReportingLifecycleSelectReport:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 403),
+        ],
+    )
+    def test_select_report_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create()
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/select-report")
+        assert response.status_code == expected_code
+
+    def test_get_select_report_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection1 = factories.collection.create(grant=grant, name="Q1 Report")
+        collection2 = factories.collection.create(grant=grant, name="Q2 Report")
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/select-report"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Select monitoring report"
+
+        select_element = soup.find("select", {"id": "collection_id"})
+        assert select_element is not None
+
+        options = select_element.find_all("option")
+        option_texts = [opt.get_text(strip=True) for opt in options]
+        option_values = [opt.get("value") for opt in options]
+
+        assert "Q1 Report" in option_texts
+        assert "Q2 Report" in option_texts
+        assert str(collection1.id) in option_values
+        assert str(collection2.id) in option_values
+
+    def test_post_with_valid_collection_id_redirects_to_tasklist(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, name="Q1 Report")
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/select-report",
+            data={"collection_id": str(collection.id), "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+
 class TestReportingLifecycleTasklist:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
@@ -141,45 +215,109 @@ class TestReportingLifecycleTasklist:
     )
     def test_tasklist_permissions(self, client_fixture, expected_code, request, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
 
         client = request.getfixturevalue(client_fixture)
-        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}")
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}")
         assert response.status_code == expected_code
 
-    def test_get_tasklist_shows_organisations_task(self, authenticated_platform_admin_client, factories, db_session):
+    def test_shows_all_tasklists(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant, name="Q1 Report")
         factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.organisation.create(name="Org 2", can_manage_grants=False)
         factories.organisation.create(name="Org 3", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}")
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        task_list = soup.find("ul", {"class": "govuk-task-list"})
-        assert task_list is not None
+        platform_task_list = soup.find("ul", {"id": "platform-tasks"})
+        grant_task_list = soup.find("ul", {"id": "grant-tasks"})
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        assert platform_task_list is not None
+        assert grant_task_list is not None
+        assert report_task_list is not None
 
-        task_items = task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(task_items) == 3
+        platform_task_items = platform_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        assert len(platform_task_items) == 1
+        assert len(grant_task_items) == 2
+        assert len(report_task_items) == 2
 
-        organisations_task = task_items[0]
+        organisations_task = platform_task_items[0]
         task_title = organisations_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set up organisations"
-        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations" in task_title.get("href")
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations" in task_title.get(
+            "href"
+        )
 
         task_status = organisations_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "3 organisations" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
+        make_grant_live_task = grant_task_items[0]
+        task_title = make_grant_live_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Make the grant live"
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live" in task_title.get("href")
+
+        task_status = make_grant_live_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "To do" in task_status.get_text(strip=True)
+        assert "govuk-tag--grey" in task_status.get("class")
+
+        set_up_grant_recipients_task = grant_task_items[1]
+        task_title = set_up_grant_recipients_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set up grant recipients"
+        assert (
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
+            in task_title.get("href")
+        )
+
+        task_status = set_up_grant_recipients_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "0 grant recipients" in task_status.get_text(strip=True)
+        assert "govuk-tag--blue" in task_status.get("class")
+
+        set_reporting_dates = report_task_items[0]
+        task_title = set_reporting_dates.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set reporting dates"
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates" in task_title.get("href")
+
+        task_status = set_reporting_dates.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "To do" in task_status.get_text(strip=True)
+        assert "govuk-tag--grey" in task_status.get("class")
+
+        set_submission_dates = report_task_items[1]
+        task_title = set_submission_dates.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set submission dates"
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates" in task_title.get("href")
+
+        task_status = set_submission_dates.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "To do" in task_status.get_text(strip=True)
+        assert "govuk-tag--grey" in task_status.get("class")
+
     def test_get_tasklist_shows_correct_organisation_count_singular(
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant, name="Q1 Report")
         factories.organisation.create(name="Org 1", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}")
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -194,9 +332,12 @@ class TestReportingLifecycleTasklist:
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant, name="Q1 Report")
         factories.organisation.create(name="Regular Org", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}")
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -207,56 +348,71 @@ class TestReportingLifecycleTasklist:
         task_status = organisations_task.find("strong", {"class": "govuk-tag"})
         assert "1 organisation" in task_status.get_text(strip=True)
 
-    def test_get_tasklist_with_draft_grant_shows_to_do_status(
-        self, authenticated_platform_admin_client, factories, db_session
-    ):
-        grant = factories.grant.create(name="Test Draft Grant")
-
-        response = authenticated_platform_admin_client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}")
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == f"{grant.name} Reporting lifecycle"
-
-        task_list = soup.find("ul", {"class": "govuk-task-list"})
-        assert task_list is not None
-
-        task_items = task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(task_items) == 3
-
-        task_title = task_items[1].find("a", {"class": "govuk-link"})
-        assert task_title is not None
-        assert task_title.get_text(strip=True) == "Make the grant live"
-        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/make-live" in task_title.get("href")
-
-        task_status = task_items[1].find("strong", {"class": "govuk-tag"})
-        assert task_status is not None
-        assert "To do" in task_status.get_text(strip=True)
-        assert "govuk-tag--grey" in task_status.get("class")
-
     def test_get_tasklist_with_live_grant_shows_completed_status(
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Live Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(grant=grant, name="Q1 Report")
 
-        response = authenticated_platform_admin_client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}")
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == f"{grant.name} Reporting lifecycle"
+        grant_task_list = soup.find("ul", {"id": "grant-tasks"})
+        task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        make_grant_live_task = task_items[0]
 
-        task_list = soup.find("ul", {"class": "govuk-task-list"})
-        assert task_list is not None
-
-        task_items = task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(task_items) == 3
-
-        task_title = task_items[1].find("div", {"class": "govuk-task-list__name-and-hint"})
+        task_title = make_grant_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert "Make the grant live" in task_title.get_text(strip=True)
 
-        task_link = task_items[1].find("a", {"class": "govuk-link"})
+        task_link = make_grant_live_task.find("a", {"class": "govuk-link"})
         assert task_link is None
+
+        task_status = make_grant_live_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Completed" in task_status.get_text(strip=True)
+        assert "govuk-tag--green" in task_status.get("class")
+
+    def test_get_tasklist_with_dates_set(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Draft Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            reporting_period_start_date=datetime.date(2025, 1, 1),
+            reporting_period_end_date=datetime.date(2025, 4, 1),
+            submission_period_start_date=datetime.date(2025, 4, 1),
+            submission_period_end_date=datetime.date(2025, 4, 30),
+        )
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        task_list = soup.find("ul", {"class": "govuk-task-list"})
+        assert task_list is not None
+
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        task_title = task_items[0].find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert "Set reporting dates" in task_title.get_text(strip=True)
+        assert "Wednesday 1 January 2025 to Tuesday 1 April 2025" in task_title.get_text(strip=True)
+
+        task_status = task_items[0].find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Completed" in task_status.get_text(strip=True)
+        assert "govuk-tag--green" in task_status.get("class")
+
+        task_title = task_items[1].find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert "Set submission dates" in task_title.get_text(strip=True)
+        assert "Tuesday 1 April 2025 to Wednesday 30 April 2025" in task_title.get_text(strip=True)
 
         task_status = task_items[1].find("strong", {"class": "govuk-tag"})
         assert task_status is not None
@@ -277,15 +433,19 @@ class TestReportingLifecycleMakeGrantLive:
     )
     def test_confirm_page_permissions(self, client_fixture, expected_code, request, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
 
         client = request.getfixturevalue(client_fixture)
-        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/make-live")
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live")
         assert response.status_code == expected_code
 
     def test_get_confirm_page_with_draft_grant(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/make-live")
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -295,9 +455,10 @@ class TestReportingLifecycleMakeGrantLive:
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create(name="Already Live Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(grant=grant)
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/make-live", follow_redirects=True
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live", follow_redirects=True
         )
         assert response.status_code == 200
 
@@ -308,16 +469,17 @@ class TestReportingLifecycleMakeGrantLive:
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT)
+        collection = factories.collection.create(grant=grant)
         factories.user_role.create(grant=grant, role=RoleEnum.MEMBER)
         factories.user_role.create(grant=grant, role=RoleEnum.ADMIN)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/make-live",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live",
             data={"submit": "y"},
             follow_redirects=True,
         )
         assert response.status_code == 200
-        assert response.request.path == f"/deliver/admin/reporting-lifecycle/{grant.id}"
+        assert response.request.path == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
 
         db_session.refresh(grant)
         assert grant.status == GrantStatusEnum.LIVE
@@ -327,10 +489,11 @@ class TestReportingLifecycleMakeGrantLive:
 
     def test_post_fails_without_enough_team_members(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT)
+        collection = factories.collection.create(grant=grant)
         factories.user_role.create(grant=grant, role=RoleEnum.MEMBER)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/make-live",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live",
             data={"submit": "Make grant live"},
             follow_redirects=False,
         )
@@ -356,16 +519,18 @@ class TestManageOrganisations:
     )
     def test_manage_organisations_permissions(self, client_fixture, expected_code, request, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
 
         client = request.getfixturevalue(client_fixture)
-        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations")
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations")
         assert response.status_code == expected_code
 
     def test_get_manage_organisations_page(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations"
         )
         assert response.status_code == 200
 
@@ -378,6 +543,7 @@ class TestManageOrganisations:
 
     def test_post_creates_new_organisations(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
         initial_count = get_organisation_count()
 
         tsv_data = (
@@ -387,7 +553,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -414,6 +580,7 @@ class TestManageOrganisations:
 
     def test_post_updates_existing_organisations(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
         factories.organisation.create(
             external_id="GB-GOV-123",
             name="Old Name",
@@ -428,7 +595,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -444,6 +611,7 @@ class TestManageOrganisations:
 
     def test_post_creates_retired_organisation(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
 
         tsv_data = (
             "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
@@ -451,7 +619,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -463,11 +631,12 @@ class TestManageOrganisations:
 
     def test_post_with_invalid_header_shows_error(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
 
         tsv_data = "Wrong Header\nGB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t"
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
         )
@@ -483,6 +652,7 @@ class TestManageOrganisations:
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
 
         tsv_data = (
             "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
@@ -490,7 +660,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
         )
@@ -503,6 +673,7 @@ class TestManageOrganisations:
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
 
         tsv_data = (
             "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
@@ -510,7 +681,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-organisations",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
         )
@@ -533,19 +704,21 @@ class TestManageGrantRecipients:
     )
     def test_manage_grant_recipients_permissions(self, client_fixture, expected_code, request, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
 
         client = request.getfixturevalue(client_fixture)
-        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients")
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients")
         assert response.status_code == expected_code
 
     def test_get_manage_grant_recipients_page(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.organisation.create(name="Org 2", can_manage_grants=False)
         factories.organisation.create(name="Org 3", can_manage_grants=False)
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
         )
         assert response.status_code == 200
 
@@ -568,11 +741,12 @@ class TestManageGrantRecipients:
         from tests.models import _get_grant_managing_organisation
 
         grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
         grant_managing_org = _get_grant_managing_organisation()
         factories.organisation.create(name="Regular Org", can_manage_grants=False)
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
         )
         assert response.status_code == 200
 
@@ -586,12 +760,13 @@ class TestManageGrantRecipients:
 
     def test_get_excludes_existing_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.organisation.create(name="Org 2", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org1)
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
         )
         assert response.status_code == 200
 
@@ -605,11 +780,12 @@ class TestManageGrantRecipients:
 
     def test_post_creates_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
         org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
             data={"recipients": [str(org1.id), str(org2.id)], "submit": "y"},
             follow_redirects=True,
         )
@@ -628,24 +804,26 @@ class TestManageGrantRecipients:
 
     def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Org 1", can_manage_grants=False)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
             data={"recipients": [str(org.id)], "submit": "y"},
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}"
+        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
 
     def test_post_without_recipients_shows_validation_error(
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Org 1", can_manage_grants=False)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
             data={"recipients": [], "submit": "y"},
             follow_redirects=False,
         )
@@ -660,10 +838,11 @@ class TestManageGrantRecipients:
         from tests.models import _get_grant_managing_organisation
 
         grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
         _get_grant_managing_organisation()
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/set-up-grant-recipients"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
         )
         assert response.status_code == 200
 

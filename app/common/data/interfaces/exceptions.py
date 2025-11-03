@@ -131,3 +131,7 @@ class StateTransitionError(Exception):
 
 class NotEnoughGrantTeamUsersError(Exception):
     pass
+
+
+class CollectionChronologyError(Exception):
+    pass

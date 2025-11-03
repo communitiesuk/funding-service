@@ -82,6 +82,24 @@
             </p>
           {% endset %}
 
+
+          {% set reportingPeriodText %}
+            {% if report.reporting_period_start_date and report.reporting_period_end_date %}
+              {{ format_date_range(report.reporting_period_start_date, report.reporting_period_end_date) }}
+            {% else %}
+              Not set
+            {% endif %}
+          {% endset %}
+
+
+          {% set submissionPeriodText %}
+            {% if report.submission_period_start_date and report.submission_period_end_date %}
+              {{ format_date_range(report.submission_period_start_date, report.submission_period_end_date) }}
+            {% else %}
+              Not set
+            {% endif %}
+          {% endset %}
+
           {% set actions = [] %}
           {% if grant_admin %}
             {% do actions.append({"text": "Change name", "visuallyHiddenText": report.title, "href": url_for("deliver_grant_funding.change_report_name", grant_id=grant.id, report_id=report.id), "classes": "govuk-link--no-visited-state" }) %}
@@ -103,6 +121,8 @@
             			"key": {"text": "Report"},
             			"value": {"text": formSectionsText},
             		},
+            		{"key": {"text": "Reporting period"}, "value": {"text": reportingPeriodText} },
+            		{"key": {"text": "Submission period"}, "value": {"text": submissionPeriodText} },
             		{"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} },
             		{"key": {"text": "Created by"}, "value": {"text": report.created_by.email} },
             		{"key": {"text": "Last updated"}, "value": {"text": format_date(report.updated_at_utc)} },

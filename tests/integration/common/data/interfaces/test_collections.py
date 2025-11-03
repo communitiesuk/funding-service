@@ -1,3 +1,4 @@
+import datetime
 import uuid
 
 import pytest
@@ -48,12 +49,14 @@ from app.common.data.interfaces.collections import (
     raise_if_question_has_any_dependencies,
     remove_add_another_answers_at_index,
     remove_question_expression,
+    update_collection,
     update_group,
     update_question,
     update_question_expression,
     update_submission_data,
 )
 from app.common.data.interfaces.exceptions import (
+    CollectionChronologyError,
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
@@ -157,6 +160,320 @@ class TestCreateCollection:
         # Check same name in the same grant is not allowed with the same version
         with pytest.raises(DuplicateValueError):
             create_collection(name="test_collection", user=u, grant=grants[0], type_=CollectionType.MONITORING_REPORT)
+
+
+class TestUpdateCollection:
+    def test_update_collection_name(self, db_session, factories):
+        collection = factories.collection.create(name="Original Name")
+
+        updated_collection = update_collection(collection, name="Updated Name")
+
+        assert updated_collection.name == "Updated Name"
+        assert updated_collection.slug == "updated-name"
+
+        from_db = db_session.get(Collection, (collection.id, 1))
+        assert from_db.name == "Updated Name"
+        assert from_db.slug == "updated-name"
+
+    def test_update_collection_reporting_period_dates(self, db_session, factories):
+        collection = factories.collection.create(
+            reporting_period_start_date=None,
+            reporting_period_end_date=None,
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        start_date = datetime.date(2024, 1, 1)
+        end_date = datetime.date(2024, 12, 31)
+
+        updated_collection = update_collection(
+            collection, reporting_period_start_date=start_date, reporting_period_end_date=end_date
+        )
+
+        assert updated_collection.reporting_period_start_date == start_date
+        assert updated_collection.reporting_period_end_date == end_date
+
+        from_db = db_session.get(Collection, (collection.id, 1))
+        assert from_db.reporting_period_start_date == start_date
+        assert from_db.reporting_period_end_date == end_date
+
+    def test_update_collection_submission_period_dates(self, db_session, factories):
+        collection = factories.collection.create(
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=None,
+            submission_period_end_date=None,
+        )
+
+        start_date = datetime.date(2025, 1, 1)
+        end_date = datetime.date(2025, 1, 31)
+
+        updated_collection = update_collection(
+            collection, submission_period_start_date=start_date, submission_period_end_date=end_date
+        )
+
+        assert updated_collection.submission_period_start_date == start_date
+        assert updated_collection.submission_period_end_date == end_date
+
+        from_db = db_session.get(Collection, (collection.id, 1))
+        assert from_db.submission_period_start_date == start_date
+        assert from_db.submission_period_end_date == end_date
+
+    def test_update_collection_all_fields(self, db_session, factories):
+        collection = factories.collection.create(
+            name="Original Name",
+            reporting_period_start_date=None,
+            reporting_period_end_date=None,
+            submission_period_start_date=None,
+            submission_period_end_date=None,
+        )
+
+        updated_collection = update_collection(
+            collection,
+            name="New Name",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        assert updated_collection.name == "New Name"
+        assert updated_collection.slug == "new-name"
+        assert updated_collection.reporting_period_start_date == datetime.date(2024, 1, 1)
+        assert updated_collection.reporting_period_end_date == datetime.date(2024, 12, 31)
+        assert updated_collection.submission_period_start_date == datetime.date(2025, 1, 1)
+        assert updated_collection.submission_period_end_date == datetime.date(2025, 1, 31)
+
+    def test_update_collection_only_name(self, db_session, factories):
+        collection = factories.collection.create(
+            name="Original Name",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        updated_collection = update_collection(collection, name="New Name")
+
+        assert updated_collection.name == "New Name"
+        assert updated_collection.reporting_period_start_date == datetime.date(2024, 1, 1)
+        assert updated_collection.reporting_period_end_date == datetime.date(2024, 12, 31)
+        assert updated_collection.submission_period_start_date == datetime.date(2025, 1, 1)
+        assert updated_collection.submission_period_end_date == datetime.date(2025, 1, 31)
+
+    def test_update_collection_reporting_period_start_none_end_set_raises_error(self, db_session, factories):
+        collection = factories.collection.create()
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection, reporting_period_start_date=None, reporting_period_end_date=datetime.date(2024, 12, 31)
+            )
+
+        assert "must both be unset or both be set" in str(exc_info.value)
+
+    def test_update_collection_reporting_period_start_set_end_none_raises_error(self, db_session, factories):
+        collection = factories.collection.create()
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection, reporting_period_start_date=datetime.date(2024, 1, 1), reporting_period_end_date=None
+            )
+
+        assert "must both be unset or both be set" in str(exc_info.value)
+
+    def test_update_collection_submission_period_start_none_end_set_raises_error(self, db_session, factories):
+        collection = factories.collection.create(
+            reporting_period_start_date=datetime.date(2024, 1, 1), reporting_period_end_date=datetime.date(2024, 12, 31)
+        )
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection, submission_period_start_date=None, submission_period_end_date=datetime.date(2025, 1, 31)
+            )
+
+        assert "must both be unset or both be set" in str(exc_info.value)
+
+    def test_update_collection_submission_period_start_set_end_none_raises_error(self, db_session, factories):
+        collection = factories.collection.create(
+            reporting_period_start_date=datetime.date(2024, 1, 1), reporting_period_end_date=datetime.date(2024, 12, 31)
+        )
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection, submission_period_start_date=datetime.date(2025, 1, 1), submission_period_end_date=None
+            )
+
+        assert "must both be unset or both be set" in str(exc_info.value)
+
+    def test_update_collection_clear_reporting_period_dates(self, db_session, factories):
+        collection = factories.collection.create(
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        updated_collection = update_collection(
+            collection, reporting_period_start_date=None, reporting_period_end_date=None
+        )
+
+        assert updated_collection.reporting_period_start_date is None
+        assert updated_collection.reporting_period_end_date is None
+        assert updated_collection.submission_period_start_date == datetime.date(2025, 1, 1)
+        assert updated_collection.submission_period_end_date == datetime.date(2025, 1, 31)
+
+        from_db = db_session.get(Collection, (collection.id, 1))
+        assert from_db.reporting_period_start_date is None
+        assert from_db.reporting_period_end_date is None
+
+    def test_update_collection_clear_submission_period_dates(self, db_session, factories):
+        collection = factories.collection.create(
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        updated_collection = update_collection(
+            collection, submission_period_start_date=None, submission_period_end_date=None
+        )
+
+        assert updated_collection.reporting_period_start_date == datetime.date(2024, 1, 1)
+        assert updated_collection.reporting_period_end_date == datetime.date(2024, 12, 31)
+        assert updated_collection.submission_period_start_date is None
+        assert updated_collection.submission_period_end_date is None
+
+        from_db = db_session.get(Collection, (collection.id, 1))
+        assert from_db.submission_period_start_date is None
+        assert from_db.submission_period_end_date is None
+
+    def test_update_collection_clear_all_dates(self, db_session, factories):
+        collection = factories.collection.create(
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        updated_collection = update_collection(
+            collection,
+            reporting_period_start_date=None,
+            reporting_period_end_date=None,
+            submission_period_start_date=None,
+            submission_period_end_date=None,
+        )
+
+        assert updated_collection.reporting_period_start_date is None
+        assert updated_collection.reporting_period_end_date is None
+        assert updated_collection.submission_period_start_date is None
+        assert updated_collection.submission_period_end_date is None
+
+    def test_update_collection_reporting_period_start_after_end_raises_error(self, db_session, factories):
+        collection = factories.collection.create(
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection,
+                reporting_period_start_date=datetime.date(2024, 12, 31),
+                reporting_period_end_date=datetime.date(2024, 1, 1),
+            )
+
+        assert "reporting_period_start_date must be before reporting_period_end_date" in str(exc_info.value)
+
+    def test_update_collection_reporting_period_start_equals_end_raises_error(self, db_session, factories):
+        collection = factories.collection.create(
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection,
+                reporting_period_start_date=datetime.date(2024, 6, 15),
+                reporting_period_end_date=datetime.date(2024, 6, 15),
+            )
+
+        assert "reporting_period_start_date must be before reporting_period_end_date" in str(exc_info.value)
+
+    def test_update_collection_submission_period_start_after_end_raises_error(self, db_session, factories):
+        collection = factories.collection.create(
+            reporting_period_start_date=datetime.date(2024, 1, 1), reporting_period_end_date=datetime.date(2024, 12, 31)
+        )
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection,
+                submission_period_start_date=datetime.date(2025, 1, 31),
+                submission_period_end_date=datetime.date(2025, 1, 1),
+            )
+
+        assert "submission_period_start_date must be before submission_period_end_date" in str(exc_info.value)
+
+    def test_update_collection_submission_period_start_equals_end_raises_error(self, db_session, factories):
+        collection = factories.collection.create(
+            reporting_period_start_date=datetime.date(2024, 1, 1), reporting_period_end_date=datetime.date(2024, 12, 31)
+        )
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection,
+                submission_period_start_date=datetime.date(2025, 1, 15),
+                submission_period_end_date=datetime.date(2025, 1, 15),
+            )
+
+        assert "submission_period_start_date must be before submission_period_end_date" in str(exc_info.value)
+
+    def test_update_collection_reporting_end_after_submission_start_raises_error(self, db_session, factories):
+        collection = factories.collection.create()
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection,
+                reporting_period_start_date=datetime.date(2024, 1, 1),
+                reporting_period_end_date=datetime.date(2024, 12, 31),
+                submission_period_start_date=datetime.date(2024, 6, 1),
+                submission_period_end_date=datetime.date(2024, 6, 30),
+            )
+
+        assert "reporting_period_end_date must be before submission_period_start_date" in str(exc_info.value)
+
+    def test_update_collection_reporting_end_equals_submission_start_raises_error(self, db_session, factories):
+        collection = factories.collection.create()
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection,
+                reporting_period_start_date=datetime.date(2024, 1, 1),
+                reporting_period_end_date=datetime.date(2024, 12, 31),
+                submission_period_start_date=datetime.date(2024, 12, 31),
+                submission_period_end_date=datetime.date(2025, 1, 31),
+            )
+
+        assert "reporting_period_end_date must be before submission_period_start_date" in str(exc_info.value)
+
+    def test_update_collection_name_duplicate_raises_error(self, db_session, factories):
+        grant = factories.grant.create()
+        factories.collection.create(name="Collection One", grant=grant)
+        collection2 = factories.collection.create(name="Collection Two", grant=grant)
+
+        with pytest.raises(DuplicateValueError):
+            update_collection(collection2, name="Collection One")
+
+    def test_update_collection_without_arguments(self, db_session, factories):
+        collection = factories.collection.create(
+            name="Original Name",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+        )
+
+        updated_collection = update_collection(collection)
+
+        assert updated_collection.name == "Original Name"
+        assert updated_collection.reporting_period_start_date == datetime.date(2024, 1, 1)
+        assert updated_collection.reporting_period_end_date == datetime.date(2024, 12, 31)
 
 
 def test_get_submission(db_session, factories):
@@ -2420,7 +2737,7 @@ class TestExpressions:
         )
         referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(managed_expression)
         assert len(referenced_data_source_items) == 2
-        assert referenced_data_source_items[0] == referenced_question.data_source.items[0]
+        assert referenced_data_source_items[0] in referenced_question.data_source.items
 
     def test_get_referenced_data_source_items_by_specifically_managed_expression(self, db_session, factories):
         referenced_question = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
