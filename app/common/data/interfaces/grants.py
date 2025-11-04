@@ -1,7 +1,7 @@
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -12,7 +12,7 @@ from app.common.data.interfaces.exceptions import (
     flush_and_rollback_on_exceptions,
 )
 from app.common.data.models import Collection, Grant, Organisation
-from app.common.data.models_user import User, UserRole
+from app.common.data.models_user import User
 from app.common.data.types import GrantStatusEnum
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
@@ -43,29 +43,14 @@ def grant_name_exists(name: str, exclude_grant_id: UUID | None = None) -> bool:
     return grant is not None
 
 
-def get_all_grants_by_user(user: User) -> Sequence[Grant]:
+def get_all_deliver_grants_by_user(user: User) -> Sequence[Grant]:
     from app.common.auth.authorisation_helper import AuthorisationHelper
 
     if AuthorisationHelper.is_platform_admin(user):
         statement = select(Grant).order_by(Grant.name)
         return db.session.scalars(statement).all()
-    else:
-        statement = (
-            select(Grant)
-            .join(
-                UserRole,
-                and_(
-                    or_(Grant.id == UserRole.grant_id, Grant.organisation_id == UserRole.organisation_id),
-                    UserRole.user_id == user.id,
-                ),
-            )
-            .where(
-                UserRole.organisation_id == Grant.organisation_id,
-                or_(UserRole.grant_id == Grant.id, UserRole.grant_id.is_(None)),
-            )
-            .order_by(Grant.name)
-        )
-        return db.session.scalars(statement).unique().all()
+
+    return user.deliver_grants
 
 
 def get_all_grants(statuses: list[GrantStatusEnum] | None = None) -> Sequence[Grant]:

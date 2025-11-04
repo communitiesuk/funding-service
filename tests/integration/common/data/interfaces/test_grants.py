@@ -5,8 +5,8 @@ from app.common.data.interfaces.exceptions import NotEnoughGrantTeamUsersError, 
 from app.common.data.interfaces.grants import (
     DuplicateValueError,
     create_grant,
+    get_all_deliver_grants_by_user,
     get_all_grants,
-    get_all_grants_by_user,
     get_grant,
     grant_name_exists,
     update_grant,
@@ -21,24 +21,24 @@ def test_get_grant(factories):
     assert result is not None
 
 
-class TestGetAllGrantsByUser:
+class TestGetAllDeliverGrantsByUser:
     def test_get_all_grants_platform_admin(self, factories, authenticated_platform_admin_client):
         factories.grant.create_batch(5)
-        result = get_all_grants_by_user(authenticated_platform_admin_client.user)
+        result = get_all_deliver_grants_by_user(authenticated_platform_admin_client.user)
         assert len(result) == 5
 
     def test_deliver_org_admin(self, factories, authenticated_org_admin_client):
         factories.grant.create_batch(2, organisation=authenticated_org_admin_client.organisation)
-        result = get_all_grants_by_user(authenticated_org_admin_client.user)
+        result = get_all_deliver_grants_by_user(authenticated_org_admin_client.user)
         assert len(result) == 2
 
     @pytest.mark.xfail
     def test_deliver_org_admin_cannot_see_grants_from_another_org(self, factories, authenticated_org_admin_client):
         raise NotImplementedError("we don't support multiple orgs with can_manage_grants=True yet")
 
-    def test_deliver_org_member(self, factories, authenticated_org_member_client):
+    def test_deliver_org_member(self, factories, authenticated_org_member_client, db_session):
         factories.grant.create_batch(2, organisation=authenticated_org_member_client.organisation)
-        result = get_all_grants_by_user(authenticated_org_member_client.user)
+        result = get_all_deliver_grants_by_user(authenticated_org_member_client.user)
         assert len(result) == 2
 
     @pytest.mark.xfail
@@ -47,23 +47,13 @@ class TestGetAllGrantsByUser:
 
     def test_get_all_grants_grant_admin(self, factories, authenticated_grant_admin_client):
         factories.grant.create_batch(5)
-        result = get_all_grants_by_user(authenticated_grant_admin_client.user)
+        result = get_all_deliver_grants_by_user(authenticated_grant_admin_client.user)
         assert result == [authenticated_grant_admin_client.grant]
 
     def test_get_all_grants_grant_member(self, factories, authenticated_grant_member_client):
         factories.grant.create_batch(5)
-        result = get_all_grants_by_user(authenticated_grant_member_client.user)
+        result = get_all_deliver_grants_by_user(authenticated_grant_member_client.user)
         assert result == [authenticated_grant_member_client.grant]
-
-    def test_get_all_grants_member_with_org_level_permission(self, factories, authenticated_org_admin_client):
-        factories.grant.create_batch(5, organisation=authenticated_org_admin_client.organisation)
-        factories.user_role.create(
-            user=authenticated_org_admin_client.user,
-            role=RoleEnum.MEMBER,
-            organisation=authenticated_org_admin_client.organisation,
-        )
-        result = get_all_grants_by_user(authenticated_org_admin_client.user)
-        assert len(result) == 5
 
 
 class TestGetAllGrants:

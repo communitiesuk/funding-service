@@ -27,7 +27,7 @@
 
 {% set right_nav_items = [] %}
 
-{% if authorisation_helper.is_platform_admin(current_user) %}
+{% if authorisation_helper.is_deliver_org_member(current_user) or current_user.deliver_grants | length > 1 %}
   {%
     do right_nav_items.append({
         "text": "See all grants",
