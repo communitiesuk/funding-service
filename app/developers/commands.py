@@ -2,12 +2,12 @@ import hashlib
 import json
 import uuid
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 import click
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
-from sqlalchemy import delete, inspect
+from sqlalchemy import delete, inspect, or_, select
 from sqlalchemy.exc import NoResultFound
 
 from app.common.data.base import BaseModel
@@ -23,6 +23,7 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
+    GrantRecipient,
     Group,
     Organisation,
     Question,
@@ -51,6 +52,7 @@ GrantExport = TypedDict(
     "GrantExport",
     {
         "grant": dict[str, Any],
+        "grant_recipients": list[Any],
         "collections": list[Any],
         "forms": list[Any],
         # intentionally leaving this as questions for now to avoid
@@ -63,7 +65,14 @@ GrantExport = TypedDict(
         "component_references": list[Any],
     },
 )
-ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list[Any]})
+ExportData = TypedDict(
+    "ExportData",
+    {
+        "grants": list[GrantExport],
+        "users": list[Any],
+        "organisations": list[Any],
+    },
+)
 
 
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
@@ -97,12 +106,14 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
     export_data: ExportData = {
         "grants": [],
         "users": [],
+        "organisations": [],
     }
 
     for grant in grants:
         # Don't persist `grant.organisation_id`, as the UUID for MHCLG is not static
         grant_export: GrantExport = {
             "grant": to_dict(grant, exclude=["organisation_id"]),
+            "grant_recipients": [],
             "collections": [],
             "forms": [],
             "questions": [],
@@ -140,6 +151,13 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
             export_data["users"].append(user_data)
         export_data["users"].sort(key=lambda u: u["email"])
 
+        for gr in grant.grant_recipients:
+            if gr.organisation_id in [o["id"] for o in export_data["organisations"]]:
+                continue
+
+            export_data["organisations"].append(to_dict(gr.organisation))
+            grant_export["grant_recipients"].append(to_dict(gr))
+
     export_json = current_app.json.dumps(export_data, indent=2)
     match output:
         case "file":
@@ -156,10 +174,17 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
             click.echo(f"Written {len(grants)} grants to stdout")
 
 
+def __replace_id(export_data: ExportData, old_id: str, new_id: str) -> ExportData:
+    export_json = json.dumps(export_data)
+    export_json = export_json.replace(old_id, new_id)
+    return cast(ExportData, json.loads(export_json))
+
+
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
 def seed_grants() -> None:  # noqa: C901
     with open(export_path) as infile:
-        export_data = json.load(infile)
+        raw_export_json = infile.read()
+        export_data: ExportData = json.loads(raw_export_json)
 
     for user in export_data["users"]:
         user = User(**user)
@@ -170,15 +195,40 @@ def seed_grants() -> None:  # noqa: C901
     # its org UUID so it will change every time.
     grant_owning_org = db.session.query(Organisation).filter_by(can_manage_grants=True).one()
 
+    for organisation_data in export_data["organisations"]:
+        matched_org: Organisation | None = db.session.scalar(
+            select(Organisation).where(
+                or_(
+                    Organisation.id == organisation_data["id"],
+                    Organisation.name == organisation_data["name"],
+                )
+            )
+        )
+        if matched_org:
+            export_data = __replace_id(export_data, organisation_data["id"], str(matched_org.id))
+        else:
+            db.session.add(Organisation(**organisation_data))
+
+    db.session.flush()
+
     for grant_data in export_data["grants"]:
+        grant_data["grant"]["id"] = uuid.UUID(grant_data["grant"]["id"])
+
         try:
+            db.session.execute(delete(GrantRecipient).where(GrantRecipient.grant_id == grant_data["grant"]["id"]))
             delete_grant(grant_data["grant"]["id"])
-            db.session.commit()
+            db.session.flush()
         except NoResultFound:
             pass
 
         grant = Grant(**grant_data["grant"], organisation=grant_owning_org)
         db.session.add(grant)
+
+        for grant_recipient in grant_data["grant_recipients"]:
+            grant_recipient["id"] = uuid.UUID(grant_recipient["id"])
+            grant_recipient["organisation_id"] = uuid.UUID(grant_recipient["organisation_id"])
+            grant_recipient["grant_id"] = uuid.UUID(grant_recipient["grant_id"])
+            db.session.add(GrantRecipient(**grant_recipient))
 
         for collection in grant_data["collections"]:
             collection["id"] = uuid.UUID(collection["id"])
