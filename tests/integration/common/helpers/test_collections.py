@@ -775,7 +775,7 @@ class TestCollectionHelper:
             "2025-01-01",
         ]
 
-    def test_all_question_types_appear_correctly_in_json_export(self, factories):
+    def test_generate_json_content_for_all_submissions_all_question_types_appear_correctly(self, factories):
         factories.data_source_item.reset_sequence()
         collection = factories.collection.create(
             create_completed_submissions_each_question_type__test=1,
@@ -810,6 +810,45 @@ class TestCollectionHelper:
                                 "Last cheese purchase date": "2025-01-01",
                             },
                             "name": "Export test form",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    def test_generate_json_content_for_all_submissions_add_another_lists(self, factories):
+        factories.data_source_item.reset_sequence()
+        collection = factories.collection.create(
+            create_completed_submissions_add_another_nested_group__test=1,
+            create_completed_submissions_add_another_nested_group__use_random_data=False,
+        )
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        json_data = c_helper.generate_json_content_for_all_submissions()
+        submissions = json.loads(json_data)
+
+        assert submissions == {
+            "submissions": [
+                {
+                    "created_at_utc": mock.ANY,
+                    "created_by": mock.ANY,
+                    "reference": mock.ANY,
+                    "status": "In progress",
+                    "submitted_at_utc": None,
+                    "sections": [
+                        {
+                            "answers": {
+                                "Your name": "test name",
+                                "Organisation name": "test org name",
+                                "organisation contacts test group": [
+                                    {"Contact name": "test name 0", "Contact email": "test_user_0@email.com"},
+                                    {"Contact name": "test name 1", "Contact email": "test_user_1@email.com"},
+                                    {"Contact name": "test name 2", "Contact email": "test_user_2@email.com"},
+                                    {"Contact name": "test name 3", "Contact email": "test_user_3@email.com"},
+                                    {"Contact name": "test name 4", "Contact email": "test_user_4@email.com"},
+                                ],
+                                "Length of service": {"value": 3},
+                            },
+                            "name": "Add another nested group test form",
                         }
                     ],
                 }
