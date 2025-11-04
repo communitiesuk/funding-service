@@ -22,7 +22,7 @@ def list_users_for_grant(grant_id: UUID) -> ResponseReturnValue:
     return render_template(
         "deliver_grant_funding/grant_team/grant_user_list.html",
         grant=grant,
-        service_desk_url=current_app.config["SERVICE_DESK_URL"],
+        service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
     )
 
 

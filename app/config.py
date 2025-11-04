@@ -255,7 +255,9 @@ class _SharedConfig(_BaseConfig):
     INTERNAL_DOMAINS: tuple[str, ...] = ("@communities.gov.uk", "@test.communities.gov.uk")
 
     # Service Desk
-    SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1343"
+    SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5"
+    ACCESS_SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1344"
+    DELIVER_SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1343"
     DELTA_SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/6/group/12"
 
     # Form rendering options
