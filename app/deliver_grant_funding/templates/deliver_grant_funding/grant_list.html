@@ -1,6 +1,7 @@
 {% extends "deliver_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/macros/status.html" import grantStatusTag with context %}
 
 {% set page_title = "Grants" %}
 {% set active_item_identifier = "grants" %}
@@ -30,7 +31,7 @@
           set table_rows.items = table_rows.items + [
               [{"html": grant_detail_link},
                {"text": grant.ggis_number},
-               {"text": grant.primary_contact_email}]
+               {"text": grantStatusTag(grant.status)}]
           ]
         %}
       {% endfor %}
@@ -39,7 +40,7 @@
           govukTable({
               "captionClasses": "govuk-table__caption--m",
               "firstCellIsHeader": false,
-              "head": [{"text": "Grant"}, {"text": "GGIS number"}, {"text": "Email"}],
+              "head": [{"text": "Grant"}, {"text": "GGIS number"}, {"text": "Status"}],
               "rows": table_rows.items
           })
         }}

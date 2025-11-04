@@ -18,7 +18,7 @@ class TestListGrants:
         soup = BeautifulSoup(result.data, "html.parser")
         headers = soup.find_all("th")
         header_texts = [th.get_text(strip=True) for th in headers]
-        expected_headers = ["Grant", "GGIS number", "Email"]
+        expected_headers = ["Grant", "GGIS number", "Status"]
         for expected in expected_headers:
             assert expected in header_texts, f"Header '{expected}' not found in table"
         assert get_h1_text(soup) == "Grants"
@@ -49,7 +49,7 @@ class TestListGrants:
         soup = BeautifulSoup(result.data, "html.parser")
         headers = soup.find_all("th")
         header_texts = [th.get_text(strip=True) for th in headers]
-        expected_headers = ["Grant", "GGIS number", "Email"]
+        expected_headers = ["Grant", "GGIS number", "Status"]
         for expected in expected_headers:
             assert expected in header_texts, f"Header '{expected}' not found in table"
         assert get_h1_text(soup) == "Grants"
