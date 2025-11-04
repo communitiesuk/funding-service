@@ -54,19 +54,14 @@ class Grant(BaseModel):
     organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="grants")
     grant_recipients: Mapped[list["GrantRecipient"]] = relationship("GrantRecipient", back_populates="grant")
 
-    users: Mapped[list["User"]] = relationship(
-        "User",
-        secondary="user_role",
-        primaryjoin="Grant.id==UserRole.grant_id",
-        secondaryjoin="User.id==UserRole.user_id",
-        viewonly=True,
-    )
     invitations: Mapped[list["Invitation"]] = relationship(
         "Invitation",
         back_populates="grant",
         viewonly=True,
     )
 
+    # This is specifically people granted *explicit* access to this specific grant, not just anyone with more
+    # generalised access to the grant (eg org and platform admins)
     grant_team_users: Mapped[list["User"]] = relationship(
         "User",
         secondary="user_role",
