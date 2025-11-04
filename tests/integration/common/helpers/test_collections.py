@@ -828,6 +828,37 @@ class TestCollectionHelper:
             "3",
         ]
 
+    def test_generate_csv_content_add_another_handles_different_answer_list_sizes(self, factories):
+        group = factories.group.create(add_another=True, name="Test group", form__title="Test form")
+        question = factories.question.create(form=group.form, parent=group, name="Test question")
+
+        factories.submission.create(
+            collection=group.form.collection,
+            data={
+                f"{str(group.id)}": [
+                    {str(question.id): "first"},
+                    {str(question.id): "second"},
+                    {str(question.id): "third"},
+                ]
+            },
+        )
+        factories.submission.create(
+            collection=group.form.collection, data={f"{str(group.id)}": [{str(question.id): "only first"}]}
+        )
+
+        c_helper = CollectionHelper(collection=group.form.collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+
+        rows = list(reader)
+        assert rows[0]["[Test form] [Test group] Test question (1)"] == "first"
+        assert rows[0]["[Test form] [Test group] Test question (2)"] == "second"
+        assert rows[0]["[Test form] [Test group] Test question (3)"] == "third"
+
+        assert rows[1]["[Test form] [Test group] Test question (1)"] == "only first"
+        assert rows[1]["[Test form] [Test group] Test question (2)"] == "NOT_ASKED"
+        assert rows[1]["[Test form] [Test group] Test question (3)"] == "NOT_ASKED"
+
     def test_generate_json_content_for_all_submissions_all_question_types_appear_correctly(self, factories):
         factories.data_source_item.reset_sequence()
         collection = factories.collection.create(

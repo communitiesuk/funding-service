@@ -565,7 +565,8 @@ class CollectionHelper:
             for question in sorted(form.cached_questions, key=lambda q: q.order)
         ]
 
-    def generate_csv_content_for_all_submissions(self) -> str:
+    # todo: split this method up into smaller parts that can be individually tested (i.e submission -> CSV row dict)
+    def generate_csv_content_for_all_submissions(self) -> str:  # noqa: C901
         metadata_headers = ["Submission reference", "Created by", "Created at", "Status", "Submitted at"]
 
         question_headers: list[tuple["Question", str, int | None]] = []
@@ -628,24 +629,28 @@ class CollectionHelper:
                             answer.get_value_for_text_export() if answer is not None else NOT_ANSWERED
                         )
                 else:
-                    context_key = f"{question.add_another_container.id}{index}"
-                    context = cached_contexts.get(context_key)
                     assert index is not None
-                    if not context:
-                        context = submission.cached_evaluation_context.with_add_another_context(
-                            question.add_another_container,
-                            submission_helper=submission,
-                            add_another_index=index,
-                        )
-                        cached_contexts[context_key] = context
-
-                    if submission.is_component_visible(question, context):
-                        answer = submission.cached_get_answer_for_question(question.id, add_another_index=index)
-                        submission_csv_data[header_string] = (
-                            answer.get_value_for_text_export() if answer is not None else NOT_ANSWERED
-                        )
-                    else:
+                    if submission.get_count_for_add_another(question.add_another_container) <= index:
+                        # this submission didn't provide this many answers as so wasn't asked this question
                         submission_csv_data[header_string] = NOT_ASKED
+                    else:
+                        context_key = f"{question.add_another_container.id}{index}"
+                        context = cached_contexts.get(context_key)
+                        if not context:
+                            context = submission.cached_evaluation_context.with_add_another_context(
+                                question.add_another_container,
+                                submission_helper=submission,
+                                add_another_index=index,
+                            )
+                            cached_contexts[context_key] = context
+
+                        if submission.is_component_visible(question, context):
+                            answer = submission.cached_get_answer_for_question(question.id, add_another_index=index)
+                            submission_csv_data[header_string] = (
+                                answer.get_value_for_text_export() if answer is not None else NOT_ANSWERED
+                            )
+                        else:
+                            submission_csv_data[header_string] = NOT_ASKED
 
             csv_writer.writerow(submission_csv_data)
 
