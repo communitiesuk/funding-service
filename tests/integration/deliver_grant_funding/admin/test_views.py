@@ -245,7 +245,7 @@ class TestReportingLifecycleTasklist:
         grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 1
-        assert len(grant_task_items) == 2
+        assert len(grant_task_items) == 3
         assert len(report_task_items) == 3
 
         organisations_task = platform_task_items[0]
@@ -284,6 +284,20 @@ class TestReportingLifecycleTasklist:
         task_status = set_up_grant_recipients_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "0 grant recipients" in task_status.get_text(strip=True)
+        assert "govuk-tag--blue" in task_status.get("class")
+
+        set_up_grant_recipient_users_task = grant_task_items[2]
+        task_title = set_up_grant_recipient_users_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set up grant recipient users"
+        assert (
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users"
+            in task_title.get("href")
+        )
+
+        task_status = set_up_grant_recipient_users_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "0 users" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
         set_reporting_dates = report_task_items[0]
@@ -864,6 +878,371 @@ class TestManageGrantRecipients:
         assert len(options) == 0
 
 
+class TestSetUpGrantRecipientUsers:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 403),
+        ],
+    )
+    def test_set_up_grant_recipient_users_permissions(
+        self, client_fixture, expected_code, request, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users"
+        )
+        assert response.status_code == expected_code
+
+    def test_get_set_up_grant_recipient_users_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Set up grant recipient users"
+
+        assert soup.find("textarea", {"id": "users_data"}) is not None
+
+    def test_post_creates_user_and_role(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            data={
+                "users_data": (
+                    "organisation-name\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully set up 1 grant recipient user.")
+
+        from app.common.data.interfaces.user import get_user_by_email
+
+        user = get_user_by_email("john@example.com")
+        assert user is not None
+        assert user.name == "John Doe"
+        assert len(user.roles) == 1
+        assert user.roles[0].role == RoleEnum.MEMBER
+        assert user.roles[0].organisation_id == org.id
+        assert user.roles[0].grant_id == grant.id
+
+    def test_post_with_existing_user_upserts(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        existing_user = factories.user.create(email="existing@example.com", name="Old Name")
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            data={
+                "users_data": (
+                    "organisation-name\tfull-name\temail-address\nTest Organisation\tNew Name\texisting@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully set up 1 grant recipient user.")
+
+        from app.common.data.interfaces.user import get_user_by_email
+
+        user = get_user_by_email("existing@example.com")
+        assert user is not None
+        assert user.id == existing_user.id
+        assert user.name == "New Name"
+        assert any(
+            role.role == RoleEnum.MEMBER and role.organisation_id == org.id and role.grant_id == grant.id
+            for role in user.roles
+        )
+
+    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            data={
+                "users_data": (
+                    "organisation-name\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+    def test_post_with_invalid_header_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            data={
+                "users_data": "wrong-header\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "The header row must be exactly: organisation-name\tfull-name\temail-address")
+
+    def test_post_with_non_grant_recipient_shows_error(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            data={
+                "users_data": (
+                    "organisation-name\tfull-name\temail-address\nNot A Recipient\tJohn Doe\tjohn@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Organisation 'Not A Recipient' is not a grant recipient for this grant.")
+
+    def test_post_with_mixed_valid_invalid_orgs_creates_no_users(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Valid Org", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            data={
+                "users_data": (
+                    "organisation-name\tfull-name\temail-address\n"
+                    "Valid Org\tJohn Doe\tjohn@example.com\nInvalid Org\tJane Smith\tjane@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Organisation 'Invalid Org' is not a grant recipient for this grant.")
+
+        from app.common.data.interfaces.user import get_user_by_email
+
+        assert get_user_by_email("john@example.com") is None
+        assert get_user_by_email("jane@example.com") is None
+
+    def test_post_creates_multiple_users(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org1)
+        factories.grant_recipient.create(grant=grant, organisation=org2)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            data={
+                "users_data": (
+                    "organisation-name\tfull-name\temail-address\n"
+                    "Org 1\tJohn Doe\tjohn@example.com\nOrg 2\tJane Smith\tjane@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully set up 2 grant recipient users.")
+
+        from app.common.data.interfaces.user import get_user_by_email
+
+        user1 = get_user_by_email("john@example.com")
+        assert user1 is not None
+        assert user1.name == "John Doe"
+
+        user2 = get_user_by_email("jane@example.com")
+        assert user2 is not None
+        assert user2.name == "Jane Smith"
+
+    def test_post_with_invalid_emails_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            data={
+                "users_data": (
+                    "organisation-name\tfull-name\temail-address\n"
+                    "Test Organisation\tJohn Doe\tinvalid-email\nTest Organisation\tJane Smith\talso-bad"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Invalid email address(es): invalid-email, also-bad")
+
+
+class TestRevokeGrantRecipientUsers:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 403),
+        ],
+    )
+    def test_revoke_grant_recipient_users_permissions(
+        self, client_fixture, expected_code, request, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users"
+        )
+        assert response.status_code == expected_code
+
+    def test_get_revoke_grant_recipient_users_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        user = factories.user.create(name="John Doe", email="john@example.com")
+        factories.user_role.create(user=user, organisation=org, grant=grant, role=RoleEnum.MEMBER)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Revoke grant recipient users"
+
+        assert soup.find("select", {"id": "user_roles"}) is not None
+
+    def test_post_revokes_user_role(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        user = factories.user.create(name="John Doe", email="john@example.com")
+        user_role = factories.user_role.create(user=user, organisation=org, grant=grant, role=RoleEnum.MEMBER)
+
+        from app.common.data.models_user import UserRole
+
+        assert db_session.query(UserRole).filter_by(id=user_role.id).first() is not None
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users",
+            data={"user_roles": [f"{user.id}|{org.id}"], "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully revoked access for 1 user.")
+
+        assert db_session.query(UserRole).filter_by(id=user_role.id).first() is None
+
+    def test_post_revokes_multiple_user_roles(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org1)
+        factories.grant_recipient.create(grant=grant, organisation=org2)
+        user1 = factories.user.create(name="John Doe", email="john@example.com")
+        user2 = factories.user.create(name="Jane Smith", email="jane@example.com")
+        user_role1 = factories.user_role.create(user=user1, organisation=org1, grant=grant, role=RoleEnum.MEMBER)
+        user_role2 = factories.user_role.create(user=user2, organisation=org2, grant=grant, role=RoleEnum.MEMBER)
+
+        from app.common.data.models_user import UserRole
+
+        assert db_session.query(UserRole).filter_by(id=user_role1.id).first() is not None
+        assert db_session.query(UserRole).filter_by(id=user_role2.id).first() is not None
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users",
+            data={"user_roles": [f"{user1.id}|{org1.id}", f"{user2.id}|{org2.id}"], "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully revoked access for 2 users.")
+
+        assert db_session.query(UserRole).filter_by(id=user_role1.id).first() is None
+        assert db_session.query(UserRole).filter_by(id=user_role2.id).first() is None
+
+    def test_post_redirects_to_set_up_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        user = factories.user.create(name="John Doe", email="john@example.com")
+        factories.user_role.create(user=user, organisation=org, grant=grant, role=RoleEnum.MEMBER)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users",
+            data={"user_roles": [f"{user.id}|{org.id}"], "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert (
+            response.location
+            == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users"
+        )
+
+
 class TestScheduleReport:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
@@ -884,7 +1263,11 @@ class TestScheduleReport:
             submission_period_start_date=datetime.date(2024, 4, 1),
             submission_period_end_date=datetime.date(2024, 4, 30),
         )
-        factories.grant_recipient.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+        )
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report")
@@ -900,7 +1283,11 @@ class TestScheduleReport:
             submission_period_start_date=datetime.date(2024, 4, 1),
             submission_period_end_date=datetime.date(2024, 4, 30),
         )
-        factories.grant_recipient.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+        )
 
         response = authenticated_platform_admin_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report"
@@ -921,7 +1308,11 @@ class TestScheduleReport:
             submission_period_start_date=datetime.date(2024, 4, 1),
             submission_period_end_date=datetime.date(2024, 4, 30),
         )
-        factories.grant_recipient.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+        )
 
         response = authenticated_platform_admin_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report",
@@ -936,6 +1327,36 @@ class TestScheduleReport:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now locked")
+
+    def test_post_fails_when_grant_recipients_have_no_users(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.DRAFT,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        factories.grant_recipient.create(grant=grant)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report",
+            data={"submit": "Schedule report"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup, "All grant recipients must have at least one user set up before scheduling a report"
+        )
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.DRAFT
 
 
 class TestSetCollectionDatesStatusRestriction:

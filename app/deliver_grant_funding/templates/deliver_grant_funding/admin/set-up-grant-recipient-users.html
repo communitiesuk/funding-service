@@ -1,0 +1,90 @@
+{% extends "admin/base.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
+{% from 'govuk_frontend_jinja/components/table/macro.html' import govukTable %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">Set up grant recipient users</h1>
+
+      <p class="govuk-body">They will be able to log in and submit reports as the selected grant recipient.</p>
+      <p class="govuk-body">Users created this way will not receive any notification email.</p>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% set existingGrantRecipientUsersHtml %}
+
+      <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-half">
+          <p class="govuk-body">
+            If any of these grant recipient users are incorrect, you can
+            <a href="{{ url_for('reporting_lifecycle.revoke_grant_recipient_users', grant_id=grant.id, collection_id=collection.id) }}" class="govuk-link">revoke grant recipient users</a>.
+          </p>
+        </div>
+      </div>
+
+      {% set tableRows = [] %}
+        {% for grant_recipient, users in grant_recipient_users_by_org.items() %}
+          {% if users %}
+            {% set userDetails %}
+              <ul class="govuk-list">
+                {% for user in users %}
+                  <li>{{ user.name }} ({{ user.email }})</li>
+                {% endfor %}
+              </ul>
+            {% endset %}
+          {% else %}
+            {% set userDetails = 'No users set up' %}
+          {% endif %}
+          {%
+            do tableRows.append([
+              {"text": grant_recipient.organisation.name},
+              {"html": userDetails}
+            ])
+          %}
+        {% endfor %}
+        {{
+          govukTable({
+            "head": [
+              {"text": "Grant recipient"},
+              {"text": "Users"}
+            ],
+            "rows": tableRows
+          })
+        }}
+      {% endset %}
+
+      {{
+        govukDetails({
+          "summaryText": "Existing grant recipient users",
+          "html": existingGrantRecipientUsersHtml,
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{ form.users_data }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}
