@@ -137,7 +137,7 @@ def sso_get_token() -> ResponseReturnValue:
         if not user_invites:
             return render_template(
                 "common/auth/mhclg-user-not-authorised.html",
-                service_desk_url=current_app.config["SERVICE_DESK_URL"],
+                service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
                 invite_expired=True,
             ), 403
         user = interfaces.user.create_user_and_claim_invitations(
@@ -159,14 +159,15 @@ def sso_get_token() -> ResponseReturnValue:
             if not user.roles:
                 return render_template(
                     "common/auth/mhclg-user-not-authorised.html",
-                    service_desk_url=current_app.config["SERVICE_DESK_URL"],
+                    service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
                 ), 403
 
     # No user user and no roles means they should 403 for now
     else:
         # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
         return render_template(
-            "common/auth/mhclg-user-not-authorised.html", service_desk_url=current_app.config["SERVICE_DESK_URL"]
+            "common/auth/mhclg-user-not-authorised.html",
+            service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
         ), 403
 
     # For all other valid users with roles after the above, finish the flow and redirect

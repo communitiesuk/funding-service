@@ -2,7 +2,7 @@ import typing as t
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import sentry_sdk
-from flask import Flask, Response, current_app, redirect, render_template, url_for
+from flask import Flask, Response, current_app, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_admin import Admin
 from flask_babel import Babel
@@ -64,22 +64,38 @@ init_sentry()
 
 
 def _register_global_error_handlers(app: Flask) -> None:
+    def _determine_service_desk_url_based_on_request_url(request_url: str) -> str:
+        if "/deliver/" in request_url:
+            return str(app.config["DELIVER_SERVICE_DESK_URL"])
+        elif "/access/" in request_url:
+            return str(app.config["ACCESS_SERVICE_DESK_URL"])
+        else:
+            return str(app.config["SERVICE_DESK_URL"])
+
     @app.errorhandler(403)
     def handle_403(error: Literal[403]) -> ResponseReturnValue:
-        return render_template("common/errors/403.html", service_desk_url=app.config["SERVICE_DESK_URL"]), 403
+        return render_template(
+            "common/errors/403.html", service_desk_url=_determine_service_desk_url_based_on_request_url(request.url)
+        ), 403
 
     @app.errorhandler(NoResultFound)
     def handle_sqlalchemy_no_result(error: NoResultFound) -> ResponseReturnValue:
-        return render_template("common/errors/404.html", service_desk_url=app.config["SERVICE_DESK_URL"]), 404
+        return render_template(
+            "common/errors/404.html", service_desk_url=_determine_service_desk_url_based_on_request_url(request.url)
+        ), 404
 
     @app.errorhandler(404)
     def handle_404(error: Literal[404]) -> ResponseReturnValue:
-        return render_template("common/errors/404.html", service_desk_url=app.config["SERVICE_DESK_URL"]), 404
+        return render_template(
+            "common/errors/404.html", service_desk_url=_determine_service_desk_url_based_on_request_url(request.url)
+        ), 404
 
     @app.errorhandler(500)
     def handle_500(error: Literal[500]) -> ResponseReturnValue:
         current_app.logger.error("Internal server error", exc_info=True)
-        return render_template("common/errors/500.html", service_desk_url=app.config["SERVICE_DESK_URL"]), 500
+        return render_template(
+            "common/errors/500.html", service_desk_url=_determine_service_desk_url_based_on_request_url(request.url)
+        ), 500
 
 
 def _register_custom_converters(app: Flask) -> None:

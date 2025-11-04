@@ -218,7 +218,7 @@ class TestSSOGetTokenView:
             response = anonymous_client.get(url_for("auth.sso_get_token"))
 
         assert response.status_code == 403
-        assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5" in response.text
+        assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1343" in response.text
 
     def test_login_with_grant_member_role(self, anonymous_client, factories):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
@@ -256,7 +256,7 @@ class TestSSOGetTokenView:
             response = anonymous_client.get(url_for("auth.sso_get_token"))
 
         assert response.status_code == 403
-        assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5" in response.text
+        assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1343" in response.text
 
     def test_get_valid_token_with_redirect(self, anonymous_client, factories, db_session):
         dummy_grant = factories.grant.create()
