@@ -9,6 +9,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import create_submission, get_collection
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.temporary import get_submission_by_collection_and_user
+from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import FormRunnerState, SubmissionModeEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
@@ -20,8 +21,7 @@ developers_access_blueprint = Blueprint("access", __name__, url_prefix="/access"
 @developers_access_blueprint.get("/grants")
 @is_platform_admin
 def grants_list() -> ResponseReturnValue:
-    grants = interfaces.grants.get_all_grants_by_user(interfaces.user.get_current_user())
-    return render_template("developers/access/grants_list.html", grants=grants)
+    return render_template("developers/access/grants_list.html", grants=get_current_user().access_grants)
 
 
 # note: no auth decorator on this page, fully public, the template itself deals with varying the response based on

@@ -298,7 +298,10 @@ def authenticated_grant_member_client(
     user = factories.user.create(email=email)
     grant = factories.grant.create()
     factories.user_role.create(
-        user_id=user.id, user=user, role=RoleEnum.MEMBER, organisation=grant.organisation, grant=grant
+        user=user,
+        role=RoleEnum.MEMBER,
+        organisation=grant.organisation,
+        grant=grant,
     )
 
     login_user(user)
@@ -326,7 +329,10 @@ def authenticated_grant_admin_client(
     user = factories.user.create(email=email)
     grant = factories.grant.create()
     factories.user_role.create(
-        user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation=grant.organisation, grant=grant
+        user=user,
+        role=RoleEnum.ADMIN,
+        organisation=grant.organisation,
+        grant=grant,
     )
 
     login_user(user)
@@ -369,7 +375,10 @@ def authenticated_org_admin_client(
     user = factories.user.create(email="orgadmin@communities.gov.uk")
     organisation = _get_grant_managing_organisation()
     factories.user_role.create(
-        user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation_id=organisation.id, grant_id=None
+        user=user,
+        role=RoleEnum.ADMIN,
+        organisation=organisation,
+        grant=None,
     )
 
     login_user(user)
@@ -386,12 +395,14 @@ def authenticated_org_admin_client(
 def authenticated_org_member_client(
     anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
 ) -> Generator[FundingServiceTestClient, None, None]:
-    """Create a client authenticated as an org admin for an org WITHOUT can_manage_grants"""
+    """Create a client authenticated as an org member for an org with can_manage_grants=True"""
+    from tests.models import _get_grant_managing_organisation
+
     user = factories.user.create(email="otheradmin@communities.gov.uk")
-    organisation = factories.organisation.create(name="Other Org", can_manage_grants=False)
+    organisation = _get_grant_managing_organisation()
     factories.user_role.create(
         user=user,
-        role=RoleEnum.ADMIN,
+        role=RoleEnum.MEMBER,
         organisation=organisation,
         grant=None,
     )

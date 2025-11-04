@@ -30,6 +30,57 @@ class User(BaseModel):
     roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     submissions: Mapped[list["Submission"]] = relationship("Submission", back_populates="created_by")
 
+    # These relationships need Organisation table as part of the join for filtering
+    # Using string expressions to allow forward references to work properly
+    # NOTE: This does not account for platform admin privileges; this is specifically for normal users
+    deliver_grants: Mapped[list["Grant"]] = relationship(
+        "Grant",
+        secondary="join(UserRole, Organisation, UserRole.organisation_id == Organisation.id)",
+        primaryjoin="User.id == UserRole.user_id",
+        secondaryjoin="""and_(
+            or_(
+                Grant.id == UserRole.grant_id,
+                and_(
+                    Grant.organisation_id == UserRole.organisation_id,
+                    UserRole.grant_id.is_(None)
+                )
+            ),
+            Organisation.can_manage_grants == True
+        )""",
+        viewonly=True,
+        order_by="Grant.name",
+    )
+
+    # For access_grants, we need to join through GrantRecipient for organization-level access
+    # The logic is:
+    # - Direct: Grant.id == UserRole.grant_id, OR
+    # - Org-level: exists(GrantRecipient where GrantRecipient.grant_id == Grant.id
+    #              AND GrantRecipient.organisation_id == UserRole.organisation_id)
+    # We also filter by Organisation.can_manage_grants == False
+    # NOTE: This does not account for platform admin privileges; this is specifically for normal users
+    access_grants: Mapped[list["Grant"]] = relationship(
+        "Grant",
+        secondary="""join(
+            join(UserRole, Organisation, UserRole.organisation_id == Organisation.id),
+            GrantRecipient,
+            GrantRecipient.organisation_id == UserRole.organisation_id,
+            isouter=True
+        )""",
+        primaryjoin="User.id == UserRole.user_id",
+        secondaryjoin="""and_(
+            or_(
+                Grant.id == UserRole.grant_id,
+                and_(
+                    Grant.id == GrantRecipient.grant_id,
+                    UserRole.grant_id.is_(None)
+                )
+            ),
+            Organisation.can_manage_grants == False
+        )""",
+        viewonly=True,
+        order_by="Grant.name",
+    )
+
     last_logged_in_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
 
     # START: Flask-Login attributes
@@ -87,7 +138,7 @@ class UserRole(BaseModel):
         Index("ix_user_roles_user_id_grant_id", "user_id", "grant_id"),
         Index("ix_user_roles_organisation_id_role_id_grant_id", "user_id", "organisation_id", "grant_id"),
         CheckConstraint(
-            "role != 'MEMBER' OR NOT (organisation_id IS NULL AND grant_id IS NULL)",
+            "role != 'MEMBER' OR organisation_id IS NOT NULL",
             name="member_role_not_platform",
         ),
         CheckConstraint(

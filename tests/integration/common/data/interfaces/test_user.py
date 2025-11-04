@@ -596,3 +596,97 @@ class TestInvitations:
         user_from_db_role = user_from_db.roles[0]
         assert user_from_db_role.role == RoleEnum.ADMIN
         assert (user_from_db_role.organisation_id, user_from_db_role.grant_id) == (None, None)
+
+
+class TestUserGrantRelationships:
+    def test_deliver_grants_direct_grant_access(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        mhclg = _get_grant_managing_organisation()
+        grant = factories.grant.create(organisation=mhclg)
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user=user, organisation=mhclg, grant=grant, role=RoleEnum.MEMBER)
+
+        assert len(user.deliver_grants) == 1
+        assert user.deliver_grants[0].id == grant.id
+        assert len(user.access_grants) == 0
+
+    def test_deliver_grants_organisation_level_access(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        mhclg = _get_grant_managing_organisation()
+        grant1 = factories.grant.create(organisation=mhclg)
+        grant2 = factories.grant.create(organisation=mhclg)
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user=user, organisation=mhclg, grant=None, role=RoleEnum.ADMIN)
+
+        assert len(user.deliver_grants) == 2
+        assert {g.id for g in user.deliver_grants} == {grant1.id, grant2.id}
+        assert len(user.access_grants) == 0
+
+    def test_access_grants_direct_grant_access(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        recipient_org = factories.organisation.create(can_manage_grants=False)
+        mhclg = _get_grant_managing_organisation()
+        grant = factories.grant.create(organisation=mhclg)
+        factories.grant_recipient.create(grant=grant, organisation=recipient_org)
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user=user, organisation=recipient_org, grant=grant, role=RoleEnum.MEMBER)
+
+        assert len(user.access_grants) == 1
+        assert user.access_grants[0].id == grant.id
+        assert len(user.deliver_grants) == 0
+
+    def test_access_grants_organisation_level_access(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        recipient_org = factories.organisation.create(can_manage_grants=False)
+        mhclg = _get_grant_managing_organisation()
+        grant1 = factories.grant.create(organisation=mhclg)
+        grant2 = factories.grant.create(organisation=mhclg)
+        factories.grant_recipient.create(grant=grant1, organisation=recipient_org)
+        factories.grant_recipient.create(grant=grant2, organisation=recipient_org)
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user=user, organisation=recipient_org, grant=None, role=RoleEnum.ADMIN)
+
+        assert len(user.access_grants) == 2
+        assert {g.id for g in user.access_grants} == {grant1.id, grant2.id}
+        assert len(user.deliver_grants) == 0
+
+    def test_user_with_both_deliver_and_access_grants(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        mhclg = _get_grant_managing_organisation()
+        recipient_org = factories.organisation.create(can_manage_grants=False)
+        deliver_grant = factories.grant.create(organisation=mhclg)
+        access_grant = factories.grant.create(organisation=mhclg)
+        factories.grant_recipient.create(grant=access_grant, organisation=recipient_org)
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user=user, organisation=mhclg, grant=deliver_grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, organisation=recipient_org, grant=access_grant, role=RoleEnum.MEMBER)
+
+        assert len(user.deliver_grants) == 1
+        assert user.deliver_grants[0].id == deliver_grant.id
+        assert len(user.access_grants) == 1
+        assert user.access_grants[0].id == access_grant.id
+
+    def test_no_grants_for_user_without_roles(self, db_session, factories):
+        user = factories.user.create(email="test@communities.gov.uk")
+
+        assert len(user.deliver_grants) == 0
+        assert len(user.access_grants) == 0
+
+    def test_platform_admin_does_not_populate_deliver_or_access_grants(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        mhclg = _get_grant_managing_organisation()
+        recipient_org = factories.organisation.create(can_manage_grants=False)
+        factories.grant.create(organisation=mhclg)
+        access_grant = factories.grant.create(organisation=mhclg)
+        factories.grant_recipient.create(grant=access_grant, organisation=recipient_org)
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user=user, organisation=None, grant=None, role=RoleEnum.ADMIN)
+
+        assert len(user.deliver_grants) == 0
+        assert len(user.access_grants) == 0
