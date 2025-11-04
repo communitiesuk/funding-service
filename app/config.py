@@ -28,16 +28,22 @@ class DatabaseSecret(BaseModel):
 
 FS_CONTENT_SECURITY_POLICY = {
     "default-src": ["'self'"],
-    "script-src": ["'self'"],
+    "content_security_policy_nonce_in": ["script-src"],
+    "script-src": [
+        "'self'",
+        "https://www.googletagmanager.com",
+    ],
     "img-src": [
         "'self'",
         "data:",  # Flask-Admin's select-with-search "x" icon for deleting selections
+        "www.googletagmanager.com",
     ],
     "style-src": [
         "'self'",
         "'unsafe-hashes'",
         "'sha256-9/aFFbAwf+Mwl6MrBQzrJ/7ZK5vo7HdOUR7iKlBk78U='",  # MHCLG Crest
     ],
+    "connect-src": ["'self'", "www.googletagmanager.com", "www.google.com", "https://*.google-analytics.com"],
 }
 
 
@@ -281,6 +287,9 @@ class _SharedConfig(_BaseConfig):
     }
     SEED_SYSTEM_DATA: bool = True
     GRANT_TEAM_RECIPIENT_LIST_SPREADSHEET: str = "https://mhclg.sharepoint.com/:x:/s/FundingServiceOnboarding/EVu_B9_W6OJKvjS8j-Xd_dABBQ0sPGB6vWLNLkoHfrHyHg?e=cG79Bd&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMH0"
+
+    # Google Analytics
+    GOOGLE_TAG_MANAGER_ID: str = "GTM-T8XPM3NL"
 
     @property
     def IS_PRODUCTION(self) -> bool:

@@ -7,7 +7,26 @@
 {% set right_nav_items = right_nav_items or [] %}
 
 {% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
+{% block head %}
+  <!-- Google Tag Manager -->
+  <script nonce="{{csp_nonce()}}">
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({ "gtm.start": new Date().getTime(), event: "gtm.js", env: "{{get_current_env_name()}}" });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != "dataLayer" ? "&l=" + l : "";
+      j.async = true;
+      j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
+      var n = d.querySelector("[nonce]");
+      n && j.setAttribute("nonce", n.nonce || n.getAttribute("nonce"));
+      f.parentNode.insertBefore(j, f);
+    })(window, document, "script", "dataLayer", "{{ get_google_tag_manager_id() }}");
+  </script>
 
+  <!-- End Google Tag Manager -->
+  {{ super() }}
+{% endblock %}
 {% block header %}
   {{
     mhclgHeader(
@@ -22,6 +41,9 @@
 {% endblock header %}
 
 {% block main %}
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T8XPM3NL" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
   <div {% if show_watermark %}class="app-watermark-container"{% endif %}>
     <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
       {% block beforeContent %}{% endblock %}
