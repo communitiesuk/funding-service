@@ -29,7 +29,7 @@
         Grant team
       </h1>
 
-      {% if not grant.users %}
+      {% if not grant.grant_team_users %}
         <p class="govuk-body">No grant team members have been added to this grant yet.</p>
       {% endif %}
 
@@ -74,7 +74,7 @@
 
   {% set table_rows = namespace(items=[]) %}
 
-  {% for user in grant.users if authorisation_helper.has_logged_in(user) %}
+  {% for user in grant.grant_team_users if authorisation_helper.has_logged_in(user) %}
     {%
       set table_rows.items = table_rows.items + [[
         {"text": user.name},

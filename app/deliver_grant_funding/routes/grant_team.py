@@ -36,7 +36,7 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
         if form.user_email.data:
             # are they already in this grant - if so, redirect to the list of users
             grant_user = next(
-                (user for user in grant.users if user.email.lower() == form.user_email.data.lower()), None
+                (user for user in grant.grant_team_users if user.email.lower() == form.user_email.data.lower()), None
             )
             if grant_user:
                 return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))

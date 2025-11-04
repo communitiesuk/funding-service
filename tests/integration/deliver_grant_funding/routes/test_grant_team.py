@@ -17,7 +17,9 @@ class TestGrantTeamListUsers:
         authenticated_platform_admin_client.get(
             url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
         )
-        users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
+        users = (
+            templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").grant_team_users
+        )
         assert not users
 
     @pytest.mark.parametrize(
@@ -61,9 +63,28 @@ class TestGrantTeamListUsers:
         user = get_current_user()
         factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
         authenticated_grant_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
-        users = templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").users
+        users = (
+            templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").grant_team_users
+        )
         assert users
         assert len(users) == 1
+
+    def test_does_not_show_grant_recipient_users(
+        self, authenticated_grant_member_client, templates_rendered, factories
+    ):
+        grant = factories.grant.create()
+        user = get_current_user()
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+        gr_user = factories.user_role.create(
+            role=RoleEnum.MEMBER, grant=grant, organisation=grant_recipient.organisation
+        ).user
+        authenticated_grant_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
+        users = (
+            templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").grant_team_users
+        )
+        assert len(users) == 1
+        assert gr_user not in users
 
 
 class TestGrantTeamAddUser:
