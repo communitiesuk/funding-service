@@ -97,24 +97,6 @@ class TestGetCollection:
         from_db = get_collection(collection_id=collection.id)
         assert from_db is not None
 
-    def test_get_collection_version(self, db_session, factories):
-        collection = factories.collection.create()
-        _ = factories.collection.create(id=collection.id, version=2)
-
-        from_db = get_collection(collection_id=collection.id, version=1)
-        from_db_v2 = get_collection(collection_id=collection.id, version=2)
-        assert from_db.version == 1
-        assert from_db_v2.version == 2
-
-    def test_get_collection_version_latest_by_default(self, db_session, factories):
-        collection = factories.collection.create()
-        _ = factories.collection.create(id=collection.id, version=2)
-        _ = factories.collection.create(id=collection.id, version=3)
-        _ = factories.collection.create(id=collection.id, version=4)
-
-        from_db = get_collection(collection_id=collection.id)
-        assert from_db.version == 4
-
     def test_get_collection_with_grant_id(self, db_session, factories):
         collection = factories.collection.create()
 
@@ -140,7 +122,7 @@ class TestCreateCollection:
         assert collection.id is not None
         assert collection.slug == "test-collection"
 
-        from_db = db_session.get(Collection, [collection.id, collection.version])
+        from_db = db_session.get(Collection, collection.id)
         assert from_db is not None
 
     def test_create_collection_name_is_unique_per_grant(self, db_session, factories):
@@ -156,13 +138,7 @@ class TestCreateCollection:
         )
         assert collection_same_name_different_grant.id is not None
 
-        # Check same name in the same grant is allowed with a different version
-        collection_same_name_different_version = create_collection(
-            name="test_collection", user=u, grant=grants[0], version=2, type_=CollectionType.MONITORING_REPORT
-        )
-        assert collection_same_name_different_version.id is not None
-
-        # Check same name in the same grant is not allowed with the same version
+        # Check same name in the same grant is not allowed
         with pytest.raises(DuplicateValueError):
             create_collection(name="test_collection", user=u, grant=grants[0], type_=CollectionType.MONITORING_REPORT)
 
@@ -176,7 +152,7 @@ class TestUpdateCollection:
         assert updated_collection.name == "Updated Name"
         assert updated_collection.slug == "updated-name"
 
-        from_db = db_session.get(Collection, (collection.id, 1))
+        from_db = db_session.get(Collection, collection.id)
         assert from_db.name == "Updated Name"
         assert from_db.slug == "updated-name"
 
@@ -198,7 +174,7 @@ class TestUpdateCollection:
         assert updated_collection.reporting_period_start_date == start_date
         assert updated_collection.reporting_period_end_date == end_date
 
-        from_db = db_session.get(Collection, (collection.id, 1))
+        from_db = db_session.get(Collection, collection.id)
         assert from_db.reporting_period_start_date == start_date
         assert from_db.reporting_period_end_date == end_date
 
@@ -220,7 +196,7 @@ class TestUpdateCollection:
         assert updated_collection.submission_period_start_date == start_date
         assert updated_collection.submission_period_end_date == end_date
 
-        from_db = db_session.get(Collection, (collection.id, 1))
+        from_db = db_session.get(Collection, collection.id)
         assert from_db.submission_period_start_date == start_date
         assert from_db.submission_period_end_date == end_date
 
@@ -327,7 +303,7 @@ class TestUpdateCollection:
         assert updated_collection.submission_period_start_date == datetime.date(2025, 1, 1)
         assert updated_collection.submission_period_end_date == datetime.date(2025, 1, 31)
 
-        from_db = db_session.get(Collection, (collection.id, 1))
+        from_db = db_session.get(Collection, collection.id)
         assert from_db.reporting_period_start_date is None
         assert from_db.reporting_period_end_date is None
 
@@ -348,7 +324,7 @@ class TestUpdateCollection:
         assert updated_collection.submission_period_start_date is None
         assert updated_collection.submission_period_end_date is None
 
-        from_db = db_session.get(Collection, (collection.id, 1))
+        from_db = db_session.get(Collection, collection.id)
         assert from_db.submission_period_start_date is None
         assert from_db.submission_period_end_date is None
 
@@ -514,7 +490,7 @@ class TestUpdateCollection:
 
         assert updated_collection.status == to_status
 
-        from_db = db_session.get(Collection, (collection.id, 1))
+        from_db = db_session.get(Collection, collection.id)
         assert from_db.status == to_status
 
     @pytest.mark.parametrize(
@@ -2866,11 +2842,11 @@ class TestExpressions:
 class TestDeleteCollection:
     def test_delete(self, db_session, factories):
         collection = factories.collection.create()
-        assert db_session.get(Collection, (collection.id, collection.version)) is not None
+        assert db_session.get(Collection, collection.id) is not None
 
         delete_collection(collection)
 
-        assert db_session.get(Collection, (collection.id, collection.version)) is None
+        assert db_session.get(Collection, collection.id) is None
 
     def test_delete_cascades_downstream(self, db_session, factories):
         collection = factories.collection.create()

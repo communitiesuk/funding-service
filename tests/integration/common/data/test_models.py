@@ -37,7 +37,6 @@ class TestSubmissionModel:
 
         submission = Submission(
             collection_id=collection.id,
-            collection_version=collection.version,
             mode=SubmissionModeEnum.LIVE,
             created_by_id=user.id,
             grant_recipient_id=None,

@@ -57,8 +57,8 @@ if TYPE_CHECKING:
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def create_collection(*, name: str, user: User, grant: Grant, version: int = 1, type_: CollectionType) -> Collection:
-    collection = Collection(name=name, created_by=user, grant=grant, version=version, slug=slugify(name), type=type_)
+def create_collection(*, name: str, user: User, grant: Grant, type_: CollectionType) -> Collection:
+    collection = Collection(name=name, created_by=user, grant=grant, slug=slugify(name), type=type_)
     db.session.add(collection)
     return collection
 
@@ -67,15 +67,9 @@ def get_collection(
     collection_id: UUID,
     grant_id: UUID | None = None,
     type_: CollectionType | None = None,
-    version: int | None = None,
     with_full_schema: bool = False,
 ) -> Collection:
-    """Get a collection by ID and optionally version.
-
-    If you do not pass a version, it will retrieve the latest version (ie highest version number).
-
-    Note: We may wish to change this behaviour to the latest 'published' version in the future, or some other logic.
-    """
+    """Get a collection by ID."""
     options = []
     if with_full_schema:
         options.extend(
@@ -94,16 +88,8 @@ def get_collection(
         filters.append(Collection.grant_id == grant_id)
     if type_:
         filters.append(Collection.type == type_)
-    if version is not None:
-        filters.append(Collection.version == version)
 
-    return (
-        db.session.scalars(
-            select(Collection).where(*filters).order_by(Collection.version.desc()).options(*options).limit(1)
-        )
-        .unique()
-        .one()
-    )
+    return db.session.scalars(select(Collection).where(*filters).options(*options)).unique().one()
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
@@ -395,7 +381,6 @@ def create_form(*, title: str, collection: Collection) -> Form:
     form = Form(
         title=title,
         collection_id=collection.id,
-        collection_version=collection.version,
         slug=slugify(title),
     )
     collection.forms.append(form)
@@ -1323,13 +1308,12 @@ def delete_question(question: Question | Group) -> None:
 @flush_and_rollback_on_exceptions
 def delete_collection_test_submissions_created_by_user(collection: Collection, created_by_user: User) -> None:
     # We're trying to rely less on ORM relationships and cascades in delete queries so here we explicitly delete all
-    # SubmissionEvents related to the `created_by_user`'s test submissions for that collection version, and then
+    # SubmissionEvents related to the `created_by_user`'s test submissions for that collection, and then
     # subsequently delete the submissions.
 
     submission_ids = db.session.scalars(
         select(Submission.id).where(
             Submission.collection_id == collection.id,
-            Submission.collection_version == collection.version,
             Submission.created_by_id == created_by_user.id,
             Submission.mode == SubmissionModeEnum.TEST,
         )

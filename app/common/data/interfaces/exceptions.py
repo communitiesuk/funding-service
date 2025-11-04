@@ -17,6 +17,7 @@ class DuplicateValueError(Exception):
     constraint_name_map: dict[str, str] = {
         "uq_grant_name": "name",
         "uq_collection_name_version_grant_id": "name",
+        "uq_collection_name_grant_id": "name",
         "uq_form_title_collection": "title",
         "uq_form_slug_collection": "title",
         "uq_collection_slug_grant_id": "name",
