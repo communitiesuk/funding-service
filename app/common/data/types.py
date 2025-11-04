@@ -120,10 +120,10 @@ class CollectionType(enum.StrEnum):
 
 
 class CollectionStatusEnum(enum.StrEnum):
-    DRAFT = "draft"
-    SCHEDULED = "scheduled"
-    OPEN = "open"
-    CLOSED = "closed"
+    DRAFT = "Draft"
+    SCHEDULED = "Scheduled to open"
+    OPEN = "Open"
+    CLOSED = "Closed"
 
 
 class ExpressionType(enum.StrEnum):
