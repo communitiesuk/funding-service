@@ -39,14 +39,5 @@
         enum.collection_status.CLOSED: "govuk-tag--grey",
     }
   %}
-  {# TODO: confirm this content with Chanel re: scheduled and open vs live #}
-  {%
-    set textMap = {
-            enum.collection_status.DRAFT: "Draft",
-            enum.collection_status.SCHEDULED: "Ready to go live",
-            enum.collection_status.OPEN: "Open",
-            enum.collection_status.CLOSED: "Closed",
-    }
-  %}
-  {{ govukTag({"text": textMap[status], "classes": classMap[status] }) }}
+  {{ govukTag({"text": status, "classes": classMap[status] }) }}
 {% endmacro %}
