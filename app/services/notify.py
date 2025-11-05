@@ -122,3 +122,13 @@ class NotificationService:
                 "sign_in_url": url_for("deliver_grant_funding.list_grants", _external=True),
             },
         )
+
+    def send_deliver_org_member_invitation(self, email_address: str, *, organisation: "Organisation") -> Notification:
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_DELIVER_ORGANISATION_MEMBER_TEMPLATE_ID"],
+            personalisation={
+                "organisation_name": organisation.name,
+                "sign_in_url": url_for("deliver_grant_funding.list_grants", _external=True),
+            },
+        )

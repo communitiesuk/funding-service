@@ -127,3 +127,30 @@ class TestNotificationService:
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_deliver_org_member_invitation(self, app, factories):
+        organisation = factories.organisation.build(name="Test organisation")
+        email_address = "test@communities.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "fc85bd85-89bb-4bfc-87af-26e5cdc6cfed",
+                        "personalisation": {
+                            "organisation_name": "Test organisation",
+                            "sign_in_url": "http://funding.communities.gov.localhost:8080/deliver/grants",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_deliver_org_member_invitation(
+            organisation=organisation, email_address="test@communities.gov.uk"
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
