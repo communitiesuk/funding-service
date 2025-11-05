@@ -7192,17 +7192,6 @@
         },
         {
           "context": {
-            "question_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "e149ff25-77bd-4bc6-9531-d88445fe7d08",
-          "managed_name": "Yes",
-          "question_id": "6745d6af-76fd-4c5c-a847-f55e00108cec",
-          "statement": "q_0faf4b7bbed24c29b4f990fe3a9d2768 is True",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "inclusive": true,
             "minimum_value": 3,
             "question_id": "14f1872c-c092-4680-a3fa-60b09d9cced9"
@@ -7212,6 +7201,17 @@
           "managed_name": "Greater than",
           "question_id": "6745d6af-76fd-4c5c-a847-f55e00108cec",
           "statement": "q_14f1872cc0924680a3fa60b09d9cced9 >= 3",
+          "type_": "CONDITION"
+        },
+        {
+          "context": {
+            "question_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768"
+          },
+          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
+          "id": "e149ff25-77bd-4bc6-9531-d88445fe7d08",
+          "managed_name": "Yes",
+          "question_id": "6745d6af-76fd-4c5c-a847-f55e00108cec",
+          "statement": "q_0faf4b7bbed24c29b4f990fe3a9d2768 is True",
           "type_": "CONDITION"
         },
         {
@@ -14019,306 +14019,6 @@
           "type": "QUESTION"
         }
       ]
-    },
-    {
-      "collections": [
-        {
-          "created_by_id": "1d652fdb-31df-479c-a39d-55300834eb8e",
-          "grant_id": "d66345a2-75eb-5d77-2d51-dd3b259b9cd5",
-          "id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
-          "name": "Report on picnic areas in parks",
-          "slug": "report-on-picnic-areas-in-parks",
-          "status": "Draft",
-          "type": "monitoring report"
-        }
-      ],
-      "component_references": [
-        {
-          "component_id": "fa33970e-caee-47a2-b939-45ba17d40a94",
-          "depends_on_component_id": "fa33970e-caee-47a2-b939-45ba17d40a94",
-          "expression_id": "0bf6f0b8-c512-4d10-a462-8767b01b34f8",
-          "id": "480d8a4b-5523-4ee9-a347-76e9405beace"
-        }
-      ],
-      "data_source_items": [],
-      "data_sources": [],
-      "expressions": [
-        {
-          "context": {
-            "earliest_inclusive": true,
-            "earliest_value": "2024-01-01",
-            "latest_inclusive": true,
-            "latest_value": "2024-12-31",
-            "question_id": "fa33970e-caee-47a2-b939-45ba17d40a94"
-          },
-          "created_by_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
-          "id": "0bf6f0b8-c512-4d10-a462-8767b01b34f8",
-          "managed_name": "Between dates",
-          "question_id": "fa33970e-caee-47a2-b939-45ba17d40a94",
-          "statement": "date(2024, 1, 1) <= q_fa33970ecaee47a2b93945ba17d40a94 <= date(2024, 12, 31)",
-          "type_": "VALIDATION"
-        }
-      ],
-      "forms": [
-        {
-          "collection_id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
-          "id": "145189e8-f1da-149b-95e1-4afb893c856f",
-          "order": 0,
-          "slug": "form-3",
-          "title": "General Park Information"
-        },
-        {
-          "collection_id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
-          "id": "79332ef5-531b-720f-bad1-15f46863bc9b",
-          "order": 1,
-          "slug": "form-4",
-          "title": "Usage Information"
-        },
-        {
-          "collection_id": "157b21fd-4d7e-0dfe-0e4a-0b8d0d35353b",
-          "id": "6ba3aac0-b30b-0b4d-06a6-84ed632f4f84",
-          "order": 2,
-          "slug": "public-feedback-on-picnic-areas",
-          "title": "Public Feedback on Picnic Areas"
-        }
-      ],
-      "grant": {
-        "description": "Likely collection special protect such former. Receive market how thank probably population.\nRecognize house budget star. Write international measure. Film next prove child.",
-        "ggis_number": "GGIS-000001",
-        "id": "d66345a2-75eb-5d77-2d51-dd3b259b9cd5",
-        "name": "Picnic Areas in Parks",
-        "primary_contact_email": "ypalmer@example.com",
-        "primary_contact_name": "Amanda Myers",
-        "status": "draft"
-      },
-      "grant_recipients": [],
-      "questions": [
-        {
-          "add_another": false,
-          "data_type": "Single line of text",
-          "form_id": "145189e8-f1da-149b-95e1-4afb893c856f",
-          "hint": "",
-          "id": "2c784bb4-c376-fc02-517a-8358fbff0dc4",
-          "name": "park name",
-          "order": 0,
-          "presentation_options": {},
-          "slug": "what-is-the-name-of-the-park",
-          "text": "What is the name of the park?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "data_type": "Whole number",
-          "form_id": "145189e8-f1da-149b-95e1-4afb893c856f",
-          "hint": "",
-          "id": "f30a3729-257f-04fe-2058-142525676f13",
-          "name": "number of picnic tables",
-          "order": 1,
-          "presentation_options": {
-            "prefix": "",
-            "suffix": "",
-            "width": "govuk-input--width-10"
-          },
-          "slug": "how-many-picnic-tables-are-available",
-          "text": "How many picnic tables are available?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "data_type": "A date",
-          "form_id": "145189e8-f1da-149b-95e1-4afb893c856f",
-          "hint": "",
-          "id": "fa33970e-caee-47a2-b939-45ba17d40a94",
-          "name": "busiest day",
-          "order": 2,
-          "presentation_options": {
-            "approximate_date": false
-          },
-          "slug": "what-was-the-busiest-day-in-the-park-during-2024",
-          "text": "What was the busiest day in the park during 2024?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "data_type": "Whole number",
-          "form_id": "79332ef5-531b-720f-bad1-15f46863bc9b",
-          "hint": "",
-          "id": "dd34697d-46a0-78e5-9d85-abae60928332",
-          "name": "monthly number of families",
-          "order": 0,
-          "presentation_options": {
-            "prefix": "",
-            "suffix": "",
-            "width": "govuk-input--width-10"
-          },
-          "slug": "how-many-families-used-the-picnic-area-last-month",
-          "text": "How many families used the picnic area last month?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "data_type": "Multiple lines of text",
-          "form_id": "6ba3aac0-b30b-0b4d-06a6-84ed632f4f84",
-          "hint": "",
-          "id": "e8c78016-fdda-98dd-013b-313f0bfbf543",
-          "name": "notable picnic area comments",
-          "order": 0,
-          "presentation_options": {
-            "rows": 5
-          },
-          "slug": "share-any-notable-comments-or-stories-from-visitors-about-the-picnic-areas",
-          "text": "Share any notable comments or stories from visitors about the picnic areas.",
-          "type": "QUESTION"
-        }
-      ]
-    },
-    {
-      "collections": [
-        {
-          "created_by_id": "e8f81083-7d87-4c20-af0a-4ec4b3378cdb",
-          "grant_id": "11e7e8bc-0185-c697-358d-625fe99ce996",
-          "id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
-          "name": "Report on playgrounds in parks",
-          "slug": "report-on-playgrounds-in-parks",
-          "status": "Draft",
-          "type": "monitoring report"
-        }
-      ],
-      "component_references": [],
-      "data_source_items": [],
-      "data_sources": [],
-      "expressions": [],
-      "forms": [
-        {
-          "collection_id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
-          "id": "5036b7da-0a66-75bb-04ca-4b7d97345fe5",
-          "order": 0,
-          "slug": "form-6",
-          "title": "Playground Details"
-        },
-        {
-          "collection_id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
-          "id": "7ebb5886-bbc3-14b7-38fa-e16a09e053f7",
-          "order": 1,
-          "slug": "usage-statistics",
-          "title": "Usage Statistics"
-        },
-        {
-          "collection_id": "920d3faf-c082-b34a-1cec-6d8db9a72dea",
-          "id": "08b95b3e-2ac8-234a-4c1d-666a9694e549",
-          "order": 2,
-          "slug": "maintenance-notes",
-          "title": "Maintenance Notes"
-        }
-      ],
-      "grant": {
-        "description": "Area later happen pay finally. Already sing chance.\nAbout Democrat others school. Newspaper record hot color local.\nPass open us office industry. Brother activity important book expert know.",
-        "ggis_number": "GGIS-000002",
-        "id": "11e7e8bc-0185-c697-358d-625fe99ce996",
-        "name": "Playgrounds in Parks",
-        "primary_contact_email": "raymond80@example.com",
-        "primary_contact_name": "Andrew Valencia",
-        "status": "draft"
-      },
-      "grant_recipients": [],
-      "questions": [
-        {
-          "add_another": false,
-          "data_type": "Single line of text",
-          "form_id": "5036b7da-0a66-75bb-04ca-4b7d97345fe5",
-          "hint": "",
-          "id": "c1bbbe14-0d6d-3357-6e26-2fc4b4cd7fb3",
-          "name": "park name",
-          "order": 0,
-          "presentation_options": {},
-          "slug": "what-is-the-name-of-the-park",
-          "text": "What is the name of the park?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "data_type": "Whole number",
-          "form_id": "5036b7da-0a66-75bb-04ca-4b7d97345fe5",
-          "hint": "",
-          "id": "fef93b25-ce7c-3862-1c90-a07fb135cf6d",
-          "name": "number of pieces of equipment",
-          "order": 1,
-          "presentation_options": {
-            "prefix": "",
-            "suffix": "",
-            "width": "govuk-input--width-10"
-          },
-          "slug": "how-many-pieces-of-playground-equipment-are-there",
-          "text": "How many pieces of playground equipment are there?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "data_type": "Whole number",
-          "form_id": "5036b7da-0a66-75bb-04ca-4b7d97345fe5",
-          "hint": "",
-          "id": "b237da13-e820-fa00-1a30-0042ed4797bc",
-          "name": "playground accessibility",
-          "order": 2,
-          "presentation_options": {
-            "prefix": "",
-            "suffix": "",
-            "width": "govuk-input--width-10"
-          },
-          "slug": "is-the-playground-accessible-to-children-with-disabilities",
-          "text": "Is the playground accessible to children with disabilities?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "data_type": "Whole number",
-          "form_id": "7ebb5886-bbc3-14b7-38fa-e16a09e053f7",
-          "hint": "",
-          "id": "a6876539-f5ef-b844-602e-846930cc4f56",
-          "name": "number of users last month",
-          "order": 0,
-          "presentation_options": {
-            "prefix": "",
-            "suffix": "",
-            "width": "govuk-input--width-10"
-          },
-          "slug": "how-many-children-used-the-playground-last-month",
-          "text": "How many children used the playground last month?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "data_type": "Whole number",
-          "form_id": "08b95b3e-2ac8-234a-4c1d-666a9694e549",
-          "hint": "",
-          "id": "f2af1b48-b90f-b199-5669-4d8b1a484400",
-          "name": "had safety incidents",
-          "order": 0,
-          "presentation_options": {
-            "prefix": "",
-            "suffix": "",
-            "width": "govuk-input--width-10"
-          },
-          "slug": "were-there-any-safety-incidents-reported",
-          "text": "Were there any safety incidents reported?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "data_type": "Multiple lines of text",
-          "form_id": "08b95b3e-2ac8-234a-4c1d-666a9694e549",
-          "hint": "",
-          "id": "c1ffad90-7b6e-7cfa-efa7-55fa5030a0cc",
-          "name": "maintenance activities",
-          "order": 1,
-          "presentation_options": {
-            "rows": 5
-          },
-          "slug": "describe-any-maintenance-activities-or-issues-during-the-last-reporting-period",
-          "text": "Describe any maintenance activities or issues during the last reporting period.",
-          "type": "QUESTION"
-        }
-      ]
     }
   ],
   "organisations": [
@@ -14349,13 +14049,6 @@
   ],
   "user_roles": [
     {
-      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
-      "id": "6968a72f-a002-4c3f-8b60-b9a9635c8115",
-      "organisation_id": "41773840-55b6-4d5e-8b83-a6163e0c834d",
-      "role": "member",
-      "user_id": "4f990e2b-690b-4c97-a47b-c9a073e92827"
-    },
-    {
       "id": "54455237-39fc-43ad-9569-8d268ca8f0d3",
       "role": "admin",
       "user_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3"
@@ -14369,17 +14062,24 @@
     },
     {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
-      "id": "c194df07-5871-4dc3-94dd-bb56d90e5975",
-      "organisation_id": "4458ef7a-c6a4-4af4-bafe-4f1b9dfd5c4f",
-      "role": "member",
-      "user_id": "e8f81083-7d87-4c20-af0a-4ec4b3378cdb"
-    },
-    {
-      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "dcb4c487-8154-45ec-bec7-5527e261b8f8",
       "organisation_id": "3ca29557-e6b9-4e6d-8290-5fb1c9535d1e",
       "role": "member",
       "user_id": "a08a325c-645a-4a36-9787-c2acd75dd0f2"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "6968a72f-a002-4c3f-8b60-b9a9635c8115",
+      "organisation_id": "41773840-55b6-4d5e-8b83-a6163e0c834d",
+      "role": "member",
+      "user_id": "4f990e2b-690b-4c97-a47b-c9a073e92827"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "c194df07-5871-4dc3-94dd-bb56d90e5975",
+      "organisation_id": "4458ef7a-c6a4-4af4-bafe-4f1b9dfd5c4f",
+      "role": "member",
+      "user_id": "e8f81083-7d87-4c20-af0a-4ec4b3378cdb"
     }
   ],
   "users": [
@@ -14396,13 +14096,6 @@
       "id": "62ee98f5-cf10-4848-95a4-5b6280529046",
       "last_logged_in_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT",
       "name": "Margaret Ballard"
-    },
-    {
-      "azure_ad_subject_id": "GLLNgipKjLFCQjLaXVVeUjNyH",
-      "email": "megan37@test.communities.gov.uk",
-      "id": "1d652fdb-31df-479c-a39d-55300834eb8e",
-      "last_logged_in_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT",
-      "name": "Christy Peck"
     },
     {
       "azure_ad_subject_id": "789779cf9692b89ab3fd5e4d725e44c5",
