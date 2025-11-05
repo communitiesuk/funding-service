@@ -152,6 +152,27 @@ def is_deliver_org_admin[**P](
     return is_deliver_grant_funding_user(wrapper)
 
 
+def is_deliver_org_member[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        # This decorator is itself wrapped by `is_deliver_grant_funding_user`, so we know that `current_user` exists and
+        # is not an anonymous user (ie a user is definitely logged-in) and an MHCLG user if we get here.
+
+        # Guarding against SSO users who somehow login via magic link
+        session_auth = session.get("auth")
+        if session_auth != AuthMethodEnum.SSO:
+            return abort(403)
+
+        if not AuthorisationHelper.is_deliver_org_member(user=interfaces.user.get_current_user()):
+            return abort(403)
+
+        return func(*args, **kwargs)
+
+    return is_deliver_grant_funding_user(wrapper)
+
+
 def has_deliver_grant_role[**P](
     role: RoleEnum,
 ) -> Callable[[Callable[P, ResponseReturnValue]], Callable[P, ResponseReturnValue]]:

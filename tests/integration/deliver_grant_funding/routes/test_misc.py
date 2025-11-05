@@ -64,7 +64,7 @@ class TestListGrants:
         [
             ("authenticated_platform_admin_client", True),
             ("authenticated_org_admin_client", True),
-            ("authenticated_org_member_client", False),
+            ("authenticated_org_member_client", True),
             ("authenticated_grant_admin_client", False),
             ("authenticated_grant_member_client", False),
         ],

@@ -35,12 +35,14 @@
         "current": false
     })
   %}
-  {%
-    do nav_items.append({
-        "text": "Developers",
-        "key": "grant_developers",
-        "href": url_for("developers.deliver.grant_developers", grant_id=grant.id),
-        "current": active_item_identifier == "developers"
-    })
-  %}
+  {% if authorisation_helper.is_platform_admin(current_user) %}
+    {%
+      do nav_items.append({
+          "text": "Developers",
+          "key": "grant_developers",
+          "href": url_for("developers.deliver.grant_developers", grant_id=grant.id),
+          "current": active_item_identifier == "developers"
+      })
+    %}
+  {% endif %}
 {% endif %}
