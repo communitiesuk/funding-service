@@ -215,7 +215,7 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
         "grant.name",
         "role",
     ]
-    form_columns = ["email", "user", "organisation", "grant", "role"]
+    form_columns = ["email", "organisation", "grant", "role"]
 
     form_args = {
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
@@ -229,6 +229,9 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
         if is_created:
             # Make new invitations last 1 hour by default, since these invitations are very privileged.
             model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
+
+            if user := self.session.scalar(select(User).where(User.email == form.email.data)):  # type: ignore[attr-defined]
+                model.user = user
 
         return super().on_model_change(form, model, is_created)  # type: ignore[no-any-return]
 
@@ -244,30 +247,31 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
                 and hasattr(form, "grant")
             ):
                 # Only allow 'Deliver grant funding' org admin (ie form designer) invitations to be created for now
-                role, organisation, grant = (
+                _, organisation, grant = (
                     RoleEnum[form.role.data] if form.role.data else None,  # ty: ignore[unresolved-attribute]
                     form.organisation.data,  # ty: ignore[unresolved-attribute]
                     form.grant.data,  # ty: ignore[unresolved-attribute]
                 )
 
-                if role != RoleEnum.ADMIN or (not organisation or not organisation.can_manage_grants) or grant:
-                    form.form_errors.append("You can only create invitations for MHCLG admins")
+                if (not organisation or not organisation.can_manage_grants) or grant:
+                    form.form_errors.append("You can only create invitations for MHCLG admins and members")
                     result = False
 
         return result  # type: ignore[no-any-return]
 
     def after_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:
         if is_created:
-            if (
-                model.role != RoleEnum.ADMIN
-                or (not model.organisation or not model.organisation.can_manage_grants)
-                or model.grant
-            ):
+            if (not model.organisation or not model.organisation.can_manage_grants) or model.grant:
                 db.session.delete(model)
                 db.session.commit()
                 raise RuntimeError("Invalid invitation created")
             else:
-                notification_service.send_deliver_org_admin_invitation(model.email, organisation=model.organisation)
+                if model.role == RoleEnum.ADMIN:
+                    notification_service.send_deliver_org_admin_invitation(model.email, organisation=model.organisation)
+                else:
+                    notification_service.send_deliver_org_member_invitation(
+                        model.email, organisation=model.organisation
+                    )
 
         return super().after_model_change(form, model, is_created)  # type: ignore[no-any-return]
 
