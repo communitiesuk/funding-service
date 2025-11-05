@@ -143,7 +143,7 @@ class AllGrantsPage(TopNavMixin, BasePage):
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.title = self.page.get_by_role("heading", name="Grants")
+        self.title = self.page.get_by_role("heading", name="Grants", exact=True)
 
     def navigate(self) -> None:
         self.page.goto(f"{self.domain}/deliver/grants")
