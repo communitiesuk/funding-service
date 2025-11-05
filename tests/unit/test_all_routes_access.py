@@ -93,6 +93,7 @@ routes_with_expected_is_deliver_grant_funding_user_access = [
 ]
 routes_with_no_expected_access_restrictions = [
     "developers.access.grant_details",
+    "healthcheck.db_healthcheck_current_revision",
     "auth.request_a_link_to_sign_in",
     "auth.check_email",
     "auth.claim_magic_link",
