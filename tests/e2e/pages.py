@@ -61,7 +61,7 @@ class SSOSignInPage(BasePage):
         self.page.goto(f"{self.domain}/sso/sign-in")
         # If already logged in, this will redirect to /grants
         expect(
-            self.title.or_(self.page.get_by_role("heading", name="Grants")).or_(
+            self.title.or_(self.page.get_by_role("heading", name="Grants", exact=True)).or_(
                 self.page.get_by_role("heading", name="Grant details")
             )
         ).to_be_visible()
