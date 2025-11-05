@@ -33,6 +33,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminBulkCreateOrganisationsForm,
     PlatformAdminCreateGrantRecipientUserForm,
     PlatformAdminMakeGrantLiveForm,
+    PlatformAdminMarkAsOnboardingForm,
     PlatformAdminRevokeGrantRecipientUsersForm,
     PlatformAdminScheduleReportForm,
     PlatformAdminSelectGrantForReportingLifecycleForm,
@@ -116,6 +117,29 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
 
         return self.render(
             "deliver_grant_funding/admin/confirm-make-grant-live.html", form=form, grant=grant, collection=collection
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/mark-as-onboarding", methods=["GET", "POST"])  # type: ignore[misc]
+    @auto_commit_after_request
+    def mark_as_onboarding(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+
+        if grant.status in [GrantStatusEnum.ONBOARDING, GrantStatusEnum.LIVE]:
+            flash(f"{grant.name} is already marked as onboarding.")
+            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        form = PlatformAdminMarkAsOnboardingForm()
+        if form.validate_on_submit():
+            update_grant(grant, status=GrantStatusEnum.ONBOARDING)
+            flash(f"{grant.name} is now marked as onboarding.", "success")
+            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        return self.render(
+            "deliver_grant_funding/admin/confirm-make-grant-active-onboarding.html",
+            form=form,
+            grant=grant,
+            collection=collection,
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-organisations", methods=["GET", "POST"])  # type: ignore[misc]

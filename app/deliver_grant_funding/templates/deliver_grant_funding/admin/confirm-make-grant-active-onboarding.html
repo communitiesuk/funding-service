@@ -1,0 +1,61 @@
+{% extends "admin/base.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Mark grant as onboarding with Funding Service
+      </h1>
+      <p class="govuk-body">Onboarding grants are shown as active on the grants list dashboard.</p>
+      <p class="govuk-body">A grant should have a valid GGIS number before it is marked as onboarding.</p>
+
+      {% set grant_team_users %}
+        <ul class="govuk-list govuk-list--bullet">
+          {% for user in grant.grant_team_users %}
+            <li>{{ user.email }}</li>
+          {% endfor %}
+        </ul>
+      {% endset %}
+
+      {{
+        govukSummaryList({
+          "rows": [{
+            "key": { "text": "Grant name" },
+            "value": { "text": grant.name },
+          }, {
+            "key": { "text": "Grant description" },
+            "value": { "text": grant.description },
+          }, {
+            "key": { "text": "GGIS number" },
+            "value": { "text": grant.ggis_number },
+          }, {
+            "key": { "text": "Grant team users" },
+            "value": { "html": grant_team_users },
+          }
+          ],
+          "classes": "app-!-border-top-line govuk-!-margin-bottom-8"
+        })
+      }}
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.grant_id }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

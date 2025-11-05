@@ -53,6 +53,10 @@ class PlatformAdminMakeGrantLiveForm(FlaskForm):
     submit = SubmitField("Make grant live", widget=GovSubmitInput())
 
 
+class PlatformAdminMarkAsOnboardingForm(FlaskForm):
+    submit = SubmitField("Mark as onboarding", widget=GovSubmitInput())
+
+
 class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
     # The default structure of this data is set so that it should be easy to copy+paste from Delta's organisation export
     # when opened in Excel. Hide the irrelevant columns in Excel, then select the table contents and paste it into

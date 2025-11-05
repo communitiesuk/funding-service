@@ -112,6 +112,8 @@ def update_grant(
             case (GrantStatusEnum.DRAFT, GrantStatusEnum.LIVE) | (GrantStatusEnum.ONBOARDING, GrantStatusEnum.LIVE):
                 if len(grant.grant_team_users) < 2:
                     raise NotEnoughGrantTeamUsersError()
+            case GrantStatusEnum.DRAFT, GrantStatusEnum.ONBOARDING:
+                pass
             case GrantStatusEnum.LIVE, GrantStatusEnum.DRAFT:
                 pass
             case _:
