@@ -28,9 +28,13 @@ on:
       TEMP_SLACK_CHANNEL_ID:
         required: true
       SERVICE_ACCOUNT_USERNAME:
-          required: true
+        required: true
       SERVICE_ACCOUNT_PASSWORD:
-          required: true
+        required: true
+      FS_BASIC_AUTH_USERNAME:
+        required: false
+      FS_BASIC_AUTH_PASSWORD:
+        required: false
 
 jobs:
   deploy:
@@ -82,17 +86,17 @@ jobs:
 
             # Compare versions and set output
             if [ "$DEPLOYED_VERSION" != "$LOCAL_VERSION" ]; then
-              echo "alembic-head=true" >> $GITHUB_OUTPUT
+              echo "RUN_MIGRATIONS=true" >> $GITHUB_OUTPUT
             else
-              echo "alembic-head=false" >> $GITHUB_OUTPUT
+              echo "RUN_MIGRATIONS=false" >> $GITHUB_OUTPUT
             fi
 
       - name: Run Database Migrations
-        if: steps.changes.outputs.alembic-head == 'true'
+        if: steps.changes.outputs.RUN_MIGRATIONS == true
         uses: ./.github/workflows/run-database-migrations
 
 
-      - name: Deploy image to App Runner
+      - name: Deploy image to App Runner - ${{ github.sha }}
         id: deploy
         uses: awslabs/amazon-app-runner-deploy@main
         with:
@@ -116,8 +120,6 @@ jobs:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
       SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
       SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
-      FS_BASIC_AUTH_USERNAME: ${{ secrets.FS_BASIC_AUTH_USERNAME }}
-      FS_BASIC_AUTH_PASSWORD: ${{ secrets.FS_BASIC_AUTH_PASSWORD }}
 
   notify_slack:
     needs: [deploy, e2e_tests]
