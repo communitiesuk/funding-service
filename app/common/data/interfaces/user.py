@@ -311,6 +311,10 @@ def get_usable_invitations_by_email(email: str) -> Sequence[Invitation]:
     ).all()
 
 
+def get_invitations_by_email(email: str) -> Sequence[Invitation]:
+    return db.session.scalars(select(Invitation).where(Invitation.email == email)).all()
+
+
 @flush_and_rollback_on_exceptions
 def claim_invitation(invitation: Invitation, user: User) -> Invitation:
     invitation.claimed_at_utc = func.now()

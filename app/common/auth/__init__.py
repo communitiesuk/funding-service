@@ -101,6 +101,15 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
 
 
+@auth_blueprint.route("/sso/permissions-error", methods=["GET", "POST"])
+def signed_in_but_no_permissions() -> ResponseReturnValue:
+    return render_template(
+        "common/auth/mhclg-user-not-authorised.html",
+        service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
+        invite_expired=str(request.args.get("invite_expired", False)) == "True",
+    ), 403
+
+
 @auth_blueprint.route("/sso/sign-in", methods=["GET", "POST"])
 @redirect_if_authenticated
 def sso_sign_in() -> ResponseReturnValue:
@@ -139,13 +148,11 @@ def sso_get_token() -> ResponseReturnValue:
     # Invitations route
     elif user is None:
         user_invites = interfaces.user.get_usable_invitations_by_email(email=sso_user["preferred_username"])
-        # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
         if not user_invites:
-            return render_template(
-                "common/auth/mhclg-user-not-authorised.html",
-                service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
-                invite_expired=True,
-            ), 403
+            all_invites = interfaces.user.get_invitations_by_email(email=sso_user["preferred_username"])
+            return redirect(
+                url_for("auth.signed_in_but_no_permissions", invite_expired=len(all_invites) > 0),
+            )
         user = interfaces.user.create_user_and_claim_invitations(
             azure_ad_subject_id=sso_user["sub"],
             email_address=sso_user["preferred_username"],
@@ -161,20 +168,16 @@ def sso_get_token() -> ResponseReturnValue:
         )
         if AuthorisationHelper.is_platform_admin(user):
             interfaces.user.remove_platform_admin_role_from_user(user)
-            # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
             if not user.roles:
-                return render_template(
-                    "common/auth/mhclg-user-not-authorised.html",
-                    service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
-                ), 403
+                return redirect(
+                    url_for("auth.signed_in_but_no_permissions", invite_expired=False),
+                )
 
-    # No user user and no roles means they should 403 for now
+    # No user and no roles means they should 403 for now
     else:
-        # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
-        return render_template(
-            "common/auth/mhclg-user-not-authorised.html",
-            service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
-        ), 403
+        return redirect(
+            url_for("auth.signed_in_but_no_permissions", invite_expired=False),
+        )
 
     # For all other valid users with roles after the above, finish the flow and redirect
     redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))

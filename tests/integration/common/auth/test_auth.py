@@ -217,8 +217,8 @@ class TestSSOGetTokenView:
 
             response = anonymous_client.get(url_for("auth.sso_get_token"))
 
-        assert response.status_code == 403
-        assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1343" in response.text
+        assert response.status_code == 302
+        assert response.location == url_for("auth.signed_in_but_no_permissions", invite_expired=False)
 
     def test_login_with_grant_member_role(self, anonymous_client, factories):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
@@ -242,7 +242,7 @@ class TestSSOGetTokenView:
             assert current_user.email == "Test.Member@communities.gov.uk"
             assert response.status_code == 200
 
-    def test_get_without_any_roles_should_403(self, app, anonymous_client):
+    def test_get_without_any_roles_should_redirect(self, app, anonymous_client):
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
@@ -255,8 +255,8 @@ class TestSSOGetTokenView:
 
             response = anonymous_client.get(url_for("auth.sso_get_token"))
 
-        assert response.status_code == 403
-        assert "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1343" in response.text
+        assert response.status_code == 302
+        assert response.location == url_for("auth.signed_in_but_no_permissions", invite_expired=False)
 
     def test_get_valid_token_with_redirect(self, anonymous_client, factories, db_session):
         dummy_grant = factories.grant.create()
@@ -318,12 +318,13 @@ class TestSSOGetTokenView:
                 }
             }
 
-            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=False)
             updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "abc123"))
 
             assert AuthorisationHelper.is_platform_admin(updated_user) is False
 
-        assert response.status_code == 403
+        assert response.status_code == 302
+        assert response.location == url_for("auth.signed_in_but_no_permissions", invite_expired=False)
 
     def test_platform_admin_with_grant_member_role_fs_platform_admin_role_removed(
         self, anonymous_client, factories, db_session
@@ -442,9 +443,11 @@ class TestSSOGetTokenView:
         assert not usable_invites_from_db
 
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
-    def test_invalid_grant_team_member_invitations_403(self, anonymous_client, factories, db_session):
+    def test_invalid_grant_team_member_invitations_redirects_to_permissions_error(
+        self, anonymous_client, factories, db_session
+    ):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
-            grants = factories.grant.create_batch(4)
+            grants = factories.grant.create_batch(2)
             # Create an expired invitation
             factories.invitation.create(
                 email="test@communities.gov.uk",
@@ -453,13 +456,6 @@ class TestSSOGetTokenView:
                 permissions=[RoleEnum.MEMBER],
                 expires_at_utc=datetime.datetime(2025, 9, 1, 12, 0, 0),
             )
-            for grant in grants[:3]:
-                factories.invitation.create(
-                    email="test@communities.gov.uk",
-                    organisation=grant.organisation,
-                    grant=grant,
-                    permissions=[RoleEnum.MEMBER],
-                )
 
             mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
                 "id_token_claims": {
@@ -469,13 +465,12 @@ class TestSSOGetTokenView:
                     "sub": "abc123",
                 }
             }
-            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+            usable_invites_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+            assert not usable_invites_from_db
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=False)
 
-        assert response.status_code == 200
-        user = interfaces.user.get_current_user()
-        assert len(user.roles) == 3
-        usable_invites_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
-        assert not usable_invites_from_db
+        assert response.status_code == 302
+        assert response.location == url_for("auth.signed_in_but_no_permissions", invite_expired=True)
 
     def test_response_when_build_msal_app_returns_token_used_error(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
