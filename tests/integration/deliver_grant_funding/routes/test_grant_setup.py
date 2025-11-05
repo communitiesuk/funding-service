@@ -30,13 +30,13 @@ class TestGrantSetupIntro:
         [
             ("authenticated_platform_admin_client", 200),
             ("authenticated_org_admin_client", 200),
-            ("authenticated_org_member_client", 403),
+            ("authenticated_org_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
         ],
     )
     def test_grant_setup_intro_permissions(self, client_fixture, expected_code, request):
-        """Test that only platform admins and org admins with can_manage_grants can access grant setup"""
+        """Test that only platform admins and org members with can_manage_grants can access grant setup"""
         client = request.getfixturevalue(client_fixture)
         response = client.get(url_for("deliver_grant_funding.grant_setup_intro"))
         assert response.status_code == expected_code

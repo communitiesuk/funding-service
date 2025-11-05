@@ -1,8 +1,11 @@
 from flask import redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
-from app.common.auth.decorators import is_deliver_org_admin
+from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.auth.decorators import is_deliver_org_member
 from app.common.data import interfaces
+from app.common.data.interfaces.user import get_current_user, upsert_user_role
+from app.common.data.types import RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.constants import CHECK_YOUR_ANSWERS
 from app.deliver_grant_funding.forms import GrantContactForm, GrantDescriptionForm, GrantGGISForm, GrantNameForm
@@ -12,7 +15,7 @@ from app.extensions import auto_commit_after_request
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup", methods=["GET", "POST"])
-@is_deliver_org_admin
+@is_deliver_org_member
 def grant_setup_intro() -> ResponseReturnValue:
     form = GenericSubmitForm()
     if form.validate_on_submit():
@@ -23,7 +26,7 @@ def grant_setup_intro() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/ggis-number", methods=["GET", "POST"])
-@is_deliver_org_admin
+@is_deliver_org_member
 def grant_setup_ggis() -> ResponseReturnValue:
     if "grant_setup" not in session:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
@@ -55,7 +58,7 @@ def grant_setup_ggis() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/ggis-required-info", methods=["GET"])
-@is_deliver_org_admin
+@is_deliver_org_member
 def grant_setup_ggis_required_info() -> ResponseReturnValue:
     return render_template(
         "deliver_grant_funding/grant_setup/ggis_required_info.html",
@@ -64,7 +67,7 @@ def grant_setup_ggis_required_info() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/name", methods=["GET", "POST"])
-@is_deliver_org_admin
+@is_deliver_org_member
 def grant_setup_name() -> ResponseReturnValue:
     if "grant_setup" not in session:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
@@ -95,7 +98,7 @@ def grant_setup_name() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/description", methods=["GET", "POST"])
-@is_deliver_org_admin
+@is_deliver_org_member
 def grant_setup_description() -> ResponseReturnValue:
     if "grant_setup" not in session:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
@@ -124,7 +127,7 @@ def grant_setup_description() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/contact", methods=["GET", "POST"])
-@is_deliver_org_admin
+@is_deliver_org_member
 def grant_setup_contact() -> ResponseReturnValue:
     if "grant_setup" not in session:
         return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
@@ -153,7 +156,7 @@ def grant_setup_contact() -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant-setup/check-your-answers", methods=["GET", "POST"])
-@is_deliver_org_admin
+@is_deliver_org_member
 @auto_commit_after_request
 def grant_setup_check_your_answers() -> ResponseReturnValue:
     if "grant_setup" not in session:
@@ -173,6 +176,15 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
             ggis_number=grant_session.ggis_number,
         )
         session.pop("grant_setup", None)
+
+        if not AuthorisationHelper.is_deliver_org_admin(get_current_user()):
+            upsert_user_role(
+                get_current_user(),
+                role=RoleEnum.ADMIN,
+                organisation_id=grant.organisation_id,
+                grant_id=grant.id,
+            )
+
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
 
     return render_template(
