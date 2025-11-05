@@ -28,7 +28,7 @@ from app.common.data.models import (
     Organisation,
     Question,
 )
-from app.common.data.models_user import User
+from app.common.data.models_user import User, UserRole
 from app.common.data.types import ComponentType, QuestionPresentationOptions
 from app.common.expressions import ExpressionContext
 from app.developers import developers_blueprint
@@ -111,6 +111,9 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
         "organisations": [],
     }
 
+    for org in db.session.query(Organisation).where(Organisation.can_manage_grants.is_(True)).all():
+        export_data["organisations"].append(to_dict(org))
+
     users = set()
     for grant in grants:
         # Don't persist `grant.organisation_id`, as the UUID for MHCLG is not static
@@ -145,6 +148,13 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
             export_data["organisations"].append(to_dict(gr.organisation))
             grant_export["grant_recipients"].append(to_dict(gr))
 
+            for user in gr.users:
+                users.add(user)
+
+        for user in grant.grant_team_users:
+            users.add(user)
+
+    org_ids = {org["id"] for org in export_data["organisations"]}
     for user in users:
         if user.id in [u["id"] for u in export_data["users"]]:
             continue
@@ -160,8 +170,8 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
         export_data["users"].append(user_data)
 
         for role in user.roles:
-            if (role.organisation_id and role.organisation_id not in export_data["organisations"]) or (
-                role.grant_id and role.grant_id not in {data["grant"]["id"] for data in export_data["grants"]}
+            if (role.organisation_id and role.organisation_id not in org_ids) or (
+                role.grant_id and role.grant_id not in grant_ids
             ):
                 continue
 
@@ -284,6 +294,24 @@ def seed_grants() -> None:  # noqa: C901
             component_reference["id"] = uuid.UUID(component_reference["id"])
             component_reference = ComponentReference(**component_reference)
             db.session.add(component_reference)
+
+    for role in export_data["user_roles"]:
+        role["id"] = uuid.UUID(role["id"])
+        db_role = db.session.scalar(
+            select(UserRole).where(
+                UserRole.user_id == role.get("user_id"),
+                UserRole.organisation_id == role.get("organisation_id"),
+                UserRole.grant_id == role.get("grant_id"),
+            )
+        )
+        if db_role:
+            db_role.role = role["role"]
+        else:
+            db_role = UserRole(**role)
+            db.session.add(db_role)
+
+        db.session.flush()
+        db.session.refresh(db_role)
 
     db.session.commit()
     click.echo(f"Loaded/synced {len(export_data['grants'])} grant(s) into the database.")

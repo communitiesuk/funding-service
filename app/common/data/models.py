@@ -752,3 +752,12 @@ class GrantRecipient(BaseModel):
     grant: Mapped[Grant] = relationship("Grant", back_populates="grant_recipients")
 
     submissions: Mapped[list[Submission]] = relationship("Submission", back_populates="grant_recipient")
+
+    users: Mapped[list[User]] = relationship(
+        "User",
+        secondary="user_role",
+        primaryjoin="GrantRecipient.organisation_id==UserRole.organisation_id",
+        secondaryjoin="and_(User.id==UserRole.user_id, UserRole.grant_id==foreign(GrantRecipient.grant_id))",
+        viewonly=True,
+        lazy="select",
+    )
