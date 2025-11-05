@@ -68,12 +68,20 @@ jobs:
         run: ./scripts/update-ecs-task-image.py "${{ steps.ecr_info.outputs.ecr_image_location }}"
 
       - name: Check for migrations
-        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         id: changes
-        with:
-          filters: |
-            alembic-head:
-              - 'app/common/data/migrations/.current-alembic-head'
+        run: |
+          # Get the current deployed DB version
+          DEPLOYED_VERSION=$(curl -s "${{ vars.BASE_URL }}/healthcheck/db" | jq -r '.alembic_version')
+
+          # Get the local repository version
+          LOCAL_VERSION=$(cat app/common/data/migrations/.current-alembic-head)
+
+          # Compare versions and set output
+          if [ "$DEPLOYED_VERSION" != "$LOCAL_VERSION" ]; then
+          echo "alembic-head=true" >> $GITHUB_OUTPUT
+            else
+          echo "alembic-head=false" >> $GITHUB_OUTPUT
+            fi
 
       - name: Run Database Migrations
         if: steps.changes.outputs.alembic-head == 'true'
