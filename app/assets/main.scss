@@ -267,3 +267,15 @@ $inset-nested-rows: 30px;
         margin-top: -50px - govuk-spacing(6);
     }
 }
+
+.app-grants-table--cell-width-200 {
+    @include govuk-media-query($from: desktop) {
+        width: 200px;
+    }
+}
+
+.app-grants-table--cell-width-300 {
+    @include govuk-media-query($from: desktop) {
+        width: 300px;
+    }
+}
