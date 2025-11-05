@@ -25,15 +25,19 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
+    <div class="govuk-grid-column-full govuk-!-margin-top-4">
       {% if onboarding_grants %}
-        <h2 class="govuk-heading-m govuk-!-margin-top-4">Active grants</h2>
-        {{ grant_table(onboarding_grants, id_override="active-grants") }}
+        <div class="govuk-!-margin-bottom-8">
+          <h2 class="govuk-heading-m">Active grants</h2>
+          {{ grant_table(onboarding_grants, id_override="active-grants") }}
+        </div>
       {% endif %}
 
       {% if draft_grants %}
-        <h2 class="govuk-heading-m govuk-!-margin-top-8">Draft grants</h2>
-        {{ grant_table(draft_grants, id_override="draft-grants") }}
+        <div class="govuk-!-margin-bottom-8">
+          <h2 class="govuk-heading-m">Draft grants</h2>
+          {{ grant_table(draft_grants, id_override="draft-grants") }}
+        </div>
       {% endif %}
 
       {% if not onboarding_grants and not draft_grants %}

@@ -40,6 +40,21 @@
 
       {% if grant.status == enum.grant_status.DRAFT %}
         {% set status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
+        {% set link_href = url_for('reporting_lifecycle.mark_as_onboarding', grant_id=grant.id, collection_id=collection.id) %}
+      {% else %}
+        {% set status_tag = govukTag({"text": "Completed", "classes": "govuk-tag--green"}) %}
+        {% set link_href = "" %}
+      {% endif %}
+      {%
+        do rows.append({
+          "title": {"text": "Mark as onboarding with Funding Service", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": status_tag},
+          "href": link_href,
+        })
+      %}
+
+      {% if grant.status in [ enum.grant_status.DRAFT, enum.grant_status.ONBOARDING ] %}
+        {% set status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
         {% set link_href = url_for('reporting_lifecycle.make_live', grant_id=grant.id, collection_id=collection.id) %}
       {% else %}
         {% set status_tag = govukTag({"text": "Completed", "classes": "govuk-tag--green"}) %}

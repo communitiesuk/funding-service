@@ -245,7 +245,7 @@ class TestReportingLifecycleTasklist:
         grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 1
-        assert len(grant_task_items) == 3
+        assert len(grant_task_items) == 4
         assert len(report_task_items) == 3
 
         organisations_task = platform_task_items[0]
@@ -261,7 +261,15 @@ class TestReportingLifecycleTasklist:
         assert "3 organisations" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        make_grant_live_task = grant_task_items[0]
+        mark_grant_as_onboarding_task = grant_task_items[0]
+        task_title = mark_grant_as_onboarding_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Mark as onboarding with Funding Service"
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/mark-as-onboarding" in task_title.get(
+            "href"
+        )
+
+        make_grant_live_task = grant_task_items[1]
         task_title = make_grant_live_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Make the grant live"
@@ -272,7 +280,7 @@ class TestReportingLifecycleTasklist:
         assert "To do" in task_status.get_text(strip=True)
         assert "govuk-tag--grey" in task_status.get("class")
 
-        set_up_grant_recipients_task = grant_task_items[1]
+        set_up_grant_recipients_task = grant_task_items[2]
         task_title = set_up_grant_recipients_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set up grant recipients"
@@ -286,7 +294,7 @@ class TestReportingLifecycleTasklist:
         assert "0 grant recipients" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        set_up_grant_recipient_users_task = grant_task_items[2]
+        set_up_grant_recipient_users_task = grant_task_items[3]
         task_title = set_up_grant_recipient_users_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set up grant recipient users"
@@ -386,7 +394,8 @@ class TestReportingLifecycleTasklist:
         soup = BeautifulSoup(response.data, "html.parser")
         grant_task_list = soup.find("ul", {"id": "grant-tasks"})
         task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
-        make_grant_live_task = task_items[0]
+        mark_as_onboarding_task = task_items[0]
+        make_grant_live_task = task_items[1]
 
         task_title = make_grant_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
@@ -396,6 +405,11 @@ class TestReportingLifecycleTasklist:
         assert task_link is None
 
         task_status = make_grant_live_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Completed" in task_status.get_text(strip=True)
+        assert "govuk-tag--green" in task_status.get("class")
+
+        task_status = mark_as_onboarding_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "Completed" in task_status.get_text(strip=True)
         assert "govuk-tag--green" in task_status.get("class")
@@ -528,6 +542,73 @@ class TestReportingLifecycleMakeGrantLive:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "You must add at least two grant team users before making the grant live")
+
+
+class TestReportingLifecycleMarkGrantAsOnboarding:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 403),
+        ],
+    )
+    def test_confirm_page_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/mark-as-onboarding")
+        assert response.status_code == expected_code
+
+    def test_get_confirm_page_with_draft_grant(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/mark-as-onboarding"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Test Grant Mark grant as onboarding with Funding Service"
+
+    @pytest.mark.parametrize("from_status", [GrantStatusEnum.ONBOARDING, GrantStatusEnum.LIVE])
+    def test_get_confirm_page_with_live_grant_redirects(
+        self, authenticated_platform_admin_client, factories, db_session, from_status
+    ):
+        grant = factories.grant.create(name="Already Active Grant", status=from_status)
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/mark-as-onboarding", follow_redirects=True
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Already Active Grant is already marked as onboarding")
+
+    def test_post_makes_grant_live_with_enough_team_members(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT)
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/mark-as-onboarding",
+            data={"submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+        db_session.refresh(grant)
+        assert grant.status == GrantStatusEnum.ONBOARDING
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Test Grant is now marked as onboarding.")
 
 
 class TestManageOrganisations:
