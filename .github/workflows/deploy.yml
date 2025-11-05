@@ -70,17 +70,21 @@ jobs:
       - name: Check for migrations
         id: changes
         run: |
-          # Get the current deployed DB version
-          DEPLOYED_VERSION=$(curl -s "${{ vars.BASE_URL }}/healthcheck/db" | jq -r '.alembic_version')
-
-          # Get the local repository version
-          LOCAL_VERSION=$(cat app/common/data/migrations/.current-alembic-head)
-
-          # Compare versions and set output
-          if [ "$DEPLOYED_VERSION" != "$LOCAL_VERSION" ]; then
-          echo "alembic-head=true" >> $GITHUB_OUTPUT
+            # Get the current deployed DB version
+            if [ "${{ inputs.environment }}" != "prod" ]; then
+              DEPLOYED_VERSION=$(curl -s -u "${{ secrets.FS_BASIC_AUTH_USERNAME }}:${{ secrets.FS_BASIC_AUTH_PASSWORD }}" "${{ vars.BASE_URL }}/healthcheck/db")
             else
-          echo "alembic-head=false" >> $GITHUB_OUTPUT
+              DEPLOYED_VERSION=$(curl -s "${{ vars.BASE_URL }}/healthcheck/db")
+            fi
+
+            # Get the local repository version
+            LOCAL_VERSION=$(cat app/common/data/migrations/.current-alembic-head)
+
+            # Compare versions and set output
+            if [ "$DEPLOYED_VERSION" != "$LOCAL_VERSION" ]; then
+              echo "alembic-head=true" >> $GITHUB_OUTPUT
+            else
+              echo "alembic-head=false" >> $GITHUB_OUTPUT
             fi
 
       - name: Run Database Migrations
@@ -112,6 +116,8 @@ jobs:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
       SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
       SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
+      FS_BASIC_AUTH_USERNAME: ${{ secrets.FS_BASIC_AUTH_USERNAME }}
+      FS_BASIC_AUTH_PASSWORD: ${{ secrets.FS_BASIC_AUTH_PASSWORD }}
 
   notify_slack:
     needs: [deploy, e2e_tests]
