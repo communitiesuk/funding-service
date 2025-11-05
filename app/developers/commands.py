@@ -76,6 +76,21 @@ ExportData = TypedDict(
 )
 
 
+def _sort_export_data_in_place(export_data: ExportData) -> None:
+    export_data["users"].sort(key=lambda u: u["email"])
+    export_data["user_roles"].sort(
+        key=lambda ur: (ur["user_id"], ur.get("organisation_id"), ur.get("grant_id"), ur["role"])
+    )
+    export_data["organisations"].sort(key=lambda o: o["name"])
+
+    for grants_data in export_data["grants"]:
+        for k, v in grants_data.items():
+            if k == "grant":
+                continue
+
+            v.sort(key=lambda u: u["id"])  # type: ignore[attr-defined]
+
+
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
 @click.argument("grant_ids", nargs=-1, type=click.UUID)
 @click.option("--output", type=click.Choice(["file", "stdout"]), default="file")
@@ -177,7 +192,7 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
 
             export_data["user_roles"].append(to_dict(role))
 
-    export_data["users"].sort(key=lambda u: u["email"])
+    _sort_export_data_in_place(export_data)
 
     export_json = current_app.json.dumps(export_data, indent=2)
     match output:
