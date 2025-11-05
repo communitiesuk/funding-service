@@ -3,6 +3,9 @@ from typing import Any
 import msal
 from flask import current_app, url_for
 
+# Known error codes that can be returned when we build an MSAL app that we want to handle
+MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED = 54005
+
 
 def build_msal_app(
     cache: msal.TokenCache | None = None, authority: str | None = None

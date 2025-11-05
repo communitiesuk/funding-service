@@ -9,7 +9,7 @@ from flask_login import login_user, logout_user
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import SignInForm
-from app.common.auth.sso import build_auth_code_flow, build_msal_app
+from app.common.auth.sso import MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED, build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum
 from app.common.forms import GenericSubmitForm
@@ -127,7 +127,7 @@ def sso_sign_in() -> ResponseReturnValue:
 def sso_get_token() -> ResponseReturnValue:
     result = build_msal_app().acquire_token_by_auth_code_flow(session.get("flow", {}), request.args)
     if "error" in result:
-        if 54005 in result.get("error_codes", []):
+        if MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED in result.get("error_codes", []):
             current_app.logger.warning(
                 "Authorization code was already redeemed: %(error)s.", {"error": result.get("error_description")}
             )
