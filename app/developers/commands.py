@@ -70,6 +70,7 @@ ExportData = TypedDict(
     {
         "grants": list[GrantExport],
         "users": list[Any],
+        "user_roles": list[Any],
         "organisations": list[Any],
     },
 )
@@ -106,9 +107,11 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
     export_data: ExportData = {
         "grants": [],
         "users": [],
+        "user_roles": [],
         "organisations": [],
     }
 
+    users = set()
     for grant in grants:
         # Don't persist `grant.organisation_id`, as the UUID for MHCLG is not static
         grant_export: GrantExport = {
@@ -124,7 +127,6 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
         }
 
         export_data["grants"].append(grant_export)
-        users = set()
 
         for collection in grant.collections:
             grant_export["collections"].append(to_dict(collection))
@@ -136,27 +138,36 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
                 for component in form.components:
                     add_all_components_flat(component, users, grant_export)
 
-        for user in users:
-            if user.id in [u["id"] for u in export_data["users"]]:
-                continue
-
-            user_data = to_dict(user)
-
-            # Anonymise the user, but in a consistent way
-            faker = Faker()
-            faker.seed_instance(int(hashlib.md5(str(user_data["id"]).encode()).hexdigest(), 16))
-            user_data["email"] = faker.email(domain="test.communities.gov.uk")
-            user_data["name"] = faker.name()
-
-            export_data["users"].append(user_data)
-        export_data["users"].sort(key=lambda u: u["email"])
-
         for gr in grant.grant_recipients:
             if gr.organisation_id in [o["id"] for o in export_data["organisations"]]:
                 continue
 
             export_data["organisations"].append(to_dict(gr.organisation))
             grant_export["grant_recipients"].append(to_dict(gr))
+
+    for user in users:
+        if user.id in [u["id"] for u in export_data["users"]]:
+            continue
+
+        user_data = to_dict(user)
+
+        # Anonymise the user, but in a consistent way
+        faker = Faker()
+        faker.seed_instance(int(hashlib.md5(str(user_data["id"]).encode()).hexdigest(), 16))
+        user_data["email"] = faker.email(domain="test.communities.gov.uk")
+        user_data["name"] = faker.name()
+
+        export_data["users"].append(user_data)
+
+        for role in user.roles:
+            if (role.organisation_id and role.organisation_id not in export_data["organisations"]) or (
+                role.grant_id and role.grant_id not in {data["grant"]["id"] for data in export_data["grants"]}
+            ):
+                continue
+
+            export_data["user_roles"].append(to_dict(role))
+
+    export_data["users"].sort(key=lambda u: u["email"])
 
     export_json = current_app.json.dumps(export_data, indent=2)
     match output:

@@ -14339,6 +14339,13 @@
       "type": "Metropolitan District"
     }
   ],
+  "user_roles": [
+    {
+      "id": "4110c47b-159f-4a7c-9db0-1c2f230726a0",
+      "role": "admin",
+      "user_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3"
+    }
+  ],
   "users": [
     {
       "azure_ad_subject_id": "ENrQThzOCWIVUnrnjPiPBiKHM",
