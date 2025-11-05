@@ -17,7 +17,7 @@ class TestFlaskAdminAccess:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_admin_index_denied_for_non_platform_admin(self, client_fixture, expected_code, request):
@@ -32,7 +32,7 @@ class TestFlaskAdminAccess:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_admin_user_list_denied_for_non_platform_admin(self, client_fixture, expected_code, request):
@@ -47,7 +47,7 @@ class TestFlaskAdminAccess:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_admin_user_detail_denied_for_non_platform_admin(
@@ -56,7 +56,7 @@ class TestFlaskAdminAccess:
         client = request.getfixturevalue(client_fixture)
         user = factories.user.create()
 
-        response = client.get(f"/deliver/admin/user/details/?id={user.id}", follow_redirects=True)
+        response = client.get(f"/deliver/admin/user/details/?id={user.id}", follow_redirects=False)
         assert response.status_code == expected_code
 
 
@@ -68,7 +68,7 @@ class TestReportingLifecycleSelectGrant:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_select_grant_permissions(self, client_fixture, expected_code, request):
@@ -152,7 +152,7 @@ class TestReportingLifecycleSelectReport:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_select_report_permissions(self, client_fixture, expected_code, request, factories, db_session):
@@ -210,7 +210,7 @@ class TestReportingLifecycleTasklist:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_tasklist_permissions(self, client_fixture, expected_code, request, factories, db_session):
@@ -466,7 +466,7 @@ class TestReportingLifecycleMakeGrantLive:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_confirm_page_permissions(self, client_fixture, expected_code, request, factories, db_session):
@@ -552,7 +552,7 @@ class TestReportingLifecycleMarkGrantAsOnboarding:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_confirm_page_permissions(self, client_fixture, expected_code, request, factories, db_session):
@@ -619,7 +619,7 @@ class TestManageOrganisations:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_manage_organisations_permissions(self, client_fixture, expected_code, request, factories, db_session):
@@ -804,7 +804,7 @@ class TestManageGrantRecipients:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_manage_grant_recipients_permissions(self, client_fixture, expected_code, request, factories, db_session):
@@ -967,7 +967,7 @@ class TestSetUpGrantRecipientUsers:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_set_up_grant_recipient_users_permissions(
@@ -1217,7 +1217,7 @@ class TestRevokeGrantRecipientUsers:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_revoke_grant_recipient_users_permissions(
@@ -1332,7 +1332,7 @@ class TestScheduleReport:
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
-            ("anonymous_client", 403),
+            ("anonymous_client", 302),
         ],
     )
     def test_schedule_report_permissions(self, client_fixture, expected_code, request, factories, db_session):
