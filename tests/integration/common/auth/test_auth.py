@@ -477,6 +477,26 @@ class TestSSOGetTokenView:
         usable_invites_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
         assert not usable_invites_from_db
 
+    def test_response_when_build_msal_app_returns_token_used_error(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "error": "invalid_grant",
+                "error_codes": [54005],
+            }
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=False)
+            assert response.status_code == 302
+            assert response.location == url_for("auth.sign_out")
+
+    def test_response_when_build_msal_app_returns_other_error(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "error": "bad_error",
+                "error_codes": [12345],
+            }
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=False)
+            assert response.status_code == 500
+            assert "Azure AD get-token flow failed with: {'error': 'bad_error', 'error_codes': [12345]}"
+
 
 class TestAuthenticatedUserRedirect:
     def test_magic_link_get(self, authenticated_no_role_client):

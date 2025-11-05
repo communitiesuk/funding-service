@@ -118,6 +118,11 @@ def sso_sign_in() -> ResponseReturnValue:
 def sso_get_token() -> ResponseReturnValue:
     result = build_msal_app().acquire_token_by_auth_code_flow(session.get("flow", {}), request.args)
     if "error" in result:
+        if 54005 in result.get("error_codes", []):
+            current_app.logger.warning(
+                "Authorization code was already redeemed: %(error)s.", {"error": result.get("error_description")}
+            )
+            return redirect(url_for("auth.sign_out"))
         return abort(500, "Azure AD get-token flow failed with: {}".format(result))
 
     sso_user = result["id_token_claims"]
