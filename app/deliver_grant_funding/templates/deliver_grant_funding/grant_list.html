@@ -6,6 +6,9 @@
 {% set page_title = "Grants" %}
 {% set active_item_identifier = "grants" %}
 
+{% set onboarding_grants = grants | selectattr("status", "in", [enum.grant_status.LIVE, enum.grant_status.ONBOARDING]) | list %}
+{% set draft_grants = grants | selectattr("status", "equalto", enum.grant_status.DRAFT) | list %}
+
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
@@ -14,41 +17,54 @@
         {{
           govukButton({
             "text": "Set up a grant",
-            "href": url_for("deliver_grant_funding.grant_setup_intro")
+            "href": url_for("deliver_grant_funding.grant_setup_intro"),
+            "classes": "govuk-button--secondary" if ((onboarding_grants + draft_grants) | length) else ""
           })
         }}
       {% endif %}
     </div>
   </div>
   <div class="govuk-grid-row">
-    {% if grants %}
-      {% set table_rows = namespace(items=[]) %}
-      {% for grant in grants %}
-        {% set grant_detail_link %}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=grant.id) }}">{{ grant.name }}</a>
-        {% endset %}
-        {%
-          set table_rows.items = table_rows.items + [
-              [{"html": grant_detail_link},
-               {"text": grant.ggis_number},
-               {"text": grantStatusTag(grant.status)}]
-          ]
-        %}
-      {% endfor %}
-      <div class="govuk-grid-column-full">
-        {{
-          govukTable({
-              "captionClasses": "govuk-table__caption--m",
-              "firstCellIsHeader": false,
-              "head": [{"text": "Grant"}, {"text": "GGIS number"}, {"text": "Status"}],
-              "rows": table_rows.items
-          })
-        }}
-      </div>
-    {% else %}
-      <div class="govuk-grid-column-full">
-        <p class="govuk-body">No grants available at the moment.</p>
-      </div>
-    {% endif %}
+    <div class="govuk-grid-column-full">
+      {% if onboarding_grants %}
+        <h2 class="govuk-heading-m govuk-!-margin-top-4">Active grants</h2>
+        {{ grant_table(onboarding_grants, id_override="active-grants") }}
+      {% endif %}
+
+      {% if draft_grants %}
+        <h2 class="govuk-heading-m govuk-!-margin-top-8">Draft grants</h2>
+        {{ grant_table(draft_grants, id_override="draft-grants") }}
+      {% endif %}
+
+      {% if not onboarding_grants and not draft_grants %}
+        <p class="govuk-body">You have access to no grants.</p>
+      {% endif %}
+    </div>
   </div>
 {% endblock content %}
+
+{% macro grant_table(grants, id_override=none) %}
+  {% set table_rows = namespace(items=[]) %}
+  {% for grant in grants %}
+    {% set grant_detail_link %}
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=grant.id) }}">{{ grant.name }}</a>
+    {% endset %}
+    {%
+      set table_rows.items = table_rows.items + [
+          [{"html": grant_detail_link},
+            {"text": grant.ggis_number},
+            {"text": grantStatusTag(grant.status)}]
+      ]
+    %}
+  {% endfor %}
+
+  {{
+    govukTable({
+        "captionClasses": "govuk-table__caption--m",
+        "firstCellIsHeader": false,
+        "head": [{"text": "Grant"}, {"text": "GGIS number"}, {"text": "Status"}],
+        "rows": table_rows.items,
+        "attributes": {"id": id_override},
+    })
+  }}
+{% endmacro %}

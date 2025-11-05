@@ -89,3 +89,19 @@ class TestListGrants:
             assert button is not None, f"'Set up a grant' button should be visible for {client_fixture}"
         else:
             assert button is None, f"'Set up a grant' button should not be visible for {client_fixture}"
+
+    def test_get_list_grants_filters_drafts(self, authenticated_platform_admin_client, factories):
+        factories.grant.create_batch(2, status="LIVE")
+        factories.grant.create_batch(2, status="ONBOARDING")
+        factories.grant.create_batch(2, status="DRAFT")
+
+        response = authenticated_platform_admin_client.get("/deliver/grants")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        active_grant_rows = soup.select("#active-grants tbody tr")
+        assert len(active_grant_rows) == 4  # 2 live and 2 onboarding
+
+        draft_grant_rows = soup.select("#draft-grants tbody tr")
+        assert len(draft_grant_rows) == 2  # 2 draft

@@ -109,7 +109,7 @@ def update_grant(
     #       unmaintained or with limited uptake.
     if status is not NOT_PROVIDED and grant.status != status:
         match grant.status, status:
-            case GrantStatusEnum.DRAFT, GrantStatusEnum.LIVE:
+            case (GrantStatusEnum.DRAFT, GrantStatusEnum.LIVE) | (GrantStatusEnum.ONBOARDING, GrantStatusEnum.LIVE):
                 if len(grant.grant_team_users) < 2:
                     raise NotEnoughGrantTeamUsersError()
             case GrantStatusEnum.LIVE, GrantStatusEnum.DRAFT:

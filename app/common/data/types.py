@@ -28,6 +28,7 @@ TRunnerUrlMap = dict[
 
 class GrantStatusEnum(enum.StrEnum):
     DRAFT = "draft"
+    ONBOARDING = "onboarding"
     LIVE = "live"
 
 
