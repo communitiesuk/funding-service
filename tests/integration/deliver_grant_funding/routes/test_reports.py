@@ -781,6 +781,7 @@ class TestChangeGroupDisplayOptions:
     ):
         db_group = factories.group.create(
             name="Test group",
+            form__collection__grant=authenticated_grant_admin_client.grant,
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
         )
         db_question1 = factories.question.create(form=db_group.form, parent=db_group)
