@@ -2,11 +2,12 @@
 from typing import TYPE_CHECKING, ClassVar, Optional, Union, cast
 from uuid import UUID
 
-from flask import abort, url_for
+from flask import abort, current_app, url_for
 
 from app.common.collections.forms import AddAnotherSummaryForm, CheckYourAnswersForm, build_question_form
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, SubmissionStatusEnum, TRunnerUrlMap
+from app.common.exceptions import RedirectException
 from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
@@ -134,6 +135,18 @@ class FormRunner:
         # user's Organisation permissions.
         current_user = interfaces.user.get_current_user()
         if submission.created_by_email is not current_user.email:
+            if submission.is_test:
+                current_app.logger.warning(
+                    "User %(user_id)s tried to access submission for %(submitter_id)s, redirecting",
+                    {"user_id": current_user.id, "submitter_id": submission.submission.created_by_id},
+                )
+                raise RedirectException(
+                    url_for(
+                        "deliver_grant_funding.list_report_sections",
+                        grant_id=submission.collection.grant_id,
+                        report_id=submission.collection_id,
+                    )
+                )
             return abort(403)
 
         question, form = None, None

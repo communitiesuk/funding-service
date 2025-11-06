@@ -29,6 +29,7 @@ from app.common.data.types import (
     SubmissionStatusEnum,
     TasklistSectionStatusEnum,
 )
+from app.common.exceptions import RedirectException
 from app.common.filters import (
     format_date,
     format_date_approximate,
@@ -96,6 +97,10 @@ def _register_global_error_handlers(app: Flask) -> None:
         return render_template(
             "common/errors/500.html", service_desk_url=_determine_service_desk_url_based_on_request_url(request.url)
         ), 500
+
+    @app.errorhandler(RedirectException)
+    def handle_redirect(error: RedirectException) -> ResponseReturnValue:
+        return redirect(error.url)
 
 
 def _register_custom_converters(app: Flask) -> None:
