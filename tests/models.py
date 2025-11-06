@@ -206,7 +206,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)
 
-    grant_id = factory.LazyAttribute(lambda o: "o.grant.id")
+    grant_id = factory.LazyAttribute(lambda o: o.grant.id)
     grant = factory.SubFactory(_GrantFactory)
 
     @factory.post_generation  # type: ignore

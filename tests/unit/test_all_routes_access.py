@@ -18,6 +18,7 @@ all_auth_annotations = [
     "@has_deliver_grant_role(RoleEnum.MEMBER)",
     "@has_deliver_grant_role(RoleEnum.ADMIN)",
     "@is_platform_admin",
+    "@collection_is_editable()",
 ]
 
 routes_with_expected_platform_admin_only_access = [
@@ -54,6 +55,32 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.add_question_group_name",
     "deliver_grant_funding.add_question_group_display_options",
     "deliver_grant_funding.add_question_group_add_another_option",
+    "deliver_grant_funding.select_context_source",
+    "deliver_grant_funding.select_context_source_question",
+    "deliver_grant_funding.edit_question",
+    "deliver_grant_funding.manage_guidance",
+    "deliver_grant_funding.manage_add_another_guidance",
+    "deliver_grant_funding.add_question_condition_select_question",
+    "deliver_grant_funding.add_question_condition",
+    "deliver_grant_funding.edit_question_condition",
+    "deliver_grant_funding.add_question_validation",
+    "deliver_grant_funding.edit_question_validation",
+]
+routes_with_expected_collection_is_editable_decorator = [
+    "deliver_grant_funding.change_report_name",
+    "deliver_grant_funding.add_section",
+    "deliver_grant_funding.move_section",
+    "deliver_grant_funding.change_form_name",
+    "deliver_grant_funding.change_group_name",
+    "deliver_grant_funding.change_group_display_options",
+    "deliver_grant_funding.change_group_add_another_options",
+    "deliver_grant_funding.change_group_add_another_summary",
+    "deliver_grant_funding.add_question_group_name",
+    "deliver_grant_funding.add_question_group_display_options",
+    "deliver_grant_funding.add_question_group_add_another_option",
+    "deliver_grant_funding.move_component",
+    "deliver_grant_funding.choose_question_type",
+    "deliver_grant_funding.add_question",
     "deliver_grant_funding.select_context_source",
     "deliver_grant_funding.select_context_source_question",
     "deliver_grant_funding.edit_question",
@@ -213,6 +240,9 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
             pass
         else:
             raise pytest.fail(f"Unexpected endpoint {rule.endpoint}. Add this to the expected_route_access mapping.")  # ty: ignore[call-non-callable]
+
+        if rule.endpoint in routes_with_expected_collection_is_editable_decorator:
+            assert "@collection_is_editable(" in " ".join(decorators)
 
 
 def test_routes_list_is_valid(app):

@@ -2,6 +2,7 @@ from uuid import UUID
 
 from flask_login import AnonymousUserMixin
 
+from app.common.data.interfaces.collections import get_collection
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.models_user import User
 from app.common.data.types import GRANT_ROLES_MAPPING, RoleEnum
@@ -123,5 +124,22 @@ class AuthorisationHelper:
 
         if any(role.organisation and role.organisation.can_manage_grants for role in user.roles):
             return True
+
+        return False
+
+    @staticmethod
+    def can_edit_collection(user: User | AnonymousUserMixin, collection_id: UUID) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
+
+        collection = get_collection(collection_id)
+        if collection.is_editable_for_current_status and AuthorisationHelper.is_deliver_grant_admin(
+            collection.grant_id, user
+        ):
+            return True
+
+        if AuthorisationHelper.is_platform_admin(user=user):
+            # TODO: Decision point
+            return False
 
         return False
