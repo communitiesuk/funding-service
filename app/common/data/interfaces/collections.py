@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
 from uuid import UUID
 
 from flask import current_app
-from sqlalchemy import ScalarResult, and_, delete, select, text
+from sqlalchemy import ScalarResult, and_, delete, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -930,9 +930,23 @@ def move_component_down(component: Component) -> Component:
 
 
 def group_name_exists(name: str, form_id: UUID) -> bool:
-    statement = select(Group).where(Group.name == name, Group.form_id == form_id)
-    group = db.session.scalar(statement)
-    return group is not None
+    stmt_components_with_same_name_or_text = select(Component).where(
+        or_(Component.name == name, Component.text == name), Component.form_id == form_id
+    )
+    slug_of_name = slugify(name)
+    stmt_components_with_same_slug = select(Component).where(
+        Component.slug == slug_of_name, Component.form_id == form_id
+    )
+
+    components_with_same_name_or_text = db.session.scalar(stmt_components_with_same_name_or_text)
+    components_with_same_slug = db.session.scalar(stmt_components_with_same_slug)
+
+    if components_with_same_slug and not components_with_same_name_or_text:
+        current_app.logger.error(
+            "Group name blocked by conflicting slug [%(form_id)s], %(name)s", {"name": name, "form_id": form_id}
+        )
+
+    return bool(components_with_same_slug or components_with_same_name_or_text)
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
