@@ -210,6 +210,12 @@ def create_app() -> Flask:  # noqa: C901
     app.jinja_env.add_extension("jinja2.ext.i18n")
     app.jinja_env.add_extension("jinja2.ext.do")
 
+    def get_google_tag_manager_id() -> str:
+        return str(current_app.config["GOOGLE_TAG_MANAGER_ID"])
+
+    def get_current_env_name() -> str:
+        return str(current_app.config["FLASK_ENV"].value)
+
     @app.context_processor
     def _jinja_template_context() -> dict[str, Any]:
         return dict(
@@ -222,6 +228,8 @@ def create_app() -> Flask:  # noqa: C901
             format_datetime_range=format_datetime_range,
             format_thousands=format_thousands,
             to_ordinal=to_ordinal,
+            get_google_tag_manager_id=get_google_tag_manager_id,
+            get_current_env_name=get_current_env_name,
             enum=dict(
                 submission_mode=SubmissionModeEnum,
                 flash_message_type=FlashMessageType,
