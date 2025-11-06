@@ -279,7 +279,7 @@ def get_ordered_nested_components(components: list["Component"]) -> list["Compon
 class Component(BaseModel):
     __tablename__ = "component"
 
-    text: Mapped[str]
+    text: Mapped[CIStr]
     slug: Mapped[str]
     order: Mapped[int]
     hint: Mapped[Optional[str]]
@@ -290,7 +290,7 @@ class Component(BaseModel):
             validate_strings=True,
         )
     )
-    name: Mapped[str]
+    name: Mapped[CIStr]
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
     presentation_options: Mapped[QuestionPresentationOptions] = mapped_column(
         default=QuestionPresentationOptions, server_default="{}"
