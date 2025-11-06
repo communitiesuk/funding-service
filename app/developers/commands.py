@@ -81,7 +81,9 @@ def _sort_export_data_in_place(export_data: ExportData) -> None:
     export_data["user_roles"].sort(
         key=lambda ur: (ur["user_id"], ur.get("organisation_id"), ur.get("grant_id"), ur["role"])
     )
-    export_data["organisations"].sort(key=lambda o: o["name"])
+
+    # Grant-managing orgs first, then by name
+    export_data["organisations"].sort(key=lambda o: (not o["can_manage_grants"], o["name"]))
 
     for grants_data in export_data["grants"]:
         for k, v in grants_data.items():
@@ -89,6 +91,53 @@ def _sort_export_data_in_place(export_data: ExportData) -> None:
                 continue
 
             v.sort(key=lambda u: u["id"])  # type: ignore[attr-defined]
+
+
+def __replace_id(export_data: ExportData, old_id: str, new_id: str) -> ExportData:
+    export_json = current_app.json.dumps(export_data)
+    export_json = export_json.replace(old_id, new_id)
+    return cast(ExportData, current_app.json.loads(export_json))
+
+
+def _handle_org_ids_for_export(export_data: ExportData) -> ExportData:
+    """When exporting organisations, the MHCLG org doesn't have a stable internal ID, so let's switch it to a stable
+    representation.
+    """
+    for organisation in export_data["organisations"]:
+        if organisation["can_manage_grants"] is True:
+            export_data = __replace_id(export_data, str(organisation["id"]), f"<UUID:{organisation['external_id']}>")
+
+    return export_data
+
+
+def _import_organisations_and_handle_org_ids(export_data: ExportData) -> ExportData:
+    """Try to map organisations in the export to any organisations that exist in the database already.
+
+    This lets the import work without having to start with an empty database each time.
+
+    We do the inverse mapping from above to convert MHCLG's stable org identifier back to a PK ID where needed.
+    """
+    for organisation_data in export_data["organisations"]:
+        matched_org: Organisation | None = db.session.scalar(
+            select(Organisation).where(
+                (Organisation.name == organisation_data["name"])
+                if organisation_data["can_manage_grants"]
+                else or_(
+                    Organisation.id == organisation_data["id"],
+                    Organisation.name == organisation_data["name"],
+                )
+            )
+        )
+        if matched_org:
+            export_data = __replace_id(export_data, organisation_data["id"], str(matched_org.id))
+        else:
+            matched_org = Organisation(**organisation_data)
+            db.session.add(matched_org)
+            db.session.flush()
+
+        export_data = __replace_id(export_data, f"<UUID:{organisation_data['external_id']}>", str(matched_org.id))
+
+    return export_data
 
 
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
@@ -193,6 +242,7 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
             export_data["user_roles"].append(to_dict(role))
 
     _sort_export_data_in_place(export_data)
+    export_data = _handle_org_ids_for_export(export_data)
 
     export_json = current_app.json.dumps(export_data, indent=2)
     match output:
@@ -210,12 +260,6 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
             click.echo(f"Written {len(grants)} grants to stdout")
 
 
-def __replace_id(export_data: ExportData, old_id: str, new_id: str) -> ExportData:
-    export_json = json.dumps(export_data)
-    export_json = export_json.replace(old_id, new_id)
-    return cast(ExportData, json.loads(export_json))
-
-
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
 def seed_grants() -> None:  # noqa: C901
     with open(export_path) as infile:
@@ -227,24 +271,11 @@ def seed_grants() -> None:  # noqa: C901
         db.session.merge(user)
     db.session.flush()
 
+    export_data = _import_organisations_and_handle_org_ids(export_data)
+
     # Lookup MHCLG (the only 'grant managing' org) in the DB and re-associate all grants to it; we don't freeze
     # its org UUID so it will change every time.
     grant_owning_org = db.session.query(Organisation).filter_by(can_manage_grants=True).one()
-
-    for organisation_data in export_data["organisations"]:
-        matched_org: Organisation | None = db.session.scalar(
-            select(Organisation).where(
-                or_(
-                    Organisation.id == organisation_data["id"],
-                    Organisation.name == organisation_data["name"],
-                )
-            )
-        )
-        if matched_org:
-            export_data = __replace_id(export_data, organisation_data["id"], str(matched_org.id))
-        else:
-            db.session.add(Organisation(**organisation_data))
-
     db.session.flush()
 
     for grant_data in export_data["grants"]:

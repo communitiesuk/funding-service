@@ -14023,6 +14023,14 @@
   ],
   "organisations": [
     {
+      "can_manage_grants": true,
+      "external_id": "GB-GOV-27",
+      "id": "<UUID:GB-GOV-27>",
+      "name": "Ministry of Housing, Communities and Local Government",
+      "status": "active",
+      "type": "Central Government"
+    },
+    {
       "can_manage_grants": false,
       "external_id": "E08000001",
       "id": "3ca29557-e6b9-4e6d-8290-5fb1c9535d1e",
@@ -14037,14 +14045,6 @@
       "name": "Milton Keynes Council",
       "status": "active",
       "type": "Unitary Authority"
-    },
-    {
-      "can_manage_grants": true,
-      "external_id": "GB-GOV-27",
-      "id": "4458ef7a-c6a4-4af4-bafe-4f1b9dfd5c4f",
-      "name": "Ministry of Housing, Communities and Local Government",
-      "status": "active",
-      "type": "Central Government"
     }
   ],
   "user_roles": [
@@ -14058,7 +14058,7 @@
     {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "b3ff642a-cea5-4eb2-9173-11a2d778de42",
-      "organisation_id": "4458ef7a-c6a4-4af4-bafe-4f1b9dfd5c4f",
+      "organisation_id": "<UUID:GB-GOV-27>",
       "role": "member",
       "user_id": "62ee98f5-cf10-4848-95a4-5b6280529046"
     },
@@ -14077,7 +14077,7 @@
     {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "c194df07-5871-4dc3-94dd-bb56d90e5975",
-      "organisation_id": "4458ef7a-c6a4-4af4-bafe-4f1b9dfd5c4f",
+      "organisation_id": "<UUID:GB-GOV-27>",
       "role": "member",
       "user_id": "e8f81083-7d87-4c20-af0a-4ec4b3378cdb"
     }
