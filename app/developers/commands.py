@@ -2,12 +2,12 @@ import hashlib
 import json
 import uuid
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 import click
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
-from sqlalchemy import delete, inspect
+from sqlalchemy import delete, inspect, or_, select
 from sqlalchemy.exc import NoResultFound
 
 from app.common.data.base import BaseModel
@@ -23,11 +23,12 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
+    GrantRecipient,
     Group,
     Organisation,
     Question,
 )
-from app.common.data.models_user import User
+from app.common.data.models_user import User, UserRole
 from app.common.data.types import ComponentType, QuestionPresentationOptions
 from app.common.expressions import ExpressionContext
 from app.developers import developers_blueprint
@@ -51,6 +52,7 @@ GrantExport = TypedDict(
     "GrantExport",
     {
         "grant": dict[str, Any],
+        "grant_recipients": list[Any],
         "collections": list[Any],
         "forms": list[Any],
         # intentionally leaving this as questions for now to avoid
@@ -63,7 +65,79 @@ GrantExport = TypedDict(
         "component_references": list[Any],
     },
 )
-ExportData = TypedDict("ExportData", {"grants": list[GrantExport], "users": list[Any]})
+ExportData = TypedDict(
+    "ExportData",
+    {
+        "grants": list[GrantExport],
+        "users": list[Any],
+        "user_roles": list[Any],
+        "organisations": list[Any],
+    },
+)
+
+
+def _sort_export_data_in_place(export_data: ExportData) -> None:
+    export_data["users"].sort(key=lambda u: u["email"])
+    export_data["user_roles"].sort(
+        key=lambda ur: (ur["user_id"], ur.get("organisation_id"), ur.get("grant_id"), ur["role"])
+    )
+
+    # Grant-managing orgs first, then by name
+    export_data["organisations"].sort(key=lambda o: (not o["can_manage_grants"], o["name"]))
+
+    for grants_data in export_data["grants"]:
+        for k, v in grants_data.items():
+            if k == "grant":
+                continue
+
+            v.sort(key=lambda u: u["id"])  # type: ignore[attr-defined]
+
+
+def __replace_id(export_data: ExportData, old_id: str, new_id: str) -> ExportData:
+    export_json = current_app.json.dumps(export_data)
+    export_json = export_json.replace(old_id, new_id)
+    return cast(ExportData, current_app.json.loads(export_json))
+
+
+def _handle_org_ids_for_export(export_data: ExportData) -> ExportData:
+    """When exporting organisations, the MHCLG org doesn't have a stable internal ID, so let's switch it to a stable
+    representation.
+    """
+    for organisation in export_data["organisations"]:
+        if organisation["can_manage_grants"] is True:
+            export_data = __replace_id(export_data, str(organisation["id"]), f"<UUID:{organisation['external_id']}>")
+
+    return export_data
+
+
+def _import_organisations_and_handle_org_ids(export_data: ExportData) -> ExportData:
+    """Try to map organisations in the export to any organisations that exist in the database already.
+
+    This lets the import work without having to start with an empty database each time.
+
+    We do the inverse mapping from above to convert MHCLG's stable org identifier back to a PK ID where needed.
+    """
+    for organisation_data in export_data["organisations"]:
+        matched_org: Organisation | None = db.session.scalar(
+            select(Organisation).where(
+                (Organisation.name == organisation_data["name"])
+                if organisation_data["can_manage_grants"]
+                else or_(
+                    Organisation.id == organisation_data["id"],
+                    Organisation.name == organisation_data["name"],
+                )
+            )
+        )
+        if matched_org:
+            export_data = __replace_id(export_data, organisation_data["id"], str(matched_org.id))
+        else:
+            matched_org = Organisation(**organisation_data)
+            db.session.add(matched_org)
+            db.session.flush()
+
+        export_data = __replace_id(export_data, f"<UUID:{organisation_data['external_id']}>", str(matched_org.id))
+
+    return export_data
 
 
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
@@ -97,12 +171,19 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
     export_data: ExportData = {
         "grants": [],
         "users": [],
+        "user_roles": [],
+        "organisations": [],
     }
 
+    for org in db.session.query(Organisation).where(Organisation.can_manage_grants.is_(True)).all():
+        export_data["organisations"].append(to_dict(org))
+
+    users = set()
     for grant in grants:
         # Don't persist `grant.organisation_id`, as the UUID for MHCLG is not static
         grant_export: GrantExport = {
             "grant": to_dict(grant, exclude=["organisation_id"]),
+            "grant_recipients": [],
             "collections": [],
             "forms": [],
             "questions": [],
@@ -113,7 +194,6 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
         }
 
         export_data["grants"].append(grant_export)
-        users = set()
 
         for collection in grant.collections:
             grant_export["collections"].append(to_dict(collection))
@@ -125,20 +205,43 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
                 for component in form.components:
                     add_all_components_flat(component, users, grant_export)
 
-        for user in users:
-            if user.id in [u["id"] for u in export_data["users"]]:
+        for gr in grant.grant_recipients:
+            if gr.organisation_id not in [o["id"] for o in export_data["organisations"]]:
+                export_data["organisations"].append(to_dict(gr.organisation))
+
+            grant_export["grant_recipients"].append(to_dict(gr))
+
+            for user in gr.users:
+                users.add(user)
+
+        for user in grant.grant_team_users:
+            users.add(user)
+
+    org_ids = {org["id"] for org in export_data["organisations"]}
+    for user in users:
+        if user.id in [u["id"] for u in export_data["users"]]:
+            continue
+
+        user_data = to_dict(user)
+
+        # Anonymise the user, but in a consistent way
+        faker = Faker()
+        faker.seed_instance(int(hashlib.md5(str(user_data["id"]).encode()).hexdigest(), 16))
+        user_data["email"] = faker.email(domain="test.communities.gov.uk")
+        user_data["name"] = faker.name()
+
+        export_data["users"].append(user_data)
+
+        for role in user.roles:
+            if (role.organisation_id and role.organisation_id not in org_ids) or (
+                role.grant_id and role.grant_id not in grant_ids
+            ):
                 continue
 
-            user_data = to_dict(user)
+            export_data["user_roles"].append(to_dict(role))
 
-            # Anonymise the user, but in a consistent way
-            faker = Faker()
-            faker.seed_instance(int(hashlib.md5(str(user_data["id"]).encode()).hexdigest(), 16))
-            user_data["email"] = faker.email(domain="test.communities.gov.uk")
-            user_data["name"] = faker.name()
-
-            export_data["users"].append(user_data)
-        export_data["users"].sort(key=lambda u: u["email"])
+    _sort_export_data_in_place(export_data)
+    export_data = _handle_org_ids_for_export(export_data)
 
     export_json = current_app.json.dumps(export_data, indent=2)
     match output:
@@ -159,26 +262,39 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
 def seed_grants() -> None:  # noqa: C901
     with open(export_path) as infile:
-        export_data = json.load(infile)
+        raw_export_json = infile.read()
+        export_data: ExportData = json.loads(raw_export_json)
 
     for user in export_data["users"]:
         user = User(**user)
         db.session.merge(user)
     db.session.flush()
 
+    export_data = _import_organisations_and_handle_org_ids(export_data)
+
     # Lookup MHCLG (the only 'grant managing' org) in the DB and re-associate all grants to it; we don't freeze
     # its org UUID so it will change every time.
     grant_owning_org = db.session.query(Organisation).filter_by(can_manage_grants=True).one()
+    db.session.flush()
 
     for grant_data in export_data["grants"]:
+        grant_data["grant"]["id"] = uuid.UUID(grant_data["grant"]["id"])
+
         try:
+            db.session.execute(delete(GrantRecipient).where(GrantRecipient.grant_id == grant_data["grant"]["id"]))
             delete_grant(grant_data["grant"]["id"])
-            db.session.commit()
+            db.session.flush()
         except NoResultFound:
             pass
 
         grant = Grant(**grant_data["grant"], organisation=grant_owning_org)
         db.session.add(grant)
+
+        for grant_recipient in grant_data["grant_recipients"]:
+            grant_recipient["id"] = uuid.UUID(grant_recipient["id"])
+            grant_recipient["organisation_id"] = uuid.UUID(grant_recipient["organisation_id"])
+            grant_recipient["grant_id"] = uuid.UUID(grant_recipient["grant_id"])
+            db.session.add(GrantRecipient(**grant_recipient))
 
         for collection in grant_data["collections"]:
             collection["id"] = uuid.UUID(collection["id"])
@@ -223,6 +339,24 @@ def seed_grants() -> None:  # noqa: C901
             component_reference["id"] = uuid.UUID(component_reference["id"])
             component_reference = ComponentReference(**component_reference)
             db.session.add(component_reference)
+
+    for role in export_data["user_roles"]:
+        role["id"] = uuid.UUID(role["id"])
+        db_role = db.session.scalar(
+            select(UserRole).where(
+                UserRole.user_id == role.get("user_id"),
+                UserRole.organisation_id == role.get("organisation_id"),
+                UserRole.grant_id == role.get("grant_id"),
+            )
+        )
+        if db_role:
+            db_role.role = role["role"]
+        else:
+            db_role = UserRole(**role)
+            db.session.add(db_role)
+
+        db.session.flush()
+        db.session.refresh(db_role)
 
     db.session.commit()
     click.echo(f"Loaded/synced {len(export_data['grants'])} grant(s) into the database.")
