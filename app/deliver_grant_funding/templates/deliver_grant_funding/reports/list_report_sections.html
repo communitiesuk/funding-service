@@ -7,7 +7,7 @@
 
 {% set page_title = report.name %}
 {% set active_item_identifier = "reports" %}
-{% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
+{% set can_edit = authorisation_helper.can_edit_collection(current_user, report.id) %}
 
 {% block beforeContent %}
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":report.name}) }}
@@ -56,7 +56,7 @@
       <h2 class="govuk-heading-m govuk-!-margin-top-4">Sections</h2>
       {% if not report.forms %}
         <p class="govuk-body">This monitoring report has no sections.</p>
-        {% if grant_admin %}
+        {% if can_edit %}
           <p class="govuk-body">
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}">Add a section</a>
           </p>
@@ -72,7 +72,7 @@
             questions<span class="govuk-visually-hidden"> in {{ form.title }}</span>
           {% endset %}
           {% set actions = [] %}
-          {% if grant_admin and report.forms|length > 1 %}
+          {% if can_edit and report.forms|length > 1 %}
             {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
             {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
           {% else %}
@@ -99,7 +99,7 @@
         }}
       {% endif %}
 
-      {% if grant_admin %}
+      {% if can_edit %}
         <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}">Add another section</a>
       {% endif %}
     </div>

@@ -43,8 +43,9 @@
         <p class="govuk-body">There are no monitoring reports for {{ grant.name }}.</p>
       {% else %}
         {% for report in grant.reports %}
+          {% set can_edit = authorisation_helper.can_edit_collection(current_user, report.id) %}
           {% set formSectionsText %}
-            {% if grant_admin %}
+            {% if can_edit %}
               {% if report.forms | length == 0 %}
                 <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}"
                   >Add sections<span class="govuk-visually-hidden"> to {{ report.name }}</span></a
@@ -107,7 +108,7 @@
           {% endset %}
 
           {% set actions = [] %}
-          {% if grant_admin %}
+          {% if can_edit %}
             {% do actions.append({"text": "Change name", "visuallyHiddenText": report.title, "href": url_for("deliver_grant_funding.change_report_name", grant_id=grant.id, report_id=report.id), "classes": "govuk-link--no-visited-state" }) %}
             {% if not report.live_submissions %}
               {% do actions.append({"text": "Delete", "visuallyHiddenText": report.title, "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id, delete=report.id), "classes": "govuk-link--no-visited-state" }) %}

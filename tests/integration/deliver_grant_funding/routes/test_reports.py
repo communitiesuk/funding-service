@@ -7,7 +7,7 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app import QuestionDataType
+from app import CollectionStatusEnum, QuestionDataType
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import add_question_validation
 from app.common.data.models import Collection, Expression, Form, Group, Question
@@ -181,6 +181,30 @@ class TestListReports:
 
         deleted_report = db_session.get(Collection, report.id)
         assert (deleted_report is None) == can_delete
+
+    @pytest.mark.parametrize(
+        "collection_status", [status for status in CollectionStatusEnum if status != CollectionStatusEnum.DRAFT]
+    )
+    @pytest.mark.parametrize(
+        "client_fixture", ("authenticated_grant_admin_client", "authenticated_platform_admin_client")
+    )
+    def test_get_no_change_or_delete_links_when_report_not_draft(
+        self, factories, collection_status, client_fixture, request
+    ):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant if client.grant else factories.grant.create()
+        factories.collection.create(grant=grant, name="Test Report", status=collection_status)
+
+        response = client.get(url_for("deliver_grant_funding.list_reports", grant_id=grant.id))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        change_name_link = page_has_link(soup, "Change name")
+        delete_link = page_has_link(soup, "Delete")
+
+        assert change_name_link is None
+        assert delete_link is None
 
 
 class TestSetUpReport:
@@ -533,6 +557,35 @@ class TestListReportSections:
         else:
             assert response.status_code == 302
             assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}$")
+
+    @pytest.mark.parametrize(
+        "collection_status", [status for status in CollectionStatusEnum if status != CollectionStatusEnum.DRAFT]
+    )
+    @pytest.mark.parametrize(
+        "client_fixture", ("authenticated_grant_admin_client", "authenticated_platform_admin_client")
+    )
+    def test_get_no_edit_links_when_report_not_draft(self, factories, collection_status, request, client_fixture):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant if client.grant else factories.grant.create()
+        report = factories.collection.create(grant=grant, name="Test Report", status=collection_status)
+        factories.form.create(collection=report, title="Organisation information")
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.list_report_sections",
+                grant_id=grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        add_section_link = page_has_link(soup, "Add a section")
+        add_another_section_link = page_has_link(soup, "Add another section")
+
+        assert add_section_link is None
+        assert add_another_section_link is None
 
 
 class TestMoveSection:
@@ -1400,6 +1453,40 @@ class TestListSectionQuestions:
             assert response.location == AnyStringMatching(
                 "/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}/[a-z0-9-]{36}"
             )
+
+    @pytest.mark.parametrize(
+        "collection_status", [status for status in CollectionStatusEnum if status != CollectionStatusEnum.DRAFT]
+    )
+    @pytest.mark.parametrize(
+        "client_fixture", ("authenticated_grant_admin_client", "authenticated_platform_admin_client")
+    )
+    def test_get_no_admin_actions_when_report_not_draft(self, factories, collection_status, client_fixture, request):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant if client.grant else factories.grant.create()
+        report = factories.collection.create(grant=grant, name="Test Report", status=collection_status)
+        form = factories.form.create(collection=report, title="Organisation information")
+        factories.question.create_batch(2, form=form)
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.list_section_questions",
+                grant_id=grant.id,
+                form_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        change_section_name_link = page_has_link(soup, "Change section name")
+        delete_section_link = page_has_link(soup, "Delete section")
+        add_question_button = page_has_button(soup, "Add a question")
+        add_another_question_button = page_has_button(soup, "Add another question")
+
+        assert change_section_name_link is None
+        assert delete_section_link is None
+        assert add_question_button is None
+        assert add_another_question_button is None
 
     def test_post_list_section_questions_returns_to_task_list(
         self, factories, db_session, authenticated_grant_admin_client
