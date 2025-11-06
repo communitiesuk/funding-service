@@ -179,7 +179,10 @@ def create_app() -> Flask:  # noqa: C901
 
     @login_manager.user_loader  # type: ignore[misc]
     def load_user(user_id: str) -> Optional["User"]:
-        return interfaces.user.get_user(user_id)
+        user = interfaces.user.get_user(user_id)
+        if user:
+            sentry_sdk.set_user({"email": user.email, "name": user.name})
+        return user
 
     # This section is needed for url_for("foo", _external=True) to
     # automatically generate http scheme when this sample is
