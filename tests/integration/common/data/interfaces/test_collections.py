@@ -834,6 +834,16 @@ class TestGroupNameExists:
         assert group_name_exists("Test group", form_id=form.id) is True
         assert group_name_exists("Test group", form_id=form2.id) is False
 
+    def test_group_name_exists_checks_across_slug_namespace(self, db_session, factories):
+        question = factories.question.create(text="Test group", slug="test-group")
+
+        assert group_name_exists("Test group", form_id=question.form.id) is True
+        assert group_name_exists("Test group", form_id=uuid.uuid4()) is False
+        assert group_name_exists("Test Group", form_id=question.form.id) is True
+        assert group_name_exists("Test-group", form_id=question.form.id) is True
+        assert group_name_exists("Test-Group", form_id=question.form.id) is True
+        assert group_name_exists("Test Group 1", form_id=question.form.id) is False
+
 
 class TestUpdateGroup:
     def test_update_group(self, db_session, factories):
