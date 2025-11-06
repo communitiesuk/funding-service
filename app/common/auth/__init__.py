@@ -1,6 +1,7 @@
 import uuid
 from typing import cast
 
+import sentry_sdk
 from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
@@ -185,5 +186,6 @@ def sso_get_token() -> ResponseReturnValue:
 @auth_blueprint.get("/sign-out")
 def sign_out() -> ResponseReturnValue:
     logout_user()
+    sentry_sdk.set_user(None)
 
     return redirect(url_for("index"))
