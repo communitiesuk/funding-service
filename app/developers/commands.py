@@ -206,10 +206,9 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
                     add_all_components_flat(component, users, grant_export)
 
         for gr in grant.grant_recipients:
-            if gr.organisation_id in [o["id"] for o in export_data["organisations"]]:
-                continue
+            if gr.organisation_id not in [o["id"] for o in export_data["organisations"]]:
+                export_data["organisations"].append(to_dict(gr.organisation))
 
-            export_data["organisations"].append(to_dict(gr.organisation))
             grant_export["grant_recipients"].append(to_dict(gr))
 
             for user in gr.users:
