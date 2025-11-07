@@ -10,8 +10,7 @@ class TestUserRoleConstraints:
             factories.user_role.create(has_grant=False, has_organisation=False, role=RoleEnum.MEMBER)
         assert (
             'new row for relation "user_role" violates check constraint "ck_user_role_member_role_not_platform"'
-            in error.value.args[0]
-        )
+        ) in error.value.args[0]
 
     def test_unique_constraint_with_nulls(self, factories):
         user_role = factories.user_role.create(role=RoleEnum.ADMIN)

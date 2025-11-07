@@ -470,7 +470,9 @@ class TestInvitations:
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
     def test_get_invitation(self, db_session, factories):
         organisation = factories.organisation.create()
-        invitation = factories.invitation.create(organisation=organisation, role=RoleEnum.MEMBER, email="test@email.com")
+        invitation = factories.invitation.create(
+            organisation=organisation, role=RoleEnum.MEMBER, email="test@email.com"
+        )
         invite_from_db = interfaces.user.get_invitation(invitation.id)
         assert invite_from_db is not None
         assert invite_from_db.is_usable is True
@@ -482,7 +484,9 @@ class TestInvitations:
     def test_claim_invitation(self, db_session, factories):
         user = factories.user.create(email="new_user@email.com")
         organisation = factories.organisation.create()
-        invitation = factories.invitation.create(organisation=organisation, role=RoleEnum.MEMBER, email="new_user@email.com")
+        invitation = factories.invitation.create(
+            organisation=organisation, role=RoleEnum.MEMBER, email="new_user@email.com"
+        )
         assert invitation.claimed_at_utc is None
         assert invitation.is_usable is True
 

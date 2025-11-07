@@ -154,11 +154,11 @@ class PlatformAdminUserRoleView(PlatformAdminModelView):
     can_edit = True
     can_delete = True
 
-    column_list = ["user.email", "organisation.name", "grant.name", "role"]
-    column_filters = ["user.email", "organisation.name", "grant.name", "role"]
+    column_list = ["user.email", "organisation.name", "grant.name", "role", "permissions"]
+    column_filters = ["user.email", "organisation.name", "grant.name", "role", "permissions"]
     column_labels = {"organisation.name": "Organisation name", "grant.name": "Grant name", "user.email": "User email"}
 
-    form_columns = ["user", "organisation", "grant", "role"]
+    form_columns = ["user", "organisation", "grant", "role", "permissions"]
 
     form_args = {
         "user": {"get_label": "email"},
@@ -196,9 +196,9 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
 
     column_searchable_list = ["email"]
 
-    column_filters = ["is_usable", "organisation.name", "grant.name", "role"]
+    column_filters = ["is_usable", "organisation.name", "grant.name", "role", "permissions"]
 
-    column_list = ["email", "organisation.name", "grant.name", "role", "is_usable"]
+    column_list = ["email", "organisation.name", "grant.name", "role", "permissions", "is_usable"]
     column_labels = {
         "user.id": "User ID",
         "organisation.name": "Organisation name",
@@ -214,8 +214,9 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
         "organisation.name",
         "grant.name",
         "role",
+        "permissions",
     ]
-    form_columns = ["email", "organisation", "grant", "role"]
+    form_columns = ["email", "organisation", "grant", "role", "permissions"]
 
     form_args = {
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
