@@ -154,11 +154,11 @@ class PlatformAdminUserRoleView(PlatformAdminModelView):
     can_edit = True
     can_delete = True
 
-    column_list = ["user.email", "organisation.name", "grant.name", "role", "permissions"]
-    column_filters = ["user.email", "organisation.name", "grant.name", "role", "permissions"]
+    column_list = ["user.email", "organisation.name", "grant.name", "permissions"]
+    column_filters = ["user.email", "organisation.name", "grant.name", "permissions"]
     column_labels = {"organisation.name": "Organisation name", "grant.name": "Grant name", "user.email": "User email"}
 
-    form_columns = ["user", "organisation", "grant", "role", "permissions"]
+    form_columns = ["user", "organisation", "grant", "permissions"]
 
     form_args = {
         "user": {"get_label": "email"},
@@ -196,9 +196,9 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
 
     column_searchable_list = ["email"]
 
-    column_filters = ["is_usable", "organisation.name", "grant.name", "role", "permissions"]
+    column_filters = ["is_usable", "organisation.name", "grant.name", "permissions"]
 
-    column_list = ["email", "organisation.name", "grant.name", "role", "permissions", "is_usable"]
+    column_list = ["email", "organisation.name", "grant.name", "permissions", "is_usable"]
     column_labels = {
         "user.id": "User ID",
         "organisation.name": "Organisation name",
@@ -213,20 +213,20 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
         "user.id",
         "organisation.name",
         "grant.name",
-        "role",
         "permissions",
     ]
-    form_columns = ["email", "organisation", "grant", "role", "permissions"]
+    form_columns = ["email", "organisation", "grant", "permissions"]
 
     form_args = {
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
         "user": {"get_label": "email"},
         "organisation": {"get_label": "name"},
         "grant": {"get_label": "name"},
-        "role": {"coerce": RoleEnum},
     }
 
     def on_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:
+        model.role = model.permissions[0]
+
         if is_created:
             # Make new invitations last 1 hour by default, since these invitations are very privileged.
             model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
@@ -243,18 +243,20 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
             # Only create/edit forms have this - not delete
             if (
                 is_form_submitted()
-                and hasattr(form, "role")
+                and hasattr(form, "permissions")
                 and hasattr(form, "organisation")
                 and hasattr(form, "grant")
             ):
-                # Only allow 'Deliver grant funding' org admin (ie form designer) invitations to be created for now
-                _, organisation, grant = (
-                    RoleEnum[form.role.data] if form.role.data else None,  # ty: ignore[unresolved-attribute]
-                    form.organisation.data,  # ty: ignore[unresolved-attribute]
-                    form.grant.data,  # ty: ignore[unresolved-attribute]
-                )
+                # Only allow 'Deliver grant funding' org admin+member (ie funding service) invitations to be created
+                permissions = [RoleEnum[p] for p in form.permissions.data]  # ty: ignore[unresolved-attribute]
+                organisation = form.organisation.data  # ty: ignore[unresolved-attribute]
+                grant = form.grant.data  # ty: ignore[unresolved-attribute]
 
-                if (not organisation or not organisation.can_manage_grants) or grant:
+                if (
+                    (not organisation or not organisation.can_manage_grants)
+                    or grant
+                    or not set(permissions).issubset({RoleEnum.ADMIN, RoleEnum.MEMBER})
+                ):
                     form.form_errors.append("You can only create invitations for MHCLG admins and members")
                     result = False
 
@@ -267,7 +269,7 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
                 db.session.commit()
                 raise RuntimeError("Invalid invitation created")
             else:
-                if model.role == RoleEnum.ADMIN:
+                if RoleEnum.ADMIN in model.permissions:
                     notification_service.send_deliver_org_admin_invitation(model.email, organisation=model.organisation)
                 else:
                     notification_service.send_deliver_org_member_invitation(

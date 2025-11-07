@@ -42,7 +42,7 @@ class TestListGrants:
         grants = factories.grant.create_batch(5)
         user = get_current_user()
         for grant in grants:
-            factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
+            factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.MEMBER], grant=grant)
 
         result = authenticated_grant_member_client.get("/deliver/grants")
         assert result.status_code == 200
@@ -77,7 +77,7 @@ class TestListGrants:
         if "grant_admin" in client_fixture or "grant_member" in client_fixture:
             role = RoleEnum.ADMIN if "admin" in client_fixture else RoleEnum.MEMBER
             for grant in grants:
-                factories.user_role.create(user=client.user, role=role, grant=grant)
+                factories.user_role.create(user=client.user, permissions=[role], grant=grant)
 
         response = client.get("/deliver/grants")
         assert response.status_code == 200

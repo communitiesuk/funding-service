@@ -161,8 +161,8 @@ class _UserRoleFactory(SQLAlchemyModelFactory):
     organisation = factory.LazyAttribute(lambda o: o.grant.organisation if o.grant else None)
     grant_id = factory.LazyAttribute(lambda o: o.grant.id if o.grant else None)
     grant = None
-    role = None  # This needs to be overridden when initialising the factory
-    permissions = factory.LazyAttribute(lambda o: [o.role] if o.role else None)
+    role = factory.LazyAttribute(lambda o: o.permissions[0] if o.permissions else None)
+    permissions = None  # This needs to be overridden when initialising the factory
 
     class Params:
         has_organisation = factory.Trait(
@@ -880,8 +880,8 @@ class _InvitationFactory(SQLAlchemyModelFactory):
     organisation = None
     grant_id = None
     grant = None
-    role = None
-    permissions = factory.LazyAttribute(lambda o: [o.role] if o.role else None)
+    role = factory.LazyAttribute(lambda o: o.permissions[0] if o.permissions else None)
+    permissions = None
     expires_at_utc = factory.LazyFunction(lambda: datetime.datetime.now() + datetime.timedelta(days=7))
     claimed_at_utc = None
 

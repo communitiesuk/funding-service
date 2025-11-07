@@ -350,10 +350,10 @@ def seed_grants() -> None:  # noqa: C901
             )
         )
         if db_role:
-            db_role.role = role["role"]
-            db_role.permissions = [role["role"]]
+            db_role.role = role["permissions"][0]
+            db_role.permissions = role["permissions"]
         else:
-            role_data = {**role, "permissions": [role["role"]]}
+            role_data = {**role, "role": role["permissions"][0], "permissions": role["permissions"]}
             db_role = UserRole(**role_data)
             db.session.add(db_role)
 

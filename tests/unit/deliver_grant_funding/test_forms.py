@@ -85,7 +85,7 @@ def test_grant_ggis_form_fails_when_yes_selected_and_empty(app: Flask):
 def test_user_already_in_grant_users(app: Flask, factories, mocker):
     grant = factories.grant.build(name="Test Grant")
     user = factories.user.build(email="test.user@communities.gov.uk")
-    factories.user_role.build(user=user, role=RoleEnum.MEMBER, organisation=grant.organisation, grant=grant)
+    factories.user_role.build(user=user, permissions=[RoleEnum.MEMBER], organisation=grant.organisation, grant=grant)
     mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
 
     form = GrantAddUserForm(grant=grant)
@@ -101,7 +101,7 @@ def test_user_already_in_grant_users(app: Flask, factories, mocker):
 def test_user_already_platform_admin(app: Flask, factories):
     grant = factories.grant.build(name="Test")
     user = factories.user.build(email="test.user@communities.gov.uk")
-    factories.user_role.build(user=user, role=RoleEnum.ADMIN)
+    factories.user_role.build(user=user, permissions=[RoleEnum.ADMIN])
 
     form = GrantAddUserForm(grant=grant)
     form.user_email.data = "test.admin@communities.gov.uk"

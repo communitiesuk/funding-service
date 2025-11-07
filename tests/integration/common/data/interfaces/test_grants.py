@@ -146,12 +146,12 @@ class TestUpdateGrant:
 
     def test_update_group_status_not_enough_grant_team_users(self, factories):
         grant = factories.grant.create(name="test_grant")
-        factories.user_role.create(grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
 
         with pytest.raises(NotEnoughGrantTeamUsersError):
             update_grant(grant=grant, status=GrantStatusEnum.LIVE)
 
-        factories.user_role.create(grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
         updated_grant = update_grant(grant=grant, status=GrantStatusEnum.LIVE)
 
         assert updated_grant.status == GrantStatusEnum.LIVE
