@@ -73,9 +73,11 @@ jobs:
 
       - name: Check for migrations
         id: changes
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
         run: |
             # Get the current deployed DB version
-            if [ "${{ inputs.environment }}" != "prod" ]; then
+            if [ "$ENVIRONMENT" != "prod" ]; then
               DEPLOYED_VERSION=$(curl -s -u "${{ secrets.FS_BASIC_AUTH_USERNAME }}:${{ secrets.FS_BASIC_AUTH_PASSWORD }}" "${{ vars.BASE_URL }}/healthcheck/db")
             else
               DEPLOYED_VERSION=$(curl -s "${{ vars.BASE_URL }}/healthcheck/db")
@@ -84,15 +86,20 @@ jobs:
             # Get the local repository version
             LOCAL_VERSION=$(cat app/common/data/migrations/.current-alembic-head)
 
+            echo "::notice::Deployed DB version: $DEPLOYED_VERSION"
+            echo "::notice::Local DB version: $LOCAL_VERSION"
+
             # Compare versions and set output
             if [ "$DEPLOYED_VERSION" != "$LOCAL_VERSION" ]; then
+              echo "::notice::Versions differ - migrations needed"
               echo "RUN_MIGRATIONS=true" >> $GITHUB_OUTPUT
             else
+              echo "::notice::Versions match - no migrations needed"
               echo "RUN_MIGRATIONS=false" >> $GITHUB_OUTPUT
             fi
 
       - name: Run Database Migrations
-        if: steps.changes.outputs.RUN_MIGRATIONS == true
+        if: steps.changes.outputs.RUN_MIGRATIONS == 'true'
         uses: ./.github/workflows/run-database-migrations
 
 
