@@ -78,9 +78,9 @@ jobs:
         run: |
             # Get the current deployed DB version
             if [ "$ENVIRONMENT" != "prod" ]; then
-              DEPLOYED_VERSION=$(curl -s -u "${{ secrets.FS_BASIC_AUTH_USERNAME }}:${{ secrets.FS_BASIC_AUTH_PASSWORD }}" "${{ vars.BASE_URL }}/healthcheck/db")
+              DEPLOYED_VERSION=$(curl -s -f -u "${{ secrets.FS_BASIC_AUTH_USERNAME }}:${{ secrets.FS_BASIC_AUTH_PASSWORD }}" "${{ vars.BASE_URL }}/healthcheck/db") || exit 1
             else
-              DEPLOYED_VERSION=$(curl -s "${{ vars.BASE_URL }}/healthcheck/db")
+              DEPLOYED_VERSION=$(curl -s -f "${{ vars.BASE_URL }}/healthcheck/db") || exit 1
             fi
 
             # Get the local repository version
