@@ -224,7 +224,7 @@ class TestSSOGetTokenView:
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             user = factories.user.create(email="test.member@communities.gov.uk")
             grant = factories.grant.create()
-            factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
+            factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
             # Partially mock the expected return value; just enough for the test.
             mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
                 "id_token_claims": {
@@ -307,7 +307,7 @@ class TestSSOGetTokenView:
     def test_platform_admin_with_fs_platform_admin_role_removed(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
             user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="abc123")
-            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+            factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
 
             mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
                 "id_token_claims": {
@@ -331,8 +331,8 @@ class TestSSOGetTokenView:
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
             user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="wer234")
             grant = factories.grant.create()
-            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
-            factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+            factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
+            factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
             assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
 
             mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
@@ -356,10 +356,10 @@ class TestSSOGetTokenView:
     def test_platform_admin_remove_all_other_roles(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
             user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="wer234")
-            factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+            factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
             grants = factories.grant.create_batch(2)
             for grant in grants:
-                factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+                factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
             assert db_session.scalar(select(func.count()).select_from(UserRole)) == 3
 
             mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
@@ -382,7 +382,10 @@ class TestSSOGetTokenView:
         grants = factories.grant.create_batch(3)
         for grant in grants:
             factories.invitation.create(
-                email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+                email="test@communities.gov.uk",
+                organisation=grant.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER],
             )
         assert db_session.scalar(select(func.count()).select_from(Invitation)) == 3
 
@@ -415,7 +418,10 @@ class TestSSOGetTokenView:
 
             for grant in grants:
                 invitation = factories.invitation.create(
-                    email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+                    email="test@communities.gov.uk",
+                    organisation=grant.organisation,
+                    grant=grant,
+                    permissions=[RoleEnum.MEMBER],
                 )
                 invitations.append(invitation)
 
@@ -444,12 +450,15 @@ class TestSSOGetTokenView:
                 email="test@communities.gov.uk",
                 organisation=grants[-1].organisation,
                 grant=grants[-1],
-                role=RoleEnum.MEMBER,
+                permissions=[RoleEnum.MEMBER],
                 expires_at_utc=datetime.datetime(2025, 9, 1, 12, 0, 0),
             )
             for grant in grants[:3]:
                 factories.invitation.create(
-                    email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+                    email="test@communities.gov.uk",
+                    organisation=grant.organisation,
+                    grant=grant,
+                    permissions=[RoleEnum.MEMBER],
                 )
 
             mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {

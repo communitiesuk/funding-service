@@ -32,7 +32,7 @@ class TestAuthorisationHelper:
     )
     def test_is_platform_admin(self, factories, role, has_grant_linked_to_role, expected):
         user = factories.user.build()
-        factories.user_role.build(user=user, role=role, has_grant=has_grant_linked_to_role)
+        factories.user_role.build(user=user, permissions=[role], has_grant=has_grant_linked_to_role)
         assert AuthorisationHelper.is_platform_admin(user) is expected
 
     def test_is_platform_admin_works_for_anonymous_user(self):
@@ -49,19 +49,19 @@ class TestAuthorisationHelper:
     def test_is_deliver_org_admin(self, factories, role, has_organisation_linked, can_manage_grants, expected):
         user = factories.user.build()
         organisation = factories.organisation.build(can_manage_grants=can_manage_grants)
-        factories.user_role.build(user=user, role=role, organisation=organisation, grant=None)
+        factories.user_role.build(user=user, permissions=[role], organisation=organisation, grant=None)
         assert AuthorisationHelper.is_deliver_org_admin(user) is expected
 
     def test_is_deliver_org_admin_with_grant_id_set(self, factories):
         user = factories.user.build()
         organisation = factories.organisation.build(can_manage_grants=True)
         grant = factories.grant.build(organisation=organisation)
-        factories.user_role.build(user=user, role=RoleEnum.ADMIN, organisation=organisation, grant=grant)
+        factories.user_role.build(user=user, permissions=[RoleEnum.ADMIN], organisation=organisation, grant=grant)
         assert AuthorisationHelper.is_deliver_org_admin(user) is False
 
     def test_is_deliver_org_admin_platform_admin_overrides(self, factories):
         user = factories.user.build()
-        factories.user_role.build(user=user, role=RoleEnum.ADMIN, organisation=None, grant=None)
+        factories.user_role.build(user=user, permissions=[RoleEnum.ADMIN], organisation=None, grant=None)
         assert AuthorisationHelper.is_deliver_org_admin(user) is True
 
     def test_is_deliver_org_admin_works_for_anonymous_user(self):
@@ -78,19 +78,19 @@ class TestAuthorisationHelper:
     def test_is_deliver_org_member(self, factories, role, can_manage_grants, expected):
         user = factories.user.build()
         organisation = factories.organisation.build(can_manage_grants=can_manage_grants)
-        factories.user_role.build(user=user, role=role, organisation=organisation, grant=None)
+        factories.user_role.build(user=user, permissions=[role], organisation=organisation, grant=None)
         assert AuthorisationHelper.is_deliver_org_member(user) is expected
 
     def test_is_deliver_org_member_with_grant_id_set(self, factories):
         user = factories.user.build()
         organisation = factories.organisation.build(can_manage_grants=True)
         grant = factories.grant.build(organisation=organisation)
-        factories.user_role.build(user=user, role=RoleEnum.MEMBER, organisation=organisation, grant=grant)
+        factories.user_role.build(user=user, permissions=[RoleEnum.MEMBER], organisation=organisation, grant=grant)
         assert AuthorisationHelper.is_deliver_org_member(user) is False
 
     def test_is_deliver_org_member_platform_admin_overrides(self, factories):
         user = factories.user.build()
-        factories.user_role.build(user=user, role=RoleEnum.ADMIN, organisation=None, grant=None)
+        factories.user_role.build(user=user, permissions=[RoleEnum.ADMIN], organisation=None, grant=None)
         assert AuthorisationHelper.is_deliver_org_member(user) is True
 
     def test_is_deliver_org_member_works_for_anonymous_user(self):
@@ -107,7 +107,7 @@ class TestAuthorisationHelper:
         user = factories.user.build()
         grant = factories.grant.build()
         mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
-        factories.user_role.build(user=user, role=role, grant=grant)
+        factories.user_role.build(user=user, permissions=[role], grant=grant)
         assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant.id) is expected
 
     @pytest.mark.parametrize(
@@ -122,7 +122,7 @@ class TestAuthorisationHelper:
         grant1 = factories.grant.build()
         grant2 = factories.grant.build()
         mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant2)
-        factories.user_role.build(user=user, role=role, grant=grant1)
+        factories.user_role.build(user=user, permissions=[role], grant=grant1)
         assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant2.id) is False
 
     @pytest.mark.parametrize(
@@ -135,7 +135,7 @@ class TestAuthorisationHelper:
     def test_is_deliver_grant_admin_for_grant_roles(self, factories, role, expected, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
-        factories.user_role.build(user=user, role=role, grant=grant)
+        factories.user_role.build(user=user, permissions=[role], grant=grant)
         mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
         assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant.id) is expected
 
@@ -144,7 +144,7 @@ class TestAuthorisationHelper:
         grant = factories.grant.build()
         mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
         assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant.id) is False
-        factories.user_role.build(user=user, role=RoleEnum.ADMIN)
+        factories.user_role.build(user=user, permissions=[RoleEnum.ADMIN])
         assert AuthorisationHelper.is_deliver_grant_admin(user=user, grant_id=grant.id) is True
 
     @pytest.mark.parametrize(
@@ -157,7 +157,7 @@ class TestAuthorisationHelper:
     def test_is_deliver_grant_member_true(self, factories, role, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
-        factories.user_role.build(user=user, role=role, grant=grant)
+        factories.user_role.build(user=user, permissions=[role], grant=grant)
         mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
         assert AuthorisationHelper.is_deliver_grant_member(user=user, grant_id=grant.id)
 
@@ -165,7 +165,7 @@ class TestAuthorisationHelper:
     def test_is_deliver_grant_member_false_member_of_different_grant(self, factories, role, mocker):
         user = factories.user.build()
         grants = factories.grant.build_batch(2)
-        factories.user_role.build(user=user, role=role, grant=grants[0])
+        factories.user_role.build(user=user, permissions=[role], grant=grants[0])
         mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grants[1])
         assert AuthorisationHelper.is_deliver_grant_member(user=user, grant_id=grants[1].id) is False
 
@@ -178,7 +178,7 @@ class TestAuthorisationHelper:
     def test_is_deliver_grant_member_overriden_by_platform_admin(self, factories, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
-        factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=None)
+        factories.user_role.build(user=user, permissions=[RoleEnum.ADMIN], grant=None)
         mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
         assert AuthorisationHelper.is_deliver_grant_member(user=user, grant_id=grant.id) is True
 
@@ -193,7 +193,7 @@ class TestAuthorisationHelper:
     def test_has_deliver_grant_role(self, factories, role, expected, mocker):
         user = factories.user.build()
         grant = factories.grant.build()
-        factories.user_role.build(user=user, role=role, grant=grant)
+        factories.user_role.build(user=user, permissions=[role], grant=grant)
         mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
 
         if isinstance(expected, bool):
@@ -213,7 +213,9 @@ class TestAuthorisationHelper:
         organisation = factories.organisation.build()
         grant = factories.grant.build(organisation=organisation)
         collection = factories.collection.build(grant=grant, status=collection_status)
-        user_role = factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=grant, organisation=organisation)
+        user_role = factories.user_role.build(
+            user=user, permissions=[RoleEnum.ADMIN], grant=grant, organisation=organisation
+        )
         user.roles = [user_role]
 
         mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
@@ -226,7 +228,9 @@ class TestAuthorisationHelper:
         organisation = factories.organisation.build()
         grant = factories.grant.build(organisation=organisation)
         collection = factories.collection.build(grant=grant, status=CollectionStatusEnum.DRAFT)
-        user_role = factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=grant, organisation=organisation)
+        user_role = factories.user_role.build(
+            user=user, permissions=[RoleEnum.ADMIN], grant=grant, organisation=organisation
+        )
         user.roles = [user_role]
 
         mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
@@ -238,7 +242,7 @@ class TestAuthorisationHelper:
         user = factories.user.build()
         grant = factories.grant.build()
         collection = factories.collection.build(grant=grant, status=CollectionStatusEnum.DRAFT)
-        user_role = factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=None)
+        user_role = factories.user_role.build(user=user, permissions=[RoleEnum.ADMIN], grant=None)
         user.roles = [user_role]
 
         mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
@@ -250,7 +254,7 @@ class TestAuthorisationHelper:
         user = factories.user.build()
         grant = factories.grant.build()
         collection = factories.collection.build(grant=grant, status=CollectionStatusEnum.OPEN)
-        user_role = factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=None)
+        user_role = factories.user_role.build(user=user, permissions=[RoleEnum.ADMIN], grant=None)
         user.roles = [user_role]
 
         mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
@@ -269,7 +273,9 @@ class TestAuthorisationHelper:
         organisation = factories.organisation.build()
         grant = factories.grant.build(organisation=organisation)
         collection = factories.collection.build(grant=grant, status=CollectionStatusEnum.DRAFT)
-        user_role = factories.user_role.build(user=user, role=RoleEnum.MEMBER, grant=grant, organisation=organisation)
+        user_role = factories.user_role.build(
+            user=user, permissions=[RoleEnum.MEMBER], grant=grant, organisation=organisation
+        )
         user.roles = [user_role]
 
         mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)

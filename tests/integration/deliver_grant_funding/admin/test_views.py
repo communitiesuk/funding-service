@@ -508,8 +508,8 @@ class TestReportingLifecycleMakeGrantLive:
     ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT)
         collection = factories.collection.create(grant=grant)
-        factories.user_role.create(grant=grant, role=RoleEnum.MEMBER)
-        factories.user_role.create(grant=grant, role=RoleEnum.ADMIN)
+        factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
+        factories.user_role.create(grant=grant, permissions=[RoleEnum.ADMIN])
 
         response = authenticated_platform_admin_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live",
@@ -528,7 +528,7 @@ class TestReportingLifecycleMakeGrantLive:
     def test_post_fails_without_enough_team_members(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT)
         collection = factories.collection.create(grant=grant)
-        factories.user_role.create(grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
 
         response = authenticated_platform_admin_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live",
@@ -1025,7 +1025,7 @@ class TestSetUpGrantRecipientUsers:
         assert user is not None
         assert user.name == "John Doe"
         assert len(user.roles) == 1
-        assert user.roles[0].role == RoleEnum.MEMBER
+        assert RoleEnum.MEMBER in user.roles[0].permissions
         assert user.roles[0].organisation_id == org.id
         assert user.roles[0].grant_id == grant.id
 
@@ -1058,7 +1058,7 @@ class TestSetUpGrantRecipientUsers:
         assert user.id == existing_user.id
         assert user.name == "New Name"
         assert any(
-            role.role == RoleEnum.MEMBER and role.organisation_id == org.id and role.grant_id == grant.id
+            RoleEnum.MEMBER in role.permissions and role.organisation_id == org.id and role.grant_id == grant.id
             for role in user.roles
         )
 
@@ -1238,7 +1238,7 @@ class TestRevokeGrantRecipientUsers:
         org = factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
         user = factories.user.create(name="John Doe", email="john@example.com")
-        factories.user_role.create(user=user, organisation=org, grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER])
 
         response = authenticated_platform_admin_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users"
@@ -1256,7 +1256,7 @@ class TestRevokeGrantRecipientUsers:
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
         user = factories.user.create(name="John Doe", email="john@example.com")
-        user_role = factories.user_role.create(user=user, organisation=org, grant=grant, role=RoleEnum.MEMBER)
+        user_role = factories.user_role.create(user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER])
 
         from app.common.data.models_user import UserRole
 
@@ -1283,8 +1283,12 @@ class TestRevokeGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org2)
         user1 = factories.user.create(name="John Doe", email="john@example.com")
         user2 = factories.user.create(name="Jane Smith", email="jane@example.com")
-        user_role1 = factories.user_role.create(user=user1, organisation=org1, grant=grant, role=RoleEnum.MEMBER)
-        user_role2 = factories.user_role.create(user=user2, organisation=org2, grant=grant, role=RoleEnum.MEMBER)
+        user_role1 = factories.user_role.create(
+            user=user1, organisation=org1, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+        user_role2 = factories.user_role.create(
+            user=user2, organisation=org2, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
 
         from app.common.data.models_user import UserRole
 
@@ -1310,7 +1314,7 @@ class TestRevokeGrantRecipientUsers:
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
         user = factories.user.create(name="John Doe", email="john@example.com")
-        factories.user_role.create(user=user, organisation=org, grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER])
 
         response = authenticated_platform_admin_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users",
@@ -1347,7 +1351,7 @@ class TestScheduleReport:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         client = request.getfixturevalue(client_fixture)
@@ -1367,7 +1371,7 @@ class TestScheduleReport:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         response = authenticated_platform_admin_client.get(
@@ -1392,7 +1396,7 @@ class TestScheduleReport:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         response = authenticated_platform_admin_client.post(

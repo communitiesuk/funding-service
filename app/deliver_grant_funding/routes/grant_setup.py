@@ -180,7 +180,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
         if not AuthorisationHelper.is_deliver_org_admin(get_current_user()):
             upsert_user_role(
                 get_current_user(),
-                role=RoleEnum.ADMIN,
+                permissions=[RoleEnum.ADMIN],
                 organisation_id=grant.organisation_id,
                 grant_id=grant.id,
             )

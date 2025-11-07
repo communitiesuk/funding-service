@@ -299,7 +299,7 @@ def authenticated_grant_member_client(
     grant = factories.grant.create()
     factories.user_role.create(
         user=user,
-        role=RoleEnum.MEMBER,
+        permissions=[RoleEnum.MEMBER],
         organisation=grant.organisation,
         grant=grant,
     )
@@ -330,7 +330,7 @@ def authenticated_grant_admin_client(
     grant = factories.grant.create()
     factories.user_role.create(
         user=user,
-        role=RoleEnum.ADMIN,
+        permissions=[RoleEnum.ADMIN],
         organisation=grant.organisation,
         grant=grant,
     )
@@ -354,7 +354,7 @@ def authenticated_platform_admin_client(
     email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
 
     user = factories.user.create(email=email)
-    factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
+    factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.ADMIN])
 
     login_user(user)
     with anonymous_client.session_transaction() as session:
@@ -376,7 +376,7 @@ def authenticated_org_admin_client(
     organisation = _get_grant_managing_organisation()
     factories.user_role.create(
         user=user,
-        role=RoleEnum.ADMIN,
+        permissions=[RoleEnum.ADMIN],
         organisation=organisation,
         grant=None,
     )
@@ -402,7 +402,7 @@ def authenticated_org_member_client(
     organisation = _get_grant_managing_organisation()
     factories.user_role.create(
         user=user,
-        role=RoleEnum.MEMBER,
+        permissions=[RoleEnum.MEMBER],
         organisation=organisation,
         grant=None,
     )

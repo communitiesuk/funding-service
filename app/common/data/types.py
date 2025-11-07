@@ -50,6 +50,7 @@ class OrganisationType(enum.StrEnum):
     WELSH_UNITARY_AUTHORITY = "Welsh Unitary Authority"
 
 
+# TODO: Rename PermissionEnum
 class RoleEnum(enum.StrEnum):
     # TODO: new 'PLATFORM_ADMIN' role that specifically only grants access to our admin panel?
     ADMIN = (

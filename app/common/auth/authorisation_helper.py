@@ -24,7 +24,7 @@ class AuthorisationHelper:
         if isinstance(user, AnonymousUserMixin):
             return False
         return any(
-            role.role == RoleEnum.ADMIN and role.organisation_id is None and role.grant_id is None
+            RoleEnum.ADMIN in role.permissions and role.organisation_id is None and role.grant_id is None
             for role in user.roles
         )
 
@@ -35,7 +35,7 @@ class AuthorisationHelper:
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
         return any(
-            role.role == RoleEnum.ADMIN
+            RoleEnum.ADMIN in role.permissions
             and role.organisation_id
             and role.grant_id is None
             and role.organisation.can_manage_grants
@@ -49,7 +49,7 @@ class AuthorisationHelper:
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
         return any(
-            (role.role == RoleEnum.MEMBER or role.role == RoleEnum.ADMIN)
+            (RoleEnum.MEMBER in role.permissions or RoleEnum.ADMIN in role.permissions)
             and role.organisation_id
             and role.grant_id is None
             and role.organisation.can_manage_grants
@@ -66,7 +66,7 @@ class AuthorisationHelper:
         grant = get_grant(grant_id)
 
         for role in user.roles:
-            if role.role == RoleEnum.ADMIN:
+            if RoleEnum.ADMIN in role.permissions:
                 # entire org admin
                 if role.organisation_id == grant.organisation_id and role.grant_id is None:
                     return True
@@ -86,7 +86,7 @@ class AuthorisationHelper:
         grant = get_grant(grant_id)
 
         for role in user.roles:
-            if role.role == RoleEnum.MEMBER or role.role == RoleEnum.ADMIN:
+            if RoleEnum.MEMBER in role.permissions or RoleEnum.ADMIN in role.permissions:
                 # entire org member
                 if role.organisation_id == grant.organisation_id and role.grant_id is None:
                     return True

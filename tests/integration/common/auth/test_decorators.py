@@ -129,7 +129,7 @@ class TestMHCLGLoginRequired:
             return "OK"
 
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.ADMIN])
 
         login_user(user)
         session["auth"] = AuthMethodEnum.MAGIC_LINK
@@ -158,7 +158,7 @@ class TestPlatformAdminRoleRequired:
             return "OK"
 
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.ADMIN])
 
         login_user(user)
         session["auth"] = AuthMethodEnum.SSO
@@ -195,7 +195,9 @@ class TestDeliverOrgAdminRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation=grant.organisation)
+        factories.user_role.create(
+            user_id=user.id, user=user, permissions=[RoleEnum.ADMIN], organisation=grant.organisation
+        )
 
         login_user(user)
         session["auth"] = AuthMethodEnum.SSO
@@ -209,7 +211,7 @@ class TestDeliverOrgAdminRoleRequired:
             return "OK"
 
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.ADMIN])
 
         login_user(user)
         session["auth"] = AuthMethodEnum.SSO
@@ -236,7 +238,7 @@ class TestDeliverOrgAdminRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
         organisation = factories.organisation.create(can_manage_grants=False)
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation=organisation)
+        factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.ADMIN], organisation=organisation)
 
         with pytest.raises(Forbidden):
             login_user(user)
@@ -250,7 +252,7 @@ class TestDeliverOrgAdminRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, grant=grant)
+        factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.ADMIN], grant=grant)
 
         with pytest.raises(Forbidden):
             login_user(user)
@@ -264,7 +266,9 @@ class TestDeliverOrgAdminRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, organisation=grant.organisation)
+        factories.user_role.create(
+            user_id=user.id, user=user, permissions=[RoleEnum.MEMBER], organisation=grant.organisation
+        )
 
         with pytest.raises(Forbidden):
             login_user(user)
@@ -286,7 +290,9 @@ class TestDeliverOrgAdminRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN, organisation=grant.organisation)
+        factories.user_role.create(
+            user_id=user.id, user=user, permissions=[RoleEnum.ADMIN], organisation=grant.organisation
+        )
 
         login_user(user)
         session["auth"] = AuthMethodEnum.MAGIC_LINK
@@ -316,7 +322,9 @@ class TestDeliverOrgMemberRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, organisation=grant.organisation)
+        factories.user_role.create(
+            user_id=user.id, user=user, permissions=[RoleEnum.MEMBER], organisation=grant.organisation
+        )
 
         login_user(user)
         session["auth"] = AuthMethodEnum.SSO
@@ -330,7 +338,7 @@ class TestDeliverOrgMemberRoleRequired:
             return "OK"
 
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.ADMIN])
 
         login_user(user)
         session["auth"] = AuthMethodEnum.SSO
@@ -357,7 +365,7 @@ class TestDeliverOrgMemberRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
         organisation = factories.organisation.create(can_manage_grants=False)
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, organisation=organisation)
+        factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.MEMBER], organisation=organisation)
 
         with pytest.raises(Forbidden):
             login_user(user)
@@ -371,7 +379,7 @@ class TestDeliverOrgMemberRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, grant=grant)
+        factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.MEMBER], grant=grant)
 
         with pytest.raises(Forbidden):
             login_user(user)
@@ -393,7 +401,9 @@ class TestDeliverOrgMemberRoleRequired:
 
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user_id=user.id, user=user, role=RoleEnum.MEMBER, organisation=grant.organisation)
+        factories.user_role.create(
+            user_id=user.id, user=user, permissions=[RoleEnum.MEMBER], organisation=grant.organisation
+        )
 
         login_user(user)
         session["auth"] = AuthMethodEnum.MAGIC_LINK
@@ -470,7 +480,7 @@ class TestHasDeliverGrantRole:
 
     def test_admin_user_has_access(self, factories):
         user = factories.user.create(email="test.admin@communities.gov.uk")
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
 
         @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
@@ -498,7 +508,7 @@ class TestHasDeliverGrantRole:
     def test_without_grant_id(self, factories):
         user = factories.user.create(email="test.member2@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
 
         @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
@@ -512,7 +522,7 @@ class TestHasDeliverGrantRole:
     def test_member_user_has_access(self, factories):
         user = factories.user.create(email="test.member@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
 
         @has_deliver_grant_role(role=RoleEnum.MEMBER)
         def view_func(grant_id: UUID):
@@ -527,7 +537,7 @@ class TestHasDeliverGrantRole:
     def test_member_user_denied_for_admin_role(self, factories):
         user = factories.user.create(email="test.member2@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
 
         @has_deliver_grant_role(role=RoleEnum.ADMIN)
         def view_func(grant_id: UUID):
@@ -546,7 +556,7 @@ class TestCollectionIsEditable:
         user = factories.user.create(email="test.admin@communities.gov.uk")
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN], grant=grant)
 
         @collection_is_editable()
         def view_func(collection_id: UUID):
@@ -566,7 +576,7 @@ class TestCollectionIsEditable:
         user = factories.user.create(email="test.admin@communities.gov.uk")
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, status=collection_status)
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN], grant=grant)
 
         @collection_is_editable()
         def view_func(collection_id: UUID):
@@ -583,7 +593,7 @@ class TestCollectionIsEditable:
         user = factories.user.create(email="test.admin@communities.gov.uk")
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=None)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN], grant=None)
 
         @collection_is_editable()
         def view_func(collection_id: UUID):
@@ -599,7 +609,7 @@ class TestCollectionIsEditable:
         user = factories.user.create(email="test.admin@communities.gov.uk")
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN)
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=None)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN], grant=None)
 
         @collection_is_editable()
         def view_func(collection_id: UUID):
@@ -616,7 +626,7 @@ class TestCollectionIsEditable:
         user = factories.user.create(email="test.member@communities.gov.uk")
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
-        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
 
         @collection_is_editable()
         def view_func(collection_id: UUID):
@@ -643,7 +653,7 @@ class TestCollectionIsEditable:
         user = factories.user.create(email="test.admin@communities.gov.uk")
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN], grant=grant)
 
         @collection_is_editable()
         def view_func(collection_id: UUID):
@@ -660,7 +670,7 @@ class TestCollectionIsEditable:
         user = factories.user.create(email="test.admin@communities.gov.uk")
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN)
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN], grant=grant)
 
         @collection_is_editable()
         def view_func(collection_id: UUID):
@@ -678,7 +688,7 @@ class TestCollectionIsEditable:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
         form = factories.form.create(collection=collection)
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN], grant=grant)
 
         @collection_is_editable()
         def view_func(form_id: UUID):
@@ -696,7 +706,7 @@ class TestCollectionIsEditable:
         collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
         form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN], grant=grant)
 
         @collection_is_editable()
         def view_func(component_id: UUID):
