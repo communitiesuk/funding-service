@@ -14052,6 +14052,9 @@
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "6968a72f-a002-4c3f-8b60-b9a9635c8115",
       "organisation_id": "41773840-55b6-4d5e-8b83-a6163e0c834d",
+      "permissions": [
+        "member"
+      ],
       "role": "member",
       "user_id": "4f990e2b-690b-4c97-a47b-c9a073e92827"
     },
@@ -14059,11 +14062,17 @@
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "b3ff642a-cea5-4eb2-9173-11a2d778de42",
       "organisation_id": "<UUID:GB-GOV-27>",
+      "permissions": [
+        "member"
+      ],
       "role": "member",
       "user_id": "62ee98f5-cf10-4848-95a4-5b6280529046"
     },
     {
       "id": "54455237-39fc-43ad-9569-8d268ca8f0d3",
+      "permissions": [
+        "admin"
+      ],
       "role": "admin",
       "user_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3"
     },
@@ -14071,6 +14080,9 @@
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "dcb4c487-8154-45ec-bec7-5527e261b8f8",
       "organisation_id": "3ca29557-e6b9-4e6d-8290-5fb1c9535d1e",
+      "permissions": [
+        "member"
+      ],
       "role": "member",
       "user_id": "a08a325c-645a-4a36-9787-c2acd75dd0f2"
     },
@@ -14078,6 +14090,9 @@
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "c194df07-5871-4dc3-94dd-bb56d90e5975",
       "organisation_id": "<UUID:GB-GOV-27>",
+      "permissions": [
+        "member"
+      ],
       "role": "member",
       "user_id": "e8f81083-7d87-4c20-af0a-4ec4b3378cdb"
     }

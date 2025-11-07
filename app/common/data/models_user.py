@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from pytz import utc
 from sqlalchemy import CheckConstraint, ColumnElement, ForeignKey, Index, UniqueConstraint, func
 from sqlalchemy import Enum as SqlEnum
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -118,6 +119,10 @@ class UserRole(BaseModel):
         ),
         nullable=False,
     )
+    permissions: Mapped[list["RoleEnum"]] = mapped_column(
+        postgresql.ARRAY(SqlEnum(RoleEnum, name="role_enum", validate_strings=True)),
+        nullable=False,
+    )
 
     user: Mapped[User] = relationship("User", back_populates="roles")
     organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="roles")
@@ -140,6 +145,10 @@ class UserRole(BaseModel):
         CheckConstraint(
             "role != 'MEMBER' OR organisation_id IS NOT NULL",
             name="member_role_not_platform",
+        ),
+        CheckConstraint(
+            "'MEMBER' != ALL(permissions) OR organisation_id IS NOT NULL",
+            name="member_role_not_in_permissions_requires_org",
         ),
         CheckConstraint(
             "(organisation_id IS NULL AND grant_id IS NULL) or (organisation_id IS NOT NULL)",
@@ -191,6 +200,10 @@ class Invitation(BaseModel):
         ),
         nullable=False,
     )
+    permissions: Mapped[list["RoleEnum"]] = mapped_column(
+        postgresql.ARRAY(SqlEnum(RoleEnum, name="role_enum", validate_strings=True)),
+        nullable=False,
+    )
 
     user: Mapped[User] = relationship("User", back_populates="invitations")
     organisation: Mapped["Organisation"] = relationship("Organisation")
@@ -198,6 +211,13 @@ class Invitation(BaseModel):
 
     expires_at_utc: Mapped[datetime] = mapped_column(nullable=False)
     claimed_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "'MEMBER' != ALL(permissions) OR organisation_id IS NOT NULL",
+            name="member_role_not_in_invitation_permissions_requires_org",
+        ),
+    )
 
     @hybrid_property
     def is_usable(self) -> bool:
