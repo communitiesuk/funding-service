@@ -253,7 +253,10 @@ def collection_is_editable[**P]() -> Callable[[Callable[P, ResponseReturnValue]]
             user = interfaces.user.get_current_user()
             if not AuthorisationHelper.can_edit_collection(user=user, collection_id=collection.id):
                 # TODO: FSPT-549 - Reliably show flash messages everywhere, currently these just ... won't show up
-                flash("You cannot edit that collection as it is no longer in the drafting status.")
+                flash(
+                    f"You cannot edit the “{collection.name}” {collection.type} as it is {collection.status}",
+                    "error",
+                )
                 return redirect(url_for("deliver_grant_funding.list_reports", grant_id=collection.grant_id))
 
             return func(*args, **kwargs)

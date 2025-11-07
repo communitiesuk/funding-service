@@ -13,6 +13,13 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {# TODO: FSPT-549 - show flash messages consistently everywhere with a standard interface #}
+      {% with flashes = get_flashed_messages(with_categories=true) %}
+        {% for flash in flashes %}
+          {{ govukNotificationBanner({ "text": flash[1], "type": flash[0] }) }}
+        {% endfor %}
+      {% endwith %}
+
       {% if delete_form %}
         {% set banner_html %}
           <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the report ‘{{ delete_report.name }}’?</p>
