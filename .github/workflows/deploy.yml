@@ -86,6 +86,10 @@ jobs:
             # Get the local repository version
             LOCAL_VERSION=$(cat app/common/data/migrations/.current-alembic-head)
 
+            if [ -z "$LOCAL_VERSION" ]; then
+              echo "::error::Local DB version could not be read or is empty. Please check app/common/data/migrations/.current-alembic-head."
+              exit 1
+            fi
             echo "::notice::Deployed DB version: $DEPLOYED_VERSION"
             echo "::notice::Local DB version: $LOCAL_VERSION"
 
