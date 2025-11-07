@@ -61,12 +61,6 @@ class RoleEnum(enum.StrEnum):
     CERTIFIER = "certifier"
 
 
-# If a user roles implies they get other (lower) roles as well, list the role here with the roles they should get.
-GRANT_ROLES_MAPPING = {
-    RoleEnum.ADMIN: [role for role in RoleEnum],
-}
-
-
 class AuthMethodEnum(str, enum.Enum):
     SSO = "sso"
     MAGIC_LINK = "magic link"

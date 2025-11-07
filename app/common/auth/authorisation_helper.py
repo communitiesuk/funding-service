@@ -5,7 +5,7 @@ from flask_login import AnonymousUserMixin
 from app.common.data.interfaces.collections import get_collection
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.models_user import User
-from app.common.data.types import GRANT_ROLES_MAPPING, RoleEnum
+from app.common.data.types import RoleEnum
 
 
 class AuthorisationHelper:
@@ -49,7 +49,7 @@ class AuthorisationHelper:
         if AuthorisationHelper.is_platform_admin(user=user):
             return True
         return any(
-            RoleEnum.MEMBER in GRANT_ROLES_MAPPING.get(role.role, [role.role])
+            (role.role == RoleEnum.MEMBER or role.role == RoleEnum.ADMIN)
             and role.organisation_id
             and role.grant_id is None
             and role.organisation.can_manage_grants
@@ -86,7 +86,7 @@ class AuthorisationHelper:
         grant = get_grant(grant_id)
 
         for role in user.roles:
-            if RoleEnum.MEMBER in GRANT_ROLES_MAPPING.get(role.role, [role.role]):
+            if role.role == RoleEnum.MEMBER or role.role == RoleEnum.ADMIN:
                 # entire org member
                 if role.organisation_id == grant.organisation_id and role.grant_id is None:
                     return True
