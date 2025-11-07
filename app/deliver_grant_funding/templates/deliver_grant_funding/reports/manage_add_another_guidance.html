@@ -5,6 +5,7 @@
 
 {% set page_title = "Add another summary page guidance" if not question.add_another_guidance_body else "Edit add another summary page guidance" %}
 {% set submit_label = "Add guidance" if not question.add_another_guidance_body else "Update guidance" %}
+{% set active_item_identifier = "reports" %}
 
 {% block beforeContent %}
   {% set back_link = url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.id) %}
