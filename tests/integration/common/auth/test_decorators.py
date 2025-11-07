@@ -9,6 +9,7 @@ from werkzeug.exceptions import Forbidden, InternalServerError
 
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
+    collection_is_editable,
     deliver_grant_funding_login_required,
     has_deliver_grant_role,
     is_deliver_grant_funding_user,
@@ -18,7 +19,7 @@ from app.common.auth.decorators import (
     redirect_if_authenticated,
 )
 from app.common.data import interfaces
-from app.common.data.types import AuthMethodEnum, RoleEnum
+from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, RoleEnum
 
 
 class TestDeliverGrantFundingLoginRequired:
@@ -538,3 +539,171 @@ class TestHasDeliverGrantRole:
         with pytest.raises(Forbidden) as e:
             view_func(grant_id=grant.id)
         assert "Access denied" in str(e.value)
+
+
+class TestCollectionIsEditable:
+    def test_grant_admin_can_access_draft_collection(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+
+        @collection_is_editable()
+        def view_func(collection_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = view_func(collection_id=collection.id)
+        assert response == "OK"
+
+    @pytest.mark.parametrize(
+        "collection_status",
+        [status for status in CollectionStatusEnum if status != CollectionStatusEnum.DRAFT],
+    )
+    def test_grant_admin_redirected_for_non_draft_collection(self, factories, collection_status):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, status=collection_status)
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+
+        @collection_is_editable()
+        def view_func(collection_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = view_func(collection_id=collection.id)
+        assert response.status_code == 302
+        assert response.location == url_for("deliver_grant_funding.list_reports", grant_id=grant.id)
+
+    def test_platform_admin_can_access_draft_collection(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=None)
+
+        @collection_is_editable()
+        def view_func(collection_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = view_func(collection_id=collection.id)
+        assert response == "OK"
+
+    def test_platform_admin_redirected_for_non_draft_collection(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN)
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=None)
+
+        @collection_is_editable()
+        def view_func(collection_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = view_func(collection_id=collection.id)
+        assert response.status_code == 302
+        assert response.location == url_for("deliver_grant_funding.list_reports", grant_id=grant.id)
+
+    def test_member_forbidden(self, factories):
+        user = factories.user.create(email="test.member@communities.gov.uk")
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
+        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+
+        @collection_is_editable()
+        def view_func(collection_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = view_func(collection_id=collection.id)
+        assert response.status_code == 302
+        assert response.location == url_for("deliver_grant_funding.list_reports", grant_id=grant.id)
+
+    def test_anonymous_user_gets_redirect(self, app, factories):
+        collection = factories.collection.create(status=CollectionStatusEnum.DRAFT)
+
+        @collection_is_editable()
+        def view_func(collection_id: UUID):
+            return "OK"
+
+        response = view_func(collection_id=collection.id)
+        assert response.status_code == 302
+
+    def test_magic_link_auth_forbidden(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+
+        @collection_is_editable()
+        def view_func(collection_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        response = view_func(collection_id=collection.id)
+        assert response.status_code == 302
+        assert response.location == url_for("auth.sso_sign_in")
+
+    def test_redirects_to_correct_unauthorised_endpoint(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN)
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+
+        @collection_is_editable()
+        def view_func(collection_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = view_func(collection_id=collection.id)
+        assert response.status_code == 302
+        assert response.location == url_for("deliver_grant_funding.list_reports", grant_id=grant.id)
+
+    def test_with_form_id_parameter(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
+        form = factories.form.create(collection=collection)
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+
+        @collection_is_editable()
+        def view_func(form_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = view_func(form_id=form.id)
+        assert response == "OK"
+
+    def test_with_component_id_parameter(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(form=form)
+        factories.user_role.create(user=user, role=RoleEnum.ADMIN, grant=grant)
+
+        @collection_is_editable()
+        def view_func(component_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        response = view_func(component_id=question.id)
+        assert response == "OK"

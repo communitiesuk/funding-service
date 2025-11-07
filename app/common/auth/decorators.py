@@ -3,12 +3,18 @@ import uuid
 from typing import Callable, cast
 
 import sentry_sdk
-from flask import abort, current_app, redirect, request, session, url_for
+from flask import abort, current_app, flash, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import logout_user
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
+from app.common.data.interfaces.collections import (
+    get_collection,
+    get_component_by_id,
+    get_expression_by_id,
+    get_form_by_id,
+)
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.types import AuthMethodEnum, RoleEnum
 
@@ -199,6 +205,59 @@ def has_deliver_grant_role[**P](
             grant = get_grant(grant_id)
             if not AuthorisationHelper.has_deliver_grant_role(grant_id=grant.id, role=role, user=user):
                 return abort(403, description="Access denied")
+
+            return func(*args, **kwargs)
+
+        return is_deliver_grant_funding_user(wrapped)
+
+    return decorator
+
+
+def collection_is_editable[**P]() -> Callable[[Callable[P, ResponseReturnValue]], Callable[P, ResponseReturnValue]]:
+    def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+        @functools.wraps(func)
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+            # Guarding against SSO users who somehow login via magic link
+            session_auth = session.get("auth")
+            if session_auth != AuthMethodEnum.SSO:
+                return abort(403)
+
+            entity_lookups = [
+                "collection_id",
+                "report_id",
+                "form_id",
+                "component_id",
+                "question_id",
+                "group_id",
+                "expression_id",
+            ]
+            for entity_lookup in entity_lookups:
+                if entity_lookup in kwargs and (entity_id := cast(uuid.UUID, kwargs[entity_lookup])) is not None:
+                    break
+            else:
+                raise ValueError("Collection/Report/Form/Component/Expression ID required.")
+
+            # raises a 404 if the entity doesn't exist; more appropriate than 403 on non-existent thing
+            if entity_lookup == "form_id":
+                form = get_form_by_id(entity_id)
+                collection = form.collection
+            elif entity_lookup in {"component_id", "question_id", "group_id"}:
+                question = get_component_by_id(entity_id)
+                collection = question.form.collection
+            elif entity_lookup == "expression_id":
+                expression = get_expression_by_id(entity_id)
+                collection = expression.question.form.collection
+            else:
+                collection = get_collection(entity_id)
+
+            user = interfaces.user.get_current_user()
+            if not AuthorisationHelper.can_edit_collection(user=user, collection_id=collection.id):
+                # TODO: FSPT-549 - Reliably show flash messages everywhere, currently these just ... won't show up
+                flash(
+                    f"You cannot edit the “{collection.name}” {collection.type} as it is {collection.status}",
+                    "error",
+                )
+                return redirect(url_for("deliver_grant_funding.list_reports", grant_id=collection.grant_id))
 
             return func(*args, **kwargs)
 

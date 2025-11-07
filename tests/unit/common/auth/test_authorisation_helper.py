@@ -4,7 +4,7 @@ import pytest
 from flask_login import AnonymousUserMixin
 from pytz import utc
 
-from app import AuthorisationHelper
+from app import AuthorisationHelper, CollectionStatusEnum
 from app.common.data.types import RoleEnum
 
 
@@ -201,3 +201,78 @@ class TestAuthorisationHelper:
         else:
             with expected:
                 AuthorisationHelper.has_deliver_grant_role(user=user, grant_id=grant.id, role=role)
+
+    @pytest.mark.parametrize(
+        "collection_status",
+        [status for status in CollectionStatusEnum if status != CollectionStatusEnum.DRAFT],
+    )
+    def test_can_edit_collection_returns_false_for_grant_admin_with_non_draft_collection(
+        self, factories, mocker, collection_status
+    ):
+        user = factories.user.build()
+        organisation = factories.organisation.build()
+        grant = factories.grant.build(organisation=organisation)
+        collection = factories.collection.build(grant=grant, status=collection_status)
+        user_role = factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=grant, organisation=organisation)
+        user.roles = [user_role]
+
+        mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+
+        assert AuthorisationHelper.can_edit_collection(user=user, collection_id=collection.id) is False
+
+    def test_can_edit_collection_returns_true_for_grant_admin_with_draft_collection(self, factories, mocker):
+        user = factories.user.build()
+        organisation = factories.organisation.build()
+        grant = factories.grant.build(organisation=organisation)
+        collection = factories.collection.build(grant=grant, status=CollectionStatusEnum.DRAFT)
+        user_role = factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=grant, organisation=organisation)
+        user.roles = [user_role]
+
+        mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+
+        assert AuthorisationHelper.can_edit_collection(user=user, collection_id=collection.id) is True
+
+    def test_can_edit_collection_returns_true_for_platform_admin_with_draft_collection(self, factories, mocker):
+        user = factories.user.build()
+        grant = factories.grant.build()
+        collection = factories.collection.build(grant=grant, status=CollectionStatusEnum.DRAFT)
+        user_role = factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=None)
+        user.roles = [user_role]
+
+        mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+
+        assert AuthorisationHelper.can_edit_collection(user=user, collection_id=collection.id) is True
+
+    def test_can_edit_collection_returns_false_for_platform_admin_with_non_draft_collection(self, factories, mocker):
+        user = factories.user.build()
+        grant = factories.grant.build()
+        collection = factories.collection.build(grant=grant, status=CollectionStatusEnum.OPEN)
+        user_role = factories.user_role.build(user=user, role=RoleEnum.ADMIN, grant=None)
+        user.roles = [user_role]
+
+        mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+
+        assert AuthorisationHelper.can_edit_collection(user=user, collection_id=collection.id) is False
+
+    def test_can_edit_collection_returns_false_for_anonymous_user(self, factories, mocker):
+        collection = factories.collection.build(status=CollectionStatusEnum.DRAFT)
+        mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
+
+        assert AuthorisationHelper.can_edit_collection(user=AnonymousUserMixin(), collection_id=collection.id) is False
+
+    def test_can_edit_collection_returns_false_for_grant_member(self, factories, mocker):
+        user = factories.user.build()
+        organisation = factories.organisation.build()
+        grant = factories.grant.build(organisation=organisation)
+        collection = factories.collection.build(grant=grant, status=CollectionStatusEnum.DRAFT)
+        user_role = factories.user_role.build(user=user, role=RoleEnum.MEMBER, grant=grant, organisation=organisation)
+        user.roles = [user_role]
+
+        mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+
+        assert AuthorisationHelper.can_edit_collection(user=user, collection_id=collection.id) is False

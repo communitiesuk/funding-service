@@ -6,7 +6,7 @@
 
 {% set page_title = "Reports" %}
 {% set active_item_identifier = "reports" %}
-{% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
+{% set can_edit = authorisation_helper.can_edit_collection(current_user, db_form.collection_id) %}
 
 {% block beforeContent %}
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=db_form.collection, this_page_breadcrumb_item={"text":db_form.title}) }}
@@ -57,10 +57,10 @@
       {% if not db_form.cached_all_components %}
         <p class="govuk-body">This section has no questions.</p>
       {% else %}
-        {{ question_table(db_form, interpolate, role_can_edit=grant_admin) }}
+        {{ question_table(db_form, interpolate, role_can_edit=can_edit) }}
       {% endif %}
 
-      {% if grant_admin %}
+      {% if can_edit %}
         <div class="govuk-button-group">
           <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id) }}"
             >{{ "Add another question" if db_form.cached_questions else "Add a question" }}</a
@@ -69,7 +69,7 @@
         </div>
       {% endif %}
     </div>
-    {% if grant_admin %}
+    {% if can_edit %}
       <div class="govuk-grid-column-full">
         <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage section</h2>
 

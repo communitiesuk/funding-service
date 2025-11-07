@@ -9,7 +9,7 @@ from pydantic import BaseModel, ValidationError
 from wtforms import Field
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.auth.decorators import has_deliver_grant_role
+from app.common.auth.decorators import collection_is_editable, has_deliver_grant_role
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
@@ -106,7 +106,9 @@ def list_reports(grant_id: UUID) -> ResponseReturnValue:
 
     delete_wtform, delete_report = None, None
     if delete_report_id := request.args.get("delete"):
-        if not AuthorisationHelper.has_deliver_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
+        if not AuthorisationHelper.can_edit_collection(
+            user=get_current_user(), collection_id=uuid.UUID(delete_report_id)
+        ):
             return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
 
         delete_report = get_collection(
@@ -159,6 +161,7 @@ def set_up_report(grant_id: UUID) -> ResponseReturnValue:
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/change-name", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
@@ -201,6 +204,7 @@ def list_report_sections(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/form/<uuid:form_id>/move-<direction>")
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def move_section(grant_id: UUID, form_id: UUID, direction: str) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -225,6 +229,7 @@ def move_section(grant_id: UUID, form_id: UUID, direction: str) -> ResponseRetur
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/add-section", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def add_section(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
@@ -267,6 +272,7 @@ def add_section(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     "/grant/<uuid:grant_id>/section/<uuid:form_id>/change-name", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, grant_id=grant_id)
@@ -310,6 +316,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-name", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
@@ -348,6 +355,7 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-display-options", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
@@ -400,6 +408,7 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
     "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-add-another-summary", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def change_group_add_another_summary(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
@@ -436,6 +445,7 @@ def change_group_add_another_summary(grant_id: UUID, group_id: UUID) -> Response
     "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-add-another-options", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
@@ -500,7 +510,7 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
-        if not AuthorisationHelper.has_deliver_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
+        if not AuthorisationHelper.can_edit_collection(user=get_current_user(), collection_id=db_form.collection_id):
             return redirect(url_for("deliver_grant_funding.list_section_questions", grant_id=grant_id, form_id=form_id))
 
         if db_form.collection.live_submissions:
@@ -545,7 +555,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
-        if not AuthorisationHelper.has_deliver_grant_role(grant_id, RoleEnum.ADMIN, user=get_current_user()):
+        if not AuthorisationHelper.can_edit_collection(user=get_current_user(), collection_id=group.form.collection_id):
             return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group_id))
 
         try:
@@ -594,6 +604,7 @@ class AddQuestionGroup(BaseModel):
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -639,6 +650,7 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -700,6 +712,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -759,6 +772,7 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/question/<uuid:component_id>/move-<direction>")
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def move_component(grant_id: UUID, component_id: UUID, direction: str) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
@@ -788,6 +802,7 @@ def move_component(grant_id: UUID, component_id: UUID, direction: str) -> Respon
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
@@ -963,6 +978,7 @@ def _handle_remove_context_for_expression_forms(
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
@@ -1041,6 +1057,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-source", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     add_context_data = _extract_add_context_data_from_session()
@@ -1078,6 +1095,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-question-from-section", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
 
@@ -1194,6 +1212,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # noqa: C901
     # FIXME: It would be better if the add_question and edit_question endpoints were an all-in-one. The complication
@@ -1326,6 +1345,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
     "/grant/<uuid:grant_id>/group/<uuid:group_id>/add_another_guidance", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     group = get_component_by_id(component_id=group_id)
@@ -1397,6 +1417,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
     "/grant/<uuid:grant_id>/question/<uuid:question_id>/guidance", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_component_by_id(component_id=question_id)
@@ -1484,6 +1505,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
     form = ConditionSelectQuestionForm(
@@ -1516,6 +1538,7 @@ def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
@@ -1605,6 +1628,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)
@@ -1700,6 +1724,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
@@ -1777,6 +1802,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)

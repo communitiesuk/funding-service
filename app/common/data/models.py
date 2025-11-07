@@ -179,6 +179,10 @@ class Collection(BaseModel):
     def live_submissions(self) -> list["Submission"]:
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
 
+    @property
+    def is_editable_for_current_status(self) -> bool:
+        return self.status == CollectionStatusEnum.DRAFT
+
 
 class Submission(BaseModel):
     __tablename__ = "submission"

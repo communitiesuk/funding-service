@@ -206,7 +206,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)
 
-    grant_id = factory.LazyAttribute(lambda o: "o.grant.id")
+    grant_id = factory.LazyAttribute(lambda o: o.grant.id)
     grant = factory.SubFactory(_GrantFactory)
 
     @factory.post_generation  # type: ignore
@@ -708,7 +708,11 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     data_type = QuestionDataType.TEXT_SINGLE_LINE
     add_another = False
 
-    form = factory.SubFactory(_FormFactory)
+    form = factory.Maybe(
+        decider="parent",
+        yes_declaration=factory.LazyAttribute(lambda o: o.parent.form),
+        no_declaration=factory.SubFactory(_FormFactory),
+    )
     form_id = factory.LazyAttribute(lambda o: o.form.id)
 
     needs_data_source = factory.LazyAttribute(
