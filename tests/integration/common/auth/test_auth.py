@@ -381,7 +381,9 @@ class TestSSOGetTokenView:
     def test_platform_admin_signin_claims_pending_invitations(self, anonymous_client, factories, db_session):
         grants = factories.grant.create_batch(3)
         for grant in grants:
-            factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+            factories.invitation.create(
+                email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+            )
         assert db_session.scalar(select(func.count()).select_from(Invitation)) == 3
 
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
@@ -440,6 +442,7 @@ class TestSSOGetTokenView:
             # Create an expired invitation
             factories.invitation.create(
                 email="test@communities.gov.uk",
+                organisation=grants[-1].organisation,
                 grant=grants[-1],
                 role=RoleEnum.MEMBER,
                 expires_at_utc=datetime.datetime(2025, 9, 1, 12, 0, 0),

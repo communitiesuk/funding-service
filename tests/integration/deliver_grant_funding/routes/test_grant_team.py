@@ -49,7 +49,9 @@ class TestGrantTeamListUsers:
         self, authenticated_platform_admin_client, factories, templates_rendered
     ):
         grant = factories.grant.create()
-        factories.invitation.create(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+        factories.invitation.create(
+            email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+        )
 
         response = authenticated_platform_admin_client.get(
             url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
