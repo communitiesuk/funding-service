@@ -225,8 +225,6 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
     }
 
     def on_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:
-        model.role = model.permissions[0]
-
         if is_created:
             # Make new invitations last 1 hour by default, since these invitations are very privileged.
             model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
