@@ -79,7 +79,7 @@ ExportData = TypedDict(
 def _sort_export_data_in_place(export_data: ExportData) -> None:
     export_data["users"].sort(key=lambda u: u["email"])
     export_data["user_roles"].sort(
-        key=lambda ur: (ur["user_id"], ur.get("organisation_id"), ur.get("grant_id"), ur["role"])
+        key=lambda ur: (ur["user_id"], ur.get("organisation_id"), ur.get("grant_id"), ur["permissions"])
     )
 
     # Grant-managing orgs first, then by name
@@ -350,10 +350,9 @@ def seed_grants() -> None:  # noqa: C901
             )
         )
         if db_role:
-            db_role.role = role["permissions"][0]
             db_role.permissions = role["permissions"]
         else:
-            role_data = {**role, "role": role["permissions"][0], "permissions": role["permissions"]}
+            role_data = {**role, "permissions": role["permissions"]}
             db_role = UserRole(**role_data)
             db.session.add(db_role)
 

@@ -111,14 +111,6 @@ class UserRole(BaseModel):
         ForeignKey("organisation.id", ondelete="CASCADE"), nullable=True
     )
     grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
-    role: Mapped["RoleEnum"] = mapped_column(
-        SqlEnum(
-            RoleEnum,
-            name="role_enum",
-            validate_strings=True,
-        ),
-        nullable=False,
-    )
     permissions: Mapped[list["RoleEnum"]] = mapped_column(
         postgresql.ARRAY(SqlEnum(RoleEnum, name="role_enum", validate_strings=True)),
         nullable=False,
@@ -142,10 +134,6 @@ class UserRole(BaseModel):
         Index("ix_user_roles_user_id_organisation_id", "user_id", "organisation_id"),
         Index("ix_user_roles_user_id_grant_id", "user_id", "grant_id"),
         Index("ix_user_roles_organisation_id_role_id_grant_id", "user_id", "organisation_id", "grant_id"),
-        CheckConstraint(
-            "role != 'MEMBER' OR organisation_id IS NOT NULL",
-            name="member_role_not_platform",
-        ),
         CheckConstraint(
             (
                 "('MEMBER' != ALL(permissions) AND 'CERTIFIER' != ALL(permissions) AND "
@@ -195,14 +183,6 @@ class Invitation(BaseModel):
         ForeignKey("organisation.id", ondelete="CASCADE"), nullable=True
     )
     grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
-    role: Mapped["RoleEnum"] = mapped_column(
-        SqlEnum(
-            RoleEnum,
-            name="role_enum",
-            validate_strings=True,
-        ),
-        nullable=False,
-    )
     permissions: Mapped[list["RoleEnum"]] = mapped_column(
         postgresql.ARRAY(SqlEnum(RoleEnum, name="role_enum", validate_strings=True)),
         nullable=False,

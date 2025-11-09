@@ -119,13 +119,11 @@ def upsert_user_role(
             user_id=user.id,
             organisation_id=organisation_id,
             grant_id=grant_id,
-            role=permissions[0],
             permissions=permissions,
         )
         .on_conflict_do_update(
             index_elements=["user_id", "organisation_id", "grant_id"],
             set_={
-                "role": permissions[0],
                 "permissions": permissions,
             },
         )
@@ -211,7 +209,6 @@ def create_invitation(
         email=email,
         organisation_id=organisation.id if organisation else None,
         grant_id=grant.id if grant else None,
-        role=permissions[0],
         permissions=permissions,
         expires_at_utc=func.now() + datetime.timedelta(days=7),
     )
