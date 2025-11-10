@@ -64,7 +64,7 @@ dev = [
     "boto3==1.40.69",
     "types-boto3==1.40.69",
     "freezegun==1.5.5",
-    "import-linter==2.5.2",
+    "import-linter==2.6",
     "ty==0.0.1a25",
 ]
 
