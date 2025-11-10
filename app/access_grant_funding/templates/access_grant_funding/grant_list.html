@@ -1,0 +1,28 @@
+{% extends "access_grant_funding/base.html" %}
+
+{% set page_title = "Select a grant" %}
+{% set active_item_identifier = "grants" %}
+
+{% set onboarding_grants = grants | selectattr("status", "in", [enum.grant_status.LIVE, enum.grant_status.ONBOARDING]) | list %}
+{% set draft_grants = grants | selectattr("status", "equalto", enum.grant_status.DRAFT) | list %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Select a grant</h1>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full govuk-!-margin-top-4">
+      {% if grants %}
+        <ul class="govuk-list govuk-list--spaced">
+          {% for grant in grants %}
+            <li><a class="govuk-link govuk-link--no-visited-state" href="#">{{ grant.name }}</a></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="govuk-body">You have access to no grants for this organisation.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

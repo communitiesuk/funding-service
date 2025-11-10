@@ -14,7 +14,7 @@ from app.common.data.base import BaseModel, CIStr
 from app.common.data.types import RoleEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import Grant, Organisation, Submission
+    from app.common.data.models import Grant, GrantRecipient, Organisation, Submission
 
 
 class User(BaseModel):
@@ -80,6 +80,35 @@ class User(BaseModel):
         )""",
         viewonly=True,
         order_by="Grant.name",
+    )
+
+    # this has some overlap with access_grants above but is most interested in the organisation you
+    # have access to
+    # TODO: consider anywhere we're using the grant recipient relationship with how users will be
+    #       testing the behaviour
+    grant_recipients: Mapped[list["GrantRecipient"]] = relationship(
+        "GrantRecipient",
+        secondary="""join(
+            UserRole,
+            Organisation,
+            UserRole.organisation_id == Organisation.id
+        )""",
+        primaryjoin="User.id == UserRole.user_id",
+        # todo: sense check first OR condition, originally GrantRecipient.grant_id == UserRole.grant_id,
+        secondaryjoin="""and_(
+            or_(
+                and_(
+                    GrantRecipient.grant_id == UserRole.grant_id,
+                    GrantRecipient.organisation_id == UserRole.organisation_id
+                ),
+                and_(
+                    GrantRecipient.organisation_id == UserRole.organisation_id,
+                    UserRole.grant_id.is_(None)
+                )
+            ),
+            Organisation.can_manage_grants == False
+        )""",
+        viewonly=True,
     )
 
     last_logged_in_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)

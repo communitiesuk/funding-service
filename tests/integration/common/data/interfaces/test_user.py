@@ -734,6 +734,37 @@ class TestUserGrantRelationships:
         assert len(user.deliver_grants) == 0
         assert len(user.access_grants) == 0
 
+    def test_grant_recipients_direct_grant_access(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        recipient_org = factories.organisation.create(can_manage_grants=False)
+        mhclg = _get_grant_managing_organisation()
+        grant = factories.grant.create(organisation=mhclg)
+        factories.grant_recipient.create(grant=grant, organisation=recipient_org)
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user=user, organisation=recipient_org, grant=grant, permissions=[RoleEnum.MEMBER])
+
+        assert len(user.grant_recipients) == 1
+        assert user.grant_recipients[0].grant.id == grant.id
+        assert user.grant_recipients[0].organisation.id == recipient_org.id
+        assert len(user.deliver_grants) == 0
+
+    def test_grant_recipients_organisation_level_access(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        recipient_org = factories.organisation.create(can_manage_grants=False)
+        mhclg = _get_grant_managing_organisation()
+        grant1 = factories.grant.create(organisation=mhclg)
+        grant2 = factories.grant.create(organisation=mhclg)
+        factories.grant_recipient.create(grant=grant1, organisation=recipient_org)
+        factories.grant_recipient.create(grant=grant2, organisation=recipient_org)
+        user = factories.user.create(email="test@communities.gov.uk")
+        factories.user_role.create(user=user, organisation=recipient_org, grant=None, permissions=[RoleEnum.ADMIN])
+
+        assert len(user.grant_recipients) == 2
+        assert {g.grant.id for g in user.grant_recipients} == {grant1.id, grant2.id}
+        assert {g.organisation.id for g in user.grant_recipients} == {recipient_org.id, recipient_org.id}
+        assert len(user.deliver_grants) == 0
 
 class TestGetUsersWithPermission:
     def test_returns_users_with_specific_permission(self, factories, db_session):

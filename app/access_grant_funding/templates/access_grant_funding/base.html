@@ -12,10 +12,14 @@
     mhclgHeader(
       params={
         "homepageUrl": "#",
-        "assetPath": assetPath
+        "assetPath": assetPath,
+        "productName": "MHCLG Grant funding",
+        "isAccess": true
       },
       currentUser=current_user,
     )
   }}
+  {# TODO: header shows current organisation if the user has access to multiple #}
+  {#       header shows current grant #}
   {{ accessGrantFundingServiceNavigation(nav_items, right_nav_items) }}
 {% endblock header %}
