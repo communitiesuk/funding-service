@@ -483,7 +483,7 @@ class TestUpdateCollection:
             user=user,
             organisation=grant_recipient.organisation,
             grant=grant,
-            role=RoleEnum.MEMBER,
+            permissions=[RoleEnum.MEMBER],
         )
 
         updated_collection = update_collection(collection, status=to_status)

@@ -153,7 +153,7 @@ class TestGetGrantRecipientUsersCount:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         count = get_grant_recipient_users_count(grant)
@@ -166,7 +166,7 @@ class TestGetGrantRecipientUsersCount:
         users = factories.user.create_batch(3)
         for user in users:
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
             )
 
         count = get_grant_recipient_users_count(grant)
@@ -179,12 +179,12 @@ class TestGetGrantRecipientUsersCount:
 
         user1 = factories.user.create()
         factories.user_role.create(
-            user=user1, organisation=grant_recipients[0].organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user1, organisation=grant_recipients[0].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         user2 = factories.user.create()
         factories.user_role.create(
-            user=user2, organisation=grant_recipients[1].organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user2, organisation=grant_recipients[1].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         count = get_grant_recipient_users_count(grant)
@@ -197,7 +197,7 @@ class TestGetGrantRecipientUsersCount:
 
         grant_team_user = factories.user.create()
         factories.user_role.create(
-            user=grant_team_user, organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=grant_team_user, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         count = get_grant_recipient_users_count(grant)
@@ -208,7 +208,7 @@ class TestGetGrantRecipientUsersCount:
         grant = factories.grant.create()
         factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
 
         count = get_grant_recipient_users_count(grant)
 
@@ -220,7 +220,7 @@ class TestGetGrantRecipientUsersCount:
         grant_recipient = factories.grant_recipient.create(grant=grant1)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant2, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant2, permissions=[RoleEnum.MEMBER]
         )
 
         count = get_grant_recipient_users_count(grant1)
@@ -249,7 +249,7 @@ class TestAllGrantRecipientsHaveUsers:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         result = all_grant_recipients_have_users(grant)
@@ -263,7 +263,7 @@ class TestAllGrantRecipientsHaveUsers:
         for grant_recipient in grant_recipients:
             user = factories.user.create()
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
             )
 
         result = all_grant_recipients_have_users(grant)
@@ -276,7 +276,7 @@ class TestAllGrantRecipientsHaveUsers:
 
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipients[0].organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipients[0].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         result = all_grant_recipients_have_users(grant)
@@ -290,7 +290,7 @@ class TestAllGrantRecipientsHaveUsers:
 
         for user in users:
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
             )
 
         result = all_grant_recipients_have_users(grant)
@@ -301,7 +301,7 @@ class TestAllGrantRecipientsHaveUsers:
         grant = factories.grant.create()
         factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
 
         result = all_grant_recipients_have_users(grant)
 
@@ -313,7 +313,7 @@ class TestAllGrantRecipientsHaveUsers:
         grant_recipient = factories.grant_recipient.create(grant=grant1)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant2, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant2, permissions=[RoleEnum.MEMBER]
         )
 
         result = all_grant_recipients_have_users(grant1)
@@ -325,7 +325,7 @@ class TestAllGrantRecipientsHaveUsers:
         factories.grant_recipient.create(grant=grant)
         grant_team_user = factories.user.create()
         factories.user_role.create(
-            user=grant_team_user, organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=grant_team_user, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         result = all_grant_recipients_have_users(grant)
@@ -356,7 +356,7 @@ class TestGetGrantRecipientUsersByOrganisation:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         result = get_grant_recipient_users_by_organisation(grant)
@@ -372,7 +372,7 @@ class TestGetGrantRecipientUsersByOrganisation:
         users = factories.user.create_batch(3)
         for user in users:
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
             )
 
         result = get_grant_recipient_users_by_organisation(grant)
@@ -392,7 +392,7 @@ class TestGetGrantRecipientUsersByOrganisation:
             users_per_recipient[grant_recipient.id] = users
             for user in users:
                 factories.user_role.create(
-                    user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+                    user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
                 )
 
         result = get_grant_recipient_users_by_organisation(grant)
@@ -411,10 +411,10 @@ class TestGetGrantRecipientUsersByOrganisation:
         user1 = factories.user.create()
         user2 = factories.user.create()
         factories.user_role.create(
-            user=user1, organisation=grant_recipient.organisation, grant=grant1, role=RoleEnum.MEMBER
+            user=user1, organisation=grant_recipient.organisation, grant=grant1, permissions=[RoleEnum.MEMBER]
         )
         factories.user_role.create(
-            user=user2, organisation=grant_recipient.organisation, grant=grant2, role=RoleEnum.MEMBER
+            user=user2, organisation=grant_recipient.organisation, grant=grant2, permissions=[RoleEnum.MEMBER]
         )
 
         result = get_grant_recipient_users_by_organisation(grant1)
@@ -430,9 +430,9 @@ class TestGetGrantRecipientUsersByOrganisation:
         member_user = factories.user.create()
         admin_user = factories.user.create()
         factories.user_role.create(
-            user=member_user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=member_user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
-        factories.user_role.create(user=admin_user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=admin_user, permissions=[RoleEnum.ADMIN])
 
         result = get_grant_recipient_users_by_organisation(grant)
 
@@ -455,7 +455,7 @@ class TestGetGrantRecipientUserRoles:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create(name="Test User", email="test@example.com")
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         result = get_grant_recipient_user_roles(grant)
@@ -473,7 +473,7 @@ class TestGetGrantRecipientUserRoles:
         users = factories.user.create_batch(3)
         for user in users:
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
             )
 
         result = get_grant_recipient_user_roles(grant)
@@ -492,10 +492,10 @@ class TestGetGrantRecipientUserRoles:
         user2 = factories.user.create(name="User 2")
 
         factories.user_role.create(
-            user=user1, organisation=grant_recipients[0].organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user1, organisation=grant_recipients[0].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
         factories.user_role.create(
-            user=user2, organisation=grant_recipients[1].organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user2, organisation=grant_recipients[1].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         result = get_grant_recipient_user_roles(grant)
@@ -512,10 +512,10 @@ class TestGetGrantRecipientUserRoles:
         user1 = factories.user.create()
         user2 = factories.user.create()
         factories.user_role.create(
-            user=user1, organisation=grant_recipient.organisation, grant=grant1, role=RoleEnum.MEMBER
+            user=user1, organisation=grant_recipient.organisation, grant=grant1, permissions=[RoleEnum.MEMBER]
         )
         factories.user_role.create(
-            user=user2, organisation=grant_recipient.organisation, grant=grant2, role=RoleEnum.MEMBER
+            user=user2, organisation=grant_recipient.organisation, grant=grant2, permissions=[RoleEnum.MEMBER]
         )
 
         result = get_grant_recipient_user_roles(grant1)
@@ -529,9 +529,9 @@ class TestGetGrantRecipientUserRoles:
         member_user = factories.user.create()
         admin_user = factories.user.create()
         factories.user_role.create(
-            user=member_user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=member_user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
-        factories.user_role.create(user=admin_user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=admin_user, permissions=[RoleEnum.ADMIN])
 
         result = get_grant_recipient_user_roles(grant)
 
@@ -545,7 +545,7 @@ class TestRevokeGrantRecipientUserRole:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         result = revoke_grant_recipient_user_role(user.id, grant_recipient.organisation_id, grant.id)
@@ -570,10 +570,10 @@ class TestRevokeGrantRecipientUserRole:
         user1 = factories.user.create()
         user2 = factories.user.create()
         factories.user_role.create(
-            user=user1, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user1, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
         factories.user_role.create(
-            user=user2, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user2, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         result = revoke_grant_recipient_user_role(user1.id, grant_recipient.organisation_id, grant.id)
@@ -590,7 +590,7 @@ class TestRevokeGrantRecipientUserRole:
         grant_recipient = factories.grant_recipient.create(grant=grant1)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant1, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant1, permissions=[RoleEnum.MEMBER]
         )
 
         result = revoke_grant_recipient_user_role(user.id, grant_recipient.organisation_id, grant2.id)
@@ -606,7 +606,7 @@ class TestRevokeGrantRecipientUserRole:
         grant_recipient2 = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient1.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient1.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         result = revoke_grant_recipient_user_role(user.id, grant_recipient2.organisation_id, grant.id)
@@ -619,7 +619,7 @@ class TestRevokeGrantRecipientUserRole:
     def test_does_not_revoke_non_member_roles(self, db_session, factories):
         grant = factories.grant.create()
         user = factories.user.create()
-        admin_role = factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        admin_role = factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
 
         result = revoke_grant_recipient_user_role(user.id, admin_role.organisation_id, grant.id)
 
@@ -630,7 +630,7 @@ class TestRevokeGrantRecipientUserRole:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, role=RoleEnum.MEMBER
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         initial_roles_count = len(user.roles)
@@ -644,6 +644,8 @@ class TestRevokeGrantRecipientUserRole:
 
     def test_will_not_revoke_grant_managing_org_role(self, db_session, factories):
         grant = factories.grant.create()
-        user_role = factories.user_role.create(grant=grant, organisation=grant.organisation, role=RoleEnum.MEMBER)
+        user_role = factories.user_role.create(
+            grant=grant, organisation=grant.organisation, permissions=[RoleEnum.MEMBER]
+        )
 
         assert revoke_grant_recipient_user_role(user_role.user_id, grant.organisation_id, grant.id) == 0

@@ -104,7 +104,7 @@ def upsert_user_by_azure_ad_subject_id(
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, InvalidUserRoleError)])
 def upsert_user_role(
-    user: User, role: RoleEnum, organisation_id: uuid.UUID | None = None, grant_id: uuid.UUID | None = None
+    user: User, permissions: list[RoleEnum], organisation_id: uuid.UUID | None = None, grant_id: uuid.UUID | None = None
 ) -> UserRole:
     # As with the `get_or_create_user` function, this feels like it should be a `on_conflict_do_nothing`,
     # except in that case the DB won't return any rows. So we use the same behaviour as above to ensure we always get a
@@ -119,14 +119,14 @@ def upsert_user_role(
             user_id=user.id,
             organisation_id=organisation_id,
             grant_id=grant_id,
-            role=role,
-            permissions=[role],
+            role=permissions[0],
+            permissions=permissions,
         )
         .on_conflict_do_update(
             index_elements=["user_id", "organisation_id", "grant_id"],
             set_={
-                "role": role,
-                "permissions": [role],
+                "role": permissions[0],
+                "permissions": permissions,
             },
         )
         .returning(UserRole),
@@ -142,7 +142,7 @@ def set_platform_admin_role_for_user(user: User) -> UserRole:
     # Before making someone a platform admin we should remove any other roles they might have assigned to them, as a
     # platform admin should only ever have that one role
     remove_all_roles_from_user(user)
-    platform_admin_role = upsert_user_role(user, role=RoleEnum.ADMIN)
+    platform_admin_role = upsert_user_role(user, permissions=[RoleEnum.ADMIN])
     return platform_admin_role
 
 
@@ -151,7 +151,7 @@ def remove_platform_admin_role_from_user(user: User) -> None:
     statement = delete(UserRole).where(
         and_(
             UserRole.user_id == user.id,
-            UserRole.role == RoleEnum.ADMIN,
+            UserRole.permissions.contains([RoleEnum.ADMIN]),
             UserRole.organisation_id.is_(None),
             UserRole.grant_id.is_(None),
         )
@@ -161,9 +161,11 @@ def remove_platform_admin_role_from_user(user: User) -> None:
     db.session.expire(user)
 
 
-def set_grant_team_role_for_user(user: User, grant: Grant, role: RoleEnum) -> UserRole:
+def set_grant_team_role_for_user(user: User, grant: Grant, permissions: list[RoleEnum]) -> UserRole:
     """Used for setting (deliver) grant team membership - NOT grant recipient team membership"""
-    grant_team_role = upsert_user_role(user=user, organisation_id=grant.organisation_id, grant_id=grant.id, role=role)
+    grant_team_role = upsert_user_role(
+        user=user, organisation_id=grant.organisation_id, grant_id=grant.id, permissions=permissions
+    )
     return grant_team_role
 
 
@@ -184,9 +186,9 @@ def remove_grant_team_role_from_user(user: User, grant_id: uuid.UUID) -> None:
 @flush_and_rollback_on_exceptions
 def create_invitation(
     email: str,
+    permissions: list[RoleEnum],
     grant: Grant | None = None,
     organisation: Organisation | None = None,
-    role: RoleEnum | None = None,
 ) -> Invitation:
     if organisation is None and grant is not None:
         raise ValueError("If specifying grant, must also specify organisation")
@@ -209,8 +211,8 @@ def create_invitation(
         email=email,
         organisation_id=organisation.id if organisation else None,
         grant_id=grant.id if grant else None,
-        role=role,
-        permissions=[role],
+        role=permissions[0],
+        permissions=permissions,
         expires_at_utc=func.now() + datetime.timedelta(days=7),
     )
     db.session.add(invitation)
@@ -255,7 +257,9 @@ def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: s
         name=name,
     )
     for invite in invitations:
-        upsert_user_role(user=user, organisation_id=invite.organisation_id, grant_id=invite.grant_id, role=invite.role)
+        upsert_user_role(
+            user=user, organisation_id=invite.organisation_id, grant_id=invite.grant_id, permissions=invite.permissions
+        )
         claim_invitation(invitation=invite, user=user)
     return user
 
@@ -280,6 +284,8 @@ def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_addr
 def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant) -> None:
     existing_user = get_user_by_email(email_address=email_address)
     if existing_user:
-        set_grant_team_role_for_user(user=existing_user, grant=grant, role=RoleEnum.MEMBER)
+        set_grant_team_role_for_user(user=existing_user, grant=grant, permissions=[RoleEnum.MEMBER])
     else:
-        create_invitation(email=email_address, organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER)
+        create_invitation(
+            email=email_address, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )

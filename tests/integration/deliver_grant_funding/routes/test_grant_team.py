@@ -50,7 +50,7 @@ class TestGrantTeamListUsers:
     ):
         grant = factories.grant.create()
         factories.invitation.create(
-            email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+            email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
         response = authenticated_platform_admin_client.get(
@@ -63,7 +63,7 @@ class TestGrantTeamListUsers:
     def test_list_users_for_grant_with_member(self, authenticated_grant_member_client, templates_rendered, factories):
         grant = factories.grant.create()
         user = get_current_user()
-        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
         authenticated_grant_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
         users = (
             templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").grant_team_users
@@ -77,9 +77,9 @@ class TestGrantTeamListUsers:
         grant = factories.grant.create()
         user = get_current_user()
         grant_recipient = factories.grant_recipient.create(grant=grant)
-        factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+        factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
         gr_user = factories.user_role.create(
-            role=RoleEnum.MEMBER, grant=grant, organisation=grant_recipient.organisation
+            permissions=[RoleEnum.MEMBER], grant=grant, organisation=grant_recipient.organisation
         ).user
         authenticated_grant_member_client.get(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id))
         users = (
@@ -145,7 +145,7 @@ class TestGrantTeamAddUser:
         grant = client.grant or factories.grant.create()
 
         user = factories.user.create(email="test1.member@communities.gov.uk")
-        factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
         client.post(
             url_for("deliver_grant_funding.add_user_to_grant", grant_id=grant.id),
             json={"user_email": "Test1.Member@Communities.gov.uk"},
@@ -172,7 +172,7 @@ class TestGrantTeamAddUser:
         assert (
             usable_invites_from_db[0].email == "test1@communities.gov.uk"
             and usable_invites_from_db[0].grant_id == grant.id
-            and usable_invites_from_db[0].role == RoleEnum.MEMBER
+            and RoleEnum.MEMBER in usable_invites_from_db[0].permissions
         )
 
     def test_add_user_to_grant_adds_existing_user_no_invitation(
@@ -189,4 +189,4 @@ class TestGrantTeamAddUser:
         usable_invites_from_db = db_session.query(Invitation).where(Invitation.is_usable.is_(True)).all()
         assert not usable_invites_from_db
         assert len(user.roles) == 1
-        assert user.roles[0].grant_id == grant.id and user.roles[0].role == RoleEnum.MEMBER
+        assert user.roles[0].grant_id == grant.id and RoleEnum.MEMBER in user.roles[0].permissions

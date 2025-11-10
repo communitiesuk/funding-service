@@ -44,7 +44,9 @@ def all_grant_recipients_have_users(grant: "Grant") -> bool:
                 UserRole.grant_id == grant.id,
                 UserRole.organisation_id == grant_recipient.organisation_id,
                 Organisation.can_manage_grants.is_(False),
-                UserRole.role == RoleEnum.MEMBER,  # TODO: might become a 'DATA_PROVIDER' permission with Access work
+                UserRole.permissions.contains(
+                    [RoleEnum.MEMBER]
+                ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
             )
         )
         if not user_count or user_count == 0:
@@ -61,7 +63,9 @@ def get_grant_recipient_users_count(grant: Grant) -> int:
         .where(
             Organisation.can_manage_grants.is_(False),
             UserRole.grant_id == grant.id,
-            UserRole.role == RoleEnum.MEMBER,  # TODO: might become a 'DATA_PROVIDER' permission with Access work
+            UserRole.permissions.contains(
+                [RoleEnum.MEMBER]
+            ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
         )
     )
     return db.session.scalar(statement) or 0
@@ -80,7 +84,9 @@ def get_grant_recipient_users_by_organisation(grant: Grant) -> dict[GrantRecipie
                 Organisation.can_manage_grants.is_(False),
                 UserRole.organisation_id == grant_recipient.organisation_id,
                 UserRole.grant_id == grant.id,
-                UserRole.role == RoleEnum.MEMBER,  # TODO: might become a 'DATA_PROVIDER' permission with Access work
+                UserRole.permissions.contains(
+                    [RoleEnum.MEMBER]
+                ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
             )
         )
         users = db.session.scalars(statement).all()
@@ -100,7 +106,9 @@ def get_grant_recipient_user_roles(grant: Grant) -> Sequence[UserRole]:
         .join(Organisation, Organisation.id == UserRole.organisation_id)
         .where(
             UserRole.grant_id == grant.id,
-            UserRole.role == RoleEnum.MEMBER,  # TODO: might become a 'DATA_PROVIDER' permission with Access work
+            UserRole.permissions.contains(
+                [RoleEnum.MEMBER]
+            ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
         )
     )
 
@@ -118,7 +126,9 @@ def revoke_grant_recipient_user_role(user_id: uuid.UUID, organisation_id: uuid.U
                 UserRole.organisation_id == organisation_id,
                 Organisation.can_manage_grants.is_(False),
                 UserRole.grant_id == grant_id,
-                UserRole.role == RoleEnum.MEMBER,  # TODO: might become a 'DATA_PROVIDER' permission with Access work
+                UserRole.permissions.contains(
+                    [RoleEnum.MEMBER]
+                ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
             )
         )
     )

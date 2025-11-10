@@ -50,6 +50,7 @@ class OrganisationType(enum.StrEnum):
     WELSH_UNITARY_AUTHORITY = "Welsh Unitary Authority"
 
 
+# TODO: Rename PermissionEnum
 class RoleEnum(enum.StrEnum):
     # TODO: new 'PLATFORM_ADMIN' role that specifically only grants access to our admin panel?
     ADMIN = (
@@ -59,12 +60,6 @@ class RoleEnum(enum.StrEnum):
     MEMBER = "member"  # Basic read level permissions
     DATA_PROVIDER = "data-provider"
     CERTIFIER = "certifier"
-
-
-# If a user roles implies they get other (lower) roles as well, list the role here with the roles they should get.
-GRANT_ROLES_MAPPING = {
-    RoleEnum.ADMIN: [role for role in RoleEnum],
-}
 
 
 class AuthMethodEnum(str, enum.Enum):

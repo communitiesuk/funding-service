@@ -222,14 +222,14 @@ class TestUpsertUserRole:
         grant_id_value = grant_id if grant else None
 
         user_role = interfaces.user.upsert_user_role(
-            user=user, organisation_id=organisation_id_value, grant_id=grant_id_value, role=role
+            user=user, organisation_id=organisation_id_value, grant_id=grant_id_value, permissions=[role]
         )
         assert user_role.user_id == user.id
-        assert (user_role.user_id, user_role.organisation_id, user_role.grant_id, user_role.role) == (
+        assert (user_role.user_id, user_role.organisation_id, user_role.grant_id, user_role.permissions) == (
             user.id,
             organisation_id_value,
             grant_id_value,
-            role,
+            [role],
         )
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
@@ -243,28 +243,30 @@ class TestUpsertUserRole:
         grant = factories.grant.create()
 
         interfaces.user.upsert_user_role(
-            user=user, organisation_id=organisation.id, grant_id=grant.id, role=RoleEnum.ADMIN
+            user=user, organisation_id=organisation.id, grant_id=grant.id, permissions=[RoleEnum.ADMIN]
         )
         interfaces.user.upsert_user_role(
-            user=user, organisation_id=organisation.id, grant_id=None, role=RoleEnum.MEMBER
+            user=user, organisation_id=organisation.id, grant_id=None, permissions=[RoleEnum.MEMBER]
         )
 
         user_roles = db_session.query(UserRole).all()
-        assert {(ur.user_id, ur.organisation_id, ur.grant_id, ur.role) for ur in user_roles} == {
-            (user.id, organisation.id, grant.id, RoleEnum.ADMIN),
-            (user.id, organisation.id, None, RoleEnum.MEMBER),
+        assert {
+            (ur.user_id, ur.organisation_id, ur.grant_id, tuple(r for r in ur.permissions)) for ur in user_roles
+        } == {
+            (user.id, organisation.id, grant.id, (RoleEnum.ADMIN,)),
+            (user.id, organisation.id, None, (RoleEnum.MEMBER,)),
         }
 
     def test_add_existing_user_role(self, db_session, factories):
         user = factories.user.create(email="test@communities.gov.uk")
-        interfaces.user.upsert_user_role(user=user, role=RoleEnum.ADMIN)
+        interfaces.user.upsert_user_role(user=user, permissions=[RoleEnum.ADMIN])
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
-        user_role = interfaces.user.upsert_user_role(user=user, role=RoleEnum.ADMIN)
+        user_role = interfaces.user.upsert_user_role(user=user, permissions=[RoleEnum.ADMIN])
         assert user_role.user_id == user.id
         assert (user_role.organisation_id, user_role.grant_id) == (None, None)
-        assert user_role.role == RoleEnum.ADMIN
+        assert RoleEnum.ADMIN in user_role.permissions
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
@@ -272,17 +274,17 @@ class TestUpsertUserRole:
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
         interfaces.user.upsert_user_role(
-            user=user, organisation_id=grant.organisation.id, grant_id=grant.id, role=RoleEnum.MEMBER
+            user=user, organisation_id=grant.organisation.id, grant_id=grant.id, permissions=[RoleEnum.MEMBER]
         )
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         user_role = interfaces.user.upsert_user_role(
-            user=user, organisation_id=grant.organisation.id, grant_id=grant.id, role=RoleEnum.ADMIN
+            user=user, organisation_id=grant.organisation.id, grant_id=grant.id, permissions=[RoleEnum.ADMIN]
         )
         assert user_role.user == user
         assert (user_role.organisation_id, user_role.grant_id) == (grant.organisation.id, grant.id)
-        assert user_role.role == RoleEnum.ADMIN
+        assert RoleEnum.ADMIN in user_role.permissions
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
@@ -305,7 +307,7 @@ class TestUpsertUserRole:
                 user=user,
                 organisation_id=organisation_id_value,
                 grant_id=grant_id_value,
-                role=role,
+                permissions=[role],
             )
         assert isinstance(error.value, InvalidUserRoleError)
         assert error.value.message == message
@@ -324,7 +326,7 @@ class TestSetUserRoleInterfaces:
 
     def test_set_platform_admin_role_already_exists(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         platform_admin_role = interfaces.user.set_platform_admin_role_for_user(user=user)
@@ -334,9 +336,9 @@ class TestSetUserRoleInterfaces:
 
     def test_set_platform_admin_multiple_roles_already_exists(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
         grant = factories.grant.create()
-        factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
 
         platform_admin_role = interfaces.user.set_platform_admin_role_for_user(user=user)
@@ -349,7 +351,9 @@ class TestSetUserRoleInterfaces:
         grant = factories.grant.create()
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
 
-        grant_team_role = interfaces.user.set_grant_team_role_for_user(user=user, grant=grant, role=RoleEnum.MEMBER)
+        grant_team_role = interfaces.user.set_grant_team_role_for_user(
+            user=user, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
         assert grant_team_role.grant_id == grant.id and grant_team_role.user_id == user.id
         assert len(user.roles) == 1
 
@@ -358,10 +362,12 @@ class TestSetUserRoleInterfaces:
     def test_set_grant_team_role_already_exists(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
-        grant_team_role = interfaces.user.set_grant_team_role_for_user(user=user, grant=grant, role=RoleEnum.MEMBER)
+        grant_team_role = interfaces.user.set_grant_team_role_for_user(
+            user=user, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
         assert grant_team_role.user_id == user.id and grant_team_role.grant_id == grant.id
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
@@ -370,7 +376,7 @@ class TestSetUserRoleInterfaces:
 class TestRemoveUserRoleInterfaces:
     def test_remove_platform_admin_role_from_user(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         interfaces.user.remove_platform_admin_role_from_user(user)
@@ -381,19 +387,19 @@ class TestRemoveUserRoleInterfaces:
     def test_remove_platform_admin_role_when_only_other_roles_exist(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         interfaces.user.remove_platform_admin_role_from_user(user)
         assert len(user.roles) == 1
-        assert user.roles[0].role == RoleEnum.MEMBER and user.roles[0].grant_id == grant.id
+        assert RoleEnum.MEMBER in user.roles[0].permissions and user.roles[0].grant_id == grant.id
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_remove_grant_team_role_from_user(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        factories.user_role.create(user=user, grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         interfaces.user.remove_grant_team_role_from_user(user, grant_id=grant.id)
@@ -405,21 +411,21 @@ class TestRemoveUserRoleInterfaces:
         user = factories.user.create(email="test@communities.gov.uk")
         grants = factories.grant.create_batch(2)
         for grant in grants:
-            factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+            factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
 
         interfaces.user.remove_grant_team_role_from_user(user, grant_id=grants[0].id)
         assert len(user.roles) == 1
-        assert user.roles[0].role == RoleEnum.MEMBER and user.roles[0].grant_id == grants[1].id
+        assert RoleEnum.MEMBER in user.roles[0].permissions and user.roles[0].grant_id == grants[1].id
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     def test_remove_all_roles_from_user(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
         grants = factories.grant.create_batch(2)
         for grant in grants:
-            factories.user_role.create(user=user, role=RoleEnum.MEMBER, grant=grant)
+            factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 3
 
         interfaces.user.remove_all_roles_from_user(user)
@@ -433,12 +439,12 @@ class TestInvitations:
     def test_create_invitation(self, db_session, factories):
         organisation = factories.organisation.create()
         invitation = interfaces.user.create_invitation(
-            email="test@email.com", organisation=organisation, role=RoleEnum.MEMBER
+            email="test@email.com", organisation=organisation, permissions=[RoleEnum.MEMBER]
         )
         invite_from_db = db_session.get(Invitation, invitation.id)
         assert invite_from_db is not None
         assert invite_from_db.email == "test@email.com"
-        assert invite_from_db.role == RoleEnum.MEMBER
+        assert RoleEnum.MEMBER in invite_from_db.permissions
         assert invite_from_db.expires_at_utc == datetime.strptime("2023-10-08 12:00:00", freeze_time_format)
         assert invite_from_db.claimed_at_utc is None
         assert invite_from_db.grant_id is None
@@ -449,19 +455,21 @@ class TestInvitations:
     def test_create_invitation_requires_org_if_grant_set(self, db_session, factories) -> None:
         grant = factories.grant.create()
         with pytest.raises(ValueError) as e:
-            interfaces.user.create_invitation(email="test@communities.gov.uk", grant=grant, role=RoleEnum.MEMBER)
+            interfaces.user.create_invitation(
+                email="test@communities.gov.uk", grant=grant, permissions=[RoleEnum.MEMBER]
+            )
         assert "If specifying grant, must also specify organisation" in str(e.value)
 
     @pytest.mark.freeze_time("2023-10-01 12:00:00")
     def test_create_invitation_expires_existing_invitations(self, db_session, factories) -> None:
         grant = factories.grant.create()
         factories.invitation.create(
-            email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+            email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
         invite_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
         assert len(invite_from_db) == 1
         new_invitation = interfaces.user.create_invitation(
-            email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+            email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
         usable_invite_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
         assert len(usable_invite_from_db) == 1
@@ -471,13 +479,13 @@ class TestInvitations:
     def test_get_invitation(self, db_session, factories):
         organisation = factories.organisation.create()
         invitation = factories.invitation.create(
-            organisation=organisation, role=RoleEnum.MEMBER, email="test@email.com"
+            organisation=organisation, permissions=[RoleEnum.MEMBER], email="test@email.com"
         )
         invite_from_db = interfaces.user.get_invitation(invitation.id)
         assert invite_from_db is not None
         assert invite_from_db.is_usable is True
         assert invite_from_db.email == "test@email.com"
-        assert invite_from_db.role == RoleEnum.MEMBER
+        assert RoleEnum.MEMBER in invite_from_db.permissions
         assert invite_from_db.expires_at_utc == datetime.strptime("2025-10-08 12:00:00", freeze_time_format)
 
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
@@ -485,7 +493,7 @@ class TestInvitations:
         user = factories.user.create(email="new_user@email.com")
         organisation = factories.organisation.create()
         invitation = factories.invitation.create(
-            organisation=organisation, role=RoleEnum.MEMBER, email="new_user@email.com"
+            organisation=organisation, permissions=[RoleEnum.MEMBER], email="new_user@email.com"
         )
         assert invitation.claimed_at_utc is None
         assert invitation.is_usable is True
@@ -504,7 +512,7 @@ class TestInvitations:
             email="test@communities.gov.uk",
             organisation=grants[-1].organisation,
             grant=grants[-1],
-            role=RoleEnum.MEMBER,
+            permissions=[RoleEnum.MEMBER],
             expires_at_utc=datetime(2025, 9, 1, 12, 0, 0),
         )
 
@@ -513,14 +521,17 @@ class TestInvitations:
             email="test@communities.gov.uk",
             organisation=grants[-2].organisation,
             grant=grants[-2],
-            role=RoleEnum.MEMBER,
+            permissions=[RoleEnum.MEMBER],
             expires_at_utc=datetime(2025, 10, 4, 12, 0, 0),
             claimed_at_utc=datetime(2025, 9, 30, 12, 0, 0),
         )
 
         for grant in grants[:3]:
             factories.invitation.create(
-                email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+                email="test@communities.gov.uk",
+                organisation=grant.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER],
             )
 
         usable_invitations = interfaces.user.get_usable_invitations_by_email(email="test@communities.gov.uk")
@@ -532,7 +543,10 @@ class TestInvitations:
         invitations = []
         for grant in grants:
             invitation = factories.invitation.create(
-                email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+                email="test@communities.gov.uk",
+                organisation=grant.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER],
             )
             invitations.append(invitation)
 
@@ -541,7 +555,7 @@ class TestInvitations:
             email="different_email@communities.gov.uk",
             organisation=grant.organisation,
             grant=grant,
-            role=RoleEnum.MEMBER,
+            permissions=[RoleEnum.MEMBER],
         )
 
         interfaces.user.create_user_and_claim_invitations(
@@ -564,7 +578,9 @@ class TestInvitations:
         interfaces.user.add_grant_member_role_or_create_invitation(email_address="test@communities.gov.uk", grant=grant)
 
         assert db_session.scalar(select(func.count()).select_from(Invitation)) == 0
-        assert len(user.roles) == 1 and user.roles[0].grant_id == grant.id and user.roles[0].role == RoleEnum.MEMBER
+        assert (
+            len(user.roles) == 1 and user.roles[0].grant_id == grant.id and RoleEnum.MEMBER in user.roles[0].permissions
+        )
 
     def test_grant_member_add_role_or_create_invitation_creates_invitation(self, db_session, factories) -> None:
         grant = factories.grant.create()
@@ -573,7 +589,7 @@ class TestInvitations:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
         invite_from_db = db_session.scalar(select(Invitation).where(Invitation.is_usable.is_(True)))
-        assert invite_from_db.grant_id == grant.id and invite_from_db.role == RoleEnum.MEMBER
+        assert invite_from_db.grant_id == grant.id and RoleEnum.MEMBER in invite_from_db.permissions
 
     def test_upsert_platform_admin_user_and_set_platform_admin_role_claims_invitations(
         self, db_session, factories
@@ -581,14 +597,17 @@ class TestInvitations:
         grants = factories.grant.create_batch(3)
         for grant in grants:
             factories.invitation.create(
-                email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, role=RoleEnum.MEMBER
+                email="test@communities.gov.uk",
+                organisation=grant.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER],
             )
 
         factories.invitation.create(
             email="different_email@communities.gov.uk",
             organisation=grants[0].organisation,
             grant=grants[0],
-            role=RoleEnum.MEMBER,
+            permissions=[RoleEnum.MEMBER],
         )
 
         interfaces.user.upsert_user_and_set_platform_admin_role(
@@ -603,7 +622,7 @@ class TestInvitations:
         user_from_db = db_session.scalar(select(User).where(User.azure_ad_subject_id == "oih12373"))
         assert len(user_from_db.roles) == 1
         user_from_db_role = user_from_db.roles[0]
-        assert user_from_db_role.role == RoleEnum.ADMIN
+        assert RoleEnum.ADMIN in user_from_db_role.permissions
         assert (user_from_db_role.organisation_id, user_from_db_role.grant_id) == (None, None)
 
 
@@ -614,7 +633,7 @@ class TestUserGrantRelationships:
         mhclg = _get_grant_managing_organisation()
         grant = factories.grant.create(organisation=mhclg)
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, organisation=mhclg, grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, organisation=mhclg, grant=grant, permissions=[RoleEnum.MEMBER])
 
         assert len(user.deliver_grants) == 1
         assert user.deliver_grants[0].id == grant.id
@@ -627,7 +646,7 @@ class TestUserGrantRelationships:
         grant1 = factories.grant.create(organisation=mhclg)
         grant2 = factories.grant.create(organisation=mhclg)
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, organisation=mhclg, grant=None, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, organisation=mhclg, grant=None, permissions=[RoleEnum.ADMIN])
 
         assert len(user.deliver_grants) == 2
         assert {g.id for g in user.deliver_grants} == {grant1.id, grant2.id}
@@ -641,7 +660,7 @@ class TestUserGrantRelationships:
         grant = factories.grant.create(organisation=mhclg)
         factories.grant_recipient.create(grant=grant, organisation=recipient_org)
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, organisation=recipient_org, grant=grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, organisation=recipient_org, grant=grant, permissions=[RoleEnum.MEMBER])
 
         assert len(user.access_grants) == 1
         assert user.access_grants[0].id == grant.id
@@ -657,7 +676,7 @@ class TestUserGrantRelationships:
         factories.grant_recipient.create(grant=grant1, organisation=recipient_org)
         factories.grant_recipient.create(grant=grant2, organisation=recipient_org)
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, organisation=recipient_org, grant=None, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, organisation=recipient_org, grant=None, permissions=[RoleEnum.ADMIN])
 
         assert len(user.access_grants) == 2
         assert {g.id for g in user.access_grants} == {grant1.id, grant2.id}
@@ -672,8 +691,10 @@ class TestUserGrantRelationships:
         access_grant = factories.grant.create(organisation=mhclg)
         factories.grant_recipient.create(grant=access_grant, organisation=recipient_org)
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, organisation=mhclg, grant=deliver_grant, role=RoleEnum.MEMBER)
-        factories.user_role.create(user=user, organisation=recipient_org, grant=access_grant, role=RoleEnum.MEMBER)
+        factories.user_role.create(user=user, organisation=mhclg, grant=deliver_grant, permissions=[RoleEnum.MEMBER])
+        factories.user_role.create(
+            user=user, organisation=recipient_org, grant=access_grant, permissions=[RoleEnum.MEMBER]
+        )
 
         assert len(user.deliver_grants) == 1
         assert user.deliver_grants[0].id == deliver_grant.id
@@ -695,7 +716,7 @@ class TestUserGrantRelationships:
         access_grant = factories.grant.create(organisation=mhclg)
         factories.grant_recipient.create(grant=access_grant, organisation=recipient_org)
         user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, organisation=None, grant=None, role=RoleEnum.ADMIN)
+        factories.user_role.create(user=user, organisation=None, grant=None, permissions=[RoleEnum.ADMIN])
 
         assert len(user.deliver_grants) == 0
         assert len(user.access_grants) == 0

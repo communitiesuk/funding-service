@@ -222,7 +222,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             for org_name, full_name, email_address in users_data:
                 org_id = grant_recipient_names_to_ids[org_name]
                 user = upsert_user_by_email(email_address=email_address, name=full_name)
-                upsert_user_role(user=user, role=RoleEnum.MEMBER, organisation_id=org_id, grant_id=grant.id)
+                upsert_user_role(user=user, permissions=[RoleEnum.MEMBER], organisation_id=org_id, grant_id=grant.id)
 
             flash(
                 f"Successfully set up {len(users_data)} grant recipient {'user' if len(users_data) == 1 else 'users'}.",
