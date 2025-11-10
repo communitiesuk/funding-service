@@ -49,6 +49,12 @@ class InvalidUserRoleError(Exception):
 
     constraint_message_map: dict[str, str] = {
         "ck_user_role_member_role_not_platform": "A 'member' role must be linked to an organisation or grant.",
+        "ck_user_role_non_admin_permissions_require_org": (
+            "Non-'admin' roles must be linked to an organisation or grant."
+        ),
+        "ck_invitation_non_admin_permissions_require_org": (
+            "Non-'admin' roles must be linked to an organisation or grant."
+        ),
     }
 
     def __init__(self, integrity_error: IntegrityError) -> None:

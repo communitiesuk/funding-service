@@ -431,7 +431,10 @@ class TestRemoveUserRoleInterfaces:
 class TestInvitations:
     @pytest.mark.freeze_time("2023-10-01 12:00:00")
     def test_create_invitation(self, db_session, factories):
-        invitation = interfaces.user.create_invitation(email="test@email.com", role=RoleEnum.MEMBER)
+        organisation = factories.organisation.create()
+        invitation = interfaces.user.create_invitation(
+            email="test@email.com", organisation=organisation, role=RoleEnum.MEMBER
+        )
         invite_from_db = db_session.get(Invitation, invitation.id)
         assert invite_from_db is not None
         assert invite_from_db.email == "test@email.com"
@@ -439,7 +442,7 @@ class TestInvitations:
         assert invite_from_db.expires_at_utc == datetime.strptime("2023-10-08 12:00:00", freeze_time_format)
         assert invite_from_db.claimed_at_utc is None
         assert invite_from_db.grant_id is None
-        assert invite_from_db.organisation_id is None
+        assert invite_from_db.organisation_id == organisation.id
         assert invite_from_db.is_usable is True
 
     @pytest.mark.freeze_time("2023-10-01 12:00:00")
@@ -466,7 +469,10 @@ class TestInvitations:
 
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
     def test_get_invitation(self, db_session, factories):
-        invitation = factories.invitation.create(role=RoleEnum.MEMBER, email="test@email.com")
+        organisation = factories.organisation.create()
+        invitation = factories.invitation.create(
+            organisation=organisation, role=RoleEnum.MEMBER, email="test@email.com"
+        )
         invite_from_db = interfaces.user.get_invitation(invitation.id)
         assert invite_from_db is not None
         assert invite_from_db.is_usable is True
@@ -477,7 +483,10 @@ class TestInvitations:
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
     def test_claim_invitation(self, db_session, factories):
         user = factories.user.create(email="new_user@email.com")
-        invitation = factories.invitation.create(role=RoleEnum.MEMBER, email="new_user@email.com")
+        organisation = factories.organisation.create()
+        invitation = factories.invitation.create(
+            organisation=organisation, role=RoleEnum.MEMBER, email="new_user@email.com"
+        )
         assert invitation.claimed_at_utc is None
         assert invitation.is_usable is True
 
