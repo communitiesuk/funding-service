@@ -30,12 +30,15 @@ class DuplicateValueError(Exception):
 
     def __init__(self, integrity_error: IntegrityError) -> None:
         diagnostics = cast(UniqueViolation, integrity_error.orig).diag
-        self.model_name = diagnostics.table_name
+
+        # if we can't map the integrity error, re-raise it (has better info in it than any custom exception we'd throw)
         if not isinstance(diagnostics.constraint_name, str):
-            raise ValueError("Diagnostic constraint_name must be a string")
-        self.field_name = DuplicateValueError.constraint_name_map[diagnostics.constraint_name]
+            raise integrity_error
         if not isinstance(integrity_error.params, dict):
-            raise ValueError("IntegrityError params must be a dict")
+            raise integrity_error
+
+        self.model_name = diagnostics.table_name
+        self.field_name = DuplicateValueError.constraint_name_map[diagnostics.constraint_name]
         self.new_value = integrity_error.params.get(self.field_name, "unknown")
 
 
