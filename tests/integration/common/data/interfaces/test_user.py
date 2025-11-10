@@ -291,7 +291,7 @@ class TestUpsertUserRole:
     @pytest.mark.parametrize(
         "organisation, grant, role, message",
         [
-            (False, False, RoleEnum.MEMBER, "A 'member' role must be linked to an organisation or grant."),
+            (False, False, RoleEnum.MEMBER, "Non-'admin' roles must be linked to an organisation or grant."),
         ],
     )
     def test_add_invalid_user_role(self, factories, organisation, grant, role, message) -> None:

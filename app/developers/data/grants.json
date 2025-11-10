@@ -14055,7 +14055,6 @@
       "permissions": [
         "member"
       ],
-      "role": "member",
       "user_id": "4f990e2b-690b-4c97-a47b-c9a073e92827"
     },
     {
@@ -14065,7 +14064,6 @@
       "permissions": [
         "member"
       ],
-      "role": "member",
       "user_id": "62ee98f5-cf10-4848-95a4-5b6280529046"
     },
     {
@@ -14073,7 +14071,6 @@
       "permissions": [
         "admin"
       ],
-      "role": "admin",
       "user_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3"
     },
     {
@@ -14083,7 +14080,6 @@
       "permissions": [
         "member"
       ],
-      "role": "member",
       "user_id": "a08a325c-645a-4a36-9787-c2acd75dd0f2"
     },
     {
@@ -14093,7 +14089,6 @@
       "permissions": [
         "member"
       ],
-      "role": "member",
       "user_id": "e8f81083-7d87-4c20-af0a-4ec4b3378cdb"
     }
   ],

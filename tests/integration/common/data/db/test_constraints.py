@@ -9,7 +9,8 @@ class TestUserRoleConstraints:
         with pytest.raises(IntegrityError) as error:
             factories.user_role.create(has_grant=False, has_organisation=False, permissions=[RoleEnum.MEMBER])
         assert (
-            'new row for relation "user_role" violates check constraint "ck_user_role_member_role_not_platform"'
+            'new row for relation "user_role" violates check constraint '
+            '"ck_user_role_non_admin_permissions_require_org"'
         ) in error.value.args[0]
 
     def test_unique_constraint_with_nulls(self, factories):
