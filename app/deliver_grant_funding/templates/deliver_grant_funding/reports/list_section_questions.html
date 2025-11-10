@@ -4,7 +4,7 @@
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "deliver_grant_funding/macros/question_table.html" import question_table %}
 
-{% set page_title = "Reports" %}
+{% set page_title = db_form.title %}
 {% set active_item_identifier = "reports" %}
 {% set can_edit = authorisation_helper.can_edit_collection(current_user, db_form.collection_id) %}
 

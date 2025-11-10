@@ -12,7 +12,7 @@
     {{ mhclgTestBanner("Test submission") }}
   {% endif %}
 
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=helper.submission.collection, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, report_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.created_by.email}) }}
+  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, report_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.created_by.email}) }}
 {% endblock beforeContent %}
 
 {# todo: this can probably be combined with the macro in the form runner, there are quite a few subtle differences #}
