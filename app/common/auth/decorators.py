@@ -64,6 +64,12 @@ def deliver_grant_funding_login_required[**P](
 
     return wrapper
 
+# TODO: magic links should implement specific logic for access routes
+def access_grant_funding_login_required[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    return deliver_grant_funding_login_required(func)
+
 
 def redirect_if_authenticated[**P](
     func: Callable[P, ResponseReturnValue],
@@ -264,3 +270,25 @@ def collection_is_editable[**P]() -> Callable[[Callable[P, ResponseReturnValue]]
         return is_deliver_grant_funding_user(wrapped)
 
     return decorator
+
+def is_access_org_member[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        # This decorator is itself wrapped by `login_required`, so we know that `current_user` exists and is
+        # not an anonymous user (ie a user is definitely logged-in) if we get here.
+
+        if "organisation_id" not in kwargs or (organisation_id := cast(uuid.UUID, kwargs["organisation_id"])) is None:
+            raise ValueError("Organisation ID required.")        
+
+        if not AuthorisationHelper.has_access_org_access(user=interfaces.user.get_current_user(), organisation_id=organisation_id):
+            return abort(403)
+
+        return func(*args, **kwargs)
+
+    # TODO: when magic links work is done make sure this works relative to that
+    # return is_deliver_grant_funding_user(wrapper)
+    return access_grant_funding_login_required(wrapper)
+
+

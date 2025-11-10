@@ -1,14 +1,18 @@
 {% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
 
 {% macro accessGrantFundingServiceNavigation(nav_items=[], right_nav_items=[]) %}
-  {{
-    govukServiceNavigation({
-    "serviceName": "Access grant funding",
-    "serviceUrl": "#",
-    "navigation": nav_items + right_nav_items,
-    "navigationClasses": "app-service-navigation__wrapper--sectional" if right_nav_items else "",
-    })
-  }}
+  {# TODO: this can accept the users grant recipients and make a decision based on those #}
+  {#       for showing the org/ grant context #}
+  {% if nav_items or right_nav_items %}
+    {{
+      govukServiceNavigation({
+      "serviceName": "Access grant funding",
+      "serviceUrl": "#",
+      "navigation": nav_items + right_nav_items,
+      "navigationClasses": "app-service-navigation__wrapper--sectional" if right_nav_items else "",
+      })
+    }}
+  {% endif %}
 {% endmacro %}
 
 {% macro deliverGrantFundingServiceNavigation(nav_items=[], right_nav_items=[]) %}
