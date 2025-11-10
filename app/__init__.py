@@ -308,6 +308,11 @@ def create_app() -> Flask:  # noqa: C901
     def index() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.list_grants"))
 
+    @app.after_request
+    def set_robots_headers(response: Response) -> Response:
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return response
+
     # when developing we want the toolbar assets to not cause the page to flicker
     # otherwise we don't want the server to continually 304 on assets the browser has
     # should make an intentional decision for when to be setting this

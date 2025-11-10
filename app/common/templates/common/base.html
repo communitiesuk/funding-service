@@ -11,6 +11,7 @@
 {% block pageTitle %}MHCLG Funding Service{% endblock pageTitle %}
 
 {% block head %}
+  <meta name="robots" content="noindex, nofollow" />
   {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
     <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
   {% endif %}
