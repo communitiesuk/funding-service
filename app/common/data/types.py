@@ -51,10 +51,14 @@ class OrganisationType(enum.StrEnum):
 
 
 class RoleEnum(enum.StrEnum):
+    # TODO: new 'PLATFORM_ADMIN' role that specifically only grants access to our admin panel?
     ADMIN = (
         "admin"  # Admin level permissions, combines with null columns in UserRole table to denote level of admin access
     )
+    # TODO: rename to 'read/view' to better reflect what access it gives?
     MEMBER = "member"  # Basic read level permissions
+    DATA_PROVIDER = "data-provider"
+    CERTIFIER = "certifier"
 
 
 # If a user roles implies they get other (lower) roles as well, list the role here with the roles they should get.
