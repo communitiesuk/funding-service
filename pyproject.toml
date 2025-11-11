@@ -110,7 +110,7 @@ exhaustive = true
 containers = ["app"]
 layers = [
     "developers",
-    " common : deliver_grant_funding : extensions : healthcheck : services : config : constants : logging : monkeypatch : sentry : types"
+    " common : deliver_grant_funding : access_grant_funding : extensions : healthcheck : services : config : constants : logging : monkeypatch : sentry : types"
 ]
 
 [[tool.importlinter.contracts]]

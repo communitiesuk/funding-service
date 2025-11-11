@@ -93,15 +93,10 @@ class User(BaseModel):
         )""",
         primaryjoin="User.id == UserRole.user_id",
         secondaryjoin="""and_(
+            GrantRecipient.organisation_id == UserRole.organisation_id,
             or_(
-                and_(
-                    GrantRecipient.grant_id == UserRole.grant_id,
-                    GrantRecipient.organisation_id == UserRole.organisation_id
-                ),
-                and_(
-                    GrantRecipient.organisation_id == UserRole.organisation_id,
-                    UserRole.grant_id.is_(None)
-                )
+                GrantRecipient.grant_id == UserRole.grant_id,
+                UserRole.grant_id.is_(None)
             ),
             Organisation.can_manage_grants == False
         )""",
