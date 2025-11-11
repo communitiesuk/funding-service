@@ -36,9 +36,9 @@ class LandingPage(TopNavMixin, BasePage):
 class RequestALinkToSignInPage(BasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.title = self.page.get_by_role("heading", name="Request a link to sign in")
+        self.title = self.page.get_by_role("heading", name="Access grant funding")
         self.email_address = self.page.get_by_role("textbox", name="Email address")
-        self.request_a_link = self.page.get_by_role("button", name="Request a link")
+        self.request_a_link = self.page.get_by_role("button", name="Request sign in link")
 
     def navigate(self) -> None:
         self.page.goto(f"{self.domain}/request-a-link-to-sign-in")
