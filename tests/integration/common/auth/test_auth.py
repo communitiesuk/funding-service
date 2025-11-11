@@ -236,22 +236,23 @@ class TestClaimMagicLinkView:
 
 
 class TestSignOutView:
-    def test_get(self, anonymous_client, factories):
-        magic_link = factories.magic_link.create(
-            user__email="test@communities.gov.uk", redirect_to_path="/my-redirect", claimed_at_utc=None
-        )
+    @pytest.mark.parametrize(
+        "client_fixture, sign_out_redirect",
+        [
+            ("authenticated_grant_member_client", "auth.sso_sign_in"),
+            ("authenticated_grant_recipient_member_client", "auth.request_a_link_to_sign_in"),
+        ],
+    )
+    def test_get(self, anonymous_client, client_fixture, sign_out_redirect, request):
+        client = request.getfixturevalue(client_fixture)
 
-        # A bit unencapsulated for testing the sign out view, but don't otherwise have an easy+reliable way to get
-        # the user in the session
-        anonymous_client.post(url_for("auth.claim_magic_link", magic_link_code=magic_link.code), json={"submit": "yes"})
-        with anonymous_client.session_transaction() as session:
-            assert "_user_id" in session
-
-        response = anonymous_client.get(url_for("auth.sign_out"), follow_redirects=True)
+        response = client.get(url_for("auth.sign_out"), follow_redirects=True)
         assert response.status_code == 200
+        assert response.request.path == url_for(sign_out_redirect)
 
-        with anonymous_client.session_transaction() as session:
+        with client.session_transaction() as session:
             assert "_user_id" not in session
+            assert "auth" not in session
 
 
 class TestSSOSignInView:

@@ -200,4 +200,11 @@ def sign_out() -> ResponseReturnValue:
     logout_user()
     sentry_sdk.set_user(None)
 
-    return redirect(url_for("index"))
+    auth_method = session.pop("auth", None)
+    match auth_method:
+        case AuthMethodEnum.SSO:
+            return redirect(url_for("auth.sso_sign_in"))
+        case AuthMethodEnum.MAGIC_LINK:
+            return redirect(url_for("auth.request_a_link_to_sign_in"))
+        case _:
+            return redirect(url_for("index"))
