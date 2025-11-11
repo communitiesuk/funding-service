@@ -13,11 +13,13 @@ from app.common.data.types import RoleEnum
 from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_error
 
 
-class TestSignInView:
+class TestMagicLinkSignInView:
     def test_get(self, anonymous_client):
         response = anonymous_client.get(url_for("auth.request_a_link_to_sign_in"))
         assert response.status_code == 200
-        assert b"Request a link to sign in" in response.data
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Access grant funding" in get_h1_text(soup)
+        assert "A service for grant recipients of central government funding" in soup.text
 
     def test_post_invalid_email(self, anonymous_client):
         response = anonymous_client.post(
@@ -26,12 +28,6 @@ class TestSignInView:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Enter an email address in the correct format")
-
-    def get_test_post_non_communities_email(self, client):
-        response = client.post(url_for("auth.request_a_link_to_sign_in"), data={"email_address": "test@example.com"})
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Email address must end with @communities.gov.uk or @test.communities.gov.uk")
 
     def test_post_mhclg_email_redirects_to_sso(self, anonymous_client, mock_notification_service_calls):
         response = anonymous_client.post(

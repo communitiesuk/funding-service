@@ -14,4 +14,4 @@ class SignInForm(FlaskForm):
         filters=[lambda x: x.strip() if x else x],
         widget=GovTextInput(),
     )
-    submit = SubmitField("Request a link", widget=GovSubmitInput())
+    submit = SubmitField("Request sign in link", widget=GovSubmitInput())

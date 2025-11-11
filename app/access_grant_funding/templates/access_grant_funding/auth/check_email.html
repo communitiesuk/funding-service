@@ -1,4 +1,4 @@
-{% extends "common/base.html" %}
+{% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 
 {% block pageTitle %}Check your email - {{ super() }}{% endblock pageTitle %}
@@ -7,7 +7,7 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">Check your email</h1>
-      <p class="govuk-body" {% if not config.IS_PRODUCTION %}data-notification-id="{{ notification_id }}"{% endif %}>We've sent an email to {{ email }}.</p>
+      <p class="govuk-body" {% if not config.IS_PRODUCTION %}data-notification-id="{{ notification_id }}"{% endif %}>We have sent an email to {{ email }}.</p>
       {{ govukInsetText(params={"text": "The link will work once and stop working after 15 minutes."}) }}
 
       <h2 class="govuk-heading-s">If you do not receive the email</h2>
