@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 import pytest
@@ -282,3 +283,17 @@ class TestAuthorisationHelper:
         mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
 
         assert AuthorisationHelper.can_edit_collection(user=user, collection_id=collection.id) is False
+
+    def test_has_access_org_access_rejects_anonymous(self):
+        assert (
+            AuthorisationHelper.has_access_org_access(user=AnonymousUserMixin(), organisation_id=uuid.uuid4()) is False
+        )
+
+    def test_has_access_org_access(self, factories):
+        user = factories.user.build()
+        organisation = factories.organisation.build()
+        non_member_organisation = factories.organisation.build()
+        factories.user_role.build(user=user, permissions=[RoleEnum.MEMBER], organisation=organisation, grant=None)
+
+        assert AuthorisationHelper.has_access_org_access(user=user, organisation_id=organisation.id) is True
+        assert AuthorisationHelper.has_access_org_access(user=user, organisation_id=non_member_organisation.id) is False

@@ -417,6 +417,32 @@ def authenticated_org_member_client(
     yield anonymous_client
 
 
+@pytest.fixture()
+def authenticated_grant_recipient_member_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
+) -> Generator[FundingServiceTestClient, None, None]:
+    """Create a client authenticated as a grant recipients for an org with can_manage_grants=False"""
+
+    user = factories.user.create(email="recipientmember@communities.gov.uk")
+    grant_recipient = factories.grant_recipient.create(organisation__can_manage_grants=False)
+    factories.user_role.create(
+        user=user,
+        permissions=[RoleEnum.MEMBER],
+        organisation=grant_recipient.organisation,
+        grant=grant_recipient.grant,
+    )
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+    anonymous_client.user = user
+    anonymous_client.grant = grant_recipient.grant
+    anonymous_client.organisation = grant_recipient.organisation
+    db_session.commit()
+
+    yield anonymous_client
+
+
 def _setup_session_clean_tracking() -> None:
     # 1. When a transaction starts, assume session is clean
     @event.listens_for(Session, "after_begin")

@@ -114,7 +114,7 @@ routes_with_expected_access_grant_funding_logged_in_access = [
     "developers.access.ask_a_question",
     "developers.access.check_your_answers",
     "developers.access.collection_confirmation",
-    "access_grant_funding.access_root",
+    "access_grant_funding.index",
 ]
 
 routes_with_expected_access_grant_funding_org_access = [

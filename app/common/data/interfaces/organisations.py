@@ -1,4 +1,5 @@
 from typing import Sequence
+from uuid import UUID
 
 from flask import current_app
 from sqlalchemy import func, select
@@ -17,6 +18,10 @@ def get_organisations(can_manage_grants: bool | None = None) -> Sequence[Organis
         statement = statement.where(Organisation.can_manage_grants.is_(can_manage_grants))
 
     return db.session.scalars(statement).all()
+
+
+def get_organisation(organisation_id: UUID) -> Organisation:
+    return db.session.get_one(Organisation, organisation_id)
 
 
 def get_organisation_count() -> int:

@@ -145,16 +145,10 @@ class AuthorisationHelper:
         return False
 
     @staticmethod
-    # TODO: question: can you have AGF org level access?
-    #       answer is yes
-    # TODO: note different than is_access_org_member which is explicitly across the org
     def has_access_org_access(user: User | AnonymousUserMixin, organisation_id: UUID) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False
-        
+
         # TODO: agree with product and dev what the policy on access to platform admins should be
         #       assuming they should only have blanket access to test data when that exists
-        return any(
-            role.organisation_id == organisation_id
-            for role in user.roles
-        )
+        return any(role.organisation_id == organisation_id for role in user.roles)

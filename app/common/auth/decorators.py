@@ -16,6 +16,7 @@ from app.common.data.interfaces.collections import (
     get_form_by_id,
 )
 from app.common.data.interfaces.grants import get_grant
+from app.common.data.interfaces.organisations import get_organisation
 from app.common.data.types import AuthMethodEnum, RoleEnum
 
 
@@ -277,8 +278,10 @@ def is_access_org_member[**P](
         if "organisation_id" not in kwargs or (organisation_id := cast(uuid.UUID, kwargs["organisation_id"])) is None:
             raise ValueError("Organisation ID required.")
 
+        # check it exists raising 404 otherwise
+        organisation = get_organisation(organisation_id)
         if not AuthorisationHelper.has_access_org_access(
-            user=interfaces.user.get_current_user(), organisation_id=organisation_id
+            user=interfaces.user.get_current_user(), organisation_id=organisation.id
         ):
             return abort(403)
 

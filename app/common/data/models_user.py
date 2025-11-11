@@ -84,9 +84,7 @@ class User(BaseModel):
 
     # this has some overlap with access_grants above but is most interested in the organisation you
     # have access to
-    # TODO: consider anywhere we're using the grant recipient relationship with how users will be
-    #       testing the behaviour
-    grant_recipients: Mapped[list["GrantRecipient"]] = relationship(
+    _grant_recipients: Mapped[list["GrantRecipient"]] = relationship(
         "GrantRecipient",
         secondary="""join(
             UserRole,
@@ -94,7 +92,6 @@ class User(BaseModel):
             UserRole.organisation_id == Organisation.id
         )""",
         primaryjoin="User.id == UserRole.user_id",
-        # todo: sense check first OR condition, originally GrantRecipient.grant_id == UserRole.grant_id,
         secondaryjoin="""and_(
             or_(
                 and_(
@@ -110,6 +107,11 @@ class User(BaseModel):
         )""",
         viewonly=True,
     )
+
+    def grant_recipients(self, *, limit_to_organisation_id: uuid.UUID | None = None) -> list["GrantRecipient"]:
+        if limit_to_organisation_id is None:
+            return self._grant_recipients
+        return [gr for gr in self._grant_recipients if gr.organisation.id == limit_to_organisation_id]
 
     last_logged_in_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
 
