@@ -5,22 +5,22 @@
 {%
   set nav_items = [
       {
-          "text": "Grant details",
-          "key": "grant_details",
-          "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
-          "current": active_item_identifier == "details"
-      },
-      {
           "text": "Reports",
           "key": "reports",
           "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id),
           "current": active_item_identifier == "reports"
       },
       {
-          "text": "Grant team",
+          "text": "Team",
           "key": "grant_users",
           "href": url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id),
           "current": active_item_identifier == "grant_team"
+      },
+      {
+          "text": "Grant details",
+          "key": "grant_details",
+          "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
+          "current": active_item_identifier == "details"
       },
   ]
 %}

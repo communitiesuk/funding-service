@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import RoleEnum
-from tests.utils import get_h1_text
+from tests.utils import AnyStringMatching, get_h1_text
 
 
 class TestListGrants:
@@ -28,13 +28,12 @@ class TestListGrants:
         self, app, authenticated_grant_member_client, factories, templates_rendered, track_sql_queries
     ):
         with track_sql_queries() as queries:
-            result = authenticated_grant_member_client.get("/deliver/grants", follow_redirects=True)
-        assert result.status_code == 200
-        soup = BeautifulSoup(result.data, "html.parser")
+            result = authenticated_grant_member_client.get("/deliver/grants", follow_redirects=False)
+        assert result.status_code == 302
+        BeautifulSoup(result.data, "html.parser")
 
-        nav_items = [item.text.strip() for item in soup.select(".govuk-service-navigation__item")]
-        assert nav_items == ["Grant details", "Reports", "Grant team"]
         assert len(queries) == 4  # 1) select user, 2) select user_role, 3) select org, 4) select grants
+        assert result.location == AnyStringMatching(r"/deliver/.+/index")
 
     def test_list_grants_as_member_with_multiple_grants(
         self, app, authenticated_grant_member_client, factories, templates_rendered, track_sql_queries

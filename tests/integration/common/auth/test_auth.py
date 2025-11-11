@@ -262,7 +262,7 @@ class TestSSOGetTokenView:
         dummy_grant = factories.grant.create()
         factories.user.create(email="test@test.communities.gov.uk", azure_ad_subject_id="subject_id")
         with anonymous_client.session_transaction() as session:
-            session["next"] = url_for("deliver_grant_funding.grant_details", grant_id=dummy_grant.id)
+            session["next"] = url_for("deliver_grant_funding.grant_homepage", grant_id=dummy_grant.id)
 
         with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
             # Partially mock the expected return value; just enough for the test.

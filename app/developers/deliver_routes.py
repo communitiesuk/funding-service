@@ -43,7 +43,7 @@ def grant_developers(grant_id: UUID) -> ResponseReturnValue:
     if become_grant_team_member_form.validate_on_submit():
         interfaces.user.remove_platform_admin_role_from_user(interfaces.user.get_current_user())
         interfaces.user.set_grant_team_role_for_user(interfaces.user.get_current_user(), grant, [RoleEnum.MEMBER])
-        return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
+        return redirect(url_for("deliver_grant_funding.grant_homepage", grant_id=grant.id))
 
     return render_template(
         "developers/deliver/grant_developers.html",
