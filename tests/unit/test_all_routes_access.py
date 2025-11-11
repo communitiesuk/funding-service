@@ -93,6 +93,7 @@ routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.edit_question_validation",
 ]
 routes_with_expected_member_only_access = [
+    "deliver_grant_funding.grant_homepage",
     "deliver_grant_funding.list_users_for_grant",
     "deliver_grant_funding.grant_details",
     "deliver_grant_funding.list_reports",

@@ -50,12 +50,12 @@
 {% macro grant_table(grants, id_override=none) %}
   {% set table_rows = namespace(items=[]) %}
   {% for grant in grants %}
-    {% set grant_detail_link %}
-      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=grant.id) }}">{{ grant.name }}</a>
+    {% set grant_homepage_link %}
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_homepage', grant_id=grant.id) }}">{{ grant.name }}</a>
     {% endset %}
     {%
       set table_rows.items = table_rows.items + [
-          [{"html": grant_detail_link},
+          [{"html": grant_homepage_link},
             {"text": grant.ggis_number},
             {"text": grantStatusTag(grant.status)}]
       ]

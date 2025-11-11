@@ -2,24 +2,30 @@ from uuid import UUID
 
 from flask import flash, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
-from werkzeug import Response
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.auth.decorators import is_deliver_grant_funding_user
+from app.common.auth.decorators import has_deliver_grant_role, is_deliver_grant_funding_user
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection, get_form_by_id
 from app.common.data.interfaces.grants import get_all_deliver_grants_by_user
+from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.types import FlashMessageType
 
 
+@deliver_grant_funding_blueprint.route("/<uuid:grant_id>/index", methods=["GET"])
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def grant_homepage(grant_id: UUID) -> ResponseReturnValue:
+    return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
+
+
 @deliver_grant_funding_blueprint.route("/grants", methods=["GET"])
 @is_deliver_grant_funding_user
-def list_grants() -> Response | str:
+def list_grants() -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
     grants = get_all_deliver_grants_by_user(user)
     if not AuthorisationHelper.is_deliver_org_member(user) and len(grants) == 1:
-        return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grants[0].id))
+        return redirect(url_for("deliver_grant_funding.grant_homepage", grant_id=grants[0].id))
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
 
 
