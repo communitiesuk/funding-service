@@ -294,7 +294,7 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
         self.settings_nav = self.page.get_by_role("link", name="Grant details")
         self.developers_nav = self.page.get_by_role("link", name="Developers")
         self.reports_nav = self.page.get_by_role("link", name="Reports")
-        self.grant_team_nav = self.page.get_by_role("link", name="Grant team")
+        self.grant_team_nav = self.page.get_by_role("link", name="Team")
         self.sign_out_nav = self.page.get_by_role("link", name="Sign out")
 
     def click_settings(self, grant_name: str) -> GrantDetailsPage:
@@ -478,7 +478,7 @@ class GrantTeamPage(GrantDashboardBasePage):
 
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
-        self.title = page.get_by_role("heading", name="Grant team")
+        self.title = page.get_by_role("heading", name="Team")
 
     def click_add_grant_team_member(self) -> AddGrantTeamMemberPage:
         self.page.get_by_role("button", name="Add grant team member").click()

@@ -172,7 +172,7 @@ class ReportsBasePage:
     def click_nav_grant_team(self) -> GrantTeamPage:
         from tests.e2e.pages import GrantTeamPage
 
-        self.page.get_by_role("link", name="Grant team").click()
+        self.page.get_by_role("link", name="Team").click()
         sso_sign_in_page = GrantTeamPage(self.page, self.domain)
         return sso_sign_in_page
 
