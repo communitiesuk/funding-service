@@ -6,6 +6,7 @@ from flask.typing import ResponseReturnValue
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.decorators import access_grant_funding_login_required, is_access_org_member
 from app.common.data import interfaces
+from app.common.data.interfaces.grants import get_grant
 
 
 @access_grant_funding_blueprint.route("/", methods=["GET"])
@@ -31,4 +32,18 @@ def list_grants(organisation_id: UUID) -> ResponseReturnValue:
     grants = [
         grant_recipient.grant for grant_recipient in user.get_grant_recipients(limit_to_organisation_id=organisation_id)
     ]
-    return render_template("access_grant_funding/grant_list.html", grants=grants)
+    return render_template("access_grant_funding/grant_list.html", grants=grants, organisation_id=organisation_id)
+
+
+@access_grant_funding_blueprint.route(
+    "organisation/<uuid:organisation_id>/grant/<uuid:grant_id>/select-a-report", methods=["GET"]
+)
+@is_access_org_member
+def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
+    grant = get_grant(grant_id=grant_id)  # , with_all_collections=True)
+    return render_template(
+        "access_grant_funding/report_list.html",
+        reports=grant.access_reports,
+        organisation_id=organisation_id,
+        grant=grant,
+    )
