@@ -1,3 +1,6 @@
+from datetime import date
+
+from app import CollectionStatusEnum
 from app.common.data.models import get_ordered_nested_components
 
 
@@ -132,3 +135,89 @@ class TestAddAnother:
         assert question.add_another_container == group1
         assert group2.add_another_container == group1
         assert group1.add_another_container == group1
+
+
+class TestGrantAccessReports:
+    def test_access_reports(self, factories):
+        grant = factories.grant.build()
+        report1 = factories.collection.build(grant=grant, status=CollectionStatusEnum.OPEN)
+        report2 = factories.collection.build(grant=grant, status=CollectionStatusEnum.CLOSED)
+        _ = factories.collection.build(grant=grant, status=CollectionStatusEnum.DRAFT)
+
+        result = grant.access_reports
+        assert len(result) == 2
+        assert result[0].id == report1.id
+        assert result[1].id == report2.id
+
+    def test_get_access_reports_no_collections(self, db_session, factories):
+        grant = factories.grant.build()
+
+        results_grant_has_no_collections = grant.access_reports
+        assert len(results_grant_has_no_collections) == 0
+
+    def test_get_access_reports_wrong_state(self, factories):
+        grant = factories.grant.build()
+        factories.collection.build(grant=grant, status=CollectionStatusEnum.DRAFT)
+
+        results_grant_has_collections_in_wrong_state = grant.access_reports
+        assert len(results_grant_has_collections_in_wrong_state) == 0
+
+    def test_get_access_reports_sort_order_status(self, factories):
+        grant = factories.grant.build()
+        report1 = factories.collection.build(grant=grant, status=CollectionStatusEnum.OPEN)
+        report2 = factories.collection.build(grant=grant, status=CollectionStatusEnum.CLOSED)
+        report3 = factories.collection.build(grant=grant, status=CollectionStatusEnum.OPEN)
+
+        results = grant.access_reports
+        assert len(results) == 3
+        assert results[0].id == report1.id
+        assert results[1].id == report3.id
+        assert results[2].id == report2.id
+
+    def test_get_access_reports_sort_order_date(self, factories):
+        grant = factories.grant.build()
+        report1 = factories.collection.build(
+            grant=grant, status=CollectionStatusEnum.OPEN, submission_period_end_date=date(2024, 1, 1)
+        )
+        report2 = factories.collection.build(
+            grant=grant, status=CollectionStatusEnum.OPEN, submission_period_end_date=date(2023, 1, 1)
+        )
+        report3 = factories.collection.build(
+            grant=grant, status=CollectionStatusEnum.OPEN, submission_period_end_date=date(2022, 1, 1)
+        )
+
+        results = grant.access_reports
+        assert len(results) == 3
+        assert results[0].id == report3.id
+        assert results[1].id == report2.id
+        assert results[2].id == report1.id
+
+    def test_get_access_reports_sort_order_date_and_status(self, factories):
+        grant = factories.grant.build()
+        report0 = factories.collection.build(
+            grant=grant, status=CollectionStatusEnum.CLOSED, submission_period_end_date=None
+        )
+        report1 = factories.collection.build(
+            grant=grant, status=CollectionStatusEnum.OPEN, submission_period_end_date=date(2024, 1, 1)
+        )
+        report2 = factories.collection.build(
+            grant=grant, status=CollectionStatusEnum.OPEN, submission_period_end_date=date(2023, 1, 1)
+        )
+        report3 = factories.collection.build(
+            grant=grant, status=CollectionStatusEnum.OPEN, submission_period_end_date=date(2022, 1, 2)
+        )
+        report4 = factories.collection.build(
+            grant=grant, status=CollectionStatusEnum.CLOSED, submission_period_end_date=date(2023, 2, 1)
+        )
+        report5 = factories.collection.build(
+            grant=grant, status=CollectionStatusEnum.CLOSED, submission_period_end_date=date(2022, 1, 1)
+        )
+
+        results = grant.access_reports
+        assert len(results) == 6
+        assert results[0].id == report3.id
+        assert results[1].id == report2.id
+        assert results[2].id == report1.id
+        assert results[3].id == report5.id
+        assert results[4].id == report4.id
+        assert results[5].id == report0.id

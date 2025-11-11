@@ -75,6 +75,17 @@ class Grant(BaseModel):
     def reports(self) -> list["Collection"]:
         return [collection for collection in self.collections if collection.type == CollectionType.MONITORING_REPORT]
 
+    @property
+    def access_reports(self) -> list["Collection"]:
+        access_reports = [
+            report
+            for report in self.reports
+            if report.status in [CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED]
+        ]
+        return sorted(
+            access_reports, key=lambda report: (report.status, report.submission_period_end_date or datetime.date.max)
+        )
+
 
 class Organisation(BaseModel):
     __tablename__ = "organisation"
