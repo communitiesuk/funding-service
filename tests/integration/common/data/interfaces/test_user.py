@@ -720,3 +720,244 @@ class TestUserGrantRelationships:
 
         assert len(user.deliver_grants) == 0
         assert len(user.access_grants) == 0
+
+
+class TestGetUsersWithPermission:
+    def test_returns_users_with_specific_permission(self, factories, db_session):
+        user1 = factories.user.create(email="certifier@test.com")
+        user2 = factories.user.create(email="member@test.com")
+        organisation = factories.organisation.create()
+        factories.user_role.create(user=user1, organisation=organisation, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=user2, organisation=organisation, permissions=[RoleEnum.MEMBER])
+
+        result = list(interfaces.user.get_users_with_permission(RoleEnum.CERTIFIER))
+
+        assert len(result) == 1
+        assert result[0].id == user1.id
+
+    def test_filters_by_organisation_id(self, factories, db_session):
+        user1 = factories.user.create(email="user1@test.com")
+        user2 = factories.user.create(email="user2@test.com")
+        org1 = factories.organisation.create()
+        org2 = factories.organisation.create()
+        factories.user_role.create(user=user1, organisation=org1, permissions=[RoleEnum.MEMBER])
+        factories.user_role.create(user=user2, organisation=org2, permissions=[RoleEnum.MEMBER])
+
+        result = list(interfaces.user.get_users_with_permission(RoleEnum.MEMBER, organisation_id=org1.id))
+
+        assert len(result) == 1
+        assert result[0].id == user1.id
+
+    def test_filters_by_organisation_id_and_grant_id(self, factories, db_session):
+        user1 = factories.user.create(email="user1@test.com")
+        user2 = factories.user.create(email="user2@test.com")
+        grant = factories.grant.create()
+        factories.user_role.create(
+            user=user1, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+        factories.user_role.create(user=user2, organisation=grant.organisation, permissions=[RoleEnum.MEMBER])
+
+        result = list(
+            interfaces.user.get_users_with_permission(
+                RoleEnum.MEMBER, organisation_id=grant.organisation.id, grant_id=grant.id
+            )
+        )
+
+        assert len(result) == 1
+        assert result[0].id == user1.id
+
+    def test_raises_error_when_grant_id_without_organisation_id(self, factories, db_session):
+        grant = factories.grant.create()
+
+        with pytest.raises(ValueError) as e:
+            interfaces.user.get_users_with_permission(RoleEnum.MEMBER, organisation_id=None, grant_id=grant.id)
+
+        assert "If specifying grant_id, must also specify organisation_id" in str(e.value)
+
+    def test_handles_not_provided_vs_explicit_none(self, factories, db_session):
+        user1 = factories.user.create(email="user1@test.com")
+        user2 = factories.user.create(email="user2@test.com")
+        org = factories.organisation.create()
+        factories.user_role.create(user=user1, organisation=org, permissions=[RoleEnum.ADMIN])
+        factories.user_role.create(user=user2, permissions=[RoleEnum.ADMIN])
+
+        result_not_provided = list(interfaces.user.get_users_with_permission(RoleEnum.ADMIN))
+        result_explicit_none = list(interfaces.user.get_users_with_permission(RoleEnum.ADMIN, organisation_id=None))
+
+        assert len(result_not_provided) == 2
+        assert len(result_explicit_none) == 1
+        assert result_explicit_none[0].id == user2.id
+
+
+class TestGetUserRole:
+    def test_returns_matching_organisation_level_role(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+        role = factories.user_role.create(user=user, organisation=organisation, permissions=[RoleEnum.MEMBER])
+
+        result = interfaces.user.get_user_role(user, organisation.id, None)
+
+        assert result.id == role.id
+
+    def test_returns_matching_grant_level_role(self, factories, db_session):
+        user = factories.user.create()
+        grant = factories.grant.create()
+        role = factories.user_role.create(
+            user=user, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+
+        result = interfaces.user.get_user_role(user, grant.organisation.id, grant.id)
+
+        assert result.id == role.id
+
+    def test_returns_none_when_no_matching_role(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+
+        result = interfaces.user.get_user_role(user, organisation.id, None)
+
+        assert result is None
+
+
+class TestAddPermissionsToUser:
+    def test_adds_permissions_to_existing_role(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+        factories.user_role.create(user=user, organisation=organisation, permissions=[RoleEnum.MEMBER])
+
+        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.CERTIFIER], organisation.id)
+
+        assert set(role.permissions) == {RoleEnum.MEMBER, RoleEnum.CERTIFIER}
+
+    def test_creates_role_when_none_exists(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+
+        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.MEMBER], organisation.id)
+
+        assert role.permissions == [RoleEnum.MEMBER]
+
+    def test_handles_duplicate_permissions(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+        factories.user_role.create(
+            user=user, organisation=organisation, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
+
+        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.DATA_PROVIDER], organisation.id)
+
+        assert set(role.permissions) == {RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER}
+
+    def test_always_adds_member_role(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+        factories.user_role.create(user=user, organisation=organisation, permissions=[RoleEnum.DATA_PROVIDER])
+
+        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.ADMIN], organisation.id)
+
+        assert set(role.permissions) == {RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.ADMIN}
+
+
+class TestRemovePermissionsFromUser:
+    def test_removes_permissions_from_existing_role(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+        factories.user_role.create(
+            user=user, organisation=organisation, permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER]
+        )
+
+        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation.id)
+
+        assert role.permissions == [RoleEnum.MEMBER]
+
+    def test_handles_removing_nonexistent_permission(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+        factories.user_role.create(user=user, organisation=organisation, permissions=[RoleEnum.MEMBER])
+
+        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation.id)
+
+        assert role.permissions == [RoleEnum.MEMBER]
+
+    def test_leaves_other_permissions_intact(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+        factories.user_role.create(
+            user=user,
+            organisation=organisation,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER, RoleEnum.DATA_PROVIDER],
+        )
+
+        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation.id)
+
+        assert set(role.permissions) == {RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER}
+
+    def test_removing_last_permission_deletes_role(self, factories, db_session):
+        user = factories.user.create()
+        organisation = factories.organisation.create()
+        original_role = factories.user_role.create(
+            user=user,
+            organisation=organisation,
+            permissions=[RoleEnum.MEMBER],
+        )
+
+        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.MEMBER], organisation.id)
+        assert role is None
+
+        db_session.expire_all()
+        assert original_role not in db_session
+
+
+class TestGetCertifiersByOrganisation:
+    def test_returns_certifiers_grouped_by_organisation(self, factories, db_session):
+        org1 = factories.organisation.create(can_manage_grants=False)
+        org2 = factories.organisation.create(can_manage_grants=False)
+        user1 = factories.user.create(email="certifier1@test.com")
+        user2 = factories.user.create(email="certifier2@test.com")
+        factories.user_role.create(user=user1, organisation=org1, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=user2, organisation=org2, permissions=[RoleEnum.CERTIFIER])
+
+        result = interfaces.user.get_certifiers_by_organisation()
+
+        assert len(result) == 2
+        assert result[org1][0].id == user1.id
+        assert result[org2][0].id == user2.id
+
+    def test_only_includes_organisation_level_certifiers(self, factories, db_session):
+        organisation = factories.organisation.create(can_manage_grants=False)
+        grant = factories.grant.create(organisation=organisation)
+        user1 = factories.user.create(email="org_certifier@test.com")
+        user2 = factories.user.create(email="grant_certifier@test.com")
+        factories.user_role.create(user=user1, organisation=organisation, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=user2, organisation=organisation, grant=grant, permissions=[RoleEnum.CERTIFIER])
+
+        result = interfaces.user.get_certifiers_by_organisation()
+
+        assert len(result) == 1
+        assert len(result[organisation]) == 1
+        assert result[organisation][0].id == user1.id
+
+    def test_excludes_users_without_certifier_permission(self, factories, db_session):
+        organisation = factories.organisation.create(can_manage_grants=False)
+        user1 = factories.user.create(email="certifier@test.com")
+        user2 = factories.user.create(email="member@test.com")
+        factories.user_role.create(user=user1, organisation=organisation, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=user2, organisation=organisation, permissions=[RoleEnum.MEMBER])
+
+        result = interfaces.user.get_certifiers_by_organisation()
+
+        assert len(result) == 1
+        assert len(result[organisation]) == 1
+        assert result[organisation][0].id == user1.id
+
+    def test_handles_organisations_with_no_certifiers(self, factories, db_session):
+        org_with_certifiers = factories.organisation.create(can_manage_grants=False)
+        org_without_certifiers = factories.organisation.create(can_manage_grants=False)
+        user = factories.user.create(email="certifier@test.com")
+        factories.user_role.create(user=user, organisation=org_with_certifiers, permissions=[RoleEnum.CERTIFIER])
+
+        result = interfaces.user.get_certifiers_by_organisation()
+
+        assert len(result) == 2
+        assert len(result[org_with_certifiers]) == 1
+        assert len(result[org_without_certifiers]) == 0

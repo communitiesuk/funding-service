@@ -40,6 +40,18 @@ class TestGetOrganisations:
 
         assert result == []
 
+    def test_returns_all_organisations_when_can_manage_grants_is_none(self, factories, db_session):
+        from tests.models import _get_grant_managing_organisation
+
+        grant_managing_org = _get_grant_managing_organisation()
+        org1 = factories.organisation.create(name="Regular Org 1", can_manage_grants=False)
+        org2 = factories.organisation.create(name="Regular Org 2", can_manage_grants=False)
+
+        result = get_organisations(can_manage_grants=None)
+
+        assert len(result) == 3
+        assert {org.id for org in result} == {grant_managing_org.id, org1.id, org2.id}
+
 
 class TestGetOrganisationCount:
     def test_returns_count_of_non_grant_managing_organisations(self, factories, db_session):
