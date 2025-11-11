@@ -39,12 +39,10 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 
         user = interfaces.user.get_user_by_email(email_address=email)
 
-        # The default url for access.grants_list is currently restricted to platform admins only, but using here in lieu
-        # of a formal landing page for Access Grant Funding users
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
             email=email,
-            redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("developers.access.grants_list"))),
+            redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("access_grant_funding.index"))),
         )
 
         notification = notification_service.send_magic_link(

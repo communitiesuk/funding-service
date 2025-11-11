@@ -9,6 +9,8 @@ from wtforms.fields.core import Field
 from wtforms.form import BaseForm
 from wtforms.validators import Email, HostnameValidation, Regexp, ValidationError
 
+from app.common.data import interfaces
+
 
 class WordRange:
     """
@@ -74,6 +76,26 @@ class CommunitiesEmail(Email):
 
         if allowed_domains and domain.lower() not in [d.lower() for d in allowed_domains]:
             raise ValidationError(f"Email address must end with {' or '.join(allowed_domains)}")
+
+
+class AccessGrantFundingEmail(Email):
+    def __call__(self, form: BaseForm, field: Field) -> None:
+        email = field.data
+        internal_domains = current_app.config["INTERNAL_DOMAINS"]
+
+        if not email:
+            return
+
+        if email.endswith(internal_domains):
+            return
+
+        user = interfaces.user.get_user_by_email(email)
+
+        if user is None or not user.get_grant_recipients():
+            raise ValidationError(
+                "The email address you entered does not have access to this service. "
+                "Check the email address is correct or request access."
+            )
 
 
 class URLWithoutProtocol(Regexp):
