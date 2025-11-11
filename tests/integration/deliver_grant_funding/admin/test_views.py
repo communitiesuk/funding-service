@@ -1578,6 +1578,122 @@ class TestRevokeGrantRecipientUsers:
         )
 
 
+class TestRevokeCertifiers:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_revoke_global_certifiers_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers")
+        assert response.status_code == expected_code
+
+    def test_get_revoke_global_certifiers_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+        factories.organisation.create(name="Org 1")
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Revoke certifier"
+
+        assert soup.find("select", {"id": "organisation_id"}) is not None
+        assert soup.find("input", {"id": "email"}) is not None
+
+    def test_post_revokes_certifier_permission(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation")
+        user = factories.user.create(name="John Doe", email="john@example.com")
+        user_role = factories.user_role.create(
+            user=user, organisation=org, grant=None, permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER]
+        )
+
+        from app.common.data.models_user import UserRole
+
+        assert db_session.query(UserRole).filter_by(id=user_role.id).first() is not None
+        assert RoleEnum.CERTIFIER in user_role.permissions
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers",
+            data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully revoked certifier access for John Doe (john@example.com).")
+
+        db_session.refresh(user_role)
+        assert user_role.permissions == [RoleEnum.MEMBER]
+
+    def test_post_with_nonexistent_user_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation")
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers",
+            data={"organisation_id": str(org.id), "email": "nonexistent@example.com", "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "User with email 'nonexistent@example.com' does not exist.")
+
+    def test_post_with_non_certifier_user_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation")
+        factories.user.create(name="John Doe", email="john@example.com")
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers",
+            data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(
+            soup, "User 'John Doe' (john@example.com) is not a global certifier for the selected organisation."
+        )
+
+    def test_post_redirects_to_set_up_global_certifiers_page(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation")
+        user = factories.user.create(name="John Doe", email="john@example.com")
+        factories.user_role.create(user=user, organisation=org, grant=None, permissions=[RoleEnum.CERTIFIER])
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers",
+            data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert (
+            response.location
+            == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers"
+        )
+
+
 class TestScheduleReport:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",

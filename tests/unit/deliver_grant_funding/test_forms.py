@@ -378,7 +378,10 @@ class TestPlatformAdminCreateCertifiersForm:
     def test_invalid_email_address(self, app, factories):
         organisations = factories.organisation.build_batch(3)
         form = PlatformAdminCreateCertifiersForm(organisations=organisations)
-        form.certifiers_data.data = f"organisation-name\tfirst-name\tlast-name\temail-address\n{organisations[0].name}\tJohn\tDoe\tinvalid-email"
+        form.certifiers_data.data = (
+            f"organisation-name\tfirst-name\tlast-name\temail-address\n"
+            f"{organisations[0].name}\tJohn\tDoe\tinvalid-email"
+        )
 
         assert form.validate() is False
         assert "Invalid email address(es)" in form.certifiers_data.errors[0]

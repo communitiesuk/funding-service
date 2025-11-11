@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from flask import current_app
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovDateInput, GovSubmitInput, GovTextArea
+from govuk_frontend_wtf.wtforms_widgets import GovDateInput, GovSubmitInput, GovTextArea, GovTextInput
 from markupsafe import Markup, escape
 from wtforms import DateField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
-from wtforms.fields.simple import TextAreaField
-from wtforms.validators import DataRequired, Optional
+from wtforms.fields.simple import EmailField, TextAreaField
+from wtforms.validators import DataRequired, Email, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
 from app.common.data.types import OrganisationData, OrganisationType
@@ -263,6 +263,25 @@ class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
             )
             for user_role in user_roles
         ]
+
+
+class PlatformAdminRevokeCertifiersForm(FlaskForm):
+    organisation_id = SelectField(
+        "Organisation",
+        choices=[],
+        widget=GovSelectWithSearch(),
+        validators=[DataRequired("Select an organisation")],
+    )
+    email = EmailField(
+        "Email address",
+        validators=[DataRequired("Enter an email address"), Email("Enter a valid email address")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Revoke certifier access", widget=GovSubmitInput())
+
+    def __init__(self, organisations: Sequence["Organisation"]) -> None:
+        super().__init__()
+        self.organisation_id.choices = [("", "")] + [(str(org.id), org.name) for org in organisations]  # type: ignore[assignment]
 
 
 class PlatformAdminSetCollectionDatesForm(FlaskForm):
