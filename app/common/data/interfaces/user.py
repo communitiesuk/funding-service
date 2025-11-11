@@ -305,14 +305,11 @@ def get_invitation(invitation_id: uuid.UUID) -> Invitation | None:
     return db.session.get(Invitation, invitation_id)
 
 
-def get_usable_invitations_by_email(email: str) -> Sequence[Invitation]:
-    return db.session.scalars(
-        select(Invitation).where(and_(Invitation.email == email, Invitation.is_usable.is_(True)))
-    ).all()
-
-
-def get_invitations_by_email(email: str) -> Sequence[Invitation]:
-    return db.session.scalars(select(Invitation).where(Invitation.email == email)).all()
+def get_invitations_by_email(email: str, is_usable: bool | None = None) -> Sequence[Invitation]:
+    stmt = select(Invitation).where(Invitation.email == email)
+    if is_usable is not None:
+        stmt = stmt.where(Invitation.is_usable.is_(is_usable))
+    return db.session.scalars(stmt).all()
 
 
 @flush_and_rollback_on_exceptions
@@ -328,7 +325,7 @@ def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: s
     # We do a check that there are invitations that exist for this email address before calling this function, but it's
     # safer to do this check again in here to avoid passing in invitations that don't belong to this user. SQLAlchemy
     # should cache the result of this query from when it was previously called so shouldn't impact performance.
-    invitations = get_usable_invitations_by_email(email=email_address)
+    invitations = get_invitations_by_email(email=email_address, is_usable=True)
     user = upsert_user_by_azure_ad_subject_id(
         azure_ad_subject_id=azure_ad_subject_id,
         email_address=email_address,
@@ -351,7 +348,7 @@ def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_addr
     )
     # Claiming invitations here is an edge case but avoids pre-invited grant team members who might sign in for the
     # first time as a platform admin from having pending invitations in the database and Grant Team views
-    invitations = get_usable_invitations_by_email(email=email_address)
+    invitations = get_invitations_by_email(email=email_address, is_usable=True)
     for invite in invitations:
         claim_invitation(invitation=invite, user=user)
     set_platform_admin_role_for_user(user)

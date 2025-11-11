@@ -147,11 +147,10 @@ def sso_get_token() -> ResponseReturnValue:
 
     # Invitations route
     elif user is None:
-        user_invites = interfaces.user.get_usable_invitations_by_email(email=sso_user["preferred_username"])
-        if not user_invites:
-            all_invites = interfaces.user.get_invitations_by_email(email=sso_user["preferred_username"])
+        user_invites = interfaces.user.get_invitations_by_email(email=sso_user["preferred_username"])
+        if not any(invite.is_usable for invite in user_invites):
             return redirect(
-                url_for("auth.signed_in_but_no_permissions", invite_expired=len(all_invites) > 0),
+                url_for("auth.signed_in_but_no_permissions", invite_expired=len(user_invites) > 0),
             )
         user = interfaces.user.create_user_and_claim_invitations(
             azure_ad_subject_id=sso_user["sub"],

@@ -490,7 +490,7 @@ class TestSSOGetTokenView:
             }
             response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=False)
             assert response.status_code == 500
-            assert "Azure AD get-token flow failed with: {'error': 'bad_error', 'error_codes': [12345]}"
+            assert "Sorry, there is a problem with the service - MHCLG Funding Service" in response.data.decode()
 
 
 class TestAuthenticatedUserRedirect:
