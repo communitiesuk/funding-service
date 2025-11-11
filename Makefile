@@ -52,3 +52,7 @@ up:
 .PHONY: down
 down:
 	docker compose down
+
+.PHONY: clean-down
+clean-down:
+	docker compose down --remove-orphans --rmi all --volumes
