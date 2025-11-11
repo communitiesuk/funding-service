@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from 'govuk_frontend_jinja/components/inset-text/macro.html' import govukInsetText %}
+{% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
+{% from 'deliver_grant_funding/partials/existing-certifiers.html' import existingCertifiersTable %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">Set up global certifiers</h1>
+
+      <p class="govuk-body">
+        This form is designed to work with an export of Delta's certifiers.
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ delta_service_desk_url }}">Request an export via Delta's service desk</a>. With that export open in Excel or similar, hide everything other than these columns:
+      </p>
+      <ul class="govuk-list govuk-list--bullet">
+        <li>organisation-name</li>
+        <li>first-name</li>
+        <li>last-name</li>
+        <li>email-address</li>
+      </ul>
+      <p class="govuk-body">Using filters, select only these certifier types:</p>
+      <ul class="govuk-list govuk-list--bullet">
+        <li>Section 151 Officer</li>
+      </ul>
+      <p class="govuk-body">Then copy and paste the entire table into the text area and submit. The header row must appear exactly once.</p>
+
+      {{ govukInsetText({"text": "This will not remove certifier permissions from any existing users."}) }}
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% set existingCertifiersHtml %}
+        {{ existingCertifiersTable(certifiers_by_org) }}
+      {% endset %}
+
+      {{
+        govukDetails({
+          "summaryText": "Existing certifiers by organisation",
+          "html": existingCertifiersHtml,
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{ form.certifiers_data }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% from 'govuk_frontend_jinja/components/table/macro.html' import govukTable %}
+
+{% macro existingCertifiersTable(certifiers_by_org) %}
+  {% set tableRows = [] %}
+  {% for organisation, users in certifiers_by_org.items() %}
+    {% if users %}
+      {% set userDetails %}
+        <ul class="govuk-list">
+          {% for user in users %}
+            <li>{{ user.name }} ({{ user.email }})</li>
+          {% endfor %}
+        </ul>
+      {% endset %}
+    {% else %}
+      {% set userDetails = 'No certifier set up' %}
+    {% endif %}
+    {%
+      do tableRows.append([
+        {"text": organisation.name},
+        {"html": userDetails}
+      ])
+    %}
+  {% endfor %}
+  {{
+    govukTable({
+      "head": [
+        {"text": "Organisation"},
+        {"text": "Certifiers"}
+      ],
+      "rows": tableRows
+    })
+  }}
+{% endmacro %}

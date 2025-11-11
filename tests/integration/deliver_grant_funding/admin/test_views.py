@@ -224,9 +224,12 @@ class TestReportingLifecycleTasklist:
     def test_shows_all_tasklists(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant, name="Q1 Report")
-        factories.organisation.create(name="Org 1", can_manage_grants=False)
-        factories.organisation.create(name="Org 2", can_manage_grants=False)
-        factories.organisation.create(name="Org 3", can_manage_grants=False)
+        org_1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        org_2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
+        _ = factories.organisation.create(name="Org 3", can_manage_grants=False)
+
+        factories.user_role.create(organisation=org_1, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(organisation=org_2, permissions=[RoleEnum.CERTIFIER])
 
         response = authenticated_platform_admin_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
@@ -244,7 +247,7 @@ class TestReportingLifecycleTasklist:
         platform_task_items = platform_task_list.find_all("li", {"class": "govuk-task-list__item"})
         grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(platform_task_items) == 1
+        assert len(platform_task_items) == 2
         assert len(grant_task_items) == 4
         assert len(report_task_items) == 3
 
@@ -259,6 +262,20 @@ class TestReportingLifecycleTasklist:
         task_status = organisations_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "3 organisations" in task_status.get_text(strip=True)
+        assert "govuk-tag--blue" in task_status.get("class")
+
+        certifiers_task = platform_task_items[1]
+        task_title = certifiers_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set up global certifiers"
+        assert (
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers"
+            in task_title.get("href")
+        )
+
+        task_status = certifiers_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "2 certifiers" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
         mark_grant_as_onboarding_task = grant_task_items[0]
@@ -456,6 +473,239 @@ class TestReportingLifecycleTasklist:
         assert task_status is not None
         assert "Completed" in task_status.get_text(strip=True)
         assert "govuk-tag--green" in task_status.get("class")
+
+
+class TestSetUpCertifiers:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_set_up_global_certifiers_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers")
+        assert response.status_code == expected_code
+
+    def test_get_set_up_global_certifiers_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Set up global certifiers"
+
+        assert soup.find("textarea", {"id": "certifiers_data"}) is not None
+
+    def test_get_shows_existing_certifiers(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Org", can_manage_grants=False)
+        user = factories.user.create(name="John Doe", email="john.doe@example.com")
+        factories.user_role.create(user=user, organisation=org, permissions=[RoleEnum.CERTIFIER])
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "John Doe" in soup.text
+        assert "john.doe@example.com" in soup.text
+
+    def test_post_creates_user_and_adds_certifier_permission(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
+            data={
+                "certifiers_data": (
+                    "organisation-name\tfirst-name\tlast-name\temail-address\n"
+                    "Test Organisation\tJohn\tDoe\tjohn.doe@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Created or updated 1 certifier(s).")
+
+        from app.common.data.interfaces.user import get_user_by_email
+
+        user = get_user_by_email("john.doe@example.com")
+        assert user is not None
+        assert user.name == "John Doe"
+        assert len(user.roles) == 1
+        assert RoleEnum.CERTIFIER in user.roles[0].permissions
+        assert user.roles[0].organisation_id == org.id
+
+    def test_post_with_multiple_certifiers(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
+            data={
+                "certifiers_data": (
+                    "organisation-name\tfirst-name\tlast-name\temail-address\n"
+                    "Org 1\tJohn\tDoe\tjohn.doe@example.com\n"
+                    "Org 2\tJane\tSmith\tjane.smith@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Created or updated 2 certifier(s).")
+
+        from app.common.data.interfaces.user import get_user_by_email
+
+        user1 = get_user_by_email("john.doe@example.com")
+        assert user1 is not None
+        assert user1.name == "John Doe"
+        assert any(RoleEnum.CERTIFIER in role.permissions and role.organisation_id == org1.id for role in user1.roles)
+
+        user2 = get_user_by_email("jane.smith@example.com")
+        assert user2 is not None
+        assert user2.name == "Jane Smith"
+        assert any(RoleEnum.CERTIFIER in role.permissions and role.organisation_id == org2.id for role in user2.roles)
+
+    def test_post_with_existing_user_upserts(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        existing_user = factories.user.create(email="existing@example.com", name="Old Name")
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
+            data={
+                "certifiers_data": (
+                    "organisation-name\tfirst-name\tlast-name\temail-address\n"
+                    "Test Organisation\tNew\tName\texisting@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Created or updated 1 certifier(s).")
+
+        from app.common.data.interfaces.user import get_user_by_email
+
+        user = get_user_by_email("existing@example.com")
+        assert user is not None
+        assert user.id == existing_user.id
+        assert user.name == "New Name"
+        assert any(RoleEnum.CERTIFIER in role.permissions and role.organisation_id == org.id for role in user.roles)
+
+    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
+            data={
+                "certifiers_data": (
+                    "organisation-name\tfirst-name\tlast-name\temail-address\n"
+                    "Test Organisation\tJohn\tDoe\tjohn.doe@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+    def test_post_with_invalid_header_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
+            data={
+                "certifiers_data": (
+                    "wrong-header\tfirst-name\tlast-name\temail-address\n"
+                    "Test Organisation\tJohn\tDoe\tjohn.doe@example.com"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup, "The header row must be exactly: organisation-name\tfirst-name\tlast-name\temail-address"
+        )
+
+    def test_post_with_invalid_email_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
+            data={
+                "certifiers_data": (
+                    "organisation-name\tfirst-name\tlast-name\temail-address\n"
+                    "Test Organisation\tJohn\tDoe\tinvalid-email"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Invalid email address(es): invalid-email")
+
+    def test_post_with_invalid_organisation(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
+            data={
+                "certifiers_data": (
+                    "organisation-name\tfirst-name\tlast-name\temail-address\n"
+                    "Non Existent Org\tJohn\tDoe\tjohn.doe@example.com\n"
+                ),
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Organisation 'Non Existent Org' has not been set up in Deliver grant funding.")
+
+        from app.common.data.interfaces.user import get_user_by_email
+
+        assert get_user_by_email("john.doe@example.com") is None
 
 
 class TestReportingLifecycleMakeGrantLive:
