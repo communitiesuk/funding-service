@@ -1373,7 +1373,7 @@ class TestSetUpGrantRecipientUsers:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Organisation 'Not A Recipient' is not a grant recipient for this grant.")
+        assert page_has_error(soup, "Organisation 'Not A Recipient' is not a grant recipient for this grant.")
 
     def test_post_with_mixed_valid_invalid_orgs_creates_no_users(
         self, authenticated_platform_admin_client, factories, db_session
@@ -1397,7 +1397,7 @@ class TestSetUpGrantRecipientUsers:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Organisation 'Invalid Org' is not a grant recipient for this grant.")
+        assert page_has_error(soup, "Organisation 'Invalid Org' is not a grant recipient for this grant.")
 
         from app.common.data.interfaces.user import get_user_by_email
 

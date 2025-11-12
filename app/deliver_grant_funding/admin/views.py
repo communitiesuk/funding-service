@@ -291,25 +291,6 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             grant_recipient_names_to_ids = {gr.organisation.name: gr.organisation.id for gr in grant_recipients}
             users_data = form.get_normalised_users_data()
 
-            # Validate all organisation names first before creating any users
-            invalid_orgs = []
-            for org_name, _, _ in users_data:
-                if org_name not in grant_recipient_names_to_ids:
-                    invalid_orgs.append(org_name)
-
-            if invalid_orgs:
-                unique_invalid_orgs = sorted(set(invalid_orgs))
-                for org_name in unique_invalid_orgs:
-                    flash(f"Organisation '{org_name}' is not a grant recipient for this grant.", "error")
-                return self.render(
-                    "deliver_grant_funding/admin/set-up-grant-recipient-data-providers.html",
-                    form=form,
-                    grant=grant,
-                    collection=collection,
-                    data_providers_by_grant_recipient=data_providers_by_grant_recipient,
-                )
-
-            # All organisations are valid, create all users
             for org_name, full_name, email_address in users_data:
                 org_id = grant_recipient_names_to_ids[org_name]
                 user = upsert_user_by_email(email_address=email_address, name=full_name)

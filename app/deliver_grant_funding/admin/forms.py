@@ -196,6 +196,9 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
     def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:
         super().__init__()
         self.grant_recipients = grant_recipients
+        self.organisation_names_to_ids = {
+            grant_recipient.organisation.name: grant_recipient.organisation_id for grant_recipient in grant_recipients
+        }
 
         self.users_data.description = Markup(
             "<span>Copy and paste the 'Funding service ingest' table from the "
@@ -219,6 +222,19 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         except Exception as e:
             field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # type: ignore[attr-defined]
             return
+
+        # Validate all organisation names first before creating any users
+        invalid_orgs = []
+        for org_name, *_ in users_data:
+            if org_name not in self.organisation_names_to_ids:
+                invalid_orgs.append(org_name)
+
+        if invalid_orgs:
+            unique_invalid_orgs = sorted(set(invalid_orgs))
+            for org_name in unique_invalid_orgs:
+                field.errors.append(  # type: ignore[attr-defined]
+                    f"Organisation '{org_name}' is not a grant recipient for this grant."
+                )
 
         # Validate email addresses
         from wtforms.validators import Email as EmailValidator
