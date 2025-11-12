@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
 
 from flask import current_app
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint, select, text
@@ -24,6 +24,7 @@ from app.common.data.types import (
     OrganisationType,
     QuestionDataType,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionEventKey,
     SubmissionModeEnum,
     json_flat_scalars,
@@ -765,3 +766,35 @@ class GrantRecipient(BaseModel):
         viewonly=True,
         lazy="select",
     )
+
+    _all_certifiers: Mapped[list[User]] = relationship(
+        "User",
+        secondary="user_role",
+        primaryjoin="GrantRecipient.organisation_id==UserRole.organisation_id",
+        secondaryjoin=f"""and_(
+            User.id==UserRole.user_id,
+            or_(UserRole.grant_id.is_(None), UserRole.grant_id==foreign(GrantRecipient.grant_id)),
+            UserRole.permissions.contains(['{RoleEnum.CERTIFIER}'])
+        )""",
+        viewonly=True,
+        lazy="select",
+    )
+
+    @property
+    def certifiers(self) -> Sequence[User]:
+        """Filters down to the preferred certifiers for this grant recipient.
+
+        Preferred certifiers have specific certifier permissions for this grant, rather than at the organisation-level.
+        """
+        preferred_certifiers = []
+        for certifier in self._all_certifiers:
+            for role in certifier.roles:
+                if (
+                    role.organisation_id == self.organisation_id
+                    and role.grant_id == self.grant_id
+                    and RoleEnum.CERTIFIER in role.permissions
+                ):
+                    preferred_certifiers.append(role.user)
+                    break
+
+        return preferred_certifiers or self._all_certifiers

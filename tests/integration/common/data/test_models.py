@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import QuestionDataType
 from app.common.data.models import ComponentReference, Expression, Group
-from app.common.data.types import ExpressionType, QuestionPresentationOptions, SubmissionModeEnum
+from app.common.data.types import ExpressionType, QuestionPresentationOptions, RoleEnum, SubmissionModeEnum
 from app.common.expressions.managed import GreaterThan, Specifically
 
 
@@ -245,6 +245,190 @@ class TestGroupModel:
 
         result = top_group.questions_in_add_another_summary
         assert result == []
+
+
+class TestGrantRecipientModel:
+    def test_certifiers_returns_empty_list_when_no_certifiers(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+
+        assert grant_recipient.certifiers == []
+
+    def test_certifiers_returns_global_certifiers_only(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.CERTIFIER]
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 1
+        assert result[0].id == user.id
+
+    def test_certifiers_returns_grant_specific_certifiers_only(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 1
+        assert result[0].id == user.id
+
+    def test_certifiers_prefers_grant_specific_over_global(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        global_certifier = factories.user.create()
+        grant_specific_certifier = factories.user.create()
+
+        factories.user_role.create(
+            user=global_certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+        factories.user_role.create(
+            user=grant_specific_certifier,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 1
+        assert result[0].id == grant_specific_certifier.id
+
+    def test_certifiers_returns_all_global_certifiers_when_no_grant_specific(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user1 = factories.user.create()
+        user2 = factories.user.create()
+        user3 = factories.user.create()
+
+        factories.user_role.create(
+            user=user1, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.CERTIFIER]
+        )
+        factories.user_role.create(
+            user=user2, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.CERTIFIER]
+        )
+        factories.user_role.create(
+            user=user3, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.CERTIFIER]
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 3
+        assert {u.id for u in result} == {user1.id, user2.id, user3.id}
+
+    def test_certifiers_returns_all_grant_specific_certifiers(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user1 = factories.user.create()
+        user2 = factories.user.create()
+
+        factories.user_role.create(
+            user=user1,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+        factories.user_role.create(
+            user=user2,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 2
+        assert {u.id for u in result} == {user1.id, user2.id}
+
+    def test_certifiers_excludes_certifiers_from_different_organisation(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        other_org = factories.organisation.create()
+        other_org_certifier = factories.user.create()
+
+        factories.user_role.create(
+            user=other_org_certifier, organisation=other_org, grant=None, permissions=[RoleEnum.CERTIFIER]
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 0
+
+    def test_certifiers_excludes_certifiers_from_different_grant(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        other_grant = factories.grant.create()
+        other_grant_certifier = factories.user.create()
+
+        factories.user_role.create(
+            user=other_grant_certifier,
+            organisation=grant_recipient.organisation,
+            grant=other_grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 0
+
+    def test_certifiers_excludes_non_certifier_roles(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        member_user = factories.user.create()
+        admin_user = factories.user.create()
+
+        factories.user_role.create(
+            user=member_user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER],
+        )
+        factories.user_role.create(
+            user=admin_user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.ADMIN]
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 0
+
+    def test_certifiers_with_multiple_permissions_including_certifier(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 1
+        assert result[0].id == user.id
+
+    def test_certifiers_user_with_both_global_and_grant_specific_roles(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+
+        factories.user_role.create(
+            user=user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.CERTIFIER]
+        )
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        result = grant_recipient.certifiers
+
+        assert len(result) == 1
+        assert result[0].id == user.id
 
 
 class TestComponentReferenceModel:
