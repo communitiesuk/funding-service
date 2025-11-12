@@ -19,7 +19,7 @@ from app.common.data.interfaces.exceptions import (
     flush_and_rollback_on_exceptions,
 )
 from app.common.data.interfaces.grant_recipients import (
-    all_grant_recipients_have_users,
+    all_grant_recipients_have_data_providers,
     get_grant_recipients,
 )
 from app.common.data.models import (
@@ -191,7 +191,7 @@ def update_collection(  # noqa: C901
                 ):
                     raise CollectionChronologyError("Reporting dates must be chronological and before submission dates")
 
-                if not all_grant_recipients_have_users(collection.grant):
+                if not all_grant_recipients_have_data_providers(collection.grant):
                     raise GrantRecipientUsersRequiredError(
                         f"All grant recipients must have at least one user set up before {actioning} a report"
                     )

@@ -83,9 +83,9 @@
       %}
       {%
         do rows.append({
-          "title": {"text": "Set up grant recipient users", "classes": "govuk-link--no-visited-state"},
-          "status": {"html": govukTag({"text": grant_recipient_users_count ~ (" user" if grant_recipient_users_count == 1 else " users"), "classes": "govuk-tag--blue"})},
-          "href": url_for('reporting_lifecycle.set_up_grant_recipient_users', grant_id=grant.id, collection_id=collection.id),
+          "title": {"text": "Set up grant recipient data providers", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": govukTag({"text": grant_recipient_users_count ~ (" data provider" if grant_recipient_users_count == 1 else " data providers"), "classes": "govuk-tag--blue"})},
+          "href": url_for('reporting_lifecycle.set_up_grant_recipient_data_providers', grant_id=grant.id, collection_id=collection.id),
         })
       %}
       {{ govukTaskList({ "idPrefix": "grant-tasks", "items": rows, "attributes": {"id": "grant-tasks"} }) }}

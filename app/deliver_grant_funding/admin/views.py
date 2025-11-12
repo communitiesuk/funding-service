@@ -14,23 +14,22 @@ from app.common.data.interfaces.exceptions import (
 )
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipients,
-    get_grant_recipient_user_roles,
-    get_grant_recipient_users_by_organisation,
-    get_grant_recipient_users_count,
+    get_grant_recipient_data_provider_roles,
+    get_grant_recipient_data_providers_by_organisation,
+    get_grant_recipient_data_providers_count,
     get_grant_recipients,
     get_grant_recipients_count,
-    revoke_grant_recipient_user_role,
 )
 from app.common.data.interfaces.grants import get_all_grants, get_grant, update_grant
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
 from app.common.data.interfaces.user import (
     add_permissions_to_user,
     get_certifiers_by_organisation,
+    get_user,
     get_user_by_email,
     get_users_with_permission,
     remove_permissions_from_user,
     upsert_user_by_email,
-    upsert_user_role,
 )
 from app.common.data.types import CollectionStatusEnum, CollectionType, GrantStatusEnum, RoleEnum
 from app.deliver_grant_funding.admin.forms import (
@@ -95,7 +94,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         organisation_count = get_organisation_count()
         certifiers_count = len(get_users_with_permission(RoleEnum.CERTIFIER, grant_id=None))
         grant_recipients_count = get_grant_recipients_count(grant=grant)
-        grant_recipient_users_count = get_grant_recipient_users_count(grant=grant)
+        grant_recipient_users_count = get_grant_recipient_data_providers_count(grant=grant)
         return self.render(
             "deliver_grant_funding/admin/reporting-lifecycle-tasklist.html",
             grant=grant,
@@ -280,15 +279,15 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             form=form,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-grant-recipient-users", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-grant-recipient-data-providers", methods=["GET", "POST"])  # type: ignore[misc]
     @auto_commit_after_request
-    def set_up_grant_recipient_users(self, grant_id: UUID, collection_id: UUID) -> Any:
+    def set_up_grant_recipient_data_providers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
         grant_recipients = get_grant_recipients(grant=grant)
         form = PlatformAdminCreateGrantRecipientUserForm(grant_recipients=grant_recipients)
 
-        grant_recipient_users_by_org = get_grant_recipient_users_by_organisation(grant)
+        grant_recipient_users_by_org = get_grant_recipient_data_providers_by_organisation(grant)
 
         if form.validate_on_submit():
             grant_recipient_names_to_ids = {gr.organisation.name: gr.organisation.id for gr in grant_recipients}
@@ -305,7 +304,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                 for org_name in unique_invalid_orgs:
                     flash(f"Organisation '{org_name}' is not a grant recipient for this grant.", "error")
                 return self.render(
-                    "deliver_grant_funding/admin/set-up-grant-recipient-users.html",
+                    "deliver_grant_funding/admin/set-up-grant-recipient-data-providers.html",
                     form=form,
                     grant=grant,
                     collection=collection,
@@ -316,10 +315,13 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             for org_name, full_name, email_address in users_data:
                 org_id = grant_recipient_names_to_ids[org_name]
                 user = upsert_user_by_email(email_address=email_address, name=full_name)
-                upsert_user_role(user=user, permissions=[RoleEnum.MEMBER], organisation_id=org_id, grant_id=grant.id)
+                add_permissions_to_user(
+                    user, permissions=[RoleEnum.DATA_PROVIDER], organisation_id=org_id, grant_id=grant.id
+                )
 
+            data_provider = "data provider" if len(users_data) == 1 else "data providers"
             flash(
-                f"Successfully set up {len(users_data)} grant recipient {'user' if len(users_data) == 1 else 'users'}.",
+                f"Successfully set up {len(users_data)} grant recipient {data_provider}.",
                 "success",
             )
 
@@ -332,20 +334,20 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             )
 
         return self.render(
-            "deliver_grant_funding/admin/set-up-grant-recipient-users.html",
+            "deliver_grant_funding/admin/set-up-grant-recipient-data-providers.html",
             form=form,
             grant=grant,
             collection=collection,
             grant_recipient_users_by_org=grant_recipient_users_by_org,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/revoke-grant-recipient-users", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/revoke-grant-recipient-data-providers", methods=["GET", "POST"])  # type: ignore[misc]
     @auto_commit_after_request
-    def revoke_grant_recipient_users(self, grant_id: UUID, collection_id: UUID) -> Any:
+    def revoke_grant_recipient_data_providers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
 
-        user_roles = get_grant_recipient_user_roles(grant)
+        user_roles = get_grant_recipient_data_provider_roles(grant)
         form = PlatformAdminRevokeGrantRecipientUsersForm(user_roles=user_roles)
 
         if form.validate_on_submit():
@@ -356,27 +358,36 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                 user_id = UUID(user_id_str)
                 org_id = UUID(org_id_str)
 
-                if revoke_grant_recipient_user_role(user_id, org_id, grant.id):
+                if (
+                    remove_permissions_from_user(
+                        get_user(user_id),
+                        permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+                        organisation_id=org_id,
+                        grant_id=grant.id,
+                    )
+                    is None
+                ):
                     revoked_count += 1
 
             if revoked_count > 0:
+                data_provider = "data provider" if revoked_count == 1 else "data providers"
                 flash(
-                    f"Successfully revoked access for {revoked_count} {'user' if revoked_count == 1 else 'users'}.",
+                    f"Successfully revoked access for {revoked_count} {data_provider}.",
                     "success",
                 )
             else:
-                flash("No users were revoked.", "error")
+                flash("No data providers were revoked.", "error")
 
             return redirect(
                 url_for(
-                    "reporting_lifecycle.set_up_grant_recipient_users",
+                    "reporting_lifecycle.set_up_grant_recipient_data_providers",
                     grant_id=grant.id,
                     collection_id=collection.id,
                 )
             )
 
         return self.render(
-            "deliver_grant_funding/admin/revoke-grant-recipient-users.html",
+            "deliver_grant_funding/admin/revoke-grant-recipient-data-providers.html",
             form=form,
             grant=grant,
             collection=collection,

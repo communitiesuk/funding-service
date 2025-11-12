@@ -231,6 +231,12 @@ def remove_permissions_from_user(
         db.session.delete(user_role)
         return None
     else:
+        # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
+        # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered
+        # redundant and is up for removal in the future.
+        if RoleEnum.MEMBER not in combined_permissions:
+            combined_permissions.append(RoleEnum.MEMBER)
+
         return upsert_user_role(user, combined_permissions, organisation_id, grant_id)
 
 

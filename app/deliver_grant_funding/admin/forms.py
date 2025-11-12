@@ -186,12 +186,12 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
 
 class PlatformAdminCreateGrantRecipientUserForm(FlaskForm):
     users_data = TextAreaField(
-        "Grant recipient users TSV data",
+        "grant recipient data providers TSV data",
         default="organisation-name\tfull-name\temail-address\n",
         validators=[DataRequired()],
         widget=GovTextArea(),
     )
-    submit = SubmitField("Set up grant recipient users", widget=GovSubmitInput())
+    submit = SubmitField("Set up data providers", widget=GovSubmitInput())
 
     def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:
         super().__init__()
@@ -247,7 +247,7 @@ class PlatformAdminCreateGrantRecipientUserForm(FlaskForm):
 
 class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
     user_roles = SelectMultipleField(
-        "Grant recipient users to revoke",
+        "Grant recipient data providers to revoke",
         choices=[],
         widget=GovSelectWithSearch(multiple=True),
         validators=[DataRequired()],

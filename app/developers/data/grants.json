@@ -14053,7 +14053,8 @@
       "id": "6968a72f-a002-4c3f-8b60-b9a9635c8115",
       "organisation_id": "41773840-55b6-4d5e-8b83-a6163e0c834d",
       "permissions": [
-        "member"
+        "member",
+        "data-provider"
       ],
       "user_id": "4f990e2b-690b-4c97-a47b-c9a073e92827"
     },
@@ -14067,7 +14068,7 @@
       "user_id": "62ee98f5-cf10-4848-95a4-5b6280529046"
     },
     {
-      "id": "54455237-39fc-43ad-9569-8d268ca8f0d3",
+      "id": "59754cdf-3c78-42ac-9e10-5025116403f2",
       "permissions": [
         "admin"
       ],
@@ -14078,7 +14079,8 @@
       "id": "dcb4c487-8154-45ec-bec7-5527e261b8f8",
       "organisation_id": "3ca29557-e6b9-4e6d-8290-5fb1c9535d1e",
       "permissions": [
-        "member"
+        "member",
+        "data-provider"
       ],
       "user_id": "a08a325c-645a-4a36-9787-c2acd75dd0f2"
     },

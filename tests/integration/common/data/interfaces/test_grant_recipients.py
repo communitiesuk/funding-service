@@ -1,12 +1,12 @@
 from app.common.data.interfaces.grant_recipients import (
-    all_grant_recipients_have_users,
+    all_grant_recipients_have_data_providers,
     create_grant_recipients,
-    get_grant_recipient_user_roles,
-    get_grant_recipient_users_by_organisation,
-    get_grant_recipient_users_count,
+    get_grant_recipient_data_provider_roles,
+    get_grant_recipient_data_providers_by_organisation,
+    get_grant_recipient_data_providers_count,
     get_grant_recipients,
     get_grant_recipients_count,
-    revoke_grant_recipient_user_role,
+    revoke_grant_recipient_data_provider_role,
 )
 from app.common.data.models import GrantRecipient
 from app.common.data.types import RoleEnum
@@ -140,11 +140,11 @@ class TestCreateGrantRecipients:
         assert {gr.organisation_id for gr in grant_recipients} == {org1.id, org2.id, org3.id}
 
 
-class TestGetGrantRecipientUsersCount:
+class TestGetGrantRecipientDataProvidersCount:
     def test_no_grant_recipient_users(self, db_session, factories):
         grant = factories.grant.create()
 
-        count = get_grant_recipient_users_count(grant)
+        count = get_grant_recipient_data_providers_count(grant)
 
         assert count == 0
 
@@ -153,10 +153,13 @@ class TestGetGrantRecipientUsersCount:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        count = get_grant_recipient_users_count(grant)
+        count = get_grant_recipient_data_providers_count(grant)
 
         assert count == 1
 
@@ -166,10 +169,13 @@ class TestGetGrantRecipientUsersCount:
         users = factories.user.create_batch(3)
         for user in users:
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+                user=user,
+                organisation=grant_recipient.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
             )
 
-        count = get_grant_recipient_users_count(grant)
+        count = get_grant_recipient_data_providers_count(grant)
 
         assert count == 3
 
@@ -179,15 +185,21 @@ class TestGetGrantRecipientUsersCount:
 
         user1 = factories.user.create()
         factories.user_role.create(
-            user=user1, organisation=grant_recipients[0].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user1,
+            organisation=grant_recipients[0].organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
         user2 = factories.user.create()
         factories.user_role.create(
-            user=user2, organisation=grant_recipients[1].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user2,
+            organisation=grant_recipients[1].organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        count = get_grant_recipient_users_count(grant)
+        count = get_grant_recipient_data_providers_count(grant)
 
         assert count == 2
 
@@ -197,10 +209,13 @@ class TestGetGrantRecipientUsersCount:
 
         grant_team_user = factories.user.create()
         factories.user_role.create(
-            user=grant_team_user, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=grant_team_user,
+            organisation=grant.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        count = get_grant_recipient_users_count(grant)
+        count = get_grant_recipient_data_providers_count(grant)
 
         assert count == 0
 
@@ -210,7 +225,7 @@ class TestGetGrantRecipientUsersCount:
         user = factories.user.create()
         factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
 
-        count = get_grant_recipient_users_count(grant)
+        count = get_grant_recipient_data_providers_count(grant)
 
         assert count == 0
 
@@ -220,19 +235,22 @@ class TestGetGrantRecipientUsersCount:
         grant_recipient = factories.grant_recipient.create(grant=grant1)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant2, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant2,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        count = get_grant_recipient_users_count(grant1)
+        count = get_grant_recipient_data_providers_count(grant1)
 
         assert count == 0
 
 
-class TestAllGrantRecipientsHaveUsers:
+class TestAllGrantRecipientsHaveDataProviders:
     def test_returns_false_when_no_grant_recipients(self, db_session, factories):
         grant = factories.grant.create()
 
-        result = all_grant_recipients_have_users(grant)
+        result = all_grant_recipients_have_data_providers(grant)
 
         assert result is False
 
@@ -240,7 +258,7 @@ class TestAllGrantRecipientsHaveUsers:
         grant = factories.grant.create()
         factories.grant_recipient.create(grant=grant)
 
-        result = all_grant_recipients_have_users(grant)
+        result = all_grant_recipients_have_data_providers(grant)
 
         assert result is False
 
@@ -249,10 +267,13 @@ class TestAllGrantRecipientsHaveUsers:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = all_grant_recipients_have_users(grant)
+        result = all_grant_recipients_have_data_providers(grant)
 
         assert result is True
 
@@ -263,10 +284,13 @@ class TestAllGrantRecipientsHaveUsers:
         for grant_recipient in grant_recipients:
             user = factories.user.create()
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+                user=user,
+                organisation=grant_recipient.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
             )
 
-        result = all_grant_recipients_have_users(grant)
+        result = all_grant_recipients_have_data_providers(grant)
 
         assert result is True
 
@@ -276,10 +300,13 @@ class TestAllGrantRecipientsHaveUsers:
 
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipients[0].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipients[0].organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = all_grant_recipients_have_users(grant)
+        result = all_grant_recipients_have_data_providers(grant)
 
         assert result is False
 
@@ -290,10 +317,13 @@ class TestAllGrantRecipientsHaveUsers:
 
         for user in users:
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+                user=user,
+                organisation=grant_recipient.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
             )
 
-        result = all_grant_recipients_have_users(grant)
+        result = all_grant_recipients_have_data_providers(grant)
 
         assert result is True
 
@@ -303,7 +333,7 @@ class TestAllGrantRecipientsHaveUsers:
         user = factories.user.create()
         factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
 
-        result = all_grant_recipients_have_users(grant)
+        result = all_grant_recipients_have_data_providers(grant)
 
         assert result is False
 
@@ -313,10 +343,13 @@ class TestAllGrantRecipientsHaveUsers:
         grant_recipient = factories.grant_recipient.create(grant=grant1)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant2, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant2,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = all_grant_recipients_have_users(grant1)
+        result = all_grant_recipients_have_data_providers(grant1)
 
         assert result is False
 
@@ -325,19 +358,22 @@ class TestAllGrantRecipientsHaveUsers:
         factories.grant_recipient.create(grant=grant)
         grant_team_user = factories.user.create()
         factories.user_role.create(
-            user=grant_team_user, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=grant_team_user,
+            organisation=grant.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = all_grant_recipients_have_users(grant)
+        result = all_grant_recipients_have_data_providers(grant)
 
         assert result is False
 
 
-class TestGetGrantRecipientUsersByOrganisation:
+class TestGetGrantRecipientDataProvidersByOrganisation:
     def test_returns_empty_dict_when_no_grant_recipients(self, db_session, factories):
         grant = factories.grant.create()
 
-        result = get_grant_recipient_users_by_organisation(grant)
+        result = get_grant_recipient_data_providers_by_organisation(grant)
 
         assert result == {}
 
@@ -345,7 +381,7 @@ class TestGetGrantRecipientUsersByOrganisation:
         grant = factories.grant.create()
         grant_recipient = factories.grant_recipient.create(grant=grant)
 
-        result = get_grant_recipient_users_by_organisation(grant)
+        result = get_grant_recipient_data_providers_by_organisation(grant)
 
         assert len(result) == 1
         assert grant_recipient in result
@@ -356,10 +392,13 @@ class TestGetGrantRecipientUsersByOrganisation:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = get_grant_recipient_users_by_organisation(grant)
+        result = get_grant_recipient_data_providers_by_organisation(grant)
 
         assert len(result) == 1
         assert grant_recipient in result
@@ -372,10 +411,13 @@ class TestGetGrantRecipientUsersByOrganisation:
         users = factories.user.create_batch(3)
         for user in users:
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+                user=user,
+                organisation=grant_recipient.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
             )
 
-        result = get_grant_recipient_users_by_organisation(grant)
+        result = get_grant_recipient_data_providers_by_organisation(grant)
 
         assert len(result) == 1
         assert grant_recipient in result
@@ -392,10 +434,13 @@ class TestGetGrantRecipientUsersByOrganisation:
             users_per_recipient[grant_recipient.id] = users
             for user in users:
                 factories.user_role.create(
-                    user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+                    user=user,
+                    organisation=grant_recipient.organisation,
+                    grant=grant,
+                    permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
                 )
 
-        result = get_grant_recipient_users_by_organisation(grant)
+        result = get_grant_recipient_data_providers_by_organisation(grant)
 
         assert len(result) == 3
         for grant_recipient in grant_recipients:
@@ -411,13 +456,19 @@ class TestGetGrantRecipientUsersByOrganisation:
         user1 = factories.user.create()
         user2 = factories.user.create()
         factories.user_role.create(
-            user=user1, organisation=grant_recipient.organisation, grant=grant1, permissions=[RoleEnum.MEMBER]
+            user=user1,
+            organisation=grant_recipient.organisation,
+            grant=grant1,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
         factories.user_role.create(
-            user=user2, organisation=grant_recipient.organisation, grant=grant2, permissions=[RoleEnum.MEMBER]
+            user=user2,
+            organisation=grant_recipient.organisation,
+            grant=grant2,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = get_grant_recipient_users_by_organisation(grant1)
+        result = get_grant_recipient_data_providers_by_organisation(grant1)
 
         assert len(result) == 1
         assert grant_recipient in result
@@ -430,11 +481,14 @@ class TestGetGrantRecipientUsersByOrganisation:
         member_user = factories.user.create()
         admin_user = factories.user.create()
         factories.user_role.create(
-            user=member_user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=member_user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
         factories.user_role.create(user=admin_user, permissions=[RoleEnum.ADMIN])
 
-        result = get_grant_recipient_users_by_organisation(grant)
+        result = get_grant_recipient_data_providers_by_organisation(grant)
 
         assert len(result) == 1
         assert grant_recipient in result
@@ -442,11 +496,11 @@ class TestGetGrantRecipientUsersByOrganisation:
         assert result[grant_recipient][0].id == member_user.id
 
 
-class TestGetGrantRecipientUserRoles:
+class TestGetGrantRecipientDataProviderRoles:
     def test_returns_empty_list_when_no_users(self, db_session, factories):
         grant = factories.grant.create()
 
-        result = get_grant_recipient_user_roles(grant)
+        result = get_grant_recipient_data_provider_roles(grant)
 
         assert result == []
 
@@ -455,10 +509,13 @@ class TestGetGrantRecipientUserRoles:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create(name="Test User", email="test@example.com")
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = get_grant_recipient_user_roles(grant)
+        result = get_grant_recipient_data_provider_roles(grant)
 
         assert len(result) == 1
         assert result[0].user_id == user.id
@@ -473,10 +530,13 @@ class TestGetGrantRecipientUserRoles:
         users = factories.user.create_batch(3)
         for user in users:
             factories.user_role.create(
-                user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+                user=user,
+                organisation=grant_recipient.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
             )
 
-        result = get_grant_recipient_user_roles(grant)
+        result = get_grant_recipient_data_provider_roles(grant)
 
         assert len(result) == 3
         user_ids = {ur.user_id for ur in result}
@@ -492,13 +552,19 @@ class TestGetGrantRecipientUserRoles:
         user2 = factories.user.create(name="User 2")
 
         factories.user_role.create(
-            user=user1, organisation=grant_recipients[0].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user1,
+            organisation=grant_recipients[0].organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
         factories.user_role.create(
-            user=user2, organisation=grant_recipients[1].organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user2,
+            organisation=grant_recipients[1].organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = get_grant_recipient_user_roles(grant)
+        result = get_grant_recipient_data_provider_roles(grant)
 
         assert len(result) == 2
         result_dict = {ur.user_id: (ur.organisation_id, ur.user.name) for ur in result}
@@ -512,13 +578,19 @@ class TestGetGrantRecipientUserRoles:
         user1 = factories.user.create()
         user2 = factories.user.create()
         factories.user_role.create(
-            user=user1, organisation=grant_recipient.organisation, grant=grant1, permissions=[RoleEnum.MEMBER]
+            user=user1,
+            organisation=grant_recipient.organisation,
+            grant=grant1,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
         factories.user_role.create(
-            user=user2, organisation=grant_recipient.organisation, grant=grant2, permissions=[RoleEnum.MEMBER]
+            user=user2,
+            organisation=grant_recipient.organisation,
+            grant=grant2,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = get_grant_recipient_user_roles(grant1)
+        result = get_grant_recipient_data_provider_roles(grant1)
 
         assert len(result) == 1
         assert result[0].user_id == user1.id
@@ -529,30 +601,36 @@ class TestGetGrantRecipientUserRoles:
         member_user = factories.user.create()
         admin_user = factories.user.create()
         factories.user_role.create(
-            user=member_user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=member_user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
         factories.user_role.create(user=admin_user, permissions=[RoleEnum.ADMIN])
 
-        result = get_grant_recipient_user_roles(grant)
+        result = get_grant_recipient_data_provider_roles(grant)
 
         assert len(result) == 1
         assert result[0].user_id == member_user.id
 
 
-class TestRevokeGrantRecipientUserRole:
+class TestRevokeGrantRecipientDataProviderRole:
     def test_revokes_user_role_successfully(self, db_session, factories):
         grant = factories.grant.create()
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = revoke_grant_recipient_user_role(user.id, grant_recipient.organisation_id, grant.id)
+        result = revoke_grant_recipient_data_provider_role(user.id, grant_recipient.organisation_id, grant.id)
 
         assert result is True
         db_session.expire_all()
-        remaining_roles = get_grant_recipient_user_roles(grant)
+        remaining_roles = get_grant_recipient_data_provider_roles(grant)
         assert len(remaining_roles) == 0
 
     def test_returns_false_when_no_matching_role(self, db_session, factories):
@@ -560,7 +638,7 @@ class TestRevokeGrantRecipientUserRole:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
 
-        result = revoke_grant_recipient_user_role(user.id, grant_recipient.organisation_id, grant.id)
+        result = revoke_grant_recipient_data_provider_role(user.id, grant_recipient.organisation_id, grant.id)
 
         assert result is False
 
@@ -570,17 +648,23 @@ class TestRevokeGrantRecipientUserRole:
         user1 = factories.user.create()
         user2 = factories.user.create()
         factories.user_role.create(
-            user=user1, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user1,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
         factories.user_role.create(
-            user=user2, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user2,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = revoke_grant_recipient_user_role(user1.id, grant_recipient.organisation_id, grant.id)
+        result = revoke_grant_recipient_data_provider_role(user1.id, grant_recipient.organisation_id, grant.id)
 
         assert result is True
         db_session.expire_all()
-        remaining_roles = get_grant_recipient_user_roles(grant)
+        remaining_roles = get_grant_recipient_data_provider_roles(grant)
         assert len(remaining_roles) == 1
         assert remaining_roles[0].user_id == user2.id
 
@@ -590,14 +674,17 @@ class TestRevokeGrantRecipientUserRole:
         grant_recipient = factories.grant_recipient.create(grant=grant1)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant1, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant1,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = revoke_grant_recipient_user_role(user.id, grant_recipient.organisation_id, grant2.id)
+        result = revoke_grant_recipient_data_provider_role(user.id, grant_recipient.organisation_id, grant2.id)
 
         assert result is False
         db_session.expire_all()
-        remaining_roles = get_grant_recipient_user_roles(grant1)
+        remaining_roles = get_grant_recipient_data_provider_roles(grant1)
         assert len(remaining_roles) == 1
 
     def test_does_not_revoke_role_for_different_organisation(self, db_session, factories):
@@ -606,14 +693,17 @@ class TestRevokeGrantRecipientUserRole:
         grant_recipient2 = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient1.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient1.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        result = revoke_grant_recipient_user_role(user.id, grant_recipient2.organisation_id, grant.id)
+        result = revoke_grant_recipient_data_provider_role(user.id, grant_recipient2.organisation_id, grant.id)
 
         assert result is False
         db_session.expire_all()
-        remaining_roles = get_grant_recipient_user_roles(grant)
+        remaining_roles = get_grant_recipient_data_provider_roles(grant)
         assert len(remaining_roles) == 1
 
     def test_does_not_revoke_non_member_roles(self, db_session, factories):
@@ -621,7 +711,7 @@ class TestRevokeGrantRecipientUserRole:
         user = factories.user.create()
         admin_role = factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
 
-        result = revoke_grant_recipient_user_role(user.id, admin_role.organisation_id, grant.id)
+        result = revoke_grant_recipient_data_provider_role(user.id, admin_role.organisation_id, grant.id)
 
         assert result is False
 
@@ -630,13 +720,16 @@ class TestRevokeGrantRecipientUserRole:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
         initial_roles_count = len(user.roles)
         assert initial_roles_count > 0
 
-        revoke_grant_recipient_user_role(user.id, grant_recipient.organisation_id, grant.id)
+        revoke_grant_recipient_data_provider_role(user.id, grant_recipient.organisation_id, grant.id)
 
         db_session.expire_all()
         refreshed_user = db_session.get(user.__class__, user.id)
@@ -645,7 +738,7 @@ class TestRevokeGrantRecipientUserRole:
     def test_will_not_revoke_grant_managing_org_role(self, db_session, factories):
         grant = factories.grant.create()
         user_role = factories.user_role.create(
-            grant=grant, organisation=grant.organisation, permissions=[RoleEnum.MEMBER]
+            grant=grant, organisation=grant.organisation, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
         )
 
-        assert revoke_grant_recipient_user_role(user_role.user_id, grant.organisation_id, grant.id) == 0
+        assert revoke_grant_recipient_data_provider_role(user_role.user_id, grant.organisation_id, grant.id) == 0
