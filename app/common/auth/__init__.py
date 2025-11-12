@@ -9,7 +9,7 @@ from flask_login import login_user, logout_user
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import SignInForm
-from app.common.auth.sso import build_auth_code_flow, build_msal_app
+from app.common.auth.sso import MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED, build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum
 from app.common.forms import GenericSubmitForm
@@ -101,6 +101,15 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
 
 
+@auth_blueprint.route("/sso/permissions-error", methods=["GET", "POST"])
+def signed_in_but_no_permissions() -> ResponseReturnValue:
+    return render_template(
+        "common/auth/mhclg-user-not-authorised.html",
+        service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
+        invite_expired=str(request.args.get("invite_expired", False)) == "True",
+    ), 403
+
+
 @auth_blueprint.route("/sso/sign-in", methods=["GET", "POST"])
 @redirect_if_authenticated
 def sso_sign_in() -> ResponseReturnValue:
@@ -118,6 +127,11 @@ def sso_sign_in() -> ResponseReturnValue:
 def sso_get_token() -> ResponseReturnValue:
     result = build_msal_app().acquire_token_by_auth_code_flow(session.get("flow", {}), request.args)
     if "error" in result:
+        if MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED in result.get("error_codes", []):
+            current_app.logger.warning(
+                "Authorization code was already redeemed: %(error)s.", {"error": result.get("error_description")}
+            )
+            return redirect(url_for("auth.sign_out"))
         return abort(500, "Azure AD get-token flow failed with: {}".format(result))
 
     sso_user = result["id_token_claims"]
@@ -133,14 +147,11 @@ def sso_get_token() -> ResponseReturnValue:
 
     # Invitations route
     elif user is None:
-        user_invites = interfaces.user.get_usable_invitations_by_email(email=sso_user["preferred_username"])
-        # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
-        if not user_invites:
-            return render_template(
-                "common/auth/mhclg-user-not-authorised.html",
-                service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
-                invite_expired=True,
-            ), 403
+        user_invites = interfaces.user.get_invitations_by_email(email=sso_user["preferred_username"])
+        if not any(invite.is_usable for invite in user_invites):
+            return redirect(
+                url_for("auth.signed_in_but_no_permissions", invite_expired=len(user_invites) > 0),
+            )
         user = interfaces.user.create_user_and_claim_invitations(
             azure_ad_subject_id=sso_user["sub"],
             email_address=sso_user["preferred_username"],
@@ -156,20 +167,16 @@ def sso_get_token() -> ResponseReturnValue:
         )
         if AuthorisationHelper.is_platform_admin(user):
             interfaces.user.remove_platform_admin_role_from_user(user)
-            # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
             if not user.roles:
-                return render_template(
-                    "common/auth/mhclg-user-not-authorised.html",
-                    service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
-                ), 403
+                return redirect(
+                    url_for("auth.signed_in_but_no_permissions", invite_expired=False),
+                )
 
-    # No user user and no roles means they should 403 for now
+    # No user and no roles means they should 403 for now
     else:
-        # TODO: We should remove these 403s - MHCLG people should be able to login but not see anything if no roles
-        return render_template(
-            "common/auth/mhclg-user-not-authorised.html",
-            service_desk_url=current_app.config["DELIVER_SERVICE_DESK_URL"],
-        ), 403
+        return redirect(
+            url_for("auth.signed_in_but_no_permissions", invite_expired=False),
+        )
 
     # For all other valid users with roles after the above, finish the flow and redirect
     redirect_to_path = sanitise_redirect_url(session.pop("next", url_for("index")))

@@ -504,7 +504,7 @@ class TestInvitations:
         assert claimed_invitation.user == user
 
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
-    def test_get_usable_invitations_by_email(self, db_session, factories) -> None:
+    def test_get_invitations_by_email(self, db_session, factories) -> None:
         grants = factories.grant.create_batch(5)
 
         # Create an expired invitation to check it isn't returned
@@ -534,9 +534,22 @@ class TestInvitations:
                 permissions=[RoleEnum.MEMBER],
             )
 
-        usable_invitations = interfaces.user.get_usable_invitations_by_email(email="test@communities.gov.uk")
+        usable_invitations = interfaces.user.get_invitations_by_email(email="test@communities.gov.uk", is_usable=True)
         assert len(usable_invitations) == 3
-        assert expired_invitation and claimed_invitation not in usable_invitations
+        assert expired_invitation not in usable_invitations
+        assert claimed_invitation not in usable_invitations
+
+        unusable_invitations = interfaces.user.get_invitations_by_email(
+            email="test@communities.gov.uk", is_usable=False
+        )
+        assert len(unusable_invitations) == 2
+        assert expired_invitation in unusable_invitations
+        assert claimed_invitation in unusable_invitations
+
+        all_invitations = interfaces.user.get_invitations_by_email(
+            email="test@communities.gov.uk",
+        )
+        assert len(all_invitations) == 5
 
     def test_create_user_and_claim_invitations(self, db_session, factories) -> None:
         grants = factories.grant.create_batch(3)

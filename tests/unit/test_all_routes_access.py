@@ -128,6 +128,7 @@ routes_with_no_expected_access_restrictions = [
     "auth.sso_sign_in",
     "auth.sso_get_token",
     "auth.sign_out",
+    "auth.signed_in_but_no_permissions",
     "deliver_grant_funding.return_from_test_submission",  # the target endpoints have auth
     "static",
     "healthcheck.healthcheck",
