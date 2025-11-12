@@ -249,7 +249,7 @@ class TestReportingLifecycleTasklist:
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 2
         assert len(grant_task_items) == 4
-        assert len(report_task_items) == 3
+        assert len(report_task_items) == 4
 
         organisations_task = platform_task_items[0]
         task_title = organisations_task.find("a", {"class": "govuk-link"})
@@ -325,34 +325,44 @@ class TestReportingLifecycleTasklist:
         assert "0 data providers" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        set_reporting_dates = report_task_items[0]
-        task_title = set_reporting_dates.find("a", {"class": "govuk-link"})
+        set_reporting_dates_task = report_task_items[0]
+        task_title = set_reporting_dates_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set reporting dates"
         assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates" in task_title.get("href")
 
-        task_status = set_reporting_dates.find("strong", {"class": "govuk-tag"})
+        task_status = set_reporting_dates_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "To do" in task_status.get_text(strip=True)
         assert "govuk-tag--grey" in task_status.get("class")
 
-        set_submission_dates = report_task_items[1]
-        task_title = set_submission_dates.find("a", {"class": "govuk-link"})
+        set_submission_dates_task = report_task_items[1]
+        task_title = set_submission_dates_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set submission dates"
         assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates" in task_title.get("href")
 
-        task_status = set_submission_dates.find("strong", {"class": "govuk-tag"})
+        task_status = set_submission_dates_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "To do" in task_status.get_text(strip=True)
         assert "govuk-tag--grey" in task_status.get("class")
 
-        schedule_report = report_task_items[2]
-        task_title = report_task_items[2].find("div", {"class": "govuk-task-list__name-and-hint"})
+        schedule_report_task = report_task_items[2]
+        task_title = schedule_report_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Sign off and lock report"
 
-        task_status = schedule_report.find("div", {"class": "govuk-task-list__status"})
+        task_status = schedule_report_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        make_report_live_task = report_task_items[3]
+        task_title = make_report_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Open the report for submissions"
+
+        task_status = make_report_live_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
@@ -2001,3 +2011,303 @@ class TestSetCollectionDatesStatusRestriction:
         assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates" in submission_dates_link.get(
             "href"
         )
+
+
+class TestMakeReportLive:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_make_report_live_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        factories.user_role.create(
+            user=factories.user.create(),
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live")
+        assert response.status_code == expected_code
+
+    def test_get_confirm_page_with_all_prerequisites_met(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Test Grant Open the report for submissions"
+
+    @pytest.mark.freeze_time("2024-04-01 10:00:00")
+    def test_post_makes_collection_open(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            data={"submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.OPEN
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Q1 Report is now live and grant recipients can start making submissions")
+
+    def test_post_fails_when_grant_not_live(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.ONBOARDING)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Test Grant must be made live before opening a report")
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
+    def test_post_fails_when_no_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Grant recipients must be set up before opening a report")
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
+    def test_post_fails_when_grant_recipients_have_no_users(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup, "All grant recipients must have at least one data provider set up before opening a report"
+        )
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
+    def test_post_fails_when_dates_not_set(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup, "Cannot change collection status to Open: all reporting and submission period dates must be set"
+        )
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
+    def test_post_fails_when_collection_not_scheduled(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.DRAFT,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            data={"submit": "Open report for submissions"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Q1 Report can only be made live from the 'scheduled' state; it is currently")
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.DRAFT

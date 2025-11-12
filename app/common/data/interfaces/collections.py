@@ -12,14 +12,15 @@ from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
-    GrantMustBeLiveToScheduleReportError,
-    GrantRecipientUsersRequiredToScheduleReportError,
+    GrantMustBeLiveError,
+    GrantRecipientUsersRequiredError,
     InvalidReferenceInExpression,
     StateTransitionError,
     flush_and_rollback_on_exceptions,
 )
 from app.common.data.interfaces.grant_recipients import (
     all_grant_recipients_have_data_providers,
+    get_grant_recipients,
 )
 from app.common.data.models import (
     Collection,
@@ -157,32 +158,59 @@ def update_collection(  # noqa: C901
 
     if status is not NOT_PROVIDED:
         match (collection.status, status):
-            case CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED:
-                if collection.grant.status != GrantStatusEnum.LIVE:
-                    raise GrantMustBeLiveToScheduleReportError()
+            case (CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED) | (
+                CollectionStatusEnum.SCHEDULED,
+                CollectionStatusEnum.OPEN,
+            ):
+                actioning = "opening" if collection.status == CollectionStatusEnum.SCHEDULED else "scheduling"
 
-                if not all(
-                    [
-                        collection.reporting_period_start_date,
-                        collection.reporting_period_end_date,
-                        collection.submission_period_start_date,
-                        collection.submission_period_end_date,
-                    ]
-                ):
+                if collection.grant.status != GrantStatusEnum.LIVE:
+                    raise GrantMustBeLiveError(f"{collection.grant.name} must be made live before {actioning} a report")
+
+                try:
+                    assert collection.reporting_period_start_date
+                    assert collection.reporting_period_end_date
+                    assert collection.submission_period_start_date
+                    assert collection.submission_period_end_date
+                except AssertionError as e:
                     raise CollectionChronologyError(
                         f"Cannot change collection status to {status.value}: "
                         f"all reporting and submission period dates must be set"
+                    ) from e
+
+                if not (
+                    collection.reporting_period_start_date
+                    < collection.reporting_period_end_date
+                    < collection.submission_period_start_date
+                    < collection.submission_period_end_date
+                ):
+                    raise CollectionChronologyError("Reporting dates must be chronological and before submission dates")
+
+                if not get_grant_recipients(collection.grant):
+                    raise GrantRecipientUsersRequiredError(
+                        f"Grant recipients must be set up before {actioning} a report"
                     )
 
                 if not all_grant_recipients_have_data_providers(collection.grant):
-                    raise GrantRecipientUsersRequiredToScheduleReportError(
-                        "All grant recipients must have at least one data provider set up before scheduling a report"
+                    raise GrantRecipientUsersRequiredError(
+                        f"All grant recipients must have at least one data provider set up before {actioning} a report"
                     )
 
+                if status == CollectionStatusEnum.OPEN:
+                    if datetime.datetime.now(datetime.UTC) < datetime.datetime.combine(
+                        collection.submission_period_start_date, datetime.time.min, tzinfo=datetime.UTC
+                    ):
+                        raise CollectionChronologyError(
+                            f"You cannot open the report for submissions before "
+                            f"the submission period start date of {collection.submission_period_start_date}"
+                        )
+
             case (
-                (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.DRAFT)
-                | (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.OPEN)
-                | (CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED)
+                CollectionStatusEnum.SCHEDULED,
+                CollectionStatusEnum.DRAFT,
+            ) | (
+                CollectionStatusEnum.OPEN,
+                CollectionStatusEnum.CLOSED,
             ):
                 pass
 
