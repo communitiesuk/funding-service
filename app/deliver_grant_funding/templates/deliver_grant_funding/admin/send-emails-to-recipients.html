@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+        Send emails to grant recipients
+      </h1>
+
+      <p class="govuk-body">Let grant recipient users know that their report is ready to complete. This email is sent to all data providers for all grant recipients for {{ collection.grant.name }}.</p>
+
+      <h2 class="govuk-heading-m">How to send emails</h2>
+
+      <ol class="govuk-list govuk-list--number">
+        <li>Download the CSV file containing grant recipient email addresses and report details</li>
+        <li>Open the <a href="{{ notify_template_url }}" class="govuk-link govuk-link--no-visited-state" target="_blank" rel="noopener noreferrer">GOV.UK Notify template</a> (opens in new tab)</li>
+        <li>Upload the CSV file to GOV.UK Notify and send the emails</li>
+        <li>Delete the CSV file</li>
+      </ol>
+
+      {{
+        govukButton({
+          "text": "Download CSV",
+          "href": url_for('reporting_lifecycle.download_grant_recipients_csv', grant_id=grant.id, collection_id=collection.id),
+          "classes": "govuk-!-margin-bottom-8"
+        })
+      }}
+    </div>
+  </div>
+{% endblock %}

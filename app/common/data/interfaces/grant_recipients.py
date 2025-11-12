@@ -1,7 +1,7 @@
 import uuid
 from typing import Sequence
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, func, select, update
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Grant, GrantRecipient, Organisation
@@ -125,7 +125,10 @@ def revoke_grant_recipient_data_provider_role(
         )
     )
 
-    statement = delete(UserRole).where(UserRole.id.in_(subquery))
+    db.session.execute(update(UserRole).where(UserRole.id.in_(subquery).values()))
+    statement = delete(UserRole).where(
+        UserRole.id.in_(subquery), UserRole.permissions == [RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+    )
     result = db.session.execute(statement)
     db.session.flush()
 

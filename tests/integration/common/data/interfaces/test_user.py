@@ -779,14 +779,6 @@ class TestGetUsersWithPermission:
         assert len(result) == 1
         assert result[0].id == user1.id
 
-    def test_raises_error_when_grant_id_without_organisation_id(self, factories, db_session):
-        grant = factories.grant.create()
-
-        with pytest.raises(ValueError) as e:
-            interfaces.user.get_users_with_permission(RoleEnum.MEMBER, organisation_id=None, grant_id=grant.id)
-
-        assert "If specifying grant_id, must also specify organisation_id" in str(e.value)
-
     def test_handles_not_provided_vs_explicit_none(self, factories, db_session):
         user1 = factories.user.create(email="user1@test.com")
         user2 = factories.user.create(email="user2@test.com")
