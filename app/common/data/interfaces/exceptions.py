@@ -150,9 +150,9 @@ class GrantRecipientsRequiredToScheduleReportError(Exception):
     pass
 
 
-class GrantRecipientUsersRequiredToScheduleReportError(Exception):
+class GrantRecipientUsersRequiredError(Exception):
     pass
 
 
-class GrantMustBeLiveToScheduleReportError(Exception):
+class GrantMustBeLiveError(Exception):
     pass

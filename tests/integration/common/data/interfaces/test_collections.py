@@ -58,7 +58,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
-    GrantMustBeLiveToScheduleReportError,
+    GrantMustBeLiveError,
     InvalidReferenceInExpression,
     StateTransitionError,
 )
@@ -535,7 +535,7 @@ class TestUpdateCollection:
             submission_period_end_date=datetime.date(2025, 1, 31),
         )
 
-        with pytest.raises(GrantMustBeLiveToScheduleReportError):
+        with pytest.raises(GrantMustBeLiveError):
             update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
 
     @pytest.mark.parametrize(

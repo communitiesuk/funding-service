@@ -363,3 +363,7 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
 
 class PlatformAdminScheduleReportForm(FlaskForm):
     submit = SubmitField("Sign off and lock report", widget=GovSubmitInput())
+
+
+class PlatformAdminMakeReportLiveForm(FlaskForm):
+    submit = SubmitField("Open report for submissions", widget=GovSubmitInput())

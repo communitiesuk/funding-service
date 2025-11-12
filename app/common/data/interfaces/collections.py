@@ -12,13 +12,16 @@ from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
-    GrantMustBeLiveToScheduleReportError,
-    GrantRecipientUsersRequiredToScheduleReportError,
+    GrantMustBeLiveError,
+    GrantRecipientUsersRequiredError,
     InvalidReferenceInExpression,
     StateTransitionError,
     flush_and_rollback_on_exceptions,
 )
-from app.common.data.interfaces.grant_recipients import all_grant_recipients_have_users
+from app.common.data.interfaces.grant_recipients import (
+    all_grant_recipients_have_users,
+    get_grant_recipients,
+)
 from app.common.data.models import (
     Collection,
     Component,
@@ -155,30 +158,50 @@ def update_collection(  # noqa: C901
 
     if status is not NOT_PROVIDED:
         match (collection.status, status):
-            case CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED:
-                if collection.grant.status != GrantStatusEnum.LIVE:
-                    raise GrantMustBeLiveToScheduleReportError()
+            case (CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED) | (
+                CollectionStatusEnum.SCHEDULED,
+                CollectionStatusEnum.OPEN,
+            ):
+                actioning = "opening" if collection.status == CollectionStatusEnum.SCHEDULED else "scheduling"
 
-                if not all(
-                    [
-                        collection.reporting_period_start_date,
-                        collection.reporting_period_end_date,
-                        collection.submission_period_start_date,
-                        collection.submission_period_end_date,
-                    ]
-                ):
+                if collection.grant.status != GrantStatusEnum.LIVE:
+                    raise GrantMustBeLiveError(f"{collection.grant.name} must be made live before {actioning} a report")
+
+                try:
+                    assert collection.reporting_period_start_date
+                    assert collection.reporting_period_end_date
+                    assert collection.submission_period_start_date
+                    assert collection.submission_period_end_date
+                except AssertionError as e:
                     raise CollectionChronologyError(
                         f"Cannot change collection status to {status.value}: "
                         f"all reporting and submission period dates must be set"
+                    ) from e
+
+                if not get_grant_recipients(collection.grant):
+                    raise GrantRecipientUsersRequiredError(
+                        f"Grant recipients must be set up before {actioning} a report"
                     )
 
+                if not (
+                    collection.reporting_period_start_date
+                    < collection.reporting_period_end_date
+                    < collection.submission_period_start_date
+                    < collection.submission_period_end_date
+                ):
+                    raise CollectionChronologyError("Reporting dates must be chronological and before submission dates")
+
                 if not all_grant_recipients_have_users(collection.grant):
-                    raise GrantRecipientUsersRequiredToScheduleReportError()
+                    raise GrantRecipientUsersRequiredError(
+                        f"All grant recipients must have at least one user set up before {actioning} a report"
+                    )
 
             case (
-                (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.DRAFT)
-                | (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.OPEN)
-                | (CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED)
+                CollectionStatusEnum.SCHEDULED,
+                CollectionStatusEnum.DRAFT,
+            ) | (
+                CollectionStatusEnum.OPEN,
+                CollectionStatusEnum.CLOSED,
             ):
                 pass
 
