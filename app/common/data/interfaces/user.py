@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from itertools import groupby
 from typing import Sequence, cast
 
 from flask_login import current_user
@@ -9,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
 from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_and_rollback_on_exceptions
+from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.models import Grant, Organisation
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
@@ -32,6 +34,25 @@ def get_user_by_email(email_address: str) -> User | None:
 
 def get_user_by_azure_ad_subject_id(azure_ad_subject_id: str) -> User | None:
     return db.session.execute(select(User).where(User.azure_ad_subject_id == azure_ad_subject_id)).scalar_one_or_none()
+
+
+def get_users_with_permission(
+    permission: RoleEnum,
+    organisation_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
+    grant_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
+) -> Sequence[User]:
+    if organisation_id is None and grant_id is not None and grant_id is not NOT_PROVIDED:
+        raise ValueError("If specifying grant_id, must also specify organisation_id")
+
+    stmt = select(User).join(UserRole).where(UserRole.permissions.contains([permission]))
+
+    if organisation_id is not NOT_PROVIDED:
+        stmt = stmt.where(UserRole.organisation_id == organisation_id)
+
+    if grant_id is not NOT_PROVIDED:
+        stmt = stmt.where(UserRole.grant_id == grant_id)
+
+    return db.session.scalars(stmt).all()
 
 
 @flush_and_rollback_on_exceptions
@@ -102,9 +123,20 @@ def upsert_user_by_azure_ad_subject_id(
     return user
 
 
+def get_user_role(user: User, organisation_id: uuid.UUID | None, grant_id: uuid.UUID | None) -> UserRole | None:
+    return db.session.scalar(
+        select(UserRole).where(
+            UserRole.user_id == user.id, UserRole.organisation_id == organisation_id, UserRole.grant_id == grant_id
+        )
+    )
+
+
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, InvalidUserRoleError)])
 def upsert_user_role(
-    user: User, permissions: list[RoleEnum], organisation_id: uuid.UUID | None = None, grant_id: uuid.UUID | None = None
+    user: User,
+    permissions: list[RoleEnum],
+    organisation_id: uuid.UUID | None = None,
+    grant_id: uuid.UUID | None = None,
 ) -> UserRole:
     # As with the `get_or_create_user` function, this feels like it should be a `on_conflict_do_nothing`,
     # except in that case the DB won't return any rows. So we use the same behaviour as above to ensure we always get a
@@ -135,6 +167,7 @@ def upsert_user_role(
     return user_role
 
 
+# TODO: deprecate and remove; use `add_permissions_to_user` instead
 @flush_and_rollback_on_exceptions
 def set_platform_admin_role_for_user(user: User) -> UserRole:
     # Before making someone a platform admin we should remove any other roles they might have assigned to them, as a
@@ -144,6 +177,7 @@ def set_platform_admin_role_for_user(user: User) -> UserRole:
     return platform_admin_role
 
 
+# TODO: deprecate and remove; use `remove_permissions_from_user` instead
 @flush_and_rollback_on_exceptions
 def remove_platform_admin_role_from_user(user: User) -> None:
     statement = delete(UserRole).where(
@@ -159,6 +193,48 @@ def remove_platform_admin_role_from_user(user: User) -> None:
     db.session.expire(user)
 
 
+@flush_and_rollback_on_exceptions
+def add_permissions_to_user(
+    user: User,
+    permissions: list[RoleEnum],
+    organisation_id: uuid.UUID | None = None,
+    grant_id: uuid.UUID | None = None,
+) -> UserRole:
+    # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
+    # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered redundant
+    #       and is up for removal in the future.
+    if RoleEnum.MEMBER not in permissions:
+        permissions.append(RoleEnum.MEMBER)
+
+    user_role = get_user_role(user, organisation_id, grant_id)
+    existing_permissions = user_role.permissions if user_role else []
+    combined_permissions = list(set(existing_permissions + permissions))
+
+    return upsert_user_role(user, combined_permissions, organisation_id, grant_id)
+
+
+@flush_and_rollback_on_exceptions
+def remove_permissions_from_user(
+    user: User,
+    permissions: list[RoleEnum],
+    organisation_id: uuid.UUID | None = None,
+    grant_id: uuid.UUID | None = None,
+) -> UserRole | None:
+    user_role = get_user_role(user, organisation_id, grant_id)
+    if not user_role:
+        return None
+
+    existing_permissions = user_role.permissions
+    combined_permissions = list(set(existing_permissions) - set(permissions))
+
+    if not combined_permissions:
+        db.session.delete(user_role)
+        return None
+    else:
+        return upsert_user_role(user, combined_permissions, organisation_id, grant_id)
+
+
+# TODO: deprecate and remove; use `add_permissions_to_user` instead
 def set_grant_team_role_for_user(user: User, grant: Grant, permissions: list[RoleEnum]) -> UserRole:
     """Used for setting (deliver) grant team membership - NOT grant recipient team membership"""
     grant_team_role = upsert_user_role(
@@ -167,6 +243,7 @@ def set_grant_team_role_for_user(user: User, grant: Grant, permissions: list[Rol
     return grant_team_role
 
 
+# TODO: deprecate and remove; use `remove_permissions_from_user` instead
 @flush_and_rollback_on_exceptions
 def remove_grant_team_role_from_user(user: User, grant_id: uuid.UUID) -> None:
     """Used for setting (deliver) grant team membership - NOT grant recipient team membership"""
@@ -286,3 +363,22 @@ def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant)
         create_invitation(
             email=email_address, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
+
+
+def get_certifiers_by_organisation() -> dict[Organisation, Sequence[User]]:
+    certifiers_by_organisation: dict[Organisation, Sequence[User]] = {
+        organisation: [] for organisation in get_organisations(can_manage_grants=False)
+    }
+
+    roles = db.session.scalars(
+        select(UserRole).where(
+            UserRole.organisation_id.isnot(None),
+            UserRole.grant_id.is_(None),
+            UserRole.permissions.contains([RoleEnum.CERTIFIER]),
+        )
+    ).all()
+
+    for org, user_roles in groupby(roles, lambda role: role.organisation):
+        certifiers_by_organisation[org] = list(set(ur.user for ur in user_roles))
+
+    return certifiers_by_organisation

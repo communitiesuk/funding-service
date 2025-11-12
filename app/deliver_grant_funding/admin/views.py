@@ -24,6 +24,11 @@ from app.common.data.interfaces.grant_recipients import (
 from app.common.data.interfaces.grants import get_all_grants, get_grant, update_grant
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
 from app.common.data.interfaces.user import (
+    add_permissions_to_user,
+    get_certifiers_by_organisation,
+    get_user_by_email,
+    get_users_with_permission,
+    remove_permissions_from_user,
     upsert_user_by_email,
     upsert_user_role,
 )
@@ -31,9 +36,11 @@ from app.common.data.types import CollectionStatusEnum, CollectionType, GrantSta
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminBulkCreateGrantRecipientsForm,
     PlatformAdminBulkCreateOrganisationsForm,
+    PlatformAdminCreateCertifiersForm,
     PlatformAdminCreateGrantRecipientUserForm,
     PlatformAdminMakeGrantLiveForm,
     PlatformAdminMarkAsOnboardingForm,
+    PlatformAdminRevokeCertifiersForm,
     PlatformAdminRevokeGrantRecipientUsersForm,
     PlatformAdminScheduleReportForm,
     PlatformAdminSelectGrantForReportingLifecycleForm,
@@ -85,6 +92,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         grant = get_grant(grant_id, with_all_collections=True)
         collection = get_collection(collection_id, grant_id=grant_id)
         organisation_count = get_organisation_count()
+        certifiers_count = len(get_users_with_permission(RoleEnum.CERTIFIER, grant_id=None))
         grant_recipients_count = get_grant_recipients_count(grant=grant)
         grant_recipient_users_count = get_grant_recipient_users_count(grant=grant)
         return self.render(
@@ -92,6 +100,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             grant=grant,
             collection=collection,
             organisation_count=organisation_count,
+            certifiers_count=certifiers_count,
             grant_recipients_count=grant_recipients_count,
             grant_recipient_users_count=grant_recipient_users_count,
         )
@@ -160,6 +169,90 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             grant=grant,
             collection=collection,
             delta_service_desk_url=current_app.config["DELTA_SERVICE_DESK_URL"],
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-global-certifiers", methods=["GET", "POST"])  # type: ignore[misc]
+    @auto_commit_after_request
+    def set_up_global_certifiers(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+        organisations = get_organisations(can_manage_grants=False)
+        certifiers_by_org = get_certifiers_by_organisation()
+
+        form = PlatformAdminCreateCertifiersForm(organisations=organisations)
+        if form.validate_on_submit():
+            certifiers_data = form.get_normalised_certifiers_data()
+
+            organisation_names_to_ids = {organisation.name: organisation.id for organisation in organisations}
+            for org_name, full_name, email_address in certifiers_data:
+                org_id = organisation_names_to_ids[org_name]
+                user = upsert_user_by_email(email_address=email_address, name=full_name)
+                add_permissions_to_user(user=user, permissions=[RoleEnum.CERTIFIER], organisation_id=org_id)
+
+            flash(f"Created or updated {len(certifiers_data)} certifier(s).", "success")
+            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        return self.render(
+            "deliver_grant_funding/admin/set-up-global-certifiers.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+            certifiers_by_org=certifiers_by_org,
+            delta_service_desk_url=current_app.config["DELTA_SERVICE_DESK_URL"],
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/revoke-global-certifiers", methods=["GET", "POST"])  # type: ignore[misc]
+    @auto_commit_after_request
+    def revoke_global_certifiers(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+
+        organisations = get_organisations()
+        certifiers_by_org = get_certifiers_by_organisation()
+        form = PlatformAdminRevokeCertifiersForm(organisations=organisations)
+
+        if form.validate_on_submit():
+            organisation_id = UUID(form.organisation_id.data)
+            assert form.email.data
+            email = form.email.data
+
+            user = get_user_by_email(email)
+            if not user:
+                flash(f"User with email '{email}' does not exist.", "error")
+            else:
+                certifiers = get_users_with_permission(
+                    RoleEnum.CERTIFIER, organisation_id=organisation_id, grant_id=None
+                )
+                if user not in certifiers:
+                    flash(
+                        f"User '{user.name}' ({email}) is not a global certifier for the selected organisation.",
+                        "error",
+                    )
+                else:
+                    remove_permissions_from_user(
+                        user=user,
+                        permissions=[RoleEnum.CERTIFIER],
+                        organisation_id=organisation_id,
+                        grant_id=None,
+                    )
+                    flash(
+                        f"Successfully revoked certifier access for {user.name} ({email}).",
+                        "success",
+                    )
+                    return redirect(
+                        url_for(
+                            "reporting_lifecycle.revoke_global_certifiers",
+                            grant_id=grant.id,
+                            collection_id=collection.id,
+                        )
+                    )
+
+        return self.render(
+            "deliver_grant_funding/admin/revoke-global-certifiers.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+            certifiers_by_org=certifiers_by_org,
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-grant-recipients", methods=["GET", "POST"])  # type: ignore[misc]

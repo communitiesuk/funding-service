@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from flask import current_app
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovDateInput, GovSubmitInput, GovTextArea
+from govuk_frontend_wtf.wtforms_widgets import GovDateInput, GovSubmitInput, GovTextArea, GovTextInput
 from markupsafe import Markup, escape
 from wtforms import DateField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
-from wtforms.fields.simple import TextAreaField
-from wtforms.validators import DataRequired, Optional
+from wtforms.fields.simple import EmailField, TextAreaField
+from wtforms.validators import DataRequired, Email, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
 from app.common.data.types import OrganisationData, OrganisationType
@@ -98,6 +98,73 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
             for row in tsv_reader
         ]
         return normalised_organisations
+
+
+class PlatformAdminCreateCertifiersForm(FlaskForm):
+    certifiers_data = TextAreaField(
+        "Certifiers TSV data",
+        default="organisation-name\tfirst-name\tlast-name\temail-address\n",
+        validators=[DataRequired()],
+        widget=GovTextArea(),
+    )
+    submit = SubmitField("Set up certifiers", widget=GovSubmitInput())
+
+    def __init__(self, organisations: Sequence["Organisation"]) -> None:
+        super().__init__()
+        self.organisations = organisations
+        self.organisation_names_to_ids = {organisation.name: organisation.id for organisation in organisations}
+
+    def validate_certifiers_data(self, field: TextAreaField) -> None:
+        assert field.data
+
+        if field.data.splitlines()[0] != "organisation-name\tfirst-name\tlast-name\temail-address":
+            field.errors.append(  # type: ignore[attr-defined]
+                "The header row must be exactly: organisation-name\tfirst-name\tlast-name\temail-address"
+            )
+            return
+
+        try:
+            certifiers_data = self.get_normalised_certifiers_data()
+        except Exception as e:
+            field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # type: ignore[attr-defined]
+            return
+
+        # Validate all organisation names first before creating any users
+        invalid_orgs = []
+        for org_name, _, _ in certifiers_data:
+            if org_name not in self.organisation_names_to_ids:
+                invalid_orgs.append(org_name)
+
+        if invalid_orgs:
+            unique_invalid_orgs = sorted(set(invalid_orgs))
+            for org_name in unique_invalid_orgs:
+                field.errors.append(  # type: ignore[attr-defined]
+                    f"Organisation '{org_name}' has not been set up in Deliver grant funding."
+                )
+
+        # Validate email addresses
+        from wtforms.validators import Email as EmailValidator
+
+        email_validator = EmailValidator()
+        invalid_emails = []
+        for _, _, email_address in certifiers_data:
+            try:
+                email_validator(self, type("obj", (), {"data": email_address})())
+            except Exception:
+                invalid_emails.append(email_address)
+
+        if invalid_emails:
+            field.errors.append(  # type: ignore[attr-defined]
+                f"Invalid email address(es): {', '.join(invalid_emails)}"
+            )
+
+    def get_normalised_certifiers_data(self) -> list[tuple[str, str, str]]:
+        assert self.certifiers_data.data
+        users_data = self.certifiers_data.data
+        tsv_reader = csv.reader(users_data.splitlines(), delimiter="\t")
+        _ = next(tsv_reader)  # Skip the header
+        normalised_users = [(row[0], row[1] + " " + row[2], row[3]) for row in tsv_reader]
+        return normalised_users
 
 
 class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
@@ -196,6 +263,25 @@ class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
             )
             for user_role in user_roles
         ]
+
+
+class PlatformAdminRevokeCertifiersForm(FlaskForm):
+    organisation_id = SelectField(
+        "Organisation",
+        choices=[],
+        widget=GovSelectWithSearch(),
+        validators=[DataRequired("Select an organisation")],
+    )
+    email = EmailField(
+        "Email address",
+        validators=[DataRequired("Enter an email address"), Email("Enter a valid email address")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Revoke certifier access", widget=GovSubmitInput())
+
+    def __init__(self, organisations: Sequence["Organisation"]) -> None:
+        super().__init__()
+        self.organisation_id.choices = [("", "")] + [(str(org.id), org.name) for org in organisations]  # type: ignore[assignment]
 
 
 class PlatformAdminSetCollectionDatesForm(FlaskForm):

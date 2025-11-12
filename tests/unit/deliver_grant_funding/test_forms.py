@@ -8,6 +8,7 @@ from wtforms import ValidationError
 
 from app.common.data.types import QuestionDataType, QuestionPresentationOptions, RoleEnum
 from app.common.helpers.collections import SubmissionHelper
+from app.deliver_grant_funding.admin.forms import PlatformAdminCreateCertifiersForm
 from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
     GrantGGISForm,
@@ -349,3 +350,85 @@ class TestSelectDataSourceQuestionForm:
 
         assert len(form.question.choices) == 3
         assert {q[0] for q in form.question.choices} == {"", str(integer_q1.id), str(integer_q2.id)}
+
+
+class TestPlatformAdminCreateCertifiersForm:
+    def test_valid_certifiers_data(self, app, factories):
+        organisations = factories.organisation.build_batch(3)
+        form = PlatformAdminCreateCertifiersForm(organisations=organisations)
+        form.certifiers_data.data = (
+            "organisation-name\tfirst-name\tlast-name\temail-address\n"
+            f"{organisations[0].name}\tJohn\tDoe\tjohn.doe@example.com\n"
+            f"{organisations[1].name}\tJane\tSmith\tjane.smith@example.com"
+        )
+
+        assert form.validate() is True
+        assert len(form.certifiers_data.errors) == 0
+
+    def test_invalid_header_row(self, app, factories):
+        organisations = factories.organisation.build_batch(3)
+        form = PlatformAdminCreateCertifiersForm(organisations=organisations)
+        form.certifiers_data.data = (
+            "wrong-header\tfirst-name\tlast-name\temail-address\nTest Org\tJohn\tDoe\tjohn.doe@example.com"
+        )
+
+        assert form.validate() is False
+        assert "The header row must be exactly" in form.certifiers_data.errors[0]
+
+    def test_invalid_email_address(self, app, factories):
+        organisations = factories.organisation.build_batch(3)
+        form = PlatformAdminCreateCertifiersForm(organisations=organisations)
+        form.certifiers_data.data = (
+            f"organisation-name\tfirst-name\tlast-name\temail-address\n"
+            f"{organisations[0].name}\tJohn\tDoe\tinvalid-email"
+        )
+
+        assert form.validate() is False
+        assert "Invalid email address(es)" in form.certifiers_data.errors[0]
+        assert "invalid-email" in form.certifiers_data.errors[0]
+
+    def test_invalid_organisation_name(self, app, factories):
+        form = PlatformAdminCreateCertifiersForm(organisations=[])
+        form.certifiers_data.data = (
+            "organisation-name\tfirst-name\tlast-name\temail-address\nTest Org\tJohn\tDoe\tjohn.doe@example.com"
+        )
+
+        assert form.validate() is False
+        assert "Organisation 'Test Org' has not been set up in Deliver grant funding." in form.certifiers_data.errors[0]
+
+    def test_multiple_invalid_email_addresses(self, app, factories):
+        organisations = factories.organisation.build_batch(3)
+        form = PlatformAdminCreateCertifiersForm(organisations=organisations)
+        form.certifiers_data.data = (
+            "organisation-name\tfirst-name\tlast-name\temail-address\n"
+            f"{organisations[0].name}\tJohn\tDoe\tinvalid-email\n"
+            f"{organisations[1].name}\tJane\tSmith\talso-invalid"
+        )
+
+        assert form.validate() is False
+        assert "Invalid email address(es)" in form.certifiers_data.errors[0]
+        assert "invalid-email" in form.certifiers_data.errors[0]
+        assert "also-invalid" in form.certifiers_data.errors[0]
+
+    def test_invalid_tsv_format(self, app, factories):
+        organisations = factories.organisation.build_batch(3)
+        form = PlatformAdminCreateCertifiersForm(organisations=organisations)
+        form.certifiers_data.data = "organisation-name\tfirst-name\tlast-name\temail-address\nTest Org\tJohn"
+
+        assert form.validate() is False
+        assert "The tab-separated data is not valid" in form.certifiers_data.errors[0]
+
+    def test_get_normalised_certifiers_data(self, app, factories):
+        organisations = factories.organisation.build_batch(3)
+        form = PlatformAdminCreateCertifiersForm(organisations=organisations)
+        form.certifiers_data.data = (
+            "organisation-name\tfirst-name\tlast-name\temail-address\n"
+            f"{organisations[0].name}\tJohn\tDoe\tjohn.doe@example.com\n"
+            f"{organisations[1].name}\tJane\tSmith\tjane.smith@example.com"
+        )
+
+        normalised_data = form.get_normalised_certifiers_data()
+
+        assert len(normalised_data) == 2
+        assert normalised_data[0] == (organisations[0].name, "John Doe", "john.doe@example.com")
+        assert normalised_data[1] == (organisations[1].name, "Jane Smith", "jane.smith@example.com")

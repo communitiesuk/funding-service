@@ -33,6 +33,13 @@
           "href": url_for('reporting_lifecycle.set_up_organisations', grant_id=grant.id, collection_id=collection.id),
         })
       %}
+      {%
+        do rows.append({
+          "title": {"text": "Set up global certifiers", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": govukTag({"text": certifiers_count ~ (" certifier" if certifiers_count == 1 else " certifiers"), "classes": "govuk-tag--blue"})},
+          "href": url_for('reporting_lifecycle.set_up_global_certifiers', grant_id=grant.id, collection_id=collection.id),
+        })
+      %}
       {{ govukTaskList({ "idPrefix": "platform-tasks", "items": rows, "attributes": {"id": "platform-tasks"} }) }}
 
       <h2 class="govuk-heading-m">Grant tasks</h2>

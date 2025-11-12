@@ -10,8 +10,13 @@ from app.common.data.types import OrganisationData, OrganisationStatus
 from app.extensions import db
 
 
-def get_organisations(can_manage_grants: bool) -> Sequence[Organisation]:
-    return db.session.scalars(select(Organisation).where(Organisation.can_manage_grants == can_manage_grants)).all()
+def get_organisations(can_manage_grants: bool | None = None) -> Sequence[Organisation]:
+    statement = select(Organisation)
+
+    if can_manage_grants is not None:
+        statement = statement.where(Organisation.can_manage_grants.is_(can_manage_grants))
+
+    return db.session.scalars(statement).all()
 
 
 def get_organisation_count() -> int:
