@@ -18,7 +18,7 @@
         {{ govukErrorSummary(wtforms_errors(form)) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">Set up grant recipient users</h1>
+      <h1 class="govuk-heading-l">Set up grant recipient data providers</h1>
 
       <p class="govuk-body">They will be able to log in and submit reports as the selected grant recipient.</p>
       <p class="govuk-body">Users created this way will not receive any notification email.</p>
@@ -26,19 +26,19 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {% set existingGrantRecipientUsersHtml %}
+      {% set existingGrantRecipientDataProvidersHtml %}
 
       <div class="govuk-grid-row">
         <div class="govuk-grid-column-one-half">
           <p class="govuk-body">
-            If any of these grant recipient users are incorrect, you can
-            <a href="{{ url_for('reporting_lifecycle.revoke_grant_recipient_users', grant_id=grant.id, collection_id=collection.id) }}" class="govuk-link">revoke grant recipient users</a>.
+            If any of these grant recipient data providers are incorrect, you can
+            <a href="{{ url_for('reporting_lifecycle.revoke_grant_recipient_data_providers', grant_id=grant.id, collection_id=collection.id) }}" class="govuk-link">revoke grant recipient data providers</a>.
           </p>
         </div>
       </div>
 
       {% set tableRows = [] %}
-        {% for grant_recipient, users in grant_recipient_users_by_org.items() %}
+        {% for grant_recipient, users in data_providers_by_grant_recipient.items() %}
           {% if users %}
             {% set userDetails %}
               <ul class="govuk-list">
@@ -70,8 +70,8 @@
 
       {{
         govukDetails({
-          "summaryText": "Existing grant recipient users",
-          "html": existingGrantRecipientUsersHtml,
+          "summaryText": "Existing grant recipient data providers",
+          "html": existingGrantRecipientDataProvidersHtml,
         })
       }}
     </div>

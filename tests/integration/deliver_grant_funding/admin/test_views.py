@@ -311,18 +311,18 @@ class TestReportingLifecycleTasklist:
         assert "0 grant recipients" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        set_up_grant_recipient_users_task = grant_task_items[3]
-        task_title = set_up_grant_recipient_users_task.find("a", {"class": "govuk-link"})
+        set_up_grant_recipient_data_providers_task = grant_task_items[3]
+        task_title = set_up_grant_recipient_data_providers_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Set up grant recipient users"
+        assert task_title.get_text(strip=True) == "Set up grant recipient data providers"
         assert (
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers"
             in task_title.get("href")
         )
 
-        task_status = set_up_grant_recipient_users_task.find("strong", {"class": "govuk-tag"})
+        task_status = set_up_grant_recipient_data_providers_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
-        assert "0 users" in task_status.get_text(strip=True)
+        assert "0 data providers" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
         set_reporting_dates = report_task_items[0]
@@ -1220,7 +1220,7 @@ class TestSetUpGrantRecipientUsers:
             ("anonymous_client", 302),
         ],
     )
-    def test_set_up_grant_recipient_users_permissions(
+    def test_set_up_grant_recipient_data_providers_permissions(
         self, client_fixture, expected_code, request, factories, db_session
     ):
         grant = factories.grant.create()
@@ -1228,23 +1228,25 @@ class TestSetUpGrantRecipientUsers:
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers"
         )
         assert response.status_code == expected_code
 
-    def test_get_set_up_grant_recipient_users_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_set_up_grant_recipient_data_providers_page(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers"
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Set up grant recipient users"
+        assert get_h1_text(soup) == "Set up grant recipient data providers"
 
         assert soup.find("textarea", {"id": "users_data"}) is not None
 
@@ -1255,7 +1257,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com"
@@ -1267,7 +1269,7 @@ class TestSetUpGrantRecipientUsers:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Successfully set up 1 grant recipient user.")
+        assert page_has_flash(soup, "Successfully set up 1 grant recipient data provider.")
 
         from app.common.data.interfaces.user import get_user_by_email
 
@@ -1275,7 +1277,7 @@ class TestSetUpGrantRecipientUsers:
         assert user is not None
         assert user.name == "John Doe"
         assert len(user.roles) == 1
-        assert RoleEnum.MEMBER in user.roles[0].permissions
+        assert RoleEnum.DATA_PROVIDER in user.roles[0].permissions
         assert user.roles[0].organisation_id == org.id
         assert user.roles[0].grant_id == grant.id
 
@@ -1287,7 +1289,7 @@ class TestSetUpGrantRecipientUsers:
         existing_user = factories.user.create(email="existing@example.com", name="Old Name")
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\nTest Organisation\tNew Name\texisting@example.com"
@@ -1299,7 +1301,7 @@ class TestSetUpGrantRecipientUsers:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Successfully set up 1 grant recipient user.")
+        assert page_has_flash(soup, "Successfully set up 1 grant recipient data provider.")
 
         from app.common.data.interfaces.user import get_user_by_email
 
@@ -1308,7 +1310,7 @@ class TestSetUpGrantRecipientUsers:
         assert user.id == existing_user.id
         assert user.name == "New Name"
         assert any(
-            RoleEnum.MEMBER in role.permissions and role.organisation_id == org.id and role.grant_id == grant.id
+            RoleEnum.DATA_PROVIDER in role.permissions and role.organisation_id == org.id and role.grant_id == grant.id
             for role in user.roles
         )
 
@@ -1319,7 +1321,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com"
@@ -1338,7 +1340,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
             data={
                 "users_data": "wrong-header\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com",
                 "submit": "y",
@@ -1359,7 +1361,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\nNot A Recipient\tJohn Doe\tjohn@example.com"
@@ -1382,7 +1384,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\n"
@@ -1411,7 +1413,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org2)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\n"
@@ -1424,7 +1426,7 @@ class TestSetUpGrantRecipientUsers:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Successfully set up 2 grant recipient users.")
+        assert page_has_flash(soup, "Successfully set up 2 grant recipient data providers.")
 
         from app.common.data.interfaces.user import get_user_by_email
 
@@ -1443,7 +1445,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\n"
@@ -1459,7 +1461,7 @@ class TestSetUpGrantRecipientUsers:
         assert page_has_error(soup, "Invalid email address(es): invalid-email, also-bad")
 
 
-class TestRevokeGrantRecipientUsers:
+class TestRevokeGrantRecipientDataProviders:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
         [
@@ -1470,7 +1472,7 @@ class TestRevokeGrantRecipientUsers:
             ("anonymous_client", 302),
         ],
     )
-    def test_revoke_grant_recipient_users_permissions(
+    def test_revoke_grant_recipient_data_providers_permissions(
         self, client_fixture, expected_code, request, factories, db_session
     ):
         grant = factories.grant.create()
@@ -1478,27 +1480,31 @@ class TestRevokeGrantRecipientUsers:
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-data-providers"
         )
         assert response.status_code == expected_code
 
-    def test_get_revoke_grant_recipient_users_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_revoke_grant_recipient_data_providers_page(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
         user = factories.user.create(name="John Doe", email="john@example.com")
-        factories.user_role.create(user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER])
+        factories.user_role.create(
+            user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-data-providers"
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Revoke grant recipient users"
+        assert get_h1_text(soup) == "Revoke grant recipient data providers"
 
-        assert soup.find("select", {"id": "user_roles"}) is not None
+        assert soup.find("select", {"id": "grant_recipients_data_providers"}) is not None
 
     def test_post_revokes_user_role(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create()
@@ -1506,21 +1512,23 @@ class TestRevokeGrantRecipientUsers:
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
         user = factories.user.create(name="John Doe", email="john@example.com")
-        user_role = factories.user_role.create(user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER])
+        user_role = factories.user_role.create(
+            user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
 
         from app.common.data.models_user import UserRole
 
         assert db_session.query(UserRole).filter_by(id=user_role.id).first() is not None
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users",
-            data={"user_roles": [f"{user.id}|{org.id}"], "submit": "y"},
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-data-providers",
+            data={"grant_recipients_data_providers": [f"{user.id}|{org.id}"], "submit": "y"},
             follow_redirects=True,
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Successfully revoked access for 1 user.")
+        assert page_has_flash(soup, "Successfully revoked access for 1 data provider.")
 
         assert db_session.query(UserRole).filter_by(id=user_role.id).first() is None
 
@@ -1534,26 +1542,31 @@ class TestRevokeGrantRecipientUsers:
         user1 = factories.user.create(name="John Doe", email="john@example.com")
         user2 = factories.user.create(name="Jane Smith", email="jane@example.com")
         user_role1 = factories.user_role.create(
-            user=user1, organisation=org1, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user1, organisation=org1, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
         )
         user_role2 = factories.user_role.create(
-            user=user2, organisation=org2, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user2, organisation=org2, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
         )
 
         from app.common.data.models_user import UserRole
 
-        assert db_session.query(UserRole).filter_by(id=user_role1.id).first() is not None
-        assert db_session.query(UserRole).filter_by(id=user_role2.id).first() is not None
+        role1 = db_session.query(UserRole).filter_by(id=user_role1.id).first()
+        role2 = db_session.query(UserRole).filter_by(id=user_role2.id).first()
+        assert RoleEnum.DATA_PROVIDER in role1.permissions
+        assert RoleEnum.DATA_PROVIDER in role2.permissions
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users",
-            data={"user_roles": [f"{user1.id}|{org1.id}", f"{user2.id}|{org2.id}"], "submit": "y"},
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-data-providers",
+            data={
+                "grant_recipients_data_providers": [f"{user1.id}|{org1.id}", f"{user2.id}|{org2.id}"],
+                "submit": "y",
+            },
             follow_redirects=True,
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Successfully revoked access for 2 users.")
+        assert page_has_flash(soup, "Successfully revoked access for 2 data providers.")
 
         assert db_session.query(UserRole).filter_by(id=user_role1.id).first() is None
         assert db_session.query(UserRole).filter_by(id=user_role2.id).first() is None
@@ -1564,17 +1577,19 @@ class TestRevokeGrantRecipientUsers:
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
         user = factories.user.create(name="John Doe", email="john@example.com")
-        factories.user_role.create(user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER])
+        factories.user_role.create(
+            user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-users",
-            data={"user_roles": [f"{user.id}|{org.id}"], "submit": "y"},
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-data-providers",
+            data={"grant_recipients_data_providers": [f"{user.id}|{org.id}"], "submit": "y"},
             follow_redirects=False,
         )
         assert response.status_code == 302
         assert (
             response.location
-            == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-users"
+            == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers"
         )
 
 
@@ -1762,7 +1777,10 @@ class TestScheduleReport:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
         response = authenticated_platform_admin_client.post(
@@ -1803,7 +1821,7 @@ class TestScheduleReport:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(
-            soup, "All grant recipients must have at least one user set up before scheduling a report"
+            soup, "All grant recipients must have at least one data provider set up before scheduling a report"
         )
 
         db_session.refresh(collection)

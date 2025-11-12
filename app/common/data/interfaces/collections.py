@@ -18,7 +18,9 @@ from app.common.data.interfaces.exceptions import (
     StateTransitionError,
     flush_and_rollback_on_exceptions,
 )
-from app.common.data.interfaces.grant_recipients import all_grant_recipients_have_users
+from app.common.data.interfaces.grant_recipients import (
+    all_grant_recipients_have_data_providers,
+)
 from app.common.data.models import (
     Collection,
     Component,
@@ -172,8 +174,10 @@ def update_collection(  # noqa: C901
                         f"all reporting and submission period dates must be set"
                     )
 
-                if not all_grant_recipients_have_users(collection.grant):
-                    raise GrantRecipientUsersRequiredToScheduleReportError()
+                if not all_grant_recipients_have_data_providers(collection.grant):
+                    raise GrantRecipientUsersRequiredToScheduleReportError(
+                        "All grant recipients must have at least one data provider set up before scheduling a report"
+                    )
 
             case (
                 (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.DRAFT)

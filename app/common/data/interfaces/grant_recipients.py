@@ -1,7 +1,7 @@
 import uuid
-from typing import Sequence
+from typing import Mapping, Sequence
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
@@ -35,116 +35,47 @@ def create_grant_recipients(grant: "Grant", organisation_ids: list[uuid.UUID]) -
     db.session.add_all(grant_recipients)
 
 
-def all_grant_recipients_have_users(grant: "Grant") -> bool:
-    grant_recipients = get_grant_recipients(grant)
+def all_grant_recipients_have_data_providers(grant: "Grant") -> bool:
+    grant_recipients = get_grant_recipients(grant, with_data_providers=True)
 
     if not grant_recipients:
         return False
 
-    for grant_recipient in grant_recipients:
-        user_count = db.session.scalar(
-            select(func.count())
-            .select_from(UserRole)
-            .join(UserRole.organisation)
-            .where(
-                UserRole.grant_id == grant.id,
-                UserRole.organisation_id == grant_recipient.organisation_id,
-                Organisation.can_manage_grants.is_(False),
-                UserRole.permissions.contains(
-                    [RoleEnum.MEMBER]
-                ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
-            )
-        )
-        if not user_count or user_count == 0:
-            return False
-
-    return True
+    return all(grant_recipient.data_providers for grant_recipient in grant_recipients)
 
 
-def get_grant_recipient_users_count(grant: Grant) -> int:
-    statement = (
-        select(func.count())
-        .select_from(UserRole)
-        .join(UserRole.organisation)
-        .where(
-            Organisation.can_manage_grants.is_(False),
-            UserRole.grant_id == grant.id,
-            UserRole.permissions.contains(
-                [RoleEnum.MEMBER]
-            ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
-        )
+def get_grant_recipient_data_providers_count(grant: Grant) -> int:
+    return sum(
+        len(grant_recipient.data_providers) for grant_recipient in get_grant_recipients(grant, with_data_providers=True)
     )
-    return db.session.scalar(statement) or 0
 
 
-def get_grant_recipient_users_by_organisation(grant: Grant) -> dict[GrantRecipient, Sequence[User]]:
-    grant_recipients = get_grant_recipients(grant)
-    result = {}
+def get_grant_recipient_data_providers_by_organisation(grant: Grant) -> dict[GrantRecipient, Sequence[User]]:
+    grant_recipients = get_grant_recipients(grant, with_data_providers=True)
 
-    for grant_recipient in grant_recipients:
-        statement = (
-            select(User)
-            .join(UserRole)
-            .join(UserRole.organisation)
-            .where(
-                Organisation.can_manage_grants.is_(False),
-                UserRole.organisation_id == grant_recipient.organisation_id,
-                UserRole.grant_id == grant.id,
-                UserRole.permissions.contains(
-                    [RoleEnum.MEMBER]
-                ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
-            )
-        )
-        users = db.session.scalars(statement).all()
-        result[grant_recipient] = users
-
-    return result
+    return {grant_recipient: grant_recipient.data_providers for grant_recipient in grant_recipients}
 
 
-def get_grant_recipient_user_roles(grant: Grant) -> Sequence[UserRole]:
-    """Get all grant recipient user roles for a grant.
-
-    Returns tuples of (user_id, organisation_id, user_name, user_email, organisation_name).
-    """
+def get_grant_recipient_data_provider_roles(grant: Grant) -> Sequence[UserRole]:
+    """Get all grant recipient data provider roles for a grant."""
     statement = (
         select(UserRole)
         .join(User, UserRole.user_id == User.id)
         .join(Organisation, Organisation.id == UserRole.organisation_id)
         .where(
             UserRole.grant_id == grant.id,
-            UserRole.permissions.contains(
-                [RoleEnum.MEMBER]
-            ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
+            UserRole.permissions.contains([RoleEnum.DATA_PROVIDER]),
         )
     )
 
     return db.session.scalars(statement).all()
 
 
-@flush_and_rollback_on_exceptions
-def revoke_grant_recipient_user_role(user_id: uuid.UUID, organisation_id: uuid.UUID, grant_id: uuid.UUID) -> bool:
-    subquery = (
-        select(UserRole.id)
-        .join(UserRole.organisation)
-        .where(
-            and_(
-                UserRole.user_id == user_id,
-                UserRole.organisation_id == organisation_id,
-                Organisation.can_manage_grants.is_(False),
-                UserRole.grant_id == grant_id,
-                UserRole.permissions.contains(
-                    [RoleEnum.MEMBER]
-                ),  # TODO: might become a 'DATA_PROVIDER' permission with Access work
-            )
-        )
-    )
+def get_grant_recipient_data_providers(grant: Grant) -> Mapping[GrantRecipient, Sequence[User]]:
+    grant_recipients = get_grant_recipients(grant, with_data_providers=True)
 
-    statement = delete(UserRole).where(UserRole.id.in_(subquery))
-    result = db.session.execute(statement)
-    db.session.flush()
+    data_providers = {}
+    for grant_recipient in grant_recipients:
+        data_providers[grant_recipient] = grant_recipient.data_providers
 
-    user = db.session.get(User, user_id)
-    if user:
-        db.session.expire(user)
-
-    return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+    return data_providers
