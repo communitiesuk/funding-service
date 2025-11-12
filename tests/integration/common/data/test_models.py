@@ -410,6 +410,171 @@ class TestGrantRecipientModel:
         assert len(grant_recipient.certifiers) == 1
         assert grant_recipient.certifiers[0].id == user.id
 
+    def test_data_providers_returns_empty_list_when_no_data_providers(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+
+        assert grant_recipient.data_providers == []
+
+    def test_data_providers_returns_global_data_providers_only(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        assert len(grant_recipient.data_providers) == 1
+        assert grant_recipient.data_providers[0].id == user.id
+
+    def test_data_providers_returns_grant_specific_data_providers_only(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        assert len(grant_recipient.data_providers) == 1
+        assert grant_recipient.data_providers[0].id == user.id
+
+    def test_data_providers_returns_both_global_and_grant_specific(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        global_data_provider = factories.user.create()
+        grant_specific_data_provider = factories.user.create()
+
+        factories.user_role.create(
+            user=global_data_provider,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.user_role.create(
+            user=grant_specific_data_provider,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        assert len(grant_recipient.data_providers) == 2
+        assert {u.id for u in (grant_recipient.data_providers)} == {
+            global_data_provider.id,
+            grant_specific_data_provider.id,
+        }
+
+    def test_data_providers_returns_all_global_data_providers(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user1 = factories.user.create()
+        user2 = factories.user.create()
+        user3 = factories.user.create()
+
+        factories.user_role.create(
+            user=user1, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+        factories.user_role.create(
+            user=user2, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+        factories.user_role.create(
+            user=user3, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        assert len(grant_recipient.data_providers) == 3
+        assert {u.id for u in (grant_recipient.data_providers)} == {user1.id, user2.id, user3.id}
+
+    def test_data_providers_returns_all_grant_specific_data_providers(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user1 = factories.user.create()
+        user2 = factories.user.create()
+
+        factories.user_role.create(
+            user=user1,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.user_role.create(
+            user=user2,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        assert len(grant_recipient.data_providers) == 2
+        assert {u.id for u in (grant_recipient.data_providers)} == {user1.id, user2.id}
+
+    def test_data_providers_excludes_data_providers_from_different_organisation(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        other_org = factories.organisation.create()
+        other_org_data_provider = factories.user.create()
+
+        factories.user_role.create(
+            user=other_org_data_provider, organisation=other_org, grant=None, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        assert len(grant_recipient.data_providers) == 0
+
+    def test_data_providers_excludes_data_providers_from_different_grant(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        other_grant = factories.grant.create()
+        other_grant_data_provider = factories.user.create()
+
+        factories.user_role.create(
+            user=other_grant_data_provider,
+            organisation=grant_recipient.organisation,
+            grant=other_grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        assert len(grant_recipient.data_providers) == 0
+
+    def test_data_providers_excludes_non_data_provider_roles(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        member_user = factories.user.create()
+        admin_user = factories.user.create()
+
+        factories.user_role.create(
+            user=member_user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER],
+        )
+        factories.user_role.create(
+            user=admin_user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.CERTIFIER]
+        )
+
+        assert len(grant_recipient.data_providers) == 0
+
+    def test_data_providers_with_multiple_permissions_including_data_provider(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        assert len(grant_recipient.data_providers) == 1
+        assert grant_recipient.data_providers[0].id == user.id
+
+    def test_data_providers_user_with_both_global_and_grant_specific_roles(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+
+        factories.user_role.create(
+            user=user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        assert len(grant_recipient.data_providers) == 1
+        assert grant_recipient.data_providers[0].id == user.id
+
 
 class TestComponentReferenceModel:
     def test_deleting_a_component_with_a_reference_is_blocked(self, factories, db_session):

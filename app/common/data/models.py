@@ -777,6 +777,19 @@ class GrantRecipient(BaseModel):
         lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
     )
 
+    data_providers: Mapped[list[User]] = relationship(
+        "User",
+        secondary="user_role",
+        primaryjoin=lambda: and_(
+            GrantRecipient.organisation_id == UserRole.organisation_id,
+            or_(UserRole.grant_id.is_(None), UserRole.grant_id == GrantRecipient.grant_id),
+            UserRole.permissions.contains([RoleEnum.DATA_PROVIDER]),
+        ),
+        secondaryjoin=lambda: UserRole.user_id == User.id,
+        viewonly=True,
+        lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
+    )
+
     _all_certifiers: Mapped[list[User]] = relationship(
         "User",
         secondary="user_role",
