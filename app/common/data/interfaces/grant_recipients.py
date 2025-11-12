@@ -50,12 +50,6 @@ def get_grant_recipient_data_providers_count(grant: Grant) -> int:
     )
 
 
-def get_grant_recipient_data_providers_by_organisation(grant: Grant) -> dict[GrantRecipient, Sequence[User]]:
-    grant_recipients = get_grant_recipients(grant, with_data_providers=True)
-
-    return {grant_recipient: grant_recipient.data_providers for grant_recipient in grant_recipients}
-
-
 def get_grant_recipient_data_provider_roles(grant: Grant) -> Sequence[UserRole]:
     """Get all grant recipient data provider roles for a grant."""
     statement = (
