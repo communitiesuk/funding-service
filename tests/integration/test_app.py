@@ -81,3 +81,10 @@ class TestAppErrorHandlers:
         assert response.status_code == 500
         assert "Sorry, there is a problem with the service" in response.text
         assert app.config["SERVICE_DESK_URL"] in response.text
+
+
+class TestAppIndex:
+    def test_get_app_index_redirects_to_access_grant_funding(self, anonymous_client):
+        response = anonymous_client.get("/", follow_redirects=False)
+        assert response.status_code == 302
+        assert response.location == url_for("access_grant_funding.index")
