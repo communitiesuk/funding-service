@@ -1,10 +1,10 @@
 import datetime
 import uuid
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
 
 from flask import current_app
-from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint, select, text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint, and_, or_, select, text
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Mapped, column_property, foreign, mapped_column, rela
 from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
-from app.common.data.models_user import Invitation, User
+from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
@@ -24,6 +24,7 @@ from app.common.data.types import (
     OrganisationType,
     QuestionDataType,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionEventKey,
     SubmissionModeEnum,
     json_flat_scalars,
@@ -33,7 +34,6 @@ from app.common.expressions.managed import get_managed_expression
 from app.common.qid import SafeQidMixin
 
 if TYPE_CHECKING:
-    from app.common.data.models_user import UserRole
     from app.common.expressions.managed import ManagedExpression
 
 
@@ -771,8 +771,40 @@ class GrantRecipient(BaseModel):
     users: Mapped[list[User]] = relationship(
         "User",
         secondary="user_role",
-        primaryjoin="GrantRecipient.organisation_id==UserRole.organisation_id",
-        secondaryjoin="and_(User.id==UserRole.user_id, UserRole.grant_id==foreign(GrantRecipient.grant_id))",
+        primaryjoin=lambda: GrantRecipient.organisation_id == UserRole.organisation_id,
+        secondaryjoin=lambda: and_(User.id == UserRole.user_id, UserRole.grant_id == foreign(GrantRecipient.grant_id)),
         viewonly=True,
-        lazy="select",
+        lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
     )
+
+    _all_certifiers: Mapped[list[User]] = relationship(
+        "User",
+        secondary="user_role",
+        primaryjoin=lambda: GrantRecipient.organisation_id == UserRole.organisation_id,
+        secondaryjoin=lambda: and_(
+            User.id == UserRole.user_id,
+            or_(UserRole.grant_id.is_(None), UserRole.grant_id == foreign(GrantRecipient.grant_id)),
+            UserRole.permissions.contains([RoleEnum.CERTIFIER]),
+        ),
+        viewonly=True,
+        lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
+    )
+
+    @property
+    def certifiers(self) -> Sequence[User]:
+        """Filters down to the preferred certifiers for this grant recipient.
+
+        Preferred certifiers have specific certifier permissions for this grant, rather than at the organisation-level.
+        """
+        preferred_certifiers = []
+        for certifier in self._all_certifiers:
+            for role in certifier.roles:
+                if (
+                    role.organisation_id == self.organisation_id
+                    and role.grant_id == self.grant_id
+                    and RoleEnum.CERTIFIER in role.permissions
+                ):
+                    preferred_certifiers.append(role.user)
+                    break
+
+        return preferred_certifiers or self._all_certifiers
