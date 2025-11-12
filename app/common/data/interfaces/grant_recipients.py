@@ -2,6 +2,7 @@ import uuid
 from typing import Sequence
 
 from sqlalchemy import and_, delete, func, select
+from sqlalchemy.orm import joinedload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Grant, GrantRecipient, Organisation
@@ -10,8 +11,13 @@ from app.common.data.types import RoleEnum
 from app.extensions import db
 
 
-def get_grant_recipients(grant: "Grant") -> Sequence["GrantRecipient"]:
-    return db.session.scalars(select(GrantRecipient).where(GrantRecipient.grant_id == grant.id)).all()
+def get_grant_recipients(grant: "Grant", *, with_data_providers: bool = False) -> Sequence["GrantRecipient"]:
+    stmt = select(GrantRecipient).where(GrantRecipient.grant_id == grant.id)
+
+    if with_data_providers:
+        stmt = stmt.options(joinedload(GrantRecipient.data_providers))
+
+    return db.session.scalars(stmt).unique().all()
 
 
 def get_grant_recipients_count(grant: "Grant") -> int:

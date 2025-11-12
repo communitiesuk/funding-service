@@ -49,6 +49,105 @@ class TestGetGrantRecipients:
 
         assert result == []
 
+    def test_without_data_providers_parameter_does_not_eager_load(self, factories, db_session, track_sql_queries):
+        grant = factories.grant.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        db_session.expire_all()
+
+        result = get_grant_recipients(grant)
+
+        with track_sql_queries() as queries:
+            assert len(result[0].data_providers) == 1
+
+        assert len(queries) == 1
+
+    def test_with_data_providers_false_does_not_eager_load(self, factories, db_session, track_sql_queries):
+        grant = factories.grant.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        db_session.expire_all()
+
+        result = get_grant_recipients(grant, with_data_providers=False)
+
+        with track_sql_queries() as queries:
+            assert len(result[0].data_providers) == 1
+
+        assert len(queries) == 1
+
+    def test_with_data_providers_true_eager_loads_relationship(self, factories, db_session, track_sql_queries):
+        grant_recipient = factories.grant_recipient.create()
+        factories.user_role.create(
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        db_session.expire_all()
+        _ = grant_recipient.grant
+
+        with track_sql_queries() as queries:
+            result = get_grant_recipients(grant_recipient.grant, with_data_providers=True)
+
+        assert len(queries) == 1
+
+        with track_sql_queries() as queries:
+            data_providers = result[0].data_providers
+            assert len(data_providers) == 1
+
+        assert len(queries) == 0
+
+    def test_with_data_providers_true_with_multiple_grant_recipients_does_not_cause_n_plus_1(
+        self, factories, db_session, track_sql_queries
+    ):
+        grant = factories.grant.create()
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
+
+        for gr in grant_recipients:
+            factories.user_role.create_batch(
+                3,
+                organisation=gr.organisation,
+                grant=gr.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            )
+
+        db_session.expire_all()
+        _ = [gr.grant for gr in grant_recipients]
+
+        with track_sql_queries() as queries:
+            result = get_grant_recipients(grant, with_data_providers=True)
+
+        assert len(queries) == 1
+
+        with track_sql_queries() as queries:
+            for gr in result:
+                assert len(gr.data_providers) == 3
+
+        assert len(queries) == 0
+
+    def test_with_data_providers_true_handles_no_data_providers(self, factories, db_session, track_sql_queries):
+        grant = factories.grant.create()
+        factories.grant_recipient.create(grant=grant)
+        db_session.expire_all()
+
+        result = get_grant_recipients(grant, with_data_providers=True)
+
+        with track_sql_queries() as queries:
+            assert result[0].data_providers == []
+
+        assert len(queries) == 0
+
 
 class TestGetGrantRecipientsCount:
     def test_returns_count_of_grant_recipients(self, factories, db_session):
