@@ -151,4 +151,8 @@ class AuthorisationHelper:
 
         # TODO: agree with product and dev what the policy on access to platform admins should be
         #       assuming they should only have blanket access to test data when that exists
-        return any(role.organisation_id == organisation_id for role in user.roles)
+        # TODO: organisations are likely lazy loaded here, we should be careful with that and audit
+        #       these before we're done
+        return any(
+            role.organisation_id == organisation_id and not role.organisation.can_manage_grants for role in user.roles
+        )

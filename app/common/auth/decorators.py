@@ -287,6 +287,4 @@ def is_access_org_member[**P](
 
         return func(*args, **kwargs)
 
-    # TODO: when magic links work is done make sure this works relative to that
-    # return is_deliver_grant_funding_user(wrapper)
     return access_grant_funding_login_required(wrapper)

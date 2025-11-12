@@ -103,7 +103,7 @@ class User(BaseModel):
         viewonly=True,
     )
 
-    def grant_recipients(self, *, limit_to_organisation_id: uuid.UUID | None = None) -> list["GrantRecipient"]:
+    def get_grant_recipients(self, *, limit_to_organisation_id: uuid.UUID | None = None) -> list["GrantRecipient"]:
         if limit_to_organisation_id is None:
             return self._grant_recipients
         return [gr for gr in self._grant_recipients if gr.organisation.id == limit_to_organisation_id]

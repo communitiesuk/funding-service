@@ -749,9 +749,9 @@ class TestUserGrantRelationships:
         factories.user_role.create(user=user, organisation=recipient_org, grant=grant1, permissions=[RoleEnum.MEMBER])
         factories.user_role.create(user=user, organisation=recipient_org, grant=grant2, permissions=[RoleEnum.MEMBER])
 
-        assert len(user.grant_recipients()) == 2
-        assert {g.grant.id for g in user.grant_recipients()} == {grant1.id, grant2.id}
-        assert {g.organisation.id for g in user.grant_recipients()} == {recipient_org.id, recipient_org.id}
+        assert len(user.get_grant_recipients()) == 2
+        assert {g.grant.id for g in user.get_grant_recipients()} == {grant1.id, grant2.id}
+        assert {g.organisation.id for g in user.get_grant_recipients()} == {recipient_org.id, recipient_org.id}
         assert len(user.deliver_grants) == 0
 
     def test_grant_recipients_organisation_level_access(self, db_session, factories):
@@ -766,9 +766,9 @@ class TestUserGrantRelationships:
         user = factories.user.create(email="test@communities.gov.uk")
         factories.user_role.create(user=user, organisation=recipient_org, grant=None, permissions=[RoleEnum.ADMIN])
 
-        assert len(user.grant_recipients()) == 2
-        assert {g.grant.id for g in user.grant_recipients()} == {grant1.id, grant2.id}
-        assert {g.organisation.id for g in user.grant_recipients()} == {recipient_org.id, recipient_org.id}
+        assert len(user.get_grant_recipients()) == 2
+        assert {g.grant.id for g in user.get_grant_recipients()} == {grant1.id, grant2.id}
+        assert {g.organisation.id for g in user.get_grant_recipients()} == {recipient_org.id, recipient_org.id}
         assert len(user.deliver_grants) == 0
 
     def test_grant_recipients_mixed_grant_access(self, db_session, factories):
@@ -787,19 +787,21 @@ class TestUserGrantRelationships:
         factories.user_role.create(user=user, organisation=recipient_org, grant=None, permissions=[RoleEnum.MEMBER])
         factories.user_role.create(user=user, organisation=recipient_org2, grant=grant3, permissions=[RoleEnum.MEMBER])
 
-        assert len(user.grant_recipients()) == 3
-        assert {g.grant.id for g in user.grant_recipients()} == {grant1.id, grant2.id, grant3.id}
-        assert {g.organisation.id for g in user.grant_recipients()} == {
+        assert len(user.get_grant_recipients()) == 3
+        assert {g.grant.id for g in user.get_grant_recipients()} == {grant1.id, grant2.id, grant3.id}
+        assert {g.organisation.id for g in user.get_grant_recipients()} == {
             recipient_org.id,
             recipient_org.id,
             recipient_org2.id,
         }
 
-        assert {g.grant.id for g in user.grant_recipients(limit_to_organisation_id=recipient_org.id)} == {
+        assert {g.grant.id for g in user.get_grant_recipients(limit_to_organisation_id=recipient_org.id)} == {
             grant1.id,
             grant2.id,
         }
-        assert {g.grant.id for g in user.grant_recipients(limit_to_organisation_id=recipient_org2.id)} == {grant3.id}
+        assert {g.grant.id for g in user.get_grant_recipients(limit_to_organisation_id=recipient_org2.id)} == {
+            grant3.id
+        }
         assert len(user.deliver_grants) == 0
 
     def test_grant_recipients_filters(self, db_session, factories):
@@ -820,14 +822,15 @@ class TestUserGrantRelationships:
             permissions=[RoleEnum.MEMBER],
         )
 
-        assert len(user.grant_recipients()) == 2
-        assert user.grant_recipients(limit_to_organisation_id=grant_recipient_member_org1.organisation.id) == [
+        assert len(user.get_grant_recipients()) == 2
+        assert user.get_grant_recipients(limit_to_organisation_id=grant_recipient_member_org1.organisation.id) == [
             grant_recipient_member_org1
         ]
-        assert user.grant_recipients(limit_to_organisation_id=grant_recipient_member_org2.organisation.id) == [
+        assert user.get_grant_recipients(limit_to_organisation_id=grant_recipient_member_org2.organisation.id) == [
             grant_recipient_member_org2
         ]
-        assert user.grant_recipients(limit_to_organisation_id=uuid.uuid4()) == []
+        assert user.get_grant_recipients(limit_to_organisation_id=uuid.uuid4()) == []
+
 
 class TestGetUsersWithPermission:
     def test_returns_users_with_specific_permission(self, factories, db_session):

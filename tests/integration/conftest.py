@@ -421,7 +421,7 @@ def authenticated_org_member_client(
 def authenticated_grant_recipient_member_client(
     anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
 ) -> Generator[FundingServiceTestClient, None, None]:
-    """Create a client authenticated as a grant recipients for an org with can_manage_grants=False"""
+    """Create a client authenticated as a grant recipient for an org with can_manage_grants=False"""
 
     user = factories.user.create(email="recipientmember@communities.gov.uk")
     grant_recipient = factories.grant_recipient.create(organisation__can_manage_grants=False)
