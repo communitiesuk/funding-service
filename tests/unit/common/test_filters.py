@@ -1,6 +1,7 @@
 import datetime
 
 from app import format_date, format_date_range, format_datetime, format_datetime_range
+from app.common.filters import format_date_range_short
 
 
 class TestFormatDate:
@@ -33,6 +34,14 @@ class TestFormatDateRange:
         assert (
             format_date_range(datetime.date(2025, 1, 1), datetime.date(2025, 2, 1))
             == "Wednesday 1 January 2025 to Saturday 1 February 2025"
+        )
+
+
+class TestFormatDateRangeShort:
+    def test_dates(self):
+        assert (
+            format_date_range_short(datetime.date(2025, 1, 1), datetime.date(2025, 2, 1))
+            == "1 January 2025 to 1 February 2025"
         )
 
 
