@@ -125,6 +125,18 @@ class CollectionStatusEnum(enum.StrEnum):
     OPEN = "Open"
     CLOSED = "Closed"
 
+    def __lt__(self, other: CollectionStatusEnum) -> bool:  # type: ignore[override]
+        if not isinstance(other, CollectionStatusEnum):
+            return NotImplemented
+        ordered_list_of_names = CollectionStatusEnum._member_names_
+        return ordered_list_of_names.index(self.name) < ordered_list_of_names.index(other.name)
+
+    def __gt__(self, other: CollectionStatusEnum) -> bool:  # type: ignore[override]
+        if not isinstance(other, CollectionStatusEnum):
+            return NotImplemented
+        ordered_list_of_names = CollectionStatusEnum._member_names_
+        return ordered_list_of_names.index(self.name) > ordered_list_of_names.index(other.name)
+
 
 class ExpressionType(enum.StrEnum):
     CONDITION = "CONDITION"
