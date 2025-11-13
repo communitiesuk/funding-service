@@ -62,12 +62,12 @@
                 Sections are groups of questions with a common theme
               {% else %}
                 <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id) }}">
-                  {{ report.forms | length }} sections<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
+                  {% trans count=report.forms | length %}{{ count }} section{% pluralize %}{{ count }} sections{% endtrans %}<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
                 </a>
               {% endif %}
             {% else %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id) }}">
-                {{ report.forms | length }} sections<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
+                {% trans count=report.forms | length %}{{ count }} section{% pluralize %}{{ count }} sections{% endtrans %}<span class="govuk-visually-hidden"> in report for {{ report.name }}</span>
               </a>
             {% endif %}
           {% endset %}

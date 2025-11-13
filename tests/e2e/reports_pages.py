@@ -213,7 +213,7 @@ class GrantReportsPage(ReportsBasePage):
         return add_section_page
 
     def click_manage_sections(self, report_name: str, grant_name: str) -> ReportSectionsPage:
-        self.page.get_by_role("link", name=re.compile(r"\d+ sections")).click()
+        self.page.get_by_role("link", name=re.compile(r"\d+ section")).click()
         report_sections_page = ReportSectionsPage(
             self.page, self.domain, grant_name=grant_name, report_name=report_name
         )
