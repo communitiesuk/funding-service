@@ -39,12 +39,10 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 
         user = interfaces.user.get_user_by_email(email_address=email)
 
-        # The default url for access.grants_list is currently restricted to platform admins only, but using here in lieu
-        # of a formal landing page for Access Grant Funding users
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
             email=email,
-            redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("developers.access.grants_list"))),
+            redirect_to_path=sanitise_redirect_url(session.pop("next", url_for("access_grant_funding.index"))),
         )
 
         notification = notification_service.send_magic_link(
@@ -57,7 +55,12 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 
         return redirect(url_for("auth.check_email", magic_link_id=magic_link.id))
 
-    return render_template("common/auth/sign_in_magic_link.html", form=form, link_expired=link_expired)
+    return render_template(
+        "access_grant_funding/auth/sign_in_magic_link.html",
+        form=form,
+        link_expired=link_expired,
+        service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
+    )
 
 
 @auth_blueprint.get("/check-your-email/<uuid:magic_link_id>")
@@ -68,7 +71,9 @@ def check_email(magic_link_id: uuid.UUID) -> ResponseReturnValue:
         return abort(404)
 
     notification_id = session.pop("magic_link_email_notification_id", None)
-    return render_template("common/auth/check_email.html", email=magic_link.email, notification_id=notification_id)
+    return render_template(
+        "access_grant_funding/auth/check_email.html", email=magic_link.email, notification_id=notification_id
+    )
 
 
 @auth_blueprint.route("/sign-in/<magic_link_code>", methods=["GET", "POST"])
@@ -98,7 +103,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
         session["auth"] = AuthMethodEnum.MAGIC_LINK
         return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
 
-    return render_template("common/auth/claim_magic_link.html", form=form, magic_link=magic_link)
+    return render_template("access_grant_funding/auth/claim_magic_link.html", form=form, magic_link=magic_link)
 
 
 @auth_blueprint.route("/sso/permissions-error", methods=["GET", "POST"])
@@ -195,4 +200,11 @@ def sign_out() -> ResponseReturnValue:
     logout_user()
     sentry_sdk.set_user(None)
 
-    return redirect(url_for("index"))
+    auth_method = session.pop("auth", None)
+    match auth_method:
+        case AuthMethodEnum.SSO:
+            return redirect(url_for("auth.sso_sign_in"))
+        case AuthMethodEnum.MAGIC_LINK:
+            return redirect(url_for("auth.request_a_link_to_sign_in"))
+        case _:
+            return redirect(url_for("index"))

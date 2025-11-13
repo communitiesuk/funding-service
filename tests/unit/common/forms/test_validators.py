@@ -3,7 +3,14 @@ from unittest.mock import Mock, patch
 import pytest
 from wtforms.validators import ValidationError
 
-from app.common.forms.validators import CommunitiesEmail, FinalOptionExclusive, URLWithoutProtocol, WordRange
+from app.common.data.types import RoleEnum
+from app.common.forms.validators import (
+    AccessGrantFundingEmail,
+    CommunitiesEmail,
+    FinalOptionExclusive,
+    URLWithoutProtocol,
+    WordRange,
+)
 
 
 class TestWordRange:
@@ -203,5 +210,77 @@ class TestFinalOptionExclusive:
         validator, form, field = self._get_mocks()
         field.data = []
         field.choices = options_list
+
+        validator(form, field)
+
+
+class TestAccessGrantFundingEmail:
+    def _get_mocks(self) -> tuple[AccessGrantFundingEmail, Mock, Mock]:
+        form = Mock()
+        field = Mock()
+        validator = AccessGrantFundingEmail()
+        return validator, form, field
+
+    def test_empty_field_returns(self):
+        validator, form, field = self._get_mocks()
+        field.data = ""
+
+        validator(form, field)
+
+    def test_internal_email_domain_returns(self):
+        validator, form, field = self._get_mocks()
+        field.data = "test@communities.gov.uk"
+
+        validator(form, field)
+
+    def test_unknown_user_fails(self, factories, mocker):
+        validator, form, field = self._get_mocks()
+
+        mocker.patch("app.common.forms.validators.interfaces.user.get_user_by_email", return_value=None)
+
+        field.data = "different_user@localgov.gov.uk"
+
+        with pytest.raises(
+            ValidationError,
+            match=(
+                "The email address you entered does not have access to this service. "
+                "Check the email address is correct or request access."
+            ),
+        ):
+            validator(form, field)
+
+    def test_user_without_grant_recipient_org_fails(self, factories, mocker):
+        user = factories.user.build(email="test@localgov.gov.uk")
+        validator, form, field = self._get_mocks()
+
+        mocker.patch("app.common.forms.validators.interfaces.user.get_user_by_email", return_value=user)
+
+        field.data = user.email
+
+        with pytest.raises(
+            ValidationError,
+            match=(
+                "The email address you entered does not have access to this service. "
+                "Check the email address is correct or request access."
+            ),
+        ):
+            validator(form, field)
+
+    def test_user_with_grant_recipient_org_passes(self, factories, mocker):
+        recipient_org = factories.organisation.build(can_manage_grants=False)
+        grant_org = factories.organisation.build(can_manage_grants=True)
+        grant = factories.grant.build(organisation=grant_org)
+        grant_recipient = factories.grant_recipient.build(grant=grant, organisation=recipient_org)
+        user = factories.user.build(email="test@localgov.gov.uk")
+        factories.user_role.build(
+            user=user, organisation=recipient_org, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+        user.get_grant_recipients = mocker.Mock(return_value=[grant_recipient])
+
+        validator, form, field = self._get_mocks()
+
+        mocker.patch("app.common.forms.validators.interfaces.user.get_user_by_email", return_value=user)
+
+        field.data = user.email
 
         validator(form, field)

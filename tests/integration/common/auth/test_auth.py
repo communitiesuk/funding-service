@@ -10,14 +10,17 @@ from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import RoleEnum
+from tests.models import _get_grant_managing_organisation
 from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_error
 
 
-class TestSignInView:
+class TestMagicLinkSignInView:
     def test_get(self, anonymous_client):
         response = anonymous_client.get(url_for("auth.request_a_link_to_sign_in"))
         assert response.status_code == 200
-        assert b"Request a link to sign in" in response.data
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Access grant funding" in get_h1_text(soup)
+        assert "A service for grant recipients of central government funding" in soup.text
 
     def test_post_invalid_email(self, anonymous_client):
         response = anonymous_client.post(
@@ -26,12 +29,6 @@ class TestSignInView:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Enter an email address in the correct format")
-
-    def get_test_post_non_communities_email(self, client):
-        response = client.post(url_for("auth.request_a_link_to_sign_in"), data={"email_address": "test@example.com"})
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Email address must end with @communities.gov.uk or @test.communities.gov.uk")
 
     def test_post_mhclg_email_redirects_to_sso(self, anonymous_client, mock_notification_service_calls):
         response = anonymous_client.post(
@@ -47,15 +44,42 @@ class TestSignInView:
         with anonymous_client.session_transaction() as session:
             assert "magic_link_redirect" not in session
 
-    def test_post_valid_non_mhclg_email(self, anonymous_client, mock_notification_service_calls):
+    def test_post_invalid_non_mhclg_email(self, anonymous_client, factories, mock_notification_service_calls):
+        response = anonymous_client.post(
+            url_for("auth.request_a_link_to_sign_in"), data={"email_address": "test@localgov.gov.uk"}
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            (
+                "The email address you entered does not have access to this service. "
+                "Check the email address is correct or request access."
+            ),
+        )
+
+    def test_post_valid_non_mhclg_email(self, anonymous_client, factories, mock_notification_service_calls):
+        recipient_org = factories.organisation.create(can_manage_grants=False)
+        mhclg = _get_grant_managing_organisation()
+        grant = factories.grant.create(organisation=mhclg)
+        factories.grant_recipient.create(grant=grant, organisation=recipient_org)
+        user = factories.user.create(email="test@localgov.gov.uk")
+        factories.user_role.create(
+            user=user, organisation=recipient_org, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
         response = anonymous_client.post(
             url_for("auth.request_a_link_to_sign_in"),
-            data={"email_address": "test@example.com"},
+            data={"email_address": user.email},
             follow_redirects=True,
         )
         assert response.status_code == 200
-        assert b"Check your email" in response.data
-        assert b"test@example.com" in response.data
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert "Check your email" in get_h1_text(soup)
+        assert "test@localgov.gov.uk" in soup.text
+
         assert len(mock_notification_service_calls) == 1
         assert mock_notification_service_calls[0].kwargs["personalisation"]["magic_link"] == AnyStringMatching(
             r"http://funding.communities.gov.localhost:8080/sign-in/.*"
@@ -73,19 +97,54 @@ class TestSignInView:
         ),
     )
     def test_post_valid_email_with_redirect(
-        self, anonymous_client, mock_notification_service_calls, db_session, next_, safe_next
+        self, anonymous_client, mock_notification_service_calls, factories, db_session, next_, safe_next
     ):
+        recipient_org = factories.organisation.create(can_manage_grants=False)
+        mhclg = _get_grant_managing_organisation()
+        grant = factories.grant.create(organisation=mhclg)
+        factories.grant_recipient.create(grant=grant, organisation=recipient_org)
+        user = factories.user.create(email="test@localgov.gov.uk")
+        factories.user_role.create(
+            user=user, organisation=recipient_org, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
         with anonymous_client.session_transaction() as session:
             session["next"] = next_
 
         response = anonymous_client.post(
             url_for("auth.request_a_link_to_sign_in"),
-            data={"email_address": "test@example.com"},
+            data={"email_address": user.email},
             follow_redirects=True,
         )
         assert response.status_code == 200
         assert (
             db_session.scalar(select(MagicLink).order_by(MagicLink.created_at_utc.desc())).redirect_to_path == safe_next
+        )
+
+        with anonymous_client.session_transaction() as session:
+            assert "next" not in session
+
+    def test_post_valid_email_with_no_next_redirects_to_route(
+        self, anonymous_client, mock_notification_service_calls, factories, db_session
+    ):
+        recipient_org = factories.organisation.create(can_manage_grants=False)
+        mhclg = _get_grant_managing_organisation()
+        grant = factories.grant.create(organisation=mhclg)
+        factories.grant_recipient.create(grant=grant, organisation=recipient_org)
+        user = factories.user.create(email="test@localgov.gov.uk")
+        factories.user_role.create(
+            user=user, organisation=recipient_org, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        response = anonymous_client.post(
+            url_for("auth.request_a_link_to_sign_in"),
+            data={"email_address": user.email},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert (
+            db_session.scalar(select(MagicLink).order_by(MagicLink.created_at_utc.desc())).redirect_to_path
+            == "/access/"
         )
 
         with anonymous_client.session_transaction() as session:
@@ -177,22 +236,23 @@ class TestClaimMagicLinkView:
 
 
 class TestSignOutView:
-    def test_get(self, anonymous_client, factories):
-        magic_link = factories.magic_link.create(
-            user__email="test@communities.gov.uk", redirect_to_path="/my-redirect", claimed_at_utc=None
-        )
+    @pytest.mark.parametrize(
+        "client_fixture, sign_out_redirect",
+        [
+            ("authenticated_grant_member_client", "auth.sso_sign_in"),
+            ("authenticated_grant_recipient_member_client", "auth.request_a_link_to_sign_in"),
+        ],
+    )
+    def test_get(self, anonymous_client, client_fixture, sign_out_redirect, request):
+        client = request.getfixturevalue(client_fixture)
 
-        # A bit unencapsulated for testing the sign out view, but don't otherwise have an easy+reliable way to get
-        # the user in the session
-        anonymous_client.post(url_for("auth.claim_magic_link", magic_link_code=magic_link.code), json={"submit": "yes"})
-        with anonymous_client.session_transaction() as session:
-            assert "_user_id" in session
-
-        response = anonymous_client.get(url_for("auth.sign_out"), follow_redirects=True)
+        response = client.get(url_for("auth.sign_out"), follow_redirects=True)
         assert response.status_code == 200
+        assert response.request.path == url_for(sign_out_redirect)
 
-        with anonymous_client.session_transaction() as session:
+        with client.session_transaction() as session:
             assert "_user_id" not in session
+            assert "auth" not in session
 
 
 class TestSSOSignInView:
