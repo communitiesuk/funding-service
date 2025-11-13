@@ -7,6 +7,7 @@ from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.decorators import access_grant_funding_login_required, is_access_org_member
 from app.common.data import interfaces
 from app.common.data.interfaces.grants import get_grant
+from app.common.helpers.collections import SubmissionHelper
 
 
 @access_grant_funding_blueprint.route("/", methods=["GET"])
@@ -41,16 +42,20 @@ def list_grants(organisation_id: UUID) -> ResponseReturnValue:
 @is_access_org_member
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id=grant_id)
-    if (
-        organisation_id not in [gr.organisation_id for gr in grant.grant_recipients]
-        or interfaces.user.get_current_user()
-        not in next(gr for gr in grant.grant_recipients if gr.organisation_id == organisation_id).users
-    ):
+    # find grant_recipient for this user-org-grant
+    grant_recipient = next((gr for gr in grant.grant_recipients if gr.organisation_id == organisation_id), None)
+    if not grant_recipient or interfaces.user.get_current_user() not in grant_recipient.users:
         return render_template("access_grant_funding/errors/organisation_is_not_grant_recipient.html"), 404
 
+    submissions = [
+        SubmissionHelper.load(submission.id)
+        for submission in grant_recipient.submissions
+        if submission.collection in grant.access_reports
+    ]
     return render_template(
         "access_grant_funding/report_list.html",
         reports=grant.access_reports,
         organisation_id=organisation_id,
         grant=grant,
+        submissions=submissions,
     )
