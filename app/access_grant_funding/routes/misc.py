@@ -36,11 +36,18 @@ def list_grants(organisation_id: UUID) -> ResponseReturnValue:
 
 
 @access_grant_funding_blueprint.route(
-    "organisation/<uuid:organisation_id>/grant/<uuid:grant_id>/select-a-report", methods=["GET"]
+    "/organisation/<uuid:organisation_id>/grant/<uuid:grant_id>/select-a-report", methods=["GET"]
 )
 @is_access_org_member
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
-    grant = get_grant(grant_id=grant_id)  # , with_all_collections=True)
+    grant = get_grant(grant_id=grant_id)
+    if (
+        organisation_id not in [gr.organisation_id for gr in grant.grant_recipients]
+        or interfaces.user.get_current_user()
+        not in next(gr for gr in grant.grant_recipients if gr.organisation_id == organisation_id).users
+    ):
+        return render_template("access_grant_funding/errors/organisation_is_not_grant_recipient.html"), 404
+
     return render_template(
         "access_grant_funding/report_list.html",
         reports=grant.access_reports,

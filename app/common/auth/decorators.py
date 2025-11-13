@@ -17,7 +17,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisation
-from app.common.data.types import AuthMethodEnum, RoleEnum
+from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum
 
 
 def access_grant_funding_login_required[**P](
@@ -285,6 +285,20 @@ def is_access_org_member[**P](
         ):
             return abort(403)
 
+        # TODO in future, when we allow DGF users to see grants in an 'access' view, tweak this so that
+        #  DGF users can see grants with a different status
+        if grant_id := cast(uuid.UUID, kwargs.get("grant_id", None)):
+            grant = get_grant(grant_id=grant_id)
+            if not grant.status == GrantStatusEnum.LIVE:
+                current_app.logger.warning(
+                    "User %(email)s requesting reports for grant %(grant_id)s but status is %(grant_status)s",
+                    {
+                        "email": interfaces.user.get_current_user().email,
+                        "grant_id": grant_id,
+                        "grant_status": grant.status,
+                    },
+                )
+                return abort(404)
         return func(*args, **kwargs)
 
     return access_grant_funding_login_required(wrapper)
