@@ -12,6 +12,7 @@ from app.common.auth.decorators import (
     collection_is_editable,
     deliver_grant_funding_login_required,
     has_deliver_grant_role,
+    is_access_org_member,
     is_deliver_grant_funding_user,
     is_deliver_org_admin,
     is_deliver_org_member,
@@ -717,3 +718,53 @@ class TestCollectionIsEditable:
 
         response = view_func(component_id=question.id)
         assert response == "OK"
+
+
+class TestIsAccessOrgMember:
+    def test_user_missing_params(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+
+        @is_access_org_member
+        def view_func():
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        with pytest.raises(ValueError, match="Organisation ID required."):
+            view_func()
+
+    def test_user_non_org_member_rejected(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+
+        @is_access_org_member
+        def view_func(organisation_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        with pytest.raises(Forbidden):
+            view_func(organisation_id=grant_recipient.organisation.id)
+
+    def test_user_org_member_responds(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        factories.user_role.create(
+            user=user,
+            permissions=[RoleEnum.MEMBER],
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+        )
+
+        @is_access_org_member
+        def view_func(organisation_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        assert view_func(organisation_id=grant_recipient.organisation.id) == "OK"

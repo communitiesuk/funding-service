@@ -143,3 +143,16 @@ class AuthorisationHelper:
             return False
 
         return False
+
+    @staticmethod
+    def has_access_org_access(user: User | AnonymousUserMixin, organisation_id: UUID) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
+
+        # TODO: agree with product and dev what the policy on access to platform admins should be
+        #       assuming they should only have blanket access to test data when that exists
+        # TODO: organisations are likely lazy loaded here, we should be careful with that and audit
+        #       these before we're done
+        return any(
+            role.organisation_id == organisation_id and not role.organisation.can_manage_grants for role in user.roles
+        )
