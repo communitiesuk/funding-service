@@ -57,6 +57,15 @@ def format_date_range(start: date, end: date) -> str:
     return f"{from_} to {to}"
 
 
+def format_date_range_short(start: date, end: date) -> str:
+    """Format a pair of dates as follows:
+
+    > 1 January 2025 to 1 February 2025
+    """
+    from_, to = format_date_short(start), format_date_short(end)
+    return f"{from_} to {to}"
+
+
 def format_datetime_range(start: datetime, end: datetime) -> str:
     """Format a pair of dates as follows:
 

@@ -29,6 +29,7 @@ from app.common.data.interfaces.collections import (
     delete_collection_test_submissions_created_by_user,
     delete_form,
     delete_question,
+    get_all_live_submissions_for_grant_recipient,
     get_collection,
     get_expression,
     get_expression_by_id,
@@ -3604,3 +3605,12 @@ class TestAddAnother:
         with pytest.raises(ValueError) as e:
             remove_add_another_answers_at_index(submission, add_another_group, -1)
         assert str(e.value) == "Cannot remove answers at index -1 as there are only 0 existing answers"
+
+
+class TestGetSubmissions:
+    def test_get_all_live_submissions_for_grant_recipient(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__live=1)
+        grant_recipient = collection.live_submissions[0].grant_recipient
+
+        submissions = get_all_live_submissions_for_grant_recipient(grant_recipient.grant.id, grant_recipient.id)
+        assert len(submissions) == 1

@@ -645,7 +645,9 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
     collection_id = factory.LazyAttribute(lambda o: o.collection.id)
 
     grant_recipient = factory.LazyAttribute(
-        lambda o: _GrantRecipientFactory.create() if o.mode == SubmissionModeEnum.LIVE else None
+        lambda o: _GrantRecipientFactory.create(grant=o.collection.grant if o.collection else None)
+        if o.mode == SubmissionModeEnum.LIVE
+        else None
     )
     grant_recipient_id = factory.LazyAttribute(lambda o: o.grant_recipient.id if o.grant_recipient else None)
 

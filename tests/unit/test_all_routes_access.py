@@ -119,6 +119,7 @@ routes_with_expected_access_grant_funding_logged_in_access = [
 
 routes_with_expected_access_grant_funding_org_access = [
     "access_grant_funding.list_grants",
+    "access_grant_funding.list_reports",
 ]
 
 routes_with_expected_is_deliver_grant_funding_user_access = [

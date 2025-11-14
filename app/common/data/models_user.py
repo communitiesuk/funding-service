@@ -108,6 +108,12 @@ class User(BaseModel):
             return self._grant_recipients
         return [gr for gr in self._grant_recipients if gr.organisation.id == limit_to_organisation_id]
 
+    def get_grant_recipient(self, *, organisation_id: uuid.UUID, grant_id: uuid.UUID) -> "GrantRecipient | None":
+        return next(
+            (gr for gr in self._grant_recipients if gr.organisation.id == organisation_id and gr.grant_id == grant_id),
+            None,
+        )
+
     last_logged_in_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
 
     # START: Flask-Login attributes

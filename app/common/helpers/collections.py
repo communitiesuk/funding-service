@@ -186,6 +186,10 @@ class SubmissionHelper:
             return SubmissionStatusEnum.IN_PROGRESS
 
     @property
+    def is_overdue(self) -> bool:
+        return self.collection.has_submission_period_ended
+
+    @property
     def submitted_at_utc(self) -> datetime | None:
         if not self.is_completed:
             return None
