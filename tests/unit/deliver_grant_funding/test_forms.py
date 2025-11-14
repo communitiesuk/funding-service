@@ -387,14 +387,13 @@ class TestPlatformAdminCreateCertifiersForm:
         assert "Invalid email address(es)" in form.certifiers_data.errors[0]
         assert "invalid-email" in form.certifiers_data.errors[0]
 
-    def test_invalid_organisation_name(self, app, factories):
+    def test_invalid_organisation_names_dont_fail_validation(self, app, factories):
         form = PlatformAdminCreateCertifiersForm(organisations=[])
         form.certifiers_data.data = (
             "organisation-name\tfirst-name\tlast-name\temail-address\nTest Org\tJohn\tDoe\tjohn.doe@example.com"
         )
 
-        assert form.validate() is False
-        assert "Organisation 'Test Org' has not been set up in Deliver grant funding." in form.certifiers_data.errors[0]
+        assert form.validate() is True
 
     def test_multiple_invalid_email_addresses(self, app, factories):
         organisations = factories.organisation.build_batch(3)

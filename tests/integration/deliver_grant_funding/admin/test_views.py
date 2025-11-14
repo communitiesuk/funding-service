@@ -4,6 +4,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from app.common.data.interfaces.organisations import get_organisation_count
+from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.models import Organisation
 from app.common.data.types import CollectionStatusEnum, GrantStatusEnum, OrganisationStatus, OrganisationType, RoleEnum
 from tests.utils import get_h1_text, get_h2_text, page_has_error, page_has_flash
@@ -783,8 +784,6 @@ class TestSetUpCertifiers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Created or updated 1 certifier(s).")
 
-        from app.common.data.interfaces.user import get_user_by_email
-
         user = get_user_by_email("john.doe@example.com")
         assert user is not None
         assert user.name == "John Doe"
@@ -814,8 +813,6 @@ class TestSetUpCertifiers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Created or updated 2 certifier(s).")
-
-        from app.common.data.interfaces.user import get_user_by_email
 
         user1 = get_user_by_email("john.doe@example.com")
         assert user1 is not None
@@ -848,8 +845,6 @@ class TestSetUpCertifiers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Created or updated 1 certifier(s).")
-
-        from app.common.data.interfaces.user import get_user_by_email
 
         user = get_user_by_email("existing@example.com")
         assert user is not None
@@ -932,15 +927,12 @@ class TestSetUpCertifiers:
                 ),
                 "submit": "y",
             },
-            follow_redirects=False,
+            follow_redirects=True,
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Organisation 'Non Existent Org' has not been set up in Deliver grant funding.")
-
-        from app.common.data.interfaces.user import get_user_by_email
-
+        assert page_has_flash(soup, "Ignoring certifier for 'Non Existent Org' - organisation has not been set up.")
         assert get_user_by_email("john.doe@example.com") is None
 
 
@@ -1507,8 +1499,6 @@ class TestSetUpGrantRecipientUsers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Successfully set up 1 grant recipient data provider.")
 
-        from app.common.data.interfaces.user import get_user_by_email
-
         user = get_user_by_email("john@example.com")
         assert user is not None
         assert user.name == "John Doe"
@@ -1538,8 +1528,6 @@ class TestSetUpGrantRecipientUsers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Successfully set up 1 grant recipient data provider.")
-
-        from app.common.data.interfaces.user import get_user_by_email
 
         user = get_user_by_email("existing@example.com")
         assert user is not None
@@ -1635,8 +1623,6 @@ class TestSetUpGrantRecipientUsers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Organisation 'Invalid Org' is not a grant recipient for this grant.")
 
-        from app.common.data.interfaces.user import get_user_by_email
-
         assert get_user_by_email("john@example.com") is None
         assert get_user_by_email("jane@example.com") is None
 
@@ -1663,8 +1649,6 @@ class TestSetUpGrantRecipientUsers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Successfully set up 2 grant recipient data providers.")
-
-        from app.common.data.interfaces.user import get_user_by_email
 
         user1 = get_user_by_email("john@example.com")
         assert user1 is not None
@@ -1726,8 +1710,6 @@ class TestSetUpGrantRecipientUsers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Successfully set up 1 grant recipient data provider.")
-
-        from app.common.data.interfaces.user import get_user_by_email
 
         existing_user_refreshed = get_user_by_email("existing@example.com")
         assert existing_user_refreshed is not None
