@@ -777,7 +777,7 @@ class GrantRecipient(BaseModel):
         ),
         secondaryjoin=lambda: User.id == UserRole.user_id,
         viewonly=True,
-        lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
+        lazy="raise_on_sql",
     )
 
     data_providers: Mapped[list[User]] = relationship(
@@ -790,7 +790,7 @@ class GrantRecipient(BaseModel):
         ),
         secondaryjoin=lambda: UserRole.user_id == User.id,
         viewonly=True,
-        lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
+        lazy="raise_on_sql",
     )
 
     _all_certifiers: Mapped[list[User]] = relationship(
@@ -803,7 +803,7 @@ class GrantRecipient(BaseModel):
         ),
         secondaryjoin=lambda: User.id == UserRole.user_id,
         viewonly=True,
-        lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
+        lazy="raise_on_sql",
     )
 
     @property

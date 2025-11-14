@@ -1,9 +1,11 @@
 import pytest
 from psycopg.errors import ForeignKeyViolation
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, InvalidRequestError
+from sqlalchemy.orm import joinedload
 
 from app import QuestionDataType
-from app.common.data.models import ComponentReference, Expression, Group
+from app.common.data.models import ComponentReference, Expression, GrantRecipient, Group
 from app.common.data.types import ExpressionType, QuestionPresentationOptions, RoleEnum, SubmissionModeEnum
 from app.common.expressions.managed import GreaterThan, Specifically
 
@@ -248,22 +250,34 @@ class TestGroupModel:
 
 
 class TestGrantRecipientModel:
-    def test_certifiers_returns_empty_list_when_no_certifiers(self, factories):
+    select_with_certifiers = select(GrantRecipient).options(joinedload(GrantRecipient._all_certifiers))
+    select_with_data_providers = select(GrantRecipient).options(joinedload(GrantRecipient.data_providers))
+
+    def test_certifiers_property_raises_by_default(self, factories):
         grant_recipient = factories.grant_recipient.create()
 
-        assert grant_recipient.certifiers == []
+        with pytest.raises(InvalidRequestError):
+            _ = grant_recipient.certifiers
 
-    def test_certifiers_returns_global_certifiers_only(self, factories):
+    def test_certifiers_returns_empty_list_when_no_certifiers(self, factories, db_session):
+        factories.grant_recipient.create()
+        from_db = db_session.scalar(self.select_with_certifiers)
+
+        assert from_db.certifiers == []
+
+    def test_certifiers_returns_global_certifiers_only(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user = factories.user.create()
         factories.user_role.create(
             user=user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.CERTIFIER]
         )
 
-        assert len(grant_recipient.certifiers) == 1
-        assert grant_recipient.certifiers[0].id == user.id
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-    def test_certifiers_returns_grant_specific_certifiers_only(self, factories):
+        assert len(from_db.certifiers) == 1
+        assert from_db.certifiers[0].id == user.id
+
+    def test_certifiers_returns_grant_specific_certifiers_only(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user = factories.user.create()
         factories.user_role.create(
@@ -272,11 +286,12 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.CERTIFIER],
         )
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-        assert len(grant_recipient.certifiers) == 1
-        assert grant_recipient.certifiers[0].id == user.id
+        assert len(from_db.certifiers) == 1
+        assert from_db.certifiers[0].id == user.id
 
-    def test_certifiers_prefers_grant_specific_over_global(self, factories):
+    def test_certifiers_prefers_grant_specific_over_global(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         global_certifier = factories.user.create()
         grant_specific_certifier = factories.user.create()
@@ -293,11 +308,12 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.CERTIFIER],
         )
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-        assert len(grant_recipient.certifiers) == 1
-        assert grant_recipient.certifiers[0].id == grant_specific_certifier.id
+        assert len(from_db.certifiers) == 1
+        assert from_db.certifiers[0].id == grant_specific_certifier.id
 
-    def test_certifiers_returns_all_global_certifiers_when_no_grant_specific(self, factories):
+    def test_certifiers_returns_all_global_certifiers_when_no_grant_specific(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user1 = factories.user.create()
         user2 = factories.user.create()
@@ -312,11 +328,12 @@ class TestGrantRecipientModel:
         factories.user_role.create(
             user=user3, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.CERTIFIER]
         )
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-        assert len(grant_recipient.certifiers) == 3
-        assert {u.id for u in (grant_recipient.certifiers)} == {user1.id, user2.id, user3.id}
+        assert len(from_db.certifiers) == 3
+        assert {u.id for u in (from_db.certifiers)} == {user1.id, user2.id, user3.id}
 
-    def test_certifiers_returns_all_grant_specific_certifiers(self, factories):
+    def test_certifiers_returns_all_grant_specific_certifiers(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user1 = factories.user.create()
         user2 = factories.user.create()
@@ -333,22 +350,24 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.CERTIFIER],
         )
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-        assert len(grant_recipient.certifiers) == 2
-        assert {u.id for u in (grant_recipient.certifiers)} == {user1.id, user2.id}
+        assert len(from_db.certifiers) == 2
+        assert {u.id for u in (from_db.certifiers)} == {user1.id, user2.id}
 
-    def test_certifiers_excludes_certifiers_from_different_organisation(self, factories):
-        grant_recipient = factories.grant_recipient.create()
+    def test_certifiers_excludes_certifiers_from_different_organisation(self, factories, db_session):
+        factories.grant_recipient.create()
         other_org = factories.organisation.create()
         other_org_certifier = factories.user.create()
 
         factories.user_role.create(
             user=other_org_certifier, organisation=other_org, grant=None, permissions=[RoleEnum.CERTIFIER]
         )
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-        assert len(grant_recipient.certifiers) == 0
+        assert len(from_db.certifiers) == 0
 
-    def test_certifiers_excludes_certifiers_from_different_grant(self, factories):
+    def test_certifiers_excludes_certifiers_from_different_grant(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         other_grant = factories.grant.create()
         other_grant_certifier = factories.user.create()
@@ -359,10 +378,11 @@ class TestGrantRecipientModel:
             grant=other_grant,
             permissions=[RoleEnum.CERTIFIER],
         )
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-        assert len(grant_recipient.certifiers) == 0
+        assert len(from_db.certifiers) == 0
 
-    def test_certifiers_excludes_non_certifier_roles(self, factories):
+    def test_certifiers_excludes_non_certifier_roles(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         member_user = factories.user.create()
         admin_user = factories.user.create()
@@ -376,10 +396,11 @@ class TestGrantRecipientModel:
         factories.user_role.create(
             user=admin_user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.ADMIN]
         )
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-        assert len(grant_recipient.certifiers) == 0
+        assert len(from_db.certifiers) == 0
 
-    def test_certifiers_with_multiple_permissions_including_certifier(self, factories):
+    def test_certifiers_with_multiple_permissions_including_certifier(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user = factories.user.create()
 
@@ -389,11 +410,12 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         )
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-        assert len(grant_recipient.certifiers) == 1
-        assert grant_recipient.certifiers[0].id == user.id
+        assert len(from_db.certifiers) == 1
+        assert from_db.certifiers[0].id == user.id
 
-    def test_certifiers_user_with_both_global_and_grant_specific_roles(self, factories):
+    def test_certifiers_user_with_both_global_and_grant_specific_roles(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user = factories.user.create()
 
@@ -406,26 +428,29 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.CERTIFIER],
         )
+        from_db = db_session.scalar(self.select_with_certifiers)
 
-        assert len(grant_recipient.certifiers) == 1
-        assert grant_recipient.certifiers[0].id == user.id
+        assert len(from_db.certifiers) == 1
+        assert from_db.certifiers[0].id == user.id
 
-    def test_data_providers_returns_empty_list_when_no_data_providers(self, factories):
-        grant_recipient = factories.grant_recipient.create()
+    def test_data_providers_returns_empty_list_when_no_data_providers(self, factories, db_session):
+        factories.grant_recipient.create()
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert grant_recipient.data_providers == []
+        assert from_db.data_providers == []
 
-    def test_data_providers_returns_global_data_providers_only(self, factories):
+    def test_data_providers_returns_global_data_providers_only(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user = factories.user.create()
         factories.user_role.create(
             user=user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.DATA_PROVIDER]
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 1
-        assert grant_recipient.data_providers[0].id == user.id
+        assert len(from_db.data_providers) == 1
+        assert from_db.data_providers[0].id == user.id
 
-    def test_data_providers_returns_grant_specific_data_providers_only(self, factories):
+    def test_data_providers_returns_grant_specific_data_providers_only(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user = factories.user.create()
         factories.user_role.create(
@@ -434,11 +459,12 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.DATA_PROVIDER],
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 1
-        assert grant_recipient.data_providers[0].id == user.id
+        assert len(from_db.data_providers) == 1
+        assert from_db.data_providers[0].id == user.id
 
-    def test_data_providers_returns_both_global_and_grant_specific(self, factories):
+    def test_data_providers_returns_both_global_and_grant_specific(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         global_data_provider = factories.user.create()
         grant_specific_data_provider = factories.user.create()
@@ -455,14 +481,15 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.DATA_PROVIDER],
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 2
-        assert {u.id for u in (grant_recipient.data_providers)} == {
+        assert len(from_db.data_providers) == 2
+        assert {u.id for u in (from_db.data_providers)} == {
             global_data_provider.id,
             grant_specific_data_provider.id,
         }
 
-    def test_data_providers_returns_all_global_data_providers(self, factories):
+    def test_data_providers_returns_all_global_data_providers(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user1 = factories.user.create()
         user2 = factories.user.create()
@@ -477,11 +504,12 @@ class TestGrantRecipientModel:
         factories.user_role.create(
             user=user3, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.DATA_PROVIDER]
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 3
-        assert {u.id for u in (grant_recipient.data_providers)} == {user1.id, user2.id, user3.id}
+        assert len(from_db.data_providers) == 3
+        assert {u.id for u in (from_db.data_providers)} == {user1.id, user2.id, user3.id}
 
-    def test_data_providers_returns_all_grant_specific_data_providers(self, factories):
+    def test_data_providers_returns_all_grant_specific_data_providers(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user1 = factories.user.create()
         user2 = factories.user.create()
@@ -498,22 +526,24 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.DATA_PROVIDER],
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 2
-        assert {u.id for u in (grant_recipient.data_providers)} == {user1.id, user2.id}
+        assert len(from_db.data_providers) == 2
+        assert {u.id for u in (from_db.data_providers)} == {user1.id, user2.id}
 
-    def test_data_providers_excludes_data_providers_from_different_organisation(self, factories):
-        grant_recipient = factories.grant_recipient.create()
+    def test_data_providers_excludes_data_providers_from_different_organisation(self, factories, db_session):
+        factories.grant_recipient.create()
         other_org = factories.organisation.create()
         other_org_data_provider = factories.user.create()
 
         factories.user_role.create(
             user=other_org_data_provider, organisation=other_org, grant=None, permissions=[RoleEnum.DATA_PROVIDER]
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 0
+        assert len(from_db.data_providers) == 0
 
-    def test_data_providers_excludes_data_providers_from_different_grant(self, factories):
+    def test_data_providers_excludes_data_providers_from_different_grant(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         other_grant = factories.grant.create()
         other_grant_data_provider = factories.user.create()
@@ -524,10 +554,11 @@ class TestGrantRecipientModel:
             grant=other_grant,
             permissions=[RoleEnum.DATA_PROVIDER],
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 0
+        assert len(from_db.data_providers) == 0
 
-    def test_data_providers_excludes_non_data_provider_roles(self, factories):
+    def test_data_providers_excludes_non_data_provider_roles(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         member_user = factories.user.create()
         admin_user = factories.user.create()
@@ -541,10 +572,11 @@ class TestGrantRecipientModel:
         factories.user_role.create(
             user=admin_user, organisation=grant_recipient.organisation, grant=None, permissions=[RoleEnum.CERTIFIER]
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 0
+        assert len(from_db.data_providers) == 0
 
-    def test_data_providers_with_multiple_permissions_including_data_provider(self, factories):
+    def test_data_providers_with_multiple_permissions_including_data_provider(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user = factories.user.create()
 
@@ -554,11 +586,12 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 1
-        assert grant_recipient.data_providers[0].id == user.id
+        assert len(from_db.data_providers) == 1
+        assert from_db.data_providers[0].id == user.id
 
-    def test_data_providers_user_with_both_global_and_grant_specific_roles(self, factories):
+    def test_data_providers_user_with_both_global_and_grant_specific_roles(self, factories, db_session):
         grant_recipient = factories.grant_recipient.create()
         user = factories.user.create()
 
@@ -571,9 +604,10 @@ class TestGrantRecipientModel:
             grant=grant_recipient.grant,
             permissions=[RoleEnum.DATA_PROVIDER],
         )
+        from_db = db_session.scalar(self.select_with_data_providers)
 
-        assert len(grant_recipient.data_providers) == 1
-        assert grant_recipient.data_providers[0].id == user.id
+        assert len(from_db.data_providers) == 1
+        assert from_db.data_providers[0].id == user.id
 
 
 class TestComponentReferenceModel:

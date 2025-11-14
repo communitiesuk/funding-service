@@ -1,3 +1,6 @@
+import pytest
+from sqlalchemy.exc import InvalidRequestError
+
 from app.common.data.interfaces.grant_recipients import (
     all_grant_recipients_have_data_providers,
     create_grant_recipients,
@@ -61,10 +64,8 @@ class TestGetGrantRecipients:
 
         result = get_grant_recipients(grant)
 
-        with track_sql_queries() as queries:
-            assert len(result[0].data_providers) == 1
-
-        assert len(queries) == 1
+        with pytest.raises(InvalidRequestError):
+            _ = result[0].data_providers
 
     def test_with_data_providers_false_does_not_eager_load(self, factories, db_session, track_sql_queries):
         grant = factories.grant.create()
@@ -80,10 +81,8 @@ class TestGetGrantRecipients:
 
         result = get_grant_recipients(grant, with_data_providers=False)
 
-        with track_sql_queries() as queries:
-            assert len(result[0].data_providers) == 1
-
-        assert len(queries) == 1
+        with pytest.raises(InvalidRequestError):
+            _ = result[0].data_providers
 
     def test_with_data_providers_true_eager_loads_relationship(self, factories, db_session, track_sql_queries):
         grant_recipient = factories.grant_recipient.create()
