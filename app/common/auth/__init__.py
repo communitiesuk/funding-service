@@ -11,7 +11,7 @@ from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import SignInForm
 from app.common.auth.sso import MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED, build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
-from app.common.data.types import AuthMethodEnum
+from app.common.data.types import AuthMethodEnum, RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
@@ -171,7 +171,9 @@ def sso_get_token() -> ResponseReturnValue:
             name=sso_user["name"],
         )
         if AuthorisationHelper.is_platform_admin(user):
-            interfaces.user.remove_platform_admin_role_from_user(user)
+            interfaces.user.remove_permissions_from_user(
+                user, permissions=[RoleEnum.MEMBER, RoleEnum.ADMIN], organisation_id=None, grant_id=None
+            )
             if not user.roles:
                 return redirect(
                     url_for("auth.signed_in_but_no_permissions", invite_expired=False),

@@ -4,7 +4,7 @@ from flask.typing import ResponseReturnValue
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import is_deliver_org_member
 from app.common.data import interfaces
-from app.common.data.interfaces.user import get_current_user, upsert_user_role
+from app.common.data.interfaces.user import add_permissions_to_user, get_current_user
 from app.common.data.types import RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.constants import CHECK_YOUR_ANSWERS
@@ -178,7 +178,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
         session.pop("grant_setup", None)
 
         if not AuthorisationHelper.is_deliver_org_admin(get_current_user()):
-            upsert_user_role(
+            add_permissions_to_user(
                 get_current_user(),
                 permissions=[RoleEnum.ADMIN],
                 organisation_id=grant.organisation_id,
