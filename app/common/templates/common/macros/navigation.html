@@ -1,0 +1,67 @@
+{% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
+
+{# TODO: we won't be able to rely on a formal grant_recipient being created for anything pre-award, we'll likely need something #}
+{#       more general that still associates your organisation with a grant (that would be associated when someone first creates an application, for example) #}
+{% macro accessGrantFundingServiceNavigation(user, nav_items=[], grant_recipient=None, organisation=None) %}
+  {% set grant_recipients = user.get_grant_recipients() %}
+  {% set organisation = organisation or (grant_recipient.organisation if grant_recipient else None) %}
+
+  {% set number_of_organisations = grant_recipients | map(attribute='organisation_id') | unique | list | length %}
+
+  {% if number_of_organisations > 1 and organisation %}
+    <div id="org-nav" class="govuk-service-navigation app-service-nav-org">
+      <div class="govuk-width-container">
+        <div class="govuk-service-navigation__container">
+          <span class="govuk-service-navigation__service-name">
+            <a href="#" class="govuk-service-navigation__link">{{ organisation.name }}</a>
+          </span>
+          <nav aria-label="Menu" class="govuk-service-navigation__wrapper app-service-navigation__wrapper--sectional app-hide-mobile">
+            <ul class="govuk-service-navigation__list">
+              <li class="govuk-service-navigation__item">
+                <a class="govuk-service-navigation__link" href="#">Change organisation</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if grant_recipient %}
+    {% set grant = grant_recipient.grant %}
+    {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
+
+    {% if number_of_grants > 1 %}
+      {% do nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant.organisation_id)}) %}
+      {% set navigation_classes = "app-service-navigation__wrapper-sectional" %}
+    {% endif %}
+
+    {% if number_of_organisations > 1 %}
+      {% do nav_items.append({"text": "Change organisation", "href": "#"}) %}
+
+      {# note that this will only be shown on the mobile menu #}
+      {% set navigation_classes = "app-service-navigation__wrapper-sectional-org-hidden" %}
+    {% endif %}
+
+    {{
+      govukServiceNavigation({
+          "serviceName": grant.name,
+          "serviceUrl": "#",
+          "navigation": nav_items,
+          "navigationClasses": navigation_classes,
+          "attributes": { "id": "grant-nav" }
+      })
+    }}
+  {% endif %}
+{% endmacro %}
+
+{% macro deliverGrantFundingServiceNavigation(nav_items=[], right_nav_items=[]) %}
+  {{
+    govukServiceNavigation({
+    "serviceName": "Deliver grant funding",
+    "serviceUrl": url_for("deliver_grant_funding.list_grants"),
+    "navigation": nav_items + right_nav_items,
+    "navigationClasses": "app-service-navigation__wrapper--sectional" if right_nav_items else "",
+    })
+  }}
+{% endmacro %}

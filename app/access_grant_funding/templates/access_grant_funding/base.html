@@ -1,6 +1,6 @@
 {% extends "common/base.html" %}
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
-{% from "common/partials/navigation.html" import accessGrantFundingServiceNavigation %}
+{% from "common/macros/navigation.html" import accessGrantFundingServiceNavigation %}
 
 {% set nav_items = nav_items or [] %}
 {% set right_nav_items = right_nav_items or [] %}
@@ -19,7 +19,15 @@
       currentUser=current_user,
     )
   }}
-  {# TODO: header shows current organisation if the user has access to multiple #}
-  {#       header shows current grant #}
-  {{ accessGrantFundingServiceNavigation(nav_items, right_nav_items) }}
+
+  {% if current_user.is_authenticated %}
+    {# in the future its likely that we'll only want to show reports to organisations that are grant recipients #}
+    {%
+      set nav_items = [
+          { "text": "Reports", "href": "#", "active": active_item_identifier == "reports" },
+          { "text": "Team", "href": "#", "active": active_item_identifier == "team" },
+      ]
+    %}
+    {{ accessGrantFundingServiceNavigation(current_user, nav_items) }}
+  {% endif %}
 {% endblock header %}
