@@ -99,6 +99,7 @@ def build_db_config(setup_db_container: PostgresContainer | None) -> Dict[str, A
             "DATABASE_NAME": "db-access-not-available-for-unit-tests",
             # pragma: allowlist nextline secret
             "DATABASE_SECRET": json.dumps({"username": "invalid", "password": "invalid"}),
+            "DEBUG_TB_ENABLED": "false",
         }
     return {
         "DATABASE_HOST": setup_db_container.get_container_host_ip(),
@@ -107,6 +108,7 @@ def build_db_config(setup_db_container: PostgresContainer | None) -> Dict[str, A
         "DATABASE_SECRET": json.dumps(
             {"username": setup_db_container.username, "password": setup_db_container.password}
         ),
+        "DEBUG_TB_ENABLED": "false",
     }
 
 
