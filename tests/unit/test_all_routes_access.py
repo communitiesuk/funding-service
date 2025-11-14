@@ -271,3 +271,24 @@ def test_routes_list_is_valid(app):
 
     all_routes_in_app = [rule.endpoint for rule in app.url_map.iter_rules()]
     assert set(all_declared_routes_in_test) - set(all_routes_in_app) == set()
+
+
+# we don't encourage this but there are a few reasons we might want to do this or
+# tradeoff convenience
+routes_with_get_change_state_exception = [
+    "auth.sso_get_token",
+    "deliver_grant_funding.move_section",
+    "deliver_grant_funding.move_component",
+    "developers.access.start_submission_redirect",
+]
+
+
+def test_restrict_mutate_state_on_only_get(app):
+    for rule in app.url_map.iter_rules():
+        decorators = _get_decorators(app.view_functions[rule.endpoint])
+        if (
+            rule.endpoint not in routes_with_get_change_state_exception
+            and rule.methods == {"GET", "HEAD", "OPTIONS"}
+            and "@auto_commit_after_request" in decorators
+        ):
+            pytest.fail(f"Unexpected db commit wrapper, GET should not accidentally change state: {rule.endpoint}")
