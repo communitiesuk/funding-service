@@ -222,7 +222,7 @@ class TestUpsertUserRole:
         organisation_id_value = organisation_id if organisation else None
         grant_id_value = grant_id if grant else None
 
-        user_role = interfaces.user.upsert_user_role(
+        user_role = interfaces.user._upsert_user_role(
             user=user, organisation_id=organisation_id_value, grant_id=grant_id_value, permissions=[role]
         )
         assert user_role.user_id == user.id
@@ -243,10 +243,10 @@ class TestUpsertUserRole:
         organisation = factories.organisation.create()
         grant = factories.grant.create()
 
-        interfaces.user.upsert_user_role(
+        interfaces.user._upsert_user_role(
             user=user, organisation_id=organisation.id, grant_id=grant.id, permissions=[RoleEnum.ADMIN]
         )
-        interfaces.user.upsert_user_role(
+        interfaces.user._upsert_user_role(
             user=user, organisation_id=organisation.id, grant_id=None, permissions=[RoleEnum.MEMBER]
         )
 
@@ -260,11 +260,11 @@ class TestUpsertUserRole:
 
     def test_add_existing_user_role(self, db_session, factories):
         user = factories.user.create(email="test@communities.gov.uk")
-        interfaces.user.upsert_user_role(user=user, permissions=[RoleEnum.ADMIN])
+        interfaces.user._upsert_user_role(user=user, permissions=[RoleEnum.ADMIN])
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
-        user_role = interfaces.user.upsert_user_role(user=user, permissions=[RoleEnum.ADMIN])
+        user_role = interfaces.user._upsert_user_role(user=user, permissions=[RoleEnum.ADMIN])
         assert user_role.user_id == user.id
         assert (user_role.organisation_id, user_role.grant_id) == (None, None)
         assert RoleEnum.ADMIN in user_role.permissions
@@ -274,13 +274,13 @@ class TestUpsertUserRole:
     def test_upsert_existing_user_role(self, db_session, factories):
         user = factories.user.create(email="test@communities.gov.uk")
         grant = factories.grant.create()
-        interfaces.user.upsert_user_role(
+        interfaces.user._upsert_user_role(
             user=user, organisation_id=grant.organisation.id, grant_id=grant.id, permissions=[RoleEnum.MEMBER]
         )
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
-        user_role = interfaces.user.upsert_user_role(
+        user_role = interfaces.user._upsert_user_role(
             user=user, organisation_id=grant.organisation.id, grant_id=grant.id, permissions=[RoleEnum.ADMIN]
         )
         assert user_role.user == user
@@ -304,7 +304,7 @@ class TestUpsertUserRole:
         grant_id_value = grant_id if grant else None
 
         with pytest.raises(InvalidUserRoleError) as error:
-            interfaces.user.upsert_user_role(
+            interfaces.user._upsert_user_role(
                 user=user,
                 organisation_id=organisation_id_value,
                 grant_id=grant_id_value,
@@ -314,113 +314,7 @@ class TestUpsertUserRole:
         assert error.value.message == message
 
 
-class TestSetUserRoleInterfaces:
-    def test_set_platform_admin_role_for_user(self, db_session, factories) -> None:
-        user = factories.user.create(email="test@communities.gov.uk")
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
-
-        platform_admin_role = interfaces.user.set_platform_admin_role_for_user(user=user)
-        assert platform_admin_role.user_id == user.id
-        assert len(user.roles) == 1
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-    def test_set_platform_admin_role_already_exists(self, db_session, factories) -> None:
-        user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-        platform_admin_role = interfaces.user.set_platform_admin_role_for_user(user=user)
-        assert platform_admin_role.user_id == user.id
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-    def test_set_platform_admin_multiple_roles_already_exists(self, db_session, factories) -> None:
-        user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
-        grant = factories.grant.create()
-        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
-
-        platform_admin_role = interfaces.user.set_platform_admin_role_for_user(user=user)
-        assert platform_admin_role.user_id == user.id
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-    def test_set_grant_team_role_for_user(self, db_session, factories) -> None:
-        user = factories.user.create(email="test@communities.gov.uk")
-        grant = factories.grant.create()
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
-
-        grant_team_role = interfaces.user.set_grant_team_role_for_user(
-            user=user, grant=grant, permissions=[RoleEnum.MEMBER]
-        )
-        assert grant_team_role.grant_id == grant.id and grant_team_role.user_id == user.id
-        assert len(user.roles) == 1
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-    def test_set_grant_team_role_already_exists(self, db_session, factories) -> None:
-        user = factories.user.create(email="test@communities.gov.uk")
-        grant = factories.grant.create()
-        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-        grant_team_role = interfaces.user.set_grant_team_role_for_user(
-            user=user, grant=grant, permissions=[RoleEnum.MEMBER]
-        )
-        assert grant_team_role.user_id == user.id and grant_team_role.grant_id == grant.id
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-
 class TestRemoveUserRoleInterfaces:
-    def test_remove_platform_admin_role_from_user(self, db_session, factories) -> None:
-        user = factories.user.create(email="test@communities.gov.uk")
-        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-        interfaces.user.remove_platform_admin_role_from_user(user)
-        assert user.roles == []
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
-
-    def test_remove_platform_admin_role_when_only_other_roles_exist(self, db_session, factories) -> None:
-        user = factories.user.create(email="test@communities.gov.uk")
-        grant = factories.grant.create()
-        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-        interfaces.user.remove_platform_admin_role_from_user(user)
-        assert len(user.roles) == 1
-        assert RoleEnum.MEMBER in user.roles[0].permissions and user.roles[0].grant_id == grant.id
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-    def test_remove_grant_team_role_from_user(self, db_session, factories) -> None:
-        user = factories.user.create(email="test@communities.gov.uk")
-        grant = factories.grant.create()
-        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
-        interfaces.user.remove_grant_team_role_from_user(user, grant_id=grant.id)
-        assert user.roles == []
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
-
-    def test_remove_grant_team_role_from_user_with_multiple_roles(self, db_session, factories) -> None:
-        user = factories.user.create(email="test@communities.gov.uk")
-        grants = factories.grant.create_batch(2)
-        for grant in grants:
-            factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
-
-        interfaces.user.remove_grant_team_role_from_user(user, grant_id=grants[0].id)
-        assert len(user.roles) == 1
-        assert RoleEnum.MEMBER in user.roles[0].permissions and user.roles[0].grant_id == grants[1].id
-
-        assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
-
     def test_remove_all_roles_from_user(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
         factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])

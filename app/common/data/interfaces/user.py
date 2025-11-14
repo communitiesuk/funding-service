@@ -135,7 +135,7 @@ def get_user_role(user: User, organisation_id: uuid.UUID | None, grant_id: uuid.
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, InvalidUserRoleError)])
-def upsert_user_role(
+def _upsert_user_role(
     user: User,
     permissions: list[RoleEnum],
     organisation_id: uuid.UUID | None = None,
@@ -170,32 +170,6 @@ def upsert_user_role(
     return user_role
 
 
-# TODO: deprecate and remove; use `add_permissions_to_user` instead
-@flush_and_rollback_on_exceptions
-def set_platform_admin_role_for_user(user: User) -> UserRole:
-    # Before making someone a platform admin we should remove any other roles they might have assigned to them, as a
-    # platform admin should only ever have that one role
-    remove_all_roles_from_user(user)
-    platform_admin_role = upsert_user_role(user, permissions=[RoleEnum.ADMIN])
-    return platform_admin_role
-
-
-# TODO: deprecate and remove; use `remove_permissions_from_user` instead
-@flush_and_rollback_on_exceptions
-def remove_platform_admin_role_from_user(user: User) -> None:
-    statement = delete(UserRole).where(
-        and_(
-            UserRole.user_id == user.id,
-            UserRole.permissions.contains([RoleEnum.ADMIN]),
-            UserRole.organisation_id.is_(None),
-            UserRole.grant_id.is_(None),
-        )
-    )
-    db.session.execute(statement)
-    db.session.flush()  # we still manually flush here so that we can expire the user and force a re-fetch
-    db.session.expire(user)
-
-
 @flush_and_rollback_on_exceptions
 def add_permissions_to_user(
     user: User,
@@ -206,14 +180,16 @@ def add_permissions_to_user(
     # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
     # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered redundant
     #       and is up for removal in the future.
-    if RoleEnum.MEMBER not in permissions:
+    # NOTE: for now, we only add the MEMBER role in non-platform-wide contexts. Future cleanup may allow MEMBER
+    #       role for platform contexts.
+    if RoleEnum.MEMBER not in permissions and organisation_id:
         permissions.append(RoleEnum.MEMBER)
 
     user_role = get_user_role(user, organisation_id, grant_id)
     existing_permissions = user_role.permissions if user_role else []
     combined_permissions = list(set(existing_permissions + permissions))
 
-    return upsert_user_role(user, combined_permissions, organisation_id, grant_id)
+    return _upsert_user_role(user, combined_permissions, organisation_id, grant_id)
 
 
 @flush_and_rollback_on_exceptions
@@ -232,6 +208,7 @@ def remove_permissions_from_user(
 
     if not combined_permissions:
         db.session.delete(user_role)
+        db.session.expire(user)
         return None
     else:
         # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
@@ -240,31 +217,7 @@ def remove_permissions_from_user(
         if RoleEnum.MEMBER not in combined_permissions:
             combined_permissions.append(RoleEnum.MEMBER)
 
-        return upsert_user_role(user, combined_permissions, organisation_id, grant_id)
-
-
-# TODO: deprecate and remove; use `add_permissions_to_user` instead
-def set_grant_team_role_for_user(user: User, grant: Grant, permissions: list[RoleEnum]) -> UserRole:
-    """Used for setting (deliver) grant team membership - NOT grant recipient team membership"""
-    grant_team_role = upsert_user_role(
-        user=user, organisation_id=grant.organisation_id, grant_id=grant.id, permissions=permissions
-    )
-    return grant_team_role
-
-
-# TODO: deprecate and remove; use `remove_permissions_from_user` instead
-@flush_and_rollback_on_exceptions
-def remove_grant_team_role_from_user(user: User, grant_id: uuid.UUID) -> None:
-    """Used for setting (deliver) grant team membership - NOT grant recipient team membership"""
-    statement = delete(UserRole).where(
-        and_(
-            UserRole.user_id == user.id,
-            UserRole.grant_id == grant_id,
-        )
-    )
-    db.session.execute(statement)
-    db.session.flush()  # we still manually flush here so that we can expire the user and force a re-fetch
-    db.session.expire(user)
+        return _upsert_user_role(user, combined_permissions, organisation_id, grant_id)
 
 
 @flush_and_rollback_on_exceptions
@@ -341,8 +294,11 @@ def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: s
         name=name,
     )
     for invite in invitations:
-        upsert_user_role(
-            user=user, organisation_id=invite.organisation_id, grant_id=invite.grant_id, permissions=invite.permissions
+        add_permissions_to_user(
+            user=user,
+            permissions=invite.permissions,
+            organisation_id=invite.organisation_id,
+            grant_id=invite.grant_id,
         )
         claim_invitation(invitation=invite, user=user)
     return user
@@ -360,7 +316,8 @@ def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_addr
     invitations = get_invitations_by_email(email=email_address, is_usable=True)
     for invite in invitations:
         claim_invitation(invitation=invite, user=user)
-    set_platform_admin_role_for_user(user)
+    remove_all_roles_from_user(user=user)
+    add_permissions_to_user(user, permissions=[RoleEnum.ADMIN], organisation_id=None, grant_id=None)
     return user
 
 
@@ -368,7 +325,9 @@ def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_addr
 def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant) -> None:
     existing_user = get_user_by_email(email_address=email_address)
     if existing_user:
-        set_grant_team_role_for_user(user=existing_user, grant=grant, permissions=[RoleEnum.MEMBER])
+        add_permissions_to_user(
+            user=existing_user, permissions=[RoleEnum.MEMBER], organisation_id=grant.organisation_id, grant_id=grant.id
+        )
     else:
         create_invitation(
             email=email_address, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
