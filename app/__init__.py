@@ -306,7 +306,7 @@ def create_app() -> Flask:  # noqa: C901
 
     @app.route("/", methods=["GET"])
     def index() -> ResponseReturnValue:
-        return redirect(url_for("deliver_grant_funding.list_grants"))
+        return redirect(url_for("access_grant_funding.index"))
 
     # when developing we want the toolbar assets to not cause the page to flicker
     # otherwise we don't want the server to continually 304 on assets the browser has

@@ -339,8 +339,40 @@ class TestSSOGetTokenView:
                 follow_redirects=True,
             )
         assert response.status_code == 200
+        # This isn't the exact URL in the session `next` but that's because the grant_homepage redirects to list_reports
+        assert response.request.path == url_for("deliver_grant_funding.list_reports", grant_id=dummy_grant.id)
+
         soup = BeautifulSoup(response.data, "html.parser")
         assert dummy_grant.name in get_h1_text(soup)
+
+        with anonymous_client.session_transaction() as session:
+            assert "next" not in session
+
+        new_user = db_session.scalar(select(User).where(User.email == "test@test.communities.gov.uk"))
+        assert new_user.name == "SSO User"
+
+    def test_get_valid_token_with_default_redirect(self, anonymous_client, factories, db_session):
+        factories.user.create(email="test@test.communities.gov.uk", azure_ad_subject_id="subject_id")
+
+        with patch("app.common.auth.build_msal_app") as mock_build_msap_app:
+            # Partially mock the expected return value; just enough for the test.
+            mock_build_msap_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test@test.communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": ["FS_PLATFORM_ADMIN"],
+                    "sub": "subject_id",
+                }
+            }
+            response = anonymous_client.get(
+                url_for("auth.sso_get_token"),
+                follow_redirects=True,
+            )
+        assert response.status_code == 200
+        assert response.request.path == url_for("deliver_grant_funding.list_grants")
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Grants" in get_h1_text(soup)
 
         with anonymous_client.session_transaction() as session:
             assert "next" not in session
