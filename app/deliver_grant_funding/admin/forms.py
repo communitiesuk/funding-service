@@ -16,7 +16,7 @@ from app.common.data.types import OrganisationData, OrganisationType
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
-    from app.common.data.models_user import UserRole
+    from app.common.data.models_user import User
 
 
 class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
@@ -184,18 +184,21 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
         ]
 
 
-class PlatformAdminCreateGrantRecipientUserForm(FlaskForm):
+class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
     users_data = TextAreaField(
-        "Grant recipient users TSV data",
+        "Grant recipient data providers TSV data",
         default="organisation-name\tfull-name\temail-address\n",
         validators=[DataRequired()],
         widget=GovTextArea(),
     )
-    submit = SubmitField("Set up grant recipient users", widget=GovSubmitInput())
+    submit = SubmitField("Set up data providers", widget=GovSubmitInput())
 
     def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:
         super().__init__()
         self.grant_recipients = grant_recipients
+        self.organisation_names_to_ids = {
+            grant_recipient.organisation.name: grant_recipient.organisation_id for grant_recipient in grant_recipients
+        }
 
         self.users_data.description = Markup(
             "<span>Copy and paste the 'Funding service ingest' table from the "
@@ -219,6 +222,19 @@ class PlatformAdminCreateGrantRecipientUserForm(FlaskForm):
         except Exception as e:
             field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # type: ignore[attr-defined]
             return
+
+        # Validate all organisation names first before creating any users
+        invalid_orgs = []
+        for org_name, *_ in users_data:
+            if org_name not in self.organisation_names_to_ids:
+                invalid_orgs.append(org_name)
+
+        if invalid_orgs:
+            unique_invalid_orgs = sorted(set(invalid_orgs))
+            for org_name in unique_invalid_orgs:
+                field.errors.append(  # type: ignore[attr-defined]
+                    f"Organisation '{org_name}' is not a grant recipient for this grant."
+                )
 
         # Validate email addresses
         from wtforms.validators import Email as EmailValidator
@@ -246,22 +262,23 @@ class PlatformAdminCreateGrantRecipientUserForm(FlaskForm):
 
 
 class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
-    user_roles = SelectMultipleField(
-        "Grant recipient users to revoke",
+    grant_recipients_data_providers = SelectMultipleField(
+        "Grant recipient data providers to revoke",
         choices=[],
         widget=GovSelectWithSearch(multiple=True),
         validators=[DataRequired()],
     )
     submit = SubmitField("Revoke access", widget=GovSubmitInput())
 
-    def __init__(self, user_roles: Sequence["UserRole"]) -> None:
+    def __init__(self, grant_recipients_data_providers: Mapping["GrantRecipient", Sequence["User"]]) -> None:
         super().__init__()
-        self.user_roles.choices = [
+        self.grant_recipients_data_providers.choices = [
             (
-                f"{user_role.user_id}|{user_role.organisation_id}",
-                f"{user_role.user.name} ({user_role.user.email}) - {user_role.organisation.name}",
+                f"{data_provider.id}|{grant_recipient.organisation_id}",
+                f"{data_provider.name} ({data_provider.email}) - {grant_recipient.organisation.name}",
             )
-            for user_role in user_roles
+            for grant_recipient, data_providers in grant_recipients_data_providers.items()
+            for data_provider in data_providers
         ]
 
 
