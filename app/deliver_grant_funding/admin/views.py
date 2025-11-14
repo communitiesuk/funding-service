@@ -490,7 +490,6 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers", methods=["GET"])  # type: ignore[misc]
-    @auto_commit_after_request
     def send_emails_to_recipients(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
@@ -509,7 +508,6 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers/download-csv", methods=["GET"])  # type: ignore[misc]
-    @auto_commit_after_request
     def download_data_providers_csv(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
