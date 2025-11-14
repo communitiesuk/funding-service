@@ -10,6 +10,32 @@
           "slug": "report-on-cheeseboards-in-parks",
           "status": "Draft",
           "type": "monitoring report"
+        },
+        {
+          "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
+          "name": "Cheeseboards in Parks: Q1 2025",
+          "reporting_period_end_date": "Mon, 31 Mar 2025 00:00:00 GMT",
+          "reporting_period_start_date": "Wed, 01 Jan 2025 00:00:00 GMT",
+          "slug": "cheeseboards-in-parks-q1-2025",
+          "status": "Closed",
+          "submission_period_end_date": "Mon, 30 Jun 2025 00:00:00 GMT",
+          "submission_period_start_date": "Tue, 01 Apr 2025 00:00:00 GMT",
+          "type": "monitoring report"
+        },
+        {
+          "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "f8b061f2-8f9d-43d3-8ff7-d9da0f8048f5",
+          "name": "Cheeseboards in Parks: Q2 2025",
+          "reporting_period_end_date": "Mon, 30 Jun 2025 00:00:00 GMT",
+          "reporting_period_start_date": "Tue, 01 Apr 2025 00:00:00 GMT",
+          "slug": "cheeseboards-in-parks-q2-2025",
+          "status": "Open",
+          "submission_period_end_date": "Wed, 30 Jun 2027 00:00:00 GMT",
+          "submission_period_start_date": "Tue, 01 Jul 2025 00:00:00 GMT",
+          "type": "monitoring report"
         }
       ],
       "component_references": [
@@ -186,6 +212,13 @@
           "order": 2
         },
         {
+          "data_source_id": "078503ab-e87d-4dac-9533-1491943ab9c1",
+          "id": "064ba812-b68f-40a1-bacc-dfe608f36661",
+          "key": "other",
+          "label": "Other",
+          "order": 5
+        },
+        {
           "data_source_id": "9cb18bb1-b9a5-4a57-9111-24ccb3f75a2a",
           "id": "08ebb991-c29a-4fea-b837-58fe5c086352",
           "key": "financial",
@@ -212,6 +245,13 @@
           "key": "friday",
           "label": "Friday",
           "order": 4
+        },
+        {
+          "data_source_id": "078503ab-e87d-4dac-9533-1491943ab9c1",
+          "id": "16da61dd-a8fe-49cb-8984-ad8a0e7ee65f",
+          "key": "cheddar",
+          "label": "Cheddar",
+          "order": 0
         },
         {
           "data_source_id": "5aff6096-1020-4a2e-aa95-1ead3dcc174e",
@@ -319,6 +359,13 @@
           "order": 11
         },
         {
+          "data_source_id": "078503ab-e87d-4dac-9533-1491943ab9c1",
+          "id": "3f8c9302-5d6c-4aa7-be0a-1c55e922022b",
+          "key": "double-gloucester",
+          "label": "Double Gloucester",
+          "order": 1
+        },
+        {
           "data_source_id": "df658ec3-6609-4f23-a28d-208a0b086287",
           "id": "4bf0d169-cd97-4639-88c1-1a914b150267",
           "key": "watch",
@@ -326,11 +373,25 @@
           "order": 4
         },
         {
+          "data_source_id": "078503ab-e87d-4dac-9533-1491943ab9c1",
+          "id": "4edb7193-687c-4677-b6af-eb1e5e911b88",
+          "key": "stilton",
+          "label": "Stilton",
+          "order": 3
+        },
+        {
           "data_source_id": "2266f194-4977-40c7-a2da-9aca01511a9f",
           "id": "4efe2829-7f9b-4cc9-8913-fac72a3c581e",
           "key": "tuesday",
           "label": "Tuesday",
           "order": 1
+        },
+        {
+          "data_source_id": "71f00f37-f77f-4150-8d54-0c15bb096eb1",
+          "id": "54c02552-d944-4f14-8058-d2229c77954d",
+          "key": "cheddar",
+          "label": "Cheddar",
+          "order": 0
         },
         {
           "data_source_id": "5aff6096-1020-4a2e-aa95-1ead3dcc174e",
@@ -403,6 +464,13 @@
           "order": 6
         },
         {
+          "data_source_id": "71f00f37-f77f-4150-8d54-0c15bb096eb1",
+          "id": "70d5187f-4743-4bd0-b20f-f2e1f0d8e3c4",
+          "key": "double-gloucester",
+          "label": "Double Gloucester",
+          "order": 1
+        },
+        {
           "data_source_id": "69f62c94-17bb-45b8-956e-74035af56d50",
           "id": "720b77ba-cdf5-4399-9e3e-85d84ae2cd72",
           "key": "section-151",
@@ -443,6 +511,13 @@
           "key": "5",
           "label": "5",
           "order": 4
+        },
+        {
+          "data_source_id": "078503ab-e87d-4dac-9533-1491943ab9c1",
+          "id": "815448da-c774-47d4-b45a-64589a2d0b3c",
+          "key": "red-leicester",
+          "label": "Red Leicester",
+          "order": 2
         },
         {
           "data_source_id": "ec0b40ec-72ee-47ae-a8b7-6ec67fd17095",
@@ -494,6 +569,13 @@
           "order": 13
         },
         {
+          "data_source_id": "71f00f37-f77f-4150-8d54-0c15bb096eb1",
+          "id": "8c1acc2c-4da8-45cd-abbc-345fdf1e0fb7",
+          "key": "red-leicester",
+          "label": "Red Leicester",
+          "order": 2
+        },
+        {
           "data_source_id": "5aff6096-1020-4a2e-aa95-1ead3dcc174e",
           "id": "8de2fe49-6844-451f-9361-faf33b19852c",
           "key": "ealing",
@@ -527,6 +609,13 @@
           "key": "2",
           "label": "2",
           "order": 1
+        },
+        {
+          "data_source_id": "078503ab-e87d-4dac-9533-1491943ab9c1",
+          "id": "99b31725-592b-424b-806d-6d81dae6bb49",
+          "key": "stinking-bishop",
+          "label": "Stinking Bishop",
+          "order": 4
         },
         {
           "data_source_id": "5aff6096-1020-4a2e-aa95-1ead3dcc174e",
@@ -646,6 +735,13 @@
           "key": "saturday",
           "label": "Saturday",
           "order": 5
+        },
+        {
+          "data_source_id": "71f00f37-f77f-4150-8d54-0c15bb096eb1",
+          "id": "d1a7d3d1-03e8-44d2-b5a1-c1165fcb3e60",
+          "key": "other",
+          "label": "Other",
+          "order": 3
         },
         {
           "data_source_id": "5aff6096-1020-4a2e-aa95-1ead3dcc174e",
@@ -769,6 +865,10 @@
       ],
       "data_sources": [
         {
+          "id": "078503ab-e87d-4dac-9533-1491943ab9c1",
+          "question_id": "b8a5e82f-e0bf-4adf-8bed-1167612f5164"
+        },
+        {
           "id": "2266f194-4977-40c7-a2da-9aca01511a9f",
           "question_id": "e5ef3248-6c32-4554-b4a7-4d286cdb3f6a"
         },
@@ -787,6 +887,10 @@
         {
           "id": "69f62c94-17bb-45b8-956e-74035af56d50",
           "question_id": "b9da63b3-2cff-4523-93ef-d282670ba61e"
+        },
+        {
+          "id": "71f00f37-f77f-4150-8d54-0c15bb096eb1",
+          "question_id": "1a394ba6-1c8e-4f0b-a971-4428904520b2"
         },
         {
           "id": "82136a87-4e27-44cb-a696-aa52241b82ba",
@@ -1043,11 +1147,32 @@
           "title": "Outputs and outcomes"
         },
         {
+          "collection_id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
+          "id": "535ac1ba-9d56-4850-a592-89982951c679",
+          "order": 0,
+          "slug": "cheese",
+          "title": "Cheese"
+        },
+        {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
           "id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "order": 0,
           "slug": "contact-information",
           "title": "Contact information"
+        },
+        {
+          "collection_id": "f8b061f2-8f9d-43d3-8ff7-d9da0f8048f5",
+          "id": "72907157-c74a-4aab-bb87-0965926514d2",
+          "order": 1,
+          "slug": "park",
+          "title": "Park"
+        },
+        {
+          "collection_id": "f8b061f2-8f9d-43d3-8ff7-d9da0f8048f5",
+          "id": "76752d13-4781-4b2c-9003-4cc3710c47a7",
+          "order": 0,
+          "slug": "cheese",
+          "title": "Cheese"
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -1062,6 +1187,13 @@
           "order": 1,
           "slug": "programme-progress",
           "title": "Programme progress"
+        },
+        {
+          "collection_id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
+          "id": "cd5fc00f-13d0-4c89-af8c-9f16c5c77afe",
+          "order": 1,
+          "slug": "park",
+          "title": "Park"
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -1085,7 +1217,7 @@
         "name": "Cheeseboards in parks",
         "primary_contact_email": "john.cheese@test.communities.gov.uk",
         "primary_contact_name": "John Cheese",
-        "status": "draft"
+        "status": "live"
       },
       "grant_recipients": [
         {
@@ -1202,6 +1334,21 @@
           },
           "slug": "why-was-the-spend-so-high",
           "text": "Why was the spend so high?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "data_type": "Select one or more from a list (checkboxes)",
+          "form_id": "535ac1ba-9d56-4850-a592-89982951c679",
+          "hint": "",
+          "id": "1a394ba6-1c8e-4f0b-a971-4428904520b2",
+          "name": "Most popular cheese",
+          "order": 0,
+          "presentation_options": {
+            "last_data_source_item_is_distinct_from_others": true
+          },
+          "slug": "what-was-the-most-popular-type-of-cheese-in-this-period",
+          "text": "What was the most popular type of cheese in this period?",
           "type": "QUESTION"
         },
         {
@@ -1487,6 +1634,19 @@
         },
         {
           "add_another": false,
+          "data_type": "Single line of text",
+          "form_id": "cd5fc00f-13d0-4c89-af8c-9f16c5c77afe",
+          "hint": "",
+          "id": "8f5da39d-3888-49c4-ab2e-f4a48054da50",
+          "name": "park name",
+          "order": 0,
+          "presentation_options": {},
+          "slug": "what-is-the-name-of-the-park",
+          "text": "What is the name of the park?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
           "data_type": "Whole number",
           "form_id": "e2546f96-3655-483b-8531-0bbfd49a2631",
           "hint": "The next reporting period is October 2025 to April 2026",
@@ -1607,6 +1767,21 @@
         },
         {
           "add_another": false,
+          "data_type": "Select one or more from a list (checkboxes)",
+          "form_id": "76752d13-4781-4b2c-9003-4cc3710c47a7",
+          "hint": "",
+          "id": "b8a5e82f-e0bf-4adf-8bed-1167612f5164",
+          "name": "most popular cheese",
+          "order": 0,
+          "presentation_options": {
+            "last_data_source_item_is_distinct_from_others": true
+          },
+          "slug": "what-was-the-most-popular-type-of-cheese-in-this-period",
+          "text": "What was the most popular type of cheese in this period?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "id": "b9a4f920-7704-4799-92b9-c4457e1c8705",
           "name": "Lead contact's role",
@@ -1632,6 +1807,19 @@
           },
           "slug": "what-kind-of-data-certifier-is-the-lead-contact",
           "text": "What kind of data certifier is the lead contact?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "data_type": "Single line of text",
+          "form_id": "72907157-c74a-4aab-bb87-0965926514d2",
+          "hint": "",
+          "id": "bf635532-b3bd-4bcd-b480-9018a1bfbecb",
+          "name": "park name",
+          "order": 0,
+          "presentation_options": {},
+          "slug": "what-is-the-name-of-the-park",
+          "text": "What is the name of the park?",
           "type": "QUESTION"
         },
         {
@@ -14085,6 +14273,13 @@
       "user_id": "a08a325c-645a-4a36-9787-c2acd75dd0f2"
     },
     {
+      "id": "881e0740-d057-419b-832e-84aa32256e4d",
+      "permissions": [
+        "admin"
+      ],
+      "user_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c"
+    },
+    {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "c194df07-5871-4dc3-94dd-bb56d90e5975",
       "organisation_id": "<UUID:GB-GOV-27>",
@@ -14126,6 +14321,7 @@
     {
       "email": "raymondpearson@test.communities.gov.uk",
       "id": "4f990e2b-690b-4c97-a47b-c9a073e92827",
+      "last_logged_in_at_utc": "Fri, 14 Nov 2025 09:24:49 GMT",
       "name": "Timothy Garrett"
     },
     {
