@@ -267,6 +267,24 @@ def collection_is_editable[**P]() -> Callable[[Callable[P, ResponseReturnValue]]
     return decorator
 
 
+def has_grant_recipient_member_role[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        # does this user have a member role in the grant recipient for this grant
+        if "organisation_id" not in kwargs or (organisation_id := cast(uuid.UUID, kwargs["organisation_id"])) is None:
+            raise ValueError("Organisation ID required.")
+        if "grant_id" not in kwargs or (grant_id := cast(uuid.UUID, kwargs["grant_id"])) is None:
+            raise ValueError("Grant ID required.")
+        user = interfaces.user.get_current_user()
+        if not user.get_grant_recipient(organisation_id=organisation_id, grant_id=grant_id):
+            return abort(403)
+        return func(*args, **kwargs)
+
+    return is_access_org_member(wrapper)
+
+
 def is_access_org_member[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:
