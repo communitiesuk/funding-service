@@ -2,13 +2,13 @@ import csv
 import datetime
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
-from flask import current_app
+from flask import current_app, flash
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovDateInput, GovSubmitInput, GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovDateInput, GovSubmitInput, GovTextArea, GovTextInput
 from markupsafe import Markup, escape
 from wtforms import DateField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
-from wtforms.fields.simple import EmailField, TextAreaField
+from wtforms.fields.simple import BooleanField, EmailField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
@@ -138,9 +138,7 @@ class PlatformAdminCreateCertifiersForm(FlaskForm):
         if invalid_orgs:
             unique_invalid_orgs = sorted(set(invalid_orgs))
             for org_name in unique_invalid_orgs:
-                field.errors.append(  # type: ignore[attr-defined]
-                    f"Organisation '{org_name}' has not been set up in Deliver grant funding."
-                )
+                flash(f"Ignoring certifier for '{org_name}' - organisation has not been set up.", "error")
 
         # Validate email addresses
         from wtforms.validators import Email as EmailValidator
@@ -190,6 +188,14 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         default="organisation-name\tfull-name\temail-address\n",
         validators=[DataRequired()],
         widget=GovTextArea(),
+    )
+    revoke_existing = BooleanField(
+        "Revoke all existing data providers",
+        description=(
+            "If you are re-importing the full list of everyone who should have access, and it's possible some people "
+            "have been removed since it was last ingested, consider removing all existing data providers."
+        ),
+        widget=GovCheckboxInput(),
     )
     submit = SubmitField("Set up data providers", widget=GovSubmitInput())
 

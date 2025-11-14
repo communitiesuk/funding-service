@@ -187,12 +187,15 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             certifiers_data = form.get_normalised_certifiers_data()
 
             organisation_names_to_ids = {organisation.name: organisation.id for organisation in organisations}
+            count = 0
             for org_name, full_name, email_address in certifiers_data:
-                org_id = organisation_names_to_ids[org_name]
-                user = upsert_user_by_email(email_address=email_address, name=full_name)
-                add_permissions_to_user(user=user, permissions=[RoleEnum.CERTIFIER], organisation_id=org_id)
+                org_id = organisation_names_to_ids.get(org_name)
+                if org_id:
+                    user = upsert_user_by_email(email_address=email_address, name=full_name)
+                    add_permissions_to_user(user=user, permissions=[RoleEnum.CERTIFIER], organisation_id=org_id)
+                    count += 1
 
-            flash(f"Created or updated {len(certifiers_data)} certifier(s).", "success")
+            flash(f"Created or updated {count} certifier(s).", "success")
             return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
@@ -296,6 +299,16 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             grant_recipient_names_to_ids = {gr.organisation.name: gr.organisation.id for gr in grant_recipients}
             users_data = form.get_normalised_users_data()
 
+            if form.revoke_existing.data:
+                for grant_recipient in grant_recipients:
+                    for data_provider in grant_recipient.data_providers:
+                        remove_permissions_from_user(
+                            user=data_provider,
+                            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+                            organisation_id=grant_recipient.organisation_id,
+                            grant_id=grant_id,
+                        )
+
             for org_name, full_name, email_address in users_data:
                 org_id = grant_recipient_names_to_ids[org_name]
                 user = upsert_user_by_email(email_address=email_address, name=full_name)
@@ -303,9 +316,9 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                     user, permissions=[RoleEnum.DATA_PROVIDER], organisation_id=org_id, grant_id=grant.id
                 )
 
-            data_provider = "data provider" if len(users_data) == 1 else "data providers"
+            noun = "data provider" if len(users_data) == 1 else "data providers"
             flash(
-                f"Successfully set up {len(users_data)} grant recipient {data_provider}.",
+                f"Successfully set up {len(users_data)} grant recipient {noun}.",
                 "success",
             )
 

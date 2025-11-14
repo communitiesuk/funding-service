@@ -4,6 +4,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from app.common.data.interfaces.organisations import get_organisation_count
+from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.models import Organisation
 from app.common.data.types import CollectionStatusEnum, GrantStatusEnum, OrganisationStatus, OrganisationType, RoleEnum
 from tests.utils import get_h1_text, get_h2_text, page_has_error, page_has_flash
@@ -783,8 +784,6 @@ class TestSetUpCertifiers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Created or updated 1 certifier(s).")
 
-        from app.common.data.interfaces.user import get_user_by_email
-
         user = get_user_by_email("john.doe@example.com")
         assert user is not None
         assert user.name == "John Doe"
@@ -814,8 +813,6 @@ class TestSetUpCertifiers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Created or updated 2 certifier(s).")
-
-        from app.common.data.interfaces.user import get_user_by_email
 
         user1 = get_user_by_email("john.doe@example.com")
         assert user1 is not None
@@ -848,8 +845,6 @@ class TestSetUpCertifiers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Created or updated 1 certifier(s).")
-
-        from app.common.data.interfaces.user import get_user_by_email
 
         user = get_user_by_email("existing@example.com")
         assert user is not None
@@ -932,15 +927,12 @@ class TestSetUpCertifiers:
                 ),
                 "submit": "y",
             },
-            follow_redirects=False,
+            follow_redirects=True,
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Organisation 'Non Existent Org' has not been set up in Deliver grant funding.")
-
-        from app.common.data.interfaces.user import get_user_by_email
-
+        assert page_has_flash(soup, "Ignoring certifier for 'Non Existent Org' - organisation has not been set up.")
         assert get_user_by_email("john.doe@example.com") is None
 
 
@@ -1507,8 +1499,6 @@ class TestSetUpGrantRecipientUsers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Successfully set up 1 grant recipient data provider.")
 
-        from app.common.data.interfaces.user import get_user_by_email
-
         user = get_user_by_email("john@example.com")
         assert user is not None
         assert user.name == "John Doe"
@@ -1538,8 +1528,6 @@ class TestSetUpGrantRecipientUsers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Successfully set up 1 grant recipient data provider.")
-
-        from app.common.data.interfaces.user import get_user_by_email
 
         user = get_user_by_email("existing@example.com")
         assert user is not None
@@ -1635,8 +1623,6 @@ class TestSetUpGrantRecipientUsers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Organisation 'Invalid Org' is not a grant recipient for this grant.")
 
-        from app.common.data.interfaces.user import get_user_by_email
-
         assert get_user_by_email("john@example.com") is None
         assert get_user_by_email("jane@example.com") is None
 
@@ -1663,8 +1649,6 @@ class TestSetUpGrantRecipientUsers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Successfully set up 2 grant recipient data providers.")
-
-        from app.common.data.interfaces.user import get_user_by_email
 
         user1 = get_user_by_email("john@example.com")
         assert user1 is not None
@@ -1695,6 +1679,52 @@ class TestSetUpGrantRecipientUsers:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Invalid email address(es): invalid-email, also-bad")
+
+    def test_post_with_revoke_existing_checkbox_revokes_existing_data_providers(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org1 = factories.organisation.create(name="Organisation 1", can_manage_grants=False)
+        org2 = factories.organisation.create(name="Organisation 2", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org1)
+        factories.grant_recipient.create(grant=grant, organisation=org2)
+
+        existing_user = factories.user.create(email="existing@example.com", name="Existing User")
+        factories.user_role.create(
+            user=existing_user, organisation=org1, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            data={
+                "users_data": (
+                    "organisation-name\tfull-name\temail-address\nOrganisation 2\tNew User\tnew@example.com"
+                ),
+                "revoke_existing": "y",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully set up 1 grant recipient data provider.")
+
+        existing_user_refreshed = get_user_by_email("existing@example.com")
+        assert existing_user_refreshed is not None
+        data_provider_roles = [
+            role for role in existing_user_refreshed.roles if RoleEnum.DATA_PROVIDER in role.permissions
+        ]
+        assert len(data_provider_roles) == 0
+
+        new_user = get_user_by_email("new@example.com")
+        assert new_user is not None
+        assert new_user.name == "New User"
+        assert len(new_user.roles) == 1
+        assert RoleEnum.DATA_PROVIDER in new_user.roles[0].permissions
+        assert new_user.roles[0].organisation_id == org2.id
+        assert new_user.roles[0].grant_id == grant.id
 
 
 class TestRevokeGrantRecipientDataProviders:
