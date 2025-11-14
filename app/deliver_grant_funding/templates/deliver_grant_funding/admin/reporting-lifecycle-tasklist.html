@@ -130,7 +130,7 @@
       {% set prerequisites_met = grant.status == enum.grant_status.LIVE and grant_recipients_count > 0 and dates_are_set and all_recipients_have_users %}
       {% set scheduledReportStatus = {"tag": {"text": "To do", "classes": "govuk-tag--grey"} } %}
 
-      {% if collection.status == enum.collection_status.SCHEDULED %}
+      {% if collection.status != enum.collection_status.DRAFT %}
         {% set scheduledReportStatus = {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
       {% elif not prerequisites_met %}
         {% set scheduledReportStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
@@ -139,7 +139,22 @@
         do rows.append({
           "title": {"text": "Sign off and lock report", "classes": "govuk-link--no-visited-state"},
           "status": scheduledReportStatus,
-          "href": url_for('reporting_lifecycle.schedule_report', grant_id=grant.id, collection_id=collection.id) if prerequisites_met and collection.status != enum.collection_status.SCHEDULED else "",
+          "href": url_for('reporting_lifecycle.schedule_report', grant_id=grant.id, collection_id=collection.id) if prerequisites_met and collection.status == enum.collection_status.DRAFT else "",
+        })
+      %}
+
+      {% set makeReportLiveStatus = {"tag": {"text": "To do", "classes": "govuk-tag--grey"} } %}
+
+      {% if collection.status == enum.collection_status.OPEN %}
+        {% set makeReportLiveStatus = {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
+      {% elif collection.status != enum.collection_status.SCHEDULED %}
+        {% set makeReportLiveStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
+      {% endif %}
+      {%
+        do rows.append({
+          "title": {"text": "Open the report for submissions", "classes": "govuk-link--no-visited-state"},
+          "status": makeReportLiveStatus,
+          "href": url_for('reporting_lifecycle.make_report_live', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.SCHEDULED else "",
         })
       %}
 

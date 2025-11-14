@@ -7,8 +7,8 @@ from flask_admin import AdminIndexView, BaseView, expose
 from app.common.data.interfaces.collections import get_collection, update_collection
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
-    GrantMustBeLiveToScheduleReportError,
-    GrantRecipientUsersRequiredToScheduleReportError,
+    GrantMustBeLiveError,
+    GrantRecipientUsersRequiredError,
     NotEnoughGrantTeamUsersError,
     StateTransitionError,
 )
@@ -37,6 +37,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminCreateCertifiersForm,
     PlatformAdminCreateGrantRecipientDataProvidersForm,
     PlatformAdminMakeGrantLiveForm,
+    PlatformAdminMakeReportLiveForm,
     PlatformAdminMarkAsOnboardingForm,
     PlatformAdminRevokeCertifiersForm,
     PlatformAdminRevokeGrantRecipientUsersForm,
@@ -426,19 +427,41 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                 form.form_errors.append(
                     f"{collection.name} can only be scheduled from the 'draft' state; it is currently {e.from_state}",
                 )
-            except GrantMustBeLiveToScheduleReportError:
-                form.form_errors.append(
-                    f"{collection.grant.name} must be made live before scheduling a report",
-                )
-            except GrantRecipientUsersRequiredToScheduleReportError:
-                form.form_errors.append(
-                    "All grant recipients must have at least one data provider set up before scheduling a report",
-                )
-            except CollectionChronologyError as e:
+            except (GrantMustBeLiveError, GrantRecipientUsersRequiredError, CollectionChronologyError) as e:
                 form.form_errors.append(str(e))
 
         return self.render(
             "deliver_grant_funding/admin/confirm-schedule-report.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/make-report-live", methods=["GET", "POST"])  # type: ignore[misc]
+    @auto_commit_after_request
+    def make_report_live(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+        form = PlatformAdminMakeReportLiveForm()
+        if form.validate_on_submit():
+            try:
+                update_collection(collection, status=CollectionStatusEnum.OPEN)
+                flash(
+                    f"{collection.name} is now live and grant recipients can start making submissions.",
+                    "success",
+                )
+                return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            except StateTransitionError as e:
+                form.form_errors.append(
+                    f"{collection.name} can only be made live from the 'scheduled' state; "
+                    f"it is currently {e.from_state}",
+                )
+            except (GrantMustBeLiveError, GrantRecipientUsersRequiredError, CollectionChronologyError) as e:
+                form.form_errors.append(str(e))
+
+        return self.render(
+            "deliver_grant_funding/admin/confirm-make-report-live.html",
             form=form,
             grant=grant,
             collection=collection,

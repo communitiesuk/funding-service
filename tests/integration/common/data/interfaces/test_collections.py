@@ -58,7 +58,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
-    GrantMustBeLiveToScheduleReportError,
+    GrantMustBeLiveError,
     InvalidReferenceInExpression,
     StateTransitionError,
 )
@@ -476,7 +476,7 @@ class TestUpdateCollection:
             submission_period_end_date=datetime.date(2025, 1, 31),
         )
 
-        # Required for DRAFT->SCHEDULED transition
+        # Required for DRAFT->SCHEDULED and SCHEDULED->LIVE transition
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
@@ -535,8 +535,37 @@ class TestUpdateCollection:
             submission_period_end_date=datetime.date(2025, 1, 31),
         )
 
-        with pytest.raises(GrantMustBeLiveToScheduleReportError):
+        with pytest.raises(GrantMustBeLiveError):
             update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
+
+    @pytest.mark.freeze_time("2025-01-10 12:00:00")
+    def test_opening_a_scheduled_report_only_after_submission_start_period(self, db_session, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        # Required for DRAFT->SCHEDULED and SCHEDULED->OPEN transition
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        updated_collection = update_collection(collection, status=CollectionStatusEnum.OPEN)
+
+        assert updated_collection.status == CollectionStatusEnum.OPEN
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.status == CollectionStatusEnum.OPEN
 
     @pytest.mark.parametrize(
         "missing_date_field",
