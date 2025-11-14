@@ -121,6 +121,14 @@ def _validate_form_argument_to_render_template(response: TestResponse, templates
                 )
 
 
+def _validate_noindex(response: TestResponse) -> None:
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
+
+    if response.headers["content-type"].startswith("text/html") and response.status_code == 200:
+        if not response.request.path.startswith("/deliver/admin"):
+            assert "noindex, nofollow" in response.get_data(as_text=True)
+
+
 @pytest.fixture()
 def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> FundingServiceTestClient:
     _setup_session_clean_tracking()  # setting up listeners
@@ -139,6 +147,7 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Fund
 
             response = super().open(*args, **kwargs)
             _validate_form_argument_to_render_template(response, templates_rendered)
+            _validate_noindex(response)
 
             # WARNING: this check is unreliable if using `follow_redirects=True`. When this is set, the FlaskClient
             # will seamlessly resolve any redirects and potentially fire off multiple requests. If the first request
