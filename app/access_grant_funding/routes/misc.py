@@ -6,6 +6,7 @@ from flask.typing import ResponseReturnValue
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.decorators import access_grant_funding_login_required, is_access_org_member
 from app.common.data import interfaces
+from app.common.data.interfaces.organisations import get_organisation
 
 
 @access_grant_funding_blueprint.route("/", methods=["GET"])
@@ -28,7 +29,8 @@ def index() -> ResponseReturnValue:
 @is_access_org_member
 def list_grants(organisation_id: UUID) -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
+    organisation = get_organisation(organisation_id)
     grants = [
         grant_recipient.grant for grant_recipient in user.get_grant_recipients(limit_to_organisation_id=organisation_id)
     ]
-    return render_template("access_grant_funding/grant_list.html", grants=grants)
+    return render_template("access_grant_funding/grant_list.html", grants=grants, organisation=organisation)

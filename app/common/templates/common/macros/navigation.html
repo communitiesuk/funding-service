@@ -1,33 +1,36 @@
 {% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
 
+{% macro organisationTopNav(organisation) %}
+  <div id="org-nav" class="govuk-service-navigation {{ 'app-service-nav-org' if grant_recipient else '' }}">
+    <div class="govuk-width-container">
+      <div class="govuk-service-navigation__container">
+        <span class="govuk-service-navigation__service-name">
+          <a href="#" class="govuk-service-navigation__link">{{ organisation.name }}</a>
+        </span>
+        <nav aria-label="Menu" class="govuk-service-navigation__wrapper app-service-navigation__wrapper--sectional app-hide-mobile">
+          <ul class="govuk-service-navigation__list">
+            <li class="govuk-service-navigation__item">
+              <a class="govuk-service-navigation__link" href="#">Change organisation</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+{% endmacro %}
+
 {# TODO: we won't be able to rely on a formal grant_recipient being created for anything pre-award, we'll likely need something #}
 {#       more general that still associates your organisation with a grant (that would be associated when someone first creates an application, for example) #}
 {% macro accessGrantFundingServiceNavigation(user, nav_items=[], grant_recipient=None, organisation=None) %}
   {% set grant_recipients = user.get_grant_recipients() %}
-  {% set organisation = organisation or (grant_recipient.organisation if grant_recipient else None) %}
-
   {% set number_of_organisations = grant_recipients | map(attribute='organisation_id') | unique | list | length %}
 
-  {% if number_of_organisations > 1 and organisation %}
-    <div id="org-nav" class="govuk-service-navigation app-service-nav-org">
-      <div class="govuk-width-container">
-        <div class="govuk-service-navigation__container">
-          <span class="govuk-service-navigation__service-name">
-            <a href="#" class="govuk-service-navigation__link">{{ organisation.name }}</a>
-          </span>
-          <nav aria-label="Menu" class="govuk-service-navigation__wrapper app-service-navigation__wrapper--sectional app-hide-mobile">
-            <ul class="govuk-service-navigation__list">
-              <li class="govuk-service-navigation__item">
-                <a class="govuk-service-navigation__link" href="#">Change organisation</a>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </div>
-  {% endif %}
-
   {% if grant_recipient %}
+    {# we'll use the custom top nav as we'll be showing the grant nav below it #}
+    {% if number_of_organisations > 1 %}
+      {{ organisationTopNav(grant_recipient.organisation) }}
+    {% endif %}
+
     {% set grant = grant_recipient.grant %}
     {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
 
@@ -52,6 +55,20 @@
           "attributes": { "id": "grant-nav" }
       })
     }}
+  {% else %}
+    {% if number_of_organisations > 1 and organisation %}
+      {# we use the standard service nav because we aren't above the grant nav and want standard menu and styles #}
+      {{
+        govukServiceNavigation({
+            "serviceName": organisation.name,
+            "serviceUrl": "#",
+            "navigation": [{ "text": "Change organisation", "href": "#" }],
+            "collapseNavigationOnMobile": true,
+            "navigationClasses": "app-service-navigation__wrapper--sectional",
+            "attributes": { "id": "org-nav" }
+        })
+      }}
+    {% endif %}
   {% endif %}
 {% endmacro %}
 
