@@ -22,6 +22,7 @@ from app.common.data.interfaces.grant_recipients import (
     all_grant_recipients_have_data_providers,
     get_grant_recipients,
 )
+from app.common.data.interfaces.grants import get_grant
 from app.common.data.models import (
     Collection,
     Component,
@@ -267,9 +268,27 @@ def update_submission_data(
     return submission
 
 
+def get_all_live_submissions_for_grant_recipient(
+    grant_id: uuid.UUID, grant_recipient_id: uuid.UUID
+) -> list[Submission]:
+    grant = get_grant(grant_id=grant_id, with_all_collections=True)
+    all_submissions = []
+    for collection in grant.collections:
+        all_submissions.extend(
+            get_all_submissions_with_mode_for_collection_with_full_schema(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                restrict_to_grant_recipient=grant_recipient_id,
+            )
+        )
+    return all_submissions
+
+
 # todo: nested components
 def get_all_submissions_with_mode_for_collection_with_full_schema(
-    collection_id: UUID, submission_mode: SubmissionModeEnum
+    collection_id: UUID,
+    submission_mode: SubmissionModeEnum,
+    restrict_to_grant_recipient: UUID | TNotProvided = TNotProvided,
 ) -> ScalarResult[Submission]:
     """
     Use this function to get all submission data for a collection - it
@@ -280,7 +299,7 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
 
     # todo: this feels redundant because this interface should probably be limited to a single collection and fetch
     #       that through a specific interface which already exists - this can then focus on submissions
-    return db.session.scalars(
+    stmt = (
         select(Submission)
         .where(Submission.collection_id == collection_id)
         .where(Submission.mode == submission_mode)
@@ -306,7 +325,10 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
             selectinload(Submission.events),
             joinedload(Submission.created_by),
         )
-    ).unique()
+    )
+    if restrict_to_grant_recipient is not TNotProvided:
+        stmt = stmt.where(Submission.grant_recipient_id == restrict_to_grant_recipient)  # TODO grant recipient
+    return db.session.scalars(stmt).unique()
 
 
 def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submission:
