@@ -22,7 +22,7 @@ def get_grant(grant_id: UUID, with_all_collections: bool = False) -> Grant:
     options = []
     if with_all_collections:
         options.append(
-            selectinload(Grant.collections).options(
+            joinedload(Grant.collections).options(
                 joinedload(Collection.created_by),
                 selectinload(Collection.forms),
             )

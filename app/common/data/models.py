@@ -771,8 +771,11 @@ class GrantRecipient(BaseModel):
     users: Mapped[list[User]] = relationship(
         "User",
         secondary="user_role",
-        primaryjoin=lambda: GrantRecipient.organisation_id == UserRole.organisation_id,
-        secondaryjoin=lambda: and_(User.id == UserRole.user_id, UserRole.grant_id == foreign(GrantRecipient.grant_id)),
+        primaryjoin=lambda: and_(
+            GrantRecipient.organisation_id == UserRole.organisation_id,
+            or_(UserRole.grant_id.is_(None), UserRole.grant_id == GrantRecipient.grant_id),
+        ),
+        secondaryjoin=lambda: User.id == UserRole.user_id,
         viewonly=True,
         lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
     )
@@ -793,12 +796,12 @@ class GrantRecipient(BaseModel):
     _all_certifiers: Mapped[list[User]] = relationship(
         "User",
         secondary="user_role",
-        primaryjoin=lambda: GrantRecipient.organisation_id == UserRole.organisation_id,
-        secondaryjoin=lambda: and_(
-            User.id == UserRole.user_id,
-            or_(UserRole.grant_id.is_(None), UserRole.grant_id == foreign(GrantRecipient.grant_id)),
+        primaryjoin=lambda: and_(
+            GrantRecipient.organisation_id == UserRole.organisation_id,
+            or_(UserRole.grant_id.is_(None), UserRole.grant_id == GrantRecipient.grant_id),
             UserRole.permissions.contains([RoleEnum.CERTIFIER]),
         ),
+        secondaryjoin=lambda: User.id == UserRole.user_id,
         viewonly=True,
         lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
     )
