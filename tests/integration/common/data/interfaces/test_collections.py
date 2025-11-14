@@ -29,6 +29,7 @@ from app.common.data.interfaces.collections import (
     delete_collection_test_submissions_created_by_user,
     delete_form,
     delete_question,
+    get_all_submissions_with_mode_for_collection_with_full_schema,
     get_collection,
     get_expression,
     get_expression_by_id,
@@ -3604,3 +3605,43 @@ class TestAddAnother:
         with pytest.raises(ValueError) as e:
             remove_add_another_answers_at_index(submission, add_another_group, -1)
         assert str(e.value) == "Cannot remove answers at index -1 as there are only 0 existing answers"
+
+
+class TestGetSubmissions:
+    def test_get_all_submissions_with_mode_for_collection_mode(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__live=3, create_submissions__test=1)
+
+        submission_results = list(
+            get_all_submissions_with_mode_for_collection_with_full_schema(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+        assert len(submission_results) == 3
+
+    def test_get_all_submissions_with_mode_for_collection_mode_and_grant_recipient_id(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__live=3, create_submissions__test=1)
+        live_submissions = collection.live_submissions
+        gr_id = live_submissions[0].grant_recipient.id
+        live_submissions[1].grant_recipient_id = gr_id
+
+        submission_results = list(
+            get_all_submissions_with_mode_for_collection_with_full_schema(
+                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, grant_recipient_id=gr_id
+            )
+        )
+        assert len(submission_results) == 2
+
+    def test_get_all_submissions_with_mode_for_collection_grant_recipient(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__live=2, create_submissions__test=1)
+        live_submissions = collection.live_submissions
+        gr_id = live_submissions[0].grant_recipient.id
+
+        assert live_submissions[1].grant_recipient_id != gr_id
+
+        submission_results = list(
+            get_all_submissions_with_mode_for_collection_with_full_schema(
+                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, grant_recipient_id=gr_id
+            )
+        )
+        assert len(submission_results) == 1
