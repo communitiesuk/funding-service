@@ -158,6 +158,19 @@
         })
       %}
 
+      {% if collection.status == enum.collection_status.OPEN %}
+        {% set sendEmailsStatus = {"tag": {"text": "Do once", "classes": "govuk-tag--orange"}} %}
+      {% else %}
+        {% set sendEmailsStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
+      {% endif %}
+      {%
+        do rows.append({
+          "title": {"text": "Send emails to data providers", "classes": "govuk-link--no-visited-state"},
+          "status": sendEmailsStatus,
+          "href": url_for('reporting_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.OPEN else "",
+        })
+      %}
+
       {{ govukTaskList({ "idPrefix": "report-tasks", "items": rows, "attributes": {"id": "report-tasks"} }) }}
     </div>
   </div>

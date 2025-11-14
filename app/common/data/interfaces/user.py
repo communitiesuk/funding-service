@@ -41,9 +41,12 @@ def get_users_with_permission(
     organisation_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     grant_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
 ) -> Sequence[User]:
-    if organisation_id is None and grant_id is not None and grant_id is not NOT_PROVIDED:
-        raise ValueError("If specifying grant_id, must also specify organisation_id")
+    """Finds all users in the system with the given permission and matching organisation and/or grant.
 
+    NOTE: If you pass a grant but don't pass an organisation, this will only return users with the permission
+          *specifically* for that grant. It will not return users who have that permission in the grant through an
+          org-level permission (ie UserRole.grant_id IS NULL)
+    """
     stmt = select(User).join(UserRole).where(UserRole.permissions.contains([permission]))
 
     if organisation_id is not NOT_PROVIDED:

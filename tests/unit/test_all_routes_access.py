@@ -222,6 +222,8 @@ routes_with_access_controlled_by_flask_admin = [
     "reporting_lifecycle.set_collection_dates",
     "reporting_lifecycle.schedule_report",
     "reporting_lifecycle.make_report_live",
+    "reporting_lifecycle.send_emails_to_recipients",
+    "reporting_lifecycle.download_data_providers_csv",
 ]
 
 
