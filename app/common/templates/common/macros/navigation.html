@@ -1,7 +1,7 @@
 {% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
 
 {% macro organisationTopNav(organisation) %}
-  <div id="org-nav" class="govuk-service-navigation {{ 'app-service-nav-org' if grant_recipient else '' }}">
+  <div id="org-nav" class="govuk-service-navigation app-service-nav-org">
     <div class="govuk-width-container">
       <div class="govuk-service-navigation__container">
         <span class="govuk-service-navigation__service-name">
@@ -35,7 +35,7 @@
     {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
 
     {% if number_of_grants > 1 %}
-      {% do nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant.organisation_id)}) %}
+      {% do nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
       {% set navigation_classes = "app-service-navigation__wrapper-sectional" %}
     {% endif %}
 

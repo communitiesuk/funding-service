@@ -177,3 +177,8 @@ class TestAccessGrantFundingServiceNavigationMacro:
         )
 
         assert "govuk-service-navigation" in macro.find("div", {"id": "org-nav"})["class"]
+
+        change_grant_link = macro.find(
+            "a", class_="govuk-service-navigation__link", string=re.compile(r"^\s*Change grant\s*$")
+        )
+        assert change_grant_link["href"] == f"/access/organisation/{second_organisation.id}/grants"
