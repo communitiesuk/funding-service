@@ -38,7 +38,6 @@ class TestAccessGrantFundingServiceNavigationMacro:
         if not should_show_org_nav:
             assert macro.get_text(strip=True) == ""
         else:
-            assert macro.find("div", {"id": "org-nav"}) is not None
             assert (
                 macro.find(
                     "a", class_="govuk-service-navigation__link", string=re.compile(r"^\s*Change organisation\s*$")
@@ -49,6 +48,7 @@ class TestAccessGrantFundingServiceNavigationMacro:
                 macro.find("span", class_="govuk-service-navigation__service-name").get_text(strip=True)
                 == current_organisation.name
             )
+            assert "app-service-nav-org" not in macro.find("section", {"id": "org-nav"})["class"]
 
     @pytest.mark.parametrize(
         "grant_recipient_names, should_show_grant_nav, should_show_change_grant",
@@ -134,7 +134,7 @@ class TestAccessGrantFundingServiceNavigationMacro:
         links = [item.find("a", class_="govuk-service-navigation__link") for item in nav_items]
         assert [link.get_text(strip=True) for link in links if link] == ["Link one", "Link two", "Change grant"]
 
-    def test_shows_both_nav_selects_the_correct_grant_recipient_org_if_not_provided(self, factories):
+    def test_shows_both_navs_selects_the_correct_grant_recipient_org_if_not_provided(self, factories):
         current_user = factories.user.build()
         first_organisation = factories.organisation.build(name="First organisation")
         second_organisation = factories.organisation.build(name="Second organisation")
@@ -175,3 +175,5 @@ class TestAccessGrantFundingServiceNavigationMacro:
             "app-service-navigation__wrapper-sectional-org-hidden"
             in grant_nav.find("nav", {"class": "govuk-service-navigation__wrapper"})["class"]
         )
+
+        assert "govuk-service-navigation" in macro.find("div", {"id": "org-nav"})["class"]

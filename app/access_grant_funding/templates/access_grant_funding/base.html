@@ -21,13 +21,12 @@
   }}
 
   {% if current_user.is_authenticated %}
-    {# in the future its likely that we'll only want to show reports to organisations that are grant recipients #}
     {%
       set nav_items = [
           { "text": "Reports", "href": "#", "active": active_item_identifier == "reports" },
           { "text": "Team", "href": "#", "active": active_item_identifier == "team" },
       ]
     %}
-    {{ accessGrantFundingServiceNavigation(current_user, nav_items) }}
+    {{ accessGrantFundingServiceNavigation(current_user, nav_items, grant_recipient=grant_recipient, organisation=organisation if not grant_recipient else None) }}
   {% endif %}
 {% endblock header %}
