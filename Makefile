@@ -52,3 +52,8 @@ up:
 .PHONY: down
 down:
 	docker compose down
+
+.PHONY: clean-down
+clean-down:
+	make down
+	docker system prune -a -f && docker volume prune -a -f
