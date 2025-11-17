@@ -7,6 +7,7 @@ from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
     has_access_grant_recipient_role,
+    has_access_grant_role,
     is_access_org_member,
 )
 from app.common.data import interfaces
@@ -15,7 +16,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisation
-from app.common.data.types import SubmissionModeEnum
+from app.common.data.types import RoleEnum, SubmissionModeEnum
 from app.common.helpers.collections import SubmissionHelper
 
 
@@ -70,7 +71,7 @@ def list_organisations() -> ResponseReturnValue:
 @access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grant/<uuid:grant_id>/select-a-report", methods=["GET"]
 )
-@has_grant_recipient_member_role
+@has_access_grant_role(RoleEnum.MEMBER)
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id=grant_id)
 
