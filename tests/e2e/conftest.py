@@ -8,6 +8,7 @@ import pytest
 from flask import session
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
+from playwright._impl._api_structures import SetCookieParam
 from playwright.sync_api import BrowserContext, Page, ViewportSize, expect
 from pytest import FixtureRequest
 from pytest_playwright import CreateContextCallback
@@ -172,14 +173,17 @@ def login_with_session_cookie(
     sso_sign_in_page = SSOSignInPage(page, domain)
     sso_sign_in_page.page.context.add_cookies(
         [
-            {
-                "name": "session",
-                "value": cookie_value,
-                "domain": domain.split("https://")[1].split(":8080")[0],
-                "path": "/",
-                "httpOnly": True,
-                "secure": True,
-            }
+            cast(
+                SetCookieParam,
+                {
+                    "name": "session",
+                    "value": cookie_value,
+                    "domain": domain.split("https://")[1].split(":8080")[0],
+                    "path": "/",
+                    "httpOnly": True,
+                    "secure": True,
+                },
+            )
         ]
     )
     sso_sign_in_page.navigate()
