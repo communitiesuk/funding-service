@@ -31,6 +31,7 @@ from app.common.data.models import (
     Expression,
     Form,
     Grant,
+    GrantRecipient,
     Group,
     Question,
     Submission,
@@ -309,6 +310,18 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
     ).unique()
 
 
+def get_submission_by_grant_recipient_collection(
+    grant_recipient: GrantRecipient, collection_id: UUID
+) -> Submission | None:
+    return db.session.scalars(
+        select(Submission).where(
+            Submission.grant_recipient_id == grant_recipient.id,
+            Submission.collection_id == collection_id,
+            Submission.mode == SubmissionModeEnum.LIVE,
+        )
+    ).first()
+
+
 def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submission:
     options = []
     if with_full_schema:
@@ -350,12 +363,11 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
 
 
 @flush_and_rollback_on_exceptions
-def create_submission(*, collection: Collection, created_by: User, mode: SubmissionModeEnum) -> Submission:
+def create_submission(
+    *, collection: Collection, created_by: User, mode: SubmissionModeEnum, grant_recipient: GrantRecipient | None = None
+) -> Submission:
     submission = Submission(
-        collection=collection,
-        created_by=created_by,
-        mode=mode,
-        data={},
+        collection=collection, created_by=created_by, mode=mode, data={}, grant_recipient=grant_recipient
     )
     db.session.add(submission)
     return submission

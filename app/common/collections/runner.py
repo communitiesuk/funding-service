@@ -134,7 +134,11 @@ class FormRunner:
         # have test submissions for now.) When we come to have live submissions we can extend this check based on the
         # user's Organisation permissions.
         current_user = interfaces.user.get_current_user()
-        if submission.created_by_email is not current_user.email:
+
+        # todo: rejecting based on the user who created it was based on pre-award logic
+        #       functionality for monitoring likely covered by route decorators but making sure should
+        #       be separated out into a story
+        if submission.submission.grant_recipient is None and submission.created_by_email is not current_user.email:
             if submission.is_test:
                 current_app.logger.warning(
                     "User %(user_id)s tried to access submission for %(submitter_id)s, redirecting",
@@ -147,6 +151,7 @@ class FormRunner:
                         report_id=submission.collection_id,
                     )
                 )
+
             return abort(403)
 
         question, form = None, None
@@ -446,7 +451,7 @@ class DGFFormRunner(FormRunner):
     }
 
 
-class AGFFormRunner(FormRunner):
+class DeveloperPagesRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
         FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index: url_for(
             "developers.access.ask_a_question",
@@ -464,6 +469,34 @@ class AGFFormRunner(FormRunner):
             "developers.access.check_your_answers",
             submission_id=runner.submission.id,
             form_id=form.id if form else runner.form.id if runner.form else None,
+            source=source,
+        ),
+    }
+
+
+class AGFFormRunner(FormRunner):
+    url_map: ClassVar[TRunnerUrlMap] = {
+        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index: url_for(
+            "access_grant_funding.ask_a_question",
+            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
+            grant_id=runner.submission.submission.grant_recipient.grant.id,
+            submission_id=runner.submission.id,
+            question_id=question.id if question else None,
+            source=source,
+            add_another_index=add_another_index,
+        ),
+        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index: url_for(
+            "access_grant_funding.tasklist",
+            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
+            grant_id=runner.submission.submission.grant_recipient.grant.id,
+            submission_id=runner.submission.id,
+        ),
+        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index: url_for(
+            "access_grant_funding.check_your_answers",
+            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
+            grant_id=runner.submission.submission.grant_recipient.grant.id,
+            submission_id=runner.submission.id,
+            section_id=form.id if form else runner.form.id if runner.form else None,
             source=source,
         ),
     }

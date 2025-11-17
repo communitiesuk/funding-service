@@ -311,7 +311,7 @@
   {% endif %}
 {% endmacro %}
 
-{% macro collection_tasklist(runner) %}
+{% macro collection_tasklist(runner, submit_text=None, before_submission=None) %}
   {% set submission = runner.submission %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
@@ -353,18 +353,21 @@
       {% endif %}
     </div>
   </div>
+  {% set default_before_submission %}
+    <p class="govuk-body">You must complete all sections before you can submit.</p>
+  {% endset %}
   {% if not submission.is_completed %}
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-two-thirds">
-        {% if not submission.all_forms_are_completed %}
-          <p class="govuk-body">You must complete all sections before you can submit.</p>
-        {% endif %}
+        {# {% if not submission.all_forms_are_completed %} #}
+        {{ before_submission or default_before_submission }}
+        {# {% endif %} #}
         <form method="post" novalidate>
           {{ runner.tasklist_form.csrf_token }}
 
           {{
             runner.tasklist_form.submit(params={
-              "text": "Submit",
+              "text": submit_text or "Submit",
               "disabled": not submission.all_forms_are_completed
             })
           }}

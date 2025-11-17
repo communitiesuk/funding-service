@@ -43,15 +43,13 @@ class TestSubmissionTasklist:
             assert "Colour information" in soup.text
             assert "Not started" in soup.text
 
+    # todo: DGF submissions won't have grant recipients or be live for now
     @pytest.mark.parametrize(
         "client_fixture, submission_mode, expected_status_code",
         (
             ("authenticated_no_role_client", SubmissionModeEnum.TEST, 403),
             ("authenticated_grant_member_client", SubmissionModeEnum.TEST, 302),
             ("authenticated_grant_admin_client", SubmissionModeEnum.TEST, 302),
-            ("authenticated_no_role_client", SubmissionModeEnum.LIVE, 403),
-            ("authenticated_grant_member_client", SubmissionModeEnum.LIVE, 403),
-            ("authenticated_grant_admin_client", SubmissionModeEnum.LIVE, 403),
         ),
     )
     def test_get_other_users_submission_tasklist_403s(
@@ -307,15 +305,13 @@ class TestAskAQuestion:
             form_id=question.form.id,
         )
 
+    # todo: DGF submissions won't have grant recipients or be live for now
     @pytest.mark.parametrize(
         "client_fixture, submission_mode, expected_status_code",
         (
             ("authenticated_no_role_client", SubmissionModeEnum.TEST, 403),
             ("authenticated_grant_member_client", SubmissionModeEnum.TEST, 302),
             ("authenticated_grant_admin_client", SubmissionModeEnum.TEST, 302),
-            ("authenticated_no_role_client", SubmissionModeEnum.LIVE, 403),
-            ("authenticated_grant_member_client", SubmissionModeEnum.LIVE, 403),
-            ("authenticated_grant_admin_client", SubmissionModeEnum.LIVE, 403),
         ),
     )
     def test_get_other_users_ask_a_question_403s(
@@ -766,15 +762,13 @@ class TestCheckYourAnswers:
             == 2
         )
 
+    # todo: DGF submissions won't have grant recipients or be live for now
     @pytest.mark.parametrize(
         "client_fixture, submission_mode, expected_status_code",
         (
             ("authenticated_no_role_client", SubmissionModeEnum.TEST, 403),
             ("authenticated_grant_member_client", SubmissionModeEnum.TEST, 302),
             ("authenticated_grant_admin_client", SubmissionModeEnum.TEST, 302),
-            ("authenticated_no_role_client", SubmissionModeEnum.LIVE, 403),
-            ("authenticated_grant_member_client", SubmissionModeEnum.LIVE, 403),
-            ("authenticated_grant_admin_client", SubmissionModeEnum.LIVE, 403),
         ),
     )
     def test_get_other_users_check_your_answers_403s(

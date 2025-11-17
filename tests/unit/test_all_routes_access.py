@@ -119,6 +119,10 @@ routes_with_expected_access_grant_funding_logged_in_access = [
 
 routes_with_expected_access_grant_funding_org_access = [
     "access_grant_funding.list_grants",
+    "access_grant_funding.route_to_submission",
+    "access_grant_funding.tasklist",
+    "access_grant_funding.ask_a_question",
+    "access_grant_funding.check_your_answers",
 ]
 
 routes_with_expected_is_deliver_grant_funding_user_access = [
@@ -279,6 +283,7 @@ routes_with_get_change_state_exception = [
     "auth.sso_get_token",
     "deliver_grant_funding.move_section",
     "deliver_grant_funding.move_component",
+    "access_grant_funding.route_to_submission",
     "developers.access.start_submission_redirect",
 ]
 

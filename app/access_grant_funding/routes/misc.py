@@ -33,4 +33,5 @@ def list_grants(organisation_id: UUID) -> ResponseReturnValue:
     grants = [
         grant_recipient.grant for grant_recipient in user.get_grant_recipients(limit_to_organisation_id=organisation_id)
     ]
+
     return render_template("access_grant_funding/grant_list.html", grants=grants, organisation=organisation)
