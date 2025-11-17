@@ -42,3 +42,29 @@
   %}
   {{ govukTag({"text": status, "classes": classMap[status] }) }}
 {% endmacro %}
+
+{% macro submissionStatusTag(status, overdue=False) %}
+  {%
+    set classMap = {
+        enum.submission_status.NOT_STARTED: "govuk-tag--grey" if not overdue else "govuk-tag--yellow",
+        enum.submission_status.IN_PROGRESS: "govuk-tag--light-blue" if not overdue else "govuk-tag--yellow",
+        enum.submission_status.COMPLETED: "",
+        enum.submission_status.READY_TO_SUBMIT: "govuk-tag--blue" if not overdue else "govuk-tag--yellow",
+        enum.submission_status.AWAITING_SIGN_OFF: "govuk-tag--purple",
+    }
+  %}
+  {{ govukTag({"text": status if not overdue else "Overdue", "classes": classMap[status] }) }}
+{% endmacro %}
+
+{% macro submissionStatusAction(status) %}
+  {%
+    set textMap = {
+        enum.submission_status.NOT_STARTED: "Start report",
+        enum.submission_status.IN_PROGRESS: "Continue report",
+        enum.submission_status.COMPLETED: "View report",
+        enum.submission_status.READY_TO_SUBMIT: "View report",
+        enum.submission_status.AWAITING_SIGN_OFF: "View report",
+    }
+  %}
+  {{ textMap[status] }}
+{% endmacro %}
