@@ -10,7 +10,13 @@ from app.common.auth.decorators import (
     is_access_org_member,
 )
 from app.common.data import interfaces
+from app.common.data.interfaces.collections import (
+    get_all_submissions_with_mode_for_collection_with_full_schema,
+)
+from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisation
+from app.common.data.types import SubmissionModeEnum
+from app.common.helpers.collections import SubmissionHelper
 
 
 @access_grant_funding_blueprint.route("/", methods=["GET"])
@@ -38,7 +44,7 @@ def index() -> ResponseReturnValue:
 @is_access_org_member
 def list_grants(organisation_id: UUID) -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
-    organisation = get_organisation(organisation_id)
+    organisation = get_organisation(organisation_id=organisation_id)
     grants = [
         grant_recipient.grant for grant_recipient in user.get_grant_recipients(limit_to_organisation_id=organisation_id)
     ]
@@ -59,3 +65,41 @@ def list_organisations() -> ResponseReturnValue:
         return redirect(url_for("access_grant_funding.list_grants", organisation_id=sorted_orgs[0].id))
 
     return render_template("access_grant_funding/organisation_list.html", organisations=sorted_orgs)
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grant/<uuid:grant_id>/select-a-report", methods=["GET"]
+)
+@has_grant_recipient_member_role
+def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
+    grant = get_grant(grant_id=grant_id)
+
+    grant_recipient = interfaces.user.get_current_user().get_grant_recipient(
+        organisation_id=organisation_id, grant_id=grant_id
+    )
+    if not grant_recipient:
+        return abort(404)
+
+    # TODO refactor when we persist the collection status and/or implement multiple rounds
+
+    submissions = []
+
+    for report in grant.access_reports:
+        submissions.extend(
+            [
+                SubmissionHelper(submission=submission)
+                for submission in get_all_submissions_with_mode_for_collection_with_full_schema(
+                    collection_id=report.id,
+                    submission_mode=SubmissionModeEnum.LIVE,
+                    grant_recipient_id=grant_recipient.id,
+                )
+            ]
+        )
+
+    return render_template(
+        "access_grant_funding/report_list.html",
+        reports=grant.access_reports,
+        organisation_id=organisation_id,
+        grant=grant,
+        submissions=submissions,
+    )

@@ -1,0 +1,64 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/status.html" import submissionStatusAction with context %}
+
+{% set page_title = "Reports" %}
+{% set active_item_identifier = "" %}
+{% block beforeContent %}
+
+  {{
+    govukBackLink(params={
+          "text": "Back",
+          "href": url_for("access_grant_funding.list_grants", organisation_id=organisation_id)}
+    )
+  }}
+{% endblock %}
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Reports</h1>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% if reports|length == 0 %}
+        <p class="govuk-body">There are no reports available for this grant</p>
+      {% else %}
+        {% set rows=[] %}
+        {% for report in reports %}
+          {% set submission = submissions | selectattr("collection_id", "equalto", report.id) | first %}
+          {% set submission_status = submission.status if submission else enum.submission_status.NOT_STARTED %}
+          {% set submission_status_html %}
+            {{ submissionStatusTag(submission_status, submission.is_overdue if submission else report.has_submission_period_ended) }}
+          {% endset %}
+          {% set report_action_html %}
+            <a class="govuk-link govuk-link--no-visited-state" href="#">
+              {{ submissionStatusAction(submission_status) }}<span class="govuk-visually-hidden">for {{ format_date_range_short(report.reporting_period_start_date, report.reporting_period_end_date) }}</span>
+            </a>
+          {% endset %}
+          {%
+            do rows.append([
+              {"text": format_date_range_short(report.reporting_period_start_date, report.reporting_period_end_date)},
+              {"text": format_date_short(report.submission_period_end_date)},{"html": submission_status_html},
+              {"html":report_action_html}
+            ])
+          %}
+        {% endfor %}
+        {{
+          govukTable(params={
+                  "firstCellIsHeader": false,
+                  "head":[
+                    {"text": "Reporting period"},
+                    {"text": "Due date"},
+                    {"text": "Status"},
+                    {}
+                  ],
+                  "rows":rows
+          })
+        }}
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
