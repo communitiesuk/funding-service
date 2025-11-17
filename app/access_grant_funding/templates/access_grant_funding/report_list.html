@@ -41,8 +41,8 @@
           {%
             do rows.append([
               {"text": format_date_range_short(report.reporting_period_start_date, report.reporting_period_end_date)},
-              {"text": format_date_short(report.submission_period_end_date)},{"html": submission_status_html},
-              {"html":report_action_html}
+              {"text": format_date_short(report.submission_period_end_date)}, {"html": submission_status_html},
+              {"html": report_action_html}
             ])
           %}
         {% endfor %}
