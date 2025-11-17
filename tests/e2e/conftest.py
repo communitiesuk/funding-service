@@ -35,7 +35,7 @@ e2e_user_configs: dict[DeliverGrantFundingUserType, E2ETestUserConfig] = {
     ),
     DeliverGrantFundingUserType.GRANT_TEAM_MEMBER: E2ETestUserConfig(
         user_id="SSO_GRANT_TEAM_MEMBER_USER_ID",
-        email="svc-Preaward-Funds@communities.gov.uk",
+        email="fsd-post-award@communities.gov.uk",
         expected_login_url_pattern="^{domain}/deliver/grant/[a-f0-9-]{{36}}/reports$",
     ),
 }
