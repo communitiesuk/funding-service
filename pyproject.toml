@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 # If updating the version here, also update in project.toml, .python-version, Dockerfile
-requires-python = "==3.13.7"
+requires-python = "==3.14.0"
 dependencies = [
     "alembic-utils==0.8.8",
     "alembic-postgresql-enum==1.8.0",
