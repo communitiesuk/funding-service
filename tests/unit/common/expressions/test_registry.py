@@ -10,7 +10,7 @@ from app.common.expressions.registry import (
 
 class TestManagedExpressions:
     def test_get_registered_data_types(self, factories):
-        unsupported_question_type = QuestionDataType.TEXT_SINGLE_LINE
+        unsupported_question_type = QuestionDataType.TEXT_MULTI_LINE
 
         # because we're using a defaultdict we should make sure reading empty values can't change the logic
         assert get_managed_conditions_by_data_type(unsupported_question_type) == []
@@ -19,7 +19,7 @@ class TestManagedExpressions:
 
     def test_get_supported_form_questions_filters_question_types(self, factories):
         form = factories.form.build()
-        factories.question.build_batch(3, data_type=QuestionDataType.TEXT_SINGLE_LINE, form=form)
+        factories.question.build_batch(3, data_type=QuestionDataType.TEXT_MULTI_LINE, form=form)
         only_supported_target = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
         question = factories.question.build(data_type=QuestionDataType.INTEGER, form=form)
         supported_questions = get_supported_form_questions(question)
@@ -54,7 +54,7 @@ class TestManagedExpressions:
         assert get_supported_form_questions(group_integer_questions[2]) == [valid_question]
 
     def test_new_managed_expressions_added(self):
-        assert len(_registry_by_expression_enum) == 10, (
+        assert len(_registry_by_expression_enum) == 11, (
             "If you've added a new managed expression, update this test and add"
             "suitable tests in `tests/integration/common/expressions/test_managed.py`"
         )

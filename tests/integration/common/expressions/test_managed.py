@@ -18,6 +18,7 @@ from app.common.expressions.managed import (
     IsYes,
     LessThan,
     Specifically,
+    UKPostcode,
 )
 from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 from app.types import TRadioItem
@@ -611,3 +612,36 @@ class TestIsBetweenDatesExpression:
             latest_expression=f"(({second_referenced_question.safe_qid}))",
         )
         assert expr.expression_referenced_question_ids == [first_referenced_question.id, second_referenced_question.id]
+
+
+class TestUKPostcodeExpression:
+    @pytest.mark.parametrize(
+        "answer, expected_result",
+        (
+            ("SW1A 1AA", True),
+            ("sw1a 1aa", True),
+            ("M1 1AE", True),
+            ("m1 1ae", True),
+            ("CR2 6XH", True),
+            ("DN55 1PT", True),
+            ("W1A 0AX", True),
+            ("W10A 0AX", False),
+            ("AA10A 0AX", False),
+            ("EC1A 1BB", True),
+            ("SW1A1AA", True),
+            ("  SW1A 1AA  ", True),
+            ("  SW1A1AA  ", True),
+            ("invalid", False),
+            ("12345", False),
+            ("A1 1A", False),
+            ("SW1A 1AAA", False),
+            ("", False),
+            ("   ", False),
+        ),
+    )
+    def test_evaluate(self, answer, expected_result, factories):
+        user = factories.user.create()
+        expr = UKPostcode(question_id=uuid.uuid4())
+        expression = Expression.from_managed(expr, user)
+        expression.context = {expr.safe_qid: answer, "question_id": expr.question_id}
+        assert evaluate(expression) is expected_result

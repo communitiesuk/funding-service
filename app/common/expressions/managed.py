@@ -1,5 +1,6 @@
 import abc
 import datetime
+import re
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar, Union, cast
 from typing import Optional as TOptional
@@ -1193,6 +1194,55 @@ class BetweenDates(ManagedExpression):
     @property
     def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
         return {"date": datetime.date}
+
+
+@register_managed_expression
+class UKPostcode(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.UK_POSTCODE
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.TEXT_SINGLE_LINE}
+    managed_expression_form_template: ClassVar[str | None] = None
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+
+    @property
+    def description(self) -> str:
+        return "Must be a UK postcode"
+
+    @property
+    def message(self) -> str:
+        return "The answer must be a UK postcode"
+
+    @property
+    def statement(self) -> str:
+        return f"uk_postcode_match({self.safe_qid})"
+
+    @property
+    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
+        def uk_postcode_match(value: str) -> bool:
+            if not value:
+                return False
+            value = value.strip()
+            pattern = r"^([A-Z]{1,2}(?:\d[A-Z]|\d{1,2}))\s*(\d[A-Z]{2})$"
+            return bool(re.match(pattern, value, re.IGNORECASE))
+
+        return {"uk_postcode_match": uk_postcode_match}
+
+    @staticmethod
+    def get_form_fields(
+        referenced_question: "Question", expression: TOptional["Expression"] = None
+    ) -> dict[str, "Field"]:
+        return {}
+
+    @staticmethod
+    def update_validators(form: "_ManagedExpressionForm") -> None:
+        pass
+
+    @staticmethod
+    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "UKPostcode":
+        return UKPostcode(question_id=question.id)
 
 
 def get_managed_expression(expression: "Expression") -> ManagedExpression:
