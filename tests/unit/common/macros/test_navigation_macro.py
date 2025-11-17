@@ -99,7 +99,7 @@ class TestAccessGrantFundingServiceNavigationMacro:
                 assert change_grant_link is None
             else:
                 assert (
-                    "app-service-navigation__wrapper-sectional"
+                    "app-service-navigation__wrapper--sectional"
                     in macro.find("nav", {"class": "govuk-service-navigation__wrapper"})["class"]
                 )
                 assert change_grant_link is not None
@@ -133,6 +133,55 @@ class TestAccessGrantFundingServiceNavigationMacro:
         nav_items = macro.find_all(class_="govuk-service-navigation__item")
         links = [item.find("a", class_="govuk-service-navigation__link") for item in nav_items]
         assert [link.get_text(strip=True) for link in links if link] == ["Link one", "Link two", "Change grant"]
+
+    def test_shows_both_navs_only_change_org_if_one_grant(self, factories):
+        current_user = factories.user.build()
+        first_organisation = factories.organisation.build(name="First organisation")
+        second_organisation = factories.organisation.build(name="Second organisation")
+
+        first_grant_recipient = factories.grant_recipient.build(
+            organisation=first_organisation, grant__name="First Grant"
+        )
+        second_grant_recipient = factories.grant_recipient.build(
+            organisation=second_organisation, grant__name="Second Grant"
+        )
+        current_user._grant_recipients.extend([first_grant_recipient, second_grant_recipient])
+        current_grant_recipient = first_grant_recipient
+
+        template_content = """
+        {% from "common/macros/navigation.html" import accessGrantFundingServiceNavigation %}
+        {{ accessGrantFundingServiceNavigation(
+            current_user,
+            grant_recipient=current_grant_recipient
+        ) }}
+        """
+        macro = BeautifulSoup(
+            render_template_string(
+                template_content, current_user=current_user, current_grant_recipient=current_grant_recipient
+            ),
+            "html.parser",
+        )
+
+        assert [
+            span.get_text(strip=True)
+            for span in macro.find_all("span", class_="govuk-service-navigation__service-name")
+        ] == ["First organisation", "First Grant"]
+
+        grant_nav = macro.find("section", {"id": "grant-nav"})
+        assert (
+            "app-service-navigation__wrapper--sectional--org-hidden"
+            in grant_nav.find("nav", {"class": "govuk-service-navigation__wrapper"})["class"]
+        )
+
+        change_org_link = macro.find(
+            "a", class_="govuk-service-navigation__link", string=re.compile(r"^\s*Change organisation\s*$")
+        )
+
+        change_grant_link = macro.find(
+            "a", class_="govuk-service-navigation__link", string=re.compile(r"^\s*Change grant\s*$")
+        )
+        assert change_org_link is not None
+        assert change_grant_link is None
 
     def test_shows_both_navs_selects_the_correct_grant_recipient_org_if_not_provided(self, factories):
         current_user = factories.user.build()
@@ -172,7 +221,7 @@ class TestAccessGrantFundingServiceNavigationMacro:
 
         grant_nav = macro.find("section", {"id": "grant-nav"})
         assert (
-            "app-service-navigation__wrapper-sectional-org-hidden"
+            "app-service-navigation__wrapper--sectional--grant-and-org-hidden"
             in grant_nav.find("nav", {"class": "govuk-service-navigation__wrapper"})["class"]
         )
 

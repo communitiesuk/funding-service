@@ -136,6 +136,24 @@ $app-destructive-link-active-colour: $govuk-text-colour;
     .govuk-service-navigation__item:last-child {
         margin-left: auto;
     }
+
+    &--org-hidden {
+        @extend .app-service-navigation__wrapper--sectional;
+        @include govuk-media-query($from: tablet) {
+            .govuk-service-navigation__item:last-child {
+                display: none;
+            }
+        }
+    }
+
+    &--grant-and-org-hidden {
+        @extend .app-service-navigation__wrapper--sectional;
+        @include govuk-media-query($from: tablet) {
+            .govuk-service-navigation__item:nth-last-child(2) {
+                display: none;
+            }
+        }
+    }
 }
 
 .app-tasklist-builder {
@@ -307,16 +325,5 @@ $inset-nested-rows: 30px;
 
     @include govuk-media-query($from: tablet) {
         display: block;
-    }
-}
-
-.app-service-navigation__wrapper--sectional-org-hidden {
-    .govuk-service-navigation__item:last-child {
-        margin-left: auto;
-    }
-    @include govuk-media-query($from: tablet) {
-        .govuk-service-navigation__item:nth-last-child(2) {
-            display: none;
-        }
     }
 }

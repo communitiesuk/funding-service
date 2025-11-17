@@ -34,16 +34,14 @@
     {% set grant = grant_recipient.grant %}
     {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
 
-    {% if number_of_grants > 1 %}
-      {% do nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
-      {% set navigation_classes = "app-service-navigation__wrapper-sectional" %}
-    {% endif %}
-
     {% if number_of_organisations > 1 %}
       {% do nav_items.append({"text": "Change organisation", "href": "#"}) %}
+      {% set navigation_classes = "app-service-navigation__wrapper--sectional--org-hidden" %}
+    {% endif %}
 
-      {# note that this will only be shown on the mobile menu #}
-      {% set navigation_classes = "app-service-navigation__wrapper-sectional-org-hidden" %}
+    {% if number_of_grants > 1 %}
+      {% do nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
+      {% set navigation_classes = "app-service-navigation__wrapper--sectional" ~ ("--grant-and-org-hidden" if (number_of_organisations > 1) else "") %}
     {% endif %}
 
     {{
