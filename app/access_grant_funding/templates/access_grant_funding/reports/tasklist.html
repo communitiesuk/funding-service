@@ -15,7 +15,13 @@
 
       <dl class="app-metadata">
         <dt class="app-metadata__key">Submission deadline:</dt>
-        <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(runner.submission.collection.submission_period_end_date) }}</dd>
+        <dd class="app-metadata__value" data-testid="submission-status">
+          {% if runner.submission.collection.submission_period_end_date %}
+            {{ format_date(runner.submission.collection.submission_period_end_date) }}
+          {% else %}
+            <span>(Monitoring report has no deadline set)</span>
+          {% endif %}
+        </dd>
       </dl>
       <dl class="app-metadata govuk-!-margin-bottom-7">
         <dt class="app-metadata__key">Status:</dt>

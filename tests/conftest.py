@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from werkzeug.test import TestResponse
 
 from app import create_app
-from app.common.data.models import Grant, Organisation
+from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User
 from tests.models import (
     _CollectionFactory,
@@ -91,6 +91,7 @@ class FundingServiceTestClient(FlaskClient):
     user: User | None = None
     grant: Grant | None = None
     organisation: Organisation | None = None
+    grant_recipient: GrantRecipient | None = None
 
     def open(
         self,
