@@ -5,8 +5,9 @@ import pytest
 from flask import session, url_for
 from flask_login import login_user
 from sqlalchemy.exc import NoResultFound
-from werkzeug.exceptions import Forbidden, InternalServerError
+from werkzeug.exceptions import Forbidden, InternalServerError, NotFound
 
+from app import GrantStatusEnum
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
     collection_is_editable,
@@ -751,6 +752,27 @@ class TestIsAccessOrgMember:
 
         with pytest.raises(Forbidden):
             view_func(organisation_id=grant_recipient.organisation.id)
+
+    def test_user_non_live_grant_not_found(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create(status=GrantStatusEnum.DRAFT)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        factories.user_role.create(
+            user=user,
+            permissions=[RoleEnum.MEMBER],
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+        )
+
+        @is_access_org_member
+        def view_func(organisation_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        with pytest.raises(NotFound):
+            view_func(organisation_id=grant_recipient.organisation.id, grant_id=grant.id)
 
     def test_user_org_member_responds(self, factories):
         user = factories.user.create(email="test.admin@communities.gov.uk")
