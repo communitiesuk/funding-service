@@ -492,15 +492,15 @@ wheels = [
 
 [[package]]
 name = "flask-sqlalchemy-lite"
-version = "0.1.0"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flask", extra = ["async"] },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4f/e5/17bfe7ef0a575c82b87157d5ad67cdb73f5d124509d1be8180950bdfc358/flask_sqlalchemy_lite-0.1.0.tar.gz", hash = "sha256:953173780a974940e6d0cfde1b1fe7097dae66dd7d18bc728f441847f6c48e09", size = 6613, upload-time = "2024-06-08T00:20:38.231Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c5/1a/e042f3128c3affa06528ee4e68ce5eee6280d49a9c5dccc4cce89ee5303b/flask_sqlalchemy_lite-0.2.0.tar.gz", hash = "sha256:e77d3a6a6fd7389c3c3d9f0cbc66f8583e5cf3899dd9f5225f064cc81982fc5b", size = 10380, upload-time = "2025-11-13T18:48:14.887Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/c8/a6ae83d1d24c2795ce08f8504dbbe326ab2efb4ad32d78256f5fc9865275/flask_sqlalchemy_lite-0.1.0-py3-none-any.whl", hash = "sha256:90ec1d5f4692b7369d88adcff1b9a8ca27baaff040bc4246c6ffee0af9421ce9", size = 8057, upload-time = "2024-06-08T00:20:36.548Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/49/12016a949863d334cf399a1328cf8e812f6645c8c38d6f68b5fa4466ddf4/flask_sqlalchemy_lite-0.2.0-py3-none-any.whl", hash = "sha256:983eaeba30f8aca3e559798415fcff8ca1db77d8ed6b975edcb6b5bd8f114f77", size = 10199, upload-time = "2025-11-13T18:48:13.822Z" },
 ]
 
 [[package]]
@@ -625,7 +625,7 @@ requires-dist = [
     { name = "flask-babel", specifier = "==4.0.0" },
     { name = "flask-login", specifier = "==0.6.3" },
     { name = "flask-migrate", specifier = "==4.1.0" },
-    { name = "flask-sqlalchemy-lite", specifier = "==0.1.0" },
+    { name = "flask-sqlalchemy-lite", specifier = "==0.2.0" },
     { name = "flask-talisman", specifier = "==1.1.0" },
     { name = "flask-wtf", specifier = "==1.2.2" },
     { name = "govuk-frontend-jinja", specifier = "==3.9.0" },
