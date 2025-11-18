@@ -20,6 +20,18 @@ def get_grant_recipients(grant: "Grant", *, with_data_providers: bool = False) -
     return db.session.scalars(stmt).unique().all()
 
 
+def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> "GrantRecipient":
+    statement = (
+        select(GrantRecipient)
+        .where(
+            GrantRecipient.grant_id == grant_id,
+            GrantRecipient.organisation_id == organisation_id,
+        )
+        .options(joinedload(GrantRecipient.grant), joinedload(GrantRecipient.organisation))
+    )
+    return db.session.scalars(statement).one()
+
+
 def get_grant_recipients_count(grant: "Grant") -> int:
     statement = select(func.count()).select_from(GrantRecipient).where(GrantRecipient.grant_id == grant.id)
     return db.session.scalar(statement) or 0

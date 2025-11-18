@@ -4,7 +4,7 @@ from flask import Blueprint, current_app, redirect, render_template, request, se
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.decorators import access_grant_funding_login_required, is_platform_admin
-from app.common.collections.runner import AGFFormRunner
+from app.common.collections.runner import DeveloperPagesRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import create_submission, get_collection
 from app.common.data.interfaces.grants import get_grant
@@ -69,7 +69,7 @@ def start_submission_redirect(collection_id: uuid.UUID) -> ResponseReturnValue:
 @access_grant_funding_login_required
 def submission_tasklist(submission_id: uuid.UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    runner = AGFFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
+    runner = DeveloperPagesRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
 
     if runner.tasklist_form.validate_on_submit():
         if runner.complete_submission(interfaces.user.get_current_user()):
@@ -87,7 +87,7 @@ def submission_tasklist(submission_id: uuid.UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def ask_a_question(submission_id: uuid.UUID, question_id: uuid.UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    runner = AGFFormRunner.load(
+    runner = DeveloperPagesRunner.load(
         submission_id=submission_id, question_id=question_id, source=FormRunnerState(source) if source else None
     )
 
@@ -118,7 +118,7 @@ def ask_a_question(submission_id: uuid.UUID, question_id: uuid.UUID) -> Response
 @access_grant_funding_login_required
 def check_your_answers(submission_id: uuid.UUID, form_id: uuid.UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    runner = AGFFormRunner.load(
+    runner = DeveloperPagesRunner.load(
         submission_id=submission_id, form_id=form_id, source=FormRunnerState(source) if source else None
     )
 

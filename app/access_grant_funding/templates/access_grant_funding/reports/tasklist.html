@@ -1,0 +1,40 @@
+{% from "common/macros/status.html" import status with context %}
+{% from "common/macros/collections.html" import collection_tasklist with context %}
+{% extends "access_grant_funding/base.html" %}
+
+{# todo: move the suffix to the base template and call super #}
+{% set page_title = runner.submission.name ~ " - " ~ grant_recipient.grant.name %}
+
+{% set form = runner.tasklist_form %}
+{% set active_item_identifier = "reports" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ runner.submission.name }}</h1>
+
+      <dl class="app-metadata">
+        <dt class="app-metadata__key">Submission deadline:</dt>
+        <dd class="app-metadata__value" data-testid="submission-status">
+          {% if runner.submission.collection.submission_period_end_date %}
+            {{ format_date(runner.submission.collection.submission_period_end_date) }}
+          {% else %}
+            <span>(Monitoring report has no deadline set)</span>
+          {% endif %}
+        </dd>
+      </dl>
+      <dl class="app-metadata govuk-!-margin-bottom-7">
+        <dt class="app-metadata__key">Status:</dt>
+        <dd class="app-metadata__value" data-testid="submission-status">{{ status(runner.submission.status) }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  {% set before_submission %}
+    <h2 class="govuk-heading-m">Submit your report to your certifier</h2>
+    <p class="govuk-body">You can submit your report to the certifier to sign off.</p>
+    <p class="govuk-body">You cannot make changes while your report is awaiting sign off.</p>
+  {% endset %}
+
+  {{ collection_tasklist(runner, "Submit report to certifier", before_submission=before_submission, has_permission_to_edit=authorisation_helper.is_access_grant_data_provider(runner.submission.grant.id, runner.submission.submission.grant_recipient.organisation_id, current_user)) }}
+{% endblock content %}

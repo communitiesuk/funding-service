@@ -260,7 +260,13 @@ class TestFormRunner:
         @pytest.mark.parametrize("runner_class", FormRunner.__subclasses__())
         def test_runners_url_map_resolves(self, factories, runner_class):
             question = factories.question.build()
-            submission = factories.submission.build(collection=question.form.collection)
+
+            # todo: ideally this could just set the mode to live which would stub out grant recipient for us
+            #       but that doesn't work for unit tests
+            grant_recipient = factories.grant_recipient.build(grant=question.form.collection.grant)
+            submission = factories.submission.build(
+                collection=question.form.collection, grant_recipient=grant_recipient
+            )
             runner = runner_class(submission=SubmissionHelper(submission), question=question)
             for state in FormRunnerState:
                 assert runner.to_url(state) is not None

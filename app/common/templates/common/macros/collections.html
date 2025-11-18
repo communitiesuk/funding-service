@@ -134,7 +134,7 @@
   </form>
 {% endmacro %}
 
-{% macro summary_list_for_answers(container, runner, add_another_index=none, summary_title=none) %}
+{% macro summary_list_for_answers(container, runner, add_another_index=none, summary_title=none, can_edit=true) %}
   {# each container context will have its own summary list which we'll populate at the end of this macro #}
   {% set form = runner.form %}
   {% set submission = runner.submission %}
@@ -185,7 +185,7 @@
           {% endset %}
 
           {%
-            set actions = [] if submission.is_completed else [{
+            set actions = [] if not can_edit else [{
               "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS),
               "text": "Change",
               "visuallyHiddenText": question.add_another_container.name,
@@ -195,12 +195,16 @@
         {% else %}
           {# the add another context is partially answered and should be completed before checking here #}
           {% set value_html %}
-            <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">
-              <span>
-                {{ "Enter" if not count else "Finish entering " }}
-                {{ question.add_another_container.name | lower }}
-              </span>
-            </a>
+            {% if can_edit %}
+              <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">
+                <span>
+                  {{ "Enter" if not count else "Finish entering " }}
+                  {{ question.add_another_container.name | lower }}
+                </span>
+              </a>
+            {% else %}
+              <span>({{ "Not answered" if not count else "Not completely answered" }})</span>
+            {% endif %}
           {% endset %}
         {% endif %}
         {%
@@ -221,7 +225,7 @@
 
         {# todo: can we "anchor" or link to the specific question if we're going to be changing a question on a same page group #}
         {%
-          set actions = [] if submission.is_completed else [{
+          set actions = [] if not can_edit else [{
             "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS, add_another_index=add_another_index if add_another_index is not none else none),
             "text": "Change",
             "visuallyHiddenText": question.name,
@@ -237,7 +241,11 @@
         %}
       {% else %}
         {% set value_html %}
-          <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
+          {% if can_edit %}
+            <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=question, source=enum.form_runner_state.CHECK_YOUR_ANSWERS) }}" class="govuk-link govuk-link--no-visited-state">Enter {{ question.name }}</a>
+          {% else %}
+            <span>(Not answered)</span>
+          {% endif %}
         {% endset %}
         {%
           do summary_list_rows.append({
@@ -268,23 +276,24 @@
         <h2 class="govuk-heading-m" id="{{ context.container.id }}-answers">Answers for “{{ context.container.name }}”</h2>
 
         {% for i in range(context.count) %}
-          {{ summary_list_for_answers(context.container, runner, add_another_index=i, summary_title=context.summaries[i].summary_text_line) }}
+          {{ summary_list_for_answers(context.container, runner, add_another_index=i, summary_title=context.summaries[i].summary_text_line, can_edit=can_edit) }}
         {% endfor %}
       </div>
     {% endif %}
   {% endfor %}
 {% endmacro %}
 
-{% macro collection_check_your_answers(runner) %}
+{% macro collection_check_your_answers(runner, has_permission_to_edit=true) %}
   {% set form = runner.form %}
   {% set submission = runner.submission %}
+  {% set can_edit = has_permission_to_edit and (not submission.is_completed) %}
 
   <span class="govuk-caption-l">{{ form.title }}</span>
   <h1 class="govuk-heading-l">{{ "Your submitted answers" if submission.is_completed else "Check your answers" }}</h1>
 
-  {{ summary_list_for_answers(form, runner) }}
+  {{ summary_list_for_answers(form, runner, can_edit=can_edit) }}
 
-  {% if submission.is_completed %}
+  {% if not can_edit %}
     <p class="govuk-body">
       <a class="govuk-link govuk-link--no-visited-state" href="{{ runner.to_url(enum.form_runner_state.TASKLIST) }}">Return to the task list</a>
     </p>
@@ -311,7 +320,8 @@
   {% endif %}
 {% endmacro %}
 
-{% macro collection_tasklist(runner) %}
+{% macro collection_tasklist(runner, submit_text=None, before_submission=None, has_permission_to_edit=true) %}
+  {% set can_edit = has_permission_to_edit and (not runner.submission.is_completed) %}
   {% set submission = runner.submission %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
@@ -327,7 +337,7 @@
               ''
               if not first_question else
               runner.to_url(enum.form_runner_state.QUESTION, question=first_question)
-              if submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED else
+              if (submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED and can_edit) else
               runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST)
             )
           %}
@@ -353,18 +363,19 @@
       {% endif %}
     </div>
   </div>
-  {% if not submission.is_completed %}
+  {% set default_before_submission %}
+    <p class="govuk-body">You must complete all sections before you can submit.</p>
+  {% endset %}
+  {% if can_edit %}
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-two-thirds">
-        {% if not submission.all_forms_are_completed %}
-          <p class="govuk-body">You must complete all sections before you can submit.</p>
-        {% endif %}
+        {{ before_submission or default_before_submission }}
         <form method="post" novalidate>
           {{ runner.tasklist_form.csrf_token }}
 
           {{
             runner.tasklist_form.submit(params={
-              "text": "Submit",
+              "text": submit_text or "Submit",
               "disabled": not submission.all_forms_are_completed
             })
           }}

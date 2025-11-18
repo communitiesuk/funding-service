@@ -438,6 +438,32 @@ def authenticated_grant_recipient_member_client(
     anonymous_client.user = user
     anonymous_client.grant = grant_recipient.grant
     anonymous_client.organisation = grant_recipient.organisation
+    anonymous_client.grant_recipient = grant_recipient
+    db_session.commit()
+
+    yield anonymous_client
+
+
+@pytest.fixture()
+def authenticated_grant_recipient_data_provider_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
+) -> Generator[FundingServiceTestClient, None, None]:
+    user = factories.user.create(email="recipientmember@communities.gov.uk")
+    grant_recipient = factories.grant_recipient.create(organisation__can_manage_grants=False)
+    factories.user_role.create(
+        user=user,
+        permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        organisation=grant_recipient.organisation,
+        grant=grant_recipient.grant,
+    )
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+    anonymous_client.user = user
+    anonymous_client.grant = grant_recipient.grant
+    anonymous_client.organisation = grant_recipient.organisation
+    anonymous_client.grant_recipient = grant_recipient
     db_session.commit()
 
     yield anonymous_client

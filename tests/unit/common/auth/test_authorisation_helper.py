@@ -304,3 +304,102 @@ class TestAuthorisationHelper:
         factories.user_role.build(user=user, permissions=[RoleEnum.MEMBER], organisation=organisation, grant=None)
 
         assert AuthorisationHelper.has_access_org_access(user=user, organisation_id=organisation.id) is False
+
+    @pytest.mark.parametrize(
+        "role, expected",
+        [
+            (RoleEnum.MEMBER, True),
+            (RoleEnum.DATA_PROVIDER, True),
+            (RoleEnum.CERTIFIER, True),
+            ("UKNOWN ROLE", pytest.raises(ValueError)),
+        ],
+    )
+    def test_has_access_grant_role(self, factories, role, expected, mocker):
+        user = factories.user.build()
+        grant_recipient = factories.grant_recipient.build()
+        factories.user_role.build(
+            user=user, permissions=[role], grant=grant_recipient.grant, organisation=grant_recipient.organisation
+        )
+        mocker.patch("app.common.auth.authorisation_helper.get_grant_recipient", return_value=grant_recipient)
+
+        if isinstance(expected, bool):
+            assert (
+                AuthorisationHelper.has_access_grant_role(
+                    user=user,
+                    grant_id=grant_recipient.grant.id,
+                    organisation_id=grant_recipient.organisation.id,
+                    role=role,
+                )
+                is expected
+            )
+        else:
+            with expected:
+                AuthorisationHelper.has_access_grant_role(
+                    user=user,
+                    grant_id=grant_recipient.grant.id,
+                    organisation_id=grant_recipient.organisation.id,
+                    role=role,
+                )
+
+    @pytest.mark.parametrize(
+        "role, method",
+        [
+            (RoleEnum.MEMBER, AuthorisationHelper.is_access_grant_member),
+            (RoleEnum.DATA_PROVIDER, AuthorisationHelper.is_access_grant_data_provider),
+            (RoleEnum.CERTIFIER, AuthorisationHelper.is_access_grant_certifier),
+        ],
+    )
+    def test_is_access_grant_role_from_org(self, factories, mocker, role, method):
+        user = factories.user.build()
+        user2 = factories.user.build()
+        grant_recipient = factories.grant_recipient.build()
+        factories.user_role.build(user=user, permissions=[role], organisation=grant_recipient.organisation, grant=None)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant_recipient", return_value=grant_recipient)
+
+        assert (
+            method(
+                grant_id=grant_recipient.grant.id,
+                organisation_id=grant_recipient.organisation.id,
+                user=user,
+            )
+            is True
+        )
+
+        assert (
+            method(grant_id=grant_recipient.grant.id, organisation_id=grant_recipient.organisation.id, user=user2)
+            is False
+        )
+
+    @pytest.mark.parametrize(
+        "role, method",
+        [
+            (RoleEnum.MEMBER, AuthorisationHelper.is_access_grant_member),
+            (RoleEnum.DATA_PROVIDER, AuthorisationHelper.is_access_grant_data_provider),
+            (RoleEnum.CERTIFIER, AuthorisationHelper.is_access_grant_certifier),
+        ],
+    )
+    def test_is_access_grant_role_from_grant(self, factories, mocker, role, method):
+        user = factories.user.build()
+        user2 = factories.user.build()
+        grant_recipient = factories.grant_recipient.build()
+        factories.user_role.build(
+            user=user,
+            permissions=[role],
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+        )
+        mocker.patch("app.common.auth.authorisation_helper.get_grant_recipient", return_value=grant_recipient)
+
+        assert (
+            method(
+                grant_id=grant_recipient.grant.id,
+                organisation_id=grant_recipient.organisation.id,
+                user=user,
+            )
+            is True
+        )
+
+        assert (
+            method(grant_id=grant_recipient.grant.id, organisation_id=grant_recipient.organisation.id, user=user2)
+            is False
+        )

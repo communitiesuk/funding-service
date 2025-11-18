@@ -1,6 +1,10 @@
+import pytest
+from sqlalchemy.orm.exc import NoResultFound
+
 from app.common.data.interfaces.grant_recipients import (
     all_grant_recipients_have_data_providers,
     create_grant_recipients,
+    get_grant_recipient,
     get_grant_recipient_data_provider_roles,
     get_grant_recipient_data_providers_count,
     get_grant_recipients,
@@ -145,6 +149,22 @@ class TestGetGrantRecipients:
             assert result[0].data_providers == []
 
         assert len(queries) == 0
+
+
+class TestGetGrantRecipient:
+    def test_returns_grant_recipient_for_organisation_and_grant(self, factories, db_session):
+        grant = factories.grant.create()
+        organisation = factories.organisation.create()
+        organisation2 = factories.organisation.create()
+
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
+
+        result = get_grant_recipient(grant.id, organisation.id)
+        assert result.grant == grant
+        assert result.organisation == organisation
+
+        with pytest.raises(NoResultFound):
+            get_grant_recipient(grant.id, organisation2.id)
 
 
 class TestGetGrantRecipientsCount:

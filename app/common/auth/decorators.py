@@ -15,6 +15,7 @@ from app.common.data.interfaces.collections import (
     get_expression_by_id,
     get_form_by_id,
 )
+from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisation
 from app.common.data.types import AuthMethodEnum, RoleEnum
@@ -210,6 +211,38 @@ def has_deliver_grant_role[**P](
             return func(*args, **kwargs)
 
         return is_deliver_grant_funding_user(wrapped)
+
+    return decorator
+
+
+def has_access_grant_role[**P](
+    role: RoleEnum,
+) -> Callable[[Callable[P, ResponseReturnValue]], Callable[P, ResponseReturnValue]]:
+    def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+        @functools.wraps(func)
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+            user = interfaces.user.get_current_user()
+
+            if (
+                "organisation_id" not in kwargs
+                or (organisation_id := cast(uuid.UUID, kwargs["organisation_id"])) is None
+            ):
+                raise ValueError("Organisation ID required.")
+
+            if "grant_id" not in kwargs or (grant_id := cast(uuid.UUID, kwargs["grant_id"])) is None:
+                raise ValueError("Grant ID required.")
+
+            # raises a 404 if the grant doesn't exist; more appropriate than 403 on non-existent entity
+            grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+            if not AuthorisationHelper.has_access_grant_role(
+                grant_id=grant_recipient.grant_id, organisation_id=grant_recipient.organisation_id, role=role, user=user
+            ):
+                return abort(403, description="Access denied")
+
+            return func(*args, **kwargs)
+
+        return is_access_org_member(wrapped)
 
     return decorator
 
