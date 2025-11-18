@@ -2809,7 +2809,7 @@ class TestAddQuestionConditionSelectQuestion:
             text="My question",
             name="Question name",
             hint="Question hint",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
         )
         group = factories.group.create(form=form, name="Test group")
 
@@ -3962,7 +3962,7 @@ class TestAddQuestionValidation:
             form=db_form,
             text="What is your name?",
             name="applicant name",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
         )
 
         response = authenticated_grant_admin_client.get(

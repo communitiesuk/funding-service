@@ -26,6 +26,7 @@ from app.common.expressions.managed import (
     LessThan,
     ManagedExpression,
     Specifically,
+    UKPostcode,
 )
 from app.common.filters import format_thousands
 from tests.e2e.config import EndToEndTestSecrets
@@ -287,11 +288,19 @@ questions_to_test: dict[str, TQuestionToTest] = {
             managed_expression=Specifically(question_id=uuid.uuid4(), item={"key": "option-2", "label": "option 2"}),
         ),
     },
-    "text-single-line": {
+    "postcode": {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
-        "text": "Enter a single line of text",
-        "display_text": "Enter a single line of text",
-        "answers": [_QuestionResponse("E2E question text single line")],
+        "text": "Enter a postcode",
+        "display_text": "Enter a postcode",
+        "answers": [
+            _QuestionResponse("E2E question text single line", "The answer must be a UK postcode"),
+            _QuestionResponse("SW1A 1AA"),
+        ],
+        "validation": E2EManagedExpression(
+            managed_expression=UKPostcode(
+                question_id=uuid.uuid4(),
+            )
+        ),  # question_id does not matter here
         "guidance": GuidanceText(
             heading="This is a guidance page heading",
             body_heading="Guidance subheading",
@@ -835,7 +844,7 @@ def test_create_and_preview_report(
         # Sense check that the test includes all question types
         new_question_type_error = None
         try:
-            assert len(QuestionDataType) == 9 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 10, (
+            assert len(QuestionDataType) == 9 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11, (
                 "If you have added a new question type or managed expression, update this test to include the "
                 "new question type or managed expression in `questions_to_test`."
             )
