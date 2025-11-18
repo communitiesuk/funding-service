@@ -4,7 +4,11 @@ from flask import abort, current_app, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
-from app.common.auth.decorators import access_grant_funding_login_required, is_access_org_member
+from app.common.auth.decorators import (
+    access_grant_funding_login_required,
+    has_access_grant_recipient_role,
+    is_access_org_member,
+)
 from app.common.data import interfaces
 from app.common.data.interfaces.organisations import get_organisation
 
@@ -35,3 +39,18 @@ def list_grants(organisation_id: UUID) -> ResponseReturnValue:
     ]
 
     return render_template("access_grant_funding/grant_list.html", grants=grants, organisation=organisation)
+
+
+@access_grant_funding_blueprint.route("/organisations", methods=["GET"])
+@has_access_grant_recipient_role
+def list_organisations() -> ResponseReturnValue:
+    user = interfaces.user.get_current_user()
+    grant_recipients = user.get_grant_recipients()
+
+    unique_orgs = {gr.organisation for gr in grant_recipients}
+    sorted_orgs = sorted(list(unique_orgs), key=lambda org: org.name)
+
+    if len(sorted_orgs) == 1:
+        return redirect(url_for("access_grant_funding.list_grants", organisation_id=sorted_orgs[0].id))
+
+    return render_template("access_grant_funding/organisation_list.html", organisations=sorted_orgs)
