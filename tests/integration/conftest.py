@@ -31,7 +31,7 @@ from werkzeug.test import TestResponse
 from app import create_app
 from app.common.data.interfaces.system import seed_system_data
 from app.common.data.models_user import User
-from app.common.data.types import AuthMethodEnum, RoleEnum
+from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
@@ -424,7 +424,9 @@ def authenticated_grant_recipient_member_client(
     """Create a client authenticated as a grant recipient for an org with can_manage_grants=False"""
 
     user = factories.user.create(email="recipientmember@communities.gov.uk")
-    grant_recipient = factories.grant_recipient.create(organisation__can_manage_grants=False)
+    grant_recipient = factories.grant_recipient.create(
+        organisation__can_manage_grants=False, grant__status=GrantStatusEnum.LIVE
+    )
     factories.user_role.create(
         user=user,
         permissions=[RoleEnum.MEMBER],
@@ -449,7 +451,9 @@ def authenticated_grant_recipient_data_provider_client(
     anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
 ) -> Generator[FundingServiceTestClient, None, None]:
     user = factories.user.create(email="recipientmember@communities.gov.uk")
-    grant_recipient = factories.grant_recipient.create(organisation__can_manage_grants=False)
+    grant_recipient = factories.grant_recipient.create(
+        organisation__can_manage_grants=False, grant__status=GrantStatusEnum.LIVE
+    )
     factories.user_role.create(
         user=user,
         permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],

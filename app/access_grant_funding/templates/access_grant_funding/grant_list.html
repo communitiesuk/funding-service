@@ -13,10 +13,7 @@
       {% if grants %}
         <ul class="govuk-list govuk-list--spaced">
           {% for grant in grants %}
-            {# todo: rebase with list reports and link to that #}
-            {% set collection = grant.reports[0] if grant.reports else None %}
-            {% set link = url_for("access_grant_funding.route_to_submission", organisation_id=organisation.id, grant_id=grant.id, collection_id=collection.id) if collection else "#" %}
-            <li><a class="govuk-link govuk-link--no-visited-state" href="{{ link }}">{{ grant.name }}</a></li>
+            <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("access_grant_funding.list_reports", organisation_id=organisation.id, grant_id=grant.id) }}">{{ grant.name }}</a></li>
           {% endfor %}
         </ul>
       {% else %}

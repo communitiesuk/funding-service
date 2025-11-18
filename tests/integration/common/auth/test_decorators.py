@@ -5,8 +5,9 @@ import pytest
 from flask import session, url_for
 from flask_login import login_user
 from sqlalchemy.exc import NoResultFound
-from werkzeug.exceptions import Forbidden, InternalServerError
+from werkzeug.exceptions import Forbidden, InternalServerError, NotFound
 
+from app import GrantStatusEnum
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
     collection_is_editable,
@@ -752,6 +753,27 @@ class TestIsAccessOrgMember:
         with pytest.raises(Forbidden):
             view_func(organisation_id=grant_recipient.organisation.id)
 
+    def test_user_non_live_grant_not_found(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create(status=GrantStatusEnum.DRAFT)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        factories.user_role.create(
+            user=user,
+            permissions=[RoleEnum.MEMBER],
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+        )
+
+        @is_access_org_member
+        def view_func(organisation_id: UUID):
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        with pytest.raises(NotFound):
+            view_func(organisation_id=grant_recipient.organisation.id, grant_id=grant.id)
+
     def test_user_org_member_responds(self, factories):
         user = factories.user.create(email="test.admin@communities.gov.uk")
         grant = factories.grant.create()
@@ -794,7 +816,7 @@ class TestHasAccessGrantRole:
     def test_no_result_organisation_is_not_grant_recipient(self, factories):
         user = factories.user.create(email="test.member@council.gov.uk")
         organisation = factories.organisation.create(can_manage_grants=False)
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], organisation=organisation, grant=None)
 
         @has_access_grant_role(role=RoleEnum.MEMBER)
@@ -828,7 +850,7 @@ class TestHasAccessGrantRole:
     @pytest.mark.parametrize("role", [RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER])
     def test_access_to_valid_grant_recipient(self, factories, role):
         user = factories.user.create(email="test.member@council.gov.uk")
-        grant_recipient = factories.grant_recipient.create()
+        grant_recipient = factories.grant_recipient.create(grant__status=GrantStatusEnum.LIVE)
         factories.user_role.create(
             user=user, permissions=[role], organisation=grant_recipient.organisation, grant=grant_recipient.grant
         )
@@ -844,7 +866,7 @@ class TestHasAccessGrantRole:
 
     def test_valid_but_wrong_role(self, factories):
         user = factories.user.create(email="test.member@council.gov.uk")
-        grant_recipient = factories.grant_recipient.create()
+        grant_recipient = factories.grant_recipient.create(grant__status=GrantStatusEnum.LIVE)
         factories.user_role.create(
             user=user,
             permissions=[RoleEnum.MEMBER],

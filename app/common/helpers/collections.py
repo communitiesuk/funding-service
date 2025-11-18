@@ -1,7 +1,7 @@
 import csv
 import json
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
@@ -175,11 +175,22 @@ class SubmissionHelper:
 
     @property
     def status(self) -> str:
+        # todo: FSPT-956 signed_off = SubmissionEventKey.SUBMISSION_SIGNED_OFF_FOR_CERTIFICATION in [ ... ]
         submitted = SubmissionEventKey.SUBMISSION_SUBMITTED in [x.key for x in self.submission.events]
+
+        # todo: make sure this is resilient to timezones, drift, etc. this is likely something that should
+        #       a batch job decision that is then added as a submission event rather than calculated by the server
+        submission_is_overdue = (
+            self.collection.submission_period_end_date and self.collection.submission_period_end_date < date.today()
+        )
 
         form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
         if {SubmissionStatusEnum.COMPLETED} == form_statuses and submitted:
             return SubmissionStatusEnum.COMPLETED
+        elif submission_is_overdue:
+            return SubmissionStatusEnum.OVERDUE
+        elif {SubmissionStatusEnum.COMPLETED} == form_statuses and not submitted:
+            return SubmissionStatusEnum.READY_TO_SUBMIT
         elif {SubmissionStatusEnum.NOT_STARTED} == form_statuses:
             return SubmissionStatusEnum.NOT_STARTED
         else:

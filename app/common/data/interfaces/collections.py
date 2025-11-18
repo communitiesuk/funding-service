@@ -270,7 +270,9 @@ def update_submission_data(
 
 # todo: nested components
 def get_all_submissions_with_mode_for_collection_with_full_schema(
-    collection_id: UUID, submission_mode: SubmissionModeEnum
+    collection_id: UUID,
+    submission_mode: SubmissionModeEnum,
+    grant_recipient_id: UUID | TNotProvided = NOT_PROVIDED,
 ) -> ScalarResult[Submission]:
     """
     Use this function to get all submission data for a collection - it
@@ -281,7 +283,7 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
 
     # todo: this feels redundant because this interface should probably be limited to a single collection and fetch
     #       that through a specific interface which already exists - this can then focus on submissions
-    return db.session.scalars(
+    stmt = (
         select(Submission)
         .where(Submission.collection_id == collection_id)
         .where(Submission.mode == submission_mode)
@@ -307,7 +309,10 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
             selectinload(Submission.events),
             joinedload(Submission.created_by),
         )
-    ).unique()
+    )
+    if grant_recipient_id is not NOT_PROVIDED:
+        stmt = stmt.where(Submission.grant_recipient_id == grant_recipient_id)  # TODO grant recipient
+    return db.session.scalars(stmt).unique()
 
 
 def get_submission_by_grant_recipient_collection(
