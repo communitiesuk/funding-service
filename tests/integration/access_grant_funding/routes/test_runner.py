@@ -11,7 +11,7 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
 )
-from tests.utils import get_h1_text, page_has_button, page_has_h2, page_has_link
+from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_h2, page_has_link
 
 
 class TestTasklist:
@@ -83,7 +83,7 @@ class TestTasklist:
         ),
     )
     def test_post_tasklist_complete_submission(
-        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, mock_notification_service_calls
     ):
         client = request.getfixturevalue(client_fixture)
         grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
@@ -124,6 +124,13 @@ class TestTasklist:
                 f"/reports/{submission.id}/confirmation"
             )
             assert response.location == expected_location
+
+            assert len(mock_notification_service_calls) == 1
+            assert mock_notification_service_calls[0].kwargs["personalisation"][
+                "grant_report_url"
+            ] == AnyStringMatching(
+                r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+"
+            )
 
 
 class TestAskAQuestion:

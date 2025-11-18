@@ -8,8 +8,11 @@ from flask import Flask, current_app, url_for
 from notifications_python_client import NotificationsAPIClient  # type: ignore[attr-defined]
 from notifications_python_client.errors import APIError, TokenError
 
+from app.common.filters import format_date
+
 if TYPE_CHECKING:
     from app.common.data.models import Grant, Organisation, Submission
+    from app.common.data.models_user import User
 
 
 class NotificationError(Exception):
@@ -131,4 +134,49 @@ class NotificationService:
                 "organisation_name": organisation.name,
                 "sign_in_url": url_for("deliver_grant_funding.list_grants", _external=True),
             },
+        )
+
+    def send_access_submission_signed_off_confirmation(
+        self, email_address: str, *, submission: "Submission"
+    ) -> Notification:
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_SIGNED_OFF_CONFIRMATION_TEMPLATE_ID"],
+            personalisation={
+                "grant_name": submission.collection.grant.name,
+                "reporting_period": submission.collection.name,
+                "grant_report_url": url_for(
+                    "access_grant_funding.tasklist",
+                    organisation_id=submission.grant_recipient.organisation.id,
+                    grant_id=submission.grant_recipient.grant.id,
+                    submission_id=submission.id,
+                    _external=True,
+                ),
+            },
+        )
+
+    # todo: do we want to persist the user who sent it for sign off, the user who certified, etc.
+    def send_access_submission_ready_to_certify(
+        self, email_address: str, *, submission: "Submission", submitted_by: "User | None" = None
+    ) -> Notification:
+        personalisation = {
+            "grant_name": submission.collection.grant.name,
+            "report_submitter": submitted_by.name if submitted_by else submission.created_by.name,
+            "reporting_period": submission.collection.name,
+            "report_deadline": format_date(submission.collection.submission_period_end_date)
+            if submission.collection.submission_period_end_date
+            else "(Monitoring report has no deadline set)",
+            "grant_report_url": url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=submission.grant_recipient.organisation.id,
+                grant_id=submission.grant_recipient.grant.id,
+                submission_id=submission.id,
+                _external=True,
+            ),
+            "government_department": submission.collection.grant.organisation.name,
+        }
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_READY_TO_CERTIFY_TEMPLATE_ID"],
+            personalisation=personalisation,
         )

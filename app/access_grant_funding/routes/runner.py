@@ -12,7 +12,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection, get_submission_by_grant_recipient_collection
 from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.helpers.collections import SubmissionHelper
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, notification_service
 
 
 @access_grant_funding_blueprint.route(
@@ -57,8 +57,17 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
             grant_id=grant_id, organisation_id=organisation_id, user=interfaces.user.get_current_user()
         ):
             if runner.complete_submission(interfaces.user.get_current_user(), requires_certification=True):
-                # todo: email to the user confirmation it has been submitted?
-                #       will need to know how to get data providers and certifiers at this stage
+                for data_provider in grant_recipient.data_providers:
+                    notification_service.send_access_submission_signed_off_confirmation(
+                        data_provider.email, submission=runner.submission.submission
+                    )
+                for certifier in grant_recipient.certifiers:
+                    notification_service.send_access_submission_ready_to_certify(
+                        certifier.email,
+                        submission=runner.submission.submission,
+                        submitted_by=interfaces.user.get_current_user(),
+                    )
+
                 return redirect(
                     url_for(
                         "access_grant_funding.submission_confirmation",

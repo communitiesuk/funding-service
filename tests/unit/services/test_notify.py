@@ -154,3 +154,78 @@ class TestNotificationService:
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_access_submission_signed_off_confirmation(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            grant__name="Test grant",
+        )
+        submission = factories.submission.build(
+            grant_recipient=grant_recipient,
+            collection__grant=grant_recipient.grant,
+            collection__name="Test collection",
+        )
+        email_address = "test@communities.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "e78b9c68-5d45-40a1-8339-04fe7ffc8caa",
+                        "personalisation": {
+                            "grant_name": "Test grant",
+                            "reporting_period": "Test collection",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_access_submission_signed_off_confirmation(
+            submission=submission, email_address="test@communities.gov.uk"
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_access_submission_ready_to_certify(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            grant__name="Test grant",
+        )
+        submission = factories.submission.build(
+            grant_recipient=grant_recipient,
+            collection__grant=grant_recipient.grant,
+            collection__name="Test collection",
+            collection__submission_period_end_date=datetime.date(2025, 11, 18),
+        )
+        submitted_by_user = factories.user.build(name="Submitter User")
+        email_address = "test@communities.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "e511c0d0-2ac8-4ded-80a2-13b79023c5d5",
+                        "personalisation": {
+                            "grant_name": "Test grant",
+                            "report_submitter": "Submitter User",
+                            "reporting_period": "Test collection",
+                            "report_deadline": "Tuesday 18 November 2025",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}",
+                            "government_department": "Test Organisation",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_access_submission_ready_to_certify(
+            submission=submission, email_address="test@communities.gov.uk", submitted_by=submitted_by_user
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
