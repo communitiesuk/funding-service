@@ -14,6 +14,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     get_all_submissions_with_mode_for_collection_with_full_schema,
 )
+from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisation
 from app.common.data.types import RoleEnum, SubmissionModeEnum
@@ -75,16 +76,10 @@ def list_organisations() -> ResponseReturnValue:
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id=grant_id)
 
-    grant_recipient = interfaces.user.get_current_user().get_grant_recipient(
-        organisation_id=organisation_id, grant_id=grant_id
-    )
-    if not grant_recipient:
-        return abort(404)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
 
     # TODO refactor when we persist the collection status and/or implement multiple rounds
-
     submissions = []
-
     for report in grant.access_reports:
         submissions.extend(
             [
@@ -103,4 +98,5 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
         organisation_id=organisation_id,
         grant=grant,
         submissions=submissions,
+        grant_recipient=grant_recipient,
     )

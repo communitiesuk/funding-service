@@ -162,12 +162,6 @@ class Collection(BaseModel):
     submission_period_start_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     submission_period_end_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
 
-    @property
-    def has_submission_period_ended(self) -> bool:
-        if not self.submission_period_end_date:
-            return False
-        return self.submission_period_end_date < datetime.date.today()
-
     # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
     _submissions: Mapped[list["Submission"]] = relationship(
         "Submission",

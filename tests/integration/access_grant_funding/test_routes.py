@@ -5,8 +5,8 @@ import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.types import RoleEnum
 from app import CollectionStatusEnum, GrantStatusEnum
+from app.common.data.types import RoleEnum
 from tests.utils import get_h1_text
 
 
@@ -121,6 +121,8 @@ class TestListOrganisations:
         )
         assert response.status_code == 302
         assert response.location == url_for("access_grant_funding.list_grants", organisation_id=organisation.id)
+
+
 class TestListReports:
     def test_get_list_reports(self, authenticated_grant_recipient_member_client, factories):
         organisation = authenticated_grant_recipient_member_client.organisation or factories.organisation.create(
@@ -150,10 +152,9 @@ class TestListReports:
         assert len(table_elem.find_all("tr")) == 3
 
     def test_get_list_reports_not_grant_recipient(self, authenticated_grant_recipient_member_client, factories):
-        organisation = authenticated_grant_recipient_member_client.organisation or factories.organisation.create(
-            can_manage_grants=False,
-        )
+        organisation = authenticated_grant_recipient_member_client.organisation
         grant = factories.grant.create(organisation=organisation, status=GrantStatusEnum.LIVE)
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
 
         _ = factories.collection.create_batch(
             2,

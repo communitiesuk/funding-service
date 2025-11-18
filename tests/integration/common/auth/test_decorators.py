@@ -816,7 +816,7 @@ class TestHasAccessGrantRole:
     def test_no_result_organisation_is_not_grant_recipient(self, factories):
         user = factories.user.create(email="test.member@council.gov.uk")
         organisation = factories.organisation.create(can_manage_grants=False)
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], organisation=organisation, grant=None)
 
         @has_access_grant_role(role=RoleEnum.MEMBER)
@@ -850,7 +850,7 @@ class TestHasAccessGrantRole:
     @pytest.mark.parametrize("role", [RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER])
     def test_access_to_valid_grant_recipient(self, factories, role):
         user = factories.user.create(email="test.member@council.gov.uk")
-        grant_recipient = factories.grant_recipient.create()
+        grant_recipient = factories.grant_recipient.create(grant__status=GrantStatusEnum.LIVE)
         factories.user_role.create(
             user=user, permissions=[role], organisation=grant_recipient.organisation, grant=grant_recipient.grant
         )
@@ -866,7 +866,7 @@ class TestHasAccessGrantRole:
 
     def test_valid_but_wrong_role(self, factories):
         user = factories.user.create(email="test.member@council.gov.uk")
-        grant_recipient = factories.grant_recipient.create()
+        grant_recipient = factories.grant_recipient.create(grant__status=GrantStatusEnum.LIVE)
         factories.user_role.create(
             user=user,
             permissions=[RoleEnum.MEMBER],

@@ -13,7 +13,7 @@
       {% if grants %}
         <ul class="govuk-list govuk-list--spaced">
           {% for grant in grants %}
-            <li><a class="govuk-link govuk-link--no-visited-state" href='{{ url_for("access_grant_funding.list_reports", organisation_id=organisation.id, grant_id=grant.id) }}'>{{ grant.name }}</a></li>
+            <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("access_grant_funding.list_reports", organisation_id=organisation.id, grant_id=grant.id) }}">{{ grant.name }}</a></li>
           {% endfor %}
         </ul>
       {% else %}

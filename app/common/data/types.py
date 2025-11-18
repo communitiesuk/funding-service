@@ -96,16 +96,18 @@ class SubmissionModeEnum(enum.StrEnum):
 class SubmissionStatusEnum(enum.StrEnum):
     NOT_STARTED = "Not started"
     IN_PROGRESS = "In progress"
+    READY_TO_SUBMIT = "Ready to submit"
+    AWAITING_SIGN_OFF = "Awaiting sign off"
+
+    # todo: change to "Submitted"
     COMPLETED = "Completed"
+    OVERDUE = "Overdue"
 
 
 class TasklistSectionStatusEnum(enum.StrEnum):
     NOT_STARTED = SubmissionStatusEnum.NOT_STARTED.value
     IN_PROGRESS = SubmissionStatusEnum.IN_PROGRESS.value
     COMPLETED = SubmissionStatusEnum.COMPLETED.value
-
-    if len(SubmissionStatusEnum) != 3:
-        raise RuntimeError("Make sure this enum is updated if we add anything to SubmissionStatusEnum")
 
     NO_QUESTIONS = "No questions"
 

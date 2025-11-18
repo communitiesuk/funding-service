@@ -1,15 +1,20 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {% macro status(status) %}
+  {% set show_without_tag = [ enum.tasklist_section_status.COMPLETED ] %}
   {%
     set classMap = {
         enum.tasklist_section_status.NOT_STARTED: "govuk-tag--grey",
-        enum.tasklist_section_status.IN_PROGRESS: "govuk-tag--blue",
+        enum.tasklist_section_status.IN_PROGRESS: "govuk-tag--light-blue",
         enum.tasklist_section_status.COMPLETED: "govuk-tag--green",
         enum.tasklist_section_status.NO_QUESTIONS: "govuk-tag--red",
     }
   %}
-  {{ govukTag({"text": status, "classes": classMap[status] }) }}
+  {% if status in show_without_tag %}
+    {{ status }}
+  {% else %}
+    {{ govukTag({"text": status, "classes": classMap[status] }) }}
+  {% endif %}
 {% endmacro %}
 
 {% macro grantStatusTag(status) %}
@@ -43,17 +48,22 @@
   {{ govukTag({"text": status, "classes": classMap[status] }) }}
 {% endmacro %}
 
-{% macro submissionStatusTag(status, overdue=False) %}
+{% macro submissionStatusTag(status) %}
+  {% set show_without_tag = [ enum.submission_status.COMPLETED ] %}
   {%
     set classMap = {
-        enum.submission_status.NOT_STARTED: "govuk-tag--grey" if not overdue else "govuk-tag--yellow",
-        enum.submission_status.IN_PROGRESS: "govuk-tag--light-blue" if not overdue else "govuk-tag--yellow",
-        enum.submission_status.COMPLETED: "",
-        enum.submission_status.READY_TO_SUBMIT: "govuk-tag--blue" if not overdue else "govuk-tag--yellow",
+        enum.submission_status.NOT_STARTED: "govuk-tag--grey",
+        enum.submission_status.IN_PROGRESS: "govuk-tag--light-blue",
+        enum.submission_status.READY_TO_SUBMIT: "govuk-tag--blue",
         enum.submission_status.AWAITING_SIGN_OFF: "govuk-tag--purple",
+        enum.submission_status.OVERDUE: "govuk-tag--yellow",
     }
   %}
-  {{ govukTag({"text": status if not overdue else "Overdue", "classes": classMap[status] }) }}
+  {% if status in show_without_tag %}
+    {{ status }}
+  {% else %}
+    {{ govukTag({"text": status, "classes": classMap[status] }) }}
+  {% endif %}
 {% endmacro %}
 
 {% macro submissionStatusAction(status) %}
@@ -61,9 +71,9 @@
     set textMap = {
         enum.submission_status.NOT_STARTED: "Start report",
         enum.submission_status.IN_PROGRESS: "Continue report",
-        enum.submission_status.COMPLETED: "View report",
         enum.submission_status.READY_TO_SUBMIT: "View report",
         enum.submission_status.AWAITING_SIGN_OFF: "View report",
+        enum.submission_status.COMPLETED: "View report",
     }
   %}
   {{ textMap[status] }}

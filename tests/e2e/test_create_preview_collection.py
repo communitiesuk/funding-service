@@ -931,7 +931,7 @@ def test_create_and_preview_report(
 
         # Submit the report
         expect(
-            tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("In progress"))
+            tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Ready to submit"))
         ).to_be_visible()
         expect(tasklist_page.submit_button).to_be_enabled()
 

@@ -316,7 +316,6 @@ def has_access_grant_recipient_role[**P](
     return access_grant_funding_login_required(wrapper)
 
 
-
 def is_access_org_member[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:

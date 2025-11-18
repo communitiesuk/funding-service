@@ -21,12 +21,16 @@
   }}
 
   {% if current_user.is_authenticated %}
-    {%
-      set nav_items = [
-          { "text": "Reports", "href": "#", "active": active_item_identifier == "reports" },
-          { "text": "Team", "href": "#", "active": active_item_identifier == "team" },
-      ]
-    %}
+    {% if grant_recipient %}
+      {%
+        set nav_items = [
+            { "text": "Reports", "href": url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id), "active": active_item_identifier == "reports" },
+            { "text": "Team", "href": "#", "active": active_item_identifier == "team" },
+        ]
+      %}
+    {% else %}
+      {% set nav_items = [] %}
+    {% endif %}
     {{ accessGrantFundingServiceNavigation(current_user, nav_items, grant_recipient=grant_recipient, organisation=organisation if not grant_recipient else None) }}
   {% endif %}
 {% endblock header %}
