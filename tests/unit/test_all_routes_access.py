@@ -121,9 +121,10 @@ routes_with_expected_access_grant_funding_org_access = [
     "access_grant_funding.list_grants",
     "access_grant_funding.route_to_submission",
     "access_grant_funding.tasklist",
-    "access_grant_funding.ask_a_question",
     "access_grant_funding.check_your_answers",
 ]
+
+routes_with_expected_access_grant_funding_has_data_provider_role_access = ["access_grant_funding.ask_a_question"]
 
 routes_with_expected_is_deliver_grant_funding_user_access = [
     "deliver_grant_funding.list_grants",
@@ -231,7 +232,7 @@ routes_with_access_controlled_by_flask_admin = [
 ]
 
 
-def test_accessibility_for_user_role_to_each_endpoint(app):
+def test_accessibility_for_user_role_to_each_endpoint(app):  # noqa: C901
     for rule in app.url_map.iter_rules():
         decorators = _get_decorators(app.view_functions[rule.endpoint])
         if rule.endpoint in routes_with_expected_platform_admin_only_access:
@@ -250,6 +251,8 @@ def test_accessibility_for_user_role_to_each_endpoint(app):
             assert "@access_grant_funding_login_required" in decorators
         elif rule.endpoint in routes_with_expected_access_grant_funding_org_access:
             assert "@is_access_org_member" in decorators
+        elif rule.endpoint in routes_with_expected_access_grant_funding_has_data_provider_role_access:
+            assert "@has_access_grant_role(RoleEnum.DATA_PROVIDER)" in decorators
         elif rule.endpoint in routes_with_no_expected_access_restrictions:
             # If route is expected to be unauthenticated, check it doesn't have any auth decorators
             assert not any(decorator in all_auth_annotations for decorator in decorators)

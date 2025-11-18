@@ -31,11 +31,12 @@
   </div>
 
   {# todo: doesn't feel like the right thing for a macro (more of a partial) but convenient for now #}
+  {# todo: should we move this logic out of the runner? its going to be quite specific for access #}
   {% set before_submission %}
     <h2 class="govuk-heading-m">Submit your report to your certifier</h2>
     <p class="govuk-body">You can submit your report to the certifier to sign off.</p>
     <p class="govuk-body">You cannot make changes while your report is awaiting sign off.</p>
   {% endset %}
 
-  {{ collection_tasklist(runner, "Submit report to certifier", before_submission=before_submission) }}
+  {{ collection_tasklist(runner, "Submit report to certifier", before_submission=before_submission, has_permission_to_edit=authorisation_helper.is_access_grant_data_provider(runner.submission.grant.id, runner.submission.submission.grant_recipient.organisation_id, current_user)) }}
 {% endblock content %}

@@ -1,15 +1,16 @@
 from typing import Optional
 from uuid import UUID
 
-from flask import redirect, render_template, request, url_for
+from flask import abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
-from app.common.auth.decorators import is_access_org_member
+from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.auth.decorators import has_access_grant_role, is_access_org_member
 from app.common.collections.runner import AGFFormRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection, get_submission_by_grant_recipient_collection
-from app.common.data.types import FormRunnerState, SubmissionModeEnum
+from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.extensions import auto_commit_after_request
 
 
@@ -56,16 +57,21 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
     runner = AGFFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
 
     if runner.tasklist_form.validate_on_submit():
-        if runner.complete_submission(interfaces.user.get_current_user()):
-            # todo: sign off confirmation and email
-            return redirect(
-                url_for(
-                    "access_grant_funding.tasklist",
-                    organisation_id=organisation_id,
-                    grant_id=grant_id,
-                    submission_id=submission_id,
+        if AuthorisationHelper.is_access_grant_data_provider(
+            grant_id=grant_id, organisation_id=organisation_id, user=interfaces.user.get_current_user()
+        ):
+            if runner.complete_submission(interfaces.user.get_current_user()):
+                # todo: sign off confirmation and email
+                return redirect(
+                    url_for(
+                        "access_grant_funding.tasklist",
+                        organisation_id=organisation_id,
+                        grant_id=grant_id,
+                        submission_id=submission_id,
+                    )
                 )
-            )
+        else:
+            return abort(403, description="Access denied")
 
     return render_template("access_grant_funding/reports/tasklist.html", grant_recipient=grant_recipient, runner=runner)
 
@@ -79,7 +85,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
-@is_access_org_member
+@has_access_grant_role(RoleEnum.DATA_PROVIDER)
 def ask_a_question(
     organisation_id: UUID,
     grant_id: UUID,
@@ -133,8 +139,13 @@ def check_your_answers(
     )
 
     if runner.check_your_answers_form.validate_on_submit():
-        if runner.save_is_form_completed(interfaces.user.get_current_user()):
-            return redirect(runner.next_url)
+        if AuthorisationHelper.is_access_grant_data_provider(
+            grant_id=grant_id, organisation_id=organisation_id, user=interfaces.user.get_current_user()
+        ):
+            if runner.save_is_form_completed(interfaces.user.get_current_user()):
+                return redirect(runner.next_url)
+        else:
+            return abort(403, description="Access denied")
 
     return render_template(
         "access_grant_funding/reports/check_your_answers.html", grant_recipient=grant_recipient, runner=runner

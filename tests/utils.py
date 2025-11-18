@@ -136,6 +136,16 @@ def page_has_link(soup: BeautifulSoup, link_text: str) -> Tag | None:
     return None
 
 
+def page_has_h2(soup: BeautifulSoup, h2_text: str) -> Tag | None:
+    h2s = soup.select("h2")
+
+    for h2 in h2s:
+        if h2_text in h2.text:
+            return h2
+
+    return None
+
+
 def page_has_button(soup: BeautifulSoup, button_text: str) -> Tag | None:
     buttons = soup.select("button")
 

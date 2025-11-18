@@ -3,7 +3,6 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data import interfaces
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
@@ -12,27 +11,21 @@ from app.common.data.types import (
     SubmissionEventKey,
     SubmissionModeEnum,
 )
-from tests.utils import get_h1_text
-
-
-def _get_or_create_grant_recipient(organisation, grant, factories):
-    """Get existing grant_recipient or create one if it doesn't exist."""
-    try:
-        return interfaces.grant_recipients.get_grant_recipient(grant.id, organisation.id)
-    except Exception:
-        # If it doesn't exist, create it
-        return factories.grant_recipient.create(organisation=organisation, grant=grant)
+from tests.utils import get_h1_text, page_has_button, page_has_h2, page_has_link
 
 
 class TestTasklist:
     @pytest.mark.parametrize(
-        "client_fixture, can_access",
+        "client_fixture, can_access, can_edit",
         (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_recipient_member_client", True),
+            ("authenticated_no_role_client", False, False),
+            ("authenticated_grant_recipient_member_client", True, False),
+            ("authenticated_grant_recipient_data_provider_client", True, True),
         ),
     )
-    def test_get_tasklist(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+    def test_get_tasklist(
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, can_edit: bool, factories
+    ):
         client = request.getfixturevalue(client_fixture)
         grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
         question = factories.question.create(
@@ -58,11 +51,35 @@ class TestTasklist:
             assert "Colour information" in soup.text
             assert "Not started" in soup.text
 
+            submission_heading = page_has_h2(soup, "Submit your report to your certifier")
+            submission_action = page_has_button(soup, "Submit report to certifier")
+            tasklist_action = page_has_link(soup, "Colour information")
+
+            if can_edit:
+                assert submission_heading is not None
+                assert submission_action is not None
+
+                # an empty form links to the first question
+                assert tasklist_action["href"] == (
+                    f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
+                    f"/reports/{submission.id}/questions/{question.id}"
+                )
+            else:
+                assert submission_heading is None
+                assert submission_action is None
+
+                # even empty forms don't go to question if you can't edit
+                assert tasklist_action["href"] == (
+                    f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
+                    f"/reports/{submission.id}/check-your-answers/{question.form.id}?source=tasklist"
+                )
+
     @pytest.mark.parametrize(
         "client_fixture, can_access",
         (
             ("authenticated_no_role_client", False),
-            ("authenticated_grant_recipient_member_client", True),
+            ("authenticated_grant_recipient_member_client", False),
+            ("authenticated_grant_recipient_data_provider_client", True),
         ),
     )
     def test_post_tasklist_complete_submission(
@@ -114,15 +131,13 @@ class TestAskAQuestion:
         "client_fixture, can_access",
         (
             ("authenticated_no_role_client", False),
-            ("authenticated_grant_recipient_member_client", True),
+            ("authenticated_grant_recipient_member_client", False),
+            ("authenticated_grant_recipient_data_provider_client", True),
         ),
     )
     def test_get_ask_a_question(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
         grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
-        question = factories.question.create(
-            form__title="Colour information", form__collection__grant=grant_recipient.grant
-        )
         question = factories.question.create(
             text="What's your favourite colour?",
             form__title="Colour information",
@@ -153,9 +168,9 @@ class TestAskAQuestion:
         (True, False),
     )
     def test_get_ask_a_question_with_add_another_context(
-        self, show_on_same_page: bool, authenticated_grant_recipient_member_client, factories
+        self, show_on_same_page: bool, authenticated_grant_recipient_data_provider_client, factories
     ):
-        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         group = factories.group.create(
             add_another=True,
             name="Your colour preferences",
@@ -172,7 +187,7 @@ class TestAskAQuestion:
             collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
         )
         submission.data = {str(group.id): [{str(question.id): "Blue"}]}
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -197,9 +212,9 @@ class TestAskAQuestion:
         assert soup.find("input", {"id": question.safe_qid}).get("value") == "Blue"
 
     def test_get_ask_a_question_add_another_condition_shows(
-        self, authenticated_grant_recipient_member_client, factories
+        self, authenticated_grant_recipient_data_provider_client, factories
     ):
-        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         group = factories.group.create(
             add_another=True,
             name="Your colour preferences",
@@ -219,7 +234,7 @@ class TestAskAQuestion:
         )
         factories.expression.create(
             question=question_2,
-            created_by=authenticated_grant_recipient_member_client.user,
+            created_by=authenticated_grant_recipient_data_provider_client.user,
             type_=ExpressionType.CONDITION,
             context={"question_id": str(question.id)},
             statement=f"{question.safe_qid} is True",
@@ -231,7 +246,7 @@ class TestAskAQuestion:
         submission.data = {str(group.id): [{str(question.id): True}, {str(question.id): False}]}
 
         # the first entry does meet the condition constraints and should be shown
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -246,7 +261,7 @@ class TestAskAQuestion:
         assert "What's your favourite colour?" in soup.text
 
         # the second entry doesn't meet the conditions constraints and should not be shown
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -266,15 +281,15 @@ class TestAskAQuestion:
         )
 
     def test_get_ask_a_question_with_failing_condition_redirects(
-        self, authenticated_grant_recipient_member_client, factories
+        self, authenticated_grant_recipient_data_provider_client, factories
     ):
-        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         question = factories.question.create(form__collection__grant=grant_recipient.grant)
         submission = factories.submission.create(
             collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
         )
 
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -288,7 +303,7 @@ class TestAskAQuestion:
         # the question should no longer be accessible
         factories.expression.create(question=question, type_=ExpressionType.CONDITION, statement="False")
 
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -310,7 +325,8 @@ class TestAskAQuestion:
         "client_fixture, can_access",
         (
             ("authenticated_no_role_client", False),
-            ("authenticated_grant_recipient_member_client", True),
+            ("authenticated_grant_recipient_member_client", False),
+            ("authenticated_grant_recipient_data_provider_client", True),
         ),
     )
     def test_post_ask_a_question(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
@@ -381,8 +397,10 @@ class TestAskAQuestion:
             )
             assert response.location == expected_location
 
-    def test_post_ask_a_question_add_another_context(self, authenticated_grant_recipient_member_client, factories):
-        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+    def test_post_ask_a_question_add_another_context(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         group = factories.group.create(
             add_another=True,
             form__collection__grant=grant_recipient.grant,
@@ -398,7 +416,7 @@ class TestAskAQuestion:
         )
 
         # Redirect to next question maintaining add another context on successful post
-        response = authenticated_grant_recipient_member_client.post(
+        response = authenticated_grant_recipient_data_provider_client.post(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -422,7 +440,7 @@ class TestAskAQuestion:
         assert response.location == expected_location
 
         # Redirect to add another summary on successful post
-        response = authenticated_grant_recipient_member_client.post(
+        response = authenticated_grant_recipient_data_provider_client.post(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -445,9 +463,9 @@ class TestAskAQuestion:
         assert response.location == expected_location
 
     def test_question_without_guidance_uses_question_as_heading(
-        self, authenticated_grant_recipient_member_client, factories
+        self, authenticated_grant_recipient_data_provider_client, factories
     ):
-        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         question = factories.question.create(
             text="What's your favourite colour?",
             guidance_heading=None,
@@ -458,7 +476,7 @@ class TestAskAQuestion:
             collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
         )
 
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -473,8 +491,10 @@ class TestAskAQuestion:
 
         assert get_h1_text(soup) == "What's your favourite colour?"
 
-    def test_question_with_guidance_uses_guidance_heading(self, authenticated_grant_recipient_member_client, factories):
-        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+    def test_question_with_guidance_uses_guidance_heading(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         question = factories.question.create(
             text="What's your favourite colour?",
             guidance_heading="Important instructions",
@@ -485,7 +505,7 @@ class TestAskAQuestion:
             collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
         )
 
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -503,9 +523,9 @@ class TestAskAQuestion:
         assert soup.select_one("label").text.strip() == "What's your favourite colour?"
 
     def test_group_same_page_with_questions_uses_group_guidance(
-        self, authenticated_grant_recipient_member_client, factories
+        self, authenticated_grant_recipient_data_provider_client, factories
     ):
-        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         group = factories.group.create(
             text="Group title - should not be used",
             guidance_heading="Group guidance heading",
@@ -524,7 +544,7 @@ class TestAskAQuestion:
             collection=group.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
         )
 
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
@@ -544,8 +564,8 @@ class TestAskAQuestion:
         assert [label.text.strip() for label in soup.select("label")] == [q1.text, q2.text]
 
     class TestAskAQuestionAddAnotherSummary:
-        def test_get_add_another_summary_empty(self, authenticated_grant_recipient_member_client, factories):
-            grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        def test_get_add_another_summary_empty(self, authenticated_grant_recipient_data_provider_client, factories):
+            grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
             group = factories.group.create(
                 add_another=True, name="Test groups", text="Test groups", form__collection__grant=grant_recipient.grant
             )
@@ -555,7 +575,7 @@ class TestAskAQuestion:
                 collection=group.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
             )
 
-            response = authenticated_grant_recipient_member_client.get(
+            response = authenticated_grant_recipient_data_provider_client.get(
                 url_for(
                     "access_grant_funding.ask_a_question",
                     organisation_id=grant_recipient.organisation.id,
@@ -577,9 +597,9 @@ class TestAskAQuestion:
             assert soup.find("input", {"name": "add_another", "value": "yes"}).get("checked") is not None
 
         def test_get_ask_a_question_add_another_summary_with_data(
-            self, authenticated_grant_recipient_member_client, factories
+            self, authenticated_grant_recipient_data_provider_client, factories
         ):
-            grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+            grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
             group = factories.group.create(
                 add_another=True, name="Test groups", text="Test groups", form__collection__grant=grant_recipient.grant
             )
@@ -600,7 +620,7 @@ class TestAskAQuestion:
                 ]
             }
 
-            response = authenticated_grant_recipient_member_client.get(
+            response = authenticated_grant_recipient_data_provider_client.get(
                 url_for(
                     "access_grant_funding.ask_a_question",
                     organisation_id=grant_recipient.organisation.id,
@@ -638,17 +658,21 @@ class TestAskAQuestion:
 
 class TestCheckYourAnswers:
     @pytest.mark.parametrize(
-        "client_fixture, can_access",
+        "client_fixture, can_access, can_edit",
         (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_recipient_member_client", True),
+            ("authenticated_no_role_client", False, False),
+            ("authenticated_grant_recipient_member_client", True, False),
+            ("authenticated_grant_recipient_data_provider_client", True, True),
         ),
     )
-    def test_get_check_your_answers(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+    def test_get_check_your_answers(
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, can_edit: bool, factories
+    ):
         client = request.getfixturevalue(client_fixture)
         grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
         question = factories.question.create(
             text="What's your favourite colour?",
+            name="favourite colour",
             form__title="Colour information",
             form__collection__grant=grant_recipient.grant,
         )
@@ -675,10 +699,51 @@ class TestCheckYourAnswers:
             assert "What's your favourite colour?" in soup.text
             assert "Colour information" in soup.text
 
+            continue_button = page_has_button(soup, "Save and continue")
+            return_to_tasklist_link = page_has_link(soup, "Return to the task list")
+            edit_action_link = page_has_link(soup, "Enter favourite colour")
+
+            if can_edit:
+                assert continue_button is not None
+                assert edit_action_link is not None
+                assert return_to_tasklist_link is None
+            else:
+                assert continue_button is None
+                assert edit_action_link is None
+                assert return_to_tasklist_link is not None
+                assert soup.find("dd", {"class": "govuk-summary-list__value"}).text.strip() == "(Not answered)"
+
+        submission.data = {str(question.id): "Blue"}
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.check_your_answers",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                section_id=question.form.id,
+            )
+        )
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+
+            change_link = page_has_link(soup, "Change")
+            completed_section = "Have you completed this section?" in soup.text
+
+            if can_edit:
+                assert change_link is not None
+                assert completed_section is True
+            else:
+                assert change_link is None
+                assert completed_section is False
+
     def test_get_check_your_answers_with_extracts_add_another(
-        self, authenticated_grant_recipient_member_client, factories
+        self, authenticated_grant_recipient_data_provider_client, factories
     ):
-        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         question = factories.question.create(
             text="What's your favourite colour?",
             form__title="Colour information",
@@ -702,7 +767,7 @@ class TestCheckYourAnswers:
             ]
         }
 
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.check_your_answers",
                 organisation_id=grant_recipient.organisation.id,
@@ -732,7 +797,8 @@ class TestCheckYourAnswers:
         "client_fixture, can_access",
         (
             ("authenticated_no_role_client", False),
-            ("authenticated_grant_recipient_member_client", True),
+            ("authenticated_grant_recipient_member_client", False),
+            ("authenticated_grant_recipient_data_provider_client", True),
         ),
     )
     def test_post_check_your_answers_complete_form(
