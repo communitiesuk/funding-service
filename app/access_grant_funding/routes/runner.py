@@ -6,7 +6,7 @@ from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.auth.decorators import has_access_grant_role, is_access_org_member
+from app.common.auth.decorators import has_access_grant_role
 from app.common.collections.runner import AGFFormRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection, get_submission_by_grant_recipient_collection
@@ -18,15 +18,15 @@ from app.extensions import auto_commit_after_request
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/collection/<uuid:collection_id>", methods=["GET"]
 )
 @auto_commit_after_request
-@is_access_org_member
+@has_access_grant_role(RoleEnum.MEMBER)
 def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
     submission = get_submission_by_grant_recipient_collection(grant_recipient, collection_id)
 
     if not submission:
-        collection = get_collection(collection_id)
-        # todo: depending on what we land on with decorators this might check for data provider role
+        # ensure the collection is part of this grant
+        collection = get_collection(collection_id, grant_id=grant_id)
         submission = interfaces.collections.create_submission(
             collection=collection, grant_recipient=grant_recipient, created_by=user, mode=SubmissionModeEnum.LIVE
         )
@@ -40,16 +40,11 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
     )
 
 
-# todo: assumes that the route from the reports list page is able to create the submission if it doesn't exist
-#       might just need to add that as it will be a pain to try out locally without
 @access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>", methods=["GET", "POST"]
 )
 @auto_commit_after_request
-# todo: change to has member role for org + grant
-#       has member role -> in the method it can reject for not data provider
-#       this might be tweaked if read only form is switched up to use the view all sections with stickies
-@is_access_org_member
+@has_access_grant_role(RoleEnum.MEMBER)
 def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
@@ -125,7 +120,7 @@ def ask_a_question(
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
-@is_access_org_member
+@has_access_grant_role(RoleEnum.MEMBER)
 def check_your_answers(
     organisation_id: UUID, grant_id: UUID, submission_id: UUID, section_id: UUID
 ) -> ResponseReturnValue:

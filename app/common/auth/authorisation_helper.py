@@ -126,6 +126,8 @@ class AuthorisationHelper:
                 return AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
             case RoleEnum.CERTIFIER:
                 return AuthorisationHelper.is_access_grant_certifier(grant_id, organisation_id, user)
+            case RoleEnum.MEMBER:
+                return AuthorisationHelper.is_access_grant_member(grant_id, organisation_id, user)
             case _:
                 raise ValueError(f"Unknown role {role}")
 
@@ -182,6 +184,27 @@ class AuthorisationHelper:
 
         for role in user.roles:
             if RoleEnum.DATA_PROVIDER in role.permissions:
+                # entire org member
+                if role.organisation_id == grant_recipient.organisation_id and role.grant_id is None:
+                    return True
+                # specific grant member
+                if (
+                    role.organisation_id == grant_recipient.organisation_id
+                    and role.grant_id == grant_recipient.grant_id
+                ):
+                    return True
+        return False
+
+    @staticmethod
+    def is_access_grant_member(grant_id: UUID, organisation_id: UUID, user: User | AnonymousUserMixin) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
+
+        # its' a valid grant recipient or raise
+        grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+        for role in user.roles:
+            if RoleEnum.MEMBER in role.permissions:
                 # entire org member
                 if role.organisation_id == grant_recipient.organisation_id and role.grant_id is None:
                     return True

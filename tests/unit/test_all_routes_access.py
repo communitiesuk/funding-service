@@ -119,6 +119,9 @@ routes_with_expected_access_grant_funding_logged_in_access = [
 
 routes_with_expected_access_grant_funding_org_access = [
     "access_grant_funding.list_grants",
+]
+
+routes_with_expected_access_grant_funding_has_member_role_access = [
     "access_grant_funding.route_to_submission",
     "access_grant_funding.tasklist",
     "access_grant_funding.check_your_answers",
@@ -253,6 +256,8 @@ def test_accessibility_for_user_role_to_each_endpoint(app):  # noqa: C901
             assert "@is_access_org_member" in decorators
         elif rule.endpoint in routes_with_expected_access_grant_funding_has_data_provider_role_access:
             assert "@has_access_grant_role(RoleEnum.DATA_PROVIDER)" in decorators
+        elif rule.endpoint in routes_with_expected_access_grant_funding_has_member_role_access:
+            assert "@has_access_grant_role(RoleEnum.MEMBER)" in decorators
         elif rule.endpoint in routes_with_no_expected_access_restrictions:
             # If route is expected to be unauthenticated, check it doesn't have any auth decorators
             assert not any(decorator in all_auth_annotations for decorator in decorators)
