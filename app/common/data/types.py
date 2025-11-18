@@ -114,7 +114,7 @@ class TasklistSectionStatusEnum(enum.StrEnum):
 
 class SubmissionEventKey(enum.StrEnum):
     FORM_RUNNER_FORM_COMPLETED = "Form completed"
-    SUBMISSION_SIGNED_OFF_AWAITING_CERTIFICATION = "Submission signed off"
+    SUBMISSION_SENT_FOR_CERTIFICATION = "Submission sent for certification"
     SUBMISSION_SUBMITTED = "Submission submitted"
 
 

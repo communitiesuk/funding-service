@@ -821,3 +821,13 @@ class GrantRecipient(BaseModel):
                     break
 
         return preferred_certifiers or self._all_certifiers
+
+    @property
+    def certifier_names(self) -> str:
+        names = [certifier.name for certifier in self.certifiers]
+        if names and len(names) == 1:
+            return names[0]
+        elif names and len(names) > 1:
+            return "{} or {}".format(", ".join(names[:-1]), names[-1])
+        else:
+            return "Your certifier"

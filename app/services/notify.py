@@ -141,7 +141,7 @@ class NotificationService:
     ) -> Notification:
         return self._send_email(
             email_address,
-            current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_SIGNED_OFF_CONFIRMATION_TEMPLATE_ID"],
+            current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_SENT_FOR_CERTIFICATION_CONFIRMATION_TEMPLATE_ID"],
             personalisation={
                 "grant_name": submission.collection.grant.name,
                 "reporting_period": submission.collection.name,

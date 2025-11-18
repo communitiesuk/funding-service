@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
@@ -8,6 +10,7 @@ from app.common.data.types import (
     ManagedExpressionsEnum,
     QuestionDataType,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionEventKey,
     SubmissionModeEnum,
 )
@@ -843,3 +846,107 @@ class TestCheckYourAnswers:
                 submission_id=submission.id,
             )
             assert response.location == expected_location
+
+
+class TestConfirmSentForCertification:
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_recipient_member_client", True),
+            ("authenticated_grant_recipient_data_provider_client", True),
+        ),
+    )
+    def test_get_confirm_sent_for_certification(
+        self, factories, client_fixture: str, can_access: bool, request: FixtureRequest
+    ):
+        client = request.getfixturevalue(client_fixture)
+        grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
+
+        factories.user.create(
+            name="Certifier One",
+            roles=[
+                factories.user_role.create(
+                    organisation=grant_recipient.organisation,
+                    permissions=[RoleEnum.CERTIFIER],
+                )
+            ],
+        )
+        factories.user.create(
+            name="Certifier Two",
+            roles=[
+                factories.user_role.create(
+                    organisation=grant_recipient.organisation,
+                    permissions=[RoleEnum.CERTIFIER],
+                )
+            ],
+        )
+        question = factories.question.create(
+            form__title="Colour information",
+            form__collection__grant=grant_recipient.grant,
+            form__collection__reporting_period_start_date=date(2025, 1, 1),
+            form__collection__reporting_period_end_date=date(2025, 6, 1),
+            form__collection__submission_period_end_date=date(2025, 12, 31),
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Blue"},
+            events=[
+                factories.submission_event.create(
+                    key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED, form=question.form
+                ),
+                factories.submission_event.create(key=SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION),
+            ],
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.confirm_sent_for_certification",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+        if can_access:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert (
+                "Certifier One or Certifier Two will need to review and sign off the report by "
+                "Wednesday 31 December 2025."
+            ) in soup.text
+        else:
+            assert response.status_code == 403
+
+    def test_get_confirm_sent_for_certification_redirects_if_not_sent(
+        self, authenticated_grant_recipient_member_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        question = factories.question.create(
+            form__title="Colour information", form__collection__grant=grant_recipient.grant
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={},
+            events=[],
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.confirm_sent_for_certification",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+        assert response.status_code == 302
+        expected_location = url_for(
+            "access_grant_funding.tasklist",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            submission_id=submission.id,
+        )
+        assert response.location == expected_location

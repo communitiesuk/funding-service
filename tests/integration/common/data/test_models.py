@@ -575,6 +575,28 @@ class TestGrantRecipientModel:
         assert len(grant_recipient.data_providers) == 1
         assert grant_recipient.data_providers[0].id == user.id
 
+    @pytest.mark.parametrize(
+        "certifier_names, expected",
+        (
+            ([], "Your certifier"),
+            (["Certifier One"], "Certifier One"),
+            (["Certifier One", "Certifier Two"], "Certifier One or Certifier Two"),
+            (["Certifier One", "Certifier Two", "Certifier Three"], "Certifier One, Certifier Two or Certifier Three"),
+        ),
+    )
+    def test_certifier_names_property(self, factories, certifier_names: list[str], expected: str):
+        grant_recipient = factories.grant_recipient.create()
+        for name in certifier_names:
+            user = factories.user.create(name=name)
+            factories.user_role.create(
+                user=user,
+                organisation=grant_recipient.organisation,
+                grant=grant_recipient.grant,
+                permissions=[RoleEnum.CERTIFIER],
+            )
+
+        assert grant_recipient.certifier_names == expected
+
 
 class TestComponentReferenceModel:
     def test_deleting_a_component_with_a_reference_is_blocked(self, factories, db_session):

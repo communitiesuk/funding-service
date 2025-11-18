@@ -40,11 +40,11 @@
 
       <h2 class="govuk-heading-m">What happens next</h2>
 
-      <p class="govuk-body">Your certifier will need to review and sign off the report by {{ format_date(submission_helper.collection.submission_period_end_date) }}.</p>
+      <p class="govuk-body">{{ grant_recipient.certifier_names }} will need to review and sign off the report by {{ format_date(submission_helper.collection.submission_period_end_date) }}.</p>
 
       <p class="govuk-body">You will receive an email to confirm whether your report was signed off and submitted or if you need to make changes.</p>
 
-      <p class="govuk-body">You cannot make changes while awaiting sign off or once the report has been signed off and submitted.</p>
+      <p class="govuk-body">You cannot make changes while awaiting sign off or once the report has been signed off and submitted to {{ grant_recipient.grant.organisation.name }}.</p>
 
       <p class="govuk-body">
         <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.list_reports', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id) }}"> Return to report </a>

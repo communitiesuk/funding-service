@@ -70,7 +70,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
 
                 return redirect(
                     url_for(
-                        "access_grant_funding.submission_confirmation",
+                        "access_grant_funding.confirm_sent_for_certification",
                         organisation_id=organisation_id,
                         grant_id=grant_id,
                         submission_id=submission_id,
@@ -164,10 +164,10 @@ def check_your_answers(
 )
 @auto_commit_after_request
 @has_access_grant_role(RoleEnum.MEMBER)
-def submission_confirmation(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
     submission_helper = SubmissionHelper.load(submission_id=submission_id)
-    if not (submission_helper.is_completed or submission_helper.is_signed_off):
+    if not (submission_helper.is_completed or submission_helper.is_awaiting_sign_off):
         return redirect(
             url_for(
                 "access_grant_funding.tasklist",

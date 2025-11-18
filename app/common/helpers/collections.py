@@ -175,7 +175,7 @@ class SubmissionHelper:
 
     @property
     def status(self) -> str:
-        signed_off = SubmissionEventKey.SUBMISSION_SIGNED_OFF_AWAITING_CERTIFICATION in [
+        awaiting_sign_off = SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION in [
             x.key for x in self.submission.events
         ]
         submitted = SubmissionEventKey.SUBMISSION_SUBMITTED in [x.key for x in self.submission.events]
@@ -191,7 +191,7 @@ class SubmissionHelper:
             return SubmissionStatusEnum.COMPLETED
         elif submission_is_overdue:
             return SubmissionStatusEnum.OVERDUE
-        elif {SubmissionStatusEnum.COMPLETED} == form_statuses and signed_off:
+        elif {SubmissionStatusEnum.COMPLETED} == form_statuses and awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
         elif {SubmissionStatusEnum.COMPLETED} == form_statuses and not submitted:
             return SubmissionStatusEnum.READY_TO_SUBMIT
@@ -219,7 +219,7 @@ class SubmissionHelper:
         return self.status == SubmissionStatusEnum.COMPLETED
 
     @property
-    def is_signed_off(self) -> bool:
+    def is_awaiting_sign_off(self) -> bool:
         return self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
     @property
@@ -394,7 +394,7 @@ class SubmissionHelper:
     def submit_answer_for_question(
         self, question_id: UUID, form: DynamicQuestionForm, *, add_another_index: int | None = None
     ) -> None:
-        if self.is_completed or self.is_signed_off:
+        if self.is_completed or self.is_awaiting_sign_off:
             raise ValueError(
                 f"Could not submit answer for question_id={question_id} "
                 f"because submission id={self.id} is already submitted."
@@ -422,13 +422,13 @@ class SubmissionHelper:
         else:
             raise ValueError(f"Could not submit submission id={self.id} because not all forms are complete.")
 
-    def sign_off(self, user: "User") -> None:
-        if self.is_completed or self.is_signed_off:
+    def mark_as_sent_for_certification(self, user: "User") -> None:
+        if self.is_completed or self.is_awaiting_sign_off:
             return
 
         if self.all_forms_are_completed:
             interfaces.collections.add_submission_event(
-                self.submission, SubmissionEventKey.SUBMISSION_SIGNED_OFF_AWAITING_CERTIFICATION, user
+                self.submission, SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION, user
             )
         else:
             raise ValueError(f"Could not sign off submission id={self.id} because not all forms are complete.")

@@ -21,7 +21,7 @@ def upgrade() -> None:
         enum_name="submission_event_key_enum",
         new_values=[
             "FORM_RUNNER_FORM_COMPLETED",
-            "SUBMISSION_SIGNED_OFF_AWAITING_CERTIFICATION",
+            "SUBMISSION_SENT_FOR_CERTIFICATION",
             "SUBMISSION_SUBMITTED",
         ],
         affected_columns=[TableReference(table_schema="public", table_name="submission_event", column_name="key")],

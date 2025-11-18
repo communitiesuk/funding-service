@@ -227,7 +227,7 @@ class FormRunner:
     def complete_submission(self, user: "User", requires_certification: bool = False) -> bool:
         try:
             if requires_certification:
-                self.submission.sign_off(user)
+                self.submission.mark_as_sent_for_certification(user)
             else:
                 self.submission.submit(user)
             return True
@@ -320,7 +320,7 @@ class FormRunner:
 
         if not self.submission.is_component_visible(self.component, self.runner_evaluation_context):
             self._valid = False
-        elif self.submission.is_completed or self.submission.is_signed_off:
+        elif self.submission.is_completed or self.submission.is_awaiting_sign_off:
             self._valid = False
         else:
             self._valid = True
