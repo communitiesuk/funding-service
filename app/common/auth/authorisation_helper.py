@@ -236,3 +236,13 @@ class AuthorisationHelper:
                 ):
                     return True
         return False
+
+    @staticmethod
+    def has_access_grant_recipient_role(user: User | AnonymousUserMixin) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
+
+        if any(role.organisation and not role.organisation.can_manage_grants for role in user.roles):
+            return True
+
+        return False

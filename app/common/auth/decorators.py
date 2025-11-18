@@ -300,6 +300,22 @@ def collection_is_editable[**P]() -> Callable[[Callable[P, ResponseReturnValue]]
     return decorator
 
 
+def has_access_grant_recipient_role[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        # This decorator is itself wrapped by `access_grant_funding_login_required`, so we know that `current_user`
+        # exists and is not an anonymous user (ie a user is definitely logged-in).
+
+        if not AuthorisationHelper.has_access_grant_recipient_role(user=interfaces.user.get_current_user()):
+            return abort(403)
+
+        return func(*args, **kwargs)
+
+    return access_grant_funding_login_required(wrapper)
+
+
 def is_access_org_member[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:

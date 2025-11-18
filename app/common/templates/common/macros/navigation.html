@@ -10,7 +10,7 @@
         <nav aria-label="Menu" class="govuk-service-navigation__wrapper app-service-navigation__wrapper--sectional app-hide-mobile">
           <ul class="govuk-service-navigation__list">
             <li class="govuk-service-navigation__item">
-              <a class="govuk-service-navigation__link" href="#">Change organisation</a>
+              <a class="govuk-service-navigation__link" href="{{ url_for('access_grant_funding.list_organisations') }}">Change organisation</a>
             </li>
           </ul>
         </nav>
@@ -35,7 +35,7 @@
     {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
 
     {% if number_of_organisations > 1 %}
-      {% do nav_items.append({"text": "Change organisation", "href": "#"}) %}
+      {% do nav_items.append({"text": "Change organisation", "href": url_for('access_grant_funding.list_organisations') }) %}
       {% set navigation_classes = "app-service-navigation__wrapper--sectional--org-hidden" %}
     {% endif %}
 
@@ -60,7 +60,7 @@
         govukServiceNavigation({
             "serviceName": organisation.name,
             "serviceUrl": "#",
-            "navigation": [{ "text": "Change organisation", "href": "#" }],
+            "navigation": [{ "text": "Change organisation", "href": url_for('access_grant_funding.list_organisations') }],
             "collapseNavigationOnMobile": true,
             "navigationClasses": "app-service-navigation__wrapper--sectional",
             "attributes": { "id": "org-nav" }

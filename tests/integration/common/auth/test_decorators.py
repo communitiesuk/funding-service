@@ -11,6 +11,7 @@ from app.common.auth.decorators import (
     access_grant_funding_login_required,
     collection_is_editable,
     deliver_grant_funding_login_required,
+    has_access_grant_recipient_role,
     has_access_grant_role,
     has_deliver_grant_role,
     is_access_org_member,
@@ -22,6 +23,7 @@ from app.common.auth.decorators import (
 )
 from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, RoleEnum
+from tests.models import _get_grant_managing_organisation
 
 
 class TestDeliverGrantFundingLoginRequired:
@@ -868,3 +870,78 @@ class TestHasAccessGrantRole:
 
         response = view_func(grant_id=grant_recipient.grant.id, organisation_id=grant_recipient.organisation.id)
         assert response == "OK"
+
+
+class TestHasGrantRecipientRole:
+    def test_user_no_gr_roles_rejected(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+
+        @has_access_grant_recipient_role
+        def view_func():
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        with pytest.raises(Forbidden):
+            view_func()
+
+    def test_user_only_deliver_roles_rejected(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        mchlg = _get_grant_managing_organisation()
+        grant = factories.grant.create()
+        factories.user_role.create(
+            user=user,
+            permissions=[RoleEnum.MEMBER],
+            organisation=mchlg,
+            grant=grant,
+        )
+
+        @has_access_grant_recipient_role
+        def view_func():
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        with pytest.raises(Forbidden):
+            view_func()
+
+    def test_no_org_roles_rejected(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        factories.user_role.create(
+            user=user,
+            permissions=[RoleEnum.ADMIN],
+            organisation=None,
+            grant=None,
+        )
+
+        @has_access_grant_recipient_role
+        def view_func():
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        with pytest.raises(Forbidden):
+            view_func()
+
+    def test_user_gr_org_member_responds(self, factories):
+        user = factories.user.create(email="test.admin@communities.gov.uk")
+        grant = factories.grant.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        factories.user_role.create(
+            user=user,
+            permissions=[RoleEnum.MEMBER],
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+        )
+
+        @has_access_grant_recipient_role
+        def view_func():
+            return "OK"
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        assert view_func() == "OK"

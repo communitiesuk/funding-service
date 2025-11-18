@@ -403,3 +403,26 @@ class TestAuthorisationHelper:
             method(grant_id=grant_recipient.grant.id, organisation_id=grant_recipient.organisation.id, user=user2)
             is False
         )
+
+    def test_has_access_grant_recipient_role_rejects_anonymous(self):
+        assert AuthorisationHelper.has_access_grant_recipient_role(user=AnonymousUserMixin()) is False
+
+    def test_has_access_grant_recipient_role(self, factories):
+        user = factories.user.build()
+        organisation = factories.organisation.build()
+        factories.user_role.build(user=user, permissions=[RoleEnum.MEMBER], organisation=organisation, grant=None)
+
+        assert AuthorisationHelper.has_access_grant_recipient_role(user=user) is True
+
+    def test_has_access_grant_recipient_role_rejects_no_org_role(self, factories):
+        user = factories.user.build()
+        factories.user_role.build(user=user, permissions=[RoleEnum.ADMIN], organisation=None, grant=None)
+
+        assert AuthorisationHelper.has_access_grant_recipient_role(user=user) is False
+
+    def test_has_access_grant_recipient_role_rejects_deliver_only_user(self, factories):
+        user = factories.user.build()
+        organisation = factories.organisation.build(can_manage_grants=True)
+        factories.user_role.build(user=user, permissions=[RoleEnum.MEMBER], organisation=organisation, grant=None)
+
+        assert AuthorisationHelper.has_access_grant_recipient_role(user=user) is False
