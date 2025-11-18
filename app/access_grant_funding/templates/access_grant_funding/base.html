@@ -25,7 +25,7 @@
       {%
         set nav_items = [
             { "text": "Reports", "href": url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id), "active": active_item_identifier == "reports" },
-            { "text": "Team", "href": "#", "active": active_item_identifier == "team" },
+            { "text": "Team", "href": url_for("access_grant_funding.list_grant_team", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id), "active": active_item_identifier == "team" },
         ]
       %}
     {% else %}

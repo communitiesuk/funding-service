@@ -100,3 +100,22 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
         submissions=submissions,
         grant_recipient=grant_recipient,
     )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grant/<uuid:grant_id>/users", methods=["GET"]
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def list_grant_team(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
+    organisation = get_organisation(organisation_id=organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+    users = sorted(set(grant_recipient.data_providers + list(grant_recipient.certifiers)), key=lambda user: user.name)
+
+    return render_template(
+        "access_grant_funding/grant_team.html",
+        users=users,
+        organisation=organisation,
+        grant_recipient=grant_recipient,
+        service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
+    )

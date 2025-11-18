@@ -1,0 +1,59 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+
+{% set active_item_identifier = "team" %}
+
+{% set page_title = "Team" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ page_title }}</h1>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% if users | length == 0 %}
+        <p class="govuk-body">There are no users for this grant.</p>
+      {% else %}
+        {% set rows = [] %}
+        {% for user in users %}
+          {% set permissions = [] %}
+          {% for role in user.roles %}
+            {% if role.organisation_id == organisation.id and (role.grant_id is none or role.grant_id == grant_recipient.grant.id) %}
+              {% for permission in role.permissions %}
+                {% if permission == enum.role_enum.CERTIFIER %}
+                  {% do permissions.append("Certify reports") %}
+                {% elif permission == enum.role_enum.DATA_PROVIDER %}
+                  {% do permissions.append("Manage reports") %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+
+          {% set permission_text = permissions | unique | sort | join(', ') %}
+          {% do rows.append([{"text": user.name}, {"text": user.email}, {"text": permission_text}]) %}
+        {% endfor %}
+
+        {{
+          govukTable({
+              "captionClasses": "govuk-table__caption--m",
+              "firstCellIsHeader": false,
+              "head": [{"text": "Name"}, {"text": "Email"}, {"text": "Permissions"}],
+              "rows": rows
+          })
+        }}
+      {% endif %}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      <h2 class="govuk-heading-m govuk-!-margin-top-5">Changing access and permissions</h2>
+      <p class="govuk-body">
+        To add or remove people and change their permissions,
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">contact us through our support desk (opens in new tab)</a>.
+      </p>
+      <p class="govuk-body">Monday to Friday, 9am to 5pm (except public holidays).</p>
+    </div>
+  </div>
+{% endblock content %}

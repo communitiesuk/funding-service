@@ -170,3 +170,37 @@ class TestListReports:
         )
 
         assert response.status_code == 403
+
+
+class TestListGrantTeam:
+    def test_get_list_grant_team(self, authenticated_grant_recipient_data_provider_client):
+        organisation = authenticated_grant_recipient_data_provider_client.organisation
+        grant = authenticated_grant_recipient_data_provider_client.grant
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant.id)
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Team"
+        assert any(
+            authenticated_grant_recipient_data_provider_client.user.name in td.get_text() for td in soup.find_all("td")
+        )
+
+    def test_get_list_grant_team_shows_multiple_permissions(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        user = authenticated_grant_recipient_data_provider_client.user
+        organisation = authenticated_grant_recipient_data_provider_client.organisation
+        grant = authenticated_grant_recipient_data_provider_client.grant
+
+        factories.user_role.create(user=user, organisation=organisation, grant=None, permissions=[RoleEnum.CERTIFIER])
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant.id)
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Team"
+        assert any("Certify reports" in td.get_text() for td in soup.find_all("td"))
+        assert any("Manage reports" in td.get_text() for td in soup.find_all("td"))
