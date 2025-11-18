@@ -11,8 +11,8 @@ from app.common.auth.decorators import (
     access_grant_funding_login_required,
     collection_is_editable,
     deliver_grant_funding_login_required,
-    has_access_grant_role,
     has_access_grant_recipient_role,
+    has_access_grant_role,
     has_deliver_grant_role,
     is_access_org_member,
     is_deliver_grant_funding_user,
@@ -938,10 +938,10 @@ class TestHasGrantRecipientRole:
         )
 
         @has_access_grant_recipient_role
-        def view_func(organisation_id: UUID):
+        def view_func():
             return "OK"
 
         login_user(user)
         session["auth"] = AuthMethodEnum.MAGIC_LINK
 
-        assert view_func(organisation_id=grant_recipient.organisation.id) == "OK"
+        assert view_func() == "OK"

@@ -18,15 +18,20 @@ from app.common.data.interfaces.organisations import get_organisation
 def index() -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
 
-    if grant_recipients := user.get_grant_recipients():
+    grant_recipients = user.get_grant_recipients()
+
+    if not grant_recipients:
+        current_app.logger.error("Authorised user has no access to organisation or grants")
+        return abort(403)
+
+    unique_org_ids = {grant_recipient.organisation_id for grant_recipient in grant_recipients}
+
+    if len(unique_org_ids) == 1:
         return redirect(
             url_for("access_grant_funding.list_grants", organisation_id=grant_recipients[0].organisation.id)
         )
-
-    # TODO: this should just redirect or the select org page when that exists which could decide what
-    #       to do with your session
-    current_app.logger.error("Authorised user has no access to organisation or grants")
-    return abort(403)
+    else:
+        return redirect(url_for("access_grant_funding.list_organisations"))
 
 
 @access_grant_funding_blueprint.route("/organisation/<uuid:organisation_id>/grants", methods=["GET"])
@@ -37,7 +42,7 @@ def list_grants(organisation_id: UUID) -> ResponseReturnValue:
     grants = [
         grant_recipient.grant for grant_recipient in user.get_grant_recipients(limit_to_organisation_id=organisation_id)
     ]
-
+    grants.sort(key=lambda grant: grant.name)
     return render_template("access_grant_funding/grant_list.html", grants=grants, organisation=organisation)
 
 

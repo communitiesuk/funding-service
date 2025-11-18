@@ -9,13 +9,50 @@ from tests.utils import get_h1_text
 
 
 class TestIndex:
-    def test_get_index(self, authenticated_grant_recipient_member_client, factories):
+    def test_get_index_just_one_grant_recipient_redirects(self, authenticated_grant_recipient_member_client):
         response = authenticated_grant_recipient_member_client.get(url_for("access_grant_funding.index"))
         assert response.status_code == 302
         assert (
             response.location
             == f"/access/organisation/{authenticated_grant_recipient_member_client.organisation.id}/grants"
         )
+
+    def test_get_index_two_grant_recipients_same_org_redirects(
+        self, authenticated_grant_recipient_member_client, factories
+    ):
+        user = authenticated_grant_recipient_member_client.user
+        grant = factories.grant.create()
+        organisation = authenticated_grant_recipient_member_client.organisation
+
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
+        factories.user_role.create(
+            user=user, organisation=organisation, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        response = authenticated_grant_recipient_member_client.get(url_for("access_grant_funding.index"))
+        assert response.status_code == 302
+        assert (
+            response.location
+            == f"/access/organisation/{authenticated_grant_recipient_member_client.organisation.id}/grants"
+        )
+
+    def test_get_index_two_grant_recipient_orgs_redirects(self, authenticated_grant_recipient_member_client, factories):
+        user = authenticated_grant_recipient_member_client.user
+        grant = authenticated_grant_recipient_member_client.grant
+        organisation = factories.organisation.create()
+
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
+        factories.user_role.create(
+            user=user, organisation=organisation, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        response = authenticated_grant_recipient_member_client.get(url_for("access_grant_funding.index"))
+        assert response.status_code == 302
+        assert response.location == "/access/organisations"
+
+    def test_get_index_403_if_no_permissions(self, authenticated_no_role_client):
+        response = authenticated_no_role_client.get(url_for("access_grant_funding.index"), follow_redirects=True)
+        assert response.status_code == 403
 
 
 class TestListGrants:

@@ -404,7 +404,7 @@ class TestAuthorisationHelper:
             is False
         )
 
-    def test_has_access_grant_recipient_role_rejects_anonymous(self, factories):
+    def test_has_access_grant_recipient_role_rejects_anonymous(self):
         assert AuthorisationHelper.has_access_grant_recipient_role(user=AnonymousUserMixin()) is False
 
     def test_has_access_grant_recipient_role(self, factories):
