@@ -121,7 +121,7 @@ class TestTasklist:
             # todo: this will be the submission confirmation/ awaiting sign off page
             expected_location = (
                 f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
-                f"/reports/{submission.id}"
+                f"/reports/{submission.id}/confirmation"
             )
             assert response.location == expected_location
 

@@ -11,6 +11,7 @@ from app.common.collections.runner import AGFFormRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection, get_submission_by_grant_recipient_collection
 from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
+from app.common.helpers.collections import SubmissionHelper
 from app.extensions import auto_commit_after_request
 
 
@@ -55,11 +56,12 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
         if AuthorisationHelper.is_access_grant_data_provider(
             grant_id=grant_id, organisation_id=organisation_id, user=interfaces.user.get_current_user()
         ):
-            if runner.complete_submission(interfaces.user.get_current_user()):
-                # todo: sign off confirmation and email
+            if runner.complete_submission(interfaces.user.get_current_user(), requires_certification=True):
+                # todo: email to the user confirmation it has been submitted?
+                #       will need to know how to get data providers and certifiers at this stage
                 return redirect(
                     url_for(
-                        "access_grant_funding.tasklist",
+                        "access_grant_funding.submission_confirmation",
                         organisation_id=organisation_id,
                         grant_id=grant_id,
                         submission_id=submission_id,
@@ -144,4 +146,29 @@ def check_your_answers(
 
     return render_template(
         "access_grant_funding/reports/check_your_answers.html", grant_recipient=grant_recipient, runner=runner
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/confirmation",
+    methods=["GET", "POST"],
+)
+@auto_commit_after_request
+@has_access_grant_role(RoleEnum.MEMBER)
+def submission_confirmation(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    submission_helper = SubmissionHelper.load(submission_id=submission_id)
+    if not (submission_helper.is_completed or submission_helper.is_signed_off):
+        return redirect(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
+        )
+    return render_template(
+        "access_grant_funding/reports/confirmation.html",
+        grant_recipient=grant_recipient,
+        submission_helper=submission_helper,
     )

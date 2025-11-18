@@ -175,7 +175,9 @@ class SubmissionHelper:
 
     @property
     def status(self) -> str:
-        # todo: FSPT-956 signed_off = SubmissionEventKey.SUBMISSION_SIGNED_OFF_FOR_CERTIFICATION in [ ... ]
+        signed_off = SubmissionEventKey.SUBMISSION_SIGNED_OFF_AWAITING_CERTIFICATION in [
+            x.key for x in self.submission.events
+        ]
         submitted = SubmissionEventKey.SUBMISSION_SUBMITTED in [x.key for x in self.submission.events]
 
         # todo: make sure this is resilient to timezones, drift, etc. this is likely something that should
@@ -189,6 +191,8 @@ class SubmissionHelper:
             return SubmissionStatusEnum.COMPLETED
         elif submission_is_overdue:
             return SubmissionStatusEnum.OVERDUE
+        elif {SubmissionStatusEnum.COMPLETED} == form_statuses and signed_off:
+            return SubmissionStatusEnum.AWAITING_SIGN_OFF
         elif {SubmissionStatusEnum.COMPLETED} == form_statuses and not submitted:
             return SubmissionStatusEnum.READY_TO_SUBMIT
         elif {SubmissionStatusEnum.NOT_STARTED} == form_statuses:
@@ -213,6 +217,10 @@ class SubmissionHelper:
     @property
     def is_completed(self) -> bool:
         return self.status == SubmissionStatusEnum.COMPLETED
+
+    @property
+    def is_signed_off(self) -> bool:
+        return self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
     @property
     def is_test(self) -> bool:
@@ -386,7 +394,7 @@ class SubmissionHelper:
     def submit_answer_for_question(
         self, question_id: UUID, form: DynamicQuestionForm, *, add_another_index: int | None = None
     ) -> None:
-        if self.is_completed:
+        if self.is_completed or self.is_signed_off:
             raise ValueError(
                 f"Could not submit answer for question_id={question_id} "
                 f"because submission id={self.id} is already submitted."
@@ -413,6 +421,17 @@ class SubmissionHelper:
             interfaces.collections.add_submission_event(self.submission, SubmissionEventKey.SUBMISSION_SUBMITTED, user)
         else:
             raise ValueError(f"Could not submit submission id={self.id} because not all forms are complete.")
+
+    def sign_off(self, user: "User") -> None:
+        if self.is_completed or self.is_signed_off:
+            return
+
+        if self.all_forms_are_completed:
+            interfaces.collections.add_submission_event(
+                self.submission, SubmissionEventKey.SUBMISSION_SIGNED_OFF_AWAITING_CERTIFICATION, user
+            )
+        else:
+            raise ValueError(f"Could not sign off submission id={self.id} because not all forms are complete.")
 
     def toggle_form_completed(self, form: "Form", user: "User", is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == SubmissionStatusEnum.COMPLETED
