@@ -144,7 +144,7 @@ class PlatformAdminCollectionView(PlatformAdminModelView):
         "type.value": "Type",
     }
 
-    form_columns = ["name", "slug", "type", "status"]
+    form_columns = ["name", "slug", "type", "status", "requires_certification"]
 
 
 class PlatformAdminUserRoleView(PlatformAdminModelView):

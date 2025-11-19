@@ -62,7 +62,14 @@ if TYPE_CHECKING:
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def create_collection(*, name: str, user: User, grant: Grant, type_: CollectionType) -> Collection:
-    collection = Collection(name=name, created_by=user, grant=grant, slug=slugify(name), type=type_)
+    collection = Collection(
+        name=name,
+        created_by=user,
+        grant=grant,
+        slug=slugify(name),
+        type=type_,
+        requires_certification=True,  # note: this'll need to change when we have more than just monitoring reports
+    )
     db.session.add(collection)
     return collection
 
