@@ -36,7 +36,7 @@
         })
       }}
 
-      <p class="govuk-body">We have sent a confirmation email to you and the certifier.</p>
+      <p class="govuk-body">We have sent a confirmation email to you and the {% trans count=(grant_recipient.certifiers | length) %}certifier{% pluralize %}certifiers{% endtrans %}.</p>
 
       <h2 class="govuk-heading-m">What happens next</h2>
 
@@ -47,7 +47,7 @@
       <p class="govuk-body">You cannot make changes while awaiting sign off or once the report has been signed off and submitted to {{ grant_recipient.grant.organisation.name }}.</p>
 
       <p class="govuk-body">
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.list_reports', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id) }}"> Return to report </a>
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.list_reports', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id) }}">Return to reports</a>
       </p>
     </div>
   </div>

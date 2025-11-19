@@ -160,9 +160,8 @@ def check_your_answers(
 
 @access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/confirmation",
-    methods=["GET", "POST"],
+    methods=["GET"],
 )
-@auto_commit_after_request
 @has_access_grant_role(RoleEnum.MEMBER)
 def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
