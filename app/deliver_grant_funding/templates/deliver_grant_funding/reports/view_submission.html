@@ -1,7 +1,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
-{% from "common/macros/status.html" import status with context %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Submission - " ~ helper.submission.collection.name %}
@@ -126,14 +126,20 @@
 {% endmacro %}
 
 {% block content %}
-  <span class="govuk-caption-l">{{ helper.submission.created_by.email }}</span>
+  <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
   <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
     <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
-    {{ status(helper.status) }}
+    {{ submissionStatusTag(helper.status) }}
   </div>
 
   {% for form in helper.get_ordered_visible_forms() %}
     <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>
     {{ answers_summary_list(form) }}
   {% endfor %}
+
+  <p class="govuk-body">
+    <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=helper.submission.collection.id, submission_mode=helper.submission.mode) }}">
+      Back to submissions
+    </a>
+  </p>
 {% endblock content %}
