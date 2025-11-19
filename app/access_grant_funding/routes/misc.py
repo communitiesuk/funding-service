@@ -35,9 +35,20 @@ def index() -> ResponseReturnValue:
     unique_org_ids = {grant_recipient.organisation_id for grant_recipient in grant_recipients}
 
     if len(unique_org_ids) == 1:
-        return redirect(
-            url_for("access_grant_funding.list_grants", organisation_id=grant_recipients[0].organisation.id)
-        )
+        unique_grant_ids = {grant_recipient.grant_id for grant_recipient in grant_recipients}
+        if len(unique_grant_ids) == 1:
+            grant_recipient = grant_recipients[0]
+            return redirect(
+                url_for(
+                    "access_grant_funding.list_reports",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                )
+            )
+        else:
+            return redirect(
+                url_for("access_grant_funding.list_grants", organisation_id=grant_recipients[0].organisation.id)
+            )
     else:
         return redirect(url_for("access_grant_funding.list_organisations"))
 
@@ -70,7 +81,7 @@ def list_organisations() -> ResponseReturnValue:
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grant/<uuid:grant_id>/select-a-report", methods=["GET"]
+    "/organisation/<uuid:organisation_id>/grant/<uuid:grant_id>/reports", methods=["GET"]
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
