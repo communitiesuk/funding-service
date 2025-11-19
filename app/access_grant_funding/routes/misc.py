@@ -110,7 +110,9 @@ def list_grant_team(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValu
     organisation = get_organisation(organisation_id=organisation_id)
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
 
-    users = sorted(set(grant_recipient.data_providers + list(grant_recipient.certifiers)), key=lambda user: user.name)
+    data_providers = grant_recipient.data_providers
+    certifiers = list(grant_recipient.certifiers)
+    users = sorted(set(data_providers + certifiers), key=lambda user: (0 if user in data_providers else 1, user.name))
 
     return render_template(
         "access_grant_funding/grant_team.html",

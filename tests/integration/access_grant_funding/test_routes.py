@@ -202,5 +202,5 @@ class TestListGrantTeam:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Team"
-        assert any("Certify reports" in td.get_text() for td in soup.find_all("td"))
-        assert any("Manage reports" in td.get_text() for td in soup.find_all("td"))
+        assert any("Can certify" in td.get_text() for td in soup.find_all("td"))
+        assert any("Can edit and submit" in td.get_text() for td in soup.find_all("td"))

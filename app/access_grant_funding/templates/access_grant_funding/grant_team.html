@@ -23,9 +23,9 @@
             {% if role.organisation_id == organisation.id and (role.grant_id is none or role.grant_id == grant_recipient.grant.id) %}
               {% for permission in role.permissions %}
                 {% if permission == enum.role_enum.CERTIFIER %}
-                  {% do permissions.append("Certify reports") %}
+                  {% do permissions.append("Can certify") %}
                 {% elif permission == enum.role_enum.DATA_PROVIDER %}
-                  {% do permissions.append("Manage reports") %}
+                  {% do permissions.append("Can edit and submit") %}
                 {% endif %}
               {% endfor %}
             {% endif %}
@@ -47,11 +47,11 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-one-half">
+    <div class="govuk-grid-column-two-thirds">
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Changing access and permissions</h2>
       <p class="govuk-body">
-        To add or remove people and change their permissions,
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">contact us through our support desk (opens in new tab)</a>.
+        To add or remove people and change their permissions, contact us through our
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a>.
       </p>
       <p class="govuk-body">Monday to Friday, 9am to 5pm (except public holidays).</p>
     </div>
