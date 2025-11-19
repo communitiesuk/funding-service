@@ -1,0 +1,54 @@
+{% from "govuk_frontend_jinja/components/panel/macro.html" import govukPanel %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "access_grant_funding/base.html" %}
+
+{# todo: move the suffix to the base template and call super #}
+{% set page_title = submission_helper.name ~ " - " ~ grant_recipient.grant.name %}
+
+{% set active_item_identifier = "reports" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "href": url_for("access_grant_funding.tasklist", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission_helper.id),
+      "text": "Back"
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% set reference_html %}
+        Reporting period
+        <br />
+        <strong>{{ format_date_short(submission_helper.collection.reporting_period_start_date) }} to {{ format_date_short(submission_helper.collection.reporting_period_end_date) }}</strong>
+        <br />
+        <br />
+        Your reference number
+        <br />
+        <strong data-testid="submission-reference">{{ submission_helper.reference }}</strong>
+      {% endset %}
+      {{
+        govukPanel({
+          "titleText": "Report submitted to certifier",
+          "html": reference_html
+        })
+      }}
+
+      <p class="govuk-body">We have sent a confirmation email to you and the {% trans count=(grant_recipient.certifiers | length) %}certifier{% pluralize %}certifiers{% endtrans %}.</p>
+
+      <h2 class="govuk-heading-m">What happens next</h2>
+
+      <p class="govuk-body">{{ grant_recipient.certifier_names }} will need to review and sign off the report by {{ format_date(submission_helper.collection.submission_period_end_date) }}.</p>
+
+      <p class="govuk-body">You will receive an email to confirm whether your report was signed off and submitted or if you need to make changes.</p>
+
+      <p class="govuk-body">You cannot make changes while awaiting sign off or once the report has been signed off and submitted to {{ grant_recipient.grant.organisation.name }}.</p>
+
+      <p class="govuk-body">
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.list_reports', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id) }}">Return to reports</a>
+      </p>
+    </div>
+  </div>
+{% endblock content %}

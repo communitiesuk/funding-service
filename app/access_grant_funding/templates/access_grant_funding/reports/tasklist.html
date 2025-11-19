@@ -1,5 +1,6 @@
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/collections.html" import collection_tasklist with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% extends "access_grant_funding/base.html" %}
 
 {# todo: move the suffix to the base template and call super #}
@@ -7,6 +8,15 @@
 
 {% set form = runner.tasklist_form %}
 {% set active_item_identifier = "reports" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "href": url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id),
+      "text": "Back"
+    })
+  }}
+{% endblock beforeContent %}
 
 {% block content %}
   <div class="govuk-grid-row">

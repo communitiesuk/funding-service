@@ -130,6 +130,7 @@ routes_with_expected_access_grant_funding_has_member_role_access = [
     "access_grant_funding.tasklist",
     "access_grant_funding.check_your_answers",
     "access_grant_funding.list_reports",
+    "access_grant_funding.confirm_sent_for_certification",
 ]
 
 routes_with_expected_access_grant_funding_has_data_provider_role_access = ["access_grant_funding.ask_a_question"]

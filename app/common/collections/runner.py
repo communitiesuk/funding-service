@@ -224,9 +224,12 @@ class FormRunner:
             )
             return False
 
-    def complete_submission(self, user: "User") -> bool:
+    def complete_submission(self, user: "User", requires_certification: bool = False) -> bool:
         try:
-            self.submission.submit(user)
+            if requires_certification:
+                self.submission.mark_as_sent_for_certification(user)
+            else:
+                self.submission.submit(user)
             return True
         except ValueError:
             self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # type:ignore[attr-defined]
@@ -317,7 +320,7 @@ class FormRunner:
 
         if not self.submission.is_component_visible(self.component, self.runner_evaluation_context):
             self._valid = False
-        elif self.submission.is_completed:
+        elif self.submission.is_locked_state:
             self._valid = False
         else:
             self._valid = True

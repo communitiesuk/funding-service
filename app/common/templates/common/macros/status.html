@@ -62,7 +62,7 @@
   {% if status in show_without_tag %}
     {{ status }}
   {% else %}
-    {{ govukTag({"text": status, "classes": classMap[status] }) }}
+    {{ govukTag({"text": status, "classes": "app-status-tag " ~ classMap[status] }) }}
   {% endif %}
 {% endmacro %}
 
