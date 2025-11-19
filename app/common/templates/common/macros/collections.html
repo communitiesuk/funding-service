@@ -286,10 +286,10 @@
 {% macro collection_check_your_answers(runner, has_permission_to_edit=true) %}
   {% set form = runner.form %}
   {% set submission = runner.submission %}
-  {% set can_edit = has_permission_to_edit and (not submission.is_completed) and (not submission.is_signed_off) %}
+  {% set can_edit = has_permission_to_edit and (not submission.is_locked_state) %}
 
   <span class="govuk-caption-l">{{ form.title }}</span>
-  <h1 class="govuk-heading-l">{{ "Your submitted answers" if (submission.is_completed or submission.is_signed_off) else "Check your answers" }}</h1>
+  <h1 class="govuk-heading-l">{{ "Your submitted answers" if (submission.is_locked_state) else "Check your answers" }}</h1>
 
   {{ summary_list_for_answers(form, runner, can_edit=can_edit) }}
 
@@ -321,7 +321,7 @@
 {% endmacro %}
 
 {% macro collection_tasklist(runner, submit_text=None, before_submission=None, has_permission_to_edit=true) %}
-  {% set can_edit = has_permission_to_edit and (not runner.submission.is_completed) and (not runner.submission.is_signed_off) %}
+  {% set can_edit = has_permission_to_edit and (not runner.submission.is_locked_state) %}
   {% set submission = runner.submission %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">

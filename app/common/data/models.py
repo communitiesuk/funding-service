@@ -828,6 +828,6 @@ class GrantRecipient(BaseModel):
         if names and len(names) == 1:
             return names[0]
         elif names and len(names) > 1:
-            return "{} or {}".format(", ".join(names[:-1]), names[-1])
+            return f"{', '.join(names[:-1])} or {names[-1]}"
         else:
             return "Your certifier"

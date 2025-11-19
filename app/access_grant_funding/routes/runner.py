@@ -167,7 +167,7 @@ def check_your_answers(
 def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
     submission_helper = SubmissionHelper.load(submission_id=submission_id)
-    if not (submission_helper.is_completed or submission_helper.is_awaiting_sign_off):
+    if not submission_helper.is_locked_state:
         return redirect(
             url_for(
                 "access_grant_funding.tasklist",

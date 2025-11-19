@@ -320,7 +320,7 @@ class FormRunner:
 
         if not self.submission.is_component_visible(self.component, self.runner_evaluation_context):
             self._valid = False
-        elif self.submission.is_completed or self.submission.is_awaiting_sign_off:
+        elif self.submission.is_locked_state:
             self._valid = False
         else:
             self._valid = True
