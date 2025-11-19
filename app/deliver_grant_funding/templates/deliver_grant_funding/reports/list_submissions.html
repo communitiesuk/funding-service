@@ -1,7 +1,7 @@
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
-{% from "common/macros/status.html" import status with context %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
@@ -54,7 +54,7 @@
               {
                 "html": link_to_submission,
               }, {
-                "html": status(submission_helper.status)
+                "html": submissionStatusTag(submission_helper.status)
               }, {
                 "text": format_date_short(submission_helper.submission.updated_at_utc)
               }
@@ -90,7 +90,7 @@
               {
                 "html": link_to_submission,
               }, {
-                "html": status(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED)
+                "html": submissionStatusTag(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED)
               }, {
                 "text": format_date_short(grant_recipient_submission_helper.submission.updated_at_utc) if grant_recipient_submission_helper else ''
               }
