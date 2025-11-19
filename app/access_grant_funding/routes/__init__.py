@@ -4,5 +4,6 @@ access_grant_funding_blueprint = Blueprint(name="access_grant_funding", import_n
 
 from app.access_grant_funding.routes import (  # noqa: E402, F401
     misc,
+    reports,
     runner,
 )

@@ -16,7 +16,7 @@ class TestIndex:
         assert response.status_code == 302
         assert response.location == (
             f"/access/organisation/{authenticated_grant_recipient_member_client.organisation.id}"
-            f"/grant/{authenticated_grant_recipient_member_client.grant.id}/reports"
+            f"/grants/{authenticated_grant_recipient_member_client.grant.id}/reports"
         )
 
     def test_get_index_two_grant_recipients_same_org_redirects(
