@@ -14,9 +14,9 @@ class TestIndex:
     def test_get_index_just_one_grant_recipient_redirects(self, authenticated_grant_recipient_member_client):
         response = authenticated_grant_recipient_member_client.get(url_for("access_grant_funding.index"))
         assert response.status_code == 302
-        assert (
-            response.location
-            == f"/access/organisation/{authenticated_grant_recipient_member_client.organisation.id}/grants"
+        assert response.location == (
+            f"/access/organisation/{authenticated_grant_recipient_member_client.organisation.id}"
+            f"/grants/{authenticated_grant_recipient_member_client.grant.id}/reports"
         )
 
     def test_get_index_two_grant_recipients_same_org_redirects(
