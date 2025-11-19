@@ -80,10 +80,7 @@ def redirect_if_authenticated[**P](
             internal_domains = current_app.config["INTERNAL_DOMAINS"]
             if user.email.endswith(internal_domains):
                 return redirect(url_for("deliver_grant_funding.list_grants"))
-            # There's no default 'landing page' yet for Access Grant Funding - on magic link sign-in we fallback to a
-            # redirect to this Access Grant Funding grants_list page in lieu of anything else so doing the same here
-            # (the issue is that this page is platform admins only, but we need to redirect people _somewhere_)
-            return redirect(url_for("developers.access.grants_list"))
+            return redirect(url_for("access_grant_funding.index"))
 
         return func(*args, **kwargs)
 

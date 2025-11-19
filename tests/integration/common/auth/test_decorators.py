@@ -456,7 +456,7 @@ class TestRedirectIfAuthenticated:
         session["auth"] = AuthMethodEnum.SSO
         response = test_authenticated_redirect()
         assert response.status_code == 302
-        assert response.location == url_for("developers.access.grants_list")
+        assert response.location == url_for("access_grant_funding.index")
 
     def test_anonymous_user_gets_response(self, app):
         @redirect_if_authenticated
