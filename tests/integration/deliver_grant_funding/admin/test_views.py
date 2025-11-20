@@ -710,6 +710,41 @@ class TestSendEmailsToRecipients:
         assert all("Test Grant" in line for line in lines[1:])
         assert all("Wednesday 1 January 2025 to Monday 31 March 2025" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
+        assert all("http://funding.communities.gov.localhost:8080" in line for line in lines[1:])
+
+    def test_download_csv_with_basic_auth_enabled(
+        self, authenticated_platform_admin_client, factories, db_session, app
+    ):
+        app.config["BASIC_AUTH_ENABLED"] = True
+        app.config["BASIC_AUTH_USERNAME"] = "user"
+        app.config["BASIC_AUTH_PASSWORD"] = "pass"  # pragma: allowlist secret
+
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2025, 1, 1),
+            reporting_period_end_date=datetime.date(2025, 3, 31),
+            submission_period_start_date=datetime.date(2025, 4, 1),
+            submission_period_end_date=datetime.date(2025, 4, 30),
+        )
+        org = factories.organisation.create(name="Organisation 1", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        user = factories.user.create(email="user1@org1.example.com")
+
+        factories.user_role.create(
+            user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv"
+        )
+        assert response.status_code == 200
+        assert response.mimetype == "text/csv"
+
+        lines = response.text.splitlines()
+        assert "http://user:pass@funding.communities.gov.localhost:8080" in lines[1]  # pragma: allowlist secret
 
 
 class TestSetUpCertifiers:

@@ -1,6 +1,7 @@
 import csv
 from io import BytesIO, StringIO
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 from uuid import UUID
 
 import markupsafe
@@ -535,7 +536,18 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
 
             # TODO: Update this to link directly to the grant recipient's report page once that route is available
             grant_report_url = url_for("auth.request_a_link_to_sign_in", _external=True)
-
+            if current_app.config.get("BASIC_AUTH_ENABLED"):
+                parsed = urlparse(grant_report_url)
+                grant_report_url = urlunparse(
+                    (
+                        parsed.scheme,
+                        f"{current_app.config.get('BASIC_AUTH_USERNAME')}:{current_app.config.get('BASIC_AUTH_PASSWORD')}@{parsed.netloc}",
+                        parsed.path,
+                        parsed.params,
+                        parsed.query,
+                        parsed.fragment,
+                    )
+                )
             csv_writer.writerow(
                 {
                     "email_address": data_provider.email,
