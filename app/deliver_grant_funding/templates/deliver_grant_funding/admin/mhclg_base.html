@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+
+{% block pageTitle %}Admin panel - MHCLG Funding Service{% endblock %}
+
+{% block head %}
+  {{ super() }}
+
+  <link rel="stylesheet" href="{{ vite_asset('app/assets/admin.scss') }}" type="text/css" />
+{% endblock %}
+
+{% block headerRow %}
+  <header class="govuk-header" data-module="govuk-header">
+    <div class="govuk-header__container govuk-width-container">
+      <div class="govuk-header__logo app-header__logo">
+        <a href="{{ url_for("deliver_grant_funding.list_grants") }}" class="govuk-header__link govuk-header__link--homepage app-!-align-vertically">
+          <img src="/static/assets/images/mhclg-crest.png" alt="MHCLG Crest" width="32" height="32" style="color: white; filter: brightness(0) invert(1);" nonce="{{ csp_nonce() }}" />
+          <span class="govuk-!-margin-top-0 govuk-!-margin-bottom-0 govuk-!-margin-left-1">MHCLG Funding Service</span>
+        </a>
+      </div>
+
+      {# Bit of a hack - this is deprecated GOV.UK Header CSS; but it'll do for now ... (sorry future us) #}
+      <div class="govuk-header__content app-header__content">
+        <nav aria-label="Menu" class="govuk-header__navigation app-header__navigation">
+          <ul class="govuk-header__navigation-list">
+            <li class="govuk-header__navigation-item app-header__navigation-item">
+              <a class="govuk-header__link" href="{{ url_for('deliver_grant_funding.list_grants') }}">Deliver grant funding</a>
+            </li>
+            <li class="govuk-header__navigation-item app-header__navigation-item">
+              <a class="govuk-header__link" href="{{ url_for('auth.sign_out') }}">Sign out</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </header>
+{% endblock %}

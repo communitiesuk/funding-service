@@ -28,7 +28,6 @@ class DatabaseSecret(BaseModel):
 
 FS_CONTENT_SECURITY_POLICY = {
     "default-src": ["'self'"],
-    "content_security_policy_nonce_in": ["script-src"],
     "script-src": [
         "'self'",
         "https://www.googletagmanager.com",

@@ -4,7 +4,16 @@
   {%- set menuButtonText = params.menuButtonText if params.menuButtonText else 'Menu' -%}
   {%- set _productName = params.productName if params.productName else 'MHCLG Funding Service' -%}
   {%- set _classes = params.classes if params.classes else 'govuk-header--full-width-border app-!-no-wrap' -%}
-  {%- set _navigation = params.navigation if params.navigation else [{ "text": ("Sign out"), "href": url_for('auth.sign_out') }] if currentUser and currentUser.is_authenticated else [] -%}
+  {%
+    set _navigation = (
+    params.navigation
+    if params.navigation else
+    [
+      {"text": "Admin panel", "href": url_for('platform_admin.index') } if authorisation_helper.is_platform_admin(currentUser) else {},
+      { "text": ("Sign out"), "href": url_for('auth.sign_out') }
+    ] if currentUser and currentUser.is_authenticated else []
+    )
+  %}
   {%- set _navigationClasses = params.navigationClasses if params.navigationClasses else 'govuk-header__navigation--end' -%}
 
 
@@ -14,7 +23,7 @@
 
   <header class="govuk-header {% if _classes %}{{ _classes }}{% endif %}" data-module="govuk-header" {{- govukAttributes(params.attributes) }}>
     <div class="govuk-header__container {{ params.containerClasses | default("govuk-width-container", true) }}">
-      <div class="govuk-header__logo govuk-!-margin-bottom-1">
+      <div class="govuk-header__logo">
         <a href="{{ params.homepageUrl | default("/", true) }}" class="govuk-header__link govuk-header__link--homepage">
           {#- The SVG needs `focusable="false"` so that Internet Explorer does
         not treat it as an interactive element - without this it will be

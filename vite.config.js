@@ -9,7 +9,11 @@ export default defineConfig({
         outDir: path.join(__dirname, "app/assets/dist"),
         manifest: "manifest.json",
         rollupOptions: {
-            input: ["app/assets/main.scss", "app/assets/main.js"],
+            input: [
+                "app/assets/main.scss",
+                "app/assets/main.js",
+                "app/assets/admin.scss",
+            ],
             external: [
                 /assets\/fonts\/.*\.(woff|woff2)$/,
                 /assets\/images\/.*\.svg$/,
