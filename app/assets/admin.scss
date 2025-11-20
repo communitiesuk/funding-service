@@ -1,0 +1,36 @@
+$govuk-brand-colour: #912b88;
+
+@import "../../node_modules/govuk-frontend/dist/govuk/base";
+
+.app-\!-align-vertically {
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+.app-header__content {
+    @include govuk-media-query($from: desktop) {
+        display: inline-flex !important;
+        flex-direction: row-reverse;
+        width: 50%;
+    }
+}
+
+.app-header__logo {
+    @include govuk-media-query($from: desktop) {
+        width: 50%;
+    }
+}
+
+.app-header__navigation {
+    @include govuk-media-query($from: desktop) {
+        padding-top: 18px !important;
+    }
+}
+
+.app-header__navigation-item {
+    border-bottom-color: darken($govuk-brand-colour, 15%) !important;
+
+    a {
+        font-weight: $govuk-font-weight-bold !important;
+    }
+}

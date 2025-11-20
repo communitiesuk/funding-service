@@ -140,14 +140,14 @@ def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
 
     flask_admin = Admin(
         app,
-        name="Funding Service Admin",
+        name="Funding Service admin",
         endpoint="platform_admin",
         url="/deliver/admin",
         index_view=PlatformAdminIndexView(url="/deliver/admin", endpoint="platform_admin"),
-        theme=XGovukFrontendTheme(),
+        theme=XGovukFrontendTheme(base_template="deliver_grant_funding/admin/mhclg_base.html"),
         csp_nonce_generator=app.jinja_env.globals["csp_nonce"],
     )
-    XGovukFlaskAdmin(app, "Funding Service Admin")
+    XGovukFlaskAdmin(app)
     with app.app_context():
         register_admin_views(flask_admin, db_)
 
