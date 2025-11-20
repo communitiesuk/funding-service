@@ -53,6 +53,7 @@ class TestNotificationService:
         submission = factories.submission.build(
             id=uuid.UUID("10000000-0000-0000-0000-000000000000"),
             collection__name="My test collection",
+            collection__grant__id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
         )
         request_matcher = responses.post(
             url="https://api.notifications.service.gov.uk/v2/notifications/email",
@@ -65,7 +66,7 @@ class TestNotificationService:
                         "personalisation": {
                             "submission name": "My test collection",
                             "submission reference": "10000000",
-                            "submission url": "http://funding.communities.gov.localhost:8080/developers/access/submissions/10000000-0000-0000-0000-000000000000",
+                            "submission url": "http://funding.communities.gov.localhost:8080/deliver/grant/00000000-0000-0000-0000-000000000001/submissions/10000000-0000-0000-0000-000000000000",
                         },
                     }
                 )

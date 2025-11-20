@@ -102,7 +102,10 @@ class NotificationService:
                 "submission name": submission.collection.name,
                 "submission reference": submission.reference,
                 "submission url": url_for(
-                    "developers.access.submission_tasklist", submission_id=submission.id, _external=True
+                    "deliver_grant_funding.submission_tasklist",
+                    submission_id=submission.id,
+                    grant_id=submission.collection.grant_id,
+                    _external=True,
                 ),
             },
         )
