@@ -5,14 +5,6 @@ from app.common.data.types import ExpressionType, ManagedExpressionsEnum, RoleEn
 
 
 class TestUserRoleConstraints:
-    def test_member_role_not_platform(self, factories):
-        with pytest.raises(IntegrityError) as error:
-            factories.user_role.create(has_grant=False, has_organisation=False, permissions=[RoleEnum.MEMBER])
-        assert (
-            'new row for relation "user_role" violates check constraint '
-            '"ck_user_role_non_admin_permissions_require_org"'
-        ) in error.value.args[0]
-
     def test_unique_constraint_with_nulls(self, factories):
         user_role = factories.user_role.create(permissions=[RoleEnum.ADMIN])
         with pytest.raises(IntegrityError) as error:
@@ -29,6 +21,28 @@ class TestUserRoleConstraints:
             'new row for relation "user_role" violates check constraint "ck_user_role_org_required_if_grant"'
             in error.value.args[0]
         )
+
+    def test_member_permission_required(self, factories, db_session):
+        with pytest.raises(IntegrityError) as error:
+            user_role = factories.user_role.build()
+            user_role.permissions = [RoleEnum.ADMIN]
+            db_session.add(user_role)
+            db_session.commit()
+        assert (
+            'new row for relation "user_role" violates check constraint "ck_user_role_member_permission_required"'
+        ) in error.value.args[0]
+
+
+class TestInvitationConstraints:
+    def test_member_permission_required(self, factories, db_session):
+        with pytest.raises(IntegrityError) as error:
+            invitation = factories.invitation.build()
+            invitation.permissions = [RoleEnum.ADMIN]
+            db_session.add(invitation)
+            db_session.commit()
+        assert (
+            'new row for relation "invitation" violates check constraint "ck_invitation_member_permission_required"'
+        ) in error.value.args[0]
 
 
 class TestExpressionConstraints:

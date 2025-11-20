@@ -50,6 +50,7 @@ from app.common.data.types import (
     GrantStatusEnum,
     QuestionDataType,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionEventKey,
     SubmissionModeEnum,
 )
@@ -174,6 +175,14 @@ class _UserRoleFactory(SQLAlchemyModelFactory):
             grant_id=factory.LazyAttribute(lambda o: o.grant.id),
             grant=factory.SubFactory(_GrantFactory),
         )
+
+    @classmethod
+    def _adjust_kwargs(cls, **kwargs: Any) -> Any:
+        if kwargs["permissions"] is None:
+            kwargs["permissions"] = []
+        if RoleEnum.MEMBER not in kwargs["permissions"]:
+            kwargs["permissions"].append(RoleEnum.MEMBER)
+        return kwargs
 
 
 class _MagicLinkFactory(SQLAlchemyModelFactory):
@@ -899,3 +908,11 @@ class _InvitationFactory(SQLAlchemyModelFactory):
             user=factory.SubFactory(_UserFactory),
             user_id=factory.LazyAttribute(lambda o: o.user.id if o.user else None),
         )
+
+    @classmethod
+    def _adjust_kwargs(cls, **kwargs: Any) -> Any:
+        if kwargs["permissions"] is None:
+            kwargs["permissions"] = []
+        if RoleEnum.MEMBER not in kwargs["permissions"]:
+            kwargs["permissions"].append(RoleEnum.MEMBER)
+        return kwargs

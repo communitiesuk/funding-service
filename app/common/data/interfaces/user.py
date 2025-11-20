@@ -180,9 +180,7 @@ def add_permissions_to_user(
     # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
     # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered redundant
     #       and is up for removal in the future.
-    # NOTE: for now, we only add the MEMBER role in non-platform-wide contexts. Future cleanup may allow MEMBER
-    #       role for platform contexts.
-    if RoleEnum.MEMBER not in permissions and organisation_id:
+    if RoleEnum.MEMBER not in permissions:
         permissions.append(RoleEnum.MEMBER)
 
     user_role = get_user_role(user, organisation_id, grant_id)
@@ -229,6 +227,9 @@ def create_invitation(
 ) -> Invitation:
     if organisation is None and grant is not None:
         raise ValueError("If specifying grant, must also specify organisation")
+
+    if RoleEnum.MEMBER not in permissions:
+        permissions.append(RoleEnum.MEMBER)
 
     # Expire any existing invitations for the same email, organisation, and grant,
     # filtering on NULL if org/grant not passed
