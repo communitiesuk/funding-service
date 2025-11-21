@@ -11,11 +11,16 @@ from app.common.data.types import RoleEnum
 from app.extensions import db
 
 
-def get_grant_recipients(grant: "Grant", *, with_data_providers: bool = False) -> Sequence["GrantRecipient"]:
+def get_grant_recipients(
+    grant: "Grant", *, with_data_providers: bool = False, with_certifiers: bool = False
+) -> Sequence["GrantRecipient"]:
     stmt = select(GrantRecipient).where(GrantRecipient.grant_id == grant.id)
 
     if with_data_providers:
         stmt = stmt.options(joinedload(GrantRecipient.data_providers))
+
+    if with_certifiers:
+        stmt = stmt.options(joinedload(GrantRecipient._all_certifiers).joinedload(User.roles))
 
     return db.session.scalars(stmt).unique().all()
 
