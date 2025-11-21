@@ -1,7 +1,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "common/macros/status.html" import status with context %}
+{% from "common/macros/status.html" import tasklistSectionStatusTag with context %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgStopTestingBanner %}
 
 {% macro collection_before(runner, override_back_link=None) %}
@@ -347,7 +347,7 @@
                 "text": form.title,
               },
               "status": {
-                "html": status(submission.get_tasklist_status_for_form(form)) ,
+                "html": tasklistSectionStatusTag(submission.get_tasklist_status_for_form(form)) ,
               },
               "href": link_href,
             })

@@ -1,7 +1,7 @@
 {% extends "developers/access/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
-{% from "common/macros/status.html" import status with context %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
 
 {% set page_title = "Grants" %}
 
@@ -41,7 +41,7 @@
                   "text": collection.name,
                 },
                 "status": {
-                  "html": status(submission_helper.status if submission_helper else enum.submission_status.NOT_STARTED)
+                  "html": submissionStatusTag(submission_helper.status if submission_helper else enum.submission_status.NOT_STARTED)
                 },
                 "href": link_href,
               })

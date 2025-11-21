@@ -98,17 +98,14 @@ class SubmissionStatusEnum(enum.StrEnum):
     IN_PROGRESS = "In progress"
     READY_TO_SUBMIT = "Ready to submit"
     AWAITING_SIGN_OFF = "Awaiting sign off"
-
-    # todo: change to "Submitted"
-    COMPLETED = "Completed"
+    SUBMITTED = "Submitted"
     OVERDUE = "Overdue"
 
 
 class TasklistSectionStatusEnum(enum.StrEnum):
-    NOT_STARTED = SubmissionStatusEnum.NOT_STARTED.value
-    IN_PROGRESS = SubmissionStatusEnum.IN_PROGRESS.value
-    COMPLETED = SubmissionStatusEnum.COMPLETED.value
-
+    NOT_STARTED = "Not started"
+    IN_PROGRESS = "In progress"
+    COMPLETED = "Completed"
     NO_QUESTIONS = "No questions"
 
 
