@@ -174,7 +174,7 @@ class SubmissionHelper:
         }
 
     @property
-    def status(self) -> str:
+    def status(self) -> SubmissionStatusEnum:
         awaiting_sign_off = any(
             x.key == SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION for x in self.submission.events
         )
@@ -187,15 +187,15 @@ class SubmissionHelper:
         )
 
         form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
-        if {SubmissionStatusEnum.COMPLETED} == form_statuses and submitted:
-            return SubmissionStatusEnum.COMPLETED
+        if {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submitted:
+            return SubmissionStatusEnum.SUBMITTED
         elif submission_is_overdue:
             return SubmissionStatusEnum.OVERDUE
-        elif {SubmissionStatusEnum.COMPLETED} == form_statuses and awaiting_sign_off:
+        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
-        elif {SubmissionStatusEnum.COMPLETED} == form_statuses and not submitted:
+        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and not submitted:
             return SubmissionStatusEnum.READY_TO_SUBMIT
-        elif {SubmissionStatusEnum.NOT_STARTED} == form_statuses:
+        elif {TasklistSectionStatusEnum.NOT_STARTED} == form_statuses:
             return SubmissionStatusEnum.NOT_STARTED
         else:
             return SubmissionStatusEnum.IN_PROGRESS
@@ -220,7 +220,7 @@ class SubmissionHelper:
 
     @property
     def is_completed(self) -> bool:
-        return self.status == SubmissionStatusEnum.COMPLETED
+        return self.status == SubmissionStatusEnum.SUBMITTED
 
     @property
     def is_awaiting_sign_off(self) -> bool:
@@ -293,25 +293,25 @@ class SubmissionHelper:
     @cached_property
     def all_forms_are_completed(self) -> bool:
         form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
-        return {SubmissionStatusEnum.COMPLETED} == form_statuses
+        return {TasklistSectionStatusEnum.COMPLETED} == form_statuses
 
     def get_tasklist_status_for_form(self, form: "Form") -> TasklistSectionStatusEnum:
         if len(form.cached_questions) == 0:
             return TasklistSectionStatusEnum.NO_QUESTIONS
 
-        return TasklistSectionStatusEnum(self.get_status_for_form(form))
+        return self.get_status_for_form(form)
 
-    def get_status_for_form(self, form: "Form") -> str:
+    def get_status_for_form(self, form: "Form") -> TasklistSectionStatusEnum:
         form_questions_answered = self.cached_get_all_questions_are_answered_for_form(form)
         marked_as_complete = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED in [
             x.key for x in self.submission.events if x.form and x.form.id == form.id
         ]
         if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
-            return SubmissionStatusEnum.COMPLETED
+            return TasklistSectionStatusEnum.COMPLETED
         elif form_questions_answered.some_answered:
-            return SubmissionStatusEnum.IN_PROGRESS
+            return TasklistSectionStatusEnum.IN_PROGRESS
         else:
-            return SubmissionStatusEnum.NOT_STARTED
+            return TasklistSectionStatusEnum.NOT_STARTED
 
     def get_ordered_visible_forms(self) -> list["Form"]:
         """Returns the visible, ordered forms based upon the current state of this collection."""
@@ -438,7 +438,7 @@ class SubmissionHelper:
             raise ValueError(f"Could not sign off submission id={self.id} because not all forms are complete.")
 
     def toggle_form_completed(self, form: "Form", user: "User", is_complete: bool) -> None:
-        form_complete = self.get_status_for_form(form) == SubmissionStatusEnum.COMPLETED
+        form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
         if is_complete == form_complete:
             return
 

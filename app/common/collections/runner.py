@@ -6,7 +6,7 @@ from flask import abort, current_app, url_for
 
 from app.common.collections.forms import AddAnotherSummaryForm, CheckYourAnswersForm, build_question_form
 from app.common.data import interfaces
-from app.common.data.types import FormRunnerState, SubmissionStatusEnum, TRunnerUrlMap
+from app.common.data.types import FormRunnerState, TasklistSectionStatusEnum, TRunnerUrlMap
 from app.common.exceptions import RedirectException
 from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
@@ -110,7 +110,9 @@ class FormRunner:
             ).all_answered
             self._check_your_answers_form = CheckYourAnswersForm(
                 section_completed=(
-                    "yes" if self.submission.get_status_for_form(self.form) == SubmissionStatusEnum.COMPLETED else None
+                    "yes"
+                    if self.submission.get_status_for_form(self.form) == TasklistSectionStatusEnum.COMPLETED
+                    else None
                 ),
                 all_questions_answered=all_questions_answered,
             )
