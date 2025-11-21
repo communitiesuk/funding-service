@@ -54,6 +54,8 @@ class InvalidUserRoleError(Exception):
         "ck_invitation_non_admin_permissions_require_org": (
             "Non-'admin' roles must be linked to an organisation or grant."
         ),
+        "ck_user_role_member_permission_required": "The 'member' role must always be present",
+        "ck_invitation_member_permission_required": "The 'member' role must always be present",
     }
 
     def __init__(self, integrity_error: IntegrityError) -> None:

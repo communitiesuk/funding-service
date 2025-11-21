@@ -167,12 +167,10 @@ class UserRole(BaseModel):
         Index("ix_user_roles_user_id_grant_id", "user_id", "grant_id"),
         Index("ix_user_roles_organisation_id_role_id_grant_id", "user_id", "organisation_id", "grant_id"),
         CheckConstraint(
-            (
-                "('MEMBER' != ALL(permissions) AND 'CERTIFIER' != ALL(permissions) AND "
-                "'DATA_PROVIDER' != ALL(permissions)) OR organisation_id IS NOT NULL"
-            ),
+            "('CERTIFIER' != ALL(permissions) AND 'DATA_PROVIDER' != ALL(permissions)) OR organisation_id IS NOT NULL",
             name="non_admin_permissions_require_org",
         ),
+        CheckConstraint("'MEMBER' = ANY(permissions)", name="member_permission_required"),
         CheckConstraint(
             "(organisation_id IS NULL AND grant_id IS NULL) or (organisation_id IS NOT NULL)",
             name="org_required_if_grant",
@@ -229,12 +227,10 @@ class Invitation(BaseModel):
 
     __table_args__ = (
         CheckConstraint(
-            (
-                "('MEMBER' != ALL(permissions) AND 'CERTIFIER' != ALL(permissions) AND "
-                "'DATA_PROVIDER' != ALL(permissions)) OR organisation_id IS NOT NULL"
-            ),
+            "('CERTIFIER' != ALL(permissions) AND 'DATA_PROVIDER' != ALL(permissions)) OR organisation_id IS NOT NULL",
             name="non_admin_permissions_require_org",
         ),
+        CheckConstraint("'MEMBER' = ANY(permissions)", name="member_permission_required"),
     )
 
     @hybrid_property

@@ -204,13 +204,13 @@ class TestUpsertUserByAzureAdSubjectId:
 
 class TestUpsertUserRole:
     @pytest.mark.parametrize(
-        "organisation, grant, role",
+        "organisation, grant, permissions",
         [
-            (False, False, RoleEnum.ADMIN),
-            (True, False, RoleEnum.MEMBER),
+            (False, False, [RoleEnum.ADMIN, RoleEnum.MEMBER]),
+            (True, False, [RoleEnum.MEMBER]),
         ],
     )
-    def test_add_user_role(self, db_session, factories, organisation, grant, role):
+    def test_add_user_role(self, db_session, factories, organisation, grant, permissions):
         # This test checks a few happy paths - the tests in test_constraints check against the table's constraints at
         # the DB level and additional tests will be added to check these errors are raised correctly once a custom
         # exception is created for this.
@@ -223,14 +223,17 @@ class TestUpsertUserRole:
         grant_id_value = grant_id if grant else None
 
         user_role = interfaces.user._upsert_user_role(
-            user=user, organisation_id=organisation_id_value, grant_id=grant_id_value, permissions=[role]
+            user=user,
+            organisation_id=organisation_id_value,
+            grant_id=grant_id_value,
+            permissions=permissions,
         )
         assert user_role.user_id == user.id
         assert (user_role.user_id, user_role.organisation_id, user_role.grant_id, user_role.permissions) == (
             user.id,
             organisation_id_value,
             grant_id_value,
-            [role],
+            permissions,
         )
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
@@ -244,7 +247,7 @@ class TestUpsertUserRole:
         grant = factories.grant.create()
 
         interfaces.user._upsert_user_role(
-            user=user, organisation_id=organisation.id, grant_id=grant.id, permissions=[RoleEnum.ADMIN]
+            user=user, organisation_id=organisation.id, grant_id=grant.id, permissions=[RoleEnum.ADMIN, RoleEnum.MEMBER]
         )
         interfaces.user._upsert_user_role(
             user=user, organisation_id=organisation.id, grant_id=None, permissions=[RoleEnum.MEMBER]
@@ -252,19 +255,26 @@ class TestUpsertUserRole:
 
         user_roles = db_session.query(UserRole).all()
         assert {
-            (ur.user_id, ur.organisation_id, ur.grant_id, tuple(r for r in ur.permissions)) for ur in user_roles
+            (ur.user_id, ur.organisation_id, ur.grant_id, frozenset(r for r in ur.permissions)) for ur in user_roles
         } == {
-            (user.id, organisation.id, grant.id, (RoleEnum.ADMIN,)),
-            (user.id, organisation.id, None, (RoleEnum.MEMBER,)),
+            (user.id, organisation.id, grant.id, frozenset((RoleEnum.ADMIN, RoleEnum.MEMBER))),
+            (
+                user.id,
+                organisation.id,
+                None,
+                frozenset(
+                    (RoleEnum.MEMBER,),
+                ),
+            ),
         }
 
     def test_add_existing_user_role(self, db_session, factories):
         user = factories.user.create(email="test@communities.gov.uk")
-        interfaces.user._upsert_user_role(user=user, permissions=[RoleEnum.ADMIN])
+        interfaces.user._upsert_user_role(user=user, permissions=[RoleEnum.ADMIN, RoleEnum.MEMBER])
 
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
-        user_role = interfaces.user._upsert_user_role(user=user, permissions=[RoleEnum.ADMIN])
+        user_role = interfaces.user._upsert_user_role(user=user, permissions=[RoleEnum.ADMIN, RoleEnum.MEMBER])
         assert user_role.user_id == user.id
         assert (user_role.organisation_id, user_role.grant_id) == (None, None)
         assert RoleEnum.ADMIN in user_role.permissions
@@ -281,7 +291,10 @@ class TestUpsertUserRole:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
         user_role = interfaces.user._upsert_user_role(
-            user=user, organisation_id=grant.organisation.id, grant_id=grant.id, permissions=[RoleEnum.ADMIN]
+            user=user,
+            organisation_id=grant.organisation.id,
+            grant_id=grant.id,
+            permissions=[RoleEnum.ADMIN, RoleEnum.MEMBER],
         )
         assert user_role.user == user
         assert (user_role.organisation_id, user_role.grant_id) == (grant.organisation.id, grant.id)
@@ -290,12 +303,23 @@ class TestUpsertUserRole:
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
 
     @pytest.mark.parametrize(
-        "organisation, grant, role, message",
+        "organisation, grant, permissions, message",
         [
-            (False, False, RoleEnum.MEMBER, "Non-'admin' roles must be linked to an organisation or grant."),
+            (
+                False,
+                False,
+                [RoleEnum.CERTIFIER],
+                "The 'member' role must always be present",
+            ),
+            (
+                False,
+                False,
+                [RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+                "Non-'admin' roles must be linked to an organisation or grant.",
+            ),
         ],
     )
-    def test_add_invalid_user_role(self, factories, organisation, grant, role, message) -> None:
+    def test_add_invalid_user_permissions(self, factories, organisation, grant, permissions, message) -> None:
         user = factories.user.create(email="test@communities.gov.uk")
         organisation_id = factories.organisation.create().id
         grant_id = factories.grant.create().id
@@ -308,7 +332,7 @@ class TestUpsertUserRole:
                 user=user,
                 organisation_id=organisation_id_value,
                 grant_id=grant_id_value,
-                permissions=[role],
+                permissions=permissions,
             )
         assert isinstance(error.value, InvalidUserRoleError)
         assert error.value.message == message
