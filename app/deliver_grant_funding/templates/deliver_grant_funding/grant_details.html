@@ -77,7 +77,7 @@
       {% set tableRows = [] %}
       {% if not grant_recipients %}
         {% set noGrantRecipientsHtml %}
-          <span><i>No grant recipients have been set up yet.</i></span>
+          <span>No grant recipients have been set up yet</span>
         {% endset %}
         {% do tableRows.append([{"html": noGrantRecipientsHtml, "colspan": 2}]) %}
       {% else %}
@@ -101,7 +101,7 @@
                 {% endfor %}
               </ul>
             {% else %}
-              <p class="govuk-body govuk-!-margin-bottom-0"><i>No certifiers have been set up.</i></p>
+              <p class="govuk-body govuk-!-margin-bottom-0">No certifiers have been set up</p>
             {% endif %}
           {% endset %}
           {%
