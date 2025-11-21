@@ -23,11 +23,12 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": "test@test.com",
-                        "template_id": "9773e73c-85a1-4c3f-a808-02b9623616a3",
+                        "template_id": "1e5b3cce-99ea-4813-ab39-e52f578c88f6",
                         "personalisation": {
                             "magic_link": "https://magic-link",
                             "magic_link_expires_at": "1:00pm on 4 April 2025",
                             "request_new_magic_link": "https://new-magic-link",
+                            "service_desk_url": app.config["ACCESS_SERVICE_DESK_URL"],
                         },
                         "reference": "abc123",
                     }
