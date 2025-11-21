@@ -91,8 +91,24 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
     def raise_403() -> ResponseReturnValue:
         return abort(403)
 
+    @app.route("/access/_testing/403")
+    def raise_access_403() -> ResponseReturnValue:
+        return abort(403)
+
+    @app.route("/deliver/_testing/403")
+    def raise_deliver_403() -> ResponseReturnValue:
+        return abort(403)
+
     @app.route("/_testing/500")
     def raise_500() -> ResponseReturnValue:
+        return abort(500)
+
+    @app.route("/access/_testing/500")
+    def raise_access_500() -> ResponseReturnValue:
+        return abort(500)
+
+    @app.route("/deliver/_testing/500")
+    def raise_deliver_500() -> ResponseReturnValue:
         return abort(500)
 
     @app.route("/_testing/sqlalchemy-not-found")

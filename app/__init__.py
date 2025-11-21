@@ -67,37 +67,48 @@ init_sentry()
 
 
 def _register_global_error_handlers(app: Flask) -> None:
-    def _determine_service_desk_url_based_on_request_url(request_url: str) -> str:
+    def _determine_service_components_based_on_request_url(request_url: str) -> tuple[str, str]:
         if "/deliver/" in request_url:
-            return str(app.config["DELIVER_SERVICE_DESK_URL"])
+            service_desk_url = str(app.config["DELIVER_SERVICE_DESK_URL"])
+            base_template = "deliver_grant_funding/base.html"
         elif "/access/" in request_url:
-            return str(app.config["ACCESS_SERVICE_DESK_URL"])
+            service_desk_url = str(app.config["ACCESS_SERVICE_DESK_URL"])
+            base_template = "access_grant_funding/base.html"
         else:
-            return str(app.config["SERVICE_DESK_URL"])
+            service_desk_url = str(app.config["SERVICE_DESK_URL"])
+            base_template = "common/base.html"
+        return service_desk_url, base_template
 
     @app.errorhandler(403)
     def handle_403(error: Literal[403]) -> ResponseReturnValue:
+        service_desk_url, base_template = _determine_service_components_based_on_request_url(request.url)
         return render_template(
-            "common/errors/403.html", service_desk_url=_determine_service_desk_url_based_on_request_url(request.url)
+            "common/errors/403.html", service_desk_url=service_desk_url, base_template=base_template
         ), 403
 
     @app.errorhandler(NoResultFound)
     def handle_sqlalchemy_no_result(error: NoResultFound) -> ResponseReturnValue:
+        service_desk_url, base_template = _determine_service_components_based_on_request_url(request.url)
+
         return render_template(
-            "common/errors/404.html", service_desk_url=_determine_service_desk_url_based_on_request_url(request.url)
+            "common/errors/404.html", service_desk_url=service_desk_url, base_template=base_template
         ), 404
 
     @app.errorhandler(404)
     def handle_404(error: Literal[404]) -> ResponseReturnValue:
+        service_desk_url, base_template = _determine_service_components_based_on_request_url(request.url)
+
         return render_template(
-            "common/errors/404.html", service_desk_url=_determine_service_desk_url_based_on_request_url(request.url)
+            "common/errors/404.html", service_desk_url=service_desk_url, base_template=base_template
         ), 404
 
     @app.errorhandler(500)
     def handle_500(error: Literal[500]) -> ResponseReturnValue:
         current_app.logger.error("Internal server error", exc_info=True)
+        service_desk_url, base_template = _determine_service_components_based_on_request_url(request.url)
+
         return render_template(
-            "common/errors/500.html", service_desk_url=_determine_service_desk_url_based_on_request_url(request.url)
+            "common/errors/500.html", service_desk_url=service_desk_url, base_template=base_template
         ), 500
 
     @app.errorhandler(RedirectException)

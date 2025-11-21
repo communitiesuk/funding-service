@@ -3,12 +3,13 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
+from bs4 import BeautifulSoup
 from flask import Flask, url_for
 from flask_sqlalchemy_lite import SQLAlchemy
 from testcontainers.postgres import PostgresContainer
 
 from app import create_app
-from tests.utils import build_db_config
+from tests.utils import build_db_config, get_link_hrefs, get_service_name_text
 
 
 @pytest.fixture(scope="session")
@@ -64,20 +65,70 @@ class TestBasicAuth:
 
 
 class TestAppErrorHandlers:
-    def test_app_404_on_unknown_url(self, app, client):
-        response = client.get("/route/to/nowhere")
+    @pytest.mark.parametrize(
+        "service_url, service_desk_url, service_name",
+        [
+            ("/access", "ACCESS_SERVICE_DESK_URL", "MHCLG Access grant funding"),
+            ("/deliver", "DELIVER_SERVICE_DESK_URL", "MHCLG Funding Service"),
+            ("", "SERVICE_DESK_URL", "MHCLG Funding Service"),
+        ],
+    )
+    def test_app_404_on_unknown_url(self, app, client, service_url, service_desk_url, service_name):
+        response = client.get(f"{service_url}/route/to/nowhere")
         assert response.status_code == 404
-        assert "Page not found" in response.text
-        assert app.config["SERVICE_DESK_URL"] in response.text
 
-    def test_app_404_on_sqlalchemy_not_found(self, app, client):
-        response = client.get("/_testing/sqlalchemy-not-found")
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Page not found" in soup.text
+        assert app.config[service_desk_url] in get_link_hrefs(soup)
+        assert service_name == get_service_name_text(soup)
+
+    @pytest.mark.parametrize(
+        "service_url, service_desk_url, service_name",
+        [
+            ("/access", "ACCESS_SERVICE_DESK_URL", "MHCLG Access grant funding"),
+            ("/deliver", "DELIVER_SERVICE_DESK_URL", "MHCLG Funding Service"),
+            ("", "SERVICE_DESK_URL", "MHCLG Funding Service"),
+        ],
+    )
+    def test_app_404_on_sqlalchemy_not_found(self, app, client, service_url, service_desk_url, service_name):
+        response = client.get(f"{service_url}/_testing/sqlalchemy-not-found")
         assert response.status_code == 404
-        assert "Page not found" in response.text
-        assert app.config["SERVICE_DESK_URL"] in response.text
 
-    def test_app_500_on_internal_server_error(self, app, client):
-        response = client.get("/_testing/500")
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Page not found" in soup.text
+        assert app.config[service_desk_url] in get_link_hrefs(soup)
+        assert service_name == get_service_name_text(soup)
+
+    @pytest.mark.parametrize(
+        "service_url, service_desk_url, service_name",
+        [
+            ("/access", "ACCESS_SERVICE_DESK_URL", "MHCLG Access grant funding"),
+            ("/deliver", "DELIVER_SERVICE_DESK_URL", "MHCLG Funding Service"),
+            ("", "SERVICE_DESK_URL", "MHCLG Funding Service"),
+        ],
+    )
+    def test_app_500_on_internal_server_error(self, app, client, service_url, service_desk_url, service_name):
+        response = client.get(f"{service_url}/_testing/500")
         assert response.status_code == 500
-        assert "Sorry, there is a problem with the service" in response.text
-        assert app.config["SERVICE_DESK_URL"] in response.text
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Sorry, there is a problem with the service" in soup.text
+        assert app.config[service_desk_url] in get_link_hrefs(soup)
+        assert service_name == get_service_name_text(soup)
+
+    @pytest.mark.parametrize(
+        "service_url, service_desk_url, service_name",
+        [
+            ("/access", "ACCESS_SERVICE_DESK_URL", "MHCLG Access grant funding"),
+            ("/deliver", "DELIVER_SERVICE_DESK_URL", "MHCLG Funding Service"),
+            ("", "SERVICE_DESK_URL", "MHCLG Funding Service"),
+        ],
+    )
+    def test_app_403_on_forbidden_url(self, app, client, service_url, service_desk_url, service_name):
+        response = client.get(f"{service_url}/_testing/403")
+        assert response.status_code == 403
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You do not have permission to access this page" in soup.text
+        assert app.config[service_desk_url] in get_link_hrefs(soup)
+        assert service_name == get_service_name_text(soup)
