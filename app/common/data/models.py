@@ -157,10 +157,11 @@ class Collection(BaseModel):
         SqlEnum(CollectionStatusEnum, name="collection_status", validate_strings=True),
         default=CollectionStatusEnum.DRAFT,
     )
-    reporting_period_start_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
-    reporting_period_end_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
-    submission_period_start_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
-    submission_period_end_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
+    reporting_period_start_date: Mapped[datetime.date | None]
+    reporting_period_end_date: Mapped[datetime.date | None]
+    submission_period_start_date: Mapped[datetime.date | None]
+    submission_period_end_date: Mapped[datetime.date | None]
+    requires_certification: Mapped[bool | None]
 
     # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
     _submissions: Mapped[list["Submission"]] = relationship(
@@ -180,7 +181,13 @@ class Collection(BaseModel):
         cascade="all",
     )
 
-    __table_args__ = (UniqueConstraint("name", "grant_id", name="uq_collection_name_grant_id"),)
+    __table_args__ = (
+        UniqueConstraint("name", "grant_id", name="uq_collection_name_grant_id"),
+        CheckConstraint(
+            "requires_certification IS NOT NULL OR type != 'MONITORING_REPORT'",
+            name="ck_monitoring_certification_not_null",
+        ),
+    )
 
     @property
     def test_submissions(self) -> list["Submission"]:
