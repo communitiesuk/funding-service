@@ -89,6 +89,7 @@ class NotificationService:
                 "magic_link": magic_link_url,
                 "magic_link_expires_at": _format_utc_timestamp_to_local(magic_link_expires_at_utc),
                 "request_new_magic_link": request_new_magic_link_url,
+                "service_desk_url": current_app.config["ACCESS_SERVICE_DESK_URL"],
             },
             govuk_notify_reference=govuk_notify_reference,
         )
