@@ -22,7 +22,6 @@ all_auth_annotations = [
 ]
 
 routes_with_expected_platform_admin_only_access = [
-    "developers.access.grants_list",
     "developers.deliver.grant_developers",
     "deliver_grant_funding.grant_change_ggis",
 ]
@@ -140,7 +139,6 @@ routes_with_expected_is_deliver_grant_funding_user_access = [
     "deliver_grant_funding.list_grants",
 ]
 routes_with_no_expected_access_restrictions = [
-    "developers.access.grant_details",
     "healthcheck.db_healthcheck_current_revision",
     "auth.request_a_link_to_sign_in",
     "auth.check_email",
