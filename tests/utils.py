@@ -126,6 +126,21 @@ def get_h2_text(soup: BeautifulSoup) -> str:
     return get_soup_text(soup, "h2")
 
 
+def get_link_hrefs(soup: BeautifulSoup) -> list[str]:
+    links = soup.find_all("a")
+    link_hrefs = []
+    for link in links:
+        href = link.get("href")
+        if href is not None and isinstance(href, str):
+            link_hrefs.append(href)
+    return link_hrefs
+
+
+def get_service_name_text(soup: BeautifulSoup) -> str | None:
+    service_name_element = soup.find("span", class_="govuk-header__product-name")
+    return service_name_element.text if service_name_element else None
+
+
 def page_has_link(soup: BeautifulSoup, link_text: str) -> Tag | None:
     links = soup.select("a")
 
