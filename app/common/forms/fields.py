@@ -24,7 +24,7 @@ class IntegerWithCommasField(WTFormsIntegerField):
             self.data = int(cleaned_value)
         except ValueError as exc:
             self.data = None
-            raise ValueError(self.gettext("Not a valid integer value.")) from exc
+            raise ValueError(self.gettext("The answer must be a whole number, like 100")) from exc
 
 
 class MHCLGAccessibleAutocomplete(GovSelect):

@@ -54,8 +54,9 @@ def test_validation_attached_to_field_and_runs__text(factories, value, error_mes
         (1_000, "The answer must be less than 100"),
         (50, None),
         (0, None),
-        (None, "Not a valid integer value."),
-        ("abcd", "Not a valid integer value."),
+        (None, "The answer must be a whole number, like 100"),
+        ("abcd", "The answer must be a whole number, like 100"),
+        ("100.10", "The answer must be a whole number, like 100"),
         ("", "Enter the test_integer"),
         ("1,000", "The answer must be less than 100"),  # comma-separated, fails validation
         ("50,000", "The answer must be less than 100"),  # comma-separated, fails validation
