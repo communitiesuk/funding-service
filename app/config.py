@@ -122,6 +122,7 @@ class _SharedConfig(_BaseConfig):
     PROXY_FIX_PROTO: int = 1  # CloudFront for AWS environments; Caddy for PullPreview
     PROXY_FIX_HOST: int = 1  # We inject X-Forwarded-For using Cloudfront custom headings
     SERVER_NAME: str
+    SEND_FILE_MAX_AGE_DEFAULT: int = 31536000
 
     # Basic auth
     BASIC_AUTH_ENABLED: bool = False
