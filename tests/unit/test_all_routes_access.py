@@ -22,7 +22,6 @@ all_auth_annotations = [
 ]
 
 routes_with_expected_platform_admin_only_access = [
-    "developers.deliver.grant_developers",
     "deliver_grant_funding.grant_change_ggis",
 ]
 routes_with_expected_deliver_org_member_only_access = [

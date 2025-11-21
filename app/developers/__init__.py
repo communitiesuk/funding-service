@@ -1,5 +1,3 @@
-from typing import Any
-
 from flask import Blueprint
 
 developers_blueprint = Blueprint(
@@ -7,11 +5,4 @@ developers_blueprint = Blueprint(
 )
 
 
-@developers_blueprint.context_processor
-def inject_variables() -> dict[str, Any]:
-    return dict(show_watermark=True)
-
-
-from app.developers import commands, deliver_routes  # noqa: E402, F401
-
-developers_blueprint.register_blueprint(deliver_routes.developers_deliver_blueprint)
+from app.developers import commands as commands  # noqa: E402, F401
