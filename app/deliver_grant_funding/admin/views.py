@@ -524,27 +524,29 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         csv_writer.writeheader()
 
         grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
-        grant_recipient_data_providers = [
-            data_provider for grant_recipient in grant_recipients for data_provider in grant_recipient.data_providers
-        ]
-        for data_provider in sorted(grant_recipient_data_providers, key=lambda u: u.email):
-            reporting_period = format_date_range(
-                collection.reporting_period_start_date, collection.reporting_period_end_date
-            )
-            report_deadline = format_date(collection.submission_period_end_date)
+        for grant_recipient in grant_recipients:
+            for data_provider in sorted(grant_recipient.data_providers, key=lambda u: u.email):
+                reporting_period = format_date_range(
+                    collection.reporting_period_start_date, collection.reporting_period_end_date
+                )
+                report_deadline = format_date(collection.submission_period_end_date)
 
-            # TODO: Update this to link directly to the grant recipient's report page once that route is available
-            grant_report_url = url_for("auth.request_a_link_to_sign_in", _external=True)
+                grant_report_url = url_for(
+                    "access_grant_funding.list_reports",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    _external=True,
+                )
 
-            csv_writer.writerow(
-                {
-                    "email_address": data_provider.email,
-                    "grant_name": grant.name,
-                    "reporting_period": reporting_period,
-                    "report_deadline": report_deadline,
-                    "grant_report_url": grant_report_url,
-                }
-            )
+                csv_writer.writerow(
+                    {
+                        "email_address": data_provider.email,
+                        "grant_name": grant.name,
+                        "reporting_period": reporting_period,
+                        "report_deadline": report_deadline,
+                        "grant_report_url": grant_report_url,
+                    }
+                )
 
         csv_bytes = BytesIO(csv_output.getvalue().encode("utf-8"))
         csv_bytes.seek(0)

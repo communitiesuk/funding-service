@@ -710,6 +710,7 @@ class TestSendEmailsToRecipients:
         assert all("Test Grant" in line for line in lines[1:])
         assert all("Wednesday 1 January 2025 to Monday 31 March 2025" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
+        assert all(f"/grants/{grant.id}/reports" in line for line in lines[1:])
 
 
 class TestSetUpCertifiers:
