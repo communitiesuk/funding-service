@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -170,6 +170,7 @@ class TestTasklist:
             ("authenticated_grant_recipient_data_provider_client", True),
         ),
     )
+    @pytest.mark.freeze_time("2025-01-02 12:00:00")
     def test_post_tasklist_complete_submission(
         self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, mock_notification_service_calls
     ):
@@ -189,6 +190,14 @@ class TestTasklist:
             submission=submission,
             form=question.form,
             key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED,
+            created_at_utc=datetime(2025, 1, 1, 12, 0, 0),
+        )
+
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            permissions=[RoleEnum.CERTIFIER],
         )
 
         response = client.post(
@@ -206,19 +215,20 @@ class TestTasklist:
         else:
             assert response.status_code == 302
 
-            # todo: this will be the submission confirmation/ awaiting sign off page
             expected_location = (
                 f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
                 f"/reports/{submission.id}/confirmation"
             )
             assert response.location == expected_location
 
-            assert len(mock_notification_service_calls) == 1
-            assert mock_notification_service_calls[0].kwargs["personalisation"][
-                "grant_report_url"
-            ] == AnyStringMatching(
+            # 1 email for the data provider, 1 email for the certifier
+            assert len(mock_notification_service_calls) == 2
+            data_provider_confirmation_email = mock_notification_service_calls[0]
+            certifier_notification_email = mock_notification_service_calls[1]
+            assert data_provider_confirmation_email.kwargs["personalisation"]["grant_report_url"] == AnyStringMatching(
                 r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+"
             )
+            assert certifier_notification_email.kwargs["personalisation"]["report_submitter"] == client.user.name
 
 
 class TestAskAQuestion:

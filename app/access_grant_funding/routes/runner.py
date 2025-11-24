@@ -75,10 +75,12 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
                         data_provider.email, submission=runner.submission.submission
                     )
                 for certifier in grant_recipient.certifiers:
+                    # we've sent the submission for sign off in this transaction so it should be guaranteed
+                    assert runner.submission.sent_for_certification_by is not None
                     notification_service.send_access_submission_ready_to_certify(
                         certifier.email,
                         submission=runner.submission.submission,
-                        submitted_by=interfaces.user.get_current_user(),
+                        submitted_by=runner.submission.sent_for_certification_by,
                     )
 
                 return redirect(

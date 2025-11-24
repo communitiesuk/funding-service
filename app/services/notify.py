@@ -162,13 +162,12 @@ class NotificationService:
             },
         )
 
-    # todo: do we want to persist the user who sent it for sign off, the user who certified, etc.
     def send_access_submission_ready_to_certify(
-        self, email_address: str, *, submission: "Submission", submitted_by: "User | None" = None
+        self, email_address: str, *, submission: "Submission", submitted_by: "User"
     ) -> Notification:
         personalisation = {
             "grant_name": submission.collection.grant.name,
-            "report_submitter": submitted_by.name if submitted_by else submission.created_by.name,
+            "report_submitter": submitted_by.name,
             "reporting_period": submission.collection.name,
             "report_deadline": format_date(submission.collection.submission_period_end_date)
             if submission.collection.submission_period_end_date
