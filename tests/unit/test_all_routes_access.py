@@ -108,11 +108,6 @@ routes_with_expected_member_only_access = [
 ]
 
 routes_with_expected_access_grant_funding_logged_in_access = [
-    "developers.access.start_submission_redirect",
-    "developers.access.submission_tasklist",
-    "developers.access.ask_a_question",
-    "developers.access.check_your_answers",
-    "developers.access.collection_confirmation",
     "access_grant_funding.index",
 ]
 
@@ -285,10 +280,16 @@ def test_routes_list_is_valid(app):
     all_declared_routes_in_test = (
         routes_with_no_expected_access_restrictions
         + routes_with_expected_is_deliver_grant_funding_user_access
+        + routes_with_expected_deliver_org_member_only_access
         + routes_with_expected_member_only_access
         + routes_with_expected_grant_admin_only_access
         + routes_with_expected_platform_admin_only_access
         + routes_with_access_controlled_by_flask_admin
+        + routes_with_expected_access_grant_funding_logged_in_access
+        + routes_with_expected_access_grant_funding_grant_recipient_role
+        + routes_with_expected_access_grant_funding_org_access
+        + routes_with_expected_access_grant_funding_has_member_role_access
+        + routes_with_expected_access_grant_funding_has_data_provider_role_access
     )
 
     all_routes_in_app = [rule.endpoint for rule in app.url_map.iter_rules()]
@@ -302,7 +303,6 @@ routes_with_get_change_state_exception = [
     "deliver_grant_funding.move_section",
     "deliver_grant_funding.move_component",
     "access_grant_funding.route_to_submission",
-    "developers.access.start_submission_redirect",
 ]
 
 
