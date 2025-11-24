@@ -492,15 +492,15 @@ wheels = [
 
 [[package]]
 name = "flask-sqlalchemy-lite"
-version = "0.2.0"
+version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flask", extra = ["async"] },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/1a/e042f3128c3affa06528ee4e68ce5eee6280d49a9c5dccc4cce89ee5303b/flask_sqlalchemy_lite-0.2.0.tar.gz", hash = "sha256:e77d3a6a6fd7389c3c3d9f0cbc66f8583e5cf3899dd9f5225f064cc81982fc5b", size = 10380, upload-time = "2025-11-13T18:48:14.887Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b7/dc/3f4c55cfc03e189e50b80843d5d3ff70c97711d924537b7a5ad8587cf7fb/flask_sqlalchemy_lite-0.2.1.tar.gz", hash = "sha256:6de2f70c835a2c0a11264cbbc0cc33e7ed9732a52ee056781c5739e960213d2f", size = 10389, upload-time = "2025-11-20T21:38:10.209Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/49/12016a949863d334cf399a1328cf8e812f6645c8c38d6f68b5fa4466ddf4/flask_sqlalchemy_lite-0.2.0-py3-none-any.whl", hash = "sha256:983eaeba30f8aca3e559798415fcff8ca1db77d8ed6b975edcb6b5bd8f114f77", size = 10199, upload-time = "2025-11-13T18:48:13.822Z" },
+    { url = "https://files.pythonhosted.org/packages/20/f3/df9d508d4ed9657ae23d9e936ca2f2c0556742c032598e0d79f78e64646f/flask_sqlalchemy_lite-0.2.1-py3-none-any.whl", hash = "sha256:93f1df6228389fdc60a0733353f8c1a18aaeaf03c8d6ab541bafdf2987c5e777", size = 10208, upload-time = "2025-11-20T21:38:08.729Z" },
 ]
 
 [[package]]
@@ -625,7 +625,7 @@ requires-dist = [
     { name = "flask-babel", specifier = "==4.0.0" },
     { name = "flask-login", specifier = "==0.6.3" },
     { name = "flask-migrate", specifier = "==4.1.0" },
-    { name = "flask-sqlalchemy-lite", specifier = "==0.2.0" },
+    { name = "flask-sqlalchemy-lite", specifier = "==0.2.1" },
     { name = "flask-talisman", specifier = "==1.1.0" },
     { name = "flask-wtf", specifier = "==1.2.2" },
     { name = "govuk-frontend-jinja", specifier = "==3.9.0" },
@@ -635,7 +635,7 @@ requires-dist = [
     { name = "msal", specifier = "==1.34.0" },
     { name = "notifications-python-client", specifier = "==10.0.1" },
     { name = "num2words", specifier = "==0.5.14" },
-    { name = "psycopg", specifier = "==3.2.12" },
+    { name = "psycopg", specifier = "==3.2.13" },
     { name = "pydantic", specifier = "==2.12.4" },
     { name = "pydantic-settings", specifier = "==2.12.0" },
     { name = "python-json-logger", specifier = "==4.0.0" },
@@ -1095,14 +1095,14 @@ wheels = [
 
 [[package]]
 name = "psycopg"
-version = "3.2.12"
+version = "3.2.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/77/c72d10262b872617e509a0c60445afcc4ce2cd5cd6bc1c97700246d69c85/psycopg-3.2.12.tar.gz", hash = "sha256:85c08d6f6e2a897b16280e0ff6406bef29b1327c045db06d21f364d7cd5da90b", size = 160642, upload-time = "2025-10-26T00:46:03.045Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/44/05/d4a05988f15fcf90e0088c735b1f2fc04a30b7fc65461d6ec278f5f2f17a/psycopg-3.2.13.tar.gz", hash = "sha256:309adaeda61d44556046ec9a83a93f42bbe5310120b1995f3af49ab6d9f13c1d", size = 160626, upload-time = "2025-11-21T22:34:32.328Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c8/28/8c4f90e415411dc9c78d6ba10b549baa324659907c13f64bfe3779d4066c/psycopg-3.2.12-py3-none-any.whl", hash = "sha256:8a1611a2d4c16ae37eada46438be9029a35bb959bb50b3d0e1e93c0f3d54c9ee", size = 206765, upload-time = "2025-10-26T00:10:42.173Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/14/f2724bd1986158a348316e86fdd0837a838b14a711df3f00e47fba597447/psycopg-3.2.13-py3-none-any.whl", hash = "sha256:a481374514f2da627157f767a9336705ebefe93ea7a0522a6cbacba165da179a", size = 206797, upload-time = "2025-11-21T22:29:39.733Z" },
 ]
 
 [[package]]
