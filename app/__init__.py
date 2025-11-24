@@ -199,7 +199,7 @@ def create_app() -> Flask:  # noqa: C901
     def load_user(user_id: str) -> Optional["User"]:
         user = interfaces.user.get_user(user_id)
         if user:
-            sentry_sdk.set_user({"email": user.email, "name": user.name})
+            sentry_sdk.set_user({"email": user.email, "name": user.name, "id": user_id})
         return user
 
     # This section is needed for url_for("foo", _external=True) to

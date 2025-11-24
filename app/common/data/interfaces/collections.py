@@ -54,6 +54,7 @@ from app.common.forms.helpers import questions_in_same_add_another_container
 from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
+from app.metrics import MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
 
 if TYPE_CHECKING:
@@ -382,6 +383,7 @@ def create_submission(
         collection=collection, created_by=created_by, mode=mode, data={}, grant_recipient=grant_recipient
     )
     db.session.add(submission)
+    emit_metric_count(MetricEventName.SUBMISSION_CREATED, submission=submission)
     return submission
 
 
@@ -1115,12 +1117,31 @@ def add_submission_event(
     submission: Submission, key: SubmissionEventKey, user: User, form: Form | None = None
 ) -> Submission:
     submission.events.append(SubmissionEvent(key=key, created_by=user, form=form))
+
+    match key:
+        case SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION:
+            emit_metric_count(MetricEventName.SUBMISSION_SENT_FOR_CERTIFICATION, submission=submission)
+
+        case SubmissionEventKey.SUBMISSION_SUBMITTED:
+            emit_metric_count(MetricEventName.SUBMISSION_SUBMITTED, submission=submission)
+
+        case SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED:
+            emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, submission=submission)
+
     return submission
 
 
 @flush_and_rollback_on_exceptions
 def clear_submission_events(submission: Submission, key: SubmissionEventKey, form: Form | None = None) -> Submission:
     submission.events = [x for x in submission.events if not (x.key == key and (x.form == form if form else True))]
+
+    match key:
+        case SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED:
+            emit_metric_count(MetricEventName.SECTION_MARKED_INCOMPLETE, submission=submission)
+
+        case SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION:
+            emit_metric_count(MetricEventName.SUBMISSION_CERTIFICATION_DECLINED, submission=submission)
+
     return submission
 
 

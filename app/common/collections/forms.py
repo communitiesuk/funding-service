@@ -29,6 +29,7 @@ from app.common.forms.fields import (
     MHCLGRadioInput,
 )
 from app.common.forms.validators import FinalOptionExclusive, URLWithoutProtocol, WordRange
+from app.metrics import MetricEventName, emit_metric_count
 
 _accepted_fields = (
     EmailField
@@ -52,6 +53,7 @@ class DynamicQuestionForm(FlaskForm):
     _evaluation_context: ExpressionContext
     _interpolation_context: ExpressionContext
     _questions: list[Question]
+
     submit: SubmitField
 
     def _extract_submission_answers(self) -> dict[str, Any]:
@@ -126,7 +128,14 @@ def build_validators(
                 raise RuntimeError("Support for un-managed validation has not been implemented yet.")
 
             if not evaluate(expression=validation, context=evaluation_context):
+                emit_metric_count(
+                    MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR, managed_expression=validation.managed
+                )
                 raise ValidationError(interpolate(validation.managed.message, context=interpolation_context))
+
+            emit_metric_count(
+                MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS, managed_expression=validation.managed
+            )
 
         validators.append(cast(Callable[[Form, Field], None], partial(run_validation, validation=_validation)))
 
