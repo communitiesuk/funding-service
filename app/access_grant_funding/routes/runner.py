@@ -31,18 +31,31 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
         submission = interfaces.collections.create_submission(
             collection=collection, grant_recipient=grant_recipient, created_by=user, mode=SubmissionModeEnum.LIVE
         )
-    return redirect(
-        url_for(
-            "access_grant_funding.tasklist",
-            organisation_id=organisation_id,
-            grant_id=grant_id,
-            submission_id=submission.id,
+
+    submission_helper = SubmissionHelper(submission)
+    if submission_helper.is_locked_state:
+        return redirect(
+            url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission.id,
+            )
         )
-    )
+    else:
+        return redirect(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission.id,
+            )
+        )
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>", methods=["GET", "POST"]
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/tasklist",
+    methods=["GET", "POST"],
 )
 @auto_commit_after_request
 @has_access_grant_role(RoleEnum.MEMBER)

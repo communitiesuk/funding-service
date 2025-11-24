@@ -218,6 +218,7 @@ class SubmissionHelper:
     def is_locked_state(self) -> bool:
         return self.is_completed or self.is_awaiting_sign_off
 
+    # todo: rename this to is_submitted, "Completed" was task section specific language
     @property
     def is_completed(self) -> bool:
         return self.status == SubmissionStatusEnum.SUBMITTED

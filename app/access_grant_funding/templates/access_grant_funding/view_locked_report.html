@@ -1,0 +1,15 @@
+{% extends "access_grant_funding/base.html" %}
+
+{% set page_title = submission.name ~ " - " ~ grant_recipient.grant.name %}
+
+{% set active_item_identifier = "reports" %}
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ page_title }}</h1>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full"></div>
+  </div>
+{% endblock %}

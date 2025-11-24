@@ -40,3 +40,17 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
         submissions=submissions,
         grant_recipient=grant_recipient,
     )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/view", methods=["GET"]
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    submission = SubmissionHelper.load(submission_id=submission_id)
+    return render_template(
+        "access_grant_funding/view_locked_report.html",
+        grant_recipient=grant_recipient,
+        submission=submission,
+    )

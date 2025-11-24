@@ -5,6 +5,7 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
+from app.common.data.models import Submission
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
@@ -15,6 +16,90 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_h2, page_has_link
+
+
+class TestRouteToSubmission:
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_recipient_member_client", True),
+        ),
+    )
+    def test_route_to_submission_access(
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories
+    ):
+        client = request.getfixturevalue(client_fixture)
+        grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
+        submission = factories.submission.create(
+            grant_recipient=grant_recipient, collection__grant=grant_recipient.grant, mode=SubmissionModeEnum.LIVE
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=submission.collection.id,
+            ),
+            follow_redirects=False,
+        )
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 302
+            expected_location = (
+                f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
+                f"/reports/{submission.id}/tasklist"
+            )
+            assert response.location == expected_location
+
+    def test_route_to_submission_creates_submission_if_missing(
+        self, db_session, factories, authenticated_grant_recipient_member_client
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(grant=grant_recipient.grant)
+
+        submissions = db_session.query(Submission).where(Submission.grant_recipient_id == grant_recipient.id).all()
+        assert len(submissions) == 0
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        submissions = db_session.query(Submission).where(Submission.grant_recipient_id == grant_recipient.id).all()
+        assert len(submissions) == 1
+        assert str(submissions[0].id) in response.location
+
+    def test_route_to_submission_redirects_to_locked_page_if_locked(
+        self, factories, authenticated_grant_recipient_member_client, submission_awaiting_sign_off
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=submission_awaiting_sign_off.collection.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        expected_location = (
+            f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
+            f"/reports/{submission_awaiting_sign_off.id}/view"
+        )
+        assert response.location == expected_location
 
 
 class TestTasklist:
