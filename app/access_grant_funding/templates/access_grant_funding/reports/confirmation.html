@@ -44,7 +44,7 @@
 
       <p class="govuk-body">You will receive an email to confirm whether your report was signed off and submitted or if you need to make changes.</p>
 
-      <p class="govuk-body">You cannot make changes while awaiting sign off or once the report has been signed off and submitted to {{ grant_recipient.grant.organisation.name }}.</p>
+      <p class="govuk-body">You cannot make changes while awaiting sign off or once the report has been signed off and submitted to the {{ grant_recipient.grant.organisation.name }}.</p>
 
       <p class="govuk-body">
         <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.list_reports', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id) }}">Return to reports</a>

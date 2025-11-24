@@ -443,7 +443,6 @@ def user(factories: _Factories) -> User:
 @pytest.fixture(scope="function")
 def grant_recipient(
     factories: _Factories,
-    user: User,
 ) -> GrantRecipient:
     grant_recipient = factories.grant_recipient.create(
         organisation__can_manage_grants=False, grant__status=GrantStatusEnum.LIVE

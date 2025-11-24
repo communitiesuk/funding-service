@@ -1,14 +1,14 @@
 from uuid import UUID
 
-from flask import render_template
+from flask import redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 
-from app.access_grant_funding.forms import SignOffReportForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.decorators import has_access_grant_role
 from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection_with_full_schema
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.types import RoleEnum, SubmissionModeEnum
+from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 
 
@@ -50,8 +50,20 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
 @has_access_grant_role(RoleEnum.MEMBER)
 def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+    # todo: FSPT-1028 whenever we're fetching a submission in the context of a grant recipient
+    #       always fetch it with a "WHERE" ensuring the submission is for that grant recipient
+    #       this should apply to all of the form runner pages in AGF too
     submission = SubmissionHelper.load(submission_id=submission_id)
-    form = SignOffReportForm()
+
+    if not submission.is_locked_state:
+        # note we're not redirecting to the route to submission as you might have been directed from
+        # there, go somewhere we know will load consistently and the user can step back in
+        return redirect(
+            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+        )
+
+    form = GenericSubmitForm()
     return render_template(
         "access_grant_funding/view_locked_report.html",
         grant_recipient=grant_recipient,
