@@ -28,6 +28,7 @@ from app.common.data.models import (
     Organisation,
     Question,
     Submission,
+    SubmissionEvent,
 )
 from app.common.data.models_user import User, UserRole
 from app.common.data.types import ComponentType, QuestionPresentationOptions
@@ -282,13 +283,14 @@ def seed_grants() -> None:  # noqa: C901
         grant_data["grant"]["id"] = uuid.UUID(grant_data["grant"]["id"])
 
         try:
-            db.session.execute(
-                delete(Submission).where(
-                    Submission.collection_id.in_(
-                        select(Collection.id).where(Collection.grant_id == grant_data["grant"]["id"])
-                    )
-                )
+            relevant_submissions = (
+                select(Submission.id)
+                .join(Submission.collection)
+                .where(Collection.grant_id == grant_data["grant"]["id"])
             )
+
+            db.session.execute(delete(SubmissionEvent).where(SubmissionEvent.submission_id.in_(relevant_submissions)))
+            db.session.execute(delete(Submission).where(Submission.id.in_(relevant_submissions)))
             db.session.execute(delete(GrantRecipient).where(GrantRecipient.grant_id == grant_data["grant"]["id"]))
             delete_grant(grant_data["grant"]["id"])
             db.session.flush()
