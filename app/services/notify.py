@@ -94,18 +94,24 @@ class NotificationService:
             govuk_notify_reference=govuk_notify_reference,
         )
 
-    def send_collection_submission(self, submission: "Submission") -> Notification:
-        return self._send_email(
-            submission.created_by.email,
-            current_app.config["GOVUK_NOTIFY_COLLECTION_SUBMISSION_TEMPLATE_ID"],
-            personalisation={
-                "submission name": submission.collection.name,
-                "submission reference": submission.reference,
-                "submission url": url_for(
-                    "developers.access.submission_tasklist", submission_id=submission.id, _external=True
-                ),
-            },
-        )
+    # TODO reinstate this once we finish the certifier flow
+    #
+    # def send_collection_submission(self, submission: "Submission") -> Notification:
+    #     return self._send_email(
+    #         submission.created_by.email,
+    #         current_app.config["GOVUK_NOTIFY_COLLECTION_SUBMISSION_TEMPLATE_ID"],
+    #         personalisation={
+    #             "submission name": submission.collection.name,
+    #             "submission reference": submission.reference,
+    #             "submission url": url_for(
+    #                 "access_grant_funding.route_to_submission",
+    #                 organisation_id=submission.grant_recipient.organisation_id,
+    #                 collection_id=submission.collection.id,
+    #                 grant_id=submission.collection.grant_id,
+    #                 _external=True,
+    #             ),
+    #         },
+    #     )
 
     def send_member_confirmation(self, email_address: str, *, grant: "Grant") -> Notification:
         return self._send_email(

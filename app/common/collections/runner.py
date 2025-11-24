@@ -456,29 +456,6 @@ class DGFFormRunner(FormRunner):
     }
 
 
-class DeveloperPagesRunner(FormRunner):
-    url_map: ClassVar[TRunnerUrlMap] = {
-        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index: url_for(
-            "developers.access.ask_a_question",
-            submission_id=runner.submission.id,
-            question_id=question.id if question else None,
-            source=source,
-            add_another_index=add_another_index,
-        ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index: url_for(
-            "developers.access.submission_tasklist",
-            submission_id=runner.submission.id,
-            form_id=runner.form.id if runner.form else None,
-        ),
-        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index: url_for(
-            "developers.access.check_your_answers",
-            submission_id=runner.submission.id,
-            form_id=form.id if form else runner.form.id if runner.form else None,
-            source=source,
-        ),
-    }
-
-
 class AGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
         FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index: url_for(
