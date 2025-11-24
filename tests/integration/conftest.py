@@ -5,6 +5,7 @@ import os
 import typing as t
 import uuid
 from contextlib import _GeneratorContextManager, contextmanager
+from datetime import date, timedelta
 from typing import Any, Generator, cast
 from unittest.mock import _Call, patch
 
@@ -452,7 +453,10 @@ def grant_recipient(
 
 @pytest.fixture(scope="function")
 def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
-    question = factories.question.create(form__collection__grant=grant_recipient.grant)
+    question = factories.question.create(
+        form__collection__grant=grant_recipient.grant,
+        form__collection__submission_period_end_date=date.today() + timedelta(days=30),
+    )
     submission = factories.submission.create(
         grant_recipient=grant_recipient,
         collection=question.form.collection,
@@ -513,6 +517,33 @@ def authenticated_grant_recipient_data_provider_client(
     factories.user_role.create(
         user=user,
         permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        organisation=grant_recipient.organisation,
+        grant=grant_recipient.grant,
+    )
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+    anonymous_client.user = user
+    anonymous_client.grant = grant_recipient.grant
+    anonymous_client.organisation = grant_recipient.organisation
+    anonymous_client.grant_recipient = grant_recipient
+    db_session.commit()
+
+    yield anonymous_client
+
+
+@pytest.fixture()
+def authenticated_grant_recipient_certifier_client(
+    anonymous_client: FundingServiceTestClient,
+    factories: _Factories,
+    db_session: Session,
+    grant_recipient: GrantRecipient,
+    user: User,
+) -> Generator[FundingServiceTestClient, None, None]:
+    factories.user_role.create(
+        user=user,
+        permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         organisation=grant_recipient.organisation,
         grant=grant_recipient.grant,
     )

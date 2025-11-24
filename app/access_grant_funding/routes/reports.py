@@ -3,6 +3,7 @@ from uuid import UUID
 from flask import render_template
 from flask.typing import ResponseReturnValue
 
+from app.access_grant_funding.forms import SignOffReportForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.decorators import has_access_grant_role
 from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection_with_full_schema
@@ -43,14 +44,17 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/view", methods=["GET"]
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/view",
+    methods=["GET", "POST"],
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
     submission = SubmissionHelper.load(submission_id=submission_id)
+    form = SignOffReportForm()
     return render_template(
         "access_grant_funding/view_locked_report.html",
         grant_recipient=grant_recipient,
         submission=submission,
+        form=form,
     )
