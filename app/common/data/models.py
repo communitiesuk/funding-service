@@ -223,7 +223,10 @@ class Submission(BaseModel):
     collection: Mapped[Collection] = relationship("Collection")
 
     events: Mapped[list["SubmissionEvent"]] = relationship(
-        "SubmissionEvent", back_populates="submission", cascade="all, delete-orphan"
+        "SubmissionEvent",
+        back_populates="submission",
+        cascade="all, delete-orphan",
+        order_by="desc(SubmissionEvent.created_at_utc)",
     )
     created_by: Mapped[User] = relationship("User", back_populates="submissions")
     grant_recipient: Mapped["GrantRecipient"] = relationship("GrantRecipient", back_populates="submissions")

@@ -24,8 +24,7 @@
         <h2 class="govuk-heading-m">Sign off and submit report</h2>
         <p class="govuk-body">Sign off and submit the report to the {{ submission.collection.grant.organisation.name }} by {{ format_date_short(submission.collection.submission_period_end_date) }}.</p>
 
-        {#            # TODO get the user who created the submission event, not the submission #}
-        <p class="govuk-body">If you need to decline the report, provide a reason so {{ submission.submission.created_by.name }} can update and resubmit the report.</p>
+        <p class="govuk-body">If you need to decline the report, provide a reason so {{ submission.sent_for_certification_by.name }} can update and resubmit the report.</p>
 
         <form method="POST" novalidate>
           <div class="govuk-button-group">

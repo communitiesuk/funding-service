@@ -1,8 +1,15 @@
 import uuid
+from datetime import datetime
 
 import pytest
 
-from app.common.data.types import ExpressionType, QuestionDataType, QuestionPresentationOptions, SubmissionEventKey
+from app.common.data.types import (
+    ExpressionType,
+    QuestionDataType,
+    QuestionPresentationOptions,
+    SubmissionEventKey,
+    SubmissionModeEnum,
+)
 from app.common.helpers.collections import SubmissionHelper
 from tests.utils import AnyStringMatching
 
@@ -675,3 +682,69 @@ class TestSubmissionHelper:
             assert helper.get_answer_summary_for_add_another(q1, add_another_index=0).is_answered is False
             assert helper.get_answer_summary_for_add_another(q1, add_another_index=1).is_answered is True
             assert helper.get_answer_summary_for_add_another(q1, add_another_index=1).is_answered is True
+
+    class TestOrderedEvents:
+        def test_ordered_events(self, factories):
+            submission = factories.submission.build(mode=SubmissionModeEnum.LIVE)
+            event_1 = factories.submission_event.build(
+                submission=submission,
+                key=SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION,
+                created_at_utc=datetime(2020, 1, 1, 13, 30, 0),
+            )
+            event_2 = factories.submission_event.build(
+                submission=submission,
+                key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED,
+                created_at_utc=datetime(2025, 12, 1, 13, 30, 0),
+            )
+            event_3 = factories.submission_event.build(
+                submission=submission,
+                key=SubmissionEventKey.SUBMISSION_SUBMITTED,
+                created_at_utc=datetime(2022, 6, 1, 13, 30, 0),
+            )
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.ordered_events == [event_2, event_3, event_1]
+
+    class TestSentForCertificationBy:
+        def test_property_gets_submitted_by_user(self, factories):
+            user = factories.user.build()
+            submission = factories.submission.build(mode=SubmissionModeEnum.LIVE)
+            factories.submission_event.build(
+                submission=submission, key=SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION, created_by=user
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.sent_for_certification_by == user
+
+        def test_property_returns_none_when_no_submission_for_certification(self, factories):
+            submission = factories.submission.build(mode=SubmissionModeEnum.LIVE)
+            helper = SubmissionHelper(submission)
+
+            assert helper.sent_for_certification_by is None
+
+        def test_property_with_multiple_submission_events(self, factories):
+            user = factories.user.build()
+            user2 = factories.user.build()
+            submission = factories.submission.build(mode=SubmissionModeEnum.LIVE)
+            factories.submission_event.build(
+                submission=submission,
+                key=SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION,
+                created_by=user2,
+                created_at_utc=datetime(2020, 1, 1, 13, 30, 0),
+            )
+            factories.submission_event.build(
+                submission=submission,
+                key=SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION,
+                created_by=user,
+                created_at_utc=datetime(2025, 12, 1, 13, 30, 0),
+            )
+            factories.submission_event.build(
+                submission=submission,
+                key=SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION,
+                created_by=user2,
+                created_at_utc=datetime(2022, 6, 1, 13, 30, 0),
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.sent_for_certification_by == user
