@@ -242,42 +242,45 @@ routes_with_access_controlled_by_flask_admin = [
 ]
 
 
-def test_accessibility_for_user_role_to_each_endpoint(app):  # noqa: C901
+def test_accessibility_for_user_role_to_each_endpoint(app, subtests):  # noqa: C901
     for rule in app.url_map.iter_rules():
-        decorators = _get_decorators(app.view_functions[rule.endpoint])
-        if rule.endpoint in routes_with_expected_platform_admin_only_access:
-            assert "@is_platform_admin" in decorators
-        elif rule.endpoint in routes_with_expected_deliver_org_member_only_access:
-            assert "@is_deliver_org_member" in decorators
-        elif rule.endpoint in routes_with_expected_grant_admin_only_access:
-            assert "@has_deliver_grant_role(RoleEnum.ADMIN)" in decorators
-        elif rule.endpoint in routes_with_expected_member_only_access:
-            assert "@has_deliver_grant_role(RoleEnum.MEMBER)" in decorators
-        elif rule.endpoint in routes_with_expected_is_deliver_grant_funding_user_access:
-            assert "@is_deliver_grant_funding_user" in decorators
-        # todo: this will be the access grant funding routes where the user is logged in
-        #       and will likely have access through their org, this should be updated as part of that work
-        elif rule.endpoint in routes_with_expected_access_grant_funding_logged_in_access:
-            assert "@access_grant_funding_login_required" in decorators
-        elif rule.endpoint in routes_with_expected_access_grant_funding_org_access:
-            assert "@is_access_org_member" in decorators
-        elif rule.endpoint in routes_with_expected_access_grant_funding_has_data_provider_role_access:
-            assert "@has_access_grant_role(RoleEnum.DATA_PROVIDER)" in decorators
-        elif rule.endpoint in routes_with_expected_access_grant_funding_has_member_role_access:
-            assert "@has_access_grant_role(RoleEnum.MEMBER)" in decorators
-        elif rule.endpoint in routes_with_expected_access_grant_funding_grant_recipient_role:
-            assert "@has_access_grant_recipient_role" in decorators
-        elif rule.endpoint in routes_with_no_expected_access_restrictions:
-            # If route is expected to be unauthenticated, check it doesn't have any auth decorators
-            assert not any(decorator in all_auth_annotations for decorator in decorators)
-        elif rule.endpoint in routes_with_access_controlled_by_flask_admin:
-            # authentication of flask-admin routes is controlled by FlaskAdminPlatformAdminAccessibleMixin
-            pass
-        else:
-            raise pytest.fail(f"Unexpected endpoint {rule.endpoint}. Add this to the expected_route_access mapping.")  # ty: ignore[call-non-callable]
+        with subtests.test(msg=rule.endpoint):
+            decorators = _get_decorators(app.view_functions[rule.endpoint])
+            if rule.endpoint in routes_with_expected_platform_admin_only_access:
+                assert "@is_platform_admin" in decorators
+            elif rule.endpoint in routes_with_expected_deliver_org_member_only_access:
+                assert "@is_deliver_org_member" in decorators
+            elif rule.endpoint in routes_with_expected_grant_admin_only_access:
+                assert "@has_deliver_grant_role(RoleEnum.ADMIN)" in decorators
+            elif rule.endpoint in routes_with_expected_member_only_access:
+                assert "@has_deliver_grant_role(RoleEnum.MEMBER)" in decorators
+            elif rule.endpoint in routes_with_expected_is_deliver_grant_funding_user_access:
+                assert "@is_deliver_grant_funding_user" in decorators
+            # todo: this will be the access grant funding routes where the user is logged in
+            #       and will likely have access through their org, this should be updated as part of that work
+            elif rule.endpoint in routes_with_expected_access_grant_funding_logged_in_access:
+                assert "@access_grant_funding_login_required" in decorators
+            elif rule.endpoint in routes_with_expected_access_grant_funding_org_access:
+                assert "@is_access_org_member" in decorators
+            elif rule.endpoint in routes_with_expected_access_grant_funding_has_data_provider_role_access:
+                assert "@has_access_grant_role(RoleEnum.DATA_PROVIDER)" in decorators
+            elif rule.endpoint in routes_with_expected_access_grant_funding_has_member_role_access:
+                assert "@has_access_grant_role(RoleEnum.MEMBER)" in decorators
+            elif rule.endpoint in routes_with_expected_access_grant_funding_grant_recipient_role:
+                assert "@has_access_grant_recipient_role" in decorators
+            elif rule.endpoint in routes_with_no_expected_access_restrictions:
+                # If route is expected to be unauthenticated, check it doesn't have any auth decorators
+                assert not any(decorator in all_auth_annotations for decorator in decorators)
+            elif rule.endpoint in routes_with_access_controlled_by_flask_admin:
+                # authentication of flask-admin routes is controlled by FlaskAdminPlatformAdminAccessibleMixin
+                pass
+            else:
+                raise pytest.fail(
+                    f"Unexpected endpoint {rule.endpoint}. Add this to the expected_route_access mapping."
+                )  # ty: ignore[call-non-callable]
 
-        if rule.endpoint in routes_with_expected_collection_is_editable_decorator:
-            assert "@collection_is_editable(" in " ".join(decorators)
+            if rule.endpoint in routes_with_expected_collection_is_editable_decorator:
+                assert "@collection_is_editable(" in " ".join(decorators)
 
 
 def test_routes_list_is_valid(app):
@@ -305,12 +308,13 @@ routes_with_get_change_state_exception = [
 ]
 
 
-def test_restrict_mutate_state_on_only_get(app):
+def test_restrict_mutate_state_on_only_get(app, subtests):
     for rule in app.url_map.iter_rules():
-        decorators = _get_decorators(app.view_functions[rule.endpoint])
-        if (
-            rule.endpoint not in routes_with_get_change_state_exception
-            and rule.methods == {"GET", "HEAD", "OPTIONS"}
-            and "@auto_commit_after_request" in decorators
-        ):
-            pytest.fail(f"Unexpected db commit wrapper, GET should not accidentally change state: {rule.endpoint}")
+        with subtests.test(msg=rule.endpoint):
+            decorators = _get_decorators(app.view_functions[rule.endpoint])
+            if (
+                rule.endpoint not in routes_with_get_change_state_exception
+                and rule.methods == {"GET", "HEAD", "OPTIONS"}
+                and "@auto_commit_after_request" in decorators
+            ):
+                pytest.fail(f"Unexpected db commit wrapper, GET should not accidentally change state: {rule.endpoint}")
