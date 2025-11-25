@@ -5,7 +5,7 @@ from datetime import date, datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Sequence, Union, cast
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -58,6 +58,7 @@ if TYPE_CHECKING:
         Group,
         Question,
         Submission,
+        SubmissionEvent,
     )
 
 
@@ -176,9 +177,9 @@ class SubmissionHelper:
     @property
     def status(self) -> SubmissionStatusEnum:
         awaiting_sign_off = any(
-            x.key == SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION for x in self.submission.events
+            x.key == SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION for x in self.ordered_events
         )
-        submitted = any(x.key == SubmissionEventKey.SUBMISSION_SUBMITTED for x in self.submission.events)
+        submitted = any(x.key == SubmissionEventKey.SUBMISSION_SUBMITTED for x in self.ordered_events)
 
         # todo: make sure this is resilient to timezones, drift, etc. this is likely something that should
         #       a batch job decision that is then added as a submission event rather than calculated by the server
@@ -206,7 +207,7 @@ class SubmissionHelper:
             return None
 
         submitted = next(
-            filter(lambda e: e.key == SubmissionEventKey.SUBMISSION_SUBMITTED, reversed(self.submission.events)),
+            filter(lambda e: e.key == SubmissionEventKey.SUBMISSION_SUBMITTED, self.ordered_events),
             None,
         )
         if not submitted:
@@ -218,6 +219,7 @@ class SubmissionHelper:
     def is_locked_state(self) -> bool:
         return self.is_completed or self.is_awaiting_sign_off
 
+    # todo: rename this to is_submitted, "Completed" was task section specific language
     @property
     def is_completed(self) -> bool:
         return self.status == SubmissionStatusEnum.SUBMITTED
@@ -237,6 +239,21 @@ class SubmissionHelper:
     @property
     def created_by_email(self) -> str:
         return self.submission.created_by.email
+
+    @property
+    def ordered_events(self) -> Sequence["SubmissionEvent"]:
+        return sorted(self.submission.events, key=lambda x: x.created_at_utc, reverse=True)
+
+    @property
+    def sent_for_certification_by(self) -> User | None:
+        return next(
+            (
+                x.created_by
+                for x in self.ordered_events
+                if x.key == SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION
+            ),
+            None,
+        )
 
     @property
     def created_at_utc(self) -> datetime:
@@ -304,7 +321,7 @@ class SubmissionHelper:
     def get_status_for_form(self, form: "Form") -> TasklistSectionStatusEnum:
         form_questions_answered = self.cached_get_all_questions_are_answered_for_form(form)
         marked_as_complete = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED in [
-            x.key for x in self.submission.events if x.form and x.form.id == form.id
+            x.key for x in self.ordered_events if x.form and x.form.id == form.id
         ]
         if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
             return TasklistSectionStatusEnum.COMPLETED

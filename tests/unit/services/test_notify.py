@@ -184,7 +184,7 @@ class TestNotificationService:
                         "personalisation": {
                             "grant_name": "Test grant",
                             "reporting_period": "Test collection",
-                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/tasklist",
                         },
                     }
                 )
@@ -223,7 +223,7 @@ class TestNotificationService:
                             "report_submitter": "Submitter User",
                             "reporting_period": "Test collection",
                             "report_deadline": "Tuesday 18 November 2025",
-                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/tasklist",
                             "government_department": "Test Organisation",
                         },
                     }

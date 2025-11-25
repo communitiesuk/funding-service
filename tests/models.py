@@ -856,6 +856,7 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
     submission = factory.SubFactory(_SubmissionFactory)
     form = factory.SubFactory(_FormFactory)
     created_by = factory.SubFactory(_UserFactory)
+    created_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
 
 
 class _ExpressionFactory(SQLAlchemyModelFactory):

@@ -5,7 +5,8 @@ import os
 import typing as t
 import uuid
 from contextlib import _GeneratorContextManager, contextmanager
-from typing import Any, Generator
+from datetime import date, timedelta
+from typing import Any, Generator, cast
 from unittest.mock import _Call, patch
 
 import pytest
@@ -30,8 +31,9 @@ from werkzeug.test import TestResponse
 
 from app import create_app
 from app.common.data.interfaces.system import seed_system_data
+from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_user import User
-from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum
+from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum, SubmissionEventKey, SubmissionModeEnum
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
@@ -433,16 +435,57 @@ def authenticated_org_member_client(
     yield anonymous_client
 
 
-@pytest.fixture()
-def authenticated_grant_recipient_member_client(
-    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
-) -> Generator[FundingServiceTestClient, None, None]:
-    """Create a client authenticated as a grant recipient for an org with can_manage_grants=False"""
+@pytest.fixture(scope="function")
+def user(factories: _Factories) -> User:
+    return cast(User, factories.user.create(email="accessgrantfundinguser@communities.gov.uk"))
 
-    user = factories.user.create(email="recipientmember@communities.gov.uk")
+
+@pytest.fixture(scope="function")
+def grant_recipient(
+    factories: _Factories,
+) -> GrantRecipient:
     grant_recipient = factories.grant_recipient.create(
         organisation__can_manage_grants=False, grant__status=GrantStatusEnum.LIVE
     )
+    return cast(GrantRecipient, grant_recipient)
+
+
+@pytest.fixture(scope="function")
+def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+    question = factories.question.create(
+        form__collection__grant=grant_recipient.grant,
+        form__collection__submission_period_end_date=date.today() + timedelta(days=30),
+    )
+    submission = factories.submission.create(
+        grant_recipient=grant_recipient,
+        collection=question.form.collection,
+        mode=SubmissionModeEnum.LIVE,
+        data={str(question.id): "Question answer"},
+        events=[
+            factories.submission_event.create(
+                form=question.form,
+                key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED,
+                created_by=user,
+            ),
+            factories.submission_event.create(
+                key=SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION,
+                created_by=user,
+            ),
+        ],
+    )
+    return cast(Submission, submission)
+
+
+@pytest.fixture()
+def authenticated_grant_recipient_member_client(
+    anonymous_client: FundingServiceTestClient,
+    factories: _Factories,
+    db_session: Session,
+    grant_recipient: GrantRecipient,
+    user: User,
+) -> Generator[FundingServiceTestClient, None, None]:
+    """Create a client authenticated as a grant recipient for an org with can_manage_grants=False"""
+
     factories.user_role.create(
         user=user,
         permissions=[RoleEnum.MEMBER],
@@ -464,15 +507,42 @@ def authenticated_grant_recipient_member_client(
 
 @pytest.fixture()
 def authenticated_grant_recipient_data_provider_client(
-    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
+    anonymous_client: FundingServiceTestClient,
+    factories: _Factories,
+    db_session: Session,
+    grant_recipient: GrantRecipient,
+    user: User,
 ) -> Generator[FundingServiceTestClient, None, None]:
-    user = factories.user.create(email="recipientmember@communities.gov.uk")
-    grant_recipient = factories.grant_recipient.create(
-        organisation__can_manage_grants=False, grant__status=GrantStatusEnum.LIVE
-    )
     factories.user_role.create(
         user=user,
         permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        organisation=grant_recipient.organisation,
+        grant=grant_recipient.grant,
+    )
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+    anonymous_client.user = user
+    anonymous_client.grant = grant_recipient.grant
+    anonymous_client.organisation = grant_recipient.organisation
+    anonymous_client.grant_recipient = grant_recipient
+    db_session.commit()
+
+    yield anonymous_client
+
+
+@pytest.fixture()
+def authenticated_grant_recipient_certifier_client(
+    anonymous_client: FundingServiceTestClient,
+    factories: _Factories,
+    db_session: Session,
+    grant_recipient: GrantRecipient,
+    user: User,
+) -> Generator[FundingServiceTestClient, None, None]:
+    factories.user_role.create(
+        user=user,
+        permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         organisation=grant_recipient.organisation,
         grant=grant_recipient.grant,
     )
