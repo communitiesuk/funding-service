@@ -26,7 +26,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
-    SubmissionEventKey,
+    SubmissionEventType,
     SubmissionModeEnum,
     json_flat_scalars,
     json_scalars,
@@ -596,15 +596,17 @@ class Group(Component):
 class SubmissionEvent(BaseModel):
     __tablename__ = "submission_event"
 
-    key: Mapped[SubmissionEventKey] = mapped_column(
-        SqlEnum(SubmissionEventKey, name="submission_event_key_enum", validate_strings=True)
+    event_type: Mapped[SubmissionEventType] = mapped_column(
+        SqlEnum(SubmissionEventType, name="submission_event_type_enum", validate_strings=True)
     )
+
+    target_key: Mapped[uuid.UUID]
+
+    # properties are immutable and will be mapped to known pydantic models next
+    data: Mapped[json_flat_scalars] = mapped_column(server_default="{}")
 
     submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("submission.id"))
     submission: Mapped[Submission] = relationship("Submission", back_populates="events")
-
-    form_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("form.id"))
-    form: Mapped[Optional[Form]] = relationship("Form")
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")

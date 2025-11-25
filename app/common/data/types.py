@@ -109,8 +109,9 @@ class TasklistSectionStatusEnum(enum.StrEnum):
     NO_QUESTIONS = "No questions"
 
 
-class SubmissionEventKey(enum.StrEnum):
+class SubmissionEventType(enum.StrEnum):
     FORM_RUNNER_FORM_COMPLETED = "Form completed"
+    FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS = "Form reset to in progress"
     SUBMISSION_SENT_FOR_CERTIFICATION = "Submission sent for certification"
     SUBMISSION_SUBMITTED = "Submission submitted"
 

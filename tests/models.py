@@ -52,7 +52,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
-    SubmissionEventKey,
+    SubmissionEventType,
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
@@ -855,9 +855,9 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
-    key = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
+    event_type = SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
     submission = factory.SubFactory(_SubmissionFactory)
-    form = factory.SubFactory(_FormFactory)
+    target_key = factory.LazyAttribute(lambda o: o.submission.id if o.submission else None)
     created_by = factory.SubFactory(_UserFactory)
     created_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
 

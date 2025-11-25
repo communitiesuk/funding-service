@@ -12,7 +12,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
-    SubmissionEventKey,
+    SubmissionEventType,
     SubmissionModeEnum,
 )
 from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_h2, page_has_link
@@ -188,8 +188,8 @@ class TestTasklist:
         factories.submission_event.create(
             created_by=client.user,
             submission=submission,
-            form=question.form,
-            key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED,
+            target_key=question.form.id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
             created_at_utc=datetime(2025, 1, 1, 12, 0, 0),
         )
 
@@ -990,9 +990,9 @@ class TestConfirmSentForCertification:
             data={str(question.id): "Blue"},
             events=[
                 factories.submission_event.create(
-                    key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED, form=question.form
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, target_key=question.form.id
                 ),
-                factories.submission_event.create(key=SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION),
+                factories.submission_event.create(event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION),
             ],
         )
 

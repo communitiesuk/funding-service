@@ -91,7 +91,7 @@ class TestSubmissionTasklist:
         submission = factories.submission.create(
             collection=question.form.collection, created_by=client.user, data=submission_data
         )
-        factories.submission_event.create(created_by=client.user, submission=submission, form=question.form)
+        factories.submission_event.create(created_by=client.user, submission=submission, target_key=question.form.id)
 
         with client.session_transaction() as session:
             session["test_submission_form_id"] = question.form.id
@@ -138,7 +138,7 @@ class TestSubmissionTasklist:
             created_by=client.user,
             data=submission_data,
         )
-        factories.submission_event.create(created_by=client.user, submission=submission, form=question.form)
+        factories.submission_event.create(created_by=client.user, submission=submission, target_key=question.form.id)
 
         response = client.post(
             url_for(
