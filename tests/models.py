@@ -857,9 +857,10 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     event_type = SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
     submission = factory.SubFactory(_SubmissionFactory)
-    target_key = factory.LazyAttribute(lambda o: o.submission.id if o.submission else None)
+    target_key = factory.LazyAttribute(lambda o: o.submission.id)
     created_by = factory.SubFactory(_UserFactory)
     created_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
+    data = factory.LazyFunction(dict)
 
 
 class _ExpressionFactory(SQLAlchemyModelFactory):
