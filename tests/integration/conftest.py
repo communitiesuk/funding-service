@@ -33,7 +33,7 @@ from app import create_app
 from app.common.data.interfaces.system import seed_system_data
 from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_user import User
-from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum, SubmissionEventKey, SubmissionModeEnum
+from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum, SubmissionEventType, SubmissionModeEnum
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
@@ -463,12 +463,12 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
         data={str(question.id): "Question answer"},
         events=[
             factories.submission_event.create(
-                form=question.form,
-                key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED,
+                related_entity_id=question.form.id,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
                 created_by=user,
             ),
             factories.submission_event.create(
-                key=SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION,
+                event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
                 created_by=user,
             ),
         ],

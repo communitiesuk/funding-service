@@ -46,7 +46,7 @@ from app.common.data.types import (
     GrantStatusEnum,
     QuestionDataType,
     QuestionPresentationOptions,
-    SubmissionEventKey,
+    SubmissionEventType,
     SubmissionModeEnum,
 )
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
@@ -1130,32 +1130,46 @@ def update_question(
 
 @flush_and_rollback_on_exceptions
 def add_submission_event(
-    submission: Submission, key: SubmissionEventKey, user: User, form: Form | None = None
+    submission: Submission, *, event_type: SubmissionEventType, user: User, related_entity_id: UUID | None = None
 ) -> Submission:
-    submission.events.append(SubmissionEvent(key=key, created_by=user, form=form))
+    submission.events.append(
+        SubmissionEvent(
+            event_type=event_type,
+            created_by=user,
+            related_entity_id=related_entity_id if related_entity_id else submission.id,
+        )
+    )
 
-    match key:
-        case SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION:
+    match event_type:
+        case SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION:
             emit_metric_count(MetricEventName.SUBMISSION_SENT_FOR_CERTIFICATION, submission=submission)
 
-        case SubmissionEventKey.SUBMISSION_SUBMITTED:
+        case SubmissionEventType.SUBMISSION_SUBMITTED:
             emit_metric_count(MetricEventName.SUBMISSION_SUBMITTED, submission=submission)
 
-        case SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED:
+        case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
             emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, submission=submission)
 
     return submission
 
 
 @flush_and_rollback_on_exceptions
-def clear_submission_events(submission: Submission, key: SubmissionEventKey, form: Form | None = None) -> Submission:
-    submission.events = [x for x in submission.events if not (x.key == key and (x.form == form if form else True))]
+def clear_submission_events(
+    submission: Submission, *, event_type: SubmissionEventType, related_entity_id: UUID | None = None
+) -> Submission:
+    submission.events = [
+        x
+        for x in submission.events
+        if not (
+            x.event_type == event_type and (x.related_entity_id == related_entity_id if related_entity_id else True)
+        )
+    ]
 
-    match key:
-        case SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED:
+    match event_type:
+        case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
             emit_metric_count(MetricEventName.SECTION_MARKED_INCOMPLETE, submission=submission)
 
-        case SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION:
+        case SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION:
             emit_metric_count(MetricEventName.SUBMISSION_CERTIFICATION_DECLINED, submission=submission)
 
     return submission
