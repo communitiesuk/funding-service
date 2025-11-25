@@ -12,6 +12,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import add_question_validation
 from app.common.data.models import Collection, Expression, Form, Group, Question
 from app.common.data.types import (
+    ConditionsOperator,
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionPresentationOptions,
@@ -24,6 +25,7 @@ from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddSectionForm,
+    ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
     GroupDisplayOptionsForm,
@@ -1096,6 +1098,140 @@ class TestChangeGroupAddAnotherSummaryQuestions:
 
         updated_group = db_session.get(Group, group.id)
         assert updated_group.presentation_options.add_another_summary_line_question_ids == [q1.id]
+
+
+class TestChangeConditionsOperator:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_conditions_operator", grant_id=uuid.uuid4(), component_id=uuid.uuid4()
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_for_question(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        question = factories.question.create(
+            form=form, name="Test question", conditions_operator=ConditionsOperator.ANY
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.change_conditions_operator",
+                grant_id=client.grant.id,
+                component_id=question.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            # the correct option is selected based on whats in the database
+            assert (
+                soup.find(
+                    "input",
+                    {
+                        "type": "radio",
+                        "name": "conditions_operator",
+                        "value": "ANY",
+                        "checked": True,
+                    },
+                )
+                is not None
+            )
+
+    def test_get_for_group(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(form=form, name="Test group", conditions_operator=ConditionsOperator.ALL)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_conditions_operator",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert (
+            soup.find(
+                "input",
+                {
+                    "type": "radio",
+                    "name": "conditions_operator",
+                    "value": "ALL",
+                    "checked": True,
+                },
+            )
+            is not None
+        )
+
+    def test_post_for_question(self, authenticated_grant_admin_client, factories, db_session):
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_question = factories.question.create(
+            form=db_form, name="Test question", conditions_operator=ConditionsOperator.ALL
+        )
+
+        assert db_question.conditions_operator == ConditionsOperator.ALL
+
+        form = ConditionsOperatorForm(data={"conditions_operator": "ANY"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_conditions_operator",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=db_question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}$")
+
+        updated_question = db_session.get(Question, db_question.id)
+        assert updated_question.conditions_operator == ConditionsOperator.ANY
+
+    def test_post_for_group(self, authenticated_grant_admin_client, factories, db_session):
+        from app.common.data.models import Group
+
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(form=db_form, name="Test group", conditions_operator=ConditionsOperator.ANY)
+
+        assert db_group.conditions_operator == ConditionsOperator.ANY
+
+        form = ConditionsOperatorForm(data={"conditions_operator": "ALL"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_conditions_operator",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=db_group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions$")
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.conditions_operator == ConditionsOperator.ALL
 
 
 class TestChangeFormName:

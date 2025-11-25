@@ -52,6 +52,8 @@ from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
     CollectionType,
+    ComponentType,
+    ConditionsOperator,
     ExpressionType,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
@@ -70,6 +72,7 @@ from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddSectionForm,
     ConditionSelectQuestionForm,
+    ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
     GroupDisplayOptionsForm,
@@ -348,6 +351,65 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         group=db_group,
         db_form=db_group.form,
         form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/component/<uuid:component_id>/change-conditions-operator", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def change_conditions_operator(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
+
+    form = ConditionsOperatorForm(obj=component)
+    if form.validate_on_submit():
+        assert form.conditions_operator.data
+        match component.type:
+            case ComponentType.QUESTION:
+                update_question(
+                    component,
+                    expression_context=ExpressionContext.build_expression_context(
+                        collection=component.form.collection, mode="interpolation"
+                    ),
+                    conditions_operator=ConditionsOperator(form.conditions_operator.data),
+                )
+            case ComponentType.GROUP:
+                update_group(
+                    component,
+                    expression_context=ExpressionContext.build_expression_context(
+                        collection=component.form.collection, mode="interpolation"
+                    ),
+                    conditions_operator=ConditionsOperator(form.conditions_operator.data),
+                )
+            case _:
+                abort(500)
+
+        if component.is_group:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_group_questions",
+                    grant_id=grant_id,
+                    group_id=component.id,
+                )
+            )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=component.id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/change_conditions_operator.html",
+        grant=component.form.collection.grant,
+        component=component,
+        db_form=component.form,
+        form=form,
+        interpolate=SubmissionHelper.get_interpolator(collection=component.form.collection),
     )
 
 
