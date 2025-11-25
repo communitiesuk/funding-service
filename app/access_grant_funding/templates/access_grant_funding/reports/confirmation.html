@@ -10,7 +10,7 @@
 {% block beforeContent %}
   {{
     govukBackLink({
-      "href": url_for("access_grant_funding.tasklist", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission_helper.id),
+      "href": url_for("access_grant_funding.route_to_submission", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=submission_helper.collection.id),
       "text": "Back"
     })
   }}

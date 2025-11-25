@@ -51,10 +51,7 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
 def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
 
-    # todo: FSPT-1028 whenever we're fetching a submission in the context of a grant recipient
-    #       always fetch it with a "WHERE" ensuring the submission is for that grant recipient
-    #       this should apply to all of the form runner pages in AGF too
-    submission = SubmissionHelper.load(submission_id=submission_id)
+    submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
     if not submission.is_locked_state:
         # note we're not redirecting to the route to submission as you might have been directed from

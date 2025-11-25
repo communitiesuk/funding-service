@@ -601,6 +601,17 @@ def test_get_submission(db_session, factories):
     assert from_db is not None
 
 
+def test_get_submission_for_grant_recipient(db_session, factories):
+    grant_recipient = factories.grant_recipient.create()
+    grant_recipient2 = factories.grant_recipient.create()
+    submission = factories.submission.create(grant_recipient=grant_recipient)
+    from_db = get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient.id)
+    assert from_db is not None
+
+    with pytest.raises(NoResultFound):
+        get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient2.id)
+
+
 def test_get_submission_with_full_schema(db_session, factories, track_sql_queries):
     submission = factories.submission.create()
     submission_id = submission.id
