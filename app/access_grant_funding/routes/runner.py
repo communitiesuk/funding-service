@@ -63,7 +63,11 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
 
-    runner = AGFFormRunner.load(submission_id=submission_id, source=FormRunnerState(source) if source else None)
+    runner = AGFFormRunner.load(
+        submission_id=submission_id,
+        source=FormRunnerState(source) if source else None,
+        grant_recipient_id=grant_recipient.id,
+    )
 
     if runner.tasklist_form.validate_on_submit():
         if AuthorisationHelper.is_access_grant_data_provider(
@@ -122,6 +126,7 @@ def ask_a_question(
         question_id=question_id,
         source=FormRunnerState(source) if source else None,
         add_another_index=add_another_index,
+        grant_recipient_id=grant_recipient.id,
     )
 
     if not runner.validate_can_show_question_page():
@@ -157,6 +162,7 @@ def check_your_answers(
         submission_id=submission_id,
         form_id=section_id,
         source=FormRunnerState(source) if source else None,
+        grant_recipient_id=grant_recipient.id,
     )
 
     if runner.check_your_answers_form.validate_on_submit():
@@ -180,7 +186,7 @@ def check_your_answers(
 @has_access_grant_role(RoleEnum.MEMBER)
 def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
-    submission_helper = SubmissionHelper.load(submission_id=submission_id)
+    submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
     if not submission_helper.is_locked_state:
         return redirect(
             url_for(

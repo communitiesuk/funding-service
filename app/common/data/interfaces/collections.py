@@ -335,7 +335,14 @@ def get_submission_by_grant_recipient_collection(
     ).first()
 
 
-def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submission:
+def get_submission(
+    submission_id: UUID, *, with_full_schema: bool = False, grant_recipient_id: UUID | None = None
+) -> Submission:
+    query = select(Submission).where(Submission.id == submission_id)
+
+    if grant_recipient_id:
+        query = query.where(Submission.grant_recipient_id == grant_recipient_id)
+
     options = []
     if with_full_schema:
         options.extend(
@@ -372,7 +379,7 @@ def get_submission(submission_id: UUID, with_full_schema: bool = False) -> Submi
     # If we took the principle that all relationships should be declared on the model as `lazy='raiseload'`, and we
     # specify lazy loading explicitly at all points of use, we could potentially remove the `populate_existing`
     # override below.
-    return db.session.get_one(Submission, submission_id, options=options, populate_existing=bool(options))
+    return db.session.execute(query.options(*options)).unique().scalar_one()
 
 
 @flush_and_rollback_on_exceptions

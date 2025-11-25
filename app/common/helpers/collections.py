@@ -107,8 +107,8 @@ class SubmissionHelper:
         )
 
     @classmethod
-    def load(cls, submission_id: uuid.UUID) -> "SubmissionHelper":
-        return cls(get_submission(submission_id, with_full_schema=True))
+    def load(cls, submission_id: uuid.UUID, *, grant_recipient_id: uuid.UUID | None = None) -> "SubmissionHelper":
+        return cls(get_submission(submission_id, with_full_schema=True, grant_recipient_id=grant_recipient_id))
 
     @staticmethod
     def get_interpolator(

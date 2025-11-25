@@ -126,11 +126,12 @@ class FormRunner:
         form_id: Optional[UUID] = None,
         source: Optional[FormRunnerState] = None,
         add_another_index: Optional[int] = None,
+        grant_recipient_id: Optional[UUID] = None,
     ) -> "FormRunner":
         if question_id and form_id:
             raise ValueError("Expected only one of question_id or form_id")
 
-        submission = SubmissionHelper.load(submission_id)
+        submission = SubmissionHelper.load(submission_id, grant_recipient_id=grant_recipient_id)
 
         # For test submissions, only the user who created the test submission should be able to preview it (we only
         # have test submissions for now.) When we come to have live submissions we can extend this check based on the
