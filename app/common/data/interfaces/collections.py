@@ -41,6 +41,7 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
+    ConditionsOperator,
     ExpressionType,
     GrantStatusEnum,
     QuestionDataType,
@@ -1015,7 +1016,7 @@ def group_name_exists(name: str, form_id: UUID) -> bool:
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def update_group(
+def update_group(  # noqa: C901
     group: Group,
     expression_context: ExpressionContext,
     *,
@@ -1025,6 +1026,7 @@ def update_group(
     guidance_body: str | None | TNotProvided = NOT_PROVIDED,
     add_another: bool | TNotProvided = NOT_PROVIDED,
     add_another_guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
         group.name = name  # ty: ignore[invalid-assignment]
@@ -1069,6 +1071,9 @@ def update_group(
     if add_another_guidance_body is not NOT_PROVIDED:
         group.add_another_guidance_body = add_another_guidance_body  # ty: ignore[invalid-assignment]
 
+    if conditions_operator is not NOT_PROVIDED:
+        group.conditions_operator = conditions_operator  # ty: ignore[invalid-assignment]
+
     _validate_and_sync_component_references(group, expression_context)
 
     # This is extreme and reasonably un-optimised, but it does provide a high level of assurance against being able to
@@ -1092,6 +1097,7 @@ def update_question(
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
     guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
 ) -> Question:
     if text is not NOT_PROVIDED and text is not None:
         question.text = text  # ty: ignore[invalid-assignment]
@@ -1111,6 +1117,9 @@ def update_question(
 
     if guidance_body is not NOT_PROVIDED:
         question.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
+
+    if conditions_operator is not NOT_PROVIDED:
+        question.conditions_operator = conditions_operator  # ty: ignore[invalid-assignment]
 
     if items is not NOT_PROVIDED and items is not None:
         _update_data_source(question, items)  # ty: ignore[invalid-argument-type]

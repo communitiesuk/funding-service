@@ -34,6 +34,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.models_user import User
 from app.common.data.types import (
+    ConditionsOperator,
     QuestionDataType,
     SubmissionEventKey,
     SubmissionModeEnum,
@@ -52,7 +53,6 @@ if TYPE_CHECKING:
     from app.common.data.models import (
         Collection,
         Component,
-        Expression,
         Form,
         Grant,
         Group,
@@ -339,14 +339,18 @@ class SubmissionHelper:
     ) -> bool:
         # we can optimise this to exit early and do this in a sensible order if we switch
         # to going through questions in a nested way rather than flat
-        def get_all_conditions(component: "Component") -> list["Expression"]:
-            conditions = []
+        def evaluate_component_conditions(comp: "Component") -> bool:
+            """Evaluates a component's own conditions using its operator."""
+            if not comp.conditions:
+                return True
 
-            # start outside and move in from top level conditions to innermost
-            if component.parent:
-                conditions.extend(get_all_conditions(component.parent))
-            conditions.extend(component.conditions)
-            return conditions
+            match comp.conditions_operator:
+                case ConditionsOperator.ANY:
+                    return any(evaluate(condition, context) for condition in comp.conditions)
+                case ConditionsOperator.ALL:
+                    return all(evaluate(condition, context) for condition in comp.conditions)
+                case _:
+                    raise RuntimeError(f"Unknown condition operator={comp.conditions_operator}")
 
         try:
             if component.add_another_container and add_another_index is not None:
@@ -354,7 +358,14 @@ class SubmissionHelper:
                     component, submission_helper=self, add_another_index=add_another_index
                 )
 
-            return all(evaluate(condition, context) for condition in get_all_conditions(component))
+            current = component
+            while current.parent:
+                if not evaluate_component_conditions(current.parent):
+                    return False
+                current = current.parent
+
+            # Finally evaluate this component's own conditions
+            return evaluate_component_conditions(component)
 
         except UndefinedVariableInExpression:
             # todo: fail open for now - this method should accept an optional bool that allows this condition to fail

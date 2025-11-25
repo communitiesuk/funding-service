@@ -77,6 +77,7 @@ from app.common.data.models import (
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
+    ConditionsOperator,
     ExpressionType,
     GrantStatusEnum,
     ManagedExpressionsEnum,
@@ -1134,6 +1135,31 @@ class TestUpdateGroup:
         assert spy_validate1.call_count == 1
         assert spy_validate2.call_count == 1  # Called once for each expression
 
+    def test_update_group_with_conditions_operator(self, db_session, factories):
+        group = factories.group.create(
+            text="Test group",
+            conditions_operator=ConditionsOperator.ALL,
+        )
+
+        assert group.conditions_operator == ConditionsOperator.ALL
+
+        updated_group = update_group(
+            group,
+            expression_context=ExpressionContext(),
+            conditions_operator=ConditionsOperator.ANY,
+        )
+
+        assert updated_group.conditions_operator == ConditionsOperator.ANY
+
+        # Test updating back to ALL
+        updated_group = update_group(
+            group,
+            expression_context=ExpressionContext(),
+            conditions_operator=ConditionsOperator.ALL,
+        )
+
+        assert updated_group.conditions_operator == ConditionsOperator.ALL
+
 
 class TestCreateQuestion:
     @pytest.mark.parametrize(
@@ -1777,6 +1803,38 @@ class TestUpdateQuestion:
 
         assert spy_validate1.call_count == 1
         assert spy_validate2.call_count == 1  # called once for each expression on the question
+
+    def test_update_question_with_conditions_operator(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expression_context=ExpressionContext(),
+        )
+
+        # Default should be ALL
+        assert question.conditions_operator == ConditionsOperator.ALL
+
+        # Update to ANY
+        updated_question = update_question(
+            question=question,
+            expression_context=ExpressionContext(),
+            conditions_operator=ConditionsOperator.ANY,
+        )
+
+        assert updated_question.conditions_operator == ConditionsOperator.ANY
+
+        # Update back to ALL
+        updated_question = update_question(
+            question=question,
+            expression_context=ExpressionContext(),
+            conditions_operator=ConditionsOperator.ALL,
+        )
+
+        assert updated_question.conditions_operator == ConditionsOperator.ALL
 
 
 class TestMoveComponent:

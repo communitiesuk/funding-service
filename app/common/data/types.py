@@ -143,6 +143,11 @@ class ExpressionType(enum.StrEnum):
     VALIDATION = "VALIDATION"
 
 
+class ConditionsOperator(enum.StrEnum):
+    ALL = "ALL"
+    ANY = "ANY"
+
+
 class ManagedExpressionsEnum(enum.StrEnum):
     GREATER_THAN = "Greater than"
     LESS_THAN = "Less than"

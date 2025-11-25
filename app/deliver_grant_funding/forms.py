@@ -25,7 +25,13 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.grants import grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
-from app.common.data.types import GroupDisplayOptions, MultilineTextInputRows, NumberInputWidths, QuestionDataType
+from app.common.data.types import (
+    ConditionsOperator,
+    GroupDisplayOptions,
+    MultilineTextInputRows,
+    NumberInputWidths,
+    QuestionDataType,
+)
 from app.common.expressions import ExpressionContext
 from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
@@ -272,6 +278,20 @@ class GroupAddAnotherSummaryForm(FlaskForm):
                 str(question.id) for question in group.questions_in_add_another_summary
             ]
 
+    submit = SubmitField(widget=GovSubmitInput())
+
+
+class ConditionsOperatorForm(FlaskForm):
+    conditions_operator = RadioField(
+        "When should this component be shown?",
+        choices=[
+            (ConditionsOperator.ALL, "When all of these conditions match"),
+            (ConditionsOperator.ANY, "When any of these conditions match"),
+        ],
+        default=ConditionsOperator.ALL,
+        validators=[DataRequired("Select when this should be shown")],
+        widget=GovRadioInput(),
+    )
     submit = SubmitField(widget=GovSubmitInput())
 
 

@@ -17,6 +17,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
     ComponentType,
+    ConditionsOperator,
     ExpressionType,
     GrantStatusEnum,
     ManagedExpressionsEnum,
@@ -328,6 +329,10 @@ class Component(BaseModel):
     guidance_body: Mapped[Optional[str]]
     add_another_guidance_body: Mapped[Optional[str]]
     add_another: Mapped[bool] = mapped_column(default=False)
+    conditions_operator: Mapped[ConditionsOperator] = mapped_column(
+        SqlEnum(ConditionsOperator, name="conditions_operator_enum", validate_strings=True),
+        default=ConditionsOperator.ALL,
+    )
 
     # Relationships
     # todo: reason about if this should actually back populate _all_components as they might not

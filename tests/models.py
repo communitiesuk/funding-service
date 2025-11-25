@@ -47,6 +47,7 @@ from app.common.data.models import (
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import (
     CollectionType,
+    ConditionsOperator,
     GrantStatusEnum,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -739,6 +740,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     parent_id = factory.LazyAttribute(lambda o: o.parent.id if o.parent else None)
 
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
+    conditions_operator = ConditionsOperator.ALL
 
     @factory.post_generation  # type: ignore
     def form_components_join(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
@@ -803,6 +805,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
     parent_id = factory.LazyAttribute(lambda o: o.parent.id if o.parent else None)
 
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
+    conditions_operator = ConditionsOperator.ALL
 
     @factory.post_generation  # type: ignore
     def form_components_join(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:

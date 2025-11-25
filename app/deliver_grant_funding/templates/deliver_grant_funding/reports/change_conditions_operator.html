@@ -1,0 +1,66 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Change when to show " ~ ("question group" if component.is_group else "question") ~ " - " ~ component.name %}
+{% set active_item_identifier = "reports" %}
+
+{% block beforeContent %}
+  {% if component.is_group %}
+    {% set back_link = url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=component.id) %}
+  {% else %}
+    {% set back_link = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=component.id) %}
+  {% endif %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l">When should this {{ "question group" if component.is_group else "question" }} be shown?</h1>
+      <p class="govuk-body">This {{ "question group" if component.is_group else "question" }} has {{ component.conditions|length }} conditions. Choose whether all or any of them need to match.</p>
+
+      <h2 class="govuk-heading-m">Conditions</h2>
+      {% set rows = [] %}
+      {% for condition in component.conditions %}
+        {% set managed = condition.managed %}
+        {% set depends_on = managed.referenced_question %}
+
+
+        {% set key_html %}
+          <span>{{ interpolate(depends_on.text, with_interpolation_highlighting=True) }}</span>
+        {% endset %}
+
+
+        {% set value_html %}
+          <span>{{ interpolate(condition.managed.message, with_interpolation_highlighting=True) }}</span>
+        {% endset %}
+        {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
+      {% endfor %}
+
+      {% if rows %}
+        {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder govuk-!-margin-bottom-6" }) }}
+      {% endif %}
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.conditions_operator(params={"fieldset": {"legend": {"text": form.conditions_operator.label.text, "classes": "govuk-visually-hidden" } } }) }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Save"}) }}
+          {% if component.is_group %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=component.id) }}">Cancel</a>
+          {% else %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=component.id) }}">Cancel</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

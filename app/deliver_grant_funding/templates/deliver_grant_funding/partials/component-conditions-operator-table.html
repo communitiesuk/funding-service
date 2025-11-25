@@ -1,0 +1,30 @@
+{% if component.conditions|length >= 2 %}
+  <dl class="govuk-summary-list govuk-summary-list--no-border">
+    <div class="govuk-summary-list__row">
+      <dt class="govuk-summary-list__key">
+        Show this question
+        {% if component.type == enum.component_type_enum.GROUP %}
+          group
+        {% endif %}
+        when
+      </dt>
+      <dd class="govuk-summary-list__value">
+        {% if component.conditions_operator.value == "ALL" %}
+          All of these conditions match
+        {% else %}
+          Any of these conditions match
+        {% endif %}
+      </dd>
+      <dd class="govuk-summary-list__actions">
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.change_conditions_operator', grant_id=grant.id, component_id=component.id) }}">
+          Change<span class="govuk-visually-hidden">
+            when to show this question
+            {% if component.type == enum.component_type_enum.GROUP %}
+              group
+            {% endif %}
+          </span>
+        </a>
+      </dd>
+    </div>
+  </dl>
+{% endif %}

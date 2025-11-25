@@ -4,6 +4,7 @@ from datetime import datetime
 import pytest
 
 from app.common.data.types import (
+    ConditionsOperator,
     ExpressionType,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -564,6 +565,67 @@ class TestSubmissionHelper:
             # the expression is evaluated appropriately when an index is provided
             assert helper.is_component_visible(q2, helper.cached_evaluation_context, add_another_index=0) is True
             assert helper.is_component_visible(q2, helper.cached_evaluation_context, add_another_index=1) is False
+
+        def test_is_component_visible_with_any_operator_one_true_condition(self, factories):
+            question = factories.question.build(conditions_operator=ConditionsOperator.ANY)
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
+
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
+
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
+
+        def test_is_component_visible_with_any_operator_all_false_conditions(self, factories):
+            question = factories.question.build(conditions_operator=ConditionsOperator.ANY)
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
+
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
+
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
+
+        def test_is_component_visible_with_all_operator_requires_all_true(self, factories):
+            question = factories.question.build(conditions_operator=ConditionsOperator.ALL)
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
+
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
+
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
+
+        def test_is_component_visible_with_nested_groups_different_operators(self, factories):
+            group = factories.group.build(conditions_operator=ConditionsOperator.ANY)
+            question = factories.question.build(
+                form=group.form, parent=group, conditions_operator=ConditionsOperator.ALL
+            )
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
+
+            # Group has ANY operator with one True and one False condition
+            factories.expression.build(question=group, type_=ExpressionType.CONDITION, statement="True")
+            factories.expression.build(question=group, type_=ExpressionType.CONDITION, statement="False")
+
+            # Question has ALL operator with all True conditions
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
+
+            assert helper.is_component_visible(group, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
+
+        def test_is_component_visible_child_hidden_when_parent_hidden_regardless_of_operator(self, factories):
+            group = factories.group.build(conditions_operator=ConditionsOperator.ALL)
+            question = factories.question.build(
+                form=group.form, parent=group, conditions_operator=ConditionsOperator.ANY
+            )
+            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
+
+            # Group has ALL operator with one False condition (so hidden)
+            factories.expression.build(question=group, type_=ExpressionType.CONDITION, statement="False")
+
+            # Question has ANY operator with one True condition
+            factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
+
+            assert helper.is_component_visible(group, helper.cached_evaluation_context) is False
+            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
 
     class TestGetCountForAddAnother:
         def test_empty(self, db_session, factories):

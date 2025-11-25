@@ -20,6 +20,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.system import seed_system_data
 from app.common.data.types import (
     CollectionStatusEnum,
+    ComponentType,
     ExpressionType,
     FormRunnerState,
     GrantStatusEnum,
@@ -264,6 +265,7 @@ def create_app() -> Flask:  # noqa: C901
                 collection_status=CollectionStatusEnum,
                 organisation_type=OrganisationType,
                 role_enum=RoleEnum,
+                component_type_enum=ComponentType,
             ),
         )
 

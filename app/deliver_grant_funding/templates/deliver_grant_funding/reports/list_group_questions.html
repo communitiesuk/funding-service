@@ -228,6 +228,11 @@
       <div class="govuk-body govuk-form-group">
         <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
         <p class="govuk-body">Add conditions to only show this question group if the grant recipient has answered one of the other questions in a particular way.</p>
+
+        {% with component=group %}
+          {% include 'deliver_grant_funding/partials/component-conditions-operator-table.html' %}
+        {% endwith %}
+
         {% set rows = [] %}
         {% for condition in group.conditions %}
           {% set managed = condition.managed %}
