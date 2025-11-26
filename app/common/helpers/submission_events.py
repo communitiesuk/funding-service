@@ -20,11 +20,17 @@ class CompletedMixin(Protocol):
 @dataclass
 class SignOffMixin(Protocol):
     is_awaiting_sign_off: bool
+    is_approved: bool
 
 
 @dataclass
 class SubmittedMixin(Protocol):
     is_submitted: bool
+
+
+@dataclass
+class DeclinedMixin(Protocol):
+    declined_reason: str | None
 
 
 @dataclass
@@ -38,14 +44,34 @@ class FormResetToInProgressEvent(CompletedMixin):
 
 
 @dataclass
+class FormResetByCertifierEvent(CompletedMixin):
+    is_completed: bool = False
+
+
+@dataclass
 class SubmissionSentForCertificationEvent(SignOffMixin):
     is_awaiting_sign_off: bool = True
+    is_approved: bool = False
+
+
+@dataclass
+class SubmissionDeclinedByCertifierEvent(SignOffMixin, DeclinedMixin):
+    is_awaiting_sign_off: bool = False
+    is_approved: bool = False
+    declined_reason: str | None = None
+
+
+@dataclass
+class SubmissionApprovedByCertifierEvent(SignOffMixin):
+    is_awaiting_sign_off: bool = False
+    is_approved: bool = True
 
 
 @dataclass
 class SubmissionSubmittedEvent(SubmittedMixin, SignOffMixin):
     is_submitted: bool = True
     is_awaiting_sign_off: bool = False
+    is_approved: bool = False
 
 
 @dataclass
@@ -55,15 +81,25 @@ class SentForCertificationMetadata:
 
 
 @dataclass
+class CertifiedMetadata:
+    certified_by: "User | None" = None
+    certified_at_utc: "datetime | None" = None
+
+
+@dataclass
 class SubmittedMetadata:
     submitted_by: "User | None" = None
     submitted_at_utc: datetime | None = None
 
 
 @dataclass
-class SubmissionState(SentForCertificationMetadata, SubmittedMetadata, SignOffMixin, SubmittedMixin):
+class SubmissionState(
+    SentForCertificationMetadata, SubmittedMetadata, CertifiedMetadata, SignOffMixin, SubmittedMixin, DeclinedMixin
+):
     is_awaiting_sign_off: bool = False
     is_submitted: bool = False
+    is_approved: bool = False
+    declined_reason: str | None = None
 
 
 @dataclass
@@ -109,20 +145,40 @@ class SubmissionEventHelper:
                         sent_for_certification_at_utc=event.created_at_utc,
                     )
                 )
+            case SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER:
+                return shallow_asdict(
+                    CertifiedMetadata(
+                        certified_by=event.created_by,
+                        certified_at_utc=event.created_at_utc,
+                    )
+                )
+            case SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
+                return shallow_asdict(
+                    CertifiedMetadata(
+                        certified_by=event.created_by,
+                        certified_at_utc=event.created_at_utc,
+                    )
+                )
             case _:
                 return {}
 
     @staticmethod
-    def event_from(event_type: SubmissionEventType) -> dict[str, Any]:
+    def event_from(event_type: SubmissionEventType, **kwargs: Any) -> dict[str, Any]:
         match event_type:
             case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
                 return asdict(FormCompletedEvent())
             case SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS:
                 return asdict(FormResetToInProgressEvent())
+            case SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER:
+                return asdict(FormResetByCertifierEvent())
             case SubmissionEventType.SUBMISSION_SUBMITTED:
                 return asdict(SubmissionSubmittedEvent())
             case SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION:
                 return asdict(SubmissionSentForCertificationEvent())
+            case SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
+                return asdict(SubmissionDeclinedByCertifierEvent(declined_reason=kwargs.get("declined_reason", None)))
+            case SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER:
+                return asdict(SubmissionApprovedByCertifierEvent())
             case _:
                 raise NotImplementedError(f"No event class defined for event type {event_type}")
 
