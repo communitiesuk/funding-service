@@ -86,7 +86,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
-    SubmissionEventKey,
+    SubmissionEventType,
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
@@ -2536,13 +2536,13 @@ def test_add_submission_event(db_session, factories):
     submission = factories.submission.create()
     db_session.add(submission)
 
-    add_submission_event(submission=submission, user=user, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED)
+    add_submission_event(submission=submission, user=user, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED)
 
     # pull it back out of the database to also check all of the serialisation/ enums are mapped appropriately
     from_db = get_submission(submission.id, with_full_schema=True)
 
     assert len(from_db.events) == 1
-    assert from_db.events[0].key == SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
+    assert from_db.events[0].event_type == SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
 
 
 def test_clear_events_from_submission(db_session, factories):
@@ -2551,14 +2551,14 @@ def test_clear_events_from_submission(db_session, factories):
     form_two = factories.form.create(collection=submission.collection)
 
     add_submission_event(
-        submission=submission, user=submission.created_by, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
+        submission=submission, user=submission.created_by, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
     )
     add_submission_event(
-        submission=submission, user=submission.created_by, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED
+        submission=submission, user=submission.created_by, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
     )
 
     # clears all keys of type
-    clear_submission_events(submission=submission, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED)
+    clear_submission_events(submission=submission, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED)
 
     assert submission.events == []
 
@@ -2566,20 +2566,21 @@ def test_clear_events_from_submission(db_session, factories):
     add_submission_event(
         submission=submission,
         user=submission.created_by,
-        key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED,
-        form=form_one,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        related_entity_id=form_one.id,
     )
     add_submission_event(
         submission=submission,
         user=submission.created_by,
-        key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED,
-        form=form_two,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        related_entity_id=form_two.id,
     )
 
-    clear_submission_events(submission=submission, key=SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED, form=form_one)
-
+    clear_submission_events(
+        submission=submission, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, related_entity_id=form_one.id
+    )
     assert len(submission.events) == 1
-    assert submission.events[0].form == form_two
+    assert submission.events[0].related_entity_id == form_two.id
 
 
 def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):

@@ -36,7 +36,7 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     ConditionsOperator,
     QuestionDataType,
-    SubmissionEventKey,
+    SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
     TasklistSectionStatusEnum,
@@ -177,9 +177,9 @@ class SubmissionHelper:
     @property
     def status(self) -> SubmissionStatusEnum:
         awaiting_sign_off = any(
-            x.key == SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION for x in self.ordered_events
+            x.event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION for x in self.ordered_events
         )
-        submitted = any(x.key == SubmissionEventKey.SUBMISSION_SUBMITTED for x in self.ordered_events)
+        submitted = any(x.event_type == SubmissionEventType.SUBMISSION_SUBMITTED for x in self.ordered_events)
 
         # todo: make sure this is resilient to timezones, drift, etc. this is likely something that should
         #       a batch job decision that is then added as a submission event rather than calculated by the server
@@ -207,7 +207,7 @@ class SubmissionHelper:
             return None
 
         submitted = next(
-            filter(lambda e: e.key == SubmissionEventKey.SUBMISSION_SUBMITTED, self.ordered_events),
+            filter(lambda e: e.event_type == SubmissionEventType.SUBMISSION_SUBMITTED, self.ordered_events),
             None,
         )
         if not submitted:
@@ -250,7 +250,7 @@ class SubmissionHelper:
             (
                 x.created_by
                 for x in self.ordered_events
-                if x.key == SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION
+                if x.event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
             ),
             None,
         )
@@ -320,8 +320,9 @@ class SubmissionHelper:
 
     def get_status_for_form(self, form: "Form") -> TasklistSectionStatusEnum:
         form_questions_answered = self.cached_get_all_questions_are_answered_for_form(form)
-        marked_as_complete = SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED in [
-            x.key for x in self.ordered_events if x.form and x.form.id == form.id
+        # todo: checked the squashed version of events rather than existence of an invidual event
+        marked_as_complete = SubmissionEventType.FORM_RUNNER_FORM_COMPLETED in [
+            x.event_type for x in self.ordered_events if x.related_entity_id == form.id
         ]
         if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
             return TasklistSectionStatusEnum.COMPLETED
@@ -450,7 +451,9 @@ class SubmissionHelper:
             return
 
         if self.all_forms_are_completed:
-            interfaces.collections.add_submission_event(self.submission, SubmissionEventKey.SUBMISSION_SUBMITTED, user)
+            interfaces.collections.add_submission_event(
+                self.submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED, user=user
+            )
         else:
             raise ValueError(f"Could not submit submission id={self.id} because not all forms are complete.")
 
@@ -460,7 +463,7 @@ class SubmissionHelper:
 
         if self.all_forms_are_completed:
             interfaces.collections.add_submission_event(
-                self.submission, SubmissionEventKey.SUBMISSION_SENT_FOR_CERTIFICATION, user
+                self.submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, user=user
             )
         else:
             raise ValueError(f"Could not sign off submission id={self.id} because not all forms are complete.")
@@ -478,11 +481,14 @@ class SubmissionHelper:
                 )
 
             interfaces.collections.add_submission_event(
-                self.submission, SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED, user, form
+                self.submission,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                user=user,
+                related_entity_id=form.id,
             )
         else:
             interfaces.collections.clear_submission_events(
-                self.submission, SubmissionEventKey.FORM_RUNNER_FORM_COMPLETED, form
+                self.submission, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, related_entity_id=form.id
             )
 
     # todo: decide if the add another index should be available submission helper wide where it just checks self
