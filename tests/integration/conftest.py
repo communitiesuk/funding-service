@@ -461,17 +461,17 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
         data={str(question.id): "Question answer"},
-        events=[
-            factories.submission_event.create(
-                target_key=question.form.id,
-                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                created_by=user,
-            ),
-            factories.submission_event.create(
-                event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
-                created_by=user,
-            ),
-        ],
+    )
+    factories.submission_event.create(
+        submission=submission,
+        target_key=question.form.id,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        created_by=user,
+    )
+    factories.submission_event.create(
+        submission=submission,
+        event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+        created_by=user,
     )
     return cast(Submission, submission)
 

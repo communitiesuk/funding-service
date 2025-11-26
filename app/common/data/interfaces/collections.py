@@ -1155,26 +1155,6 @@ def add_submission_event(
     return submission
 
 
-@flush_and_rollback_on_exceptions
-def clear_submission_events(
-    submission: Submission, *, event_type: SubmissionEventType, target_key: UUID | None = None
-) -> Submission:
-    submission.events = [
-        x
-        for x in submission.events
-        if not (x.event_type == event_type and (x.target_key == target_key if target_key else True))
-    ]
-
-    match event_type:
-        case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
-            emit_metric_count(MetricEventName.SECTION_MARKED_INCOMPLETE, submission=submission)
-
-        case SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION:
-            emit_metric_count(MetricEventName.SUBMISSION_CERTIFICATION_DECLINED, submission=submission)
-
-    return submission
-
-
 def get_referenced_data_source_items_by_managed_expression(
     managed_expression: "BaseDataSourceManagedExpression",
 ) -> Sequence[DataSourceItem]:
