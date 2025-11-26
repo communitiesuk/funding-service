@@ -5,7 +5,7 @@ import os
 import typing as t
 import uuid
 from contextlib import _GeneratorContextManager, contextmanager
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Generator, cast
 from unittest.mock import _Call, patch
 
@@ -488,11 +488,13 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
         related_entity_id=question.form.id,
         event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
         created_by=user,
+        created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
     )
     factories.submission_event.create(
         submission=submission,
         event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
         created_by=user,
+        created_at_utc=datetime(2025, 11, 25, 0, 0, 1),
     )
     return cast(Submission, submission)
 

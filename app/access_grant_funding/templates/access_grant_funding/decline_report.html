@@ -1,0 +1,40 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Decline sign off: " + submission.name %}
+
+{% set active_item_identifier = "reports" %}
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "href": url_for("access_grant_funding.route_to_submission", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id = submission.collection_id),
+      "text": "Back"
+    })
+  }}
+{% endblock beforeContent %}
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="POST" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.decline_reason(
+            params={
+            "label":{
+              "isPageHeading":true,
+              "classes": "govuk-label--l",
+              "text": "Why are you declining sign off for the " + submission.collection.name + " report?"
+            },
+            "hint":{
+               "text": "Tell " + (submission.sent_for_certification_by.name if submission.sent_for_certification_by else "the submitter")
+               + " why you are declining sign off so they can update and resubmit the report."
+            }
+            }
+
+          )
+        }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

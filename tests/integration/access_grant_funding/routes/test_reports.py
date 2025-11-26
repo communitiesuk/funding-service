@@ -5,8 +5,10 @@ from bs4 import BeautifulSoup
 from flask import url_for
 from pytest import FixtureRequest
 
-from app import CollectionStatusEnum, GrantStatusEnum
-from app.common.data.types import SubmissionModeEnum
+from app import CollectionStatusEnum, GrantStatusEnum, TasklistSectionStatusEnum
+from app.access_grant_funding.forms import DeclineSignOffForm
+from app.common.data.types import SubmissionModeEnum, SubmissionStatusEnum
+from app.common.helpers.collections import SubmissionHelper
 from tests.utils import get_h1_text, page_has_button, page_has_link
 
 
@@ -160,3 +162,85 @@ class TestListReports:
         )
 
         assert response.status_code == 403
+
+
+class TestDeclineSignOff:
+    def test_decline_certification_post_success(
+        self,
+        authenticated_grant_recipient_certifier_client,
+        factories,
+        submission_awaiting_sign_off,
+        grant_recipient,
+        user,
+    ):
+        helper = SubmissionHelper(submission_awaiting_sign_off)
+        assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+        form = submission_awaiting_sign_off.collection.forms[0]
+        assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+
+        decline_form = DeclineSignOffForm()
+        decline_form.decline_reason.data = "Reason for declining"
+        response = authenticated_grant_recipient_certifier_client.post(
+            url_for(
+                "access_grant_funding.decline_report",
+                organisation_id=grant_recipient.organisation_id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_awaiting_sign_off.id,
+            ),
+            data=decline_form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_reports",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+        )
+
+        assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+        assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+    def test_decline_certification_invalid_status(
+        self,
+        authenticated_grant_recipient_certifier_client,
+        factories,
+        grant_recipient,
+        submission_in_progress,
+        user,
+    ):
+        helper = SubmissionHelper(submission_in_progress)
+        assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+        response = authenticated_grant_recipient_certifier_client.get(
+            url_for(
+                "access_grant_funding.decline_report",
+                organisation_id=grant_recipient.organisation_id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_in_progress.id,
+            ),
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.route_to_submission",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=submission_in_progress.collection.id,
+        )
+
+    def test_decline_sign_off_get(
+        self, authenticated_grant_recipient_certifier_client, factories, submission_awaiting_sign_off, grant_recipient
+    ):
+        response = authenticated_grant_recipient_certifier_client.get(
+            url_for(
+                "access_grant_funding.decline_report",
+                organisation_id=grant_recipient.organisation_id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_awaiting_sign_off.id,
+            ),
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert (
+            get_h1_text(soup)
+            == f"Why are you declining sign off for the {submission_awaiting_sign_off.collection.name} report?"
+        )
