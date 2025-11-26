@@ -5,7 +5,7 @@ import os
 import typing as t
 import uuid
 from contextlib import _GeneratorContextManager, contextmanager
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Generator, cast
 from unittest.mock import _Call, patch
 
@@ -467,11 +467,28 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
         target_key=question.form.id,
         event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
         created_by=user,
+        created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
     )
     factories.submission_event.create(
         submission=submission,
         event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
         created_by=user,
+        created_at_utc=datetime(2025, 11, 25, 0, 0, 1),
+    )
+    return cast(Submission, submission)
+
+
+@pytest.fixture(scope="function")
+def submission_in_progress(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+    question = factories.question.create(
+        form__collection__grant=grant_recipient.grant,
+        form__collection__submission_period_end_date=date.today() + timedelta(days=30),
+    )
+    submission = factories.submission.create(
+        grant_recipient=grant_recipient,
+        collection=question.form.collection,
+        mode=SubmissionModeEnum.LIVE,
+        data={str(question.id): "Question answer"},
     )
     return cast(Submission, submission)
 
