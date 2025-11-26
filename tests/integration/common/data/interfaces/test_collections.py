@@ -2553,8 +2553,8 @@ def test_add_submission_event(db_session, factories):
     assert from_db.events[0].data == {"is_completed": True}
 
     assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
-    assert from_db.events[1].related_entity_id == submission.id
-    assert from_db.events[1].data == {"is_submitted": True, "is_awaiting_sign_off": False}
+    assert from_db.events[1].related_entity_id is submission.id
+    assert from_db.events[1].data == {"is_submitted": True, "is_awaiting_sign_off": False, "is_approved": False}
 
 
 def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):

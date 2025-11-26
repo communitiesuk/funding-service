@@ -1131,14 +1131,19 @@ def update_question(
 
 @flush_and_rollback_on_exceptions
 def add_submission_event(
-    submission: Submission, *, event_type: SubmissionEventType, user: User, related_entity_id: UUID | None = None
+    submission: Submission,
+    *,
+    event_type: SubmissionEventType,
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Any,
 ) -> Submission:
     submission.events.append(
         SubmissionEvent(
             event_type=event_type,
             created_by=user,
             related_entity_id=related_entity_id or submission.id,
-            data=SubmissionEventHelper.event_from(event_type),
+            data=SubmissionEventHelper.event_from(event_type, **kwargs),
         )
     )
 
