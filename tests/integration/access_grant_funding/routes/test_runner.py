@@ -97,7 +97,7 @@ class TestRouteToSubmission:
         assert response.status_code == 302
         expected_location = (
             f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
-            f"/reports/{submission_awaiting_sign_off.id}/view"
+            f"/reports/{submission_awaiting_sign_off.id}/tasklist"
         )
         assert response.location == expected_location
 
