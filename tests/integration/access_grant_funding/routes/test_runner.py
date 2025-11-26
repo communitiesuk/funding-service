@@ -988,12 +988,15 @@ class TestConfirmSentForCertification:
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
             data={str(question.id): "Blue"},
-            events=[
-                factories.submission_event.create(
-                    event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, related_entity_id=question.form.id
-                ),
-                factories.submission_event.create(event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION),
-            ],
+            events=[],
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
+        factories.submission_event.create(
+            submission=submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
         )
 
         response = client.get(

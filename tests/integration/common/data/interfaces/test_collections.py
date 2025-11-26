@@ -20,7 +20,6 @@ from app.common.data.interfaces.collections import (
     add_component_condition,
     add_question_validation,
     add_submission_event,
-    clear_submission_events,
     create_collection,
     create_form,
     create_group,
@@ -2556,44 +2555,6 @@ def test_add_submission_event(db_session, factories):
     assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
     assert from_db.events[1].related_entity_id == submission.id
     assert from_db.events[1].data == {"is_submitted": True, "is_awaiting_sign_off": False}
-
-
-def test_clear_events_from_submission(db_session, factories):
-    submission = factories.submission.create()
-    form_one = factories.form.create(collection=submission.collection)
-    form_two = factories.form.create(collection=submission.collection)
-
-    add_submission_event(
-        submission=submission, user=submission.created_by, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
-    )
-    add_submission_event(
-        submission=submission, user=submission.created_by, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
-    )
-
-    # clears all keys of type
-    clear_submission_events(submission=submission, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED)
-
-    assert submission.events == []
-
-    # clears only a specific forms
-    add_submission_event(
-        submission=submission,
-        user=submission.created_by,
-        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        related_entity_id=form_one.id,
-    )
-    add_submission_event(
-        submission=submission,
-        user=submission.created_by,
-        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        related_entity_id=form_two.id,
-    )
-
-    clear_submission_events(
-        submission=submission, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, related_entity_id=form_one.id
-    )
-    assert len(submission.events) == 1
-    assert submission.events[0].related_entity_id == form_two.id
 
 
 def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):

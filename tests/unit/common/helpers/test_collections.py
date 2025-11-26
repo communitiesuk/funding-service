@@ -749,29 +749,6 @@ class TestSubmissionHelper:
             assert helper.get_answer_summary_for_add_another(q1, add_another_index=1).is_answered is True
             assert helper.get_answer_summary_for_add_another(q1, add_another_index=1).is_answered is True
 
-    class TestOrderedEvents:
-        def test_ordered_events(self, factories):
-            submission = factories.submission.build(mode=SubmissionModeEnum.LIVE)
-            event_1 = factories.submission_event.build(
-                submission=submission,
-                event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
-                created_at_utc=datetime(2020, 1, 1, 13, 30, 0),
-            )
-            event_2 = factories.submission_event.build(
-                submission=submission,
-                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                created_at_utc=datetime(2025, 12, 1, 13, 30, 0),
-            )
-            event_3 = factories.submission_event.build(
-                submission=submission,
-                event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
-                created_at_utc=datetime(2022, 6, 1, 13, 30, 0),
-            )
-
-            helper = SubmissionHelper(submission)
-
-            assert helper.ordered_events == [event_2, event_3, event_1]
-
     class TestSentForCertificationBy:
         def test_property_gets_submitted_by_user(self, factories):
             user = factories.user.build()
