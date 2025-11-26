@@ -52,6 +52,7 @@ from app.common.data.types import (
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.forms.helpers import questions_in_same_add_another_container
+from app.common.helpers.submission_events import SubmissionEventHelper
 from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
@@ -1133,7 +1134,12 @@ def add_submission_event(
     submission: Submission, *, event_type: SubmissionEventType, user: User, target_key: UUID | None = None
 ) -> Submission:
     submission.events.append(
-        SubmissionEvent(event_type=event_type, created_by=user, target_key=target_key if target_key else submission.id)
+        SubmissionEvent(
+            event_type=event_type,
+            created_by=user,
+            target_key=target_key or submission.id,
+            data=SubmissionEventHelper.event_from(event_type),
+        )
     )
 
     match event_type:
