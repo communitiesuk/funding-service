@@ -15,6 +15,7 @@ from app.common.data.models import Collection, Grant, Organisation
 from app.common.data.models_user import User
 from app.common.data.types import GrantStatusEnum
 from app.extensions import db
+from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
 
 
@@ -118,6 +119,15 @@ def update_grant(
                 pass
             case _:
                 raise StateTransitionError(model="grant", from_state=grant.status, to_state=status)
+
+        emit_metric_count(
+            MetricEventName.GRANT_STATUS_CHANGED,
+            grant=grant,
+            custom_attributes={
+                MetricAttributeName.FROM_STATUS: str(grant.status),
+                MetricAttributeName.TO_STATUS: str(status),
+            },
+        )
         grant.status = status
 
     if description is not NOT_PROVIDED:
