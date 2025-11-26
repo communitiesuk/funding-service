@@ -34,9 +34,18 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
 
     submission_helper = SubmissionHelper(submission)
     if submission_helper.is_locked_state:
+        # todo: point to the completed version of a submission when the page is fully built out
+        # return redirect(
+        #     url_for(
+        #         "access_grant_funding.view_locked_report",
+        #         organisation_id=organisation_id,
+        #         grant_id=grant_id,
+        #         submission_id=submission.id,
+        #     )
+        # )
         return redirect(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.tasklist",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
                 submission_id=submission.id,
