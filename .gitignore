@@ -237,6 +237,7 @@ flask_session
 !.run/
 !.idea/modules.xml
 !.idea/funding-service.iml
+!.idea/prettier.xml
 
 # Mac files
 .bash_profile
