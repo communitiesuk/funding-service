@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from app.common.data.models_user import User
 
 
+# Mixins - schema protocol used to guarantee that the properties we're tracking using events
+# and our final state line up
 @dataclass
 class CompletedMixin(Protocol):
     is_completed: bool
@@ -27,6 +29,9 @@ class SubmittedMixin(Protocol):
     is_submitted: bool
 
 
+# Events - things that can happen in the service, we calculate the final state
+# by taking all the latest event priorities allowing workflows to go forward and backwards
+# Event names are past tense
 @dataclass
 class FormCompletedEvent(CompletedMixin):
     is_completed: bool = True
@@ -48,10 +53,12 @@ class SubmissionSubmittedEvent(SubmittedMixin, SignOffMixin):
     is_awaiting_sign_off: bool = False
 
 
+# State - represents a snapshot of the current state of the target entity for those events
+# Combines metadata about who has been doing the events and the event properties themselves
 @dataclass
 class SentForCertificationMetadata:
     sent_for_certification_by: "User | None" = None
-    sent_for_certification_at_utc: "datetime | None" = None
+    sent_for_certification_at_utc: datetime | None = None
 
 
 @dataclass
@@ -87,6 +94,29 @@ class SubmissionEventHelper:
         return SubmissionState(**self._reduce([e for e in self.events if e.related_entity_id == self.submission.id]))
 
     def _reduce(self, events: list["SubmissionEvent"]) -> dict[str, Any]:
+        """
+        An internal method to combine the full list of submission events into one snapshot
+        representation, we take all of the data properties from each event in time order where
+        newer properties will override previous.
+
+        "Metadata" allows us to pull current values taking advantage of the relational database
+        (rather than storing copies of all of the data on each event and giving foreign key guarantees)
+        the database model (SubmissionEvent) will always track which user has done the action and
+        when it was done - for some events we rely on this information throughout the app so these
+        are mapped during this combination.
+
+        This allows for scenarios like:
+        - SUBMISSION_SENT_FOR_CERTIFICATION { "is_awaiting_sign_off": True }
+
+        State is now { "is_awaiting_sign_off": True }
+
+        - SUBMISSION_SUBMITTED { "is_awaiting_sign_off": False, "is_submitted": True }
+
+        State is now { "is_awaiting_sign_off": False, "is_submitted": True }
+
+        Because SUBMISSION_SUBMITTED was recorded after SUBMISSION_SENT_FOR_CERTIFICATION the overlapping
+        property "is_awaiting_sign_off" will take its value.
+        """
         state: dict[str, Any] = {}
         for event in events:
             state = state | event.data | self._extract_metadata(event)
@@ -94,6 +124,11 @@ class SubmissionEventHelper:
         return state
 
     def _extract_metadata(self, event: "SubmissionEvent") -> dict[str, Any]:
+        """
+        Pull out typed objects from the SubmissionEvent table that are associated with a given event.
+
+        This metadata will be available to the snapshot state and can include any referenced properties.
+        """
         match event.event_type:
             case SubmissionEventType.SUBMISSION_SUBMITTED:
                 return shallow_asdict(
@@ -128,4 +163,10 @@ class SubmissionEventHelper:
 
 
 def shallow_asdict(obj: "DataclassInstance") -> dict[str, Any]:
+    """
+    Avoid duplicating properties when using the default dataclass `asdict` method, when collecting
+    metadata to build state we always want to reference ORM models and not recreate them.
+
+    See https://docs.python.org/3/library/dataclasses.html#dataclasses.asdict
+    """
     return {field.name: getattr(obj, field.name) for field in fields(obj)}
