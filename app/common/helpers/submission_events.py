@@ -80,11 +80,11 @@ class SubmissionEventHelper:
         return sorted(self.submission.events, key=lambda x: x.created_at_utc, reverse=False)
 
     def form_state(self, form_id: UUID) -> FormState:
-        return FormState(**self._reduce([e for e in self.events if e.target_key == form_id]))
+        return FormState(**self._reduce([e for e in self.events if e.related_entity_id == form_id]))
 
     @property
     def submission_state(self) -> SubmissionState:
-        return SubmissionState(**self._reduce([e for e in self.events if e.target_key == self.submission.id]))
+        return SubmissionState(**self._reduce([e for e in self.events if e.related_entity_id == self.submission.id]))
 
     def _reduce(self, events: list["SubmissionEvent"]) -> dict[str, Any]:
         state: dict[str, Any] = {}

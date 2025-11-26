@@ -20,7 +20,7 @@ class TestSubmissionEventHelper:
             submission.events = [
                 factories.submission_event.build(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                    target_key=form.id,
+                    related_entity_id=form.id,
                     created_by=user,
                     data=SubmissionEventHelper.event_from(SubmissionEventType.FORM_RUNNER_FORM_COMPLETED),
                 ),
@@ -35,14 +35,14 @@ class TestSubmissionEventHelper:
             submission.events = [
                 factories.submission_event.build(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                    target_key=form.id,
+                    related_entity_id=form.id,
                     created_by=user,
                     data=SubmissionEventHelper.event_from(SubmissionEventType.FORM_RUNNER_FORM_COMPLETED),
                     created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
                 ),
                 factories.submission_event.build(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
-                    target_key=form.id,
+                    related_entity_id=form.id,
                     created_by=user,
                     data=SubmissionEventHelper.event_from(SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS),
                     created_at_utc=datetime(2025, 11, 26, 0, 0, 0),
@@ -54,7 +54,7 @@ class TestSubmissionEventHelper:
             factories.submission_event.build(
                 submission=submission,
                 event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                target_key=form.id,
+                related_entity_id=form.id,
                 created_by=user,
                 data=SubmissionEventHelper.event_from(SubmissionEventType.FORM_RUNNER_FORM_COMPLETED),
                 created_at_utc=datetime(2025, 11, 27, 0, 0, 0),
@@ -82,7 +82,7 @@ class TestSubmissionEventHelper:
             submission.events = [
                 factories.submission_event.build(
                     event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
-                    target_key=submission.id,
+                    related_entity_id=submission.id,
                     created_by=user,
                     data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION),
                     created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
@@ -105,14 +105,14 @@ class TestSubmissionEventHelper:
             submission.events = [
                 factories.submission_event.build(
                     event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
-                    target_key=submission.id,
+                    related_entity_id=submission.id,
                     created_by=user,
                     data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION),
                     created_at_utc=datetime(2025, 11, 24, 0, 0, 0),
                 ),
                 factories.submission_event.build(
                     event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
-                    target_key=submission.id,
+                    related_entity_id=submission.id,
                     created_by=user,
                     data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SUBMITTED),
                     created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
