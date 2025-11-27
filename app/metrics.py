@@ -27,9 +27,11 @@ class MetricAttributeName(StrEnum):
 
 
 class MetricEventName(StrEnum):
-    SUBMISSION_CREATED = "submission-created"
     SECTION_MARKED_COMPLETE = "section-marked-as-complete"
-    SECTION_MARKED_INCOMPLETE = "section-marked_as_incomplete"
+    SECTION_MARKED_INCOMPLETE = "section-marked-as-incomplete"
+    SECTION_RESET_TO_IN_PROGRESS = "section-reset-to-in-progress"
+
+    SUBMISSION_CREATED = "submission-created"
     SUBMISSION_SENT_FOR_CERTIFICATION = "submission-sent-for-certification"
     SUBMISSION_CERTIFIED = "submission-certified"
     SUBMISSION_CERTIFICATION_DECLINED = "submission-certification-declined"

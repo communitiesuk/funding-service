@@ -1149,6 +1149,9 @@ def add_submission_event(
         case SubmissionEventType.SUBMISSION_SUBMITTED:
             emit_metric_count(MetricEventName.SUBMISSION_SUBMITTED, submission=submission)
 
+        case SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS:
+            emit_metric_count(MetricEventName.SECTION_RESET_TO_IN_PROGRESS, submission=submission)
+
         case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
             emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, submission=submission)
 

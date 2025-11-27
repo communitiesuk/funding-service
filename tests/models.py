@@ -860,9 +860,11 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
     submission = factory.SubFactory(_SubmissionFactory)
     related_entity_id = factory.LazyAttribute(lambda o: o.submission.id)
     created_by = factory.SubFactory(_UserFactory)
-    created_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
 
-    # todo: update this default when some submission events need explicit data
+    # set this in the past as relying on now() produces inconsistent results due to when the
+    # data actually gets flushed to the DB
+    created_at_utc = datetime.datetime(2025, 11, 1, 12, 0, 0)
+
     data = factory.LazyAttribute(lambda o: SubmissionEventHelper.event_from(o.event_type))
 
 
