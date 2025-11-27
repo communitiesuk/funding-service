@@ -2586,15 +2586,15 @@ def test_add_certification_and_submission_event(db_session, factories):
     assert from_db.events[0].data == {"is_completed": True}
 
     assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
-    assert from_db.events[1].related_entity_id is submission.id
+    assert from_db.events[1].related_entity_id == submission.id
     assert from_db.events[1].data == {"is_approved": False, "is_awaiting_sign_off": True}
 
     assert from_db.events[2].event_type == SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
-    assert from_db.events[2].related_entity_id is submission.id
+    assert from_db.events[2].related_entity_id == submission.id
     assert from_db.events[2].data == {"is_approved": True, "is_awaiting_sign_off": False}
 
     assert from_db.events[3].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
-    assert from_db.events[3].related_entity_id is submission.id
+    assert from_db.events[3].related_entity_id == submission.id
     assert from_db.events[3].data == {"is_submitted": True}
 
 
