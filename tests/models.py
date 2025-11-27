@@ -57,6 +57,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import AnyOf, GreaterThan, Specifically
+from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions import db
 from app.types import TRadioItem
 
@@ -859,8 +860,12 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
     submission = factory.SubFactory(_SubmissionFactory)
     related_entity_id = factory.LazyAttribute(lambda o: o.submission.id)
     created_by = factory.SubFactory(_UserFactory)
-    created_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
-    data = factory.LazyFunction(dict)
+
+    # set this in the past as relying on now() produces inconsistent results due to when the
+    # data actually gets flushed to the DB
+    created_at_utc = datetime.datetime(2025, 11, 1, 12, 0, 0)
+
+    data = factory.LazyAttribute(lambda o: SubmissionEventHelper.event_from(o.event_type))
 
 
 class _ExpressionFactory(SQLAlchemyModelFactory):

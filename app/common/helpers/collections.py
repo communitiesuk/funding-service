@@ -5,7 +5,7 @@ from datetime import date, datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Union, cast
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -48,6 +48,7 @@ from app.common.expressions import (
     interpolate,
 )
 from app.common.filters import format_datetime
+from app.common.helpers.submission_events import SubmissionEventHelper
 
 if TYPE_CHECKING:
     from app.common.data.models import (
@@ -58,7 +59,6 @@ if TYPE_CHECKING:
         Group,
         Question,
         Submission,
-        SubmissionEvent,
     )
 
 
@@ -89,6 +89,7 @@ class SubmissionHelper:
         """
         self.submission = submission
         self.collection = self.submission.collection
+        self.events = SubmissionEventHelper(self.submission)
 
         self.cached_get_ordered_visible_questions = lru_cache(maxsize=None)(self._get_ordered_visible_questions)
         self.cached_get_answer_for_question = lru_cache(maxsize=None)(self._get_answer_for_question)
@@ -176,11 +177,7 @@ class SubmissionHelper:
 
     @property
     def status(self) -> SubmissionStatusEnum:
-        awaiting_sign_off = any(
-            x.event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION for x in self.ordered_events
-        )
-        submitted = any(x.event_type == SubmissionEventType.SUBMISSION_SUBMITTED for x in self.ordered_events)
-
+        submission_state = self.events.submission_state
         # todo: make sure this is resilient to timezones, drift, etc. this is likely something that should
         #       a batch job decision that is then added as a submission event rather than calculated by the server
         submission_is_overdue = (
@@ -188,13 +185,13 @@ class SubmissionHelper:
         )
 
         form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
-        if {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submitted:
+        if {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_submitted:
             return SubmissionStatusEnum.SUBMITTED
         elif submission_is_overdue:
             return SubmissionStatusEnum.OVERDUE
-        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and awaiting_sign_off:
+        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
-        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and not submitted:
+        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and not submission_state.is_submitted:
             return SubmissionStatusEnum.READY_TO_SUBMIT
         elif {TasklistSectionStatusEnum.NOT_STARTED} == form_statuses:
             return SubmissionStatusEnum.NOT_STARTED
@@ -203,17 +200,7 @@ class SubmissionHelper:
 
     @property
     def submitted_at_utc(self) -> datetime | None:
-        if not self.is_completed:
-            return None
-
-        submitted = next(
-            filter(lambda e: e.event_type == SubmissionEventType.SUBMISSION_SUBMITTED, self.ordered_events),
-            None,
-        )
-        if not submitted:
-            return None
-
-        return submitted.created_at_utc
+        return self.events.submission_state.submitted_at_utc
 
     @property
     def is_locked_state(self) -> bool:
@@ -241,19 +228,8 @@ class SubmissionHelper:
         return self.submission.created_by.email
 
     @property
-    def ordered_events(self) -> Sequence["SubmissionEvent"]:
-        return sorted(self.submission.events, key=lambda x: x.created_at_utc, reverse=True)
-
-    @property
     def sent_for_certification_by(self) -> User | None:
-        return next(
-            (
-                x.created_by
-                for x in self.ordered_events
-                if x.event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
-            ),
-            None,
-        )
+        return self.events.submission_state.sent_for_certification_by
 
     @property
     def created_at_utc(self) -> datetime:
@@ -320,10 +296,7 @@ class SubmissionHelper:
 
     def get_status_for_form(self, form: "Form") -> TasklistSectionStatusEnum:
         form_questions_answered = self.cached_get_all_questions_are_answered_for_form(form)
-        # todo: checked the squashed version of events rather than existence of an invidual event
-        marked_as_complete = SubmissionEventType.FORM_RUNNER_FORM_COMPLETED in [
-            x.event_type for x in self.ordered_events if x.related_entity_id == form.id
-        ]
+        marked_as_complete = self.events.form_state(form.id).is_completed
         if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
             return TasklistSectionStatusEnum.COMPLETED
         elif form_questions_answered.some_answered:
@@ -487,8 +460,11 @@ class SubmissionHelper:
                 related_entity_id=form.id,
             )
         else:
-            interfaces.collections.clear_submission_events(
-                self.submission, event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, related_entity_id=form.id
+            interfaces.collections.add_submission_event(
+                self.submission,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                user=user,
+                related_entity_id=form.id,
             )
 
     # todo: decide if the add another index should be available submission helper wide where it just checks self
