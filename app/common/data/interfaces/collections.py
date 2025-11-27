@@ -1160,6 +1160,15 @@ def add_submission_event(
         case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
             emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, submission=submission)
 
+        case SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER:
+            emit_metric_count(MetricEventName.SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER, submission=submission)
+
+        case SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER:
+            emit_metric_count(MetricEventName.SUBMISSION_CERTIFIED, submission=submission)
+
+        case SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
+            emit_metric_count(MetricEventName.SUBMISSION_CERTIFICATION_DECLINED, submission=submission)
+
     return submission
 
 
