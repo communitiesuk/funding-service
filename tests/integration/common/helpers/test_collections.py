@@ -488,7 +488,7 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
             assert helper.events.submission_state.submitted_by == submission.created_by
-            assert helper.events.submission_state.is_approved is False
+            assert helper.events.submission_state.is_approved is True
             assert helper.events.submission_state.is_awaiting_sign_off is False
 
         @pytest.mark.freeze_time("2025-01-10 12:00:00")

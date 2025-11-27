@@ -21,8 +21,8 @@ class CompletedMixin(Protocol):
 
 @dataclass
 class SignOffMixin(Protocol):
-    is_awaiting_sign_off: bool
-    is_approved: bool
+    is_awaiting_sign_off: bool | None
+    is_approved: bool | None
 
 
 @dataclass
@@ -73,10 +73,8 @@ class SubmissionApprovedByCertifierEvent(SignOffMixin):
 
 
 @dataclass
-class SubmissionSubmittedEvent(SubmittedMixin, SignOffMixin):
+class SubmissionSubmittedEvent(SubmittedMixin):
     is_submitted: bool = True
-    is_awaiting_sign_off: bool = False
-    is_approved: bool = False
 
 
 # State - represents a snapshot of the current state of the target entity for those events
@@ -103,9 +101,9 @@ class SubmittedMetadata:
 class SubmissionState(
     SentForCertificationMetadata, SubmittedMetadata, CertifiedMetadata, SignOffMixin, SubmittedMixin, DeclinedMixin
 ):
-    is_awaiting_sign_off: bool = False
+    is_awaiting_sign_off: bool | None = None
     is_submitted: bool = False
-    is_approved: bool = False
+    is_approved: bool | None = None
     declined_reason: str | None = None
 
 
