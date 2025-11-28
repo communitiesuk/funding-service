@@ -17,7 +17,8 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_SIGN_OFF_DECLINED]) %}
         {% if flashes %}
           {% set submission_declined_html %}
-            <p class="govuk-notification-banner__heading">
+            <h3 class="govuk-notification-banner__heading">Report declined</h3>
+            <p class="govuk-body">
               {{ flashes[0]["collection_name"] }} report for {{ flashes[0]["grant_name"] }} sign off declined and sent back to {{ flashes[0]["sent_for_certification_by"] }}.
               <a
                 class="govuk-notification-banner__link"

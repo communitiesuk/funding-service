@@ -236,3 +236,101 @@ class TestNotificationService:
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_access_certifier_confirm_submission_declined(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            grant__name="Test grant",
+        )
+        submission = factories.submission.build(
+            grant_recipient=grant_recipient,
+            collection__grant=grant_recipient.grant,
+            collection__name="Test collection",
+            collection__submission_period_end_date=datetime.date(
+                2025,
+                12,
+                3,
+            ),
+        )
+        submitted_by = factories.user.build(name="Submitter User")
+        certifier = factories.user.build(name="Certifier User")
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": "test@test.com",
+                        "template_id": "1245cb41-5aec-4957-872c-6471657e57e6",
+                        "personalisation": {
+                            "grant_name": "Test grant",
+                            "submitter_name": "Submitter User",
+                            "certifier_name": "Certifier User",
+                            "certifier_comments": "Decline reason",
+                            "reporting_period": "Test collection",
+                            "report_deadline": "Wednesday 3 December 2025",
+                            "decline_date": "9:30am on Monday 1 December 2025",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/collection/{submission.collection.id}",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},  # partial GOV.UK Notify response
+        )
+
+        resp = notification_service.send_access_certifier_confirm_submission_declined(
+            email_address="test@test.com",
+            submission=submission,
+            certifier=certifier,
+            submitted_by=submitted_by,
+            certifier_comments="Decline reason",
+            decline_date=datetime.datetime(2025, 12, 1, 9, 30),
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_access_submitter_submission_declined(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            grant__name="Test grant",
+        )
+        submission = factories.submission.build(
+            grant_recipient=grant_recipient,
+            collection__grant=grant_recipient.grant,
+            collection__name="Test collection",
+            collection__submission_period_end_date=datetime.date(
+                2025,
+                12,
+                3,
+            ),
+        )
+        certifier = factories.user.build(name="Certifier User")
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": "test@test.com",
+                        "template_id": "791d1a61-c249-4752-9163-6cc81abf4ba9",
+                        "personalisation": {
+                            "grant_name": "Test grant",
+                            "certifier_name": "Certifier User",
+                            "reporting_period": "Test collection",
+                            "certifier_comments": "Decline reason",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/collection/{submission.collection.id}",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},  # partial GOV.UK Notify response
+        )
+
+        resp = notification_service.send_access_submitter_submission_declined(
+            email_address="test@test.com",
+            submission=submission,
+            certifier=certifier,
+            certifier_comments="Decline reason",
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1

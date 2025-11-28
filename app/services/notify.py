@@ -8,7 +8,7 @@ from flask import Flask, current_app, url_for
 from notifications_python_client import NotificationsAPIClient  # type: ignore[attr-defined]
 from notifications_python_client.errors import APIError, TokenError
 
-from app.common.filters import format_date
+from app.common.filters import format_date, format_datetime
 
 if TYPE_CHECKING:
     from app.common.data.models import Grant, Organisation, Submission
@@ -62,8 +62,8 @@ class NotificationService:
 
         try:
             notification_data = current_app.extensions["notification_service.client"].send_email_notification(
-                email_address,
-                template_id,
+                email_address=email_address,
+                template_id=template_id,
                 personalisation=personalisation,
                 reference=govuk_notify_reference,
                 email_reply_to_id=email_reply_to_id,
@@ -184,5 +184,66 @@ class NotificationService:
         return self._send_email(
             email_address,
             current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_READY_TO_CERTIFY_TEMPLATE_ID"],
+            personalisation=personalisation,
+        )
+
+    def send_access_certifier_confirm_submission_declined(
+        self,
+        email_address: str,
+        *,
+        submission: "Submission",
+        decline_date: datetime.datetime,
+        certifier: "User",
+        submitted_by: "User",
+        certifier_comments: str,
+    ) -> Notification:
+        personalisation = {
+            "grant_name": submission.collection.grant.name,
+            "submitter_name": submitted_by.name,
+            "certifier_name": certifier.name,
+            "reporting_period": submission.collection.name,
+            "certifier_comments": certifier_comments,
+            "report_deadline": format_date(submission.collection.submission_period_end_date)
+            if submission.collection.submission_period_end_date
+            else "(Monitoring report has no deadline set)",
+            "decline_date": format_datetime(decline_date),
+            "grant_report_url": url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=submission.grant_recipient.organisation.id,
+                grant_id=submission.grant_recipient.grant.id,
+                collection_id=submission.collection.id,
+                _external=True,
+            ),
+        }
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_CERTIFIER_REPORT_DECLINED_TEMPLATE_ID"],
+            personalisation=personalisation,
+        )
+
+    def send_access_submitter_submission_declined(
+        self,
+        email_address: str,
+        *,
+        submission: "Submission",
+        certifier: "User",
+        certifier_comments: str,
+    ) -> Notification:
+        personalisation = {
+            "grant_name": submission.collection.grant.name,
+            "certifier_name": certifier.name,
+            "reporting_period": submission.collection.name,
+            "certifier_comments": certifier_comments,
+            "grant_report_url": url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=submission.grant_recipient.organisation.id,
+                grant_id=submission.grant_recipient.grant.id,
+                collection_id=submission.collection.id,
+                _external=True,
+            ),
+        }
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_SUBMITTER_REPORT_DECLINED_TEMPLATE_ID"],
             personalisation=personalisation,
         )

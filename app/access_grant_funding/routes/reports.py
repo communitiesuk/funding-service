@@ -12,7 +12,7 @@ from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import CollectionType, RoleEnum, SubmissionModeEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, notification_service
 from app.types import FlashMessageType
 
 
@@ -100,7 +100,27 @@ def decline_report(
 
     form = DeclineSignOffForm()
     if form.validate_on_submit():
-        submission.decline_certification(get_current_user(), declined_reason=form.decline_reason.data)  # type:ignore [arg-type]
+        declined_reason = form.decline_reason.data or ""
+        certifier_user = get_current_user()
+        submission.decline_certification(certifier_user, declined_reason=declined_reason)
+        submission_state = submission.events.submission_state
+
+        # TODO All these type-ignores feel a bit wrong, is there a better way of accounting for optional attributes on
+        # submission model?
+        notification_service.send_access_submitter_submission_declined(
+            email_address=submission.sent_for_certification_by.email,  # type:ignore [union-attr]
+            submission=submission.submission,
+            certifier=certifier_user,
+            certifier_comments=submission_state.declined_reason,  # type:ignore[arg-type]
+        )
+        notification_service.send_access_certifier_confirm_submission_declined(
+            email_address=certifier_user.email,
+            submission=submission.submission,
+            submitted_by=submission.sent_for_certification_by,  # type:ignore[arg-type]
+            certifier=certifier_user,
+            certifier_comments=submission_state.declined_reason,  # type:ignore[arg-type]
+            decline_date=submission_state.declined_at_utc,  # type:ignore[arg-type]
+        )
         flash(
             {  # type:ignore [arg-type]
                 "collection_name": submission.collection.name,

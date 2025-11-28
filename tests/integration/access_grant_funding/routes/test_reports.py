@@ -9,7 +9,7 @@ from app import CollectionStatusEnum, GrantStatusEnum, TasklistSectionStatusEnum
 from app.access_grant_funding.forms import DeclineSignOffForm
 from app.common.data.types import SubmissionModeEnum, SubmissionStatusEnum
 from app.common.helpers.collections import SubmissionHelper
-from tests.utils import get_h1_text, page_has_button, page_has_link
+from tests.utils import get_h1_text, page_has_button, page_has_error, page_has_link
 
 
 class TestViewLockedReport:
@@ -172,6 +172,8 @@ class TestDeclineSignOff:
         submission_awaiting_sign_off,
         grant_recipient,
         user,
+        app,
+        mock_notification_service_calls,
     ):
         helper = SubmissionHelper(submission_awaiting_sign_off)
         assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
@@ -180,6 +182,7 @@ class TestDeclineSignOff:
 
         decline_form = DeclineSignOffForm()
         decline_form.decline_reason.data = "Reason for declining"
+
         response = authenticated_grant_recipient_certifier_client.post(
             url_for(
                 "access_grant_funding.decline_report",
@@ -199,6 +202,45 @@ class TestDeclineSignOff:
 
         assert helper.status == SubmissionStatusEnum.IN_PROGRESS
         assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+        assert len(mock_notification_service_calls) == 2
+
+    def test_decline_certification_post_form_validation_fails(
+        self,
+        authenticated_grant_recipient_certifier_client,
+        factories,
+        submission_awaiting_sign_off,
+        grant_recipient,
+        user,
+        app,
+        mock_notification_service_calls,
+    ):
+        helper = SubmissionHelper(submission_awaiting_sign_off)
+        assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+        form = submission_awaiting_sign_off.collection.forms[0]
+        assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+
+        decline_form = DeclineSignOffForm()
+        decline_form.decline_reason.data = ""
+
+        response = authenticated_grant_recipient_certifier_client.post(
+            url_for(
+                "access_grant_funding.decline_report",
+                organisation_id=grant_recipient.organisation_id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_awaiting_sign_off.id,
+            ),
+            data=decline_form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Enter a reason for declining sign off")
+
+        assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+        assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+
+        assert len(mock_notification_service_calls) == 0
 
     def test_decline_certification_invalid_status(
         self,
