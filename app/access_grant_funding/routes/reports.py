@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from flask import redirect, render_template, url_for
+from flask import flash, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.forms import DeclineSignOffForm
@@ -13,6 +13,7 @@ from app.common.data.types import CollectionType, RoleEnum, SubmissionModeEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.extensions import auto_commit_after_request
+from app.types import FlashMessageType
 
 
 @access_grant_funding_blueprint.route(
@@ -100,6 +101,17 @@ def decline_report(
     form = DeclineSignOffForm()
     if form.validate_on_submit():
         submission.decline_certification(get_current_user(), declined_reason=form.decline_reason.data)  # type:ignore [arg-type]
+        flash(
+            {  # type:ignore [arg-type]
+                "collection_name": submission.collection.name,
+                "grant_name": submission.grant.name,
+                "sent_for_certification_by": submission.sent_for_certification_by.name
+                if submission.sent_for_certification_by
+                else "the submitter",
+                "collection_id": submission.collection.id,
+            },
+            FlashMessageType.SUBMISSION_SIGN_OFF_DECLINED,
+        )
         return redirect(
             url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
         )
