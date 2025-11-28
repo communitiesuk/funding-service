@@ -236,3 +236,41 @@ class TestNotificationService:
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_access_certifier_confirm_submission_declined(self, app):
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": "test@test.com",
+                        "template_id": "1245cb41-5aec-4957-872c-6471657e57e6",
+                        "personalisation": {
+                            "grant_name": submission.collection.grant.name,
+                            "submitter_name": submitted_by.name,
+                            "certifier_name": certifier.name,
+                            "reporting_period": submission.collection.name,
+                            "report_deadline": format_date(submission.collection.submission_period_end_date)
+                            if submission.collection.submission_period_end_date
+                            else "(Monitoring report has no deadline set)",
+                            "decline_date": format_datetime(decline_date),
+                            "grant_report_url": url_for(
+                                "access_grant_funding.route_to_submission",
+                                organisation_id=submission.grant_recipient.organisation.id,
+                                grant_id=submission.grant_recipient.grant.id,
+                                collection_id=submission.collection.id,
+                                _external=True,
+                            ),
+                        },
+                        "reference": "abc123",
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},  # partial GOV.UK Notify response
+        )
+
+        resp = notification_service.send_access_certifier_confirm_submission_declined()
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
