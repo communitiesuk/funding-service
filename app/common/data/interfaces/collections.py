@@ -56,7 +56,7 @@ from app.common.helpers.submission_events import SubmissionEventHelper
 from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
-from app.metrics import MetricEventName, emit_metric_count
+from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
 
 if TYPE_CHECKING:
@@ -167,7 +167,7 @@ def update_collection(  # noqa: C901
         if collection.reporting_period_end_date >= collection.submission_period_start_date:
             raise CollectionChronologyError("reporting_period_end_date must be before submission_period_start_date")
 
-    if status is not NOT_PROVIDED:
+    if status is not NOT_PROVIDED and collection.status != status:
         match (collection.status, status):
             case (CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED) | (
                 CollectionStatusEnum.SCHEDULED,
@@ -227,6 +227,15 @@ def update_collection(  # noqa: C901
 
             case _:
                 raise StateTransitionError("Collection", collection.status, status)
+
+        emit_metric_count(
+            MetricEventName.COLLECTION_STATUS_CHANGED,
+            collection=collection,
+            custom_attributes={
+                MetricAttributeName.FROM_STATUS: str(collection.status),
+                MetricAttributeName.TO_STATUS: str(status),
+            },
+        )
         collection.status = status
 
     return collection
