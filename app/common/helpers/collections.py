@@ -423,6 +423,8 @@ class SubmissionHelper:
         if self.is_completed:
             return
 
+        # todo: depending on your workflow (if certification is required or not) this could now check
+        #       self.events.submission_state.is_approved
         if self.all_forms_are_completed:
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED, user=user
@@ -434,12 +436,58 @@ class SubmissionHelper:
         if self.is_locked_state:
             return
 
+        if not self.collection.requires_certification:
+            raise ValueError(
+                f"Could not send submission id={self.id} for sign off because this report does not require "
+                f"certification."
+            )
+
         if self.all_forms_are_completed:
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, user=user
             )
         else:
-            raise ValueError(f"Could not sign off submission id={self.id} because not all forms are complete.")
+            raise ValueError(f"Could not send submission id={self.id} for sign off because not all forms are complete.")
+
+    def decline_certification(self, user: "User", declined_reason: str) -> None:
+        if not self.collection.requires_certification:
+            raise ValueError(
+                f"Could not decline certification for submission id={self.id} because this report does not require "
+                f"certification."
+            )
+        if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
+            interfaces.collections.add_submission_event(
+                self.submission,
+                event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+                user=user,
+                declined_reason=declined_reason,
+            )
+            for form in self.collection.forms:
+                interfaces.collections.add_submission_event(
+                    self.submission,
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
+                    user=user,
+                    related_entity_id=form.id,
+                )
+        else:
+            raise ValueError(
+                f"Could not decline certification for submission id={self.id} because it is not awaiting sign off."
+            )
+
+    def approve_certification(self, user: "User") -> None:
+        if not self.collection.requires_certification:
+            raise ValueError(
+                f"Could not approve certification for submission id={self.id} because this report does not require "
+                f"certification."
+            )
+        if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
+            interfaces.collections.add_submission_event(
+                self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
+            )
+        else:
+            raise ValueError(
+                f"Could not approve certification for submission id={self.id} because it is not awaiting sign off."
+            )
 
     def toggle_form_completed(self, form: "Form", user: "User", is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED

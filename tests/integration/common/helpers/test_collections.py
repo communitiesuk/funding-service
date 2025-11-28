@@ -415,6 +415,7 @@ class TestSubmissionHelper:
             assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.NO_QUESTIONS
 
         def test_submission_status_based_on_forms(self, db_session, factories):
+            certifier = factories.user.create()
             question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
             form_two = factories.form.create(collection=question.form.collection)
             question_two = factories.question.create(
@@ -451,9 +452,44 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
+            helper.mark_as_sent_for_certification(submission.created_by)
+
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+            assert helper.events.submission_state.is_awaiting_sign_off is True
+            assert helper.events.submission_state.sent_for_certification_by is submission.created_by
+
+            helper.decline_certification(certifier, "Reason for declining")
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.events.submission_state.sent_for_certification_by is submission.created_by
+            assert helper.events.submission_state.is_awaiting_sign_off is False
+            assert helper.events.submission_state.certified_by == certifier
+            assert helper.events.submission_state.declined_reason == "Reason for declining"
+
+            assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.IN_PROGRESS
+            assert helper.get_status_for_form(question_two.form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+            helper.toggle_form_completed(question.form, submission.created_by, True)
+            helper.toggle_form_completed(question_two.form, submission.created_by, True)
+
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+            helper.mark_as_sent_for_certification(submission.created_by)
+
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+            helper.approve_certification(certifier)
+
+            assert helper.events.submission_state.is_awaiting_sign_off is False
+            assert helper.events.submission_state.is_approved is True
+            assert helper.events.submission_state.certified_by == certifier
+
             helper.submit(submission.created_by)
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
+            assert helper.events.submission_state.submitted_by == submission.created_by
+            assert helper.events.submission_state.is_approved is True
+            assert helper.events.submission_state.is_awaiting_sign_off is False
 
         @pytest.mark.freeze_time("2025-01-10 12:00:00")
         @pytest.mark.parametrize("is_overdue", [True, False])
@@ -577,6 +613,42 @@ class TestSubmissionHelper:
 
             assert str(e.value) == AnyStringMatching(
                 r"Could not submit submission id=[a-z0-9-]+ because not all forms are complete."
+            )
+
+    class TestRequiresCertification:
+        def test_decline_certification_requires_certification(self, factories, submission_awaiting_sign_off, user):
+            collection = submission_awaiting_sign_off.collection
+            collection.requires_certification = False
+            with pytest.raises(ValueError) as e:
+                SubmissionHelper(submission_awaiting_sign_off).decline_certification(
+                    user=user, declined_reason="test reason"
+                )
+            assert (
+                str(e.value)
+                == f"Could not decline certification for submission id={submission_awaiting_sign_off.id} because this "
+                f"report does not require certification."
+            )
+
+        def test_approve_certification_requires_certification(self, factories, submission_awaiting_sign_off, user):
+            collection = submission_awaiting_sign_off.collection
+            collection.requires_certification = False
+            with pytest.raises(ValueError) as e:
+                SubmissionHelper(submission_awaiting_sign_off).approve_certification(user)
+            assert (
+                str(e.value)
+                == f"Could not approve certification for submission id={submission_awaiting_sign_off.id} because this "
+                f"report does not require certification."
+            )
+
+        def test_send_for_sign_off_requires_certification(self, factories, submission_in_progress, user):
+            collection = submission_in_progress.collection
+            collection.requires_certification = False
+            with pytest.raises(ValueError) as e:
+                SubmissionHelper(submission_in_progress).mark_as_sent_for_certification(user)
+            assert (
+                str(e.value)
+                == f"Could not send submission id={submission_in_progress.id} for sign off because this report does "
+                f"not require certification."
             )
 
     class TestGetAnswerForQuestion:

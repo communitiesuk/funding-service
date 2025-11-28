@@ -2553,8 +2553,49 @@ def test_add_submission_event(db_session, factories):
     assert from_db.events[0].data == {"is_completed": True}
 
     assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
+    assert from_db.events[1].related_entity_id is submission.id
+    assert from_db.events[1].data == {"is_submitted": True}
+
+
+def test_add_certification_and_submission_event(db_session, factories):
+    user = factories.user.create()
+    form = factories.form.create()
+    submission = factories.submission.create(collection=form.collection)
+    db_session.add(submission)
+
+    add_submission_event(
+        submission=submission,
+        user=user,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        related_entity_id=form.id,
+    )
+    add_submission_event(
+        submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+    )
+    add_submission_event(
+        submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
+    )
+    add_submission_event(submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+
+    # pull it back out of the database to also check all of the serialisation/ enums are mapped appropriately
+    from_db = get_submission(submission.id, with_full_schema=True)
+
+    assert len(from_db.events) == 4
+    assert from_db.events[0].event_type == SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
+    assert from_db.events[0].related_entity_id == form.id
+    assert from_db.events[0].data == {"is_completed": True}
+
+    assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
     assert from_db.events[1].related_entity_id == submission.id
-    assert from_db.events[1].data == {"is_submitted": True, "is_awaiting_sign_off": False}
+    assert from_db.events[1].data == {"is_approved": False, "is_awaiting_sign_off": True}
+
+    assert from_db.events[2].event_type == SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
+    assert from_db.events[2].related_entity_id == submission.id
+    assert from_db.events[2].data == {"is_approved": True, "is_awaiting_sign_off": False}
+
+    assert from_db.events[3].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
+    assert from_db.events[3].related_entity_id == submission.id
+    assert from_db.events[3].data == {"is_submitted": True}
 
 
 def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):

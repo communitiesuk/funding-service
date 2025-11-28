@@ -1131,14 +1131,20 @@ def update_question(
 
 @flush_and_rollback_on_exceptions
 def add_submission_event(
-    submission: Submission, *, event_type: SubmissionEventType, user: User, related_entity_id: UUID | None = None
+    submission: Submission,
+    *,
+    event_type: SubmissionEventType,
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Any,
 ) -> Submission:
     submission.events.append(
         SubmissionEvent(
             event_type=event_type,
             created_by=user,
             related_entity_id=related_entity_id or submission.id,
-            data=SubmissionEventHelper.event_from(event_type),
+            # consider in future whether we want to more strongly type these kwargs and specify what data we need
+            data=SubmissionEventHelper.event_from(event_type, **kwargs),
         )
     )
 
@@ -1154,6 +1160,15 @@ def add_submission_event(
 
         case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
             emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, submission=submission)
+
+        case SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER:
+            emit_metric_count(MetricEventName.SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER, submission=submission)
+
+        case SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER:
+            emit_metric_count(MetricEventName.SUBMISSION_CERTIFIED, submission=submission)
+
+        case SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
+            emit_metric_count(MetricEventName.SUBMISSION_CERTIFICATION_DECLINED, submission=submission)
 
     return submission
 

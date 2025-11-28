@@ -67,7 +67,8 @@ class TestSubmissionEventHelper:
             events = SubmissionEventHelper(submission)
             submission_state = events.submission_state
             assert submission_state.is_submitted is False
-            assert submission_state.is_awaiting_sign_off is False
+            assert submission_state.is_awaiting_sign_off is None
+            assert submission_state.is_approved is None
             assert submission_state.submitted_by is None
             assert submission_state.submitted_at_utc is None
             assert submission_state.sent_for_certification_by is None
@@ -91,6 +92,7 @@ class TestSubmissionEventHelper:
             events = SubmissionEventHelper(submission)
             submission_state = events.submission_state
             assert submission_state.is_awaiting_sign_off is True
+            assert submission_state.is_approved is False
             assert submission_state.sent_for_certification_by == user
             assert submission_state.sent_for_certification_at_utc == datetime(2025, 11, 25, 0, 0, 0)
             assert submission_state.is_submitted is False
@@ -111,6 +113,13 @@ class TestSubmissionEventHelper:
                     created_at_utc=datetime(2025, 11, 24, 0, 0, 0),
                 ),
                 factories.submission_event.build(
+                    event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+                    related_entity_id=submission.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER),
+                    created_at_utc=datetime(2025, 11, 24, 11, 0, 0),
+                ),
+                factories.submission_event.build(
                     event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
                     related_entity_id=submission.id,
                     created_by=user,
@@ -121,6 +130,7 @@ class TestSubmissionEventHelper:
             events = SubmissionEventHelper(submission)
             assert events.submission_state.is_submitted is True
             assert events.submission_state.is_awaiting_sign_off is False
+            assert events.submission_state.is_approved is True
             assert events.submission_state.submitted_by == user
             assert events.submission_state.submitted_at_utc == datetime(2025, 11, 25, 0, 0, 0)
             assert events.submission_state.sent_for_certification_by == user

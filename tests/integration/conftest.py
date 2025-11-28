@@ -451,6 +451,21 @@ def grant_recipient(
 
 
 @pytest.fixture(scope="function")
+def submission_in_progress(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+    question = factories.question.create(
+        form__collection__grant=grant_recipient.grant,
+        form__collection__submission_period_end_date=date.today() + timedelta(days=30),
+    )
+    submission = factories.submission.create(
+        grant_recipient=grant_recipient,
+        collection=question.form.collection,
+        mode=SubmissionModeEnum.LIVE,
+        data={str(question.id): "Question answer"},
+    )
+    return cast(Submission, submission)
+
+
+@pytest.fixture(scope="function")
 def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
     question = factories.question.create(
         form__collection__grant=grant_recipient.grant,

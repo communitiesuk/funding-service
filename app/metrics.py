@@ -40,6 +40,8 @@ class MetricEventName(StrEnum):
     SUBMISSION_MANAGED_VALIDATION_ERROR = "submission-managed-validation-error"
     SUBMISSION_MANAGED_VALIDATION_SUCCESS = "submission-managed-validation-success"
 
+    SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER = "section-reset-to-in-progress-by-certifier"
+
 
 def _get_event_attributes(
     grant_recipient: Optional["GrantRecipient"] = None,
