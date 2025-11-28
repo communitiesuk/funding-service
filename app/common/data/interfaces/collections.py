@@ -1143,6 +1143,7 @@ def add_submission_event(
             event_type=event_type,
             created_by=user,
             related_entity_id=related_entity_id or submission.id,
+            # consider in future whether we want to more strongly type these kwargs and specify what data we need
             data=SubmissionEventHelper.event_from(event_type, **kwargs),
         )
     )

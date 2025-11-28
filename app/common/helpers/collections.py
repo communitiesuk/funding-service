@@ -436,14 +436,25 @@ class SubmissionHelper:
         if self.is_locked_state:
             return
 
+        if not self.collection.requires_certification:
+            raise ValueError(
+                f"Could not send submission id={self.id} for sign off because this report does not require "
+                f"certification."
+            )
+
         if self.all_forms_are_completed:
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, user=user
             )
         else:
-            raise ValueError(f"Could not sign off submission id={self.id} because not all forms are complete.")
+            raise ValueError(f"Could not send submission id={self.id} for sign off because not all forms are complete.")
 
     def decline_certification(self, user: "User", declined_reason: str) -> None:
+        if not self.collection.requires_certification:
+            raise ValueError(
+                f"Could not decline certification for submission id={self.id} because this report does not require "
+                f"certification."
+            )
         if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
             interfaces.collections.add_submission_event(
                 self.submission,
@@ -464,6 +475,11 @@ class SubmissionHelper:
             )
 
     def approve_certification(self, user: "User") -> None:
+        if not self.collection.requires_certification:
+            raise ValueError(
+                f"Could not approve certification for submission id={self.id} because this report does not require "
+                f"certification."
+            )
         if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
