@@ -193,6 +193,20 @@ def create_app() -> Flask:  # noqa: C901
     record_sqlalchemy_queries.init_app(app, db)
     govuk_markdown.init_app(app)
 
+    @app.after_request
+    def set_cache_control_headers(response: Response) -> Response:
+        if request.blueprint == "static" or (request.endpoint and request.endpoint.split(".")[-1] == "static"):
+            return response
+
+        # Allow cache-control to be set by the view/endpoint and respected, but if it's not set then these are our
+        # defaults.
+        if "Cache-Control" not in response.headers:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+
+        return response
+
     Babel(app)
     _setup_flask_admin(app, db)
 
@@ -325,9 +339,5 @@ def create_app() -> Flask:  # noqa: C901
     def index() -> ResponseReturnValue:
         return redirect(url_for("deliver_grant_funding.list_grants"))
 
-    # when developing we want the toolbar assets to not cause the page to flicker
-    # otherwise we don't want the server to continually 304 on assets the browser has
-    # should make an intentional decision for when to be setting this
-    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
     app.add_template_global(AuthorisationHelper, "authorisation_helper")
     return app
