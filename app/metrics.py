@@ -23,6 +23,9 @@ class MetricAttributeName(StrEnum):
     SUBMISSION_MODE = "submission-mode"
     USER_ID = "user-id"
 
+    FROM_STATUS = "from-status"
+    TO_STATUS = "to-status"
+
     MANAGED_EXPRESSION_NAME = "managed-expression-name"
 
 
@@ -41,6 +44,9 @@ class MetricEventName(StrEnum):
     SUBMISSION_MANAGED_VALIDATION_SUCCESS = "submission-managed-validation-success"
 
     SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER = "section-reset-to-in-progress-by-certifier"
+
+    GRANT_STATUS_CHANGED = "grant-status-changed"
+    COLLECTION_STATUS_CHANGED = "collection-status-changed"
 
 
 def _get_event_attributes(
