@@ -110,7 +110,7 @@ class GrantGGISForm(FlaskForm):
     )
     submit = SubmitField("Save and continue", widget=GovSubmitInput())
 
-    def validate(self, extra_validators: dict[str, list[Any]] | None = None) -> bool:
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         if not super().validate(extra_validators):
             return False
 
