@@ -753,7 +753,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
             if hasattr(self.form, "cached_all_components"):
                 del self.form.cached_all_components
 
-    @factory.post_generation  # type: ignore[misc]
+    @factory.post_generation  # type: ignore[untyped-decorator]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:
             return
@@ -765,7 +765,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
             db.session.add(expression)
             db.session.commit()
 
-    @factory.post_generation  # type: ignore[misc]
+    @factory.post_generation  # type: ignore[untyped-decorator]
     def _references(self: "Question", create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not create:
             return
@@ -818,7 +818,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
             if hasattr(self.form, "cached_all_components"):
                 del self.form.cached_all_components
 
-    @factory.post_generation  # type: ignore[misc]
+    @factory.post_generation  # type: ignore[untyped-decorator]
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:
             return
@@ -830,7 +830,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
         if create:
             db.session.commit()
 
-    @factory.post_generation  # type: ignore[misc]
+    @factory.post_generation  # type: ignore[untyped-decorator]
     def _references(self: "Group", create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not create:
             return
