@@ -197,16 +197,16 @@ class JSONFormatter(BaseJSONFormatter):
             )
         return s
 
-    def process_log_record(self, log_record: LogData) -> LogData:
+    def process_log_record(self, log_data: LogData) -> LogData:
         for key, newkey in (
             ("asctime", "time"),
             ("trace_id", "requestId"),
         ):
             try:
-                log_record[newkey] = log_record.pop(key)
+                log_data[newkey] = log_data.pop(key)
             except KeyError:
                 pass
 
-        log_record["logType"] = "application"
+        log_data["logType"] = "application"
 
-        return log_record
+        return log_data

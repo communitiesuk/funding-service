@@ -70,7 +70,7 @@ class DynamicQuestionForm(FlaskForm):
         data = {k: v for k, v in self.data.items() if k not in {"csrf_token", "submit"}}
         return data
 
-    def validate(self, extra_validators: Mapping[str, list[Any]] | None = None) -> Any:
+    def validate(self, extra_validators: Mapping[str, list[Any]] | None = None) -> Any:  # ty: ignore[invalid-method-override]
         """
         Run the form's validation chain. This works in two steps:
         - WTForm's built-in field-level validation (eg for IntegerField, that data has been provided, and that it
