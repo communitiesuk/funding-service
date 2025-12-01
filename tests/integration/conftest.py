@@ -11,7 +11,7 @@ from unittest.mock import _Call, patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from flask import Flask, abort, template_rendered
+from flask import Flask, Response, abort, template_rendered
 from flask.sessions import SessionMixin
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
@@ -123,6 +123,12 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
                 return abort(500)
             raise e
         raise RuntimeError("query expected no results and an error, but didn't")
+
+    @app.route("/custom-cache-control")
+    def custom_cache_control() -> ResponseReturnValue:
+        response = Response(mimetype="text/plain")
+        response.headers["Cache-Control"] = "max-age=30"
+        return response
 
     app.config.update({"TESTING": True})
     _precompile_templates(app)
