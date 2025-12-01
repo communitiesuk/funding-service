@@ -231,6 +231,8 @@ routes_with_access_controlled_by_flask_admin = [
     "reporting_lifecycle.set_up_grant_recipients",
     "reporting_lifecycle.set_up_grant_recipient_data_providers",
     "reporting_lifecycle.revoke_grant_recipient_data_providers",
+    "reporting_lifecycle.override_grant_certifiers",
+    "reporting_lifecycle.revoke_grant_override_certifiers",
     "reporting_lifecycle.set_collection_dates",
     "reporting_lifecycle.schedule_report",
     "reporting_lifecycle.make_report_live",

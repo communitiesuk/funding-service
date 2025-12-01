@@ -10,6 +10,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
 from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_and_rollback_on_exceptions
+from app.common.data.interfaces.grant_recipients import get_grant_recipients
+from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.models import Grant, Organisation
 from app.common.data.models_user import Invitation, User, UserRole
@@ -349,6 +351,26 @@ def get_certifiers_by_organisation() -> dict[Organisation, Sequence[User]]:
     ).all()
 
     for org, user_roles in groupby(roles, lambda role: role.organisation):
+        certifiers_by_organisation[org] = list(set(ur.user for ur in user_roles))
+
+    return certifiers_by_organisation
+
+
+def get_grant_override_certifiers_by_organisation(grant_id: uuid.UUID) -> dict[Organisation, Sequence[User]]:
+    grant = get_grant(grant_id)
+    grant_recipients = get_grant_recipients(grant=grant)
+
+    certifiers_by_organisation: dict[Organisation, Sequence[User]] = {gr.organisation: [] for gr in grant_recipients}
+
+    roles = db.session.scalars(
+        select(UserRole).where(
+            UserRole.grant_id == grant_id,
+            UserRole.permissions.contains([RoleEnum.CERTIFIER]),
+        )
+    ).all()
+
+    sorted_roles = sorted(roles, key=lambda r: str(r.organisation_id or ""))
+    for org, user_roles in groupby(sorted_roles, lambda role: role.organisation):
         certifiers_by_organisation[org] = list(set(ur.user for ur in user_roles))
 
     return certifiers_by_organisation

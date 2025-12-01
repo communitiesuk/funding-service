@@ -1,6 +1,6 @@
 {% from 'govuk_frontend_jinja/components/table/macro.html' import govukTable %}
 
-{% macro existingCertifiersTable(certifiers_by_org) %}
+{% macro existingCertifiersTable(certifiers_by_org, overrides=False) %}
   {% set tableRows = [] %}
   {% for organisation, users in certifiers_by_org.items() %}
     {% if users %}
@@ -12,7 +12,7 @@
         </ul>
       {% endset %}
     {% else %}
-      {% set userDetails = 'No certifier set up' %}
+      {% set userDetails = 'No certifier overrides set up' if overrides else 'No certifiers set up' %}
     {% endif %}
     {%
       do tableRows.append([

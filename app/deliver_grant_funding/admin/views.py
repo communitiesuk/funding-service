@@ -27,6 +27,7 @@ from app.common.data.interfaces.organisations import get_organisation_count, get
 from app.common.data.interfaces.user import (
     add_permissions_to_user,
     get_certifiers_by_organisation,
+    get_grant_override_certifiers_by_organisation,
     get_user,
     get_user_by_email,
     get_users_with_permission,
@@ -39,11 +40,13 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminBulkCreateGrantRecipientsForm,
     PlatformAdminBulkCreateOrganisationsForm,
     PlatformAdminCreateCertifiersForm,
+    PlatformAdminCreateGrantOverrideCertifiersForm,
     PlatformAdminCreateGrantRecipientDataProvidersForm,
     PlatformAdminMakeGrantLiveForm,
     PlatformAdminMakeReportLiveForm,
     PlatformAdminMarkAsOnboardingForm,
     PlatformAdminRevokeCertifiersForm,
+    PlatformAdminRevokeGrantOverrideCertifiersForm,
     PlatformAdminRevokeGrantRecipientUsersForm,
     PlatformAdminScheduleReportForm,
     PlatformAdminSelectGrantForReportingLifecycleForm,
@@ -98,6 +101,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         certifiers_count = len(get_users_with_permission(RoleEnum.CERTIFIER, grant_id=None))
         grant_recipients_count = get_grant_recipients_count(grant=grant)
         grant_recipient_users_count = get_grant_recipient_data_providers_count(grant=grant)
+        grant_override_certifiers_count = len(get_users_with_permission(RoleEnum.CERTIFIER, grant_id=grant_id))
         return self.render(
             "deliver_grant_funding/admin/reporting-lifecycle-tasklist.html",
             grant=grant,
@@ -106,6 +110,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             certifiers_count=certifiers_count,
             grant_recipients_count=grant_recipients_count,
             grant_recipient_users_count=grant_recipient_users_count,
+            grant_override_certifiers_count=grant_override_certifiers_count,
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/make-live", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
@@ -255,6 +260,108 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
 
         return self.render(
             "deliver_grant_funding/admin/revoke-global-certifiers.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+            certifiers_by_org=certifiers_by_org,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/override-grant-certifiers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    @auto_commit_after_request
+    def override_grant_certifiers(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+        grant_recipients = get_grant_recipients(grant=grant)
+
+        certifiers_by_org = get_grant_override_certifiers_by_organisation(grant_id=grant_id)
+
+        form = PlatformAdminCreateGrantOverrideCertifiersForm(grant_recipients=grant_recipients)
+
+        if form.validate_on_submit():
+            organisation_id = UUID(form.organisation_id.data)
+            assert form.full_name.data
+            full_name = form.full_name.data
+            assert form.email.data
+            email_address = form.email.data
+
+            user = upsert_user_by_email(email_address=email_address, name=full_name)
+            add_permissions_to_user(
+                user=user,
+                permissions=[RoleEnum.CERTIFIER],
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+            )
+
+            flash(
+                f"Successfully added {full_name} ({email_address}) as a grant-specific certifier.",
+                "success",
+            )
+            return redirect(
+                url_for(
+                    "reporting_lifecycle.override_grant_certifiers",
+                    grant_id=grant.id,
+                    collection_id=collection.id,
+                )
+            )
+
+        return self.render(
+            "deliver_grant_funding/admin/override-grant-certifiers.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+            certifiers_by_org=certifiers_by_org,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/revoke-grant-override-certifiers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    @auto_commit_after_request
+    def revoke_grant_override_certifiers(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+        grant_recipients = get_grant_recipients(grant=grant)
+
+        certifiers_by_org = get_grant_override_certifiers_by_organisation(grant_id=grant_id)
+
+        form = PlatformAdminRevokeGrantOverrideCertifiersForm(grant_recipients=grant_recipients)
+
+        if form.validate_on_submit():
+            organisation_id = UUID(form.organisation_id.data)
+            assert form.email.data
+            email = form.email.data
+
+            user = get_user_by_email(email)
+            if not user:
+                flash(f"User with email '{email}' does not exist.", "error")
+            else:
+                certifiers = get_users_with_permission(
+                    RoleEnum.CERTIFIER, organisation_id=organisation_id, grant_id=grant_id
+                )
+                if user not in certifiers:
+                    flash(
+                        f"User '{user.name}' ({email}) is not a grant-specific certifier "
+                        "for the selected organisation.",
+                        "error",
+                    )
+                else:
+                    remove_permissions_from_user(
+                        user=user,
+                        permissions=[RoleEnum.CERTIFIER],
+                        organisation_id=organisation_id,
+                        grant_id=grant_id,
+                    )
+                    flash(
+                        f"Successfully revoked grant-specific certifier access for {user.name} ({email}).",
+                        "success",
+                    )
+                    return redirect(
+                        url_for(
+                            "reporting_lifecycle.revoke_grant_override_certifiers",
+                            grant_id=grant.id,
+                            collection_id=collection.id,
+                        )
+                    )
+
+        return self.render(
+            "deliver_grant_funding/admin/revoke-grant-override-certifiers.html",
             form=form,
             grant=grant,
             collection=collection,
