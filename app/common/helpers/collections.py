@@ -204,11 +204,10 @@ class SubmissionHelper:
 
     @property
     def is_locked_state(self) -> bool:
-        return self.is_completed or self.is_awaiting_sign_off
+        return self.is_submitted or self.is_awaiting_sign_off
 
-    # todo: rename this to is_submitted, "Completed" was task section specific language
     @property
-    def is_completed(self) -> bool:
+    def is_submitted(self) -> bool:
         return self.status == SubmissionStatusEnum.SUBMITTED
 
     @property
@@ -432,7 +431,7 @@ class SubmissionHelper:
         self.cached_get_ordered_visible_questions.cache_clear()
 
     def submit(self, user: "User") -> None:
-        if self.is_completed:
+        if self.is_submitted:
             return
 
         # todo: depending on your workflow (if certification is required or not) this could now check

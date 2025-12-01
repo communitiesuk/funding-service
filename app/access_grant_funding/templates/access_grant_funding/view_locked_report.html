@@ -37,7 +37,7 @@
       {# exception for xl heading where we'd anticipate having many subheadings and levels of heirarchy on this page #}
       <h1 id="submission" class="govuk-heading-xl">{{ page_title }}</h1>
 
-      {% if submission.is_completed %}
+      {% if submission.is_submitted %}
         {# if certification wasn't required then show who submitted directly #}
         {% set submitter = submission.sent_for_certification_by or submission.submitted_by %}
         <dl class="app-metadata">
