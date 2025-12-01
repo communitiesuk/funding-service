@@ -81,7 +81,7 @@ class PlatformAdminUserView(PlatformAdminModelView):
         "revoke_all_permissions",
         "Revoke all permissions",
         "Are you sure you want to revoke all permissiosn for these users?",
-    )  # type: ignore[misc]
+    )  # type: ignore[untyped-decorator]
     def revoke_permissions(self, ids: list[str]) -> None:
         if not self.can_edit:
             flash("You do not have permission to do this", "error")
@@ -280,7 +280,7 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
         "cancel_invitation",
         "Cancel invitation",
         "Are you sure you want to cancel these invitations?",
-    )  # type: ignore[misc]
+    )  # type: ignore[untyped-decorator]
     def cancel_invitation(self, ids: list[str]) -> None:
         if not self.can_create:
             flash("You do not have permission to do this", "error")

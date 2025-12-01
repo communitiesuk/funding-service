@@ -63,7 +63,7 @@ class PlatformAdminIndexView(FlaskAdminPlatformAdminAccessibleMixin, AdminIndexV
 
 
 class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
-    @expose("/", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     def index(self) -> Any:
         form = PlatformAdminSelectGrantForReportingLifecycleForm(grants=get_all_grants())
         if form.validate_on_submit():
@@ -77,7 +77,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
 
         return self.render("deliver_grant_funding/admin/select-grant-for-reporting-lifecycle.html", form=form)
 
-    @expose("/<uuid:grant_id>/select-report", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/select-report", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     def select_report(self, grant_id: UUID) -> Any:
         grant = get_grant(grant_id, with_all_collections=True)
         form = PlatformAdminSelectReportForm(collections=grant.reports)
@@ -90,7 +90,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             "deliver_grant_funding/admin/select-report-for-reporting-lifecycle.html", form=form, grant=grant
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>")  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>")  # type: ignore[untyped-decorator]
     def tasklist(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id, with_all_collections=True)
         collection = get_collection(collection_id, grant_id=grant_id)
@@ -108,7 +108,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             grant_recipient_users_count=grant_recipient_users_count,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/make-live", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/make-live", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def make_live(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -131,7 +131,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             "deliver_grant_funding/admin/confirm-make-grant-live.html", form=form, grant=grant, collection=collection
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/mark-as-onboarding", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/mark-as-onboarding", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def mark_as_onboarding(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -154,7 +154,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-organisations", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-organisations", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def set_up_organisations(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -174,7 +174,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             delta_service_desk_url=current_app.config["DELTA_SERVICE_DESK_URL"],
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-global-certifiers", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-global-certifiers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def set_up_global_certifiers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -207,7 +207,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             delta_service_desk_url=current_app.config["DELTA_SERVICE_DESK_URL"],
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/revoke-global-certifiers", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/revoke-global-certifiers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def revoke_global_certifiers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -261,7 +261,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             certifiers_by_org=certifiers_by_org,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-grant-recipients", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-grant-recipients", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def set_up_grant_recipients(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -285,7 +285,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             form=form,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-grant-recipient-data-providers", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-grant-recipient-data-providers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def set_up_grant_recipient_data_providers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -338,7 +338,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             data_providers_by_grant_recipient=data_providers_by_grant_recipient,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/revoke-grant-recipient-data-providers", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/revoke-grant-recipient-data-providers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def revoke_grant_recipient_data_providers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -392,7 +392,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-dates", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-dates", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def set_collection_dates(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -425,7 +425,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/schedule-report", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/schedule-report", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def schedule_report(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -454,7 +454,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/make-report-live", methods=["GET", "POST"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/make-report-live", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def make_report_live(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
@@ -489,7 +489,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers", methods=["GET"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers", methods=["GET"])  # type: ignore[untyped-decorator]
     def send_emails_to_recipients(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
@@ -507,7 +507,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             notify_template_url=notify_template_url,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers/download-csv", methods=["GET"])  # type: ignore[misc]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers/download-csv", methods=["GET"])  # type: ignore[untyped-decorator]
     def download_data_providers_csv(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
