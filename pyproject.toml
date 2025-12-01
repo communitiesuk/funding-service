@@ -63,7 +63,7 @@ dev = [
     "types-boto3==1.41.2",
     "freezegun==1.5.5",
     "import-linter==2.7",
-    "ty==0.0.1a26",
+    "ty==0.0.1a29",
     "pytest-playwright==0.7.2",
     "pytest==9.0.1",
 ]
