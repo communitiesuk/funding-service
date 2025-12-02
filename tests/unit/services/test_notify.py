@@ -5,6 +5,8 @@ import responses
 from responses import matchers
 
 from app import notification_service
+from app.common.data.types import SubmissionEventType
+from app.common.helpers.collections import SubmissionHelper
 from app.services.notify import Notification
 
 
@@ -237,100 +239,66 @@ class TestNotificationService:
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
 
-    @responses.activate
-    def test_send_access_certifier_confirm_submission_declined(self, app, factories):
-        grant_recipient = factories.grant_recipient.build(
-            grant__name="Test grant",
+    def test_send_access_certifier_confirm_submission_declined(
+        self, app, factories, submission_awaiting_sign_off, mock_send_email
+    ):
+        certifier = factories.user.build(name="Certifier User", email="certifier@test.com")
+        factories.submission_event.build(
+            submission=submission_awaiting_sign_off,
+            event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+            created_by=certifier,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"declined_reason": "Decline reason"},
         )
-        submission = factories.submission.build(
-            grant_recipient=grant_recipient,
-            collection__grant=grant_recipient.grant,
-            collection__name="Test collection",
-            collection__submission_period_end_date=datetime.date(
-                2025,
-                12,
-                3,
-            ),
-        )
-        submitted_by = factories.user.build(name="Submitter User")
-        certifier = factories.user.build(name="Certifier User")
-        request_matcher = responses.post(
-            url="https://api.notifications.service.gov.uk/v2/notifications/email",
-            status=201,
-            match=[
-                matchers.json_params_matcher(
-                    {
-                        "email_address": "test@test.com",
-                        "template_id": "1245cb41-5aec-4957-872c-6471657e57e6",
-                        "personalisation": {
-                            "grant_name": "Test grant",
-                            "submitter_name": "Submitter User",
-                            "certifier_name": "Certifier User",
-                            "certifier_comments": "Decline reason",
-                            "reporting_period": "Test collection",
-                            "report_deadline": "Wednesday 3 December 2025",
-                            "decline_date": "9:30am on Monday 1 December 2025",
-                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/collection/{submission.collection.id}",
-                        },
-                    }
-                )
-            ],
-            json={"id": "00000000-0000-0000-0000-000000000000"},  # partial GOV.UK Notify response
-        )
-
+        helper = SubmissionHelper(submission_awaiting_sign_off)
+        expected_personalisation = {
+            "grant_name": "Test grant",
+            "submitter_name": "Submitter User",
+            "certifier_name": "Certifier User",
+            "certifier_comments": "Decline reason",
+            "reporting_period": "Test collection",
+            "report_deadline": "Wednesday 3 December 2025",
+            "decline_date": "9:30am on Monday 1 December 2025",
+            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
+        }
         resp = notification_service.send_access_certifier_confirm_submission_declined(
-            email_address="test@test.com",
-            submission=submission,
-            certifier=certifier,
-            submitted_by=submitted_by,
-            certifier_comments="Decline reason",
-            decline_date=datetime.datetime(2025, 12, 1, 9, 30),
+            certifier_user=certifier,
+            submission_helper=helper,
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
-        assert request_matcher.call_count == 1
+        assert mock_send_email.call_count == 1
+        assert mock_send_email.call_args_list[0].kwargs.get("personalisation") == expected_personalisation
+        assert mock_send_email.call_args_list[0].kwargs.get("template_id") == "1245cb41-5aec-4957-872c-6471657e57e6"
+        assert mock_send_email.call_args_list[0].kwargs.get("email_address") == "certifier@test.com"
 
     @responses.activate
-    def test_send_access_submitter_submission_declined(self, app, factories):
-        grant_recipient = factories.grant_recipient.build(
-            grant__name="Test grant",
-        )
-        submission = factories.submission.build(
-            grant_recipient=grant_recipient,
-            collection__grant=grant_recipient.grant,
-            collection__name="Test collection",
-            collection__submission_period_end_date=datetime.date(
-                2025,
-                12,
-                3,
-            ),
-        )
+    def test_send_access_submitter_submission_declined(
+        self, app, factories, submission_awaiting_sign_off, mock_send_email
+    ):
         certifier = factories.user.build(name="Certifier User")
-        request_matcher = responses.post(
-            url="https://api.notifications.service.gov.uk/v2/notifications/email",
-            status=201,
-            match=[
-                matchers.json_params_matcher(
-                    {
-                        "email_address": "test@test.com",
-                        "template_id": "791d1a61-c249-4752-9163-6cc81abf4ba9",
-                        "personalisation": {
-                            "grant_name": "Test grant",
-                            "certifier_name": "Certifier User",
-                            "reporting_period": "Test collection",
-                            "certifier_comments": "Decline reason",
-                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/collection/{submission.collection.id}",
-                        },
-                    }
-                )
-            ],
-            json={"id": "00000000-0000-0000-0000-000000000000"},  # partial GOV.UK Notify response
+        factories.submission_event.build(
+            submission=submission_awaiting_sign_off,
+            event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+            created_by=certifier,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"declined_reason": "Decline reason"},
         )
+        helper = SubmissionHelper(submission_awaiting_sign_off)
+
+        expected_personalisation = {
+            "grant_name": "Test grant",
+            "certifier_name": "Certifier User",
+            "reporting_period": "Test collection",
+            "certifier_comments": "Decline reason",
+            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
+        }
 
         resp = notification_service.send_access_submitter_submission_declined(
-            email_address="test@test.com",
-            submission=submission,
+            submission_helper=helper,
             certifier=certifier,
-            certifier_comments="Decline reason",
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
-        assert request_matcher.call_count == 1
+        assert mock_send_email.call_count == 1
+        assert mock_send_email.call_args_list[0].kwargs.get("personalisation") == expected_personalisation
+        assert mock_send_email.call_args_list[0].kwargs.get("template_id") == "791d1a61-c249-4752-9163-6cc81abf4ba9"
+        assert mock_send_email.call_args_list[0].kwargs.get("email_address") == "submitter@test.com"

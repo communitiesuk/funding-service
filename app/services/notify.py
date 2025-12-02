@@ -13,6 +13,7 @@ from app.common.filters import format_date, format_datetime
 if TYPE_CHECKING:
     from app.common.data.models import Grant, Organisation, Submission
     from app.common.data.models_user import User
+    from app.common.helpers.collections import SubmissionHelper
 
 
 class NotificationError(Exception):
@@ -189,61 +190,60 @@ class NotificationService:
 
     def send_access_certifier_confirm_submission_declined(
         self,
-        email_address: str,
-        *,
-        submission: "Submission",
-        decline_date: datetime.datetime,
-        certifier: "User",
-        submitted_by: "User",
-        certifier_comments: str,
+        certifier_user: "User",
+        submission_helper: "SubmissionHelper",
     ) -> Notification:
+        if not (
+            submission_helper.sent_for_certification_by and submission_helper.events.submission_state.declined_at_utc
+        ):
+            raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
         personalisation = {
-            "grant_name": submission.collection.grant.name,
-            "submitter_name": submitted_by.name,
-            "certifier_name": certifier.name,
-            "reporting_period": submission.collection.name,
-            "certifier_comments": certifier_comments,
-            "report_deadline": format_date(submission.collection.submission_period_end_date)
-            if submission.collection.submission_period_end_date
+            "grant_name": submission_helper.collection.grant.name,
+            "submitter_name": submission_helper.sent_for_certification_by.name,
+            "certifier_name": certifier_user.name,
+            "reporting_period": submission_helper.collection.name,
+            "certifier_comments": submission_helper.events.submission_state.declined_reason,
+            "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
+            if submission_helper.collection.submission_period_end_date
             else "(Monitoring report has no deadline set)",
-            "decline_date": format_datetime(decline_date),
+            "decline_date": format_datetime(submission_helper.events.submission_state.declined_at_utc),
             "grant_report_url": url_for(
                 "access_grant_funding.route_to_submission",
-                organisation_id=submission.grant_recipient.organisation.id,
-                grant_id=submission.grant_recipient.grant.id,
-                collection_id=submission.collection.id,
+                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                grant_id=submission_helper.submission.grant_recipient.grant.id,
+                collection_id=submission_helper.collection.id,
                 _external=True,
             ),
         }
         return self._send_email(
-            email_address,
-            current_app.config["GOVUK_NOTIFY_ACCESS_CERTIFIER_REPORT_DECLINED_TEMPLATE_ID"],
+            email_address=certifier_user.email,
+            template_id=current_app.config["GOVUK_NOTIFY_ACCESS_CERTIFIER_REPORT_DECLINED_TEMPLATE_ID"],
             personalisation=personalisation,
         )
 
     def send_access_submitter_submission_declined(
         self,
-        email_address: str,
-        *,
-        submission: "Submission",
         certifier: "User",
-        certifier_comments: str,
+        submission_helper: "SubmissionHelper",
     ) -> Notification:
+        submission_state = submission_helper.events.submission_state
+        if not submission_helper.sent_for_certification_by:
+            raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
         personalisation = {
-            "grant_name": submission.collection.grant.name,
+            "grant_name": submission_helper.collection.grant.name,
             "certifier_name": certifier.name,
-            "reporting_period": submission.collection.name,
-            "certifier_comments": certifier_comments,
+            "reporting_period": submission_helper.collection.name,
+            "certifier_comments": submission_state.declined_reason,
             "grant_report_url": url_for(
                 "access_grant_funding.route_to_submission",
-                organisation_id=submission.grant_recipient.organisation.id,
-                grant_id=submission.grant_recipient.grant.id,
-                collection_id=submission.collection.id,
+                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                grant_id=submission_helper.submission.grant_recipient.grant.id,
+                collection_id=submission_helper.collection.id,
                 _external=True,
             ),
         }
         return self._send_email(
-            email_address,
-            current_app.config["GOVUK_NOTIFY_ACCESS_SUBMITTER_REPORT_DECLINED_TEMPLATE_ID"],
+            email_address=str(submission_helper.sent_for_certification_by.email),
+            template_id=current_app.config["GOVUK_NOTIFY_ACCESS_SUBMITTER_REPORT_DECLINED_TEMPLATE_ID"],
             personalisation=personalisation,
         )

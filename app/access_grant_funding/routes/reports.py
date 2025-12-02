@@ -86,15 +86,17 @@ def decline_report(
 ) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
 
-    submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
-    if not (submission.is_awaiting_sign_off and submission.collection.type == CollectionType.MONITORING_REPORT):
+    if not (
+        submission_helper.is_awaiting_sign_off and submission_helper.collection.type == CollectionType.MONITORING_REPORT
+    ):
         return redirect(
             url_for(
                 "access_grant_funding.route_to_submission",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
-                collection_id=submission.collection_id,
+                collection_id=submission_helper.collection_id,
             )
         )
 
@@ -102,33 +104,23 @@ def decline_report(
     if form.validate_on_submit():
         declined_reason = form.decline_reason.data or ""
         certifier_user = get_current_user()
-        submission.decline_certification(certifier_user, declined_reason=declined_reason)
-        submission_state = submission.events.submission_state
+        submission_helper.decline_certification(certifier_user, declined_reason=declined_reason)
 
-        # TODO All these type-ignores feel a bit wrong, is there a better way of accounting for optional attributes on
-        # submission model?
         notification_service.send_access_submitter_submission_declined(
-            email_address=submission.sent_for_certification_by.email,  # type:ignore [union-attr]
-            submission=submission.submission,
-            certifier=certifier_user,
-            certifier_comments=submission_state.declined_reason,  # type:ignore[arg-type]
+            certifier=certifier_user, submission_helper=submission_helper
         )
         notification_service.send_access_certifier_confirm_submission_declined(
-            email_address=certifier_user.email,
-            submission=submission.submission,
-            submitted_by=submission.sent_for_certification_by,  # type:ignore[arg-type]
-            certifier=certifier_user,
-            certifier_comments=submission_state.declined_reason,  # type:ignore[arg-type]
-            decline_date=submission_state.declined_at_utc,  # type:ignore[arg-type]
+            certifier_user=certifier_user,
+            submission_helper=submission_helper,
         )
         flash(
             {  # type:ignore [arg-type]
-                "collection_name": submission.collection.name,
-                "grant_name": submission.grant.name,
-                "sent_for_certification_by": submission.sent_for_certification_by.name
-                if submission.sent_for_certification_by
+                "collection_name": submission_helper.collection.name,
+                "grant_name": submission_helper.grant.name,
+                "sent_for_certification_by": submission_helper.sent_for_certification_by.name
+                if submission_helper.sent_for_certification_by
                 else "the submitter",
-                "collection_id": submission.collection.id,
+                "collection_id": submission_helper.collection.id,
             },
             FlashMessageType.SUBMISSION_SIGN_OFF_DECLINED,
         )
@@ -137,5 +129,8 @@ def decline_report(
         )
 
     return render_template(
-        "access_grant_funding/decline_report.html", submission=submission, grant_recipient=grant_recipient, form=form
+        "access_grant_funding/decline_report.html",
+        submission=submission_helper,
+        grant_recipient=grant_recipient,
+        form=form,
     )

@@ -1,14 +1,20 @@
 import os
-from typing import Generator
+import uuid
+from datetime import date, datetime
+from typing import Any, Generator
 from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 from flask import Flask
 from flask_sqlalchemy_lite import SQLAlchemy
+from pytest_mock import MockerFixture
 
 from app import create_app
-from tests.conftest import _precompile_templates
+from app.common.data.models import Submission
+from app.common.data.types import SubmissionEventType, SubmissionModeEnum
+from app.services.notify import Notification
+from tests.conftest import _Factories, _precompile_templates
 from tests.utils import build_db_config
 
 
@@ -55,3 +61,54 @@ def db_session(app: Flask) -> Generator[None, None, None]:
             yield
         finally:
             SQLAlchemy.session = original_session_property  # type: ignore[method-assign]
+
+
+@pytest.fixture(scope="function")
+def submission_awaiting_sign_off(factories: _Factories) -> Generator[Submission, None, None]:
+    grant_recipient = factories.grant_recipient.build(
+        grant__name="Test grant",
+    )
+
+    question = factories.question.build(
+        form__collection__grant=grant_recipient.grant,
+        form__collection__name="Test collection",
+        form__collection__submission_period_end_date=date(
+            2025,
+            12,
+            3,
+        ),
+    )
+    submission = factories.submission.build(
+        grant_recipient=grant_recipient,
+        collection=question.form.collection,
+        mode=SubmissionModeEnum.LIVE,
+        data={str(question.id): "Question answer"},
+    )
+    submitted_by = factories.user.build(name="Submitter User", email="submitter@test.com")
+
+    form = submission.collection.forms[0]
+
+    factories.submission_event.build(
+        submission=submission,
+        related_entity_id=form.id,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        created_by=submitted_by,
+        created_at_utc=datetime(2025, 11, 25, 11, 0, 0),
+    )
+    factories.submission_event.build(
+        submission=submission,
+        event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+        created_by=submitted_by,
+        created_at_utc=datetime(2025, 11, 26, 13, 30, 0),
+    )
+
+    yield submission
+
+
+@pytest.fixture(scope="function")
+def mock_send_email(mocker: MockerFixture) -> Generator[Any, Any, None]:
+    mock_send_email = mocker.patch(
+        "app.services.notify.NotificationService._send_email",
+        return_value=Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000")),
+    )
+    yield mock_send_email
