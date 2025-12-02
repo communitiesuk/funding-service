@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/status.html" import submissionStatusAction with context %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
 {% set page_title = "Reports" %}
 {% set active_item_identifier = "reports" %}
@@ -13,6 +14,27 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_SIGN_OFF_DECLINED]) %}
+        {% if flashes %}
+          {% set submission_declined_html %}
+            <h3 class="govuk-notification-banner__heading">Report declined</h3>
+            <p class="govuk-body">
+              {{ flashes[0]["collection_name"] }} report for {{ flashes[0]["grant_name"] }} sign off declined and sent back to {{ flashes[0]["sent_for_certification_by"] }}.
+              <a
+                class="govuk-notification-banner__link"
+                href="{{ url_for('access_grant_funding.route_to_submission', grant_id=grant_recipient.grant_id, organisation_id=grant_recipient.organisation_id,collection_id=flashes[0]["collection_id"]) }}">
+                View Report
+              </a>
+            </p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": submission_declined_html,
+              "type":"success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
       {% if reports|length == 0 %}
         <p class="govuk-body">There are no reports for this grant.</p>
       {% else %}

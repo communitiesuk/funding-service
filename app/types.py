@@ -19,6 +19,7 @@ class FlashMessageType(StrEnum):
     SUBMISSION_TESTING_COMPLETE = "submission_testing_complete"
     QUESTION_CREATED = "question_created"
     NESTED_GROUP_ERROR = "nested_group_error"
+    SUBMISSION_SIGN_OFF_DECLINED = "submission_sign_off_declined"
 
 
 TRadioItem = TypedDict("TRadioItem", {"key": str, "label": str})

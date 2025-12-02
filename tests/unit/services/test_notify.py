@@ -5,6 +5,8 @@ import responses
 from responses import matchers
 
 from app import notification_service
+from app.common.data.types import SubmissionEventType
+from app.common.helpers.collections import SubmissionHelper
 from app.services.notify import Notification
 
 
@@ -236,3 +238,65 @@ class TestNotificationService:
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
+
+    def test_send_access_certifier_confirm_submission_declined(
+        self, app, factories, submission_awaiting_sign_off, mock_notification_service_calls
+    ):
+        certifier = factories.user.build(name="Certifier User", email="certifier@test.com")
+        factories.submission_event.build(
+            submission=submission_awaiting_sign_off,
+            event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+            created_by=certifier,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"declined_reason": "Decline reason"},
+        )
+        helper = SubmissionHelper(submission_awaiting_sign_off)
+        expected_personalisation = {
+            "grant_name": "Test grant",
+            "submitter_name": "Submitter User",
+            "certifier_name": "Certifier User",
+            "certifier_comments": "Decline reason",
+            "reporting_period": "Test collection",
+            "report_deadline": "Wednesday 3 December 2025",
+            "decline_date": "9:30am on Monday 1 December 2025",
+            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
+        }
+        notification_service.send_access_certifier_confirm_submission_declined(
+            certifier_user=certifier,
+            submission_helper=helper,
+        )
+        assert len(mock_notification_service_calls) == 1
+        assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
+        assert mock_notification_service_calls[0].kwargs["template_id"] == "1245cb41-5aec-4957-872c-6471657e57e6"
+        assert mock_notification_service_calls[0].kwargs["email_address"] == "certifier@test.com"
+
+    @responses.activate
+    def test_send_access_submitter_submission_declined(
+        self, app, factories, submission_awaiting_sign_off, mock_notification_service_calls
+    ):
+        certifier = factories.user.build(name="Certifier User")
+        factories.submission_event.build(
+            submission=submission_awaiting_sign_off,
+            event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+            created_by=certifier,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"declined_reason": "Decline reason"},
+        )
+        helper = SubmissionHelper(submission_awaiting_sign_off)
+
+        expected_personalisation = {
+            "grant_name": "Test grant",
+            "certifier_name": "Certifier User",
+            "reporting_period": "Test collection",
+            "certifier_comments": "Decline reason",
+            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
+        }
+
+        notification_service.send_access_submitter_submission_declined(
+            submission_helper=helper,
+            certifier=certifier,
+        )
+        assert len(mock_notification_service_calls) == 1
+        assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
+        assert mock_notification_service_calls[0].kwargs["template_id"] == "791d1a61-c249-4752-9163-6cc81abf4ba9"
+        assert mock_notification_service_calls[0].kwargs["email_address"] == "submitter@test.com"

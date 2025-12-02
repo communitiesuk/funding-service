@@ -132,6 +132,7 @@ routes_with_expected_access_grant_funding_has_member_role_access = [
 ]
 
 routes_with_expected_access_grant_funding_has_data_provider_role_access = ["access_grant_funding.ask_a_question"]
+routes_with_expected_access_grant_funding_has_certifier_role_access = ["access_grant_funding.decline_report"]
 
 routes_with_expected_is_deliver_grant_funding_user_access = [
     "deliver_grant_funding.list_grants",
@@ -260,6 +261,8 @@ def test_accessibility_for_user_role_to_each_endpoint(app, subtests):  # noqa: C
                 assert "@is_access_org_member" in decorators
             elif rule.endpoint in routes_with_expected_access_grant_funding_has_data_provider_role_access:
                 assert "@has_access_grant_role(RoleEnum.DATA_PROVIDER)" in decorators
+            elif rule.endpoint in routes_with_expected_access_grant_funding_has_certifier_role_access:
+                assert "@has_access_grant_role(RoleEnum.CERTIFIER)" in decorators
             elif rule.endpoint in routes_with_expected_access_grant_funding_has_member_role_access:
                 assert "@has_access_grant_role(RoleEnum.MEMBER)" in decorators
             elif rule.endpoint in routes_with_expected_access_grant_funding_grant_recipient_role:
@@ -293,10 +296,12 @@ def test_routes_list_is_valid(app):
         + routes_with_expected_access_grant_funding_org_access
         + routes_with_expected_access_grant_funding_has_member_role_access
         + routes_with_expected_access_grant_funding_has_data_provider_role_access
+        + routes_with_expected_access_grant_funding_has_certifier_role_access
     )
 
     all_routes_in_app = [rule.endpoint for rule in app.url_map.iter_rules()]
     assert set(all_declared_routes_in_test) - set(all_routes_in_app) == set()
+    assert set(all_routes_in_app) - set(all_declared_routes_in_test) == set()
 
 
 # we don't encourage this but there are a few reasons we might want to do this or

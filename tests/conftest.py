@@ -1,6 +1,8 @@
 import typing as t
+import uuid
 from collections import namedtuple
 from typing import Any, Generator
+from unittest.mock import _Call
 
 import html5lib
 import pytest
@@ -9,12 +11,14 @@ from _pytest.config.argparsing import Parser
 from flask import Flask
 from flask.testing import FlaskClient
 from html5lib.html5parser import ParseError
+from pytest_mock import MockerFixture
 from sqlalchemy.orm import Session
 from werkzeug.test import TestResponse
 
 from app import create_app
 from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User
+from app.services.notify import Notification
 from tests.models import (
     _CollectionFactory,
     _DataSourceFactory,
@@ -178,3 +182,19 @@ def factories(db_session: Session) -> _Factories:
         data_source=_DataSourceFactory,
         data_source_item=_DataSourceItemFactory,
     )
+
+
+@pytest.fixture(scope="function")
+def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Call], None, None]:
+    calls = []
+
+    def _track_notification(*args, **kwargs):  # type: ignore
+        calls.append(mocker.call(*args, **kwargs))
+        return Notification(id=uuid.uuid4())
+
+    mocker.patch(
+        "app.services.notify.NotificationService._send_email",
+        side_effect=_track_notification,
+    )
+
+    yield calls

@@ -92,6 +92,12 @@ class CertifiedMetadata:
 
 
 @dataclass
+class CertificationDeclinedMetadata:
+    declined_by: "User | None" = None
+    declined_at_utc: "datetime | None" = None
+
+
+@dataclass
 class SubmittedMetadata:
     submitted_by: "User | None" = None
     submitted_at_utc: datetime | None = None
@@ -99,7 +105,13 @@ class SubmittedMetadata:
 
 @dataclass
 class SubmissionState(
-    SentForCertificationMetadata, SubmittedMetadata, CertifiedMetadata, SignOffMixin, SubmittedMixin, DeclinedMixin
+    SentForCertificationMetadata,
+    SubmittedMetadata,
+    CertifiedMetadata,
+    CertificationDeclinedMetadata,
+    SignOffMixin,
+    SubmittedMixin,
+    DeclinedMixin,
 ):
     is_awaiting_sign_off: bool | None = None
     is_submitted: bool = False
@@ -187,9 +199,9 @@ class SubmissionEventHelper:
                 )
             case SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
                 return shallow_asdict(
-                    CertifiedMetadata(
-                        certified_by=event.created_by,
-                        certified_at_utc=event.created_at_utc,
+                    CertificationDeclinedMetadata(
+                        declined_by=event.created_by,
+                        declined_at_utc=event.created_at_utc,
                     )
                 )
             case _:

@@ -463,7 +463,7 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.events.submission_state.sent_for_certification_by is submission.created_by
             assert helper.events.submission_state.is_awaiting_sign_off is False
-            assert helper.events.submission_state.certified_by == certifier
+            assert helper.events.submission_state.declined_by == certifier
             assert helper.events.submission_state.declined_reason == "Reason for declining"
 
             assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.IN_PROGRESS
