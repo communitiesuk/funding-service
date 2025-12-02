@@ -247,3 +247,37 @@ class NotificationService:
             template_id=current_app.config["GOVUK_NOTIFY_ACCESS_SUBMITTER_REPORT_DECLINED_TEMPLATE_ID"],
             personalisation=personalisation,
         )
+
+    def send_access_submission_certified_and_submitted(
+        self, email_address: str, *, submission_helper: "SubmissionHelper"
+    ) -> Notification:
+        if not (
+            submission_helper.sent_for_certification_by
+            and submission_helper.certified_by
+            and submission_helper.collection.reporting_period_start_date
+            and submission_helper.collection.reporting_period_end_date
+            and submission_helper.submitted_at_utc
+        ):
+            raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
+
+        personalisation = {
+            "grant_name": submission_helper.collection.grant.name,
+            "submitter_name": submission_helper.sent_for_certification_by.name,
+            "certifier_name": submission_helper.certified_by.name,
+            "reporting_period": f"{format_date(submission_helper.collection.reporting_period_start_date)} to "
+            + f"{format_date(submission_helper.collection.reporting_period_end_date)}",
+            "date_submitted": format_datetime(submission_helper.submitted_at_utc),
+            "grant_report_url": url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                grant_id=submission_helper.submission.grant_recipient.grant.id,
+                submission_id=submission_helper.id,
+                _external=True,
+            ),
+            "government_department": f"the {submission_helper.collection.grant.organisation.name}",
+        }
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_CERTIFICATION_SUBMISSION_CONFIRMATION_TEMPLATE_ID"],
+            personalisation=personalisation,
+        )

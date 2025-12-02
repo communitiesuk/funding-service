@@ -86,6 +86,8 @@ class TestSubmissionHelper:
             )
             helper.submit_answer_for_question(question.id, form)
             helper.toggle_form_completed(question.form, submission.created_by, True)
+            helper.mark_as_sent_for_certification(submission.created_by)
+            helper.certify(submission.created_by)
             helper.submit(submission.created_by)
 
             with pytest.raises(ValueError) as e:
@@ -478,11 +480,13 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
-            helper.approve_certification(certifier)
+            helper.certify(certifier)
 
             assert helper.events.submission_state.is_awaiting_sign_off is False
             assert helper.events.submission_state.is_approved is True
             assert helper.events.submission_state.certified_by == certifier
+
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
             helper.submit(submission.created_by)
 
@@ -531,6 +535,8 @@ class TestSubmissionHelper:
                 ),
             )
             helper.toggle_form_completed(question.form, submission.created_by, True)
+            helper.mark_as_sent_for_certification(submission.created_by)
+            helper.certify(submission.created_by)
 
             if is_overdue:
                 assert helper.status == SubmissionStatusEnum.OVERDUE
@@ -629,11 +635,11 @@ class TestSubmissionHelper:
                 f"report does not require certification."
             )
 
-        def test_approve_certification_requires_certification(self, factories, submission_awaiting_sign_off, user):
+        def test_certify_requires_certification(self, factories, submission_awaiting_sign_off, user):
             collection = submission_awaiting_sign_off.collection
             collection.requires_certification = False
             with pytest.raises(ValueError) as e:
-                SubmissionHelper(submission_awaiting_sign_off).approve_certification(user)
+                SubmissionHelper(submission_awaiting_sign_off).certify(user)
             assert (
                 str(e.value)
                 == f"Could not approve certification for submission id={submission_awaiting_sign_off.id} because this "

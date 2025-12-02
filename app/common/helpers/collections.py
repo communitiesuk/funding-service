@@ -191,7 +191,16 @@ class SubmissionHelper:
             return SubmissionStatusEnum.OVERDUE
         elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
-        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and not submission_state.is_submitted:
+        elif (
+            {TasklistSectionStatusEnum.COMPLETED} == form_statuses
+            and (
+                self.is_test
+                or not self.submission.collection.requires_certification
+                or submission_state.is_approved
+                or (self.submission.collection.requires_certification and not submission_state.is_awaiting_sign_off)
+            )
+            and not submission_state.is_submitted
+        ):
             return SubmissionStatusEnum.READY_TO_SUBMIT
         elif {TasklistSectionStatusEnum.NOT_STARTED} == form_statuses:
             return SubmissionStatusEnum.NOT_STARTED
@@ -434,14 +443,23 @@ class SubmissionHelper:
         if self.is_submitted:
             return
 
-        # todo: depending on your workflow (if certification is required or not) this could now check
-        #       self.events.submission_state.is_approved
-        if self.all_forms_are_completed:
-            interfaces.collections.add_submission_event(
-                self.submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED, user=user
-            )
-        else:
+        if not self.all_forms_are_completed:
             raise ValueError(f"Could not submit submission id={self.id} because not all forms are complete.")
+
+        # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do. In order
+        # to get by this now we check the underlying submission_state rather than the status, but we should refactor
+        # this when a decision is made on 'Overdue' behaviour and make the submission status the source of truth.
+        if self.collection.requires_certification and not self.events.submission_state.is_approved and self.is_live:
+            raise ValueError(f"Could not submit submission id={self.id} because it has not been approved.")
+
+        if self.is_live and self.status != SubmissionStatusEnum.READY_TO_SUBMIT:
+            raise ValueError(f"Could not submit submission id={self.id} because it is not ready to submit.")
+
+        # TODO: FSPT-1017 - add an auth check here to make sure only certifiers for this grant recipient can submit
+
+        interfaces.collections.add_submission_event(
+            self.submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED, user=user
+        )
 
     def mark_as_sent_for_certification(self, user: "User") -> None:
         if self.is_locked_state:
@@ -485,13 +503,17 @@ class SubmissionHelper:
                 f"Could not decline certification for submission id={self.id} because it is not awaiting sign off."
             )
 
-    def approve_certification(self, user: "User") -> None:
+    def certify(self, user: "User") -> None:
         if not self.collection.requires_certification:
             raise ValueError(
                 f"Could not approve certification for submission id={self.id} because this report does not require "
                 f"certification."
             )
-        if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
+        # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do. In order
+        # to get by this now we check the underlying submission_state rather than the status, but we should refactor
+        # this when a decision is made on 'Overdue' behaviour and make the submission status the source of truth.
+        if self.events.submission_state.is_awaiting_sign_off:
+            # TODO: FSPT-1017 - add an auth check here to make sure only certifiers for this grant recipient can submit
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
             )

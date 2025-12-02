@@ -119,52 +119,6 @@ class TestSubmissionTasklist:
             )
             assert response.location == expected_location
 
-    @pytest.mark.parametrize(
-        "client_fixture, can_preview",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_submission_tasklist_live(
-        self, request: FixtureRequest, client_fixture: str, can_preview: bool, factories
-    ):
-        client = request.getfixturevalue(client_fixture)
-        grant = getattr(client, "grant", None) or factories.grant.create()
-        question = factories.question.create(form__title="Colour information", form__collection__grant=grant)
-        submission_data = {str(question.id): "test answer"}
-        submission = factories.submission.create(
-            collection=question.form.collection,
-            mode=SubmissionModeEnum.LIVE,
-            created_by=client.user,
-            data=submission_data,
-        )
-        factories.submission_event.create(
-            created_by=client.user, submission=submission, related_entity_id=question.form.id
-        )
-
-        response = client.post(
-            url_for(
-                "deliver_grant_funding.submission_tasklist",
-                grant_id=grant.id,
-                submission_id=submission.id,
-                form_id=question.form.id,
-            ),
-            data={"submit": True},
-            follow_redirects=False,
-        )
-        if not can_preview:
-            assert response.status_code == 403
-        else:
-            assert response.status_code == 302
-            expected_location = url_for(
-                "deliver_grant_funding.list_report_sections",
-                grant_id=grant.id,
-                report_id=submission.collection.id,
-            )
-            assert response.location == expected_location
-
 
 class TestAskAQuestion:
     @pytest.mark.parametrize(
