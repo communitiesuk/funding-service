@@ -144,7 +144,7 @@ class NotificationService:
             },
         )
 
-    def send_access_submission_signed_off_confirmation(
+    def send_access_submission_sent_for_certification_confirmation(
         self, email_address: str, *, submission: "Submission"
     ) -> Notification:
         return self._send_email(

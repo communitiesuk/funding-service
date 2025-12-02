@@ -75,7 +75,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
         ):
             if runner.complete_submission(interfaces.user.get_current_user(), requires_certification=True):
                 for data_provider in grant_recipient.data_providers:
-                    notification_service.send_access_submission_signed_off_confirmation(
+                    notification_service.send_access_submission_sent_for_certification_confirmation(
                         data_provider.email, submission=runner.submission.submission
                     )
                 for certifier in grant_recipient.certifiers:

@@ -194,7 +194,7 @@ class TestNotificationService:
             ],
             json={"id": "00000000-0000-0000-0000-000000000000"},
         )
-        resp = notification_service.send_access_submission_signed_off_confirmation(
+        resp = notification_service.send_access_submission_sent_for_certification_confirmation(
             submission=submission, email_address="test@communities.gov.uk"
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
