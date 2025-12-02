@@ -1,6 +1,7 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
 
 {% set page_title = "Review report: " + submission.name %}
 
@@ -35,6 +36,47 @@
     <div class="govuk-grid-column-three-quarters-from-desktop app-section-content-container">
       {# exception for xl heading where we'd anticipate having many subheadings and levels of heirarchy on this page #}
       <h1 id="submission" class="govuk-heading-xl">{{ page_title }}</h1>
+
+      {% if submission.is_completed %}
+        {# if certification wasn't required then show who submitted directly #}
+        {% set submitter = submission.sent_for_certification_by or submission.submitted_by %}
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Organisation:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submission.submission.grant_recipient.organisation.name }}</dd>
+        </dl>
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Submitted by:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submitter.name }}</dd>
+        </dl>
+        {% if submission.certified_by %}
+          <dl class="app-metadata">
+            <dt class="app-metadata__key">Certifier:</dt>
+            <dd class="app-metadata__value" data-testid="submission-status">{{ submission.certified_by.name }}</dd>
+          </dl>
+        {% endif %}
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Date submitted:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.submitted_at_utc) }}</dd>
+        </dl>
+      {% elif submission.is_awaiting_sign_off %}
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Submission deadline:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.collection.submission_period_end_date) }}</dd>
+        </dl>
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Submitted by:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submission.sent_for_certification_by.name }}</dd>
+        </dl>
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Date submitted for sign off:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.sent_for_certification_at_utc) }}</dd>
+        </dl>
+      {% endif %}
+
+      <dl class="app-metadata govuk-!-margin-bottom-9">
+        <dt class="app-metadata__key">Status:</dt>
+        <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status) }}</dd>
+      </dl>
 
       {% for form in submission.get_ordered_visible_forms() %}
         <h2 id="form-{{ form.id }}" class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>

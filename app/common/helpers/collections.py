@@ -228,8 +228,20 @@ class SubmissionHelper:
         return self.submission.created_by.email
 
     @property
+    def sent_for_certification_at_utc(self) -> datetime | None:
+        return self.events.submission_state.sent_for_certification_at_utc
+
+    @property
     def sent_for_certification_by(self) -> User | None:
         return self.events.submission_state.sent_for_certification_by
+
+    @property
+    def submitted_by(self) -> User | None:
+        return self.events.submission_state.submitted_by
+
+    @property
+    def certified_by(self) -> User | None:
+        return self.events.submission_state.certified_by
 
     @property
     def created_at_utc(self) -> datetime:

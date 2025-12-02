@@ -6,7 +6,7 @@ const ACTIVE_NAV_ITEM_CLASS = "app-section-nav-list__item--active";
 
 // trigger highlighting a section before you reach the exact top of the heading
 const SCROLL_TOP_BUFFER_PIXELS = 100;
-const DEBOUNCE_REFRESH_NAV_AFTER_SCROLL_CLICK_MS = 1000;
+const DEBOUNCE_REFRESH_NAV_AFTER_SCROLL_CLICK_MS = 1500;
 
 function selectNavItem(navItems, index) {
     navItems.forEach((item) => item.classList.remove(ACTIVE_NAV_ITEM_CLASS));
