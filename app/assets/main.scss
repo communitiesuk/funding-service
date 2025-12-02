@@ -331,3 +331,82 @@ $inset-nested-rows: 30px;
 .app-status-tag {
     max-width: 300px;
 }
+
+.app-section-nav-container {
+    @include govuk-media-query($from: desktop) {
+        position: sticky;
+        top: govuk-spacing(2);
+        max-height: 100vh;
+        overflow-y: auto;
+        margin-bottom: govuk-spacing(5);
+    }
+}
+
+.app-section-content-container {
+    @include govuk-media-query($from: desktop) {
+        border-left: 1px solid $govuk-border-colour;
+        padding-left: govuk-spacing(6);
+        padding-bottom: govuk-spacing(7);
+    }
+}
+
+.app-section-nav-list__item {
+    @include govuk-media-query($until: mobile) {
+        display: flex;
+    }
+
+    a,
+    a:link,
+    a:visited {
+        display: block;
+        color: $govuk-link-colour;
+        background-color: inherit;
+        text-decoration: none;
+
+        padding: govuk-spacing(2);
+        border-left: 4px solid transparent;
+        background-color: inherit;
+    }
+
+    a:hover {
+        color: $govuk-link-hover-colour;
+    }
+
+    a:focus {
+        position: relative;
+        border-color: $govuk-focus-text-colour;
+        color: $govuk-focus-text-colour;
+        background-color: $govuk-focus-colour;
+    }
+}
+
+.app-section-nav-list__item--active {
+    a:link,
+    a:visited {
+        border-color: $govuk-link-colour;
+        color: $govuk-link-colour;
+        font-weight: bold;
+        background-color: govuk-colour("light-grey");
+    }
+
+    a:hover {
+        border-color: $govuk-link-hover-colour;
+        color: $govuk-link-hover-colour;
+    }
+
+    a:focus {
+        border-color: $govuk-focus-text-colour;
+        color: $govuk-focus-text-colour;
+        background-color: $govuk-focus-colour;
+    }
+}
+
+.app-section-nav-list {
+    @include govuk-font(16);
+}
+
+.app-full-screen-with-section-nav {
+    @include govuk-media-query($from: desktop) {
+        padding-bottom: 0px;
+    }
+}

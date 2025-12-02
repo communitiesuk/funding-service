@@ -50,7 +50,7 @@
         {% endset %}
         {%
           do rows.append({
-              "key": {"text": key_text, "classes": "govuk-!-font-weight-regular" },
+              "key": {"text": key_text },
               "value": {"html": value_html },
           })
         %}
@@ -75,7 +75,6 @@
         do rows.append({
           "key": {
             "text": key_text,
-            "classes": "govuk-!-font-weight-regular",
           },
           "value": {
             "text": value_html
