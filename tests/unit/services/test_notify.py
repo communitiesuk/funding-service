@@ -240,7 +240,7 @@ class TestNotificationService:
         assert request_matcher.call_count == 1
 
     def test_send_access_certifier_confirm_submission_declined(
-        self, app, factories, submission_awaiting_sign_off, mock_send_email
+        self, app, factories, submission_awaiting_sign_off, mock_notification_service_calls
     ):
         certifier = factories.user.build(name="Certifier User", email="certifier@test.com")
         factories.submission_event.build(
@@ -261,19 +261,18 @@ class TestNotificationService:
             "decline_date": "9:30am on Monday 1 December 2025",
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
         }
-        resp = notification_service.send_access_certifier_confirm_submission_declined(
+        notification_service.send_access_certifier_confirm_submission_declined(
             certifier_user=certifier,
             submission_helper=helper,
         )
-        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
-        assert mock_send_email.call_count == 1
-        assert mock_send_email.call_args_list[0].kwargs.get("personalisation") == expected_personalisation
-        assert mock_send_email.call_args_list[0].kwargs.get("template_id") == "1245cb41-5aec-4957-872c-6471657e57e6"
-        assert mock_send_email.call_args_list[0].kwargs.get("email_address") == "certifier@test.com"
+        assert len(mock_notification_service_calls) == 1
+        assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
+        assert mock_notification_service_calls[0].kwargs["template_id"] == "1245cb41-5aec-4957-872c-6471657e57e6"
+        assert mock_notification_service_calls[0].kwargs["email_address"] == "certifier@test.com"
 
     @responses.activate
     def test_send_access_submitter_submission_declined(
-        self, app, factories, submission_awaiting_sign_off, mock_send_email
+        self, app, factories, submission_awaiting_sign_off, mock_notification_service_calls
     ):
         certifier = factories.user.build(name="Certifier User")
         factories.submission_event.build(
@@ -293,12 +292,11 @@ class TestNotificationService:
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
         }
 
-        resp = notification_service.send_access_submitter_submission_declined(
+        notification_service.send_access_submitter_submission_declined(
             submission_helper=helper,
             certifier=certifier,
         )
-        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
-        assert mock_send_email.call_count == 1
-        assert mock_send_email.call_args_list[0].kwargs.get("personalisation") == expected_personalisation
-        assert mock_send_email.call_args_list[0].kwargs.get("template_id") == "791d1a61-c249-4752-9163-6cc81abf4ba9"
-        assert mock_send_email.call_args_list[0].kwargs.get("email_address") == "submitter@test.com"
+        assert len(mock_notification_service_calls) == 1
+        assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
+        assert mock_notification_service_calls[0].kwargs["template_id"] == "791d1a61-c249-4752-9163-6cc81abf4ba9"
+        assert mock_notification_service_calls[0].kwargs["email_address"] == "submitter@test.com"

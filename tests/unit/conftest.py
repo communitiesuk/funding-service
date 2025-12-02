@@ -1,19 +1,16 @@
 import os
-import uuid
 from datetime import date, datetime
-from typing import Any, Generator
+from typing import Generator
 from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 from flask import Flask
 from flask_sqlalchemy_lite import SQLAlchemy
-from pytest_mock import MockerFixture
 
 from app import create_app
 from app.common.data.models import Submission
 from app.common.data.types import SubmissionEventType, SubmissionModeEnum
-from app.services.notify import Notification
 from tests.conftest import _Factories, _precompile_templates
 from tests.utils import build_db_config
 
@@ -103,12 +100,3 @@ def submission_awaiting_sign_off(factories: _Factories) -> Generator[Submission,
     )
 
     yield submission
-
-
-@pytest.fixture(scope="function")
-def mock_send_email(mocker: MockerFixture) -> Generator[Any, Any, None]:
-    mock_send_email = mocker.patch(
-        "app.services.notify.NotificationService._send_email",
-        return_value=Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000")),
-    )
-    yield mock_send_email

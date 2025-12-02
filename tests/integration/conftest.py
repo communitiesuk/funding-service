@@ -7,7 +7,7 @@ import uuid
 from contextlib import _GeneratorContextManager, contextmanager
 from datetime import date, datetime, timedelta
 from typing import Any, Generator, cast
-from unittest.mock import _Call, patch
+from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -19,7 +19,6 @@ from flask_migrate import upgrade
 from flask_sqlalchemy_lite import SQLAlchemy
 from flask_wtf import FlaskForm
 from jinja2 import Template
-from pytest_mock import MockerFixture
 from sqlalchemy import event
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import NoResultFound
@@ -35,7 +34,6 @@ from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_user import User
 from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum, SubmissionEventType, SubmissionModeEnum
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
-from app.services.notify import Notification
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
 from tests.integration.utils import TimeFreezer
 from tests.types import TemplateRenderRecord, TTemplatesRendered
@@ -271,22 +269,6 @@ def templates_rendered(app: Flask) -> Generator[TTemplatesRendered]:
         yield recorded
     finally:
         template_rendered.disconnect(record, app)
-
-
-@pytest.fixture(scope="function")
-def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Call], None, None]:
-    calls = []
-
-    def _track_notification(*args, **kwargs):  # type: ignore
-        calls.append(mocker.call(*args, **kwargs))
-        return Notification(id=uuid.uuid4())
-
-    mocker.patch(
-        "app.services.notify.NotificationService._send_email",
-        side_effect=_track_notification,
-    )
-
-    yield calls
 
 
 @pytest.fixture()
