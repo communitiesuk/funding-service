@@ -408,6 +408,6 @@ $inset-nested-rows: 30px;
 
 .app-full-screen-with-section-nav {
     @include govuk-media-query($from: desktop) {
-        padding-bottom: 0px;
+        padding-bottom: 0;
     }
 }

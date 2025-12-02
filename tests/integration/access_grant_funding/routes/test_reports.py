@@ -93,9 +93,6 @@ class TestViewLockedReport:
             assert page_has_button(soup, button_text="Sign off and submit report") is not None
             assert page_has_link(soup, link_text="Decline sign off") is not None
 
-            # todo: assert has nav links for sign off
-            # todo: assert which status things we're showing
-
     def test_view_locked_report_submitted(
         self,
         authenticated_grant_recipient_certifier_client,
@@ -123,7 +120,6 @@ class TestViewLockedReport:
             "Submitted by:",
             "Certifier:",
             "Date submitted:",
-            "Status:",
         ]
 
     def test_view_locked_report_not_locked_redirects(

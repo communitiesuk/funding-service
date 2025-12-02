@@ -21,7 +21,7 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-one-quarter-from-desktop app-section-nav-container">
-      <ul class="govuk-list app-section-nav-list">
+      <ul class="govuk-list app-section-nav-list" role="navigation" aria-label="Report sections">
         <li class="app-section-nav-list__item app-section-nav-list__item--active"><a class="govuk-link govuk-link--no-visited-state" href="#submission">{{ page_title }}</a></li>
 
         {% for form in submission.get_ordered_visible_forms() %}
@@ -54,7 +54,7 @@
             <dd class="app-metadata__value" data-testid="submission-status">{{ submission.certified_by.name }}</dd>
           </dl>
         {% endif %}
-        <dl class="app-metadata">
+        <dl class="app-metadata govuk-!-margin-bottom-9">
           <dt class="app-metadata__key">Date submitted:</dt>
           <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.submitted_at_utc) }}</dd>
         </dl>
@@ -71,15 +71,14 @@
           <dt class="app-metadata__key">Date submitted for sign off:</dt>
           <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.sent_for_certification_at_utc) }}</dd>
         </dl>
+        <dl class="app-metadata govuk-!-margin-bottom-9">
+          <dt class="app-metadata__key">Status:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status) }}</dd>
+        </dl>
       {% endif %}
 
-      <dl class="app-metadata govuk-!-margin-bottom-9">
-        <dt class="app-metadata__key">Status:</dt>
-        <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status) }}</dd>
-      </dl>
-
       {% for form in submission.get_ordered_visible_forms() %}
-        <h2 id="form-{{ form.id }}" class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>
+        <h2 id="form-{{ form.id }}" class="govuk-heading-m govuk-!-margin-top-9">{{ form.title }}</h2>
         {{ answers_summary_list(submission, form) }}
       {% endfor %}
 
