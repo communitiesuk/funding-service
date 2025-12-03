@@ -277,6 +277,10 @@ class SubmissionHelper:
         return self.events.submission_state.certified_by
 
     @property
+    def certified_at_utc(self) -> datetime | None:
+        return self.events.submission_state.certified_at_utc
+
+    @property
     def created_at_utc(self) -> datetime:
         return self.submission.created_at_utc
 

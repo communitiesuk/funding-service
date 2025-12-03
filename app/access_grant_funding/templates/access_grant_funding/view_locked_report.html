@@ -32,6 +32,13 @@
           <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#sign-off-and-submit-report">Sign off and submit report</a></li>
         {% endif %}
       </ul>
+
+      <a
+        class="govuk-button govuk-button--secondary"
+        download
+        href="{{ url_for('access_grant_funding.export_report_pdf', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission.submission.id) }}"
+        >Download report PDF</a
+      >
     </div>
     <div class="govuk-grid-column-three-quarters-from-desktop app-section-content-container">
       {# exception for xl heading where we'd anticipate having many subheadings and levels of heirarchy on this page #}

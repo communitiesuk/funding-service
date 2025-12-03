@@ -1,0 +1,115 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "common/macros/submissions.html" import answers_summary_list with context %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
+
+{% set page_title = "Review report: " + submission.name %}
+
+{% block header %}
+  <div class="app-wip-print-header">
+    <h2 class="govuk-heading-m">MHCLG Access Grant Funding</h2>
+  </div>
+{% endblock header %}
+{# {% block footer %}{% endblock footer %} #}
+{% block beforeContent %}
+{% endblock beforeContent %}
+
+{% set should_certify = authorisation_helper.is_access_grant_certifier(submission.grant.id, submission.submission.grant_recipient.organisation_id, current_user) and submission.is_awaiting_sign_off %}
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {# exception for xl heading where we'd anticipate having many subheadings and levels of heirarchy on this page #}
+      <h1 id="submission" class="govuk-heading-xl">{{ page_title }}</h1>
+
+      <div class="govuk-!-margin-bottom-9">
+        {# if certification wasn't required then show who submitted directly #}
+        {% set submitter = submission.sent_for_certification_by or submission.submitted_by %}
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Organisation:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submission.submission.grant_recipient.organisation.name }}</dd>
+        </dl>
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Grant:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submission.collection.grant.name }}</dd>
+        </dl>
+        {% if submission.collection.reporting_period_start_date and submission.collection.reporting_period_end_date %}
+          <dl class="app-metadata">
+            <dt class="app-metadata__key">Reporting period:</dt>
+            <dd class="app-metadata__value" data-testid="submission-status">{{ format_date_range(submission.collection.reporting_period_start_date, submission.collection.reporting_period_end_date) }}</dd>
+          </dl>
+        {% endif %}
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Submission deadline:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.collection.submission_period_end_date) }}</dd>
+        </dl>
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Status:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status) }}</dd>
+        </dl>
+        {% if submission.sent_for_certification_by %}
+          <dl class="app-metadata">
+            <dt class="app-metadata__key">Submitted for sign off by:</dt>
+            <dd class="app-metadata__value" data-testid="submission-status">{{ submitter.name }}</dd>
+          </dl>
+        {% elif submission.submitted_by %}
+          <dl class="app-metadata">
+            <dt class="app-metadata__key">Submitted by:</dt>
+            <dd class="app-metadata__value" data-testid="submission-status">{{ submitter.name }}</dd>
+          </dl>
+        {% endif %}
+        {% if submission.submitted_at_utc or submission.sent_for_certification_at_utc %}
+          <dl class="app-metadata">
+            <dt class="app-metadata__key">Date submitted:</dt>
+            <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.submitted_at_utc or submission.sent_for_certification_at_utc) }}</dd>
+          </dl>
+        {% endif %}
+        {% if submission.certified_by %}
+          <dl class="app-metadata">
+            <dt class="app-metadata__key">Certifier:</dt>
+            <dd class="app-metadata__value" data-testid="submission-status">{{ submission.certified_by.name }}</dd>
+          </dl>
+          <dl class="app-metadata">
+            <dt class="app-metadata__key">Date certified:</dt>
+            <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.certified_at_utc) }}</dd>
+          </dl>
+        {% endif %}
+      </div>
+
+      <div class="govuk-!-margin-bottom-9">
+        <h2 class="govuk-heading-m">Report sections</h2>
+        <ul class="govuk-list govuk-list--number">
+          {% for form in submission.get_ordered_visible_forms() %}
+            <li><a class="govuk-link govuk-link--no-visited-state" href="#form-{{ form.id }}">{{ form.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      {% for form in submission.get_ordered_visible_forms() %}
+        <div class="app-dont-page-break">
+          <h2 id="form-{{ form.id }}" class="govuk-heading-m govuk-!-margin-top-6">{{ loop.index }}. {{ form.title }}</h2>
+          {{ answers_summary_list(submission, form) }}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block footer %}
+  <footer class="govuk-footer">
+    <div class="govuk-width-container">
+      <div class="govuk-footer__meta">
+        <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
+          <svg aria-hidden="true" focusable="false" class="govuk-footer__licence-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 483.2 195.7" height="17" width="41">
+            <path
+              fill="currentColor"
+              d="M421.5 142.8V.1l-50.7 32.3v161.1h112.4v-50.7zm-122.3-9.6A47.12 47.12 0 0 1 221 97.8c0-26 21.1-47.1 47.1-47.1 16.7 0 31.4 8.7 39.7 21.8l42.7-27.2A97.63 97.63 0 0 0 268.1 0c-36.5 0-68.3 20.1-85.1 49.7A98 98 0 0 0 97.8 0C43.9 0 0 43.9 0 97.8s43.9 97.8 97.8 97.8c36.5 0 68.3-20.1 85.1-49.7a97.76 97.76 0 0 0 149.6 25.4l19.4 22.2h3v-87.8h-80l24.3 27.5zM97.8 145c-26 0-47.1-21.1-47.1-47.1s21.1-47.1 47.1-47.1 47.2 21 47.2 47S123.8 145 97.8 145" />
+          </svg>
+          <span class="govuk-footer__licence-description">
+            All content is available under the
+            <a class="govuk-footer__link" href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="license">Open Government Licence v3.0</a>, except where otherwise stated
+          </span>
+        </div>
+      </div>
+    </div>
+  </footer>
+{% endblock footer %}
