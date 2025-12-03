@@ -294,7 +294,7 @@ class TestNotificationService:
 
         notification_service.send_access_submitter_submission_declined(
             submission_helper=helper,
-            certifier=certifier,
+            certifier_user=certifier,
         )
         assert len(mock_notification_service_calls) == 1
         assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation

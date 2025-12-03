@@ -223,7 +223,7 @@ class NotificationService:
 
     def send_access_submitter_submission_declined(
         self,
-        certifier: "User",
+        certifier_user: "User",
         submission_helper: "SubmissionHelper",
     ) -> Notification:
         submission_state = submission_helper.events.submission_state
@@ -231,7 +231,7 @@ class NotificationService:
             raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "certifier_name": certifier.name,
+            "certifier_name": certifier_user.name,
             "reporting_period": submission_helper.collection.name,
             "certifier_comments": submission_state.declined_reason,
             "grant_report_url": url_for(
