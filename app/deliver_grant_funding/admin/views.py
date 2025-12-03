@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 import markupsafe
-from flask import current_app, flash, redirect, send_file, url_for
+from flask import abort, current_app, flash, redirect, send_file, url_for
 from flask_admin import AdminIndexView, BaseView, expose
 
 from app.common.data.interfaces.collections import get_collection, update_collection
@@ -34,7 +34,13 @@ from app.common.data.interfaces.user import (
     remove_permissions_from_user,
     upsert_user_by_email,
 )
-from app.common.data.types import CollectionStatusEnum, CollectionType, GrantStatusEnum, RoleEnum
+from app.common.data.types import (
+    CollectionStatusEnum,
+    CollectionType,
+    GrantStatusEnum,
+    ReportAdminEmailTypeEnum,
+    RoleEnum,
+)
 from app.common.filters import format_date, format_date_range
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminBulkCreateGrantRecipientsForm,
@@ -596,26 +602,38 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers", methods=["GET"])  # type: ignore[untyped-decorator]
-    def send_emails_to_recipients(self, grant_id: UUID, collection_id: UUID) -> Any:
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers/<email_type>", methods=["GET"])  # type: ignore[untyped-decorator]
+    def send_emails_to_recipients(
+        self, grant_id: UUID, collection_id: UUID, email_type: ReportAdminEmailTypeEnum
+    ) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
-        notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"]
         notify_service_id = current_app.config["GOVUK_NOTIFY_SERVICE_ID"]
-        notify_template_url = (
-            f"https://www.notifications.service.gov.uk/services/{notify_service_id}/send/{notify_template_id}/csv"
-        )
+        match email_type:
+            case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
+                notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"]
+            case ReportAdminEmailTypeEnum.DEADLINE_REMINDER:
+                notify_template_id = current_app.config[
+                    "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
+                ]
+            case _:
+                return abort(404)
 
         return self.render(
             "deliver_grant_funding/admin/send-emails-to-data-providers.html",
             grant=grant,
             collection=collection,
-            notify_template_url=notify_template_url,
+            notify_template_url=f"https://www.notifications.service.gov.uk/services/{notify_service_id}/send/{notify_template_id}/csv",
+            email_type=email_type,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers/download-csv", methods=["GET"])  # type: ignore[untyped-decorator]
-    def download_data_providers_csv(self, grant_id: UUID, collection_id: UUID) -> Any:
+    @expose(
+        "/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers/download-csv/<email_type>", methods=["GET"]
+    )  # type: ignore[untyped-decorator]
+    def download_data_providers_csv(
+        self, grant_id: UUID, collection_id: UUID, email_type: ReportAdminEmailTypeEnum
+    ) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
@@ -630,7 +648,13 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         )
         csv_writer.writeheader()
 
-        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
+        match email_type:
+            case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
+                grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
+            case ReportAdminEmailTypeEnum.DEADLINE_REMINDER:
+                grant_recipients = []
+            case _:
+                return abort(404)
         grant_recipient_data_providers = [
             (data_provider, grant_recipient)
             for grant_recipient in grant_recipients
