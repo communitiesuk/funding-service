@@ -834,7 +834,7 @@
           "data_source_id": "9cb18bb1-b9a5-4a57-9111-24ccb3f75a2a",
           "id": "f58dbb63-90f7-4bdb-9f5a-24a1ca09ce65",
           "key": "arms-length-bodies",
-          "label": "Arm\u2019s length bodies",
+          "label": "Arm’s length bodies",
           "order": 0
         },
         {
@@ -1464,7 +1464,7 @@
           "name": "total funding allocation",
           "order": 0,
           "presentation_options": {
-            "prefix": "\u00a3",
+            "prefix": "£",
             "width": "govuk-input--width-10"
           },
           "slug": "how-much-was-your-total-funding-allocation-for-the-last-reporting-period",
@@ -1560,7 +1560,7 @@
           "name": "unspent allocated funding",
           "order": 4,
           "presentation_options": {
-            "prefix": "\u00a3",
+            "prefix": "£",
             "width": "govuk-input--width-10"
           },
           "slug": "how-much-of-your-allocated-funding-for-the-last-reporting-period-remains-unspent",
@@ -1875,7 +1875,7 @@
           "name": "spend in the last reporting period",
           "order": 1,
           "presentation_options": {
-            "prefix": "\u00a3",
+            "prefix": "£",
             "width": "govuk-input--width-10"
           },
           "slug": "how-much-did-you-spend-in-the-last-reporting-period",
@@ -2027,12 +2027,6 @@
           "id": "047a9dce-ee07-44ec-b423-51d566ab4254"
         },
         {
-          "component_id": "5cdf009c-2831-4f78-bd01-cc68a8b5128c",
-          "depends_on_component_id": "5cdf009c-2831-4f78-bd01-cc68a8b5128c",
-          "expression_id": "c99dc916-1601-4d8d-816f-82e3a5cf286c",
-          "id": "04cf2cb2-e3a5-41de-9b73-c8a5bc4a4594"
-        },
-        {
           "component_id": "cce0b414-b5f1-44e9-b089-9356b6995567",
           "depends_on_component_id": "14f1872c-c092-4680-a3fa-60b09d9cced9",
           "expression_id": "0f76438a-6025-40b6-a4bd-42f16a585d89",
@@ -2080,13 +2074,6 @@
           "id": "09d3d380-6023-4e9e-8c4c-2f43b2f13afd"
         },
         {
-          "component_id": "908ae5f1-4488-4f8c-ba9e-5903764f959a",
-          "depends_on_component_id": "68430940-6e9f-48ab-a090-60894958a04d",
-          "depends_on_data_source_item_id": "46e884d6-baf4-441d-9d3d-535b2de3d5d0",
-          "expression_id": "98939fdf-55b8-4bce-8731-473fc397d1cb",
-          "id": "0c687b95-31d1-4dbf-9a5b-221bd8ccb4ec"
-        },
-        {
           "component_id": "faa9e407-7dae-4ab3-b1cd-f2d789e9c64b",
           "depends_on_component_id": "469c222e-1b8d-4df6-9c89-7a4478b19807",
           "depends_on_data_source_item_id": "b05bb136-7767-4d6a-bf68-c6ad7fd43492",
@@ -2131,13 +2118,6 @@
           "depends_on_data_source_item_id": "53862201-f437-45de-bb20-fa48d0925783",
           "expression_id": "673f53f7-987f-4fb0-9ee0-b3fc059b0be6",
           "id": "1ae16535-f9ab-4a73-9ea5-4d1b34b72a86"
-        },
-        {
-          "component_id": "68430940-6e9f-48ab-a090-60894958a04d",
-          "depends_on_component_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
-          "depends_on_data_source_item_id": "3da8275c-2968-4e53-bad8-477c1c11a476",
-          "expression_id": "f5c285bf-fe4a-4deb-b85f-58ae4380a2df",
-          "id": "1bb26ea1-4bdf-492a-bed9-6c65e6f656bb"
         },
         {
           "component_id": "58aa1813-fdf4-4ee0-811b-7807e74e7c8e",
@@ -2322,13 +2302,6 @@
           "id": "38ba2ff0-e528-40ae-b946-4b10967f34f5"
         },
         {
-          "component_id": "9ffa1b0f-2b65-4c8a-aa93-2baca979b121",
-          "depends_on_component_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
-          "depends_on_data_source_item_id": "088eb142-be35-4f9d-b1f2-2aa867ca309e",
-          "expression_id": "63403169-567e-47d0-8b4d-8f3bb936306e",
-          "id": "3a73c147-76ff-4b88-afa5-f711eb262471"
-        },
-        {
           "component_id": "44783134-446c-49cb-8ef0-013e103391d3",
           "depends_on_component_id": "3264d996-d5df-437f-bbf9-3f56bfb775df",
           "depends_on_data_source_item_id": "bd2e5bae-7e8c-457b-8524-dc86e274d3eb",
@@ -2340,13 +2313,6 @@
           "depends_on_component_id": "bc0ffd15-49b6-4538-96f9-d364428cc228",
           "expression_id": "44f8a896-6ca3-4b06-8552-7a7615939124",
           "id": "3bc804fe-818b-45a0-bc94-754c6a7f8415"
-        },
-        {
-          "component_id": "22d94769-fa42-4674-bf6f-1b8670d08740",
-          "depends_on_component_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
-          "depends_on_data_source_item_id": "3da8275c-2968-4e53-bad8-477c1c11a476",
-          "expression_id": "bd1c3d03-4310-4b7f-ad11-af237fbacd78",
-          "id": "3d53e2a0-3c3c-4734-8960-492588f373de"
         },
         {
           "component_id": "c7f09d87-3ce0-40db-8bef-04305a506d95",
@@ -2366,19 +2332,6 @@
           "depends_on_component_id": "acd8807a-8654-4a82-9228-a6e4b48c06be",
           "expression_id": "56803314-037e-4ce3-9754-e3d678ff4e06",
           "id": "447fe813-652d-4aa5-a82c-81be7fff660a"
-        },
-        {
-          "component_id": "b31ad25a-f42c-4768-ae2b-577042ac2473",
-          "depends_on_component_id": "809898a4-98de-4247-972a-35e270d05cef",
-          "depends_on_data_source_item_id": "d22af7a6-f46b-43e7-9f54-913579a47360",
-          "expression_id": "dd6fece3-43ec-4cc6-9d2b-80ee8809ed1e",
-          "id": "46176813-d553-4f6a-91ca-eb2b322b703a"
-        },
-        {
-          "component_id": "222b5511-fb28-4a06-a5ef-6ea63fd37255",
-          "depends_on_component_id": "22d94769-fa42-4674-bf6f-1b8670d08740",
-          "expression_id": "c2bebecc-264f-4ab3-8eba-01f0d96c8ed0",
-          "id": "48e079e8-b14a-4955-9047-add6f6499637"
         },
         {
           "component_id": "88d2443a-736b-456c-aaf1-ef87aa09d9ee",
@@ -2571,12 +2524,6 @@
           "id": "68598583-1de4-40d4-ba94-2a01bb84bf97"
         },
         {
-          "component_id": "e0faeb6d-fa14-4fc3-ae55-bfd698d33637",
-          "depends_on_component_id": "22d94769-fa42-4674-bf6f-1b8670d08740",
-          "expression_id": "167ec046-9d17-43e6-a90b-dc08ff32c846",
-          "id": "69530c29-1664-4124-9647-142bd9f2878a"
-        },
-        {
           "component_id": "acd8807a-8654-4a82-9228-a6e4b48c06be",
           "depends_on_component_id": "15fb67b7-34a5-4ccc-ba08-6c123a6e9d99",
           "depends_on_data_source_item_id": "45738560-a5fd-4e99-afb6-dc4dcd831cfd",
@@ -2589,12 +2536,6 @@
           "depends_on_data_source_item_id": "b042f0bc-bb58-40e0-9cf5-a834bbc9657e",
           "expression_id": "4a315251-f88a-4469-be32-3527ddd29c72",
           "id": "6b2f1467-463b-4710-ad5b-8f904a6c8136"
-        },
-        {
-          "component_id": "c44d2933-b656-4968-9c23-7c365a0b7e48",
-          "depends_on_component_id": "22d94769-fa42-4674-bf6f-1b8670d08740",
-          "expression_id": "5ddbb845-7468-4ea1-9314-83affaf67a86",
-          "id": "6f4e7a89-9698-4fa0-9056-a9498ea0076e"
         },
         {
           "component_id": "6f46a1c8-8e88-40c7-9988-f31e42840b51",
@@ -2695,12 +2636,6 @@
           "id": "7a7dae45-b22c-4d28-90d2-a0c1a183c00f"
         },
         {
-          "component_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "depends_on_component_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768",
-          "expression_id": "92e5021a-bb1d-40ae-ba1f-529d82f811e6",
-          "id": "7ab97b83-3405-41ea-bc39-3429a509c8bd"
-        },
-        {
           "component_id": "f5a642f5-866b-46f4-aa34-2cbc3830cbca",
           "depends_on_component_id": "5c938513-f61f-4494-8c4e-fcf67ef5c3e2",
           "depends_on_data_source_item_id": "0f1c7957-a63f-43d0-b686-1045a2bdc15b",
@@ -2712,13 +2647,6 @@
           "depends_on_component_id": "14f1872c-c092-4680-a3fa-60b09d9cced9",
           "expression_id": "722cee4d-f1ff-43f9-98ae-21bd58a05fd0",
           "id": "7cb85071-41a2-46d2-bd91-7f63fe8f4de1"
-        },
-        {
-          "component_id": "908ae5f1-4488-4f8c-ba9e-5903764f959a",
-          "depends_on_component_id": "68430940-6e9f-48ab-a090-60894958a04d",
-          "depends_on_data_source_item_id": "fab091a3-6e9c-437b-a612-672c2a79c397",
-          "expression_id": "98939fdf-55b8-4bce-8731-473fc397d1cb",
-          "id": "7efc84e2-65e8-47a7-81ea-5b8e7a9acf0a"
         },
         {
           "component_id": "daec248d-53bf-4d9b-8f64-7c032b73733a",
@@ -2740,13 +2668,6 @@
           "id": "81c7a624-f513-42d1-a2c1-420ce7d184d8"
         },
         {
-          "component_id": "78747e00-73ea-4b47-9d5a-87210bb190c4",
-          "depends_on_component_id": "9ffa1b0f-2b65-4c8a-aa93-2baca979b121",
-          "depends_on_data_source_item_id": "4cd2fb14-f927-47ae-9d38-a3cce44c8b4e",
-          "expression_id": "93629a6a-1012-44d2-98e4-87a00a27ee48",
-          "id": "824ebf54-dfa3-472d-bb14-4fa3f1f55ead"
-        },
-        {
           "component_id": "38fd255b-9a46-42be-b50f-90106fd361b7",
           "depends_on_component_id": "acd8807a-8654-4a82-9228-a6e4b48c06be",
           "expression_id": "36d5ec27-ed1b-425e-8a06-a84fe1e558ff",
@@ -2757,12 +2678,6 @@
           "depends_on_component_id": "4d1cf41b-3f1e-4782-bb06-3942e0f3374e",
           "expression_id": "678d6538-b2ee-4323-be6a-8a55633d2e95",
           "id": "830dfe22-ac79-4637-85cf-d6f6f27f7343"
-        },
-        {
-          "component_id": "02bf7f90-b56f-4977-8f9d-128f993ea6c7",
-          "depends_on_component_id": "22d94769-fa42-4674-bf6f-1b8670d08740",
-          "expression_id": "5c0cdc69-b36d-4527-8f22-e16a49d87ce1",
-          "id": "831317d1-1120-4583-9143-51250f2cdf4f"
         },
         {
           "component_id": "0d1a77e6-cce3-484f-b68b-adc4e3ebc04d",
@@ -2818,13 +2733,6 @@
           "id": "89ab11d6-b028-47ea-84f0-adeb441ad975"
         },
         {
-          "component_id": "f63782e3-b9b5-4e21-afd1-b653bfe6ed38",
-          "depends_on_component_id": "68430940-6e9f-48ab-a090-60894958a04d",
-          "depends_on_data_source_item_id": "fab091a3-6e9c-437b-a612-672c2a79c397",
-          "expression_id": "3dbfbef3-f59b-4f7f-8c05-7042a1716151",
-          "id": "8a067836-76be-4f44-b40c-f9eb9e883711"
-        },
-        {
           "component_id": "4bc54c85-8f53-49ee-98a8-a465006626e0",
           "depends_on_component_id": "c9315cc3-343b-4725-8f39-2783d57b08ee",
           "depends_on_data_source_item_id": "eca29432-643f-436e-b3c8-2ff81add8c98",
@@ -2837,13 +2745,6 @@
           "depends_on_data_source_item_id": "49ab7fbe-f653-4321-8baa-b177dbb97443",
           "expression_id": "3bf87612-0e2c-431c-be86-90f16e7a2e1f",
           "id": "8b61c826-3606-48c2-9e07-c2bd7cdc1990"
-        },
-        {
-          "component_id": "5ed5623e-4f3f-4637-b48c-79079b6b2749",
-          "depends_on_component_id": "908ae5f1-4488-4f8c-ba9e-5903764f959a",
-          "depends_on_data_source_item_id": "4973ead6-baca-458e-b2ec-74359fb52983",
-          "expression_id": "206a2b7e-415c-4e6d-97e6-70619107074f",
-          "id": "8db91537-00cd-4e3c-9ffe-d0ad6309e8e3"
         },
         {
           "component_id": "50ea5880-a22a-4cfa-b74f-f8cb916722d3",
@@ -2871,13 +2772,6 @@
           "depends_on_component_id": "14f1872c-c092-4680-a3fa-60b09d9cced9",
           "expression_id": "7ff22f10-d146-4280-9db0-f2ab546af388",
           "id": "9317d4e6-8663-4166-a82a-ab0197f0a0d0"
-        },
-        {
-          "component_id": "809898a4-98de-4247-972a-35e270d05cef",
-          "depends_on_component_id": "c3d08b10-15db-416f-bb7c-5e72b6744c9a",
-          "depends_on_data_source_item_id": "803ace2d-2c54-4ba8-8e53-0f0430c2a753",
-          "expression_id": "bc32f36d-1436-4c8a-afa8-06963611582d",
-          "id": "96351e51-3108-4eb6-8321-d25a30bf070f"
         },
         {
           "component_id": "f9f98dc9-bda4-4b54-98a4-f45d18fa737f",
@@ -3086,12 +2980,6 @@
           "id": "bab4608f-237a-4ad4-9070-2cf2fe8a37a4"
         },
         {
-          "component_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "depends_on_component_id": "14f1872c-c092-4680-a3fa-60b09d9cced9",
-          "expression_id": "66adff0d-415c-411c-a3c2-c6d8e3d58bb3",
-          "id": "bdad8487-bbda-4cb6-8c3b-e402402a0d37"
-        },
-        {
           "component_id": "77f6d299-9d08-4daf-8efd-373195cb5689",
           "depends_on_component_id": "d1ab24a4-d46e-4638-8699-8be3c79e4946",
           "depends_on_data_source_item_id": "43e2c21d-bb29-40f4-a643-0081a2e7e7f3",
@@ -3140,13 +3028,6 @@
           "id": "c2b0b30b-290b-4ce8-bf76-00746fdb7498"
         },
         {
-          "component_id": "3adeab1e-b168-4c1c-8530-878c673619b3",
-          "depends_on_component_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
-          "depends_on_data_source_item_id": "3da8275c-2968-4e53-bad8-477c1c11a476",
-          "expression_id": "bc192c50-4373-40c1-9550-5feba357d5d2",
-          "id": "c328f5ca-9184-4953-a2d6-cb4acc9bd0ac"
-        },
-        {
           "component_id": "8eccc1ef-13db-49c0-aad5-181964b1661a",
           "depends_on_component_id": "9435c337-48af-40f7-9501-133c5e3a698d",
           "depends_on_data_source_item_id": "298674ee-cd92-475b-9ef2-2c0c3b818d39",
@@ -3160,13 +3041,6 @@
           "id": "c5bff448-3b8c-47d4-beb8-58dd0f38b124"
         },
         {
-          "component_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
-          "depends_on_component_id": "c3d08b10-15db-416f-bb7c-5e72b6744c9a",
-          "depends_on_data_source_item_id": "7649c9ba-8513-4805-b1f1-88fb6029204a",
-          "expression_id": "9bdd2cd6-b1b7-4c4a-8c74-9e99ea222e82",
-          "id": "c64f01b8-9529-454a-bdae-dcb9794809f7"
-        },
-        {
           "component_id": "c701300b-8510-4a78-a15a-ebc1a249eab9",
           "depends_on_component_id": "932ef7b6-b6e4-4386-8d44-579b71a03307",
           "expression_id": "455fa9b8-d3b2-41c8-8eb5-ecaf71a73c01",
@@ -3178,13 +3052,6 @@
           "depends_on_data_source_item_id": "d31dd20c-4c10-420a-afab-600f68219cc4",
           "expression_id": "7f17374d-0e02-4bea-8398-2835ab20a78e",
           "id": "c8929c69-87ac-4fd7-b178-6b9ca4b60854"
-        },
-        {
-          "component_id": "474fb534-25c7-4c42-93c8-43b26fdea0e9",
-          "depends_on_component_id": "f63782e3-b9b5-4e21-afd1-b653bfe6ed38",
-          "depends_on_data_source_item_id": "9078f54c-5493-4f31-b7dd-e1a147b9da46",
-          "expression_id": "53822838-3753-44fb-9fc6-1e369629a4cd",
-          "id": "c9168185-a9a7-4f52-88e9-c70f10cddaae"
         },
         {
           "component_id": "11403e70-d280-4978-9cc6-1fed2514704a",
@@ -3216,12 +3083,6 @@
           "depends_on_component_id": "4d1cf41b-3f1e-4782-bb06-3942e0f3374e",
           "expression_id": "81f5cb1a-7141-4aad-8ab5-139c69db61d7",
           "id": "cf73e448-9887-4b2d-bc52-02caa70e2d46"
-        },
-        {
-          "component_id": "5e9a6254-1f62-4226-b641-017e8b4515b0",
-          "depends_on_component_id": "22d94769-fa42-4674-bf6f-1b8670d08740",
-          "expression_id": "a11a2403-1d9f-4d29-877c-afb5ecea4403",
-          "id": "d431ac7b-bcc2-484b-b0b8-4530b9c9f27b"
         },
         {
           "component_id": "531da8cb-d47c-4a71-afcf-3f3c39d0c3c0",
@@ -3340,12 +3201,6 @@
           "id": "ead2d105-881a-4a08-8aae-11172d143bc9"
         },
         {
-          "component_id": "850568e4-2567-4859-bb6d-1b8082a0f777",
-          "depends_on_component_id": "22d94769-fa42-4674-bf6f-1b8670d08740",
-          "expression_id": "24e0cd91-4048-4d07-95d0-5b47e1157393",
-          "id": "ec5130ea-5ab8-4854-b79f-32d608945155"
-        },
-        {
           "component_id": "a9e3b7d0-323b-4173-9396-f704fe271d50",
           "depends_on_component_id": "88d2443a-736b-456c-aaf1-ef87aa09d9ee",
           "expression_id": "e9b917e4-71de-4153-89d3-27fbcb744a43",
@@ -3398,13 +3253,6 @@
           "id": "f59654a3-19e5-4f74-8884-1090d9e8cf31"
         },
         {
-          "component_id": "5cdf009c-2831-4f78-bd01-cc68a8b5128c",
-          "depends_on_component_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
-          "depends_on_data_source_item_id": "3da8275c-2968-4e53-bad8-477c1c11a476",
-          "expression_id": "1d4e3a6f-055b-4472-9be6-d5521ca544f9",
-          "id": "f5dbb375-72f8-42bc-9bb7-46648f7da3a6"
-        },
-        {
           "component_id": "42128c9e-4d6d-4376-8592-cd857c331234",
           "depends_on_component_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768",
           "expression_id": "c0ffdd51-78c9-41a1-a64d-816a684ce937",
@@ -3451,13 +3299,6 @@
         }
       ],
       "data_source_items": [
-        {
-          "data_source_id": "5d91eaea-2fcc-4208-a29b-2587494c0b7e",
-          "id": "0066a367-6f51-420e-bd2d-4cf62cbb2899",
-          "key": "unknown",
-          "label": "Unknown",
-          "order": 3
-        },
         {
           "data_source_id": "82c2bda2-c684-4c69-a01e-fc5e8c47726e",
           "id": "00bec21e-6ebf-4cba-ad8b-ab38b43d090c",
@@ -3513,13 +3354,6 @@
           "key": "cultural-differences",
           "label": "Cultural differences",
           "order": 2
-        },
-        {
-          "data_source_id": "31243a0f-c955-4d4f-80d8-9bbec71f5c83",
-          "id": "088eb142-be35-4f9d-b1f2-2aa867ca309e",
-          "key": "no---the-property-was-rejected",
-          "label": "No - the property was rejected",
-          "order": 1
         },
         {
           "data_source_id": "bc090b08-fbaa-48fb-bc7d-867ae8ac41cf",
@@ -3732,13 +3566,6 @@
           "order": 1
         },
         {
-          "data_source_id": "7ba63b05-532e-41b1-9957-2c89ee9f61e5",
-          "id": "1bdebeac-b080-473e-921c-23e50a727784",
-          "key": "location-too-far-from-necessary-facilities",
-          "label": "Location too far from necessary facilities",
-          "order": 3
-        },
-        {
           "data_source_id": "161a3edb-3f3d-4cab-9870-b441f2da6c72",
           "id": "1bf3cc9a-0f5e-48ce-b039-ececa901ed6c",
           "key": "sponsorship-no-longer-required",
@@ -3781,13 +3608,6 @@
           "order": 0
         },
         {
-          "data_source_id": "78cfabf4-3247-4ad7-9c86-f26bb6bf21ad",
-          "id": "1edd5837-f1c3-4f3f-95c4-9b9653ca5521",
-          "key": "cultural-differences",
-          "label": "Cultural differences",
-          "order": 1
-        },
-        {
           "data_source_id": "4ec9b3be-34b5-4b15-8bf0-47b9be7b8f30",
           "id": "1eee4395-818b-4d23-8487-c1ee7706dfc8",
           "key": "other",
@@ -3813,13 +3633,6 @@
           "id": "24a26150-e2cc-405b-bd36-4d664b1d410e",
           "key": "sponsorship-ended-early",
           "label": "Sponsorship ended early",
-          "order": 2
-        },
-        {
-          "data_source_id": "31243a0f-c955-4d4f-80d8-9bbec71f5c83",
-          "id": "25f67517-c734-444a-8adb-fa2e42f608af",
-          "key": "the-property-has-not-been-formally-offered-yet",
-          "label": "The property has not been formally offered yet",
           "order": 2
         },
         {
@@ -3863,13 +3676,6 @@
           "key": "yes---the-property-has-been-accepted",
           "label": "Yes - the property has been accepted",
           "order": 0
-        },
-        {
-          "data_source_id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "id": "2988e57d-3a47-473e-b707-00e0592bcffd",
-          "key": "7",
-          "label": "7",
-          "order": 6
         },
         {
           "data_source_id": "fdcc146b-9cc0-4402-8a6f-53b021b4f702",
@@ -4047,20 +3853,6 @@
           "order": 2
         },
         {
-          "data_source_id": "78cfabf4-3247-4ad7-9c86-f26bb6bf21ad",
-          "id": "3cf1a738-89d5-4df0-a174-d120d89a7c2e",
-          "key": "moved-to-private-rented-sector",
-          "label": "Moved to private rented sector",
-          "order": 3
-        },
-        {
-          "data_source_id": "31243a0f-c955-4d4f-80d8-9bbec71f5c83",
-          "id": "3da8275c-2968-4e53-bad8-477c1c11a476",
-          "key": "yes---the-property-has-been-accepted",
-          "label": "Yes - the property has been accepted",
-          "order": 0
-        },
-        {
           "data_source_id": "1ed86476-4f9c-4672-b201-cd742163a812",
           "id": "3dacd1bd-0b39-426f-a7ae-d7b79d130058",
           "key": "4",
@@ -4152,13 +3944,6 @@
           "order": 5
         },
         {
-          "data_source_id": "81d23064-cb84-4f4d-bed1-2dcab0a814e8",
-          "id": "46e884d6-baf4-441d-9d3d-535b2de3d5d0",
-          "key": "sponsorship-concluded-at-the-end-of-3-years",
-          "label": "Sponsorship concluded at the end of 3 years",
-          "order": 1
-        },
-        {
           "data_source_id": "6cc6abe3-1802-4f18-9142-f6665c36410a",
           "id": "473053c8-b49a-4907-aebd-865ae016232b",
           "key": "other",
@@ -4173,13 +3958,6 @@
           "order": 3
         },
         {
-          "data_source_id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "id": "48e09858-0013-4723-bd14-2c7727043dd7",
-          "key": "5",
-          "label": "5",
-          "order": 4
-        },
-        {
           "data_source_id": "e8eb0732-6324-4e07-8485-5dd1d1f846c5",
           "id": "48f65c34-82ee-4712-acbe-c8732f22b972",
           "key": "sponsorship-ongoing",
@@ -4192,13 +3970,6 @@
           "key": "left-the-country",
           "label": "Left the country",
           "order": 0
-        },
-        {
-          "data_source_id": "7580593d-e50c-4015-92ec-fbb9b5211098",
-          "id": "4973ead6-baca-458e-b2ec-74359fb52983",
-          "key": "other",
-          "label": "Other",
-          "order": 3
         },
         {
           "data_source_id": "cc6d4bf9-05e4-4a9b-8f1c-63e7f50157da",
@@ -4255,13 +4026,6 @@
           "key": "unknown",
           "label": "Unknown",
           "order": 3
-        },
-        {
-          "data_source_id": "5d91eaea-2fcc-4208-a29b-2587494c0b7e",
-          "id": "4cd2fb14-f927-47ae-9d38-a3cce44c8b4e",
-          "key": "other",
-          "label": "Other",
-          "order": 4
         },
         {
           "data_source_id": "c46efe2e-83b1-4360-8bc5-290b3c519526",
@@ -4327,13 +4091,6 @@
           "order": 0
         },
         {
-          "data_source_id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "id": "539e1ea3-5f43-47b7-b0e2-9ef5f0a1292e",
-          "key": "2",
-          "label": "2",
-          "order": 1
-        },
-        {
           "data_source_id": "c46efe2e-83b1-4360-8bc5-290b3c519526",
           "id": "53c6496d-ac79-4036-bb32-5dc96cb581ef",
           "key": "7",
@@ -4353,13 +4110,6 @@
           "key": "the-property-has-not-been-formally-offered-yet",
           "label": "The property has not been formally offered yet",
           "order": 2
-        },
-        {
-          "data_source_id": "7ba63b05-532e-41b1-9957-2c89ee9f61e5",
-          "id": "546be5f1-d5e0-4d97-95e6-db1d2e5c2693",
-          "key": "additional-needs-of-household",
-          "label": "Additional needs of household",
-          "order": 0
         },
         {
           "data_source_id": "1ed86476-4f9c-4672-b201-cd742163a812",
@@ -4409,13 +4159,6 @@
           "key": "the-property-has-not-been-formally-offered-yet",
           "label": "The property has not been formally offered yet",
           "order": 2
-        },
-        {
-          "data_source_id": "78cfabf4-3247-4ad7-9c86-f26bb6bf21ad",
-          "id": "5cd2f3e5-115e-44c2-a4dc-9c1969596ff7",
-          "key": "sponsorship-no-longer-required",
-          "label": "Sponsorship no longer required",
-          "order": 5
         },
         {
           "data_source_id": "4d3d3383-a9af-4c33-9211-be23157ff3e3",
@@ -4523,13 +4266,6 @@
           "order": 0
         },
         {
-          "data_source_id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "id": "6aa378d5-3706-4c96-a217-44df953dac88",
-          "key": "4",
-          "label": "4",
-          "order": 3
-        },
-        {
           "data_source_id": "7f0c9840-4fd9-47c0-829f-44aaa3db8520",
           "id": "6b49204a-0c3b-4502-890c-f3291beb63ec",
           "key": "property-does-not-meet-the-households-needs",
@@ -4635,13 +4371,6 @@
           "order": 3
         },
         {
-          "data_source_id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "id": "72fd368b-5a35-48b9-b2d0-b3cf4c78d157",
-          "key": "more-than-8",
-          "label": "more than 8",
-          "order": 8
-        },
-        {
           "data_source_id": "2cacb127-f23c-4eeb-b7e4-bef9c5b7020c",
           "id": "7311d0b8-0cef-41b3-a611-ff0703665986",
           "key": "other",
@@ -4651,13 +4380,6 @@
         {
           "data_source_id": "2cacb127-f23c-4eeb-b7e4-bef9c5b7020c",
           "id": "73c423ef-33e2-4f50-a398-1c486119467c",
-          "key": "household-breakdown",
-          "label": "Household breakdown",
-          "order": 2
-        },
-        {
-          "data_source_id": "78cfabf4-3247-4ad7-9c86-f26bb6bf21ad",
-          "id": "7489df59-9199-49d7-842c-c7e04ac2d0d1",
           "key": "household-breakdown",
           "label": "Household breakdown",
           "order": 2
@@ -4688,13 +4410,6 @@
           "id": "76495fc8-3c0e-4a0f-ae1b-7bf72c869415",
           "key": "sponsorship-ongoing",
           "label": "Sponsorship ongoing",
-          "order": 0
-        },
-        {
-          "data_source_id": "df22348e-e8b3-4aeb-913a-eb2769ee4a70",
-          "id": "7649c9ba-8513-4805-b1f1-88fb6029204a",
-          "key": "yes",
-          "label": "Yes",
           "order": 0
         },
         {
@@ -4733,20 +4448,6 @@
           "order": 4
         },
         {
-          "data_source_id": "7ba63b05-532e-41b1-9957-2c89ee9f61e5",
-          "id": "7baa5d44-6329-4f80-8972-abcab7107b05",
-          "key": "affordability",
-          "label": "Affordability",
-          "order": 1
-        },
-        {
-          "data_source_id": "df22348e-e8b3-4aeb-913a-eb2769ee4a70",
-          "id": "803ace2d-2c54-4ba8-8e53-0f0430c2a753",
-          "key": "no",
-          "label": "No",
-          "order": 1
-        },
-        {
           "data_source_id": "44b60a7b-9910-4ca2-b49d-a93ad529c938",
           "id": "807122af-22b1-4c28-9c61-67dacb4d07da",
           "key": "4",
@@ -4775,13 +4476,6 @@
           "order": 0
         },
         {
-          "data_source_id": "7ba63b05-532e-41b1-9957-2c89ee9f61e5",
-          "id": "8402f609-9747-4b06-b479-f74a145dd427",
-          "key": "cultural-differences",
-          "label": "Cultural differences",
-          "order": 2
-        },
-        {
           "data_source_id": "161a3edb-3f3d-4cab-9870-b441f2da6c72",
           "id": "85f921c8-42d3-46af-b10e-97e8b10d80c3",
           "key": "cultural-differences",
@@ -4794,13 +4488,6 @@
           "key": "sponsorship-no-longer-required",
           "label": "Sponsorship no longer required",
           "order": 5
-        },
-        {
-          "data_source_id": "81d23064-cb84-4f4d-bed1-2dcab0a814e8",
-          "id": "878d5ce1-92e0-4608-b755-491fe11644af",
-          "key": "sponsorship-ongoing",
-          "label": "Sponsorship ongoing",
-          "order": 0
         },
         {
           "data_source_id": "44b60a7b-9910-4ca2-b49d-a93ad529c938",
@@ -4892,13 +4579,6 @@
           "key": "sponsorship-ended-early",
           "label": "Sponsorship ended early",
           "order": 2
-        },
-        {
-          "data_source_id": "78cfabf4-3247-4ad7-9c86-f26bb6bf21ad",
-          "id": "9078f54c-5493-4f31-b7dd-e1a147b9da46",
-          "key": "other",
-          "label": "Other",
-          "order": 6
         },
         {
           "data_source_id": "6341e4df-56a0-4187-a59a-6884b9e97ece",
@@ -5027,13 +4707,6 @@
           "order": 3
         },
         {
-          "data_source_id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "id": "9a299472-afdd-4c01-9216-e7e286e592f5",
-          "key": "1",
-          "label": "1",
-          "order": 0
-        },
-        {
           "data_source_id": "161a3edb-3f3d-4cab-9870-b441f2da6c72",
           "id": "9a32536e-1e7f-492d-9fcb-da0832aafaa3",
           "key": "household-breakdown",
@@ -5088,13 +4761,6 @@
           "key": "4",
           "label": "4",
           "order": 3
-        },
-        {
-          "data_source_id": "78cfabf4-3247-4ad7-9c86-f26bb6bf21ad",
-          "id": "a06f8d7c-07c4-4068-993d-da3874e4278c",
-          "key": "accommodation-not-suitable",
-          "label": "Accommodation not suitable",
-          "order": 0
         },
         {
           "data_source_id": "161a3edb-3f3d-4cab-9870-b441f2da6c72",
@@ -5188,24 +4854,10 @@
           "order": 3
         },
         {
-          "data_source_id": "5d91eaea-2fcc-4208-a29b-2587494c0b7e",
-          "id": "afd8fb5e-102e-4d73-a2ee-50ccfd8d980e",
-          "key": "location-not-suitable",
-          "label": "Location not suitable",
-          "order": 1
-        },
-        {
           "data_source_id": "384d01ff-0a23-4b48-8581-d4e74893e10d",
           "id": "afede0b5-18f7-41cf-b6b4-89d73a6baed5",
           "key": "the-property-has-not-been-formally-offered-yet",
           "label": "The property has not been formally offered yet",
-          "order": 2
-        },
-        {
-          "data_source_id": "5d91eaea-2fcc-4208-a29b-2587494c0b7e",
-          "id": "afeea1ae-9ef3-4210-9057-06cef2217730",
-          "key": "property-does-not-meet-the-households-needs",
-          "label": "Property does not meet the household's needs",
           "order": 2
         },
         {
@@ -5370,13 +5022,6 @@
           "order": 1
         },
         {
-          "data_source_id": "7580593d-e50c-4015-92ec-fbb9b5211098",
-          "id": "c5e295ea-bbbb-473e-a128-4b409b2305dc",
-          "key": "moved-to-private-rented-sector",
-          "label": "Moved to private rented sector",
-          "order": 1
-        },
-        {
           "data_source_id": "edf8a685-21fc-41aa-b5fb-4d90f438397f",
           "id": "c7a408d9-9cbf-48ad-a901-7ea173254e35",
           "key": "presented-as-homeless",
@@ -5475,25 +5120,11 @@
           "order": 0
         },
         {
-          "data_source_id": "7ba63b05-532e-41b1-9957-2c89ee9f61e5",
-          "id": "d22af7a6-f46b-43e7-9f54-913579a47360",
-          "key": "other",
-          "label": "Other",
-          "order": 4
-        },
-        {
           "data_source_id": "5bd06775-e7f8-4eb0-87e6-7de32009c03a",
           "id": "d2405306-a6ff-491a-af65-2e10829752af",
           "key": "yes",
           "label": "Yes",
           "order": 0
-        },
-        {
-          "data_source_id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "id": "d2b1cf6d-ef00-4fdf-ac4a-e59b33e2a999",
-          "key": "8",
-          "label": "8",
-          "order": 7
         },
         {
           "data_source_id": "6341e4df-56a0-4187-a59a-6884b9e97ece",
@@ -5578,13 +5209,6 @@
           "key": "additional-needs-of-household",
           "label": "Additional needs of household",
           "order": 0
-        },
-        {
-          "data_source_id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "id": "dc732823-db41-4aea-894d-5a80d757af5b",
-          "key": "6",
-          "label": "6",
-          "order": 5
         },
         {
           "data_source_id": "ae6b1257-5394-4877-b1b4-47974d35463f",
@@ -5685,13 +5309,6 @@
           "order": 2
         },
         {
-          "data_source_id": "5d91eaea-2fcc-4208-a29b-2587494c0b7e",
-          "id": "e637f59f-7ff4-474e-a40e-446630d5a5e7",
-          "key": "affordability",
-          "label": "Affordability",
-          "order": 0
-        },
-        {
           "data_source_id": "cc6d4bf9-05e4-4a9b-8f1c-63e7f50157da",
           "id": "e8b4af68-e77a-4f69-9e72-6cb7c77cdd6d",
           "key": "presented-as-homeless",
@@ -5769,13 +5386,6 @@
           "order": 6
         },
         {
-          "data_source_id": "7580593d-e50c-4015-92ec-fbb9b5211098",
-          "id": "f0557f30-9f4b-45e7-a7d9-cb6881dfe0d3",
-          "key": "left-the-country",
-          "label": "Left the country",
-          "order": 0
-        },
-        {
           "data_source_id": "b1d02f4b-bc3b-4401-b2e7-addc728f9108",
           "id": "f06ea402-936a-4a2b-98c1-4787a26a46af",
           "key": "location-not-suitable",
@@ -5808,13 +5418,6 @@
           "id": "f24b8658-caf0-4b27-a9a6-87387553cfa5",
           "key": "5",
           "label": "5",
-          "order": 4
-        },
-        {
-          "data_source_id": "78cfabf4-3247-4ad7-9c86-f26bb6bf21ad",
-          "id": "f38b2998-5faf-4964-8900-e493bb0803b9",
-          "key": "sponsor-group-breakdown",
-          "label": "Sponsor group breakdown",
           "order": 4
         },
         {
@@ -5874,38 +5477,10 @@
           "order": 3
         },
         {
-          "data_source_id": "7580593d-e50c-4015-92ec-fbb9b5211098",
-          "id": "fa61052f-11c9-43a6-b3a0-1cdb5e49291f",
-          "key": "presented-as-homeless",
-          "label": "Presented as homeless",
-          "order": 2
-        },
-        {
-          "data_source_id": "81d23064-cb84-4f4d-bed1-2dcab0a814e8",
-          "id": "fab091a3-6e9c-437b-a612-672c2a79c397",
-          "key": "sponsorship-ended-early",
-          "label": "Sponsorship ended early",
-          "order": 2
-        },
-        {
-          "data_source_id": "df22348e-e8b3-4aeb-913a-eb2769ee4a70",
-          "id": "fba47e93-573e-4a4c-803f-818ab48cf893",
-          "key": "the-sponsor-group-has-not-been-matched-with-a-family-yet",
-          "label": "The sponsor group has not been matched with a family yet",
-          "order": 2
-        },
-        {
           "data_source_id": "248b1d77-53d3-4bba-bc8d-fa038a1946c4",
           "id": "fc0463c9-c620-4890-a349-de95af2132f5",
           "key": "property-does-not-meet-the-households-needs",
           "label": "Property does not meet the household's needs",
-          "order": 2
-        },
-        {
-          "data_source_id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "id": "fd7ec83c-01c3-44f7-bdfe-a214ff5a4b7d",
-          "key": "3",
-          "label": "3",
           "order": 2
         },
         {
@@ -5980,10 +5555,6 @@
           "question_id": "879e465b-f0b0-4ead-be95-054aad8894e1"
         },
         {
-          "id": "31243a0f-c955-4d4f-80d8-9bbec71f5c83",
-          "question_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7"
-        },
-        {
           "id": "327e90f0-3060-4e74-8b87-a5f89a140560",
           "question_id": "c9315cc3-343b-4725-8f39-2783d57b08ee"
         },
@@ -6032,10 +5603,6 @@
           "question_id": "50848909-069a-4205-b2d3-9f2ac9017ef7"
         },
         {
-          "id": "5d91eaea-2fcc-4208-a29b-2587494c0b7e",
-          "question_id": "9ffa1b0f-2b65-4c8a-aa93-2baca979b121"
-        },
-        {
           "id": "628a2aaa-cd0d-4aa9-80ee-cd8c50e9f595",
           "question_id": "19964ced-e0d1-440b-aad8-163996324d72"
         },
@@ -6060,20 +5627,8 @@
           "question_id": "9435c337-48af-40f7-9501-133c5e3a698d"
         },
         {
-          "id": "7580593d-e50c-4015-92ec-fbb9b5211098",
-          "question_id": "908ae5f1-4488-4f8c-ba9e-5903764f959a"
-        },
-        {
           "id": "77f0e212-7a21-4cf5-a0b4-220a14089fe3",
           "question_id": "f437a321-7bf9-400b-b956-76c0e32b3267"
-        },
-        {
-          "id": "78cfabf4-3247-4ad7-9c86-f26bb6bf21ad",
-          "question_id": "f63782e3-b9b5-4e21-afd1-b653bfe6ed38"
-        },
-        {
-          "id": "7ba63b05-532e-41b1-9957-2c89ee9f61e5",
-          "question_id": "809898a4-98de-4247-972a-35e270d05cef"
         },
         {
           "id": "7d8b0d4a-1352-4c5a-9530-0c130b439f97",
@@ -6090,10 +5645,6 @@
         {
           "id": "805d5bbb-8781-442c-bc51-f94ee7b06a34",
           "question_id": "f9f98dc9-bda4-4b54-98a4-f45d18fa737f"
-        },
-        {
-          "id": "81d23064-cb84-4f4d-bed1-2dcab0a814e8",
-          "question_id": "68430940-6e9f-48ab-a090-60894958a04d"
         },
         {
           "id": "82c2bda2-c684-4c69-a01e-fc5e8c47726e",
@@ -6168,16 +5719,8 @@
           "question_id": "b1e39c24-e432-4553-9f7a-3f2f1acf3c06"
         },
         {
-          "id": "cc6f47ba-7ded-426b-bafd-0a2e7f49c27b",
-          "question_id": "b18cf8ea-1a3f-4f7f-abd1-ea58cdc5845c"
-        },
-        {
           "id": "cdaed2bb-8183-47dd-bb8a-f08fee451e0a",
           "question_id": "ad5778cf-c5e7-4acf-8d15-58f5ba0745c5"
-        },
-        {
-          "id": "df22348e-e8b3-4aeb-913a-eb2769ee4a70",
-          "question_id": "c3d08b10-15db-416f-bb7c-5e72b6744c9a"
         },
         {
           "id": "dfef2648-215a-4776-90fc-55ba3d955fd6",
@@ -6487,17 +6030,6 @@
         },
         {
           "context": {
-            "question_id": "22d94769-fa42-4674-bf6f-1b8670d08740"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "167ec046-9d17-43e6-a90b-dc08ff32c846",
-          "managed_name": "Yes",
-          "question_id": "e0faeb6d-fa14-4fc3-ae55-bfd698d33637",
-          "statement": "q_22d94769fa424674bf6f1b8670d08740 is True",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "inclusive": true,
             "maximum_value": 10,
             "question_id": "0d1a77e6-cce3-484f-b68b-adc4e3ebc04d"
@@ -6629,23 +6161,6 @@
         },
         {
           "context": {
-            "items": [
-              {
-                "key": "yes---the-property-has-been-accepted",
-                "label": "Yes - the property has been accepted"
-              }
-            ],
-            "question_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "1d4e3a6f-055b-4472-9be6-d5521ca544f9",
-          "managed_name": "Any of",
-          "question_id": "5cdf009c-2831-4f78-bd01-cc68a8b5128c",
-          "statement": "q_116fad4cff2542b595bf2e003c4478f7 in {'yes---the-property-has-been-accepted'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "question_id": "65992575-7dbf-4f25-82d4-49ee76301d09"
           },
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
@@ -6691,23 +6206,6 @@
                 "label": "Other"
               }
             ],
-            "question_id": "908ae5f1-4488-4f8c-ba9e-5903764f959a"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "206a2b7e-415c-4e6d-97e6-70619107074f",
-          "managed_name": "Any of",
-          "question_id": "5ed5623e-4f3f-4637-b48c-79079b6b2749",
-          "statement": "q_908ae5f144884f8cba9e5903764f959a in {'other'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
-                "key": "other",
-                "label": "Other"
-              }
-            ],
             "question_id": "464484ab-318e-47b5-942e-9f2896426e60"
           },
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
@@ -6715,17 +6213,6 @@
           "managed_name": "Any of",
           "question_id": "8df69bd9-3c7a-4844-8bc5-507fbb50466b",
           "statement": "q_464484ab318e47b5942e9f2896426e60 in {'other'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "question_id": "22d94769-fa42-4674-bf6f-1b8670d08740"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "24e0cd91-4048-4d07-95d0-5b47e1157393",
-          "managed_name": "Yes",
-          "question_id": "850568e4-2567-4859-bb6d-1b8082a0f777",
-          "statement": "q_22d94769fa424674bf6f1b8670d08740 is True",
           "type_": "CONDITION"
         },
         {
@@ -7140,23 +6627,6 @@
           "context": {
             "items": [
               {
-                "key": "sponsorship-ended-early",
-                "label": "Sponsorship ended early"
-              }
-            ],
-            "question_id": "68430940-6e9f-48ab-a090-60894958a04d"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "3dbfbef3-f59b-4f7f-8c05-7042a1716151",
-          "managed_name": "Any of",
-          "question_id": "f63782e3-b9b5-4e21-afd1-b653bfe6ed38",
-          "statement": "q_684309406e9f48aba09060894958a04d in {'sponsorship-ended-early'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
                 "key": "yes---the-property-has-been-accepted",
                 "label": "Yes - the property has been accepted"
               }
@@ -7468,23 +6938,6 @@
                 "label": "Other"
               }
             ],
-            "question_id": "f63782e3-b9b5-4e21-afd1-b653bfe6ed38"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "53822838-3753-44fb-9fc6-1e369629a4cd",
-          "managed_name": "Any of",
-          "question_id": "474fb534-25c7-4c42-93c8-43b26fdea0e9",
-          "statement": "q_f63782e3b9b54e21afd1b653bfe6ed38 in {'other'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
-                "key": "other",
-                "label": "Other"
-              }
-            ],
             "question_id": "10484a3a-3b98-4350-8a46-b72895a43519"
           },
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
@@ -7593,17 +7046,6 @@
         },
         {
           "context": {
-            "question_id": "22d94769-fa42-4674-bf6f-1b8670d08740"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "5c0cdc69-b36d-4527-8f22-e16a49d87ce1",
-          "managed_name": "Yes",
-          "question_id": "02bf7f90-b56f-4977-8f9d-128f993ea6c7",
-          "statement": "q_22d94769fa424674bf6f1b8670d08740 is True",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "items": [
               {
                 "key": "yes---the-property-has-been-accepted",
@@ -7634,17 +7076,6 @@
           "managed_name": "Any of",
           "question_id": "d7c943a6-bbde-4561-81f9-7221b1de1887",
           "statement": "q_02cb0ee6a52a4a639877ccdfa240f05c in {'yes---the-property-has-been-accepted'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "question_id": "22d94769-fa42-4674-bf6f-1b8670d08740"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "5ddbb845-7468-4ea1-9314-83affaf67a86",
-          "managed_name": "Yes",
-          "question_id": "c44d2933-b656-4968-9c23-7c365a0b7e48",
-          "statement": "q_22d94769fa424674bf6f1b8670d08740 is True",
           "type_": "CONDITION"
         },
         {
@@ -7692,23 +7123,6 @@
         },
         {
           "context": {
-            "items": [
-              {
-                "key": "no---the-property-was-rejected",
-                "label": "No - the property was rejected"
-              }
-            ],
-            "question_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "63403169-567e-47d0-8b4d-8f3bb936306e",
-          "managed_name": "Any of",
-          "question_id": "9ffa1b0f-2b65-4c8a-aa93-2baca979b121",
-          "statement": "q_116fad4cff2542b595bf2e003c4478f7 in {'no---the-property-was-rejected'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "question_id": "4d1cf41b-3f1e-4782-bb06-3942e0f3374e"
           },
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
@@ -7716,19 +7130,6 @@
           "managed_name": "Yes",
           "question_id": "6f46a1c8-8e88-40c7-9988-f31e42840b51",
           "statement": "q_4d1cf41b3f1e4782bb063942e0f3374e is True",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "inclusive": true,
-            "minimum_value": 9,
-            "question_id": "14f1872c-c092-4680-a3fa-60b09d9cced9"
-          },
-          "created_by_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
-          "id": "66adff0d-415c-411c-a3c2-c6d8e3d58bb3",
-          "managed_name": "Greater than",
-          "question_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "statement": "q_14f1872cc0924680a3fa60b09d9cced9 >= 9",
           "type_": "CONDITION"
         },
         {
@@ -8078,34 +7479,6 @@
         },
         {
           "context": {
-            "question_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "92e5021a-bb1d-40ae-ba1f-529d82f811e6",
-          "managed_name": "Yes",
-          "question_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "statement": "q_0faf4b7bbed24c29b4f990fe3a9d2768 is True",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
-                "key": "other",
-                "label": "Other"
-              }
-            ],
-            "question_id": "9ffa1b0f-2b65-4c8a-aa93-2baca979b121"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "93629a6a-1012-44d2-98e4-87a00a27ee48",
-          "managed_name": "Any of",
-          "question_id": "78747e00-73ea-4b47-9d5a-87210bb190c4",
-          "statement": "q_9ffa1b0f2b654c8aaa932baca979b121 in {'other'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "items": [
               {
                 "key": "yes",
@@ -8151,27 +7524,6 @@
         },
         {
           "context": {
-            "items": [
-              {
-                "key": "sponsorship-concluded-at-the-end-of-3-years",
-                "label": "Sponsorship concluded at the end of 3 years"
-              },
-              {
-                "key": "sponsorship-ended-early",
-                "label": "Sponsorship ended early"
-              }
-            ],
-            "question_id": "68430940-6e9f-48ab-a090-60894958a04d"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "98939fdf-55b8-4bce-8731-473fc397d1cb",
-          "managed_name": "Any of",
-          "question_id": "908ae5f1-4488-4f8c-ba9e-5903764f959a",
-          "statement": "q_684309406e9f48aba09060894958a04d in {'sponsorship-concluded-at-the-end-of-3-years', 'sponsorship-ended-early'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "maximum_inclusive": true,
             "maximum_value": 10,
             "minimum_inclusive": true,
@@ -8189,23 +7541,6 @@
           "context": {
             "items": [
               {
-                "key": "yes",
-                "label": "Yes"
-              }
-            ],
-            "question_id": "c3d08b10-15db-416f-bb7c-5e72b6744c9a"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "9bdd2cd6-b1b7-4c4a-8c74-9e99ea222e82",
-          "managed_name": "Any of",
-          "question_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
-          "statement": "q_c3d08b1015db416fbb7c5e72b6744c9a in {'yes'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
                 "key": "other",
                 "label": "Other"
               }
@@ -8217,17 +7552,6 @@
           "managed_name": "Any of",
           "question_id": "e5449989-5e6b-428e-97f5-589a7d52b44c",
           "statement": "q_a8dc7b13c97f44c691268e8cb30d0cbd in {'other'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "question_id": "22d94769-fa42-4674-bf6f-1b8670d08740"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "a11a2403-1d9f-4d29-877c-afb5ecea4403",
-          "managed_name": "No",
-          "question_id": "5e9a6254-1f62-4226-b641-017e8b4515b0",
-          "statement": "q_22d94769fa424674bf6f1b8670d08740 is False",
           "type_": "CONDITION"
         },
         {
@@ -8497,57 +7821,6 @@
                 "label": "Yes - the property has been accepted"
               }
             ],
-            "question_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "bc192c50-4373-40c1-9550-5feba357d5d2",
-          "managed_name": "Any of",
-          "question_id": "3adeab1e-b168-4c1c-8530-878c673619b3",
-          "statement": "q_116fad4cff2542b595bf2e003c4478f7 in {'yes---the-property-has-been-accepted'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
-                "key": "no",
-                "label": "No"
-              }
-            ],
-            "question_id": "c3d08b10-15db-416f-bb7c-5e72b6744c9a"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "bc32f36d-1436-4c8a-afa8-06963611582d",
-          "managed_name": "Any of",
-          "question_id": "809898a4-98de-4247-972a-35e270d05cef",
-          "statement": "q_c3d08b1015db416fbb7c5e72b6744c9a in {'no'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
-                "key": "yes---the-property-has-been-accepted",
-                "label": "Yes - the property has been accepted"
-              }
-            ],
-            "question_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "bd1c3d03-4310-4b7f-ad11-af237fbacd78",
-          "managed_name": "Any of",
-          "question_id": "22d94769-fa42-4674-bf6f-1b8670d08740",
-          "statement": "q_116fad4cff2542b595bf2e003c4478f7 in {'yes---the-property-has-been-accepted'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
-                "key": "yes---the-property-has-been-accepted",
-                "label": "Yes - the property has been accepted"
-              }
-            ],
             "question_id": "d1ab24a4-d46e-4638-8699-8be3c79e4946"
           },
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
@@ -8650,17 +7923,6 @@
         },
         {
           "context": {
-            "question_id": "22d94769-fa42-4674-bf6f-1b8670d08740"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "c2bebecc-264f-4ab3-8eba-01f0d96c8ed0",
-          "managed_name": "Yes",
-          "question_id": "222b5511-fb28-4a06-a5ef-6ea63fd37255",
-          "statement": "q_22d94769fa424674bf6f1b8670d08740 is True",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "items": [
               {
                 "key": "other",
@@ -8703,19 +7965,6 @@
           "question_id": "2878dfe1-fc25-4b81-a019-cb115f5be10c",
           "statement": "q_acd8807a86544a829228a6e4b48c06be is False",
           "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "inclusive": true,
-            "maximum_value": 10,
-            "question_id": "5cdf009c-2831-4f78-bd01-cc68a8b5128c"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "c99dc916-1601-4d8d-816f-82e3a5cf286c",
-          "managed_name": "Less than",
-          "question_id": "5cdf009c-2831-4f78-bd01-cc68a8b5128c",
-          "statement": "q_5cdf009c28314f78bd01cc68a8b5128c <= 10",
-          "type_": "VALIDATION"
         },
         {
           "context": {
@@ -8908,23 +8157,6 @@
           "managed_name": "Yes",
           "question_id": "8719a617-9c0a-4f54-a860-e1fa681c9683",
           "statement": "q_acd8807a86544a829228a6e4b48c06be is True",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
-                "key": "other",
-                "label": "Other"
-              }
-            ],
-            "question_id": "809898a4-98de-4247-972a-35e270d05cef"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "dd6fece3-43ec-4cc6-9d2b-80ee8809ed1e",
-          "managed_name": "Any of",
-          "question_id": "b31ad25a-f42c-4768-ae2b-577042ac2473",
-          "statement": "q_809898a498de4247972a35e270d05cef in {'other'}",
           "type_": "CONDITION"
         },
         {
@@ -9250,23 +8482,6 @@
           "context": {
             "items": [
               {
-                "key": "yes---the-property-has-been-accepted",
-                "label": "Yes - the property has been accepted"
-              }
-            ],
-            "question_id": "116fad4c-ff25-42b5-95bf-2e003c4478f7"
-          },
-          "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
-          "id": "f5c285bf-fe4a-4deb-b85f-58ae4380a2df",
-          "managed_name": "Any of",
-          "question_id": "68430940-6e9f-48ab-a090-60894958a04d",
-          "statement": "q_116fad4cff2542b595bf2e003c4478f7 in {'yes---the-property-has-been-accepted'}",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "items": [
-              {
                 "key": "other",
                 "label": "Other"
               }
@@ -9364,21 +8579,6 @@
           "presentation_options": {},
           "slug": "Tell us the local authority that is supporting property 2",
           "text": "Tell us the local authority that is supporting property 2",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Yes or no",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "02bf7f90-b56f-4977-8f9d-128f993ea6c7",
-          "name": "Were all members of the household registered with a GP within 9 months of the move-in date for property 9?",
-          "order": 15,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "Were all members of the household registered with a GP within 9 months of the move-in date for property 9?",
-          "text": "Were all members of the household registered with a GP within 9 months of the move-in date for property 9?",
           "type": "QUESTION"
         },
         {
@@ -9602,23 +8802,6 @@
           "presentation_options": {},
           "slug": "property-offer-id-5",
           "text": "Property offer ID 5",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Select one from a list (radios)",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "116fad4c-ff25-42b5-95bf-2e003c4478f7",
-          "name": "Has property 9 been accepted by an Afghan household?",
-          "order": 6,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": false
-          },
-          "slug": "Has property 9 been accepted by an Afghan household?",
-          "text": "Has property 9 been accepted by an Afghan household?",
           "type": "QUESTION"
         },
         {
@@ -9898,21 +9081,6 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
-          "data_type": "Yes or no",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "222b5511-fb28-4a06-a5ef-6ea63fd37255",
-          "name": "Did all sponsored adults have a tailored employability support plan within 9 months of move in date for property 9?",
-          "order": 17,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "Did all sponsored adults have a tailored employability support plan within 9 months of move in date for property 9?",
-          "text": "Did all sponsored adults have a tailored employability support plan within 9 months of move in date for property 9?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -9959,21 +9127,6 @@
           },
           "slug": "What is the reason for the sponsorship on property 7 ending early?",
           "text": "What is the reason for the sponsorship on property 7 ending early?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Yes or no",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "22d94769-fa42-4674-bf6f-1b8670d08740",
-          "name": "Has the household moved into property 9?",
-          "order": 9,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "Has the household moved into property 9?",
-          "text": "Has the household moved into property 9?",
           "type": "QUESTION"
         },
         {
@@ -10225,20 +9378,6 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "name": "Match offer details for property 9",
-          "order": 12,
-          "presentation_options": {
-            "show_questions_on_the_same_page": false
-          },
-          "slug": "Match offer details for property 9",
-          "text": "Match offer details for property 9",
-          "type": "GROUP"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
           "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -10298,21 +9437,6 @@
           "presentation_options": {},
           "slug": "Tell us the local authority that is supporting property 6",
           "text": "Tell us the local authority that is supporting property 6",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Single line of text",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "3adeab1e-b168-4c1c-8530-878c673619b3",
-          "name": "What is the Home Office household reference number for propery 9?",
-          "order": 13,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "What is the Home Office household reference number for propery 9?",
-          "text": "What is the Home Office household reference number for propery 9?",
           "type": "QUESTION"
         },
         {
@@ -10506,23 +9630,6 @@
           },
           "slug": "What is the status of the sponsorship with the family for property 8?",
           "text": "What is the status of the sponsorship with the family for property 8?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Multiple lines of text",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "474fb534-25c7-4c42-93c8-43b26fdea0e9",
-          "name": "What is the reason for the sponsorship on property 9 ending early?",
-          "order": 20,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "rows": 5
-          },
-          "slug": "What is the reason for the sponsorship on property 9 ending early?",
-          "text": "What is the reason for the sponsorship on property 9 ending early?",
           "type": "QUESTION"
         },
         {
@@ -10925,23 +10032,6 @@
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
-          "id": "5cdf009c-2831-4f78-bd01-cc68a8b5128c",
-          "name": "How many people are in the household for property 9?",
-          "order": 12,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "width": "govuk-input--width-3"
-          },
-          "slug": "How many people are in the household for property 9?",
-          "text": "How many people are in the household for property 9?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Whole number",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
           "id": "5dbedfd0-fff4-4741-ac9c-172ffadbcc68",
           "name": "How many people are in the household for property 8?",
           "order": 12,
@@ -10951,38 +10041,6 @@
           },
           "slug": "How many people are in the household for property 8?",
           "text": "How many people are in the household for property 8?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "A date",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "5e9a6254-1f62-4226-b641-017e8b4515b0",
-          "name": "What is the projected move-in date for property 9?",
-          "order": 11,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "What is the projected move-in date for property 9?",
-          "text": "What is the projected move-in date for property 9?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Multiple lines of text",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "5ed5623e-4f3f-4637-b48c-79079b6b2749",
-          "name": "What is the other status of the Afghan household for property 9?",
-          "order": 22,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "rows": 5
-          },
-          "slug": "What is the other status of the Afghan household for property 9?",
-          "text": "What is the other status of the Afghan household for property 9?",
           "type": "QUESTION"
         },
         {
@@ -11091,23 +10149,6 @@
           "slug": "Match offer details for property 3",
           "text": "Match offer details for property 3",
           "type": "GROUP"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Select one from a list (radios)",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "68430940-6e9f-48ab-a090-60894958a04d",
-          "name": "What is the status of the sponsorship with the family for property 9?",
-          "order": 18,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": false
-          },
-          "slug": "What is the status of the sponsorship with the family for property 9?",
-          "text": "What is the status of the sponsorship with the family for property 9?",
-          "type": "QUESTION"
         },
         {
           "add_another": false,
@@ -11385,23 +10426,6 @@
           "data_type": "Multiple lines of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
-          "id": "78747e00-73ea-4b47-9d5a-87210bb190c4",
-          "name": "What is the reason for match offer for property 9 being rejected by the family?",
-          "order": 8,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "rows": 5
-          },
-          "slug": "What is the reason for match offer for property 9 being rejected by the family?",
-          "text": "What is the reason for match offer for property 9 being rejected by the family?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Multiple lines of text",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
           "id": "78b0c934-81b6-4744-8618-05fd9551d405",
           "name": "What is the other status of the Afghan household for property 4?",
           "order": 22,
@@ -11475,38 +10499,6 @@
           },
           "slug": "Why was the match offer for property 5 rejected by the family?",
           "text": "Why was the match offer for property 5 rejected by the family?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Select one from a list (radios)",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "809898a4-98de-4247-972a-35e270d05cef",
-          "name": "Why was the match offer for property 9 rejected?",
-          "order": 4,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": true
-          },
-          "slug": "Why was the match offer for property 9 rejected?",
-          "text": "Why was the match offer for property 9 rejected?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Yes or no",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "850568e4-2567-4859-bb6d-1b8082a0f777",
-          "name": "Did all school-aged children start receiving full time education within 9 weeks of the move-in date for property 9?",
-          "order": 14,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "Did all school-aged children start receiving full time education within 9 weeks of the move-in date for property 9?",
-          "text": "Did all school-aged children start receiving full time education within 9 weeks of the move-in date for property 9?",
           "type": "QUESTION"
         },
         {
@@ -11731,23 +10723,6 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
-          "data_type": "Select one from a list (radios)",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "908ae5f1-4488-4f8c-ba9e-5903764f959a",
-          "name": "What is the status of the Afghan household after the sponsorship ended for property 9?",
-          "order": 21,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": true
-          },
-          "slug": "What is the status of the Afghan household after the sponsorship ended for property 9?",
-          "text": "What is the status of the Afghan household after the sponsorship ended for property 9?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -11948,23 +10923,6 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
-          "data_type": "Select one from a list (radios)",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "9ffa1b0f-2b65-4c8a-aa93-2baca979b121",
-          "name": "Why was the match offer for property 9 rejected by the family?",
-          "order": 7,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": true
-          },
-          "slug": "Why was the match offer for property 9 rejected by the family?",
-          "text": "Why was the match offer for property 9 rejected by the family?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
           "data_type": "Single line of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -12107,23 +11065,6 @@
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
-          "id": "b18cf8ea-1a3f-4f7f-abd1-ea58cdc5845c",
-          "name": "How many bedrooms does the property 9 have?",
-          "order": 2,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": false
-          },
-          "slug": "How many bedrooms does the property 9 have?",
-          "text": "How many bedrooms does the property 9 have?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Select one from a list (radios)",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
           "id": "b1e39c24-e432-4553-9f7a-3f2f1acf3c06",
           "name": "What is the status of the Afghan household after the sponsorship ended for property 7?",
           "order": 21,
@@ -12182,23 +11123,6 @@
           "presentation_options": {},
           "slug": "What date did the household move in to property 5?",
           "text": "What date did the household move in to property 5?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Multiple lines of text",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "b31ad25a-f42c-4768-ae2b-577042ac2473",
-          "name": "What is the reason for match offer for property 9 being rejected?",
-          "order": 5,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "rows": 5
-          },
-          "slug": "What is the reason for match offer for property 9 being rejected?",
-          "text": "What is the reason for match offer for property 9 being rejected?",
           "type": "QUESTION"
         },
         {
@@ -12271,7 +11195,7 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "guidance_body": "## If you have multiple sponsor groups\r\n\r\nThis form collects information about one sponsor group. If you have multiple sponsor groups to report on, complete the form as many times as necessary.\r\n\r\nTo submit information about another sponsor group, go back your 'Collection requests', click into the form title, and add a new return.\r\n\r\n## Saving progress and making changes\r\n\r\nYour work will not save automatically. To make sure you do not lose anything, select \"Save draft\" regularly, and always before you go back or close your internet browser window.\r\n\r\nIf you need to edit or revisit any sections, select 'Back to contents'. You can edit your responses as many times as you like before you submit.\r\n\r\n## Submitting your form\r\n\r\nOnce you have completed all sections, you can then submit the form. You will not be able to edit your responses once you have submitted the form.\r\n\r\n## Get help\r\n\r\nIf you have questions about using Delta or need further support, [complete the service desk form](https://mhclgdigital.atlassian.net/servicedesk/customer/portal/6/group/12).\r\n\r\n## How we\u2019ll use your information\r\n\r\nRead how we\u2019ll use the information from this form in our [link to privacy notice].",
+          "guidance_body": "## If you have multiple sponsor groups\r\n\r\nThis form collects information about one sponsor group. If you have multiple sponsor groups to report on, complete the form as many times as necessary.\r\n\r\nTo submit information about another sponsor group, go back your 'Collection requests', click into the form title, and add a new return.\r\n\r\n## Saving progress and making changes\r\n\r\nYour work will not save automatically. To make sure you do not lose anything, select \"Save draft\" regularly, and always before you go back or close your internet browser window.\r\n\r\nIf you need to edit or revisit any sections, select 'Back to contents'. You can edit your responses as many times as you like before you submit.\r\n\r\n## Submitting your form\r\n\r\nOnce you have completed all sections, you can then submit the form. You will not be able to edit your responses once you have submitted the form.\r\n\r\n## Get help\r\n\r\nIf you have questions about using Delta or need further support, [complete the service desk form](https://mhclgdigital.atlassian.net/servicedesk/customer/portal/6/group/12).\r\n\r\n## How we’ll use your information\r\n\r\nRead how we’ll use the information from this form in our [link to privacy notice].",
           "guidance_heading": "How to complete the Communities for Afghans monitoring form",
           "id": "b903c9b0-04b3-408f-8c3c-975605347927",
           "name": "How to complete the Communities for Afghans monitoring form",
@@ -12282,21 +11206,6 @@
           "slug": "how-to-complete-the-communities-for-afghans-monitoring-form",
           "text": "How to complete the Communities for Afghans monitoring form",
           "type": "GROUP"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Yes or no",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "b9d9b8aa-c5f9-4eee-b2cb-1bf06a6b5ae3",
-          "name": "Is property 9 a house in multiple occupation (HMO)?",
-          "order": 1,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "Is property 9 a house in multiple occupation (HMO)?",
-          "text": "Is property 9 a house in multiple occupation (HMO)?",
-          "type": "QUESTION"
         },
         {
           "add_another": false,
@@ -12488,38 +11397,6 @@
           "presentation_options": {},
           "slug": "Did all members of the household have an English for Speakers of Other Languages (ESOL) plan in place within 6 months of move in date for property 6?",
           "text": "Did all members of the household have an English for Speakers of Other Languages (ESOL) plan in place within 6 months of move in date for property 6?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Select one from a list (radios)",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "c3d08b10-15db-416f-bb7c-5e72b6744c9a",
-          "name": "Has the sponsor group accepted a match with an Afghan household for property 9?",
-          "order": 3,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": false
-          },
-          "slug": "Has the sponsor group accepted a match with an Afghan household for property 9?",
-          "text": "Has the sponsor group accepted a match with an Afghan household for property 9?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "A date",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "c44d2933-b656-4968-9c23-7c365a0b7e48",
-          "name": "What date did the household move in to property 9?",
-          "order": 10,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "What date did the household move in to property 9?",
-          "text": "What date did the household move in to property 9?",
           "type": "QUESTION"
         },
         {
@@ -12938,21 +11815,6 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
-          "data_type": "Yes or no",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "e0faeb6d-fa14-4fc3-ae55-bfd698d33637",
-          "name": "Did all members of the household have an English for Speakers of Other Languages (ESOL) plan in place within 9 months of move in date for property 9?",
-          "order": 16,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "Did all members of the household have an English for Speakers of Other Languages (ESOL) plan in place within 9 months of move in date for property 9?",
-          "text": "Did all members of the household have an English for Speakers of Other Languages (ESOL) plan in place within 9 months of move in date for property 9?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -13083,21 +11945,6 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
-          "data_type": "Single line of text",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "ed636540-6887-43b4-aff4-3efab3764587",
-          "name": "Tell us the local authority that is supporting property 9",
-          "order": 0,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {},
-          "slug": "Tell us the local authority that is supporting property 9",
-          "text": "Tell us the local authority that is supporting property 9",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -13221,23 +12068,6 @@
           },
           "slug": "What is the reason for match offer for property 6 being rejected?",
           "text": "What is the reason for match offer for property 6 being rejected?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Select one from a list (radios)",
-          "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
-          "hint": "",
-          "id": "f63782e3-b9b5-4e21-afd1-b653bfe6ed38",
-          "name": "Why did the sponsorship for property 9 end early?",
-          "order": 19,
-          "parent_id": "39408f9e-c154-4eb0-ad43-0e2af2ca139d",
-          "presentation_options": {
-            "last_data_source_item_is_distinct_from_others": true
-          },
-          "slug": "Why did the sponsorship for property 9 end early?",
-          "text": "Why did the sponsorship for property 9 end early?",
           "type": "QUESTION"
         },
         {
