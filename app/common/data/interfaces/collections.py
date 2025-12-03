@@ -287,11 +287,10 @@ def update_submission_data(
     return submission
 
 
-# todo: nested components
 def get_all_submissions_with_mode_for_collection_with_full_schema(
     collection_id: UUID,
     submission_mode: SubmissionModeEnum,
-    grant_recipient_id: UUID | TNotProvided = NOT_PROVIDED,
+    grant_recipient_ids: Sequence[UUID] | TNotProvided = NOT_PROVIDED,
 ) -> ScalarResult[Submission]:
     """
     Use this function to get all submission data for a collection - it
@@ -329,8 +328,8 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
             joinedload(Submission.created_by),
         )
     )
-    if grant_recipient_id is not NOT_PROVIDED:
-        stmt = stmt.where(Submission.grant_recipient_id == grant_recipient_id)  # TODO grant recipient
+    if grant_recipient_ids is not NOT_PROVIDED:
+        stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))
     return db.session.scalars(stmt).unique()
 
 

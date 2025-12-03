@@ -32,7 +32,7 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
                 for submission in get_all_submissions_with_mode_for_collection_with_full_schema(
                     collection_id=report.id,
                     submission_mode=SubmissionModeEnum.LIVE,
-                    grant_recipient_id=grant_recipient.id,
+                    grant_recipient_ids=[grant_recipient.id],
                 )
             ]
         )

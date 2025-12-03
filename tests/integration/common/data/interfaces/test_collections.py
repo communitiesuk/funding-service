@@ -37,6 +37,7 @@ from app.common.data.interfaces.collections import (
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
     get_submission,
+    get_submission_by_grant_recipient_collection,
     group_name_exists,
     is_component_dependency_order_valid,
     move_component_down,
@@ -610,6 +611,20 @@ def test_get_submission_for_grant_recipient(db_session, factories):
 
     with pytest.raises(NoResultFound):
         get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient2.id)
+
+
+def test_get_submission_for_grant_recipient_collection(db_session, factories):
+    grant_recipient = factories.grant_recipient.create()
+    grant_recipient2 = factories.grant_recipient.create(grant=grant_recipient.grant)
+    collection = factories.collection.create(grant=grant_recipient.grant)
+    factories.submission.create(collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE)
+    from_db = get_submission_by_grant_recipient_collection(grant_recipient=grant_recipient, collection_id=collection.id)
+    assert from_db is not None
+
+    from_db = get_submission_by_grant_recipient_collection(
+        grant_recipient=grant_recipient2, collection_id=collection.id
+    )
+    assert from_db is None
 
 
 def test_get_submission_with_full_schema(db_session, factories, track_sql_queries):
@@ -3712,7 +3727,24 @@ class TestGetSubmissions:
 
         submission_results = list(
             get_all_submissions_with_mode_for_collection_with_full_schema(
-                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, grant_recipient_id=gr_id
+                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, grant_recipient_ids=[gr_id]
+            )
+        )
+        assert len(submission_results) == 2
+
+    def test_get_all_submissions_with_mode_for_collection_mode_and_multiple_grant_recipient_ids(
+        self, db_session, factories
+    ):
+        collection = factories.collection.create(create_submissions__live=3, create_submissions__test=1)
+        live_submissions = collection.live_submissions
+        gr_id1 = live_submissions[0].grant_recipient.id
+        gr_id2 = live_submissions[1].grant_recipient.id
+
+        submission_results = list(
+            get_all_submissions_with_mode_for_collection_with_full_schema(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                grant_recipient_ids=[gr_id1, gr_id2],
             )
         )
         assert len(submission_results) == 2
@@ -3726,7 +3758,7 @@ class TestGetSubmissions:
 
         submission_results = list(
             get_all_submissions_with_mode_for_collection_with_full_schema(
-                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, grant_recipient_id=gr_id
+                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, grant_recipient_ids=[gr_id]
             )
         )
         assert len(submission_results) == 1

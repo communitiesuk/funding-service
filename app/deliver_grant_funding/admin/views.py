@@ -21,6 +21,7 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipient_data_providers_count,
     get_grant_recipients,
     get_grant_recipients_count,
+    get_grant_recipients_with_outstanding_submissions_for_collection,
 )
 from app.common.data.interfaces.grants import get_all_grants, get_grant, update_grant
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
@@ -614,6 +615,8 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
                 notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"]
             case ReportAdminEmailTypeEnum.DEADLINE_REMINDER:
+                if not collection.status == CollectionStatusEnum.OPEN:
+                    return abort(404)
                 notify_template_id = current_app.config[
                     "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
                 ]
@@ -647,20 +650,28 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             fieldnames=["email_address", "grant_name", "reporting_period", "report_deadline", "grant_report_url"],
         )
         csv_writer.writeheader()
+        email_recipients = set()
 
         match email_type:
             case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
                 grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
+                email_recipients = set(
+                    (data_provider, grant_recipient)
+                    for grant_recipient in grant_recipients
+                    for data_provider in grant_recipient.data_providers
+                )
             case ReportAdminEmailTypeEnum.DEADLINE_REMINDER:
-                grant_recipients = []
+                grant_recipients = get_grant_recipients_with_outstanding_submissions_for_collection(
+                    grant, collection_id=collection.id, with_data_providers=True, with_certifiers=True
+                )
+                email_recipients = set(
+                    (recipient_user, grant_recipient)
+                    for grant_recipient in grant_recipients
+                    for recipient_user in grant_recipient.data_providers + list(grant_recipient.certifiers)
+                )
             case _:
                 return abort(404)
-        grant_recipient_data_providers = [
-            (data_provider, grant_recipient)
-            for grant_recipient in grant_recipients
-            for data_provider in grant_recipient.data_providers
-        ]
-        for data_provider, grant_recipient in sorted(grant_recipient_data_providers, key=lambda u: u[0].email):
+        for email_recipient, grant_recipient in sorted(email_recipients, key=lambda u: u[0].email):
             reporting_period = format_date_range(
                 collection.reporting_period_start_date, collection.reporting_period_end_date
             )
@@ -675,7 +686,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
 
             csv_writer.writerow(
                 {
-                    "email_address": data_provider.email,
+                    "email_address": email_recipient.email,
                     "grant_name": grant.name,
                     "reporting_period": reporting_period,
                     "report_deadline": report_deadline,

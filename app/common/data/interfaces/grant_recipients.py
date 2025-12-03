@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import RoleEnum
+from app.common.data.types import RoleEnum, SubmissionModeEnum, SubmissionStatusEnum
 from app.extensions import db
 
 
@@ -23,6 +23,37 @@ def get_grant_recipients(
         stmt = stmt.options(joinedload(GrantRecipient._all_certifiers).joinedload(User.roles))
 
     return db.session.scalars(stmt).unique().all()
+
+
+def get_grant_recipients_with_outstanding_submissions_for_collection(
+    grant: "Grant", *, collection_id: uuid.UUID, with_data_providers: bool = False, with_certifiers: bool = False
+) -> list[GrantRecipient]:
+    """
+    Gets all the grant recipients who have not submitted their submission for the given collection.
+
+    They are considered not to have submitted if either:
+    - They have a submission that is not in the SUBMITTED state
+    - They do not have a submission for this collection
+
+    """
+    from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection_with_full_schema
+    from app.common.helpers.collections import SubmissionHelper
+
+    all_grant_recipients = get_grant_recipients(
+        grant, with_data_providers=with_data_providers, with_certifiers=with_certifiers
+    )
+    submissions = get_all_submissions_with_mode_for_collection_with_full_schema(
+        grant_recipient_ids=[gr.id for gr in all_grant_recipients],
+        collection_id=collection_id,
+        submission_mode=SubmissionModeEnum.LIVE,
+    )
+    grant_recipients_with_outstanding_submissions = []
+    for gr in all_grant_recipients:
+        submission = next((s for s in submissions if s.grant_recipient_id == gr.id), None)
+        if not submission or SubmissionHelper(submission).status != SubmissionStatusEnum.SUBMITTED:
+            grant_recipients_with_outstanding_submissions.append(gr)
+
+    return grant_recipients_with_outstanding_submissions
 
 
 def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> "GrantRecipient":
