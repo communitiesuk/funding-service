@@ -8,9 +8,11 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Union, cast
 from uuid import UUID
 
+from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import TypeAdapter
 
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.collections.types import (
     NOT_ANSWERED,
@@ -36,6 +38,7 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     ConditionsOperator,
     QuestionDataType,
+    RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -70,6 +73,28 @@ class FormQuestionsAnswered(NamedTuple):
 class AddAnotherAnswerSummary(NamedTuple):
     summary: str
     is_answered: bool
+
+
+class SubmissionAuthorisationError(Exception):
+    def __init__(self, message: str, user: User, submission_id: UUID, required_permission: RoleEnum):
+        super().__init__(message)
+        self.message = message
+        self.user = user
+        self.submission_id = submission_id
+        self.required_permission = required_permission
+
+        current_app.logger.warning(
+            (
+                "Submission authorisation failure: %(message)s | User: %(user_id)s | "
+                "Submission: %(submission_id)s | Required: %(permission)s"
+            ),
+            dict(
+                message=message,
+                user_id=user.id,
+                submission_id=submission_id,
+                permission=required_permission.value,
+            ),
+        )
 
 
 class SubmissionHelper:
@@ -191,7 +216,16 @@ class SubmissionHelper:
             return SubmissionStatusEnum.OVERDUE
         elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
-        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and not submission_state.is_submitted:
+        elif (
+            {TasklistSectionStatusEnum.COMPLETED} == form_statuses
+            and (
+                self.is_test
+                or not self.submission.collection.requires_certification
+                or submission_state.is_approved
+                or (self.submission.collection.requires_certification and not submission_state.is_awaiting_sign_off)
+            )
+            and not submission_state.is_submitted
+        ):
             return SubmissionStatusEnum.READY_TO_SUBMIT
         elif {TasklistSectionStatusEnum.NOT_STARTED} == form_statuses:
             return SubmissionStatusEnum.NOT_STARTED
@@ -204,11 +238,10 @@ class SubmissionHelper:
 
     @property
     def is_locked_state(self) -> bool:
-        return self.is_completed or self.is_awaiting_sign_off
+        return self.is_submitted or self.is_awaiting_sign_off
 
-    # todo: rename this to is_submitted, "Completed" was task section specific language
     @property
-    def is_completed(self) -> bool:
+    def is_submitted(self) -> bool:
         return self.status == SubmissionStatusEnum.SUBMITTED
 
     @property
@@ -432,17 +465,38 @@ class SubmissionHelper:
         self.cached_get_ordered_visible_questions.cache_clear()
 
     def submit(self, user: "User") -> None:
-        if self.is_completed:
+        if self.is_submitted:
             return
 
-        # todo: depending on your workflow (if certification is required or not) this could now check
-        #       self.events.submission_state.is_approved
-        if self.all_forms_are_completed:
-            interfaces.collections.add_submission_event(
-                self.submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED, user=user
-            )
-        else:
+        if not self.all_forms_are_completed:
             raise ValueError(f"Could not submit submission id={self.id} because not all forms are complete.")
+
+        # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do. In order
+        # to get by this now we check the underlying submission_state rather than the status, but we should refactor
+        # this when a decision is made on 'Overdue' behaviour and make the submission status the source of truth.
+        if self.collection.requires_certification and not self.events.submission_state.is_approved and self.is_live:
+            raise ValueError(f"Could not submit submission id={self.id} because it has not been approved.")
+
+        if self.is_live and self.status != SubmissionStatusEnum.READY_TO_SUBMIT:
+            raise ValueError(f"Could not submit submission id={self.id} because it is not ready to submit.")
+
+        if (
+            self.is_live
+            and self.collection.requires_certification
+            and not AuthorisationHelper.is_access_grant_certifier(
+                self.grant.id, self.submission.grant_recipient.organisation.id, user
+            )
+        ):
+            raise SubmissionAuthorisationError(
+                f"User does not have certifier permission to submit submission {self.id}",
+                user,
+                self.id,
+                RoleEnum.CERTIFIER,
+            )
+
+        interfaces.collections.add_submission_event(
+            self.submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED, user=user
+        )
 
     def mark_as_sent_for_certification(self, user: "User") -> None:
         if self.is_locked_state:
@@ -467,6 +521,17 @@ class SubmissionHelper:
                 f"Could not decline certification for submission id={self.id} because this report does not require "
                 f"certification."
             )
+
+        if self.is_live and not AuthorisationHelper.is_access_grant_certifier(
+            self.grant.id, self.submission.grant_recipient.organisation.id, user
+        ):
+            raise SubmissionAuthorisationError(
+                f"User does not have certifier permission to decline submission {self.id}",
+                user,
+                self.id,
+                RoleEnum.CERTIFIER,
+            )
+
         if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
             interfaces.collections.add_submission_event(
                 self.submission,
@@ -486,13 +551,27 @@ class SubmissionHelper:
                 f"Could not decline certification for submission id={self.id} because it is not awaiting sign off."
             )
 
-    def approve_certification(self, user: "User") -> None:
+    def certify(self, user: "User") -> None:
         if not self.collection.requires_certification:
             raise ValueError(
                 f"Could not approve certification for submission id={self.id} because this report does not require "
                 f"certification."
             )
-        if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
+
+        if self.is_live and not AuthorisationHelper.is_access_grant_certifier(
+            self.grant.id, self.submission.grant_recipient.organisation.id, user
+        ):
+            raise SubmissionAuthorisationError(
+                f"User does not have certifier permission to certify submission {self.id}",
+                user,
+                self.id,
+                RoleEnum.CERTIFIER,
+            )
+
+        # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do. In order
+        # to get by this now we check the underlying submission_state rather than the status, but we should refactor
+        # this when a decision is made on 'Overdue' behaviour and make the submission status the source of truth.
+        if self.events.submission_state.is_awaiting_sign_off:
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
             )

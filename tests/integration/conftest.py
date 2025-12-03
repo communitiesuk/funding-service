@@ -458,6 +458,8 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
     question = factories.question.create(
         form__collection__grant=grant_recipient.grant,
         form__collection__submission_period_end_date=date.today() + timedelta(days=30),
+        form__collection__reporting_period_start_date=date.today() - timedelta(days=60),
+        form__collection__reporting_period_end_date=date.today() - timedelta(days=30),
     )
     submission = factories.submission.create(
         grant_recipient=grant_recipient,
@@ -485,7 +487,10 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
 def submission_submitted(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
     question = factories.question.create(
         form__collection__grant=grant_recipient.grant,
+        form__collection__submission_period_start_date=date.today(),
         form__collection__submission_period_end_date=date.today() + timedelta(days=30),
+        form__collection__reporting_period_start_date=date.today(),
+        form__collection__reporting_period_end_date=date.today() + timedelta(days=30),
     )
     submission = factories.submission.create(
         grant_recipient=grant_recipient,

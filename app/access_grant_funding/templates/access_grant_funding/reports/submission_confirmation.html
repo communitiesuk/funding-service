@@ -1,0 +1,47 @@
+{% from "govuk_frontend_jinja/components/panel/macro.html" import govukPanel %}
+{% extends "access_grant_funding/base.html" %}
+
+{# todo: move the suffix to the base template and call super #}
+{% set page_title = submission.name ~ " - " ~ grant_recipient.grant.name %}
+
+{% set active_item_identifier = "reports" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% set reference_html %}
+        Report
+        <br />
+        <strong>{{ format_date_short(submission.collection.reporting_period_start_date) }} to {{ format_date_short(submission.collection.reporting_period_end_date) }} for {{ grant_recipient.grant.name }}</strong>
+        <br />
+        <br />Your reference number
+        <br />
+        <strong data-testid="submission-reference">{{ submission.reference }}</strong>
+      {% endset %}
+      {{
+        govukPanel({
+          "titleText": "Report signed off and submitted",
+          "html": reference_html
+        })
+      }}
+
+      <p class="govuk-body">We have sent you and {{ submission.sent_for_certification_by.name if submission.sent_for_certification_by else 'the submitter' }} an email.</p>
+      {# todo: include link to PDF download #}
+      <p class="govuk-body">You can <a class="govuk-link govuk-link--no-visited-state" href="#">download the report as a PDF</a>.</p>
+
+      <h2 class="govuk-heading-m">What happens next</h2>
+
+      <p class="govuk-body">
+        Your {{ format_date_short(submission.collection.reporting_period_start_date) }} to {{ format_date_short(submission.collection.reporting_period_end_date) }} report for {{ grant_recipient.grant.name }} has been submitted to the
+        {{ submission.collection.grant.organisation.name }}.
+      </p>
+
+      {# todo: include a proper link for the service feedback #}
+      <p class="govuk-body"><a class="govuk-link govuk-link--no-visited-state" href="#">Tell us what you think of this service</a> (takes 30 seconds).</p>
+
+      <p class="govuk-body">
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.list_reports', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id) }}">Back to reports</a>
+      </p>
+    </div>
+  </div>
+{% endblock content %}

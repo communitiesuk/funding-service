@@ -7,6 +7,7 @@ from responses import matchers
 from app import notification_service
 from app.common.data.types import SubmissionEventType
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.submission_events import SubmissionEventHelper
 from app.services.notify import Notification
 
 
@@ -193,7 +194,7 @@ class TestNotificationService:
             ],
             json={"id": "00000000-0000-0000-0000-000000000000"},
         )
-        resp = notification_service.send_access_submission_signed_off_confirmation(
+        resp = notification_service.send_access_submission_sent_for_certification_confirmation(
             submission=submission, email_address="test@communities.gov.uk"
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
@@ -300,3 +301,70 @@ class TestNotificationService:
         assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
         assert mock_notification_service_calls[0].kwargs["template_id"] == "791d1a61-c249-4752-9163-6cc81abf4ba9"
         assert mock_notification_service_calls[0].kwargs["email_address"] == "submitter@test.com"
+
+    @responses.activate
+    def test_send_access_submission_certified_and_submitted(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            grant__name="Test grant",
+        )
+        submission = factories.submission.build(
+            grant_recipient=grant_recipient,
+            collection__grant=grant_recipient.grant,
+            collection__name="Test collection",
+            collection__reporting_period_start_date=datetime.date(2025, 10, 13),
+            collection__reporting_period_end_date=datetime.date(2025, 10, 27),
+            collection__submission_period_end_date=datetime.date(2025, 12, 30),
+        )
+        submitted_by_user = factories.user.build(name="Submitter User", email="submitter@communities.gov.uk")
+        certifier_user = factories.user.build(name="Certifier User", email="certifier@communities.gov.uk")
+        factories.submission_event.build(
+            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+            submission=submission,
+            created_by=submitted_by_user,
+            data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION),
+            created_at_utc=datetime.datetime(2025, 11, 24, 0, 0, 0),
+        )
+        factories.submission_event.build(
+            event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+            submission=submission,
+            created_by=certifier_user,
+            data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER),
+            created_at_utc=datetime.datetime(2025, 11, 24, 11, 0, 0),
+        )
+        factories.submission_event.build(
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            submission=submission,
+            created_by=certifier_user,
+            data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SUBMITTED),
+            created_at_utc=datetime.datetime(2025, 11, 25, 10, 37, 0),
+        )
+        helper = SubmissionHelper(submission)
+
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": "test@communities.gov.uk",
+                        "template_id": "a8ffd584-0899-40df-ba56-cba95b2db0de",
+                        "personalisation": {
+                            "grant_name": "Test grant",
+                            "submitter_name": "Submitter User",
+                            "certifier_name": "Certifier User",
+                            "reporting_period": "Monday 13 October 2025 to Monday 27 October 2025",
+                            "date_submitted": "10:37am on Tuesday 25 November 2025",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/tasklist",
+                            "government_department": "the Test Organisation",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_access_submission_certified_and_submitted(
+            email_address="test@communities.gov.uk",
+            submission_helper=helper,
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
