@@ -19,11 +19,19 @@ from app.common.collections.types import (
     YesNoAnswer,
 )
 from app.common.data import interfaces
-from app.common.data.types import QuestionDataType, SubmissionModeEnum, SubmissionStatusEnum, TasklistSectionStatusEnum
+from app.common.data.types import (
+    QuestionDataType,
+    RoleEnum,
+    SubmissionEventType,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+    TasklistSectionStatusEnum,
+)
 from app.common.expressions import ExpressionContext
 from app.common.filters import format_datetime
 from app.common.helpers.collections import (
     CollectionHelper,
+    SubmissionAuthorisationError,
     SubmissionHelper,
     _deserialise_question_type,
 )
@@ -488,10 +496,10 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
-            helper.submit(submission.created_by)
+            helper.submit(certifier)
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
-            assert helper.events.submission_state.submitted_by == submission.created_by
+            assert helper.events.submission_state.submitted_by == certifier
             assert helper.events.submission_state.is_approved is True
             assert helper.events.submission_state.is_awaiting_sign_off is False
 
@@ -718,6 +726,111 @@ class TestSubmissionHelper:
             assert helper._get_answer_for_question(
                 question_id=question.id, add_another_index=1
             ) == TextSingleLineAnswer("test name 1")
+
+    class TestAuthenticationChecksInMethods:
+        def test_decline_certification_auth_check_errors_correctly(self, mocker, submission_awaiting_sign_off):
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            submitter_user = helper.sent_for_certification_by
+
+            with pytest.raises(SubmissionAuthorisationError) as error:
+                helper.decline_certification(submitter_user, "Decline reason")
+
+            assert error.value.user == submitter_user
+            assert error.value.submission_id == submission_awaiting_sign_off.id
+            assert error.value.required_permission == RoleEnum.CERTIFIER
+            assert "User does not have certifier permission to decline submission" in error.value.message
+
+        def test_certify_submission_auth_check_errors_correctly(self, submission_awaiting_sign_off):
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            submitter_user = helper.sent_for_certification_by
+
+            with pytest.raises(SubmissionAuthorisationError) as error:
+                helper.certify(submitter_user)
+
+            assert error.value.user == submitter_user
+            assert error.value.submission_id == submission_awaiting_sign_off.id
+            assert error.value.required_permission == RoleEnum.CERTIFIER
+            assert "User does not have certifier permission to certify submission" in error.value.message
+
+        def test_submit_submission_auth_check_errors_correctly(self, submission_awaiting_sign_off, factories):
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            submitter_user = helper.sent_for_certification_by
+            certifier_user = factories.user.create()
+            factories.user_role.create(
+                user=certifier_user,
+                organisation=submission_awaiting_sign_off.grant_recipient.organisation,
+                grant=helper.grant,
+                permissions=[RoleEnum.CERTIFIER],
+            )
+
+            factories.submission_event.create(
+                submission=submission_awaiting_sign_off,
+                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+                created_by=certifier_user,
+                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
+            )
+
+            with pytest.raises(SubmissionAuthorisationError) as error:
+                helper.submit(submitter_user)
+
+            assert error.value.user == submitter_user
+            assert error.value.submission_id == submission_awaiting_sign_off.id
+            assert error.value.required_permission == RoleEnum.CERTIFIER
+            assert "User does not have certifier permission to submit submission" in error.value.message
+
+        def test_submit_submission_auth_check_allows_test_submission(self, submission_awaiting_sign_off, factories):
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            submission_awaiting_sign_off.mode = SubmissionModeEnum.TEST
+
+            submitter_user = helper.sent_for_certification_by
+            certifier_user = factories.user.create()
+            factories.user_role.create(
+                user=certifier_user,
+                organisation=submission_awaiting_sign_off.grant_recipient.organisation,
+                grant=helper.grant,
+                permissions=[RoleEnum.CERTIFIER],
+            )
+
+            factories.submission_event.create(
+                submission=submission_awaiting_sign_off,
+                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+                created_by=certifier_user,
+                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
+            )
+            assert len(helper.submission.events) == 3
+
+            helper.submit(submitter_user)
+
+            assert len(helper.submission.events) == 4
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+        def test_submit_submission_auth_check_allows_live_submissions_where_certification_not_needed(
+            self, submission_awaiting_sign_off, factories
+        ):
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            submission_awaiting_sign_off.collection.requires_certification = False
+
+            submitter_user = helper.sent_for_certification_by
+            certifier_user = factories.user.create()
+            factories.user_role.create(
+                user=certifier_user,
+                organisation=submission_awaiting_sign_off.grant_recipient.organisation,
+                grant=helper.grant,
+                permissions=[RoleEnum.CERTIFIER],
+            )
+
+            factories.submission_event.create(
+                submission=submission_awaiting_sign_off,
+                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+                created_by=certifier_user,
+                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
+            )
+            assert len(helper.submission.events) == 3
+
+            helper.submit(submitter_user)
+
+            assert len(helper.submission.events) == 4
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
 
 
 class TestCollectionHelper:

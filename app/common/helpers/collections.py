@@ -8,9 +8,11 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Union, cast
 from uuid import UUID
 
+from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import TypeAdapter
 
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.collections.forms import DynamicQuestionForm
 from app.common.collections.types import (
     NOT_ANSWERED,
@@ -36,6 +38,7 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     ConditionsOperator,
     QuestionDataType,
+    RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -70,6 +73,28 @@ class FormQuestionsAnswered(NamedTuple):
 class AddAnotherAnswerSummary(NamedTuple):
     summary: str
     is_answered: bool
+
+
+class SubmissionAuthorisationError(Exception):
+    def __init__(self, message: str, user: User, submission_id: UUID, required_permission: RoleEnum):
+        super().__init__(message)
+        self.message = message
+        self.user = user
+        self.submission_id = submission_id
+        self.required_permission = required_permission
+
+        current_app.logger.warning(
+            (
+                "Submission authorisation failure: %(message)s | User: %(user_id)s | "
+                "Submission: %(submission_id)s | Required: %(permission)s"
+            ),
+            dict(
+                message=message,
+                user_id=user.id,
+                submission_id=submission_id,
+                permission=required_permission.value,
+            ),
+        )
 
 
 class SubmissionHelper:
@@ -455,7 +480,19 @@ class SubmissionHelper:
         if self.is_live and self.status != SubmissionStatusEnum.READY_TO_SUBMIT:
             raise ValueError(f"Could not submit submission id={self.id} because it is not ready to submit.")
 
-        # TODO: FSPT-1017 - add an auth check here to make sure only certifiers for this grant recipient can submit
+        if (
+            self.is_live
+            and self.collection.requires_certification
+            and not AuthorisationHelper.is_access_grant_certifier(
+                self.grant.id, self.submission.grant_recipient.organisation.id, user
+            )
+        ):
+            raise SubmissionAuthorisationError(
+                f"User does not have certifier permission to submit submission {self.id}",
+                user,
+                self.id,
+                RoleEnum.CERTIFIER,
+            )
 
         interfaces.collections.add_submission_event(
             self.submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED, user=user
@@ -484,6 +521,17 @@ class SubmissionHelper:
                 f"Could not decline certification for submission id={self.id} because this report does not require "
                 f"certification."
             )
+
+        if self.is_live and not AuthorisationHelper.is_access_grant_certifier(
+            self.grant.id, self.submission.grant_recipient.organisation.id, user
+        ):
+            raise SubmissionAuthorisationError(
+                f"User does not have certifier permission to decline submission {self.id}",
+                user,
+                self.id,
+                RoleEnum.CERTIFIER,
+            )
+
         if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
             interfaces.collections.add_submission_event(
                 self.submission,
@@ -509,11 +557,21 @@ class SubmissionHelper:
                 f"Could not approve certification for submission id={self.id} because this report does not require "
                 f"certification."
             )
+
+        if self.is_live and not AuthorisationHelper.is_access_grant_certifier(
+            self.grant.id, self.submission.grant_recipient.organisation.id, user
+        ):
+            raise SubmissionAuthorisationError(
+                f"User does not have certifier permission to certify submission {self.id}",
+                user,
+                self.id,
+                RoleEnum.CERTIFIER,
+            )
+
         # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do. In order
         # to get by this now we check the underlying submission_state rather than the status, but we should refactor
         # this when a decision is made on 'Overdue' behaviour and make the submission status the source of truth.
         if self.events.submission_state.is_awaiting_sign_off:
-            # TODO: FSPT-1017 - add an auth check here to make sure only certifiers for this grant recipient can submit
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
             )

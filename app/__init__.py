@@ -43,6 +43,7 @@ from app.common.filters import (
     format_thousands,
     to_ordinal,
 )
+from app.common.helpers.collections import SubmissionAuthorisationError
 from app.config import get_settings
 from app.extensions import (
     auto_commit_after_request,
@@ -82,6 +83,13 @@ def _register_global_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(403)
     def handle_403(error: Literal[403]) -> ResponseReturnValue:
+        service_desk_url, base_template = _determine_service_components_based_on_request_url(request.url)
+        return render_template(
+            "common/errors/403.html", service_desk_url=service_desk_url, base_template=base_template
+        ), 403
+
+    @app.errorhandler(SubmissionAuthorisationError)
+    def handle_submission_authorisation_error(error: SubmissionAuthorisationError) -> ResponseReturnValue:
         service_desk_url, base_template = _determine_service_components_based_on_request_url(request.url)
         return render_template(
             "common/errors/403.html", service_desk_url=service_desk_url, base_template=base_template

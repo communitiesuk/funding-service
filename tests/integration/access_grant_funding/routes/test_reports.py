@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 
 import pytest
@@ -7,7 +8,7 @@ from pytest import FixtureRequest
 
 from app import CollectionStatusEnum, GrantStatusEnum, TasklistSectionStatusEnum
 from app.access_grant_funding.forms import DeclineSignOffForm
-from app.common.data.types import SubmissionEventType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import RoleEnum, SubmissionEventType, SubmissionModeEnum, SubmissionStatusEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from tests.utils import get_h1_text, page_has_button, page_has_error, page_has_link
@@ -197,6 +198,41 @@ class TestViewLockedReport:
         assert helper.events.submission_state.is_approved
         assert helper.events.submission_state.is_submitted
         assert len(mock_notification_service_calls) == 2
+
+    def test_post_view_locked_report_403_with_incorrect_permissions(
+        self, authenticated_grant_recipient_data_provider_client, submission_awaiting_sign_off, caplog
+    ):
+        organisation = authenticated_grant_recipient_data_provider_client.organisation
+        grant = authenticated_grant_recipient_data_provider_client.grant
+
+        helper = SubmissionHelper(submission_awaiting_sign_off)
+        assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+        form = GenericSubmitForm()
+
+        with caplog.at_level(logging.WARNING):
+            response = authenticated_grant_recipient_data_provider_client.post(
+                url_for(
+                    "access_grant_funding.view_locked_report",
+                    organisation_id=organisation.id,
+                    grant_id=grant.id,
+                    submission_id=submission_awaiting_sign_off.id,
+                ),
+                data=form.data,
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 403
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "You do not have permission to access this page"
+
+        warning_logs = [record for record in caplog.records if record.levelname == "WARNING"]
+        assert len(warning_logs) == 1
+        assert "Submission authorisation failure" in warning_logs[0].message
+        assert "User does not have certifier permission to certify submission" in warning_logs[0].message
+        assert str(authenticated_grant_recipient_data_provider_client.user.id) in warning_logs[0].message
+        assert str(submission_awaiting_sign_off.id) in warning_logs[0].message
+        assert RoleEnum.CERTIFIER in warning_logs[0].message
 
 
 class TestListReports:
