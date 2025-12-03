@@ -5,6 +5,19 @@
 
 {% set page_title = "Review report: " + submission.name %}
 
+{% block head %}
+  {{ super() }}
+  <style>
+    @page {
+      margin-bottom: 1cm;
+      @bottom-left {
+        margin-left: 0.8cm;
+        content: "Page " counter(page) " of " counter(pages) " - {{ submission.collection.grant.name }} - MHCLG Access Grant Funding";
+      }
+    }
+  </style>
+{% endblock head %}
+
 {% block header %}
   <div class="app-wip-print-header">
     <h2 class="govuk-heading-m">MHCLG Access Grant Funding</h2>
