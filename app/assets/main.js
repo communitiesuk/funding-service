@@ -4,8 +4,10 @@ import { pasteListener } from "./js/paste-html-to-markdown";
 import ajaxMarkdownPreview from "./js/ajax-markdown-preview";
 import textareaNoNewlines from "./js/textarea-no-newlines/index.js";
 import contextAwareEditor from "./js/context-aware-editor/index.js";
+import { initSectionNavScroll } from "./js/submission-section-nav/index.js";
 
 initAll();
+initSectionNavScroll();
 
 for (let el of document.querySelectorAll("[data-accessible-autocomplete]")) {
     const fallbackOption = el.dataset.accessibleAutocompleteFallbackOption;

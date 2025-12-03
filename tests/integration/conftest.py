@@ -481,6 +481,42 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
     return cast(Submission, submission)
 
 
+@pytest.fixture(scope="function")
+def submission_submitted(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+    question = factories.question.create(
+        form__collection__grant=grant_recipient.grant,
+        form__collection__submission_period_end_date=date.today() + timedelta(days=30),
+    )
+    submission = factories.submission.create(
+        grant_recipient=grant_recipient,
+        collection=question.form.collection,
+        mode=SubmissionModeEnum.LIVE,
+        data={str(question.id): "Question answer"},
+    )
+    factories.submission_event.create(
+        submission=submission,
+        related_entity_id=question.form.id,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        created_by=user,
+    )
+    factories.submission_event.create(
+        submission=submission,
+        event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+        created_by=user,
+    )
+    factories.submission_event.create(
+        submission=submission,
+        event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+        created_by=user,
+    )
+    factories.submission_event.create(
+        submission=submission,
+        event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+        created_by=user,
+    )
+    return cast(Submission, submission)
+
+
 @pytest.fixture()
 def authenticated_grant_recipient_member_client(
     anonymous_client: FundingServiceTestClient,

@@ -49,7 +49,7 @@
 {% endmacro %}
 
 {% macro submissionStatusTag(status) %}
-  {% set show_without_tag = [ enum.submission_status.COMPLETED ] %}
+  {% set show_without_tag = [ enum.submission_status.SUBMITTED ] %}
   {%
     set classMap = {
         enum.submission_status.NOT_STARTED: "govuk-tag--grey",
@@ -73,7 +73,7 @@
         enum.submission_status.IN_PROGRESS: "Continue report",
         enum.submission_status.READY_TO_SUBMIT: "View report",
         enum.submission_status.AWAITING_SIGN_OFF: "View report",
-        enum.submission_status.COMPLETED: "View report",
+        enum.submission_status.SUBMITTED: "View report",
     }
   %}
   {{ textMap[status] }}

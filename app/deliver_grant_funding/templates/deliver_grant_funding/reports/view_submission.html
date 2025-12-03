@@ -1,7 +1,7 @@
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Submission - " ~ helper.submission.collection.name %}
@@ -15,116 +15,6 @@
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, report_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.created_by.email}) }}
 {% endblock beforeContent %}
 
-{# todo: this can probably be combined with the macro in the form runner, there are quite a few subtle differences #}
-{#       so should be well covered if done #}
-{% macro answers_summary_list(container, add_another_index=none, summary_title=none) %}
-  {# each container context will have its own summary list which we'll populate at the end of this macro #}
-  {% set add_another_contexts = [] %}
-  {% set rows = [] %}
-
-  {% set is_add_another_group = add_another_index is not none %}
-  {% set context = helper.cached_evaluation_context if not is_add_another_group else helper.cached_evaluation_context.with_add_another_context(container, helper, add_another_index=add_another_index) %}
-
-  {% for question in helper.cached_get_ordered_visible_questions(container, override_context=context if is_add_another_group else none) %}
-
-    {% if question.add_another_container and not is_add_another_group %}
-      {# for the add another context we'll just include one row with a link to the full answers below #}
-      {% if question.add_another_container not in (add_another_contexts | map(attribute="container")) %}
-        {% set count = helper.get_count_for_add_another(question.add_another_container) %}
-        {% set summaries = [] %}
-        {% set status = namespace(all_answered = true) %}
-        {% for i in range(count) %}
-          {% set (summary, is_answered) = helper.get_answer_summary_for_add_another(question.add_another_container, add_another_index=i) %}
-          {%
-            do summaries.append({
-              "summary_text_line": summary,
-              "is_answered": is_answered
-            })
-          %}
-          {% if not is_answered %}{% set status.all_answered = false %}{% endif %}
-        {% endfor %}
-        {%
-          do add_another_contexts.append({
-            "container": question.add_another_container,
-            "count": count,
-            "summaries": summaries,
-            "all_answered": status.all_answered
-          })
-        %}
-
-        {% set key_text = interpolate(question.add_another_container.name) %}
-
-
-        {% set value_html %}
-          <p class="govuk-body">There {% trans count=count %}is {{ count }} answer{% pluralize %}are {{ count }} answers{% endtrans %}</p>
-          {% if count %}
-            <p class="govuk-body">
-              <a href="#{{ question.add_another_container.id }}-answers" class="govuk-link govuk-link--no-visited-state">Answers for “{{ question.add_another_container.name }}”</a>
-            </p>
-          {% endif %}
-        {% endset %}
-        {%
-          do rows.append({
-              "key": {"text": key_text, "classes": "govuk-!-font-weight-regular" },
-              "value": {"html": value_html },
-          })
-        %}
-      {% endif %}
-    {% else %}
-      {% set answer = helper.cached_get_answer_for_question(question.id, add_another_index=add_another_index) %}
-      {% set value_html %}
-        {% if answer %}
-          {% include answer._render_answer_template %}
-        {% else %}
-          (Not answered)
-        {% endif %}
-      {% endset %}
-
-      {% if is_add_another_group %}
-        {% set context = helper.cached_interpolation_context.with_add_another_context(container, helper, add_another_index=add_another_index) %}
-        {% set key_text = interpolate(question.text, context=context) %}
-      {% else %}
-        {% set key_text = interpolate(question.text) %}
-      {% endif %}
-      {%
-        do rows.append({
-          "key": {
-            "text": key_text,
-            "classes": "govuk-!-font-weight-regular",
-          },
-          "value": {
-            "text": value_html
-          }
-        })
-      %}
-    {% endif %}
-  {% endfor %}
-
-  {{
-    govukSummaryList({
-      "rows": rows,
-      "attributes":{"data-testid":container.title if container.title else container.form.title},
-      "card": {
-        "title": {
-          "text": summary_title if summary_title else "Answer " ~ ((add_another_index + 1) if is_add_another_group else "")
-        }
-      } if is_add_another_group else none
-    })
-  }}
-
-  {% for add_another_context in add_another_contexts %}
-    {% if add_another_context.count %}
-      <div class="govuk-!-margin-bottom-9">
-        <h3 class="govuk-heading-s" id="{{ add_another_context.container.id }}-answers">{{ add_another_context.container.name }}</h3>
-
-        {% for i in range(add_another_context.count) %}
-          {{ answers_summary_list(add_another_context.container, add_another_index=i, summary_title=add_another_context.summaries[i].summary_text_line) }}
-        {% endfor %}
-      </div>
-    {% endif %}
-  {% endfor %}
-{% endmacro %}
-
 {% block content %}
   <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
   <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
@@ -134,7 +24,7 @@
 
   {% for form in helper.get_ordered_visible_forms() %}
     <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>
-    {{ answers_summary_list(form) }}
+    {{ answers_summary_list(helper, form) }}
   {% endfor %}
 
   <p class="govuk-body">

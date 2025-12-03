@@ -70,6 +70,7 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
         grant_recipient=grant_recipient,
         submission=submission,
         form=form,
+        interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
     )
 
 
