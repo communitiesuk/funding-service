@@ -21,6 +21,7 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipient_data_providers_count,
     get_grant_recipients,
     get_grant_recipients_count,
+    get_grant_recipients_with_outstanding_submissions_for_collection,
 )
 from app.common.data.interfaces.grants import get_all_grants, get_grant, update_grant
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
@@ -651,16 +652,23 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         match email_type:
             case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
                 grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
+                email_recipients = [
+                    (data_provider, grant_recipient)
+                    for grant_recipient in grant_recipients
+                    for data_provider in grant_recipient.data_providers
+                ]
             case ReportAdminEmailTypeEnum.DEADLINE_REMINDER:
-                grant_recipients = []
+                grant_recipients = get_grant_recipients_with_outstanding_submissions_for_collection(
+                    grant, collection_id=collection.id, with_data_providers=True, with_certifiers=True
+                )
+                email_recipients = [
+                    (data_provider, grant_recipient)
+                    for grant_recipient in grant_recipients
+                    for data_provider in grant_recipient.data_providers + list(grant_recipient.certifiers)
+                ]
             case _:
                 return abort(404)
-        grant_recipient_data_providers = [
-            (data_provider, grant_recipient)
-            for grant_recipient in grant_recipients
-            for data_provider in grant_recipient.data_providers
-        ]
-        for data_provider, grant_recipient in sorted(grant_recipient_data_providers, key=lambda u: u[0].email):
+        for data_provider, grant_recipient in sorted(email_recipients, key=lambda u: u[0].email):
             reporting_period = format_date_range(
                 collection.reporting_period_start_date, collection.reporting_period_end_date
             )
