@@ -411,3 +411,22 @@ $inset-nested-rows: 30px;
         padding-bottom: 0;
     }
 }
+
+.app-wip-print-header {
+    padding-left: govuk-spacing(6);
+    padding-top: govuk-spacing(4);
+    padding-bottom: govuk-spacing(1);
+    background-color: $govuk-brand-colour;
+
+    h2 {
+        // font-weight: normal;
+        color: white !important;
+    }
+}
+
+.app-dont-page-break {
+    padding-top: govuk-spacing(1);
+    @media print {
+        break-inside: avoid;
+    }
+}

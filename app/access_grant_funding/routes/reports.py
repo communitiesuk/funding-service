@@ -1,7 +1,9 @@
+import io
 from uuid import UUID
 
-from flask import flash, redirect, render_template, url_for
+from flask import flash, redirect, render_template, send_file, url_for
 from flask.typing import ResponseReturnValue
+from playwright.sync_api import sync_playwright
 
 from app.access_grant_funding.forms import DeclineSignOffForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
@@ -99,6 +101,42 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
         submission=submission,
         form=form,
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/export-pdf",
+    methods=["GET"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+    submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+
+    html_content = render_template(
+        "access_grant_funding/view_locked_report_print_baseline.html",
+        grant_recipient=grant_recipient,
+        submission=submission,
+        interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
+    )
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.set_content(html_content, wait_until="domcontentloaded")
+        pdf_bytes = page.pdf(
+            format="A4",
+            print_background=True,
+        )
+        browser.close()
+
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"{submission.collection.name}_report.pdf",
+        max_age=0,
     )
 
 
