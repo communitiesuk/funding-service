@@ -1,0 +1,76 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from 'govuk_frontend_jinja/components/inset-text/macro.html' import govukInsetText %}
+{% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
+{% from 'deliver_grant_funding/partials/existing-certifiers.html' import existingCertifiersTable %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+      <h1 class="govuk-heading-l">Override certifiers for this grant</h1>
+
+      <p class="govuk-body">Grant-specific certifier overrides allow you to set different certifiers for {{ grant.name }} that replace the organisation-level certifiers.</p>
+
+      {{
+        govukInsetText({
+          "html": "When any grant-specific certifiers exist for an organisation, only those certifiers (not the organisation-level ones) will be used for this grant."
+        })
+      }}
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% set existingCertifiersHtml %}
+        <div class="govuk-grid-row">
+          <div class="govuk-grid-column-one-half">
+            <p class="govuk-body">
+              If any of these certifiers are incorrect, you can
+              <a href="{{ url_for('reporting_lifecycle.revoke_grant_override_certifiers', grant_id=grant.id, collection_id=collection.id) }}" class="govuk-link">revoke certifiers</a>.
+            </p>
+          </div>
+        </div>
+
+        {{ existingCertifiersTable(certifiers_by_org, overrides=True) }}
+      {% endset %}
+
+      {{
+        govukDetails({
+          "summaryText": "Existing grant-specific certifiers by organisation",
+          "html": existingCertifiersHtml,
+        })
+      }}
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m">Add grant-specific certifier</h2>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{ form.organisation_id }}
+
+        {{ form.full_name }}
+
+        {{ form.email }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

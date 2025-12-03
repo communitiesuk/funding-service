@@ -8,7 +8,7 @@ from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovDateInput, G
 from markupsafe import Markup, escape
 from wtforms import DateField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
-from wtforms.fields.simple import BooleanField, EmailField, TextAreaField
+from wtforms.fields.simple import BooleanField, EmailField, StringField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
@@ -390,3 +390,52 @@ class PlatformAdminScheduleReportForm(FlaskForm):
 
 class PlatformAdminMakeReportLiveForm(FlaskForm):
     submit = SubmitField("Open report for submissions", widget=GovSubmitInput())
+
+
+class PlatformAdminCreateGrantOverrideCertifiersForm(FlaskForm):
+    organisation_id = SelectField(
+        "Organisation name",
+        choices=[],
+        widget=GovSelectWithSearch(),
+        validators=[DataRequired("Select an organisation")],
+    )
+    full_name = StringField(
+        "Full name",
+        validators=[DataRequired("Enter the certifier's full name")],
+        widget=GovTextInput(),
+    )
+    email = EmailField(
+        "Email address",
+        validators=[DataRequired("Enter an email address"), Email("Enter a valid email address")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Add grant-specific certifier", widget=GovSubmitInput())
+
+    def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:
+        super().__init__()
+        self.organisation_id.choices = [
+            ("", ""),
+            *[(str(gr.organisation.id), gr.organisation.name) for gr in grant_recipients],
+        ]
+
+
+class PlatformAdminRevokeGrantOverrideCertifiersForm(FlaskForm):
+    organisation_id = SelectField(
+        "Organisation",
+        choices=[],
+        widget=GovSelectWithSearch(),
+        validators=[DataRequired("Select an organisation")],
+    )
+    email = EmailField(
+        "Email address",
+        validators=[DataRequired("Enter an email address"), Email("Enter a valid email address")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Revoke grant-specific certifier access", widget=GovSubmitInput())
+
+    def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:
+        super().__init__()
+        self.organisation_id.choices = [
+            ("", ""),
+            *[(str(gr.organisation.id), gr.organisation.name) for gr in grant_recipients],
+        ]

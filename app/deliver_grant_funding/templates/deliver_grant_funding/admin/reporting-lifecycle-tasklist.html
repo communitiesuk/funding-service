@@ -88,6 +88,13 @@
           "href": url_for('reporting_lifecycle.set_up_grant_recipient_data_providers', grant_id=grant.id, collection_id=collection.id),
         })
       %}
+      {%
+        do rows.append({
+          "title": {"text": "Override certifiers for this grant", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": govukTag({"text": grant_override_certifiers_count ~ (" override" if grant_override_certifiers_count == 1 else " overrides"), "classes": "govuk-tag--blue"})},
+          "href": url_for('reporting_lifecycle.override_grant_certifiers', grant_id=grant.id, collection_id=collection.id),
+        })
+      %}
       {{ govukTaskList({ "idPrefix": "grant-tasks", "items": rows, "attributes": {"id": "grant-tasks"} }) }}
 
       <h2 class="govuk-heading-m">Report tasks</h2>

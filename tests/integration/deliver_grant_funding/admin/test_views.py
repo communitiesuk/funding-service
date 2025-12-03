@@ -249,7 +249,7 @@ class TestReportingLifecycleTasklist:
         grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 2
-        assert len(grant_task_items) == 4
+        assert len(grant_task_items) == 5
         assert len(report_task_items) == 5
 
         organisations_task = platform_task_items[0]
@@ -324,6 +324,20 @@ class TestReportingLifecycleTasklist:
         task_status = set_up_grant_recipient_data_providers_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "0 data providers" in task_status.get_text(strip=True)
+        assert "govuk-tag--blue" in task_status.get("class")
+
+        override_grant_certifiers_task = grant_task_items[4]
+        task_title = override_grant_certifiers_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Override certifiers for this grant"
+        assert (
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers"
+            in task_title.get("href")
+        )
+
+        task_status = override_grant_certifiers_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "0 overrides" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
         set_reporting_dates_task = report_task_items[0]
@@ -1973,6 +1987,377 @@ class TestRevokeCertifiers:
         assert (
             response.location
             == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers"
+        )
+
+
+class TestOverrideGrantCertifiers:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_override_grant_certifiers_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers"
+        )
+        assert response.status_code == expected_code
+
+    def test_get_override_grant_certifiers_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Override certifiers for this grant"
+
+        assert soup.find("select", {"id": "organisation_id"}) is not None
+        assert soup.find("input", {"id": "full_name"}) is not None
+        assert soup.find("input", {"id": "email"}) is not None
+
+    def test_organisation_dropdown_only_shows_grant_recipients(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+        org1 = factories.organisation.create(name="Recipient Org 1", can_manage_grants=False)
+        org2 = factories.organisation.create(name="Recipient Org 2", can_manage_grants=False)
+        factories.organisation.create(name="Non-Recipient Org", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org1)
+        factories.grant_recipient.create(grant=grant, organisation=org2)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers"
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        select = soup.find("select", {"id": "organisation_id"})
+        options = select.find_all("option")
+        option_texts = [option.text.strip() for option in options if option.get("value")]
+
+        assert "Recipient Org 1" in option_texts
+        assert "Recipient Org 2" in option_texts
+        assert "Non-Recipient Org" not in option_texts
+
+    def test_post_creates_grant_specific_certifier_new_user(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
+            data={
+                "organisation_id": str(org.id),
+                "full_name": "John Doe",
+                "email": "john.doe@example.com",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully added John Doe (john.doe@example.com) as a grant-specific certifier.")
+
+        user = get_user_by_email("john.doe@example.com")
+        assert user is not None
+        assert user.name == "John Doe"
+        assert len(user.roles) == 1
+        assert RoleEnum.CERTIFIER in user.roles[0].permissions
+        assert user.roles[0].organisation_id == org.id
+        assert user.roles[0].grant_id == grant.id
+
+    def test_post_creates_grant_specific_certifier_existing_user(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        user = factories.user.create(name="Jane Doe", email="jane.doe@example.com")
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
+            data={
+                "organisation_id": str(org.id),
+                "full_name": "Jane Doe",
+                "email": "jane.doe@example.com",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully added Jane Doe (jane.doe@example.com) as a grant-specific certifier.")
+
+        db_session.refresh(user)
+        assert len(user.roles) == 1
+        assert RoleEnum.CERTIFIER in user.roles[0].permissions
+        assert user.roles[0].grant_id == grant.id
+
+    def test_grant_id_is_set_in_user_role(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
+            data={
+                "organisation_id": str(org.id),
+                "full_name": "Alice Smith",
+                "email": "alice@example.com",
+                "submit": "y",
+            },
+        )
+
+        user = get_user_by_email("alice@example.com")
+        assert user.roles[0].grant_id == grant.id
+
+    def test_tasklist_count_shows_grant_specific_certifiers_only(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Org", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        org_level_user1 = factories.user.create(email="org1@example.com")
+        org_level_user2 = factories.user.create(email="org2@example.com")
+        factories.user_role.create(user=org_level_user1, organisation=org, grant=None, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=org_level_user2, organisation=org, grant=None, permissions=[RoleEnum.CERTIFIER])
+
+        grant_user1 = factories.user.create(email="grant1@example.com")
+        grant_user2 = factories.user.create(email="grant2@example.com")
+        grant_user3 = factories.user.create(email="grant3@example.com")
+        factories.user_role.create(user=grant_user1, organisation=org, grant=grant, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=grant_user2, organisation=org, grant=grant, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=grant_user3, organisation=org, grant=grant, permissions=[RoleEnum.CERTIFIER])
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "3 overrides" in soup.text
+
+    def test_existing_certifiers_section_shows_grant_specific_only(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Org", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        org_level_user = factories.user.create(name="Org Level User", email="org@example.com")
+        factories.user_role.create(user=org_level_user, organisation=org, grant=None, permissions=[RoleEnum.CERTIFIER])
+
+        grant_specific_user = factories.user.create(name="Grant Specific User", email="grant@example.com")
+        factories.user_role.create(
+            user=grant_specific_user, organisation=org, grant=grant, permissions=[RoleEnum.CERTIFIER]
+        )
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers"
+        )
+
+        assert response.status_code == 200
+        assert b"Grant Specific User" in response.data
+        assert b"Org Level User" not in response.data
+
+    def test_post_with_invalid_email(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
+            data={
+                "organisation_id": str(org.id),
+                "full_name": "John Doe",
+                "email": "invalid-email",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Enter a valid email address")
+
+    def test_post_with_missing_organisation(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
+            data={
+                "organisation_id": "",
+                "full_name": "John Doe",
+                "email": "john@example.com",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Select an organisation")
+
+
+class TestRevokeGrantOverrideCertifiers:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_revoke_grant_override_certifiers_permissions(
+        self, client_fixture, expected_code, request, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers"
+        )
+        assert response.status_code == expected_code
+
+    def test_get_revoke_grant_override_certifiers_page(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Revoke grant-specific certifier"
+
+        assert soup.find("select", {"id": "organisation_id"}) is not None
+        assert soup.find("input", {"id": "email"}) is not None
+
+    def test_post_successfully_revokes_grant_specific_certifier(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        user = factories.user.create(name="John Doe", email="john@example.com")
+        user_role = factories.user_role.create(
+            user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER]
+        )
+
+        from app.common.data.models_user import UserRole
+
+        assert db_session.query(UserRole).filter_by(id=user_role.id).first() is not None
+        assert RoleEnum.CERTIFIER in user_role.permissions
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers",
+            data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(
+            soup, "Successfully revoked grant-specific certifier access for John Doe (john@example.com)."
+        )
+
+        db_session.refresh(user_role)
+        assert user_role.permissions == [RoleEnum.MEMBER]
+
+    def test_revoke_does_not_affect_org_level_certifier(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        user = factories.user.create(name="John Doe", email="john@example.com")
+
+        org_level_role = factories.user_role.create(
+            user=user, organisation=org, grant=None, permissions=[RoleEnum.CERTIFIER]
+        )
+        factories.user_role.create(user=user, organisation=org, grant=grant, permissions=[RoleEnum.CERTIFIER])
+
+        authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers",
+            data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
+            follow_redirects=True,
+        )
+
+        db_session.refresh(org_level_role)
+        db_session.refresh(user)
+        assert RoleEnum.CERTIFIER in org_level_role.permissions
+        assert len([r for r in user.roles if r.grant_id == grant.id and RoleEnum.CERTIFIER in r.permissions]) == 0
+
+    def test_post_with_nonexistent_user_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers",
+            data={"organisation_id": str(org.id), "email": "nonexistent@example.com", "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "User with email 'nonexistent@example.com' does not exist.")
+
+    def test_post_with_user_without_grant_specific_permission(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        user = factories.user.create(name="John Doe", email="john@example.com")
+        factories.user_role.create(user=user, organisation=org, grant=None, permissions=[RoleEnum.CERTIFIER])
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers",
+            data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(
+            soup, "User 'John Doe' (john@example.com) is not a grant-specific certifier for the selected organisation."
         )
 
 

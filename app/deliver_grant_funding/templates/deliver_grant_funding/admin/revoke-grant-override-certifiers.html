@@ -1,0 +1,54 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from 'deliver_grant_funding/partials/existing-certifiers.html' import existingCertifiersTable %}
+{% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.override_grant_certifiers', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+      <h1 class="govuk-heading-l">Revoke grant-specific certifier</h1>
+
+      <p class="govuk-body">Enter the organisation and email address of the grant-specific certifier you want to revoke access for.</p>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% set existingCertifiersHtml %}
+        {{ existingCertifiersTable(certifiers_by_org, overrides=True) }}
+      {% endset %}
+
+      {{
+        govukDetails({
+          "summaryText": "Existing grant-specific certifiers by organisation",
+          "html": existingCertifiersHtml,
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{ form.organisation_id }}
+
+        {{ form.email }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}
