@@ -26,6 +26,7 @@ from app.common.data.types import (
     GrantStatusEnum,
     OrganisationType,
     QuestionDataType,
+    ReportAdminEmailTypeEnum,
     RoleEnum,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -288,6 +289,7 @@ def create_app() -> Flask:  # noqa: C901
                 organisation_type=OrganisationType,
                 role_enum=RoleEnum,
                 component_type_enum=ComponentType,
+                report_admin_email_type_enum=ReportAdminEmailTypeEnum,
             ),
         )
 
