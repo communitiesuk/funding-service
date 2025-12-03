@@ -2,6 +2,12 @@ FROM python:3.13@sha256:0c745292b7b34dcdd6050527907d78c39363dc45ad6afc6d107c454b
 
 WORKDIR /app
 
+
+# libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 libjpeg-dev libopenjp2-7-dev libffi-dev
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends weasyprint woff2 && \
+    apt-get clean
+
 # Use bash for the shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -26,6 +32,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=bind,source=package-lock.json,target=package-lock.json \
     npm ci
+
+# make design system fonts available to weasyprint
+# no longer really needed as the design system sets us to sans-serif when in print anyway
+RUN find /app/node_modules/govuk-frontend/dist/govuk/assets/fonts -type f -name '*.woff*' -exec woff2_decompress {} \;
+
+RUN mv /app/node_modules/govuk-frontend/dist/govuk/assets/fonts/* /usr/local/share/fonts/ && \
+    fc-cache -v
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"

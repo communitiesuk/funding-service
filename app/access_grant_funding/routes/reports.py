@@ -1,7 +1,10 @@
-from uuid import UUID
+import re
+from io import BytesIO
+from uuid import UUID, uuid4
 
-from flask import flash, redirect, render_template, url_for
+from flask import current_app, flash, redirect, render_template, send_file, url_for
 from flask.typing import ResponseReturnValue
+from weasyprint import CSS, HTML
 
 from app.access_grant_funding.forms import DeclineSignOffForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
@@ -71,6 +74,63 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
         submission=submission,
         form=form,
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/export/pdf",
+    methods=["GET", "POST"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+    submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+
+    # todo: we'll likely want to wrap this in something that adds print specific CSS or that CSS is always set
+    #       but only for print media
+    template_html = render_template(
+        "access_grant_funding/view_locked_report.html",
+        submission=submission,
+        grant_recipient=grant_recipient,
+        interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
+    )
+
+    # todo: should we support live assets here or should we only ever use built ones
+    #       the live assets might be hard - i.e we'd have to fetch it from the live server here and put them in as a string?
+    #       maybe possible lets see
+    #       it could use local assets and throw if they're not there
+    vite_asset = next(p() for p in current_app.template_context_processors.get(None, []) if "vite_asset" in p())[
+        "vite_asset"
+    ]
+    path = f"app/assets/dist/{vite_asset('app/assets/main.scss', include_url=False)}"
+
+    # dodgy transform
+    css_f = open(path, "r")
+    css_content = css_f.read()
+    css_f.close()
+
+    css_content = re.sub("text-decoration-thickness:[^;]+;", "", css_content)
+
+    # Generate PDF as bytes and wrap in BytesIO
+    # stylesheets=[CSS(filename=path)]
+    pdf_bytes = HTML(string=template_html).write_pdf(
+        pdf_variant="pdf/ua-2",
+        uncompressed_pdf=True,
+        stylesheets=[
+            CSS(string="@page { size: A4 portrait; margin: 1cm; }"),
+            CSS(string=css_content),
+        ],
+    )
+
+    pdf_file = BytesIO(pdf_bytes)
+    pdf_file.seek(0)
+
+    return send_file(
+        pdf_file,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"{submission.collection.grant.name}{uuid4()}.pdf",
     )
 
 

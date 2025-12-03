@@ -1,7 +1,7 @@
 {% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
 
 {% macro organisationTopNav(organisation) %}
-  <div id="org-nav" class="govuk-service-navigation app-service-nav-org">
+  <div id="org-nav" class="govuk-service-navigation app-service-nav-org govuk-!-display-none-print">
     <div class="govuk-width-container">
       <div class="govuk-service-navigation__container">
         <span class="govuk-service-navigation__service-name">
@@ -49,7 +49,8 @@
           "serviceName": grant.name,
           "serviceUrl": "#",
           "navigation": nav_items,
-          "navigationClasses": navigation_classes,
+          "navigationClasses": navigation_classes + " govuk-!-display-none-print" if navigation_classes else "govuk-!-display-none-print",
+          "classes": "govuk-!-display-none-print",
           "attributes": { "id": "grant-nav" }
       })
     }}
@@ -62,7 +63,7 @@
             "serviceUrl": "#",
             "navigation": [{ "text": "Change organisation", "href": url_for('access_grant_funding.list_organisations') }],
             "collapseNavigationOnMobile": true,
-            "navigationClasses": "app-service-navigation__wrapper--sectional",
+            "navigationClasses": "app-service-navigation__wrapper--sectional govuk-!-display-none-print",
             "attributes": { "id": "org-nav" }
         })
       }}

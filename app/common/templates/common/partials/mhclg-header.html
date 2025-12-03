@@ -14,7 +14,7 @@
     ] if currentUser and currentUser.is_authenticated else []
     )
   %}
-  {%- set _navigationClasses = params.navigationClasses if params.navigationClasses else 'govuk-header__navigation--end' -%}
+  {%- set _navigationClasses = params.navigationClasses if params.navigationClasses else 'govuk-header__navigation--end govuk-!-display-none-print' -%}
 
 
   {%- set _hmgInsignia %}

@@ -49,7 +49,7 @@ class FlaskAssetsViteExtension:
         app.context_processor(self.assets_processor)
 
     def assets_processor(self) -> dict[str, Callable[[str], str]]:
-        def vite_asset(relative_file_path: str) -> str:
+        def vite_asset(relative_file_path: str, *, include_url: bool = True) -> str:
             """
             Point assets at a vite development server while running locally
             to enable hot module replacement and automatic udpates to both SCSS
@@ -59,7 +59,12 @@ class FlaskAssetsViteExtension:
                 raise RuntimeError("Need to call FlaskAssetsViteExtension.init_app() first")
 
             if self._live_enabled:
-                return f"{self._app.config['ASSETS_VITE_BASE_URL']}/static/{relative_file_path}"
+                if include_url:
+                    return f"{self._app.config['ASSETS_VITE_BASE_URL']}/static/{relative_file_path}"
+                else:
+                    # give it a go
+                    generated_asset = self._manifest[relative_file_path]
+                    return generated_asset.file if generated_asset else relative_file_path
 
             if not self._manifest:
                 raise Exception("Asset manifest not found, make sure assets are generated")
@@ -67,9 +72,9 @@ class FlaskAssetsViteExtension:
             generated_asset = self._manifest[relative_file_path]
             if generated_asset:
                 # assets that have been transpiled by vite should reference their hashed names
-                return url_for("static", filename=generated_asset.file)
+                return url_for("static", filename=generated_asset.file) if include_url else generated_asset.file
 
             # assets that have not been transpiled by vite but may have been copied
-            return url_for("static", filename=relative_file_path)
+            return url_for("static", filename=relative_file_path) if include_url else relative_file_path
 
         return dict(vite_asset=vite_asset)  # ty: ignore[invalid-return-type]

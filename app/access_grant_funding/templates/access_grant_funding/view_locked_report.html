@@ -12,7 +12,8 @@
   {{
     govukBackLink({
       "href": url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id),
-      "text": "Back to reports"
+      "text": "Back to reports",
+      "classes": "govuk-!-display-none-print"
     })
   }}
 {% endblock beforeContent %}
@@ -20,7 +21,7 @@
 {% set should_certify = authorisation_helper.is_access_grant_certifier(submission.grant.id, submission.submission.grant_recipient.organisation_id, current_user) and submission.is_awaiting_sign_off %}
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-one-quarter-from-desktop app-section-nav-container">
+    <div class="govuk-grid-column-one-quarter-from-desktop app-section-nav-container govuk-!-display-none-print">
       <ul class="govuk-list app-section-nav-list" role="navigation" aria-label="Report sections">
         <li class="app-section-nav-list__item app-section-nav-list__item--active"><a class="govuk-link govuk-link--no-visited-state" href="#submission">{{ page_title }}</a></li>
 
@@ -32,6 +33,13 @@
           <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#sign-off-and-submit-report">Sign off and submit report</a></li>
         {% endif %}
       </ul>
+
+      <a
+        class="govuk-button govuk-button--secondary"
+        download
+        href="{{ url_for('access_grant_funding.export_report_pdf', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission.submission.id) }}"
+        >Download report PDF</a
+      >
     </div>
     <div class="govuk-grid-column-three-quarters-from-desktop app-section-content-container">
       {# exception for xl heading where we'd anticipate having many subheadings and levels of heirarchy on this page #}
