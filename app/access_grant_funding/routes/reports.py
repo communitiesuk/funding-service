@@ -107,7 +107,7 @@ def decline_report(
         submission_helper.decline_certification(certifier_user, declined_reason=declined_reason)
 
         notification_service.send_access_submitter_submission_declined(
-            certifier=certifier_user, submission_helper=submission_helper
+            certifier_user=certifier_user, submission_helper=submission_helper
         )
         notification_service.send_access_certifier_confirm_submission_declined(
             certifier_user=certifier_user,
