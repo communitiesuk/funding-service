@@ -121,13 +121,20 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
     )
 
+    # note that we're opening a new browser per request
+    # with a single request at a time this responds in ~200ms but if we ever anticipate higher
+    # simultaneous usage we'd probably want a singleton module to manage the browser connection
+    # and close and open pages as needed, this would allow a lot more simultaneous requests to be
+    # processed performantly
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         page = browser.new_page()
-        page.set_content(html_content, wait_until="domcontentloaded")
+        page.set_content(html_content)
         pdf_bytes = page.pdf(
             format="A4",
             print_background=True,
+            scale=0.8,
+            margin={"top": "5mm", "bottom": "5mm", "left": "5mm", "right": "5mm"},
         )
         browser.close()
 

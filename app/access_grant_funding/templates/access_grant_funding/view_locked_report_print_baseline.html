@@ -3,7 +3,7 @@
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 
-{% set page_title = "Review report: " + submission.name %}
+{% set page_title = submission.name %}
 
 {% block head %}
   {{ super() }}
@@ -32,6 +32,7 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
       {# exception for xl heading where we'd anticipate having many subheadings and levels of heirarchy on this page #}
+      <span id="submission" class="govuk-caption-xl">{{ submission.collection.grant.name }}</span>
       <h1 id="submission" class="govuk-heading-xl">{{ page_title }}</h1>
 
       <div class="govuk-!-margin-bottom-9">
