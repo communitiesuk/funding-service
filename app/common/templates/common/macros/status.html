@@ -60,7 +60,7 @@
     }
   %}
   {% if status in show_without_tag %}
-    {{ status }}
+    <span class="govuk-body govuk-!-margin-bottom-0">{{ status }}</span>
   {% else %}
     {{ govukTag({"text": status, "classes": "app-status-tag " ~ classMap[status] }) }}
   {% endif %}
