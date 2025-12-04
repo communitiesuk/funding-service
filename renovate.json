@@ -3,6 +3,7 @@
   "extends": [
     "github>communitiesuk/renovate-config"
   ],
+  "minimumReleaseAge": "7 days",
   "packageRules": [
     {
       "groupName": "Frontend asset dependencies",
