@@ -3,6 +3,7 @@ import datetime
 import pytest
 from bs4 import BeautifulSoup
 
+from app import ReportAdminEmailTypeEnum
 from app.common.data.interfaces.organisations import get_organisation_count
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.models import Organisation
@@ -250,7 +251,7 @@ class TestReportingLifecycleTasklist:
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 2
         assert len(grant_task_items) == 5
-        assert len(report_task_items) == 5
+        assert len(report_task_items) == 6
 
         organisations_task = platform_task_items[0]
         task_title = organisations_task.find("a", {"class": "govuk-link"})
@@ -562,7 +563,71 @@ class TestReportingLifecycleTasklist:
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send emails to data providers"
         assert (
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/report_open_notification"
+            in task_title.get("href")
+        )
+
+        task_status = send_emails_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Do once" in task_status.get_text(strip=True)
+        assert "govuk-tag--orange" in task_status.get("class")
+
+    @pytest.mark.parametrize(
+        "collection_status",
+        [
+            CollectionStatusEnum.DRAFT,
+            CollectionStatusEnum.SCHEDULED,
+        ],
+    )
+    def test_send_deadline_reminder_mails_task_cannot_start_yet_when_not_open(
+        self, authenticated_platform_admin_client, factories, db_session, collection_status
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant, name="Q1 Report", status=collection_status)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        send_emails_task = report_task_items[5]
+        task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send deadline reminder emails to data providers"
+
+        task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        link = send_emails_task.find("a", {"class": "govuk-link"})
+        assert link is None
+
+    def test_send_deadline_reminder_emails_task_do_once_when_open(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant, name="Q1 Report", status=CollectionStatusEnum.OPEN)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        send_emails_task = report_task_items[5]
+        task_title = send_emails_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send deadline reminder emails to data providers"
+        assert (
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/deadline_reminder"
             in task_title.get("href")
         )
 
@@ -589,7 +654,7 @@ class TestSendEmailsToRecipients:
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
 
@@ -619,7 +684,7 @@ class TestSendEmailsToRecipients:
         assert download_button is not None
         assert "Download CSV" in download_button.get_text(strip=True)
         assert (
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
             in download_button.get("href")
         )
 
@@ -646,7 +711,7 @@ class TestSendEmailsToRecipients:
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
 
@@ -699,7 +764,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
         )
 
         assert response.status_code == 200

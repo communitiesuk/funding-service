@@ -174,7 +174,14 @@
         do rows.append({
           "title": {"text": "Send emails to data providers", "classes": "govuk-link--no-visited-state"},
           "status": sendEmailsStatus,
-          "href": url_for('reporting_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.OPEN else "",
+          "href": url_for('reporting_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.REPORT_OPEN_NOTIFICATION) if collection.status == enum.collection_status.OPEN else "",
+        })
+      %}
+      {%
+        do rows.append({
+          "title": {"text": "Send deadline reminder emails to data providers", "classes": "govuk-link--no-visited-state"},
+          "status": sendEmailsStatus,
+          "href": url_for('reporting_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.DEADLINE_REMINDER) if collection.status == enum.collection_status.OPEN else "",
         })
       %}
 

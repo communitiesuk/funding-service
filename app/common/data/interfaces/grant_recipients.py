@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import RoleEnum
+from app.common.data.types import RoleEnum, SubmissionStatusEnum
 from app.extensions import db
 
 
@@ -23,6 +23,23 @@ def get_grant_recipients(
         stmt = stmt.options(joinedload(GrantRecipient._all_certifiers).joinedload(User.roles))
 
     return db.session.scalars(stmt).unique().all()
+
+
+def get_grant_recipients_with_outstanding_submissions_for_collection(
+    grant: "Grant", *, collection_id: uuid.UUID, with_data_providers: bool = False, with_certifiers: bool = False
+) -> list[GrantRecipient]:
+    from app.common.helpers.collections import SubmissionHelper
+
+    all_grant_recipients = get_grant_recipients(
+        grant, with_data_providers=with_data_providers, with_certifiers=with_certifiers
+    )
+    grant_recipients_with_outstanding_submissions = []
+    for gr in all_grant_recipients:
+        submission = next((s for s in gr.submissions if s.collection_id == collection_id), None)
+        if not submission or SubmissionHelper(submission).status != SubmissionStatusEnum.SUBMITTED:
+            grant_recipients_with_outstanding_submissions.append(gr)
+
+    return grant_recipients_with_outstanding_submissions
 
 
 def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> "GrantRecipient":

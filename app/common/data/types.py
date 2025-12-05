@@ -123,6 +123,11 @@ class CollectionType(enum.StrEnum):
     MONITORING_REPORT = "monitoring report"
 
 
+class ReportAdminEmailTypeEnum(enum.StrEnum):
+    REPORT_OPEN_NOTIFICATION = "report_open_notification"
+    DEADLINE_REMINDER = "deadline_reminder"
+
+
 class CollectionStatusEnum(enum.StrEnum):
     DRAFT = "Draft"
     SCHEDULED = "Scheduled to open"
