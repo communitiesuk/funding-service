@@ -750,7 +750,14 @@ class CollectionHelper:
 
     # todo: split this method up into smaller parts that can be individually tested (i.e submission -> CSV row dict)
     def generate_csv_content_for_all_submissions(self) -> str:  # noqa: C901
-        metadata_headers = ["Submission reference", "Created by", "Created at", "Status", "Submitted at"]
+        metadata_headers = (
+            ["Submission reference", "Grant recipient", "Created by", "Created at"]
+            + (["Certified by", "Certified at"] if self.collection.requires_certification else [])
+            + [
+                "Status",
+                "Submitted at",
+            ]
+        )
 
         question_headers: list[tuple["Question", str, int | None]] = []
         processed_add_another_contexts = []
@@ -795,11 +802,29 @@ class CollectionHelper:
         for submission in [value for key, value in self.submission_helpers.items()]:
             submission_csv_data = {
                 "Submission reference": submission.reference,
+                "Grant recipient": (
+                    submission.submission.grant_recipient.organisation.name
+                    if submission.submission.grant_recipient
+                    else None
+                ),
                 "Created by": submission.created_by_email,
                 "Created at": format_datetime(submission.created_at_utc),
                 "Status": submission.status,
                 "Submitted at": format_datetime(submission.submitted_at_utc) if submission.submitted_at_utc else None,
             }
+
+            if self.collection.requires_certification:
+                submission_csv_data["Certified by"] = (
+                    submission.events.submission_state.certified_by.email
+                    if submission.events.submission_state.certified_by
+                    else None
+                )
+                submission_csv_data["Certified at"] = (
+                    format_datetime(submission.events.submission_state.certified_at_utc)
+                    if submission.events.submission_state.certified_at_utc
+                    else None
+                )
+
             visible_questions = submission.all_visible_questions
             cached_contexts: dict[str, "ExpressionContext"] = {}
             for question, header_string, index in question_headers:
@@ -844,6 +869,9 @@ class CollectionHelper:
         for submission in self.submission_helpers.values():
             submission_data: dict[str, Any] = {
                 "reference": submission.reference,
+                "grant_recipient": submission.submission.grant_recipient.organisation.name
+                if submission.submission.grant_recipient
+                else None,
                 "created_by": submission.created_by_email,
                 "created_at_utc": format_datetime(submission.created_at_utc),
                 "status": submission.status,
@@ -852,6 +880,18 @@ class CollectionHelper:
                 else None,
                 "sections": [],
             }
+
+            if self.collection.requires_certification:
+                submission_data["certified_by"] = (
+                    submission.events.submission_state.certified_by.email
+                    if submission.events.submission_state.certified_by
+                    else None
+                )
+                submission_data["certified_at_utc"] = (
+                    format_datetime(submission.events.submission_state.certified_at_utc)
+                    if submission.events.submission_state.certified_at_utc
+                    else None
+                )
 
             for form in submission.get_ordered_visible_forms():
                 task_data: dict[str, Any] = {"name": form.title, "answers": {}}
