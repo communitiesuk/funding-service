@@ -154,7 +154,7 @@ class NotificationService:
                 "grant_name": submission.collection.grant.name,
                 "reporting_period": submission.collection.name,
                 "grant_report_url": url_for(
-                    "access_grant_funding.tasklist",
+                    "access_grant_funding.view_locked_report",
                     organisation_id=submission.grant_recipient.organisation.id,
                     grant_id=submission.grant_recipient.grant.id,
                     submission_id=submission.id,
@@ -174,7 +174,7 @@ class NotificationService:
             if submission.collection.submission_period_end_date
             else "(Monitoring report has no deadline set)",
             "grant_report_url": url_for(
-                "access_grant_funding.tasklist",
+                "access_grant_funding.view_locked_report",
                 organisation_id=submission.grant_recipient.organisation.id,
                 grant_id=submission.grant_recipient.grant.id,
                 submission_id=submission.id,
@@ -268,7 +268,7 @@ class NotificationService:
             + f"{format_date(submission_helper.collection.reporting_period_end_date)}",
             "date_submitted": format_datetime(submission_helper.submitted_at_utc),
             "grant_report_url": url_for(
-                "access_grant_funding.tasklist",
+                "access_grant_funding.view_locked_report",
                 organisation_id=submission_helper.submission.grant_recipient.organisation.id,
                 grant_id=submission_helper.submission.grant_recipient.grant.id,
                 submission_id=submission_helper.id,
