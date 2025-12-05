@@ -36,8 +36,9 @@
         {{ submission.collection.grant.organisation.name }}.
       </p>
 
-      {# todo: include a proper link for the service feedback #}
-      <p class="govuk-body"><a class="govuk-link govuk-link--no-visited-state" href="#">Tell us what you think of this service</a> (takes 30 seconds).</p>
+      <p class="govuk-body">
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ config.GRANT_RECIPIENT_CERTIFIER_FEEDBACK_URL }}" target="_blank" rel="noopener noreferrer">Tell us what you think of this service</a> (takes 30 seconds).
+      </p>
 
       <p class="govuk-body">
         <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.list_reports', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id) }}">Back to reports</a>
