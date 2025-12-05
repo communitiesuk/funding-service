@@ -278,6 +278,10 @@ class _SharedConfig(_BaseConfig):
     DELIVER_SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1343"
     DELTA_SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/6/group/12"
 
+    # Feedback Surveys
+    GRANT_RECIPIENT_GENERAL_FEEDBACK_URL: str = "https://forms.office.com/e/NpWGTr4AAa"
+    GRANT_RECIPIENT_CERTIFIER_FEEDBACK_URL: str = "https://forms.office.com/e/E6TyPDpph7"
+
     # Form rendering options
     ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS: int = 20
 
