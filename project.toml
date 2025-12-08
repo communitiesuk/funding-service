@@ -1,15 +1,36 @@
 [_]
 schema-version = "0.2"
 
+[com.heroku.buildpacks.deb-packages]
+install = [
+    "libatk1.0-0t64",
+    "libatk-bridge2.0-0t64",
+    "libxkbcommon0",
+    "libatspi2.0-0t64",
+    "libxcomposite1",
+    "libxdamage1",
+    "libxfixes3",
+    "libxrandr2",
+    "libgbm1",
+    "libasound2t64"
+]
+
+[[io.buildpacks.group]]
+id = "heroku/deb-packages"
+
 [[io.buildpacks.group]]
 id = "heroku/nodejs"
 
 [[io.buildpacks.group]]
 id = "heroku/python"
 
+# https://github.com/heroku/buildpacks-python/issues/288
+# https://buildpacks.io/docs/for-app-developers/how-to/build-inputs/use-inline-buildpacks/
+[[io.buildpacks.group]]
+id = "me/playwright-pdf"
     [io.buildpacks.group.script]
     api = "0.10"
-    inline = "playwright install --with-deps"
+    inline = "PLAYWRIGHT_BROWSERS_PATH=ms-playwright-pdf uv run playwright install chromium-headless-shell --only-shell"
 
 [[io.buildpacks.group]]
 id = "heroku/procfile"
