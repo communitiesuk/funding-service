@@ -1,7 +1,8 @@
 import io
+import os
 from uuid import UUID
 
-from flask import flash, redirect, render_template, send_file, url_for
+from flask import current_app, flash, redirect, render_template, send_file, url_for
 from flask.typing import ResponseReturnValue
 from playwright.sync_api import sync_playwright
 
@@ -121,6 +122,11 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
     )
 
+    # as we're calling to an external binary this makes sure we're set up if the flask app
+    # has defined its own path, this could also be set in the container terraform
+    if current_app.config["PLAYWRIGHT_BROWSERS_PATH"] is not None:
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = current_app.config["PLAYWRIGHT_BROWSERS_PATH"]
+
     # note that we're opening a new browser per request
     # with a single request at a time this responds in ~200ms but if we ever anticipate higher
     # simultaneous usage we'd probably want a singleton module to manage the browser connection
@@ -129,7 +135,7 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         page = browser.new_page(java_script_enabled=False)
-        page.set_content(html_content)
+        page.set_content(html_content, wait_until="load")
         pdf_bytes = page.pdf(
             format="A4",
             print_background=True,

@@ -137,7 +137,7 @@ jobs:
       - name: install dependencies
         run: |
           uv sync --frozen
-          uv run playwright install --with-deps
+          uv run playwright install chromium-headless-shell --with-deps --only-shell
       - name: run unit tests
         run: uv run pytest -nauto . --durations=20
         env:
