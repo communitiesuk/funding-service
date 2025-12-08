@@ -128,7 +128,7 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
     # processed performantly
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
-        page = browser.new_page()
+        page = browser.new_page(java_script_enabled=False)
         page.set_content(html_content)
         pdf_bytes = page.pdf(
             format="A4",
