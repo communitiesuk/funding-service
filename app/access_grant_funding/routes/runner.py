@@ -69,6 +69,17 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
         grant_recipient_id=grant_recipient.id,
     )
 
+    submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    if submission_helper.is_locked_state:
+        return redirect(
+            url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
+        )
+
     if runner.tasklist_form.validate_on_submit():
         if AuthorisationHelper.is_access_grant_data_provider(
             grant_id=grant_id, organisation_id=organisation_id, user=interfaces.user.get_current_user()

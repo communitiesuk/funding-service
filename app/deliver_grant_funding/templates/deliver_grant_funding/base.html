@@ -2,6 +2,7 @@
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "common/macros/navigation.html" import deliverGrantFundingServiceNavigation %}
+{% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 
 {% set nav_items = nav_items or [] %}
 {% set right_nav_items = right_nav_items or [] %}
@@ -68,3 +69,18 @@
     </div>
   </div>
 {% endblock %}
+
+{% block footer %}
+  {{
+    govukFooter({
+      "meta": {
+        "items": [
+          {
+            "href": config.DELIVER_SERVICE_DESK_URL,
+            "text": "Contact us"
+          }
+        ]
+      }
+    })
+  }}
+{% endblock footer %}

@@ -61,6 +61,14 @@
 {% block footer %}
   {{
     govukFooter({
+      "meta": {
+        "items": [
+          {
+            "href": config.SERVICE_DESK_URL,
+            "text": "Contact us"
+          }
+        ]
+      }
     })
   }}
 {% endblock footer %}
