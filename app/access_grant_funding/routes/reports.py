@@ -134,12 +134,21 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
     # processed performantly
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
-        page = browser.new_page(java_script_enabled=False)
+        page = browser.new_page(
+            java_script_enabled=False,
+            bypass_csp=True,
+            http_credentials={
+                "username": current_app.config["BASIC_AUTH_USERNAME"],
+                "password": current_app.config["BASIC_AUTH_PASSWORD"],
+            }
+            if current_app.config["BASIC_AUTH_ENABLED"]
+            else None,
+        )
         page.set_content(html_content, wait_until="load")
         pdf_bytes = page.pdf(
             format="A4",
             print_background=True,
-            scale=0.8,
+            scale=0.9,
             margin={"top": "5mm", "bottom": "5mm", "left": "5mm", "right": "5mm"},
         )
         browser.close()
@@ -148,7 +157,7 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
         io.BytesIO(pdf_bytes),
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"{submission.collection.name}_report.pdf",
+        download_name=f"{submission.collection.grant.name} - {submission.collection.name}.pdf",
         max_age=0,
     )
 
