@@ -24,7 +24,7 @@ class TestViewLockedReport:
             ("authenticated_grant_recipient_certifier_client", True),
         ),
     )
-    def test_view_locked_reports_access(
+    def test_get_view_locked_report_access(
         self,
         request: FixtureRequest,
         client_fixture: str,
@@ -59,7 +59,7 @@ class TestViewLockedReport:
             ("authenticated_grant_recipient_certifier_client", True),
         ),
     )
-    def test_view_locked_reports_certifier(
+    def test_get_view_locked_reports_certifier(
         self,
         request: FixtureRequest,
         client_fixture: str,
@@ -95,7 +95,7 @@ class TestViewLockedReport:
             assert page_has_button(soup, button_text="Sign off and submit report") is not None
             assert page_has_link(soup, link_text="Decline sign off") is not None
 
-    def test_view_locked_report_submitted(
+    def test_get_view_locked_report_submitted(
         self,
         authenticated_grant_recipient_certifier_client,
         submission_submitted,
@@ -123,6 +123,43 @@ class TestViewLockedReport:
             "Certifier:",
             "Date submitted:",
         ]
+
+    # the first method under test will spin up chromium which will always be marked as as a slow test
+    @pytest.mark.fail_slow("1000ms", enabled=False)
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_recipient_member_client", True),
+            ("authenticated_grant_recipient_data_provider_client", True),
+            ("authenticated_grant_recipient_certifier_client", True),
+        ),
+    )
+    def test_get_view_locked_report_pdf_export(
+        self,
+        request: FixtureRequest,
+        client_fixture: str,
+        can_access: bool,
+        factories,
+        submission_awaiting_sign_off,
+    ):
+        client = request.getfixturevalue(client_fixture)
+        grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.export_report_pdf",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_awaiting_sign_off.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            assert response.headers["Content-Type"] == "application/pdf"
 
     def test_view_locked_report_not_locked_redirects(
         self,
