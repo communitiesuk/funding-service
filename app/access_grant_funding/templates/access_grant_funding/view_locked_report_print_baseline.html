@@ -25,7 +25,6 @@
 {% block beforeContent %}
 {% endblock beforeContent %}
 
-{% set should_certify = authorisation_helper.is_access_grant_certifier(submission.grant.id, submission.submission.grant_recipient.organisation_id, current_user) and submission.is_awaiting_sign_off %}
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
@@ -34,8 +33,6 @@
       <h1 id="submission" class="govuk-heading-xl">{{ page_title }}</h1>
 
       <div class="govuk-!-margin-bottom-9">
-        {# if certification wasn't required then show who submitted directly #}
-        {% set submitter = submission.sent_for_certification_by or submission.submitted_by %}
         <dl class="app-metadata">
           <dt class="app-metadata__key">Organisation:</dt>
           <dd class="app-metadata__value" data-testid="submission-status">{{ submission.submission.grant_recipient.organisation.name }}</dd>
@@ -61,12 +58,12 @@
         {% if submission.sent_for_certification_by %}
           <dl class="app-metadata">
             <dt class="app-metadata__key">Submitted for sign off by:</dt>
-            <dd class="app-metadata__value" data-testid="submission-status">{{ submitter.name }}</dd>
+            <dd class="app-metadata__value" data-testid="submission-status">{{ submission.sent_for_certification_by.name }}</dd>
           </dl>
         {% elif submission.submitted_by %}
           <dl class="app-metadata">
             <dt class="app-metadata__key">Submitted by:</dt>
-            <dd class="app-metadata__value" data-testid="submission-status">{{ submitter.name }}</dd>
+            <dd class="app-metadata__value" data-testid="submission-status">{{ submission.submitted_by.name }}</dd>
           </dl>
         {% endif %}
         {% if submission.submitted_at_utc or submission.sent_for_certification_at_utc %}

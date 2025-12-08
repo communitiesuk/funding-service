@@ -6,7 +6,10 @@ id = "heroku/nodejs"
 
 [[io.buildpacks.group]]
 id = "heroku/python"
-script = { api = "0.14", inline = "uv run playwright install --with-deps" }
+
+    [io.buildpacks.group.script]
+    api = "0.10"
+    inline = "playwright install --with-deps"
 
 [[io.buildpacks.group]]
 id = "heroku/procfile"
