@@ -163,6 +163,41 @@ class TestTasklist:
                 )
 
     @pytest.mark.parametrize(
+        "submission_fixture",
+        (
+            "submission_awaiting_sign_off",
+            "submission_submitted",
+        ),
+    )
+    def test_get_tasklist_redirects_if_report_is_locked(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        request: FixtureRequest,
+        submission_fixture: str,
+    ):
+        submission = request.getfixturevalue(submission_fixture)
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        expected_location = url_for(
+            "access_grant_funding.view_locked_report",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            submission_id=submission.id,
+        )
+        assert response.location == expected_location
+
+    @pytest.mark.parametrize(
         "client_fixture, can_access",
         (
             ("authenticated_no_role_client", False),

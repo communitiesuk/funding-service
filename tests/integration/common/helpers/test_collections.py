@@ -868,8 +868,11 @@ class TestCollectionHelper:
 
         assert reader.fieldnames == [
             "Submission reference",
+            "Grant recipient",
             "Created by",
             "Created at",
+            "Certified by",
+            "Certified at",
             "Status",
             "Submitted at",
             "[Export test form] Your name",
@@ -909,8 +912,11 @@ class TestCollectionHelper:
 
         assert reader.fieldnames == [
             "Submission reference",
+            "Grant recipient",
             "Created by",
             "Created at",
+            "Certified by",
+            "Certified at",
             "Status",
             "Submitted at",
             "[Export test form] Number of cups of tea",
@@ -951,8 +957,11 @@ class TestCollectionHelper:
 
         assert reader.fieldnames == [
             "Submission reference",
+            "Grant recipient",
             "Created by",
             "Created at",
+            "Certified by",
+            "Certified at",
             "Status",
             "Submitted at",
             "[Export test form] Number of cups of tea",
@@ -986,8 +995,11 @@ class TestCollectionHelper:
 
         assert rows[0] == [
             "Submission reference",
+            "Grant recipient",
             "Created by",
             "Created at",
+            "Certified by",
+            "Certified at",
             "Status",
             "Submitted at",
             "[Export test form] Your name",
@@ -1002,8 +1014,11 @@ class TestCollectionHelper:
         ]
         assert rows[1] == [
             c_helper.submissions[0].reference,
+            "",
             c_helper.submissions[0].created_by.email,
             format_datetime(c_helper.submissions[0].created_at_utc),
+            "",
+            "",
             "In progress",
             "",
             "test name",
@@ -1029,8 +1044,11 @@ class TestCollectionHelper:
 
         assert reader.fieldnames == [
             "Submission reference",
+            "Grant recipient",
             "Created by",
             "Created at",
+            "Certified by",
+            "Certified at",
             "Status",
             "Submitted at",
             "[Add another nested group test form] Your name",
@@ -1051,8 +1069,11 @@ class TestCollectionHelper:
 
         assert list(rows[0].values()) == [
             c_helper.submissions[0].reference,
+            "",
             c_helper.submissions[0].created_by.email,
             format_datetime(c_helper.submissions[0].created_at_utc),
+            "",
+            "",
             "In progress",
             "",
             "test name",
@@ -1116,6 +1137,62 @@ class TestCollectionHelper:
                 {
                     "created_at_utc": mock.ANY,
                     "created_by": mock.ANY,
+                    "certified_by": None,
+                    "certified_at_utc": mock.ANY,
+                    "grant_recipient": None,
+                    "reference": mock.ANY,
+                    "status": "In progress",
+                    "submitted_at_utc": None,
+                    "sections": [
+                        {
+                            "answers": {
+                                "Airspeed velocity": {"value": 123},
+                                "Best option": {"key": "key-0", "label": "Option 0"},
+                                "Email address": "test@email.com",
+                                "Favourite cheeses": [
+                                    {"key": "cheddar", "label": "Cheddar"},
+                                    {"key": "stilton", "label": "Stilton"},
+                                ],
+                                "Like cheese": True,
+                                "Website address": "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
+                                "Your name": "test name",
+                                "Your quest": "Line 1\r\nline2\r\nline 3",
+                                "Last cheese purchase date": "2025-01-01",
+                            },
+                            "name": "Export test form",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    def test_generate_json_content_for_all_submissions_all_question_types_appear_correctly_live(
+        self, factories, db_session
+    ):
+        factories.data_source_item.reset_sequence()
+        user = factories.user.create(email="certifier@test.com")
+        collection = factories.collection.create(
+            create_completed_submissions_each_question_type__live=1,
+            create_completed_submissions_each_question_type__use_random_data=False,
+        )
+        factories.submission_event.create(
+            submission=collection.live_submissions[0],
+            event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+            created_by=user,
+            created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
+        )
+        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+        json_data = c_helper.generate_json_content_for_all_submissions()
+        submissions = json.loads(json_data)
+
+        assert submissions == {
+            "submissions": [
+                {
+                    "created_at_utc": mock.ANY,
+                    "created_by": mock.ANY,
+                    "certified_by": "certifier@test.com",
+                    "certified_at_utc": "12am on Monday 1 December 2025",
+                    "grant_recipient": AnyStringMatching(r"Organisation \d+"),
                     "reference": mock.ANY,
                     "status": "In progress",
                     "submitted_at_utc": None,
@@ -1157,6 +1234,9 @@ class TestCollectionHelper:
                 {
                     "created_at_utc": mock.ANY,
                     "created_by": mock.ANY,
+                    "certified_by": None,
+                    "certified_at_utc": mock.ANY,
+                    "grant_recipient": None,
                     "reference": mock.ANY,
                     "status": "In progress",
                     "submitted_at_utc": None,
