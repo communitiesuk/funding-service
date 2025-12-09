@@ -405,10 +405,14 @@ $inset-nested-rows: 30px;
 
 .app-print-header-logo {
     border-left: 3px solid black;
-    padding-left: 13px;
+    padding-left: 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
 
-    img {
-        margin-bottom: 10px;
+    svg {
+        margin-right: 5px;
+        margin-bottom: 3px;
     }
 }
 
