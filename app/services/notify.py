@@ -190,17 +190,19 @@ class NotificationService:
 
     def send_access_certifier_confirm_submission_declined(
         self,
-        certifier_user: "User",
+        user: "User",
         submission_helper: "SubmissionHelper",
     ) -> Notification:
         if not (
-            submission_helper.sent_for_certification_by and submission_helper.events.submission_state.declined_at_utc
+            submission_helper.sent_for_certification_by
+            and submission_helper.events.submission_state.declined_at_utc
+            and submission_helper.declined_by
         ):
             raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
             "submitter_name": submission_helper.sent_for_certification_by.name,
-            "certifier_name": certifier_user.name,
+            "certifier_name": submission_helper.declined_by.name,
             "reporting_period": submission_helper.collection.name,
             "certifier_comments": submission_helper.events.submission_state.declined_reason,
             "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
@@ -216,22 +218,22 @@ class NotificationService:
             ),
         }
         return self._send_email(
-            email_address=certifier_user.email,
+            email_address=user.email,
             template_id=current_app.config["GOVUK_NOTIFY_ACCESS_CERTIFIER_REPORT_DECLINED_TEMPLATE_ID"],
             personalisation=personalisation,
         )
 
     def send_access_submitter_submission_declined(
         self,
-        certifier_user: "User",
+        user: "User",
         submission_helper: "SubmissionHelper",
     ) -> Notification:
         submission_state = submission_helper.events.submission_state
-        if not submission_helper.sent_for_certification_by:
+        if not (submission_helper.sent_for_certification_by and submission_helper.declined_by):
             raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "certifier_name": certifier_user.name,
+            "certifier_name": submission_helper.declined_by.name,
             "reporting_period": submission_helper.collection.name,
             "certifier_comments": submission_state.declined_reason,
             "grant_report_url": url_for(
@@ -243,7 +245,7 @@ class NotificationService:
             ),
         }
         return self._send_email(
-            email_address=str(submission_helper.sent_for_certification_by.email),
+            email_address=user.email,
             template_id=current_app.config["GOVUK_NOTIFY_ACCESS_SUBMITTER_REPORT_DECLINED_TEMPLATE_ID"],
             personalisation=personalisation,
         )
