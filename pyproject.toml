@@ -65,7 +65,6 @@ dev = [
     "freezegun==1.5.5",
     "import-linter==2.8",
     "ty==0.0.1a32",
-    "pytest-playwright==0.7.2",
     "pytest==9.0.2",
 ]
 
