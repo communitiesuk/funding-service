@@ -24,24 +24,6 @@ $govuk-brand-colour: #00625e;
     width: 100%;
 }
 
-// Makes the content of this div display behind the other elements on the page, like a watermark
-.app-watermark-container {
-    min-height: 300px;
-    background-repeat: repeat;
-    background-size: 150px 150px;
-    background-image: url($govuk-images-path + "watermark-developer.svg");
-}
-
-// Needed to make the watermark above visible
-body.govuk-template__body:has(div.app-body__watermark) {
-    background-color: rgba(255, 255, 255, 0.5);
-}
-
-// Needed to make the watermark above visible
-.govuk-template:has(div.app-body__watermark) {
-    background-color: rgba(255, 255, 255, 0.5);
-}
-
 .app-move-up-down-table__actions {
     width: 50%;
 }
