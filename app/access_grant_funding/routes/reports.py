@@ -134,11 +134,9 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
     # processed performantly
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
-        browser.new_page()
 
         page = browser.new_page(
             java_script_enabled=False,
-            bypass_csp=True,
             http_credentials={
                 "username": current_app.config["BASIC_AUTH_USERNAME"],
                 "password": current_app.config["BASIC_AUTH_PASSWORD"],
@@ -154,7 +152,6 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
             scale=0.9,
             margin={"top": "5mm", "bottom": "5mm", "left": "5mm", "right": "5mm"},
         )
-        browser.close()
 
     return send_file(
         io.BytesIO(pdf_bytes),
