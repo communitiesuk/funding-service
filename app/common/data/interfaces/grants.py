@@ -1,3 +1,4 @@
+import re
 from typing import Sequence
 from uuid import UUID
 
@@ -80,6 +81,8 @@ def create_grant(
     grant: Grant = Grant(
         ggis_number=ggis_number,
         name=name,
+        # TODO: set this explicitly through a UI flow; next PR
+        code="".join(word[0].upper() for word in re.split(r"[\s-]+", name)),
         description=description,
         primary_contact_name=primary_contact_name,
         primary_contact_email=primary_contact_email,

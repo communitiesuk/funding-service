@@ -55,6 +55,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
 )
+from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import AnyOf, GreaterThan, Specifically
 from app.common.helpers.submission_events import SubmissionEventHelper
@@ -104,6 +105,7 @@ class _GrantFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     ggis_number = factory.Sequence(lambda n: f"GGIS-{n:06d}")
     name = factory.Sequence(lambda n: "Grant %d" % n)
+    code = factory.Sequence(lambda n: f"GRANT-{n}")
     status = GrantStatusEnum.DRAFT
     description = factory.Faker("text", max_nb_chars=200)
     primary_contact_name = factory.Faker("name")
@@ -655,6 +657,8 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
 
     collection = factory.SubFactory(_CollectionFactory)
     collection_id = factory.LazyAttribute(lambda o: o.collection.id)
+
+    reference = factory.LazyAttribute(lambda o: generate_submission_reference(o.collection))
 
     grant_recipient = factory.LazyAttribute(
         lambda o: _GrantRecipientFactory.build(grant=o.collection.grant if o.collection else None)

@@ -43,6 +43,7 @@ class Grant(BaseModel):
 
     ggis_number: Mapped[str]
     name: Mapped[CIStr] = mapped_column(unique=True)
+    code: Mapped[CIStr] = mapped_column(unique=True)
     status: Mapped[GrantStatusEnum] = mapped_column(default=GrantStatusEnum.DRAFT)
     description: Mapped[str]
     primary_contact_name: Mapped[str]
@@ -206,16 +207,12 @@ class Collection(BaseModel):
 class Submission(BaseModel):
     __tablename__ = "submission"
 
+    reference: Mapped[CIStr] = mapped_column(unique=True)
+
     data: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
     mode: Mapped[SubmissionModeEnum] = mapped_column(
         SqlEnum(SubmissionModeEnum, name="submission_mode_enum", validate_strings=True)
     )
-
-    # TODO: generated and persisted human readable references for submissions
-    #       these will likely want to fit the domain need
-    @property
-    def reference(self) -> str:
-        return str(self.id)[:8]
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     grant_recipient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant_recipient.id"))
