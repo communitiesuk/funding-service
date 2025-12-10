@@ -213,6 +213,23 @@ class GrantSetupNamePage(TopNavMixin, BasePage):
     def fill_name(self, name: str) -> None:
         self.name_input.fill(name)
 
+    def click_save_and_continue(self) -> GrantSetupCodePage:
+        self.save_continue_button.click()
+        grant_setup_code_page = GrantSetupCodePage(self.page, self.domain)
+        expect(grant_setup_code_page.title).to_be_visible()
+        return grant_setup_code_page
+
+
+class GrantSetupCodePage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="What is the unique code for this grant?")
+        self.code_input = self.page.get_by_role("textbox", name="Enter the grant code")
+        self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
+
+    def fill_code(self, code: str) -> None:
+        self.code_input.fill(code)
+
     def click_save_and_continue(self) -> GrantSetupDescriptionPage:
         self.save_continue_button.click()
         grant_setup_description_page = GrantSetupDescriptionPage(self.page, self.domain)

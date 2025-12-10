@@ -37,6 +37,18 @@
             }
           },
           {
+            "key": {"text": "Grant code"},
+            "value": {"text": grant_session.code},
+            "actions": {
+              "items": [{
+                "href": url_for("deliver_grant_funding.grant_setup_code", source=check_your_answers_source),
+                "classes": "govuk-link--no-visited-state",
+                "text": "Change",
+                "visuallyHiddenText": "grant code"
+              }]
+            }
+          },
+          {
             "key": {"text": "Main purpose"},
             "value": {"text": grant_session.description},
             "actions": {

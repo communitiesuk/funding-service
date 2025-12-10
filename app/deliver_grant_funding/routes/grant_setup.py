@@ -6,9 +6,16 @@ from app.common.auth.decorators import is_deliver_org_member
 from app.common.data import interfaces
 from app.common.data.interfaces.user import add_permissions_to_user, get_current_user
 from app.common.data.types import RoleEnum
+from app.common.data.utils import generate_grant_code
 from app.common.forms import GenericSubmitForm
 from app.constants import CHECK_YOUR_ANSWERS
-from app.deliver_grant_funding.forms import GrantContactForm, GrantDescriptionForm, GrantGGISForm, GrantNameForm
+from app.deliver_grant_funding.forms import (
+    GrantCodeForm,
+    GrantContactForm,
+    GrantDescriptionForm,
+    GrantGGISForm,
+    GrantNameForm,
+)
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.deliver_grant_funding.session_models import GrantSetupSession
 from app.extensions import auto_commit_after_request
@@ -83,7 +90,7 @@ def grant_setup_name() -> ResponseReturnValue:
         session["grant_setup"] = grant_session.to_session_dict()
         if request.args.get("source") == CHECK_YOUR_ANSWERS:
             return redirect(url_for("deliver_grant_funding.grant_setup_check_your_answers"))
-        return redirect(url_for("deliver_grant_funding.grant_setup_description"))
+        return redirect(url_for("deliver_grant_funding.grant_setup_code"))
 
     back_href = (
         url_for("deliver_grant_funding.grant_setup_check_your_answers")
@@ -93,6 +100,41 @@ def grant_setup_name() -> ResponseReturnValue:
     return render_template(
         "deliver_grant_funding/grant_setup/grant_name.html",
         form=form,
+        back_link_href=back_href,
+    )
+
+
+@deliver_grant_funding_blueprint.route("/grant-setup/code", methods=["GET", "POST"])
+@is_deliver_org_member
+def grant_setup_code() -> ResponseReturnValue:
+    if "grant_setup" not in session:
+        return redirect(url_for("deliver_grant_funding.grant_setup_intro"))
+
+    grant_session = GrantSetupSession.from_session(session["grant_setup"])
+    if not grant_session.code:
+        grant_session.code = generate_grant_code(grant_session.name)
+
+    form = GrantCodeForm(
+        obj=grant_session,
+    )
+
+    if form.validate_on_submit():
+        assert form.code.data is not None, "Grant code must be provided"
+        grant_session.code = form.code.data.upper()
+        session["grant_setup"] = grant_session.to_session_dict()
+        if request.args.get("source") == CHECK_YOUR_ANSWERS:
+            return redirect(url_for("deliver_grant_funding.grant_setup_check_your_answers"))
+        return redirect(url_for("deliver_grant_funding.grant_setup_description"))
+
+    back_href = (
+        url_for("deliver_grant_funding.grant_setup_check_your_answers")
+        if request.args.get("source") == CHECK_YOUR_ANSWERS
+        else url_for("deliver_grant_funding.grant_setup_name")
+    )
+    return render_template(
+        "deliver_grant_funding/grant_setup/grant_code.html",
+        form=form,
+        grant=grant_session,
         back_link_href=back_href,
     )
 
@@ -117,7 +159,7 @@ def grant_setup_description() -> ResponseReturnValue:
     back_href = (
         url_for("deliver_grant_funding.grant_setup_check_your_answers")
         if request.args.get("source") == CHECK_YOUR_ANSWERS
-        else url_for("deliver_grant_funding.grant_setup_name")
+        else url_for("deliver_grant_funding.grant_setup_code")
     )
     return render_template(
         "deliver_grant_funding/grant_setup/grant_description.html",
@@ -170,6 +212,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
         # so that grants are automatically associated with the org admin's organisation
         grant = interfaces.grants.create_grant(
             name=grant_session.name,
+            code=grant_session.code,
             description=grant_session.description,
             primary_contact_name=grant_session.primary_contact_name,
             primary_contact_email=grant_session.primary_contact_email,

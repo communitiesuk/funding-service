@@ -29,6 +29,7 @@ routes_with_expected_deliver_org_member_only_access = [
     "deliver_grant_funding.grant_setup_ggis",
     "deliver_grant_funding.grant_setup_ggis_required_info",
     "deliver_grant_funding.grant_setup_name",
+    "deliver_grant_funding.grant_setup_code",
     "deliver_grant_funding.grant_setup_description",
     "deliver_grant_funding.grant_setup_contact",
     "deliver_grant_funding.grant_setup_check_your_answers",

@@ -27,7 +27,9 @@ def test_create_view_edit_grant_success(
         grant_name_page = grant_ggis_page.click_save_and_continue()
         new_grant_name = f"E2E {grant_name_uuid}"
         grant_name_page.fill_name(new_grant_name)
-        grant_description_page = grant_name_page.click_save_and_continue()
+        grant_code_page = grant_name_page.click_save_and_continue()
+        grant_code_page.fill_code(f"E2E-{grant_name_uuid[:8].upper()}")
+        grant_description_page = grant_code_page.click_save_and_continue()
         new_grant_description = f"Description for {new_grant_name}"
         grant_description_page.fill_description(new_grant_description)
         grant_contact_page = grant_description_page.click_save_and_continue()

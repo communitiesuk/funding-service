@@ -11,6 +11,7 @@ class GrantSetupSession(BaseModel):
     has_ggis: Literal["yes", "no"] | None = None
     ggis_number: str = ""
     name: str = ""
+    code: str = ""
     description: str = ""
     primary_contact_name: str = ""
     primary_contact_email: str = ""

@@ -1,4 +1,3 @@
-import re
 from typing import Sequence
 from uuid import UUID
 
@@ -45,6 +44,13 @@ def grant_name_exists(name: str, exclude_grant_id: UUID | None = None) -> bool:
     return grant is not None
 
 
+def grant_code_exists(code: str, exclude_grant_id: UUID | None = None) -> Grant | None:
+    statement = select(Grant).where(Grant.code == code)
+    if exclude_grant_id:
+        statement = statement.where(Grant.id != exclude_grant_id)
+    return db.session.scalar(statement)
+
+
 def get_all_deliver_grants_by_user(user: User) -> Sequence[Grant]:
     from app.common.auth.authorisation_helper import AuthorisationHelper
 
@@ -70,6 +76,7 @@ def create_grant(
     *,
     ggis_number: str,
     name: str,
+    code: str,
     description: str,
     primary_contact_name: str,
     primary_contact_email: str,
@@ -81,8 +88,7 @@ def create_grant(
     grant: Grant = Grant(
         ggis_number=ggis_number,
         name=name,
-        # TODO: set this explicitly through a UI flow; next PR
-        code="".join(word[0].upper() for word in re.split(r"[\s-]+", name)),
+        code=code,
         description=description,
         primary_contact_name=primary_contact_name,
         primary_contact_email=primary_contact_email,

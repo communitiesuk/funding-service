@@ -1,8 +1,13 @@
 import random
+import re
 from typing import Sequence
 
 from app.common.data.models import Collection
 from app.common.data.types import CollectionType
+
+
+def generate_grant_code(name: str) -> str:
+    return "".join(word[0].upper() for word in re.split(r"\s+", (name or "")))
 
 
 def generate_submission_reference(collection: Collection, avoid_references: Sequence[str] | None = None) -> str:

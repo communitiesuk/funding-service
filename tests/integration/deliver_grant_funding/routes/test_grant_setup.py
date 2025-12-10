@@ -6,8 +6,14 @@ from flask import url_for
 
 from app.common.data.models import Grant
 from app.common.forms import GenericSubmitForm
-from app.deliver_grant_funding.forms import GrantContactForm, GrantDescriptionForm, GrantGGISForm, GrantNameForm
-from tests.utils import get_h1_text, get_h2_text
+from app.deliver_grant_funding.forms import (
+    GrantCodeForm,
+    GrantContactForm,
+    GrantDescriptionForm,
+    GrantGGISForm,
+    GrantNameForm,
+)
+from tests.utils import get_h1_text, get_h2_text, page_has_error
 
 
 class TestGrantSetupIntro:
@@ -108,7 +114,57 @@ class TestGrantSetupName:
             url_for("deliver_grant_funding.grant_setup_name"), data=name_form.data, follow_redirects=False
         )
         assert response.status_code == 302
+        assert response.location == url_for("deliver_grant_funding.grant_setup_code")
+
+
+class TestGrantSetupCode:
+    def test_grant_setup_code_get_with_session(self, authenticated_org_admin_client):
+        with authenticated_org_admin_client.session_transaction() as sess:
+            sess["grant_setup"] = {"name": "Test Grant Name"}
+
+        response = authenticated_org_admin_client.get(url_for("deliver_grant_funding.grant_setup_code"))
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "What is the unique code for this grant?"
+
+    def test_grant_setup_code_post(self, authenticated_org_admin_client):
+        with authenticated_org_admin_client.session_transaction() as sess:
+            sess["grant_setup"] = {"name": "Test Grant Name"}
+
+        code_form = GrantCodeForm(code="TGN")
+        response = authenticated_org_admin_client.post(
+            url_for("deliver_grant_funding.grant_setup_code"), data=code_form.data, follow_redirects=False
+        )
+        assert response.status_code == 302
         assert response.location == url_for("deliver_grant_funding.grant_setup_description")
+
+    def test_grant_setup_code_invalid_characters(self, authenticated_org_admin_client, factories):
+        with authenticated_org_admin_client.session_transaction() as sess:
+            sess["grant_setup"] = {"name": "Test Grant Name"}
+
+        code_form = GrantCodeForm(code="ABC&123")
+        response = authenticated_org_admin_client.post(
+            url_for("deliver_grant_funding.grant_setup_code"), data=code_form.data, follow_redirects=False
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "The grant code should only contain uppercase letters, numbers, and dashes")
+
+    def test_grant_setup_code_collision(self, authenticated_org_admin_client, factories):
+        factories.grant.create(name="Grant code collision", code="TGN")
+
+        with authenticated_org_admin_client.session_transaction() as sess:
+            sess["grant_setup"] = {"name": "Test Grant Name"}
+
+        code_form = GrantCodeForm(code="TGN")
+        response = authenticated_org_admin_client.post(
+            url_for("deliver_grant_funding.grant_setup_code"), data=code_form.data, follow_redirects=False
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Grant code already in use by Grant code collision")
 
 
 class TestGrantSetupDescription:
