@@ -5,6 +5,7 @@ from playwright.sync_api import Page, expect
 
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
+from tests.e2e.helpers import delete_grant_through_admin
 from tests.e2e.pages import AllGrantsPage
 
 
@@ -12,6 +13,7 @@ from tests.e2e.pages import AllGrantsPage
 def test_create_view_edit_grant_success(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser
 ):
+    grant_name_uuid = str(uuid.uuid4())
     try:
         all_grants_page = AllGrantsPage(page, domain)
         all_grants_page.navigate()
@@ -23,7 +25,7 @@ def test_create_view_edit_grant_success(
         ggis_ref = f"GGIS-{uuid.uuid4()}"
         grant_ggis_page.fill_ggis_number(ggis_ref)
         grant_name_page = grant_ggis_page.click_save_and_continue()
-        new_grant_name = f"E2E {uuid.uuid4()}"
+        new_grant_name = f"E2E {grant_name_uuid}"
         grant_name_page.fill_name(new_grant_name)
         grant_description_page = grant_name_page.click_save_and_continue()
         new_grant_description = f"Description for {new_grant_name}"
@@ -80,7 +82,5 @@ def test_create_view_edit_grant_success(
         all_grants_page.check_grant_exists(edited_grant_name)
         all_grants_page.check_grant_doesnt_exist(new_grant_name)
     finally:
-        # Tidy up by deleting the grant, which will cascade to all related entities
-        grant_dashboard_page = all_grants_page.click_grant(edited_grant_name)
-        developers_page = grant_dashboard_page.click_developers(edited_grant_name)
-        developers_page.delete_grant()
+        # Tidy up by deleting the grant via admin panel, which will cascade to all related entities
+        delete_grant_through_admin(page, domain, grant_name_uuid)

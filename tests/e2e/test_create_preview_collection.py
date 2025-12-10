@@ -37,6 +37,7 @@ from tests.e2e.conftest import (
     login_with_stub_sso,
 )
 from tests.e2e.dataclasses import E2ETestUser, GuidanceText
+from tests.e2e.helpers import delete_grant_through_admin
 from tests.e2e.pages import AllGrantsPage, GrantDashboardPage, GrantDetailsPage
 from tests.e2e.reports_pages import (
     AddQuestionDetailsPage,
@@ -840,6 +841,8 @@ def switch_user(
 def test_create_and_preview_report(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser, email
 ) -> None:
+    grant_name_uuid = str(uuid.uuid4())
+
     try:
         # Sense check that the test includes all question types
         new_question_type_error = None
@@ -851,7 +854,7 @@ def test_create_and_preview_report(
         except AssertionError as e:
             new_question_type_error = e
 
-        new_grant_name = f"E2E developer_grant {uuid.uuid4()}"
+        new_grant_name = f"E2E developer_grant {grant_name_uuid}"
         all_grants_page = AllGrantsPage(page, domain)
         all_grants_page.navigate()
 
@@ -976,10 +979,8 @@ def test_create_and_preview_report(
         # Sign out and switch to platform admin
         switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
 
-        # Tidy up by deleting the grant, which will cascade to all related entities
-        all_grants_page.navigate()
-        grant_dashboard_page = all_grants_page.click_grant(new_grant_name)
-        developers_page = grant_dashboard_page.click_developers(new_grant_name)
-        developers_page.delete_grant()
+        # Tidy up by deleting the grant via admin panel, which will cascade to all related entities
+        delete_grant_through_admin(page, domain, grant_name_uuid)
+
         if new_question_type_error:
             raise new_question_type_error

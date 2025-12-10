@@ -243,7 +243,6 @@ def create_app() -> Flask:  # noqa: C901
             PackageLoader("app.common"),
             PackageLoader("app.access_grant_funding"),
             PackageLoader("app.deliver_grant_funding"),
-            PackageLoader("app.developers"),
             PrefixLoader({"govuk_frontend_jinja": PackageLoader("govuk_frontend_jinja")}),
             PrefixLoader({"govuk_frontend_wtf": PackageLoader("govuk_frontend_wtf")}),
             PackageLoader("xgovuk_flask_admin"),
