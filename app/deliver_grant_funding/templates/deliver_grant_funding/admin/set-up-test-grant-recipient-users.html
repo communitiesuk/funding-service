@@ -1,6 +1,7 @@
 {% extends "admin/master.html" %}
 {% import 'admin/layout.html' as layout with context %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 
 {# Macro for existing users table #}
@@ -42,9 +43,18 @@
     <div class="govuk-grid-column-two-thirds">
       {{ layout.messages() }}
 
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
       <h1 class="govuk-heading-xl">Add users to test Access grant funding</h1>
 
-      <p class="govuk-body">Select a test grant recipient and a Deliver grant funding user to add them as a data provider.</p>
+      <p class="govuk-body">Select a test grant recipient and one of either:</p>
+
+      <ul class="govuk-list govuk-list--bullet">
+        <li>a Deliver grant funding user</li>
+        <li>an MHCLG admin user</li>
+      </ul>
 
       <p class="govuk-body">Data providers can complete monitoring reports on behalf of grant recipients.</p>
     </div>
@@ -71,6 +81,7 @@
         {{ form.hidden_tag() }}
         {{ form.grant_recipient }}
         {{ form.user }}
+        {{ form.mhclg_user }}
         {{ form.submit }}
       </form>
     </div>

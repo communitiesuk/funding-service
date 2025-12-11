@@ -526,10 +526,18 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         # Get all Deliver grant funding users who have permissions for this grant
         grant_team_users = grant.grant_team_users
 
+        orgs = get_organisations(can_manage_grants=True)
+        if not orgs or len(orgs) > 1:
+            raise Exception("Journey requires and only supports one managing organisation (MHCLG)")
+
+        mhclg = orgs[0]
+        mhclg_users = list(get_users_with_permission(RoleEnum.MEMBER, organisation_id=mhclg.id))
+
         # Initialize form with dropdown choices
         form = PlatformAdminAddTestGrantRecipientUserForm(
             grant_recipients=grant_recipients,
             grant_team_users=grant_team_users,
+            mhclg_users=mhclg_users,
         )
 
         # Prepare data for template (existing users table)
