@@ -10,7 +10,7 @@
 
 {% block beforeContent %}
   {% if helper.is_test_mode %}
-    {{ mhclgTestBanner("Test submissions") }}
+    {{ mhclgTestBanner("Test submissions", false) }}
   {% endif %}
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":"Submissions"}) }}
 {% endblock beforeContent %}
