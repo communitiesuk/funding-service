@@ -112,6 +112,8 @@ class TestViewLockedReport:
 
         soup = BeautifulSoup(response.data, "html.parser")
 
+        assert get_h1_text(soup) == submission_submitted.collection.name
+
         # now that its submitted we don't have certifier actions even though we have permissions
         # to do that
         assert page_has_button(soup, button_text="Sign off and submit report") is None
