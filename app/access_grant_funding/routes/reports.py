@@ -15,6 +15,7 @@ from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import CollectionType, RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.submission_mode import get_submission_mode_for_user
 from app.extensions import auto_commit_after_request, notification_service
 from app.types import FlashMessageType
 
@@ -24,8 +25,6 @@ from app.types import FlashMessageType
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
-    from app.common.helpers.submission_mode import get_submission_mode_for_user
-
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
     user = get_current_user()
     submission_mode = get_submission_mode_for_user(user)

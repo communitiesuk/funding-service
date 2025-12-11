@@ -337,7 +337,6 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
 def get_submission_by_grant_recipient_collection(
     grant_recipient: GrantRecipient, collection_id: UUID
 ) -> Submission | None:
-    # Derive submission mode from grant recipient mode (TEST → TEST, LIVE → LIVE)
     submission_mode = SubmissionModeEnum(grant_recipient.mode.value)
 
     return db.session.scalars(
