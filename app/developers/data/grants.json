@@ -1214,6 +1214,7 @@
         }
       ],
       "grant": {
+        "code": "CIP",
         "description": "Funding to help local cheesemongers provide samples to park visitors, with the intention to increase the local community's satisfaction with the variety and quality of local cheeses.",
         "ggis_number": "GGIS-000000",
         "id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
@@ -2983,8 +2984,9 @@
         }
       ],
       "grant": {
+        "code": "CFA",
         "description": "Fill me in later",
-        "ggis_number": "fill-me-in-later",
+        "ggis_number": "G2-SCH-2025-123456",
         "id": "df51f309-718c-4dd4-bd76-0bd6df032e4b",
         "name": "Communities for Afghans",
         "primary_contact_email": "someone@communities.gov.uk",
