@@ -105,8 +105,6 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>")  # type: ignore[untyped-decorator]
     def tasklist(self, grant_id: UUID, collection_id: UUID) -> Any:
-        from app.common.data.types import GrantRecipientModeEnum, OrganisationModeEnum
-
         grant = get_grant(grant_id, with_all_collections=True)
         collection = get_collection(collection_id, grant_id=grant_id)
         organisation_count = get_organisation_count()

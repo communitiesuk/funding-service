@@ -37,6 +37,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.models_user import User
 from app.common.data.types import (
     ConditionsOperator,
+    GrantRecipientModeEnum,
     QuestionDataType,
     RoleEnum,
     SubmissionEventType,
@@ -724,9 +725,6 @@ class CollectionHelper:
             s for s in (get_all_submissions_with_mode_for_collection_with_full_schema(collection.id, submission_mode))
         ]
         self.submission_helpers = {s.id: SubmissionHelper(s) for s in self.submissions}
-
-        # Filter grant recipients by mode to match the submission mode
-        from app.common.data.types import GrantRecipientModeEnum
 
         grant_recipient_mode = (
             GrantRecipientModeEnum.TEST if submission_mode == SubmissionModeEnum.TEST else GrantRecipientModeEnum.LIVE
