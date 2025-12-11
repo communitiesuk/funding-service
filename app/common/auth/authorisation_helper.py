@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from flask import request
 from flask_login import AnonymousUserMixin
 
 from app.common.data.interfaces.collections import get_collection
@@ -257,7 +258,5 @@ class AuthorisationHelper:
         """
         if not AuthorisationHelper.is_deliver_grant_funding_user(user):
             return False
-
-        from flask import request
 
         return request.path.startswith("/access/")

@@ -715,6 +715,9 @@ class CollectionHelper:
     submission_helpers: dict[UUID, SubmissionHelper]
 
     def __init__(self, collection: "Collection", submission_mode: SubmissionModeEnum):
+        if submission_mode == SubmissionModeEnum.PREVIEW:
+            raise ValueError("Cannot create a collection helper for preview submissions.")
+
         self.collection = collection
         self.submission_mode = submission_mode
         self.submissions = [

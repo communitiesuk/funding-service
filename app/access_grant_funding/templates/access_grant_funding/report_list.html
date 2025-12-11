@@ -49,7 +49,7 @@
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.route_to_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=report.id) }}">
               {{ submissionStatusAction(submission_status) }}
               <span class="govuk-visually-hidden">
-                for {{ format_date_range_short(report.reporting_period_start_date, report.reporting_period_end_date) if report.reporting_period_start_date and report.reporting_period_end_date else "NOT SET" }}
+                for {{ format_date_range_short(report.reporting_period_start_date, report.reporting_period_end_date) if report.reporting_period_start_date and report.reporting_period_end_date else "Dates to be confirmed" }}
               </span>
             </a>
           {% endset %}
@@ -58,13 +58,13 @@
             {% if report.name %}
               {{ report.name }}
             {% else %}
-              {{ format_date_range_short(report.reporting_period_start_date, report.reporting_period_end_date) if report.reporting_period_start_date and report.reporting_period_end_date else "NOT SET" }}
+              {{ format_date_range_short(report.reporting_period_start_date, report.reporting_period_end_date) if report.reporting_period_start_date and report.reporting_period_end_date else "Dates to be confirmed" }}
             {% endif %}
           {% endset %}
           {%
             do rows.append([
               {"text": report_label},
-              {"text": format_date_short(report.submission_period_end_date) if report.submission_period_end_date else "NOT SET"}, {"html": submission_status_html},
+              {"text": format_date_short(report.submission_period_end_date) if report.submission_period_end_date else "Dates to be confirmed"}, {"html": submission_status_html},
               {"html": report_action_html}
             ])
           %}
