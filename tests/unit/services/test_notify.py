@@ -343,13 +343,14 @@ class TestNotificationService:
         assert mock_notification_service_calls[0].kwargs["email_address"] == "submitter@test.com"
 
     @responses.activate
-    def test_send_access_submission_certified_and_submitted(self, app, factories):
+    def test_send_access_submission_submitted(self, app, factories):
         grant_recipient = factories.grant_recipient.build(
             grant__name="Test grant",
         )
         submission = factories.submission.build(
             grant_recipient=grant_recipient,
             collection__grant=grant_recipient.grant,
+            collection__requires_certification=True,
             collection__name="Test collection",
             collection__reporting_period_start_date=datetime.date(2025, 10, 13),
             collection__reporting_period_end_date=datetime.date(2025, 10, 27),
@@ -392,6 +393,7 @@ class TestNotificationService:
                             "grant_name": "Test grant",
                             "submitter_name": "Submitter User",
                             "certifier_name": "Certifier User",
+                            "requires_certification": "yes",
                             "reporting_period": "Monday 13 October 2025 to Monday 27 October 2025",
                             "date_submitted": "10:37am on Tuesday 25 November 2025",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
@@ -402,7 +404,7 @@ class TestNotificationService:
             ],
             json={"id": "00000000-0000-0000-0000-000000000000"},
         )
-        resp = notification_service.send_access_submission_certified_and_submitted(
+        resp = notification_service.send_access_submission_submitted(
             email_address="test@communities.gov.uk",
             submission_helper=helper,
         )

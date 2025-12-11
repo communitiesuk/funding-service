@@ -199,7 +199,7 @@ class TestViewLockedReport:
         assert helper.status == SubmissionStatusEnum.SUBMITTED
         assert helper.events.submission_state.is_approved
         assert helper.events.submission_state.is_submitted
-        assert len(mock_notification_service_calls) == 2
+        assert len(mock_notification_service_calls) == 1
 
     def test_post_view_locked_report_certify_failure_should_not_submit(
         self,
