@@ -49,6 +49,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
 )
+from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.forms.helpers import questions_in_same_add_another_container
@@ -396,8 +397,22 @@ def get_submission(
 def create_submission(
     *, collection: Collection, created_by: User, mode: SubmissionModeEnum, grant_recipient: GrantRecipient | None = None
 ) -> Submission:
+    existing_grant_submission_references = (
+        db.session.execute(
+            select(Submission.reference).join(Submission.collection).where(Collection.grant_id == collection.grant_id)
+        )
+        .scalars()
+        .all()
+    )
+    new_reference = generate_submission_reference(collection, existing_grant_submission_references)
+
     submission = Submission(
-        collection=collection, created_by=created_by, mode=mode, data={}, grant_recipient=grant_recipient
+        reference=new_reference,
+        collection=collection,
+        created_by=created_by,
+        mode=mode,
+        data={},
+        grant_recipient=grant_recipient,
     )
     db.session.add(submission)
     emit_metric_count(MetricEventName.SUBMISSION_CREATED, submission=submission)
