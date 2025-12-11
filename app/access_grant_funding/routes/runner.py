@@ -12,7 +12,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection, get_submission_by_grant_recipient_collection
 from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.helpers.collections import SubmissionHelper
-from app.extensions import auto_commit_after_request, notification_service
+from app.extensions import auto_commit_after_request
 
 
 @access_grant_funding_blueprint.route(
@@ -71,8 +71,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
         grant_recipient_id=grant_recipient.id,
     )
 
-    submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
-    if submission_helper.is_locked_state:
+    if runner.submission.is_locked_state:
         return redirect(
             url_for(
                 "access_grant_funding.view_locked_report",
@@ -83,23 +82,22 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
         )
 
     if runner.tasklist_form.validate_on_submit():
-        if AuthorisationHelper.is_access_grant_data_provider(
+        if not AuthorisationHelper.is_access_grant_data_provider(
             grant_id=grant_id, organisation_id=organisation_id, user=interfaces.user.get_current_user()
         ):
-            if runner.complete_submission(interfaces.user.get_current_user(), requires_certification=True):
-                for data_provider in grant_recipient.data_providers:
-                    notification_service.send_access_submission_sent_for_certification_confirmation(
-                        data_provider.email, submission=runner.submission.submission
-                    )
-                for certifier in grant_recipient.certifiers:
-                    # we've sent the submission for sign off in this transaction so it should be guaranteed
-                    assert runner.submission.sent_for_certification_by is not None
-                    notification_service.send_access_submission_ready_to_certify(
-                        certifier.email,
-                        submission=runner.submission.submission,
-                        submitted_by=runner.submission.sent_for_certification_by,
-                    )
+            return abort(403, description="Access denied")
 
+        if runner.complete_submission(interfaces.user.get_current_user()):
+            if runner.submission.is_submitted:
+                return redirect(
+                    url_for(
+                        "access_grant_funding.confirm_report_submitted",
+                        organisation_id=organisation_id,
+                        grant_id=grant_id,
+                        submission_id=submission_id,
+                    )
+                )
+            elif runner.submission.is_awaiting_sign_off:
                 return redirect(
                     url_for(
                         "access_grant_funding.confirm_sent_for_certification",
@@ -108,9 +106,8 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
                         submission_id=submission_id,
                     )
                 )
-        else:
-            return abort(403, description="Access denied")
 
+    # if complete_submission failed, the runner has appended errors to the form which will show to the user
     return render_template("access_grant_funding/reports/tasklist.html", grant_recipient=grant_recipient, runner=runner)
 
 
@@ -193,7 +190,7 @@ def check_your_answers(
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/confirmation",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/sent_for_sign_off_confirmation",
     methods=["GET"],
 )
 @has_access_grant_role(RoleEnum.MEMBER)
@@ -210,7 +207,31 @@ def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submis
             )
         )
     return render_template(
-        "access_grant_funding/reports/confirmation.html",
+        "access_grant_funding/reports/sent_for_sign_off_confirmation.html",
+        grant_recipient=grant_recipient,
+        submission_helper=submission_helper,
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/submitted_confirmation",
+    methods=["GET"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def confirm_report_submitted(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    if not submission_helper.is_submitted:
+        return redirect(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
+        )
+    return render_template(
+        "access_grant_funding/reports/submit_confirmation.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
     )

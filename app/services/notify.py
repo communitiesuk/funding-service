@@ -226,7 +226,7 @@ class NotificationService:
             and submission_helper.declined_by
         ):
             current_app.logger.warning(
-                "Missing value on the submission state for submission id %(submission_id)s",
+                "Missing values on the submission state for submission id %(submission_id)s",
                 dict(submission_id=submission_helper.id),
             )
         personalisation = {
@@ -268,13 +268,19 @@ class NotificationService:
         submission_helper: "SubmissionHelper",
     ) -> Notification:
         submission_state = submission_helper.events.submission_state
-        if not (submission_helper.sent_for_certification_by and submission_helper.declined_by):
+        if not submission_helper.declined_by:
             # as this is the user we're sending the email to its a hard requirement
             # todo: this should probably be part of the interface instead
-            raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
+            current_app.logger.warning(
+                "Missing value on the submission state for submission id %(submission_id)s",
+                dict(submission_id=submission_helper.id),
+            )
+
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "certifier_name": submission_helper.declined_by.name,
+            "certifier_name": submission_helper.declined_by.name
+            if submission_helper.declined_by
+            else "(Certifier not known)",
             "reporting_period": submission_helper.collection.name,
             "certifier_comments": submission_state.declined_reason,
             "is_test_data": "yes"
@@ -294,13 +300,12 @@ class NotificationService:
             personalisation=personalisation,
         )
 
-    def send_access_submission_certified_and_submitted(
+    def send_access_submission_submitted(
         self, email_address: str, *, submission_helper: "SubmissionHelper"
     ) -> Notification:
-        if (
+        if not submission_helper.submitted_at_utc or (
             submission_helper.collection.requires_certification
             and not (submission_helper.sent_for_certification_by and submission_helper.certified_by)
-            or not submission_helper.submitted_at_utc
         ):
             # note baseline reports are unlikely to have reporting dates and we don't
             # expect them here
@@ -309,14 +314,23 @@ class NotificationService:
                 dict(submission_id=submission_helper.id),
             )
 
+        submitter_name = "(Submitter not known)"
+        certifier_name = "(Certifier not known)"
+        if submission_helper.collection.requires_certification:
+            if submission_helper.sent_for_certification_by:
+                submitter_name = submission_helper.sent_for_certification_by.name
+            if submission_helper.certified_by:
+                certifier_name = submission_helper.certified_by.name
+        else:
+            if submission_helper.submitted_by:
+                submitter_name = submission_helper.submitted_by.name
+            certifier_name = ""
+
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "submitter_name": submission_helper.sent_for_certification_by.name
-            if submission_helper.sent_for_certification_by
-            else "(Submitter not known)",
-            "certifier_name": submission_helper.certified_by.name
-            if submission_helper.certified_by
-            else "(Certifier not known)",
+            "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
+            "submitter_name": submitter_name,
+            "certifier_name": certifier_name,
             "reporting_period": submission_helper.collection.name,
             "date_submitted": format_datetime(submission_helper.submitted_at_utc)
             if submission_helper.submitted_at_utc

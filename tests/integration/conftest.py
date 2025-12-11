@@ -429,6 +429,30 @@ def user(factories: _Factories) -> User:
 
 
 @pytest.fixture(scope="function")
+def data_provider_user(factories: _Factories, grant_recipient: GrantRecipient) -> User:
+    user = cast(User, factories.user.create(email="data_provider@communities.gov.uk"))
+    factories.user_role.create(
+        user=user,
+        permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        organisation=grant_recipient.organisation,
+        grant=grant_recipient.grant,
+    )
+    return user
+
+
+@pytest.fixture(scope="function")
+def certifier_user(factories: _Factories, grant_recipient: GrantRecipient) -> User:
+    user = cast(User, factories.user.create(email="certifier@communities.gov.uk"))
+    factories.user_role.create(
+        user=user,
+        permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        organisation=grant_recipient.organisation,
+        grant=grant_recipient.grant,
+    )
+    return user
+
+
+@pytest.fixture(scope="function")
 def grant_recipient(
     factories: _Factories,
 ) -> GrantRecipient:
@@ -441,7 +465,10 @@ def grant_recipient(
 @pytest.fixture(scope="function")
 def submission_in_progress(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
     question = factories.question.create(
+        id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
         form__collection__grant=grant_recipient.grant,
+        form__collection__reporting_period_start_date=date.today() - timedelta(days=30),
+        form__collection__reporting_period_end_date=date.today(),
         form__collection__submission_period_end_date=date.today() + timedelta(days=30),
     )
     submission = factories.submission.create(
@@ -454,8 +481,34 @@ def submission_in_progress(factories: _Factories, grant_recipient: GrantRecipien
 
 
 @pytest.fixture(scope="function")
+def submission_ready_to_submit(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+    question = factories.question.create(
+        id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+        form__collection__grant=grant_recipient.grant,
+        form__collection__reporting_period_start_date=date.today() - timedelta(days=30),
+        form__collection__reporting_period_end_date=date.today(),
+        form__collection__submission_period_end_date=date.today() + timedelta(days=30),
+    )
+    submission = factories.submission.create(
+        grant_recipient=grant_recipient,
+        collection=question.form.collection,
+        mode=SubmissionModeEnum.LIVE,
+        data={str(question.id): "Question answer"},
+    )
+    factories.submission_event.create(
+        submission=submission,
+        related_entity_id=question.form.id,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        created_by=user,
+        created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
+    )
+    return cast(Submission, submission)
+
+
+@pytest.fixture(scope="function")
 def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
     question = factories.question.create(
+        id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
         form__collection__grant=grant_recipient.grant,
         form__collection__submission_period_end_date=date.today() + timedelta(days=30),
         form__collection__reporting_period_start_date=date.today() - timedelta(days=60),
@@ -486,6 +539,7 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
 @pytest.fixture(scope="function")
 def submission_submitted(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
     question = factories.question.create(
+        id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
         form__collection__grant=grant_recipient.grant,
         form__collection__submission_period_start_date=date.today(),
         form__collection__submission_period_end_date=date.today() + timedelta(days=30),

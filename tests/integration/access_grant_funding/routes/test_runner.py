@@ -104,20 +104,29 @@ class TestRouteToSubmission:
 
 class TestTasklist:
     @pytest.mark.parametrize(
-        "client_fixture, can_access, can_edit",
+        "client_fixture, can_access, can_edit, requires_certification",
         (
-            ("authenticated_no_role_client", False, False),
-            ("authenticated_grant_recipient_member_client", True, False),
-            ("authenticated_grant_recipient_data_provider_client", True, True),
+            ("authenticated_no_role_client", False, False, True),
+            ("authenticated_grant_recipient_member_client", True, False, True),
+            ("authenticated_grant_recipient_data_provider_client", True, True, True),
+            ("authenticated_grant_recipient_data_provider_client", True, True, False),
         ),
     )
     def test_get_tasklist(
-        self, request: FixtureRequest, client_fixture: str, can_access: bool, can_edit: bool, factories
+        self,
+        request: FixtureRequest,
+        client_fixture: str,
+        can_access: bool,
+        can_edit: bool,
+        factories,
+        requires_certification,
     ):
         client = request.getfixturevalue(client_fixture)
         grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
         question = factories.question.create(
-            form__title="Colour information", form__collection__grant=grant_recipient.grant
+            form__title="Colour information",
+            form__collection__grant=grant_recipient.grant,
+            form__collection__requires_certification=requires_certification,
         )
         submission = factories.submission.create(
             collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
@@ -139,8 +148,12 @@ class TestTasklist:
             assert "Colour information" in soup.text
             assert "Not started" in soup.text
 
-            submission_heading = page_has_h2(soup, "Submit your report to your certifier")
-            submission_action = page_has_button(soup, "Submit report to certifier")
+            if requires_certification:
+                submission_heading = page_has_h2(soup, "Submit your report to your certifier")
+                submission_action = page_has_button(soup, "Submit report to certifier")
+            else:
+                submission_heading = page_has_h2(soup, "Submit your report")
+                submission_action = page_has_button(soup, "Submit report")
             tasklist_action = page_has_link(soup, "Colour information")
 
             if can_edit:
@@ -206,7 +219,7 @@ class TestTasklist:
         ),
     )
     @pytest.mark.freeze_time("2025-01-02 12:00:00")
-    def test_post_tasklist_complete_submission(
+    def test_post_tasklist_complete_submission_send_for_sign_off(
         self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, mock_notification_service_calls
     ):
         client = request.getfixturevalue(client_fixture)
@@ -252,7 +265,7 @@ class TestTasklist:
 
             expected_location = (
                 f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
-                f"/reports/{submission.id}/confirmation"
+                f"/reports/{submission.id}/sent_for_sign_off_confirmation"
             )
             assert response.location == expected_location
 
@@ -264,6 +277,41 @@ class TestTasklist:
                 r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+"
             )
             assert certifier_notification_email.kwargs["personalisation"]["report_submitter"] == client.user.name
+
+    @pytest.mark.freeze_time("2025-01-02 12:00:00")
+    def test_post_tasklist_complete_submission_submit(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        factories,
+        grant_recipient,
+        mock_notification_service_calls,
+        submission_ready_to_submit,
+        data_provider_user,
+    ):
+        submission_ready_to_submit.collection.requires_certification = False
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_ready_to_submit.id,
+            ),
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+
+        expected_location = (
+            f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
+            f"/reports/{submission_ready_to_submit.id}/submitted_confirmation"
+        )
+        assert response.location == expected_location
+
+        # 1 email for the data provider, plus generic user that exists for the client
+        assert len(mock_notification_service_calls) == 2
+        data_provider_confirmation_email = mock_notification_service_calls[0]
+        assert data_provider_confirmation_email.kwargs["personalisation"]["grant_report_url"] == AnyStringMatching(
+            r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+"
+        )
 
 
 class TestAskAQuestion:
