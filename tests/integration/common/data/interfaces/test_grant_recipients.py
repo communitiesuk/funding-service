@@ -9,9 +9,10 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipient_data_providers_count,
     get_grant_recipients,
     get_grant_recipients_count,
+    get_grant_recipients_with_outstanding_submissions_for_collection,
 )
 from app.common.data.models import GrantRecipient
-from app.common.data.types import RoleEnum
+from app.common.data.types import RoleEnum, SubmissionEventType, SubmissionModeEnum
 
 
 class TestGetGrantRecipients:
@@ -249,6 +250,80 @@ class TestGetGrantRecipients:
             assert result[0].certifiers == []
 
         assert len(queries) == 0
+
+
+class TestGetGrantRecipientsWithOutstandingReports:
+    def test_returns_grant_recipients_for_grant_with_status(self, factories, db_session):
+        grant = factories.grant.create()
+        org1 = factories.organisation.create(name="Organisation 1")
+        org2 = factories.organisation.create(name="Organisation 2")
+        org3 = factories.organisation.create(name="Organisation 3")
+        org4 = factories.organisation.create(name="Organisation 4")
+
+        gr1 = factories.grant_recipient.create(grant=grant, organisation=org1)
+        gr2 = factories.grant_recipient.create(grant=grant, organisation=org2)
+        gr3 = factories.grant_recipient.create(grant=grant, organisation=org3)
+        factories.grant_recipient.create(grant=grant, organisation=org4)
+
+        question = factories.question.create(form__collection__grant=grant)
+        collection = question.form.collection
+
+        # gr1 has submitted, so should not be in the list
+        submission1 = factories.submission.create(
+            grant_recipient=gr1,
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Blue"},
+        )
+        factories.submission_event.create(
+            submission=submission1,
+            related_entity_id=collection.forms[0].id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        )
+        factories.submission_event.create(submission=submission1, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+
+        # gr2 has sent for certification, not submitted, so should be in the list
+        submission2 = factories.submission.create(
+            grant_recipient=gr2,
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Blue"},
+        )
+        factories.submission_event.create(
+            submission=submission2,
+            related_entity_id=collection.forms[0].id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        )
+        factories.submission_event.create(
+            submission=submission2, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+        )
+
+        # gr3 has had their certification declined, so should be in the list
+        submission3 = factories.submission.create(
+            grant_recipient=gr3,
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Blue"},
+        )
+        factories.submission_event.create(
+            submission=submission3,
+            related_entity_id=collection.forms[0].id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        )
+        factories.submission_event.create(
+            submission=submission3, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+        )
+        factories.submission_event.create(
+            submission=submission3, event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER
+        )
+        # org 4 has not started their report yet so should be in the list
+
+        result = get_grant_recipients_with_outstanding_submissions_for_collection(
+            grant, collection_id=collection.id, with_certifiers=True, with_data_providers=True
+        )
+
+        assert len(result) == 3
+        assert {gr.organisation_id for gr in result} == {org2.id, org3.id, org4.id}
 
 
 class TestGetGrantRecipient:

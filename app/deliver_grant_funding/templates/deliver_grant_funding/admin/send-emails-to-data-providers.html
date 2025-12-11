@@ -12,12 +12,28 @@
     <div class="govuk-grid-column-one-half">
       {{ layout.messages() }}
 
-      <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
-        Send emails to data providers
-      </h1>
+      {% if email_type == enum.report_admin_email_type_enum.REPORT_OPEN_NOTIFICATION %}
+        <h1 class="govuk-heading-l">
+          <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+          Send emails to data providers
+        </h1>
 
-      <p class="govuk-body">Let grant recipient users know that their report is ready to complete. This email is sent to all data providers for all grant recipients for {{ collection.grant.name }}.</p>
+        <p class="govuk-body">Let grant recipient users know that their report is ready to complete. This email is sent to all data providers for all grant recipients for {{ collection.grant.name }}.</p>
+      {% elif email_type == enum.report_admin_email_type_enum.DEADLINE_REMINDER %}
+        <h1 class="govuk-heading-l">
+          <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+          Send deadline reminder emails
+        </h1>
+
+        <p class="govuk-body">
+          Let grant recipient users know that there is only one week left until their report needs to be submitted for {{ collection.grant.name }}. This email is sent to all data providers and certifiers for grant recipients that have not
+          yet submitted this report.
+        </p>
+        <ul class="govuk-list govuk-list--bullet">
+          <li>Submission deadline: {{ format_date_short(collection.submission_period_end_date) }}</li>
+          <li>Date to send reminder email: {{ format_date_short(collection.submission_period_end_date - timedelta(days=7)) }}</li>
+        </ul>
+      {% endif %}
 
       <h2 class="govuk-heading-m">How to send emails</h2>
 
@@ -31,7 +47,7 @@
       {{
         govukButton({
           "text": "Download CSV",
-          "href": url_for('reporting_lifecycle.download_data_providers_csv', grant_id=grant.id, collection_id=collection.id),
+          "href": url_for('reporting_lifecycle.download_data_providers_csv', grant_id=grant.id, collection_id=collection.id, email_type=email_type),
           "classes": "govuk-!-margin-bottom-8"
         })
       }}
