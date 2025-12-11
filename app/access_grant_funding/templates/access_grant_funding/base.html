@@ -22,6 +22,10 @@
     )
   }}
 
+  {% if is_deliver_user_testing %}
+    {{ mhclgTestBanner("Testing grant recipient journey") }}
+  {% endif %}
+
   {% if current_user.is_authenticated %}
     {% if grant_recipient %}
       {%
@@ -36,13 +40,6 @@
     {{ accessGrantFundingServiceNavigation(current_user, nav_items, grant_recipient=grant_recipient, organisation=organisation if not grant_recipient else None) }}
   {% endif %}
 {% endblock header %}
-
-{% block beforeContent %}
-  {% if is_deliver_user_testing %}
-    {{ mhclgTestBanner("Testing grant recipient journey") }}
-  {% endif %}
-  {{ super() }}
-{% endblock beforeContent %}
 
 {% block footer %}
   {{

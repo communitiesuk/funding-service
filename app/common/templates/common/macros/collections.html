@@ -2,12 +2,8 @@
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "common/macros/status.html" import tasklistSectionStatusTag with context %}
-{% from "common/partials/mhclg-test-banner.html" import mhclgStopPreviewingBanner %}
 
 {% macro collection_before(runner, override_back_link=None) %}
-  {% if runner.submission.is_preview %}
-    {{ mhclgStopPreviewingBanner(runner) }}
-  {% endif %}
   {{ govukBackLink({ "text": "Back", "href": override_back_link or runner.back_url }) }}
 {% endmacro %}
 

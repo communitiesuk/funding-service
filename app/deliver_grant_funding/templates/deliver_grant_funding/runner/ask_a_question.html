@@ -1,6 +1,6 @@
 {% from "common/macros/collections.html" import collection_question_with_add_another_summary_page with context %}
 {% from "common/macros/collections.html" import collection_before with context %}
-{% extends "common/base.html" %}
+{% extends "deliver_grant_funding/runner/base.html" %}
 
 {# set the page title #}
 {% set page_title = runner.interpolate(runner.component.text if not runner.add_another_summary_context else runner.component.add_another_container.text) ~ " - " ~ runner.form.title %}
