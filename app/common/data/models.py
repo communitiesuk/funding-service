@@ -79,6 +79,14 @@ class Grant(BaseModel):
     def reports(self) -> list["Collection"]:
         return [collection for collection in self.collections if collection.type == CollectionType.MONITORING_REPORT]
 
+    @property
+    def test_grant_recipients(self) -> list["GrantRecipient"]:
+        return [
+            grant_recipient
+            for grant_recipient in self.grant_recipients
+            if grant_recipient.mode == GrantRecipientModeEnum.TEST
+        ]
+
     def get_access_reports_for_user(self, user: "User | None" = None) -> list["Collection"]:
         """Get reports visible to Access users, with special handling for testing.
 

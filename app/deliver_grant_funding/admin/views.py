@@ -531,7 +531,9 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             raise Exception("Journey requires and only supports one managing organisation (MHCLG)")
 
         mhclg = orgs[0]
-        mhclg_users = list(get_users_with_permission(RoleEnum.MEMBER, organisation_id=mhclg.id))
+        mhclg_members = list(get_users_with_permission(RoleEnum.MEMBER, organisation_id=mhclg.id, grant_id=None))
+        platform_admins = list(get_users_with_permission(RoleEnum.ADMIN, organisation_id=None, grant_id=None))
+        mhclg_users = list(set(mhclg_members + platform_admins))
 
         # Initialize form with dropdown choices
         form = PlatformAdminAddTestGrantRecipientUserForm(
@@ -546,13 +548,17 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         if form.validate_on_submit():
             # Get selected IDs from form
             grant_recipient_id = UUID(form.grant_recipient.data)
-            user_id = UUID(form.user.data)
 
             # Find the selected grant recipient to get its organisation_id
             grant_recipient = next(gr for gr in grant_recipients if gr.id == grant_recipient_id)
 
             # Find the selected user
-            user = next(u for u in grant_team_users if u.id == user_id)
+            if form.user.data:
+                user_id = UUID(form.user.data)
+                user = next(u for u in grant_team_users if u.id == user_id)
+            else:
+                user_id = UUID(form.mhclg_user.data)
+                user = next(u for u in mhclg_users if u.id == user_id)
 
             # Add DATA_PROVIDER and CERTIFIER permissions
             add_permissions_to_user(
