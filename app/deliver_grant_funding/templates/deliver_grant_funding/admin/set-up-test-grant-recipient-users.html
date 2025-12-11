@@ -1,0 +1,78 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+
+{# Macro for existing users table #}
+{% macro existing_users_table() %}
+  <table class="govuk-table">
+    <thead class="govuk-table__head">
+      <tr class="govuk-table__row">
+        <th scope="col" class="govuk-table__header">Test grant recipient</th>
+        <th scope="col" class="govuk-table__header">Users</th>
+      </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+      {% for grant_recipient, data_providers in data_providers_by_grant_recipient.items() %}
+        <tr class="govuk-table__row">
+          <td class="govuk-table__cell">{{ grant_recipient.organisation.name }}</td>
+          <td class="govuk-table__cell">
+            {% if data_providers %}
+              <ul class="govuk-list">
+                {% for data_provider in data_providers %}
+                  <li>{{ data_provider.name }} ({{ data_provider.email }})</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <span class="govuk-hint">No data providers</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endmacro %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      <h1 class="govuk-heading-xl">Add users to test Access grant funding</h1>
+
+      <p class="govuk-body">Select a test grant recipient and a Deliver grant funding user to add them as a data provider.</p>
+
+      <p class="govuk-body">Data providers can complete monitoring reports on behalf of grant recipients.</p>
+    </div>
+  </div>
+
+  {# Show existing test grant recipient users in collapsible section #}
+  {% if data_providers_by_grant_recipient %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-full">
+        {{
+          govukDetails({
+            "summaryText": "Existing test grant recipient users",
+            "html": existing_users_table()
+          })
+        }}
+      </div>
+    </div>
+  {% endif %}
+
+  {# Form to add a new user #}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        {{ form.grant_recipient }}
+        {{ form.user }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

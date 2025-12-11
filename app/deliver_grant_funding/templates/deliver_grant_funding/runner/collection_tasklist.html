@@ -1,5 +1,5 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "common/partials/mhclg-test-banner.html" import mhclgStopTestingBanner %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgStopPreviewingBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/collections.html" import collection_tasklist with context %}
 {% extends "common/base.html" %}
@@ -9,8 +9,8 @@
 {% set form = runner.tasklist_form %}
 
 {% block beforeContent %}
-  {% if runner.submission.is_test %}
-    {{ mhclgStopTestingBanner(runner) }}
+  {% if runner.submission.is_preview %}
+    {{ mhclgStopPreviewingBanner(runner) }}
   {% endif %}
   {# the top level back behaviour is likely context specific #}
   {{

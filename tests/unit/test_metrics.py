@@ -113,7 +113,7 @@ class TestEmitMetricCount:
             1,
             attributes={
                 "submission-id": submission.id,
-                "submission-mode": "test",
+                "submission-mode": "preview",
                 "collection": "Monthly Report",
                 "collection-id": str(submission.collection.id),
                 "collection-type": "monitoring report",

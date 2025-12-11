@@ -2,6 +2,7 @@
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
 {% from "common/macros/navigation.html" import accessGrantFundingServiceNavigation %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
 
 {% set nav_items = nav_items or [] %}
 {% set right_nav_items = right_nav_items or [] %}
@@ -35,6 +36,13 @@
     {{ accessGrantFundingServiceNavigation(current_user, nav_items, grant_recipient=grant_recipient, organisation=organisation if not grant_recipient else None) }}
   {% endif %}
 {% endblock header %}
+
+{% block beforeContent %}
+  {% if is_deliver_user_testing %}
+    {{ mhclgTestBanner("Testing grant recipient journey") }}
+  {% endif %}
+  {{ super() }}
+{% endblock beforeContent %}
 
 {% block footer %}
   {{

@@ -8,6 +8,7 @@
 {% set form = runner.check_your_answers_form %}
 
 {% block beforeContent %}
+  {{ super() }}
   {{ collection_before(runner) }}
 {% endblock beforeContent %}
 

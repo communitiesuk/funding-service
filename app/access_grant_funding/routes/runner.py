@@ -28,8 +28,10 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
     if not submission:
         # ensure the collection is part of this grant
         collection = get_collection(collection_id, grant_id=grant_id)
+        # Use the grant recipient's mode to determine the submission mode
+        submission_mode = SubmissionModeEnum(grant_recipient.mode.value)
         submission = interfaces.collections.create_submission(
-            collection=collection, grant_recipient=grant_recipient, created_by=user, mode=SubmissionModeEnum.LIVE
+            collection=collection, grant_recipient=grant_recipient, created_by=user, mode=submission_mode
         )
 
     submission_helper = SubmissionHelper(submission)

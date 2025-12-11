@@ -153,12 +153,10 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 
 .app-test-data-banner {
     position: relative;
-    text-align: center;
     background-color: govuk-colour("orange");
     padding: 15px 20px;
     display: flex;
     flex-direction: row;
-    justify-content: center;
     align-items: center;
 }
 

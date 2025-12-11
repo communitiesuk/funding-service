@@ -18,14 +18,12 @@ class TestSubmissionModel:
         assert collection.test_submissions == [test_submission]
         assert collection.live_submissions == [live_submission]
 
-    def test_test_submissions_can_be_created_without_grant_recipient(self, factories):
+    def test_preview_submissions_can_be_created_without_grant_recipient(self, factories):
         collection = factories.collection.create()
-        test_submission = factories.submission.create(
-            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=None
-        )
+        preview_submissions = factories.submission.create(collection=collection, mode=SubmissionModeEnum.PREVIEW)
 
-        assert test_submission.grant_recipient_id is None
-        assert test_submission.grant_recipient is None
+        assert preview_submissions.grant_recipient_id is None
+        assert preview_submissions.grant_recipient is None
 
     def test_live_submissions_cannot_be_created_without_grant_recipient(self, factories, db_session):
         from sqlalchemy.exc import IntegrityError
@@ -67,9 +65,7 @@ class TestSubmissionModel:
         live_submission_2 = factories.submission.create(
             collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
         )
-        test_submission = factories.submission.create(
-            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=None
-        )
+        test_submission = factories.submission.create(collection=collection, mode=SubmissionModeEnum.TEST)
 
         assert set(grant_recipient.submissions) == {live_submission_1, live_submission_2}
         assert test_submission not in grant_recipient.submissions

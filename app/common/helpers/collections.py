@@ -219,7 +219,7 @@ class SubmissionHelper:
         elif (
             {TasklistSectionStatusEnum.COMPLETED} == form_statuses
             and (
-                self.is_test
+                self.is_preview
                 or not self.submission.collection.requires_certification
                 or submission_state.is_approved
                 or (self.submission.collection.requires_certification and not submission_state.is_awaiting_sign_off)
@@ -247,6 +247,10 @@ class SubmissionHelper:
     @property
     def is_awaiting_sign_off(self) -> bool:
         return self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+    @property
+    def is_preview(self) -> bool:
+        return self.submission.mode == SubmissionModeEnum.PREVIEW
 
     @property
     def is_test(self) -> bool:
@@ -718,14 +722,18 @@ class CollectionHelper:
         ]
         self.submission_helpers = {s.id: SubmissionHelper(s) for s in self.submissions}
 
-        self.grant_recipients = self.collection.grant.grant_recipients
+        # Filter grant recipients by mode to match the submission mode
+        from app.common.data.types import GrantRecipientModeEnum
+
+        grant_recipient_mode = (
+            GrantRecipientModeEnum.TEST if submission_mode == SubmissionModeEnum.TEST else GrantRecipientModeEnum.LIVE
+        )
+        self.grant_recipients = [gr for gr in self.collection.grant.grant_recipients if gr.mode == grant_recipient_mode]
         self.grant_recipients_submission_helpers: dict[UUID, SubmissionHelper | None] = {
             gr.id: None for gr in self.grant_recipients
         }
         self.grant_recipients_submission_helpers.update(
             {s.grant_recipient.id: self.submission_helpers[s.id] for s in self.submissions}
-            if not self.is_test_mode
-            else {}
         )
 
     @property

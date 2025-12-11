@@ -42,80 +42,47 @@
     </div>
     <div class="govuk-grid-column-full">
       {% set rows=[] %}
-      {% if helper.is_test_mode %}
-        {% for submission_helper in helper.submission_helpers.values() %}
-          {% set link_to_submission %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission_helper.submission.id) }}" data-submission-link>
-              {{ submission_helper.submission.created_by.email }}
-            </a>
-          {% endset %}
-          {%
-            do rows.append([
-              {
-                "html": link_to_submission,
-              }, {
-                "html": submissionStatusTag(submission_helper.status)
-              }, {
-                "text": format_date_short(submission_helper.submission.updated_at_utc)
-              }
-            ])
-          %}
-        {% else %}
-          {% set no_collections_text %}
-            <span>No submissions found for this monitoring report</span>
-          {% endset %}
-          {%
-            do rows.append([
-              {
-                "html": no_collections_text,
-                "colspan": 3
-              }
-            ])
-          %}
-        {% endfor %}
-      {% else %}
-        {% for grant_recipient in helper.grant_recipients %}
-          {% set grant_recipient_submission_helper = helper.grant_recipients_submission_helpers[grant_recipient.id] %}
-          {% set link_to_submission %}
-            {% if grant_recipient_submission_helper %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=grant_recipient_submission_helper.submission.id) }}" data-submission-link>
-                {{ grant_recipient.organisation.name }}
-              </a>
-            {% else %}
+      {% for grant_recipient in helper.grant_recipients %}
+        {% set grant_recipient_submission_helper = helper.grant_recipients_submission_helpers[grant_recipient.id] %}
+        {% set link_to_submission %}
+          {% if grant_recipient_submission_helper %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=grant_recipient_submission_helper.submission.id) }}" data-submission-link>
               {{ grant_recipient.organisation.name }}
-            {% endif %}
-          {% endset %}
-          {%
-            do rows.append([
-              {
-                "html": link_to_submission,
-              }, {
-                "html": submissionStatusTag(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED)
-              }, {
-                "text": format_date_short(grant_recipient_submission_helper.submission.updated_at_utc) if grant_recipient_submission_helper else ''
-              }
-            ])
-          %}
-        {% else %}
-          {% set no_collections_text %}
-            <span>No submissions found for this monitoring report</span>
-          {% endset %}
-          {%
-            do rows.append([
-              {
-                "html": no_collections_text,
-                "colspan": 3
-              }
-            ])
-          %}
-        {% endfor %}
-      {% endif %}
+            </a>
+          {% else %}
+            {{ grant_recipient.organisation.name }}
+          {% endif %}
+        {% endset %}
+        {%
+          do rows.append([
+            {
+              "html": link_to_submission,
+            }, {
+              "html": submissionStatusTag(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED)
+            }, {
+              "text": format_date_short(grant_recipient_submission_helper.submission.updated_at_utc) if grant_recipient_submission_helper else ''
+            }
+          ])
+        %}
+      {% else %}
+        {% set no_collections_text %}
+          <span>No submissions found for this monitoring report</span>
+        {% endset %}
+        {%
+          do rows.append([
+            {
+              "html": no_collections_text,
+              "colspan": 3
+            }
+          ])
+        %}
+      {% endfor %}
 
       {{
         govukTable({
           "captionClasses": "govuk-table__caption--m",
           "head": [
-            { "text": "User" if helper.is_test_mode else "Grant recipient", "classes": "govuk-!-width-one-half" },
+            { "text": "Grant recipient", "classes": "govuk-!-width-one-half" },
             { "text": "Status" },
             { "text": "Last updated" }
           ],

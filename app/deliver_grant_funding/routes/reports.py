@@ -82,7 +82,7 @@ from app.deliver_grant_funding.forms import (
     SelectDataSourceQuestionForm,
     SetUpReportForm,
 )
-from app.deliver_grant_funding.helpers import start_testing_submission
+from app.deliver_grant_funding.helpers import start_previewing_collection
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.deliver_grant_funding.session_models import (
     AddContextToComponentGuidanceSessionModel,
@@ -195,7 +195,7 @@ def list_report_sections(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
     form = GenericSubmitForm()
 
     if form.validate_on_submit() and form.submit.data:
-        return start_testing_submission(collection=report)
+        return start_previewing_collection(collection=report)
 
     return render_template(
         "deliver_grant_funding/reports/list_report_sections.html",
@@ -568,7 +568,7 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
 
     preview_form = GenericSubmitForm()
     if preview_form.validate_on_submit() and preview_form.submit.data:
-        return start_testing_submission(db_form.collection, form=db_form)
+        return start_previewing_collection(db_form.collection, form=db_form)
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:

@@ -142,7 +142,7 @@ class FormRunner:
         #       functionality for monitoring likely covered by route decorators but making sure should
         #       be separated out into a story
         if submission.submission.grant_recipient is None and submission.created_by_email is not current_user.email:
-            if submission.is_test:
+            if submission.is_preview:
                 current_app.logger.warning(
                     "User %(user_id)s tried to access submission for %(submitter_id)s, redirecting",
                     {"user_id": current_user.id, "submitter_id": submission.submission.created_by_id},

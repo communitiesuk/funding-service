@@ -246,3 +246,18 @@ class AuthorisationHelper:
             return True
 
         return False
+
+    @staticmethod
+    def is_deliver_user_testing_access(user: User | AnonymousUserMixin) -> bool:
+        """Check if a Deliver user is accessing Access grant funding for testing.
+
+        Returns True when:
+        1. User is a Deliver grant funding user (has can_manage_grants org)
+        2. Current request path is under /access/
+        """
+        if not AuthorisationHelper.is_deliver_grant_funding_user(user):
+            return False
+
+        from flask import request
+
+        return request.path.startswith("/access/")

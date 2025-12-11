@@ -10,6 +10,7 @@ from app.common.data.models import Organisation
 from app.common.data.types import (
     CollectionStatusEnum,
     GrantStatusEnum,
+    OrganisationModeEnum,
     OrganisationStatus,
     OrganisationType,
     RoleEnum,
@@ -239,6 +240,7 @@ class TestReportingLifecycleTasklist:
         org_1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
         org_2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
         _ = factories.organisation.create(name="Org 3", can_manage_grants=False)
+        _ = factories.organisation.create(name="Org 4", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
 
         factories.user_role.create(organisation=org_1, permissions=[RoleEnum.CERTIFIER])
         factories.user_role.create(organisation=org_2, permissions=[RoleEnum.CERTIFIER])
@@ -259,9 +261,11 @@ class TestReportingLifecycleTasklist:
         platform_task_items = platform_task_list.find_all("li", {"class": "govuk-task-list__item"})
         grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(platform_task_items) == 2
+        assert len(platform_task_items) == 3
         assert len(grant_task_items) == 5
         assert len(report_task_items) == 6
+
+        # TODO: update for testing task list
 
         organisations_task = platform_task_items[0]
         task_title = organisations_task.find("a", {"class": "govuk-link"})
@@ -276,7 +280,21 @@ class TestReportingLifecycleTasklist:
         assert "3 organisations" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        certifiers_task = platform_task_items[1]
+        test_organisations_task = platform_task_items[1]
+        task_title = test_organisations_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set up test organisations"
+        assert (
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-organisations"
+            in task_title.get("href")
+        )
+
+        task_status = test_organisations_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "1 test organisation" in task_status.get_text(strip=True)
+        assert "govuk-tag--blue" in task_status.get("class")
+
+        certifiers_task = platform_task_items[2]
         task_title = certifiers_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set up global certifiers"

@@ -267,6 +267,43 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         return normalised_users
 
 
+class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):
+    grant_recipient = SelectField(
+        "Test grant recipient",
+        choices=[],
+        validators=[DataRequired("Select a test grant recipient")],
+        widget=GovSelectWithSearch(),
+    )
+
+    user = SelectField(
+        "Deliver grant funding user",
+        choices=[],
+        validators=[DataRequired("Select a Deliver grant funding user")],
+        widget=GovSelectWithSearch(),
+    )
+
+    submit = SubmitField("Add user", widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        grant_recipients: Sequence["GrantRecipient"],
+        grant_team_users: list["User"],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        # Populate grant recipient choices
+        self.grant_recipient.choices = [("", "")] + [  # type: ignore[assignment]
+            (str(gr.id), gr.organisation.name) for gr in grant_recipients
+        ]
+
+        # Populate user choices (name and email for clarity)
+        self.user.choices = [("", "")] + [  # type: ignore[assignment]
+            (str(user.id), f"{user.name} ({user.email})") for user in grant_team_users
+        ]
+
+
 class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
     grant_recipients_data_providers = SelectMultipleField(
         "Grant recipient data providers to revoke",

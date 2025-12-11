@@ -331,11 +331,14 @@ def is_access_org_member[**P](
         ):
             return abort(403)
 
-        # TODO in future, when we allow DGF users to see grants in an 'access' view, tweak this so that
-        #  DGF users can see grants with a different status
+        # Deliver users testing Access can see grants with any status
         if grant_id := cast(uuid.UUID, kwargs.get("grant_id", None)):
             grant = get_grant(grant_id=grant_id)
-            if not grant.status == GrantStatusEnum.LIVE:
+
+            # Deliver users testing Access can see non-LIVE grants
+            if AuthorisationHelper.is_deliver_user_testing_access(interfaces.user.get_current_user()):
+                pass  # Allow any grant status for testing
+            elif not grant.status == GrantStatusEnum.LIVE:
                 current_app.logger.warning(
                     "User %(user_id)s requesting reports for grant %(grant_id)s but status is %(grant_status)s",
                     {

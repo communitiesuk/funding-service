@@ -38,12 +38,15 @@ from app.common.data.interfaces.user import (
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
+    GrantRecipientModeEnum,
     GrantStatusEnum,
+    OrganisationModeEnum,
     ReportAdminEmailTypeEnum,
     RoleEnum,
 )
 from app.common.filters import format_date, format_date_range
 from app.deliver_grant_funding.admin.forms import (
+    PlatformAdminAddTestGrantRecipientUserForm,
     PlatformAdminBulkCreateGrantRecipientsForm,
     PlatformAdminBulkCreateOrganisationsForm,
     PlatformAdminCreateCertifiersForm,
@@ -102,6 +105,8 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>")  # type: ignore[untyped-decorator]
     def tasklist(self, grant_id: UUID, collection_id: UUID) -> Any:
+        from app.common.data.types import GrantRecipientModeEnum, OrganisationModeEnum
+
         grant = get_grant(grant_id, with_all_collections=True)
         collection = get_collection(collection_id, grant_id=grant_id)
         organisation_count = get_organisation_count()
@@ -109,6 +114,12 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         grant_recipients_count = get_grant_recipients_count(grant=grant)
         grant_recipient_users_count = get_grant_recipient_data_providers_count(grant=grant)
         grant_override_certifiers_count = len(get_users_with_permission(RoleEnum.CERTIFIER, grant_id=grant_id))
+
+        # Test entity counts
+        test_organisations_count = get_organisation_count(mode=OrganisationModeEnum.TEST)
+        test_grant_recipients_count = get_grant_recipients_count(grant=grant, mode=GrantRecipientModeEnum.TEST)
+        test_users_count = get_grant_recipient_data_providers_count(grant=grant, mode=GrantRecipientModeEnum.TEST)
+
         return self.render(
             "deliver_grant_funding/admin/reporting-lifecycle-tasklist.html",
             grant=grant,
@@ -118,6 +129,9 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             grant_recipients_count=grant_recipients_count,
             grant_recipient_users_count=grant_recipient_users_count,
             grant_override_certifiers_count=grant_override_certifiers_count,
+            test_organisations_count=test_organisations_count,
+            test_grant_recipients_count=test_grant_recipients_count,
+            test_users_count=test_users_count,
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/make-live", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
@@ -450,6 +464,118 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             grant=grant,
             collection=collection,
             data_providers_by_grant_recipient=data_providers_by_grant_recipient,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-test-organisations", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    @auto_commit_after_request
+    def set_up_test_organisations(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+        form = PlatformAdminBulkCreateOrganisationsForm()
+        if form.validate_on_submit():
+            organisations = form.get_normalised_organisation_data()
+            for org in organisations:
+                org.mode = OrganisationModeEnum.TEST
+            upsert_organisations(organisations)
+            flash(f"Created or updated {len(organisations)} test organisations.", "success")
+            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        return self.render(
+            "deliver_grant_funding/admin/set-up-test-organisations.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+            delta_service_desk_url=current_app.config["DELTA_SERVICE_DESK_URL"],
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-test-grant-recipients", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    @auto_commit_after_request
+    def set_up_test_grant_recipients(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+        organisations = get_organisations(can_manage_grants=False, mode=OrganisationModeEnum.TEST)
+        existing_grant_recipients = get_grant_recipients(grant=grant, mode=GrantRecipientModeEnum.TEST)
+        form = PlatformAdminBulkCreateGrantRecipientsForm(
+            organisations=organisations, existing_grant_recipients=existing_grant_recipients
+        )
+
+        if form.validate_on_submit():
+            create_grant_recipients(
+                grant=grant, organisation_ids=form.recipients.data, mode=GrantRecipientModeEnum.TEST
+            )
+            flash(f"Created {len(form.recipients.data)} test grant recipients.", "success")  # type: ignore[arg-type]
+            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        return self.render(
+            "deliver_grant_funding/admin/set-up-test-grant-recipients.html",
+            grant=grant,
+            collection=collection,
+            grant_recipients=existing_grant_recipients,
+            form=form,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-test-grant-recipient-users", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    @auto_commit_after_request
+    def set_up_test_grant_recipient_users(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+
+        # Get TEST grant recipients with their current data providers
+        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, mode=GrantRecipientModeEnum.TEST)
+
+        # Get all Deliver grant funding users who have permissions for this grant
+        grant_team_users = grant.grant_team_users
+
+        # Initialize form with dropdown choices
+        form = PlatformAdminAddTestGrantRecipientUserForm(
+            grant_recipients=grant_recipients,
+            grant_team_users=grant_team_users,
+        )
+
+        # Prepare data for template (existing users table)
+        data_providers_by_grant_recipient = {gr: gr.data_providers for gr in grant_recipients}
+
+        if form.validate_on_submit():
+            # Get selected IDs from form
+            grant_recipient_id = UUID(form.grant_recipient.data)
+            user_id = UUID(form.user.data)
+
+            # Find the selected grant recipient to get its organisation_id
+            grant_recipient = next(gr for gr in grant_recipients if gr.id == grant_recipient_id)
+
+            # Find the selected user
+            user = next(u for u in grant_team_users if u.id == user_id)
+
+            # Add DATA_PROVIDER and CERTIFIER permissions
+            add_permissions_to_user(
+                user,
+                permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+                organisation_id=grant_recipient.organisation_id,
+                grant_id=grant.id,
+            )
+
+            # Flash success message
+            flash(
+                f"Added {user.name} as a data provider for {grant_recipient.organisation.name}",
+                "success",
+            )
+
+            # Redirect to same page (clears form and shows updated existing users table)
+            return redirect(
+                url_for(
+                    ".set_up_test_grant_recipient_users",
+                    grant_id=grant_id,
+                    collection_id=collection_id,
+                )
+            )
+
+        return self.render(
+            "deliver_grant_funding/admin/set-up-test-grant-recipient-users.html",
+            grant=grant,
+            collection=collection,
+            form=form,
+            data_providers_by_grant_recipient=data_providers_by_grant_recipient,
+            grant_recipients=grant_recipients,
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/revoke-grant-recipient-data-providers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
