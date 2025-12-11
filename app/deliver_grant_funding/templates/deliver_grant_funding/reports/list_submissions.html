@@ -1,6 +1,6 @@
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
-{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% extends "deliver_grant_funding/grant_base.html" %}
@@ -10,7 +10,7 @@
 
 {% block beforeContent %}
   {% if helper.is_test_mode %}
-    {{ mhclgTestBanner("Test submissions", false) }}
+    {{ mhclgInlinePageTestDataBanner("Test submissions") }}
   {% endif %}
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":"Submissions"}) }}
 {% endblock beforeContent %}
