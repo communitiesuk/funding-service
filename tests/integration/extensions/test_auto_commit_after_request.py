@@ -33,6 +33,11 @@ def app(setup_db_container):
     auto_commit_after_request_extension = AutoCommitAfterRequestExtension(db=db)
     auto_commit_after_request_extension.init_app(app)
 
+    @app.errorhandler(500)
+    def emulate_handles_error(response):
+        # returns a response as if we're returning a nicely formatted template
+        return "OK", 500
+
     @app.post("/<value>")
     @auto_commit_after_request_extension
     def handler(value):
@@ -49,6 +54,13 @@ def app(setup_db_container):
             pass
 
         return Response(status=200)
+
+    @app.post("/raises/<value>")
+    @auto_commit_after_request_extension
+    def handler_raises(value):
+        db.session.add(TableUnderTest(value=value))
+        db.session.flush()
+        raise Exception("App failure")
 
     return app
 
@@ -119,3 +131,15 @@ def test_db_session_throws_appropriately_on_commit_if_not_handled(app, db, db_se
         select(TableUnderTest).filter(TableUnderTest.value == "third-scenario-value")
     ).all()
     assert len(all_entities) == 1
+
+
+def test_db_session_not_commited_on_failed_response(app, session_outside_connection, mocker):
+    mocker.patch.dict(app.config, {"TESTING": False})
+
+    response = app.test_client().post("/raises/fourth-scenario-value")
+    assert response.status_code == 500
+
+    entity = session_outside_connection.scalars(
+        select(TableUnderTest).filter(TableUnderTest.value == "fourth-scenario-value")
+    ).first()
+    assert entity is None
