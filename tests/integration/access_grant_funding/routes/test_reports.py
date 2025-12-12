@@ -235,25 +235,22 @@ class TestViewLockedReport:
 
         # for this test we don't want the test to raise the actual exception to end the test
         # as we want to assert on what the app did after the response
-        original_testing_value = app.config["TESTING"]
-        app.config["TESTING"] = False
-        try:
-            response = authenticated_grant_recipient_certifier_client.post(
-                url_for(
-                    "access_grant_funding.view_locked_report",
-                    organisation_id=organisation.id,
-                    grant_id=grant.id,
-                    submission_id=submission_awaiting_sign_off.id,
-                ),
-                data=form.data,
-                follow_redirects=False,
-            )
-            assert response.status_code == 500
+        mocker.patch.dict(app.config, {"TESTING": False})
 
-            soup = BeautifulSoup(response.data, "html.parser")
-            assert get_h1_text(soup) == "Sorry, there is a problem with the service"
-        finally:
-            app.config["TESTING"] = original_testing_value
+        response = authenticated_grant_recipient_certifier_client.post(
+            url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=organisation.id,
+                grant_id=grant.id,
+                submission_id=submission_awaiting_sign_off.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 500
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Sorry, there is a problem with the service"
 
         # even though we received a managed error response the submission should not have been
         # updated

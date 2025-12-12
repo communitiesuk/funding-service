@@ -133,14 +133,11 @@ def test_db_session_throws_appropriately_on_commit_if_not_handled(app, db, db_se
     assert len(all_entities) == 1
 
 
-def test_db_session_not_commited_on_failed_response(app, session_outside_connection):
-    original_testing_value = app.config["TESTING"]
-    app.config["TESTING"] = False
+def test_db_session_not_commited_on_failed_response(app, session_outside_connection, mocker):
+    mocker.patch.dict(app.config, {"TESTING": False})
 
-    try:
-        app.test_client().post("/raises/fourth-scenario-value")
-    finally:
-        app.config["TESTING"] = original_testing_value
+    response = app.test_client().post("/raises/fourth-scenario-value")
+    assert response.status_code == 500
 
     entity = session_outside_connection.scalars(
         select(TableUnderTest).filter(TableUnderTest.value == "fourth-scenario-value")
