@@ -392,7 +392,7 @@ class TestNotificationService:
                             "grant_name": "Test grant",
                             "submitter_name": "Submitter User",
                             "certifier_name": "Certifier User",
-                            "reporting_period": "Monday 13 October 2025 to Monday 27 October 2025",
+                            "reporting_period": "Test collection",
                             "date_submitted": "10:37am on Tuesday 25 November 2025",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
                             "government_department": "the Test Organisation",

@@ -65,7 +65,7 @@
         {% endif %}
         <dl class="app-metadata">
           <dt class="app-metadata__key">Submission deadline:</dt>
-          <dd class="app-metadata__value">{{ format_date(submission.collection.submission_period_end_date) }}</dd>
+          <dd class="app-metadata__value">{{ format_date(submission.collection.submission_period_end_date) if submission.collection.submission_period_end_date else "Dates to be confirmed" }}</dd>
         </dl>
         <dl class="app-metadata">
           <dt class="app-metadata__key">Status:</dt>

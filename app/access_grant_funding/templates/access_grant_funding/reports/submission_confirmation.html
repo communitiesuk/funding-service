@@ -12,7 +12,7 @@
       {% set reference_html %}
         Report
         <br />
-        <strong>{{ format_date_short(submission.collection.reporting_period_start_date) }} to {{ format_date_short(submission.collection.reporting_period_end_date) }} for {{ grant_recipient.grant.name }}</strong>
+        <strong>{{ submission.collection.name }}</strong>
         <br />
         <br />Your reference number
         <br />
@@ -34,10 +34,7 @@
 
       <h2 class="govuk-heading-m">What happens next</h2>
 
-      <p class="govuk-body">
-        Your {{ format_date_short(submission.collection.reporting_period_start_date) }} to {{ format_date_short(submission.collection.reporting_period_end_date) }} report for {{ grant_recipient.grant.name }} has been submitted to the
-        {{ submission.collection.grant.organisation.name }}.
-      </p>
+      <p class="govuk-body">Your {{ submission.collection.name }} report for {{ grant_recipient.grant.name }} has been submitted to the {{ submission.collection.grant.organisation.name }}.</p>
 
       <p class="govuk-body">
         <a class="govuk-link govuk-link--no-visited-state" href="{{ config.GRANT_RECIPIENT_CERTIFIER_FEEDBACK_URL }}" target="_blank" rel="noopener noreferrer">Tell us what you think of this service</a> (takes 30 seconds).

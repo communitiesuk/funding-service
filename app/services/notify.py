@@ -153,7 +153,7 @@ class NotificationService:
             "reporting_period": collection.name,
             "report_deadline": format_date(collection.submission_period_end_date)
             if collection.submission_period_end_date
-            else "(Draft monitoring report has no deadline set)",
+            else "(Dates to be confirmed)",
             "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
             "grant_report_url": url_for(
                 "access_grant_funding.route_to_submission",
@@ -197,7 +197,7 @@ class NotificationService:
             "reporting_period": submission.collection.name,
             "report_deadline": format_date(submission.collection.submission_period_end_date)
             if submission.collection.submission_period_end_date
-            else "(Monitoring report has no deadline set)",
+            else "(Dates to be confirmed)",
             "grant_report_url": url_for(
                 "access_grant_funding.view_locked_report",
                 organisation_id=submission.grant_recipient.organisation.id,
@@ -230,7 +230,7 @@ class NotificationService:
             "certifier_comments": submission_helper.events.submission_state.declined_reason,
             "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
             if submission_helper.collection.submission_period_end_date
-            else "(Monitoring report has no deadline set)",
+            else "(Dates to be confirmed)",
             "decline_date": format_datetime(submission_helper.events.submission_state.declined_at_utc),
             "grant_report_url": url_for(
                 "access_grant_funding.route_to_submission",
@@ -276,22 +276,27 @@ class NotificationService:
     def send_access_submission_certified_and_submitted(
         self, email_address: str, *, submission_helper: "SubmissionHelper"
     ) -> Notification:
-        if not (
-            submission_helper.sent_for_certification_by
-            and submission_helper.certified_by
-            and submission_helper.collection.reporting_period_start_date
-            and submission_helper.collection.reporting_period_end_date
-            and submission_helper.submitted_at_utc
+        if (
+            submission_helper.collection.requires_certification
+            and not (submission_helper.sent_for_certification_by and submission_helper.certified_by)
+            or not submission_helper.submitted_at_utc
         ):
-            raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
+            # note baseline reports are unlikely to have reporting dates and we don't
+            # expect them here
+            current_app.logger.warning("Submitted email sent with missing details")
 
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "submitter_name": submission_helper.sent_for_certification_by.name,
-            "certifier_name": submission_helper.certified_by.name,
-            "reporting_period": f"{format_date(submission_helper.collection.reporting_period_start_date)} to "
-            + f"{format_date(submission_helper.collection.reporting_period_end_date)}",
-            "date_submitted": format_datetime(submission_helper.submitted_at_utc),
+            "submitter_name": submission_helper.sent_for_certification_by.name
+            if submission_helper.sent_for_certification_by
+            else "(Submitter not known)",
+            "certifier_name": submission_helper.certified_by.name
+            if submission_helper.certified_by
+            else "(Certifier not known)",
+            "reporting_period": submission_helper.collection.name,
+            "date_submitted": format_datetime(submission_helper.submitted_at_utc)
+            if submission_helper.submitted_at_utc
+            else "(Date submitted not known)",
             "grant_report_url": url_for(
                 "access_grant_funding.view_locked_report",
                 organisation_id=submission_helper.submission.grant_recipient.organisation.id,
