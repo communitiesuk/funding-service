@@ -92,6 +92,7 @@ class TestEmitMetricCount:
             attributes={
                 "grant-recipient": "Test Organisation",
                 "grant-recipient-id": str(grant_recipient.id),
+                "grant-recipient-mode": "live",
                 "grant": "Test Grant",
                 "grant-id": str(grant_recipient.grant.id),
             },
@@ -121,6 +122,7 @@ class TestEmitMetricCount:
                 "grant-id": str(submission.collection.grant.id),
                 "grant-recipient": "Test Organisation",
                 "grant-recipient-id": str(submission.grant_recipient.id),
+                "grant-recipient-mode": "live",
             },
         )
 

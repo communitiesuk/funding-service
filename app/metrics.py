@@ -2,6 +2,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Mapping, Optional
 from uuid import UUID
 
+from flask import current_app
 from sentry_sdk import metrics
 
 from app.common.expressions.managed import ManagedExpression
@@ -11,8 +12,11 @@ if TYPE_CHECKING:
 
 
 class MetricAttributeName(StrEnum):
+    EVENT = "event"
+    COUNT = "count"
     GRANT_RECIPIENT = "grant-recipient"
     GRANT_RECIPIENT_ID = "grant-recipient-id"
+    GRANT_RECIPIENT_MODE = "grant-recipient-mode"
     GRANT = "grant"
     GRANT_ID = "grant-id"
     COLLECTION = "collection"
@@ -82,6 +86,7 @@ def _get_event_attributes(
     if grant_recipient:
         attributes[str(MetricAttributeName.GRANT_RECIPIENT)] = grant_recipient.organisation.name
         attributes[str(MetricAttributeName.GRANT_RECIPIENT_ID)] = str(grant_recipient.id)
+        attributes[str(MetricAttributeName.GRANT_RECIPIENT_MODE)] = str(grant_recipient.mode)
 
         if not grant:
             grant = grant_recipient.grant
@@ -106,17 +111,20 @@ def emit_metric_count(
     managed_expression: Optional["ManagedExpression"] = None,
     custom_attributes: Mapping[MetricAttributeName, str | int | UUID] | None = None,
 ) -> None:
-    # TODO: emit as structured log for longer retention
+    attributes = _get_event_attributes(
+        grant_recipient=grant_recipient,
+        submission=submission,
+        collection=collection,
+        grant=grant,
+        managed_expression=managed_expression,
+        custom_attributes=custom_attributes,
+    )
 
-    metrics.count(
-        event,
-        count,
-        attributes=_get_event_attributes(
-            grant_recipient=grant_recipient,
-            submission=submission,
-            collection=collection,
-            grant=grant,
-            managed_expression=managed_expression,
-            custom_attributes=custom_attributes,
-        ),
+    metrics.count(event, count, attributes=attributes)
+
+    # Just add to attributes for logging to CloudWatch, not Sentry
+    log_attributes = {**attributes, str(MetricAttributeName.EVENT): event, str(MetricAttributeName.COUNT): count}
+
+    current_app.logger.info(
+        "Track metric %(event)s for count=%(count)s", dict(event=event, count=count), extra=log_attributes
     )
